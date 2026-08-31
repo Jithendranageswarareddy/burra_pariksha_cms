@@ -1,0 +1,79 @@
+/**
+ * BURRA PARIKSHA CMS - AI Question Studio Types
+ * Phase 4: Gemini AI Question Studio
+ */
+
+import { DifficultyLevel, QuestionLanguage, QuestionStyle } from '../../types';
+import { CandidateValidationReport } from './validators/candidate.validator';
+
+export enum AiRefinementAction {
+  REGENERATE = 'REGENERATE',
+  IMPROVE_OPTIONS = 'IMPROVE_OPTIONS',
+  MAKE_REALISTIC = 'MAKE_REALISTIC',
+  SIMPLIFY_LANGUAGE = 'SIMPLIFY_LANGUAGE',
+  IMPROVE_TELUGU = 'IMPROVE_TELUGU',
+  INCREASE_DIFFICULTY = 'INCREASE_DIFFICULTY',
+  DECREASE_DIFFICULTY = 'DECREASE_DIFFICULTY',
+  IMPROVE_EXPLANATION = 'IMPROVE_EXPLANATION',
+}
+
+export interface GenerateCandidateInput {
+  categoryId: string;
+  categoryName?: string;
+  topicId: string;
+  topicName?: string;
+  subtopicId: string;
+  subtopicName?: string;
+  difficulty: DifficultyLevel;
+  language: QuestionLanguage;
+  questionStyle?: QuestionStyle | string;
+  realWorldContext?: string;
+  customInstructions?: string;
+}
+
+export interface QuestionCandidate {
+  content: string; // The question text / problem statement
+  option_a: string;
+  option_b: string;
+  option_c: string;
+  option_d: string;
+  correct_answer: 'A' | 'B' | 'C' | 'D';
+  explanation: string;
+  difficulty: DifficultyLevel;
+  language: QuestionLanguage;
+  real_world_context?: string;
+  question_style?: string;
+  taxonomy?: {
+    categoryId: string;
+    categoryName?: string;
+    topicId: string;
+    topicName?: string;
+    subtopicId: string;
+    subtopicName?: string;
+  };
+}
+
+export interface RefineCandidateInput {
+  action: AiRefinementAction | string;
+  currentCandidate: QuestionCandidate;
+  promptModifier?: string;
+  targetDifficulty?: DifficultyLevel;
+  targetLanguage?: QuestionLanguage;
+  targetContext?: string;
+}
+
+export interface GenerationMetadata {
+  modelUsed: string;
+  generationDurationMs: number;
+  promptTokens?: number;
+  outputTokens?: number;
+  isMockFallback?: boolean;
+  generatorType?: 'GEMINI_AI' | 'PEDAGOGICAL_FALLBACK';
+  fallbackReason?: string;
+}
+
+export interface GenerationResult {
+  candidate: QuestionCandidate;
+  metadata: GenerationMetadata;
+  validation: CandidateValidationReport;
+}

@@ -1,0 +1,133 @@
+import React from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Video, PriorityLevel } from '../../types';
+import { VideoStatusBadge } from '../common/StatusBadge';
+import { PRIORITY_CONFIG } from '../../config/constants';
+import { PipelineProgress } from './PipelineProgress';
+import { ArrowRight, ExternalLink } from 'lucide-react';
+
+interface ProductionTableProps {
+  videos: Video[];
+  onSelectVideo?: (video: Video) => void;
+}
+
+export const ProductionTable: React.FC<ProductionTableProps> = ({ videos, onSelectVideo }) => {
+  const navigate = useNavigate();
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold uppercase tracking-wider">
+              <th className="py-3.5 px-4 font-semibold">Video ID</th>
+              <th className="py-3.5 px-4 font-semibold min-w-[240px]">Title & Question Ref</th>
+              <th className="py-3.5 px-4 font-semibold">Stage / Status</th>
+              <th className="py-3.5 px-4 font-semibold min-w-[140px]">Pipeline Flow</th>
+              <th className="py-3.5 px-4 font-semibold">Priority</th>
+              <th className="py-3.5 px-4 font-semibold">Assigned Staff</th>
+              <th className="py-3.5 px-4 font-semibold">Duration</th>
+              <th className="py-3.5 px-4 font-semibold text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100 text-slate-700">
+            {videos.map((v) => {
+              const priorityConfig = PRIORITY_CONFIG[v.priority] || PRIORITY_CONFIG[PriorityLevel.NORMAL];
+
+              return (
+                <tr
+                  key={v.id}
+                  id={`row-video-${v.id.toLowerCase()}`}
+                  className="hover:bg-slate-50 transition-colors cursor-pointer group"
+                  onClick={() => {
+                    if (onSelectVideo) {
+                      onSelectVideo(v);
+                    } else {
+                      navigate(`/production/${v.id}`);
+                    }
+                  }}
+                >
+                  {/* Video ID */}
+                  <td className="py-3 px-4 font-mono font-bold text-indigo-600 whitespace-nowrap">
+                    <Link
+                      to={`/production/${v.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="hover:underline"
+                    >
+                      {v.id}
+                    </Link>
+                  </td>
+
+                  {/* Title & Question Ref */}
+                  <td className="py-3 px-4">
+                    <div className="font-semibold text-slate-900 leading-snug group-hover:text-indigo-600 transition-colors">
+                      {v.title}
+                    </div>
+                    <div className="text-[11px] text-slate-400 font-mono mt-0.5 flex items-center gap-1">
+                      <span>Ref:</span>
+                      <Link
+                        to={`/questions/${v.questionId}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-indigo-600 hover:underline font-semibold"
+                      >
+                        {v.questionId}
+                      </Link>
+                      {v.question?.categoryName && (
+                        <span>• {v.question.categoryName}</span>
+                      )}
+                    </div>
+                  </td>
+
+                  {/* Stage / Status */}
+                  <td className="py-3 px-4 whitespace-nowrap">
+                    <VideoStatusBadge status={v.status} size="sm" />
+                  </td>
+
+                  {/* Pipeline Flow Bar */}
+                  <td className="py-3 px-4">
+                    <PipelineProgress currentStatus={v.status} compact />
+                  </td>
+
+                  {/* Priority */}
+                  <td className="py-3 px-4 whitespace-nowrap">
+                    <span
+                      className={`text-[10px] px-2 py-0.5 rounded font-semibold ${priorityConfig.bg} ${priorityConfig.text}`}
+                    >
+                      {priorityConfig.label}
+                    </span>
+                  </td>
+
+                  {/* Assigned Staff */}
+                  <td className="py-3 px-4 whitespace-nowrap text-slate-600">
+                    <div>{v.assignedHost || '—'}</div>
+                    {v.assignedEditor && (
+                      <div className="text-[10px] text-slate-400">Ed: {v.assignedEditor}</div>
+                    )}
+                  </td>
+
+                  {/* Duration */}
+                  <td className="py-3 px-4 whitespace-nowrap font-mono text-[11px]">
+                    {v.actualDurationSeconds
+                      ? `${v.actualDurationSeconds}s (actual)`
+                      : `${v.targetDurationSeconds || 45}s target`}
+                  </td>
+
+                  {/* Actions */}
+                  <td className="py-3 px-4 whitespace-nowrap text-right" onClick={(e) => e.stopPropagation()}>
+                    <Link
+                      to={`/production/${v.id}`}
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-md transition-colors"
+                    >
+                      <span>Workspace</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </Link>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};

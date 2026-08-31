@@ -1,0 +1,6 @@
+{
+  "name": "Burra Pariksha CMS",
+  "description": "Content database and video production management system for the Burra Pariksha aptitude content channel.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
