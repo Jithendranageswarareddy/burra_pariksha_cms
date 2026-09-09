@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Edit3, ExternalLink, Video } from 'lucide-react';
-import { Question } from '../../types';
+import { DifficultyLevel, Question } from '../../types';
 import { QuestionStatusBadge, VideoStatusBadge } from '../common/StatusBadge';
 import { DifficultyBadge } from '../common/DifficultyBadge';
 
@@ -32,19 +32,28 @@ export const QuestionTable: React.FC<QuestionTableProps> = ({ questions, onSelec
             {questions.map((q) => (
               <tr
                 key={q.id}
-                id={`row-question-${q.id.toLowerCase()}`}
+                id={`row-question-${(q.id || '').toLowerCase()}`}
                 className="hover:bg-slate-50/80 transition-colors group cursor-pointer"
                 onClick={() => onSelectQuestion?.(q)}
               >
-                {/* ID */}
-                <td className="py-3 px-4 font-mono font-medium text-indigo-600 whitespace-nowrap">
+                {/* ID & Master */}
+                <td className="py-3 px-4 font-mono font-medium whitespace-nowrap">
                   <Link
                     to={`/questions/${q.id}`}
                     onClick={(e) => e.stopPropagation()}
-                    className="hover:underline flex items-center gap-1"
+                    className="text-indigo-600 hover:underline flex items-center gap-1 font-bold"
                   >
                     <span>{q.id}</span>
                   </Link>
+                  <div className="text-[10px] text-slate-500 font-normal mt-0.5">
+                    {q.contentMasterId ? (
+                      <span className="text-purple-700 bg-purple-50 px-1 py-0.2 rounded font-mono font-medium border border-purple-200/60" title="Content Master ID">
+                        {q.contentMasterId}
+                      </span>
+                    ) : (
+                      <span className="text-slate-400 italic">Not linked</span>
+                    )}
+                  </div>
                 </td>
 
                 {/* Category, Topic & Subtopic */}
@@ -63,7 +72,7 @@ export const QuestionTable: React.FC<QuestionTableProps> = ({ questions, onSelec
 
                 {/* Difficulty */}
                 <td className="py-3 px-4 whitespace-nowrap">
-                  <DifficultyBadge difficulty={q.difficulty} size="sm" />
+                  <DifficultyBadge difficulty={q.difficulty as DifficultyLevel} size="sm" />
                 </td>
 
                 {/* Question snippet */}

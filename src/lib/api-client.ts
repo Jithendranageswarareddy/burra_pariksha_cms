@@ -43,6 +43,47 @@ export interface ApiResponse<T> {
   details?: any;
 }
 
+export interface RecoveryStatusResponse {
+  backupCapability: {
+    snapshotExporterAvailable: boolean;
+  };
+  recoveryCapability: {
+    validatorAvailable: boolean;
+    granularRestoreAvailable: boolean;
+    fullRestorePlannerAvailable: boolean;
+    fullRestoreExecutionAvailable: boolean;
+  };
+  durableArchive?: {
+    enabled: boolean;
+    bucketNameMasked: string;
+    retentionDays: number;
+    isGcsConfigured: boolean;
+    durableSnapshotCount: number;
+    latestDurableSnapshot: string | null;
+    integrityStatus: 'VALID' | 'WARNING' | 'CORRUPTED';
+    warnings: string[];
+  };
+  safety: {
+    productionMutationPerformed: boolean;
+    readOnly: boolean;
+  };
+  supportedScopes: string[];
+}
+
+export interface SnapshotHistoryItem {
+  id: string;
+  exportTimestamp: string;
+  spreadsheetTitle: string;
+  spreadsheetIdMasked: string;
+  totalWorksheets: number;
+  totalRows: number;
+  checksum: string;
+  integrityStatus: 'VALID' | 'WARNING' | 'CORRUPTED';
+  status: 'AVAILABLE' | 'ARCHIVED' | 'SYSTEM_BASELINE' | 'DURABLE_ARCHIVE';
+  generator: string;
+  storageUri?: string;
+}
+
 class ApiClient {
   private sessionToken: string | null = null;
 
@@ -85,27 +126,53 @@ class ApiClient {
       headers['Authorization'] = `Bearer ${this.sessionToken}`;
     }
 
-    const res = await fetch(`/api${endpoint}`, {
-      credentials: 'include',
-      headers,
-      ...options,
-    });
+    const controller = new AbortController();
+    let isTimedOut = false;
+    const timeoutId = setTimeout(() => {
+      isTimedOut = true;
+      try {
+        controller.abort(new Error('Request timed out after 45 seconds.'));
+      } catch {
+        controller.abort();
+      }
+    }, 45000);
 
-    const data = await res.json();
+    const signal = options?.signal || controller.signal;
 
-    if (!res.ok) {
-      const errorMsg = data?.message || data?.error || `Request failed with status ${res.status}`;
-      const err: any = new Error(errorMsg);
-      err.statusCode = res.status;
-      err.details = data?.details;
+    try {
+      const res = await fetch(`/api${endpoint}`, {
+        credentials: 'include',
+        headers,
+        signal,
+        ...options,
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        const errorMsg = data?.message || data?.error || `Request failed with status ${res.status}`;
+        const err: any = new Error(errorMsg);
+        err.statusCode = res.status;
+        err.details = data?.details;
+        throw err;
+      }
+
+      return data as T;
+    } catch (err: any) {
+      if (isTimedOut) {
+        throw new Error('Request timed out after 45 seconds. Please try again.');
+      }
+      if (err?.name === 'AbortError') {
+        throw new Error(err.message && err.message !== 'The user aborted a request.' ? err.message : 'The request was aborted.');
+      }
       throw err;
+    } finally {
+      clearTimeout(timeoutId);
     }
-
-    return data as T;
   }
 
   // System & Sheets Health
-  public async getHealth(): Promise<{ status: string; mode: string; timestamp: string; spreadsheetId: string | null }> {
+  public async getHealth(): Promise<{ status: string; mode: string; timestamp: string; spreadsheetId: string | null; databaseConfigured?: boolean }> {
     return this.request('/health');
   }
 
@@ -160,6 +227,29 @@ class ApiClient {
     return this.request(`/questions/${encodeURIComponent(id)}`);
   }
 
+  public async getQuestionCreationConfig(): Promise<any> {
+    return this.request('/questions/config');
+  }
+
+  public async resolveSmartRandom(input: any): Promise<any> {
+    return this.request('/questions/smart-random', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  }
+
+  public async createQuestionCanonical(payload: any, idempotencyKey?: string): Promise<Question> {
+    const headers: Record<string, string> = {};
+    if (idempotencyKey) {
+      headers['x-idempotency-key'] = idempotencyKey;
+    }
+    return this.request('/questions/create', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+    });
+  }
+
   public async createQuestion(input: CreateQuestionInput): Promise<Question> {
     return this.request('/questions', {
       method: 'POST',
@@ -193,6 +283,29 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify({ text, excludeId }),
     });
+  }
+
+  // Question Validation Engine (Phase 5)
+  public async validateQuestion(id: string, options?: { skipTaxonomyLookup?: boolean; source?: string }): Promise<{ success: boolean; data: import('../types').ValidationResult }> {
+    return this.request(`/questions/${encodeURIComponent(id)}/validate`, {
+      method: 'POST',
+      body: JSON.stringify(options || {}),
+    });
+  }
+
+  public async validateCandidate(question: Partial<Question>, options?: { skipTaxonomyLookup?: boolean; source?: string }): Promise<{ success: boolean; data: import('../types').ValidationResult }> {
+    return this.request('/questions/validate-candidate', {
+      method: 'POST',
+      body: JSON.stringify({ question, ...options }),
+    });
+  }
+
+  public async getLatestValidation(id: string): Promise<{ success: boolean; data: import('../types').ValidationResult | null }> {
+    return this.request(`/questions/${encodeURIComponent(id)}/validation`);
+  }
+
+  public async getValidationHistory(id: string): Promise<{ success: boolean; count: number; data: import('../types').ValidationResult[] }> {
+    return this.request(`/questions/${encodeURIComponent(id)}/validation-history`);
   }
 
   // Videos & Production (Phase 5)
@@ -286,6 +399,13 @@ class ApiClient {
     });
   }
 
+  public async completeFinalRender(id: string, remarks?: string): Promise<Video> {
+    return this.request(`/videos/${encodeURIComponent(id)}/final-render/complete`, {
+      method: 'POST',
+      body: JSON.stringify({ remarks }),
+    });
+  }
+
   // Publishing
   public async getPublishing(): Promise<Publishing[]> {
     return this.request('/publishing');
@@ -311,6 +431,77 @@ class ApiClient {
     return this.request(`/videos/${encodeURIComponent(videoId)}/publishing/publish-platform`, {
       method: 'POST',
       body: JSON.stringify({ platform, postUrl, notes }),
+    });
+  }
+
+  public async schedulePublishing(
+    videoId: string,
+    platform: 'youtube' | 'instagram' | 'facebook',
+    scheduledAt: string
+  ): Promise<Publishing> {
+    return this.request(`/videos/${encodeURIComponent(videoId)}/publishing/schedule`, {
+      method: 'POST',
+      body: JSON.stringify({ platform, scheduledAt }),
+    });
+  }
+
+  public async markPlatformFailed(
+    videoId: string,
+    platform: 'youtube' | 'instagram' | 'facebook',
+    failureReason: string
+  ): Promise<Publishing> {
+    return this.request(`/videos/${encodeURIComponent(videoId)}/publishing/fail`, {
+      method: 'POST',
+      body: JSON.stringify({ platform, failureReason }),
+    });
+  }
+
+  public async retryPublishing(
+    videoId: string,
+    platform: 'youtube' | 'instagram' | 'facebook',
+    options?: { scheduledAt?: string; remarks?: string }
+  ): Promise<Publishing> {
+    return this.request(`/videos/${encodeURIComponent(videoId)}/publishing/retry`, {
+      method: 'POST',
+      body: JSON.stringify({ platform, ...(options || {}) }),
+    });
+  }
+
+  public async getPlatformPackage(
+    videoId: string,
+    platform: 'youtube' | 'instagram' | 'facebook'
+  ): Promise<import('../types').PlatformPackageProjection> {
+    return this.request(`/videos/${encodeURIComponent(videoId)}/publishing/package/${encodeURIComponent(platform)}`);
+  }
+
+  public async createPublishingAssignment(
+    videoId: string,
+    assignment: {
+      assigneeId: string;
+      platform?: 'youtube' | 'instagram' | 'facebook';
+      priority?: import('../types').PriorityLevel;
+      dueDate?: string;
+      dueAt?: string;
+      notes?: string;
+    }
+  ): Promise<any> {
+    return this.request(`/videos/${encodeURIComponent(videoId)}/publishing/assignment`, {
+      method: 'POST',
+      body: JSON.stringify(assignment),
+    });
+  }
+
+  public async getPublishingAssignments(videoId: string): Promise<any[]> {
+    return this.request(`/videos/${encodeURIComponent(videoId)}/publishing/assignments`);
+  }
+
+  public async finalizePublishing(
+    videoId: string,
+    remarks?: string
+  ): Promise<{ video: Video; publishing: Publishing }> {
+    return this.request(`/videos/${encodeURIComponent(videoId)}/publishing/finalize`, {
+      method: 'POST',
+      body: JSON.stringify({ remarks }),
     });
   }
 
@@ -443,15 +634,18 @@ class ApiClient {
   }
 
   // Phase 7: Operations Dashboard & Global Search
-  public async getDashboardOverview(filter?: {
-    categoryId?: string;
-    topicId?: string;
-    difficulty?: string;
-    priority?: string;
-    questionStatus?: string;
-    videoStatus?: string;
-    search?: string;
-  }): Promise<import('../types').DashboardOverviewData> {
+  public async getDashboardOverview(
+    filter?: {
+      categoryId?: string;
+      topicId?: string;
+      difficulty?: string;
+      priority?: string;
+      questionStatus?: string;
+      videoStatus?: string;
+      search?: string;
+    },
+    refresh?: boolean
+  ): Promise<import('../types').DashboardOverviewData> {
     const params = new URLSearchParams();
     if (filter) {
       if (filter.categoryId) params.set('categoryId', filter.categoryId);
@@ -461,6 +655,9 @@ class ApiClient {
       if (filter.questionStatus) params.set('questionStatus', filter.questionStatus);
       if (filter.videoStatus) params.set('videoStatus', filter.videoStatus);
       if (filter.search) params.set('search', filter.search);
+    }
+    if (refresh) {
+      params.set('refresh', 'true');
     }
     const qs = params.toString();
     return this.request(`/dashboard/overview${qs ? `?${qs}` : ''}`);
@@ -514,6 +711,10 @@ class ApiClient {
     }
     const qs = params.toString();
     return this.request(`/dashboard/publishing-readiness${qs ? `?${qs}` : ''}`);
+  }
+
+  public async getVideoPublishReadiness(videoId: string): Promise<any> {
+    return this.request(`/videos/${encodeURIComponent(videoId)}/publishing/readiness`);
   }
 
   public async globalSearch(query: string): Promise<import('../types').GlobalSearchResult[]> {
@@ -665,6 +866,92 @@ class ApiClient {
 
   public async getRecoveryState(): Promise<import('./services/operational-recovery.service').OperationalRecoveryState> {
     return this.request('/system/recovery/state');
+  }
+
+  public async getRecoveryStatus(): Promise<RecoveryStatusResponse> {
+    return this.request('/recovery/status');
+  }
+
+  public async getSnapshotHistory(): Promise<{ success: boolean; snapshots: SnapshotHistoryItem[] }> {
+    return this.request('/recovery/snapshots');
+  }
+
+  public async createDurableArchive(): Promise<{ success: boolean; message: string; snapshot: SnapshotHistoryItem }> {
+    return this.request('/recovery/snapshots/archive', {
+      method: 'POST',
+    });
+  }
+
+  public async retrieveDurableSnapshot(id: string): Promise<{ success: boolean; snapshot: any }> {
+    return this.request(`/recovery/snapshots/${encodeURIComponent(id)}`);
+  }
+
+  public async runRecoveryDryRun(snapshot?: any): Promise<any> {
+    return this.request('/recovery/dry-run', {
+      method: 'POST',
+      body: JSON.stringify(snapshot ? { snapshot } : {}),
+    });
+  }
+
+  public async validateGranularRestore(
+    entityType: string,
+    entityId: string,
+    snapshot?: any
+  ): Promise<any> {
+    return this.request('/recovery/validate/granular', {
+      method: 'POST',
+      body: JSON.stringify({ entityType, entityId, snapshot }),
+    });
+  }
+
+  public async restoreGranularRecord(
+    entityType: string,
+    entityId: string,
+    explicitConfirmation: string,
+    snapshot?: any
+  ): Promise<any> {
+    const endpointMap: Record<string, string> = {
+      QUESTION: '/recovery/restore/question',
+      VIDEO: '/recovery/restore/video',
+      SCRIPT: '/recovery/restore/script',
+      THUMBNAIL: '/recovery/restore/thumbnail',
+      PINNED_COMMENT: '/recovery/restore/pinned-comment',
+      PUBLISHING: '/recovery/restore/publishing',
+      ASSIGNMENT: '/recovery/restore/assignment',
+    };
+
+    const endpoint = endpointMap[entityType];
+    if (!endpoint) {
+      throw new Error(`Unsupported entity type for granular restore: ${entityType}`);
+    }
+
+    const payload: any = {
+      entityId,
+      explicitConfirmation,
+    };
+    if (snapshot) {
+      payload.snapshot = snapshot;
+    }
+
+    return this.request(endpoint, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  public async executeFullRestore(
+    explicitConfirmation: string,
+    snapshot?: any,
+    plan?: any
+  ): Promise<any> {
+    const payload: any = { explicitConfirmation };
+    if (snapshot) payload.snapshot = snapshot;
+    if (plan) payload.plan = plan;
+
+    return this.request('/recovery/restore/full', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
   }
 
   public async syncSequence(
@@ -854,6 +1141,95 @@ class ApiClient {
 
   public async runTask3E1Verification(): Promise<{ success: boolean; totalTests: number; passedTests: number; results: any[] }> {
     return this.request('/tests/task3e1');
+  }
+
+  public async getProductionBoard(): Promise<import('../types').ProductionBoardItem[]> {
+    return this.request('/production-board');
+  }
+
+  // Phase 8H: Social Content Review
+  public async getSocialReviewPackage(questionId: string): Promise<{ success: boolean; data: import('../types').SocialReviewPackageBundle }> {
+    return this.request(`/social-enhancement/review/${encodeURIComponent(questionId)}`);
+  }
+
+  public async approveSocialReviewPackage(
+    questionId: string,
+    versionHash: string,
+    reason?: string,
+    feedbackCategories?: string[]
+  ): Promise<{ success: boolean; data: import('../types').SocialReviewPackageBundle; record: import('../types').SocialReviewRecord }> {
+    return this.request(`/social-enhancement/review/${encodeURIComponent(questionId)}/approve`, {
+      method: 'POST',
+      body: JSON.stringify({ versionHash, reason, feedbackCategories }),
+    });
+  }
+
+  public async requestSocialReviewChanges(
+    questionId: string,
+    versionHash: string,
+    reason: string,
+    feedbackCategories?: string[]
+  ): Promise<{ success: boolean; data: import('../types').SocialReviewPackageBundle; record: import('../types').SocialReviewRecord }> {
+    return this.request(`/social-enhancement/review/${encodeURIComponent(questionId)}/request-changes`, {
+      method: 'POST',
+      body: JSON.stringify({ versionHash, reason, feedbackCategories }),
+    });
+  }
+
+  public async rejectSocialReviewPackage(
+    questionId: string,
+    versionHash: string,
+    reason: string,
+    feedbackCategories?: string[]
+  ): Promise<{ success: boolean; data: import('../types').SocialReviewPackageBundle; record: import('../types').SocialReviewRecord }> {
+    return this.request(`/social-enhancement/review/${encodeURIComponent(questionId)}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ versionHash, reason, feedbackCategories }),
+    });
+  }
+
+  public async getSocialReviewHistory(questionId: string): Promise<{ success: boolean; data: import('../types').SocialReviewRecord[] }> {
+    return this.request(`/social-enhancement/review/${encodeURIComponent(questionId)}/history`);
+  }
+
+  public async getSocialReviewsList(): Promise<{ success: boolean; data: import('../types').SocialReviewRecord[] }> {
+    return this.request('/social-reviews');
+  }
+
+  public async getSocialReviewItem(reviewId: string): Promise<{
+    success: boolean;
+    data: import('../types').SocialReviewPackageBundle;
+    review?: import('../types').SocialReviewRecord | null;
+    questionId: string;
+    canReview?: boolean;
+  }> {
+    return this.request(`/social-reviews/item/${encodeURIComponent(reviewId)}`);
+  }
+
+  public async getContentMasters(): Promise<{ success: boolean; count: number; data: import('../types').ContentMaster[] }> {
+    return this.request<{ success: boolean; count: number; data: import('../types').ContentMaster[] }>('/content-masters');
+  }
+
+  public async getContentMasterDetails(id: string): Promise<{ success: boolean; data: import('./services/content-master.service').ContentMasterDetails }> {
+    return this.request<{ success: boolean; data: import('./services/content-master.service').ContentMasterDetails }>(`/content-masters/${encodeURIComponent(id)}`);
+  }
+
+  public async getContentMasterCanonicalState(id: string): Promise<{ success: boolean; data: import('../types').ContentMasterCanonicalState }> {
+    return this.request<{ success: boolean; data: import('../types').ContentMasterCanonicalState }>(`/content-masters/${encodeURIComponent(id)}/canonical-state`);
+  }
+
+  public async transitionContentMasterStatus(id: string, targetStatus: string, remarks?: string): Promise<{ success: boolean; data: import('../types').ContentMaster }> {
+    return this.request<{ success: boolean; data: import('../types').ContentMaster }>(`/content-masters/${encodeURIComponent(id)}/transition`, {
+      method: 'POST',
+      body: JSON.stringify({ targetStatus, remarks }),
+    });
+  }
+
+  public async archiveContentMaster(id: string, reason?: string): Promise<{ success: boolean; data: import('../types').ContentMaster }> {
+    return this.request<{ success: boolean; data: import('../types').ContentMaster }>(`/content-masters/${encodeURIComponent(id)}/archive`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    });
   }
 }
 

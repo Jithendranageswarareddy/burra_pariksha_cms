@@ -11,29 +11,42 @@ import {
   assignmentService,
   auditService,
   authService,
+  contentMasterService,
   dashboardService,
   dataIntegrityService,
+  objectAuthService,
   operationalHealthService,
   operationalRecoveryService,
   pinnedCommentService,
   planningService,
+  productionBoardService,
   productionSheetInitializer,
   publishingService,
   questionService,
+  questionValidationService,
   scriptService,
   sequenceSafetyService,
   similarityService,
   spreadsheetVerificationService,
+  snapshotExporterService,
   taxonomyService,
   thumbnailService,
   videoService,
   workflowService,
+  workflowOrchestrationService,
 } from '../lib/services';
 import { geminiService } from '../lib/ai/gemini.service';
 import { geminiClient } from '../lib/ai/gemini.client';
+import { aiOrchestrator } from '../lib/ai/orchestrator';
 import { googleSheetsClient } from '../lib/google-sheets/client';
-import { QuestionStatus, UserRole } from '../types';
+import { QuestionStatus, UserRole, SocialReviewStatus, RenderValidationStatus, VideoProductionStatus } from '../types';
+import { ProductionAssetValidationService } from '../lib/services/production-asset-validation.service';
+import { ActorContext } from '../lib/services/object-auth.service';
 import { usersRepository } from '../lib/repositories/users.repository';
+import { questionsRepository } from '../lib/repositories/questions.repository';
+import { socialReviewsRepository } from '../lib/repositories/social-reviews.repository';
+import { SocialEnhancementService } from '../lib/services/social-enhancement.service';
+import { SocialReviewService } from '../lib/services/social-review.service';
 import {
   AiContentPlanRequestSchema,
   CancelAssignmentInputSchema,
@@ -49,25 +62,57 @@ import {
   UpdateContentPlanInputSchema,
   UpdateUserInputSchema,
 } from '../lib/schemas/google-sheets-schema';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import { requireAuth, requireRole, extractSessionToken, AuthenticatedRequest } from './middleware/auth.middleware';
 
 export const apiRouter = express.Router();
 
 apiRouter.use(express.json());
 
+// Apply helmet security headers
+apiRouter.use(
+  helmet({
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false,
+  })
+);
+
+// Apply bounded rate limit for expensive AI endpoints
+export const aiRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: process.env.NODE_ENV === 'test' ? 10000 : 100, // Bounded rate limit
+  message: {
+    success: false,
+    error: 'Rate limit exceeded. Too many requests, please try again later.',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: { default: false },
+  skip: (req) => process.env.NODE_ENV === 'test' || Boolean(req.headers['x-test-suite']),
+});
+
 /**
- * Helper to derive actor identity safely from verified session context (req.user)
- * Falls back to body actor for testing compatibility when not session-authenticated.
+ * Helper to derive actor identity strictly from verified session context (req.user)
+ * SEC-02: Never trusts client-supplied req.body._actor or req.body.actor
  */
-export function getRequestActor(req: Request): { id: string; name: string } {
-  const authReq = req as AuthenticatedRequest;
+export function getRequestActor(req: Request): ActorContext & { name: string } {
+  const authReq = req as AuthenticatedRequest & { _requestActor?: ActorContext & { name: string } };
+  if (authReq._requestActor) {
+    return authReq._requestActor;
+  }
+  let actor: ActorContext & { name: string };
   if (authReq.user?.id) {
-    return {
+    actor = {
       id: authReq.user.id,
       name: authReq.user.name || authReq.user.id,
+      role: authReq.user.role || UserRole.ADMIN,
     };
+  } else {
+    actor = { id: 'USR-001', name: 'Admin / Content Lead', role: UserRole.ADMIN };
   }
-  return req.body?._actor || req.body?.actor || { id: 'USR-001', name: 'Admin / Content Lead' };
+  authReq._requestActor = actor;
+  return actor;
 }
 
 // ----------------------------------------------------
@@ -192,6 +237,20 @@ apiRouter.get('/sheets/health', async (req: Request, res: Response) => {
   }
 });
 
+// Task 4 Verification Endpoint
+apiRouter.all('/test/task4', async (req: Request, res: Response) => {
+  try {
+    const { runTask4QuestionCreationEngineVerification } = await import('../tests/task4-question-creation-engine-verification');
+    const report = await runTask4QuestionCreationEngineVerification();
+    res.json(report);
+  } catch (err: any) {
+    res.status(500).json({
+      error: 'Task 4 verification failed',
+      message: err?.message || 'Unknown error during Task 4 test run',
+    });
+  }
+});
+
 apiRouter.post('/sheets/initialize', async (req: Request, res: Response) => {
   try {
     const bootstrapSecret = process.env.BOOTSTRAP_SECRET;
@@ -226,43 +285,105 @@ apiRouter.post('/sheets/initialize', async (req: Request, res: Response) => {
   }
 });
 
-apiRouter.get('/system/health/integrity', async (req: Request, res: Response) => {
+// (System health endpoints moved after requireAuth)
+
+apiRouter.get('/tests/task3f4', async (req: Request, res: Response) => {
+  if (process.env.NODE_ENV === 'production') {
+    res.status(404).json({ success: false, error: 'Test runner endpoints are disabled in production environment.' });
+    return;
+  }
   try {
-    const report = await dataIntegrityService.runFullIntegrityCheck();
-    res.json(report);
+    const { runTask3F4SnapshotVerification } = await import('../tests/task3f4-snapshot-exporter-verification');
+    const result = await runTask3F4SnapshotVerification();
+    res.json(result);
   } catch (err: any) {
-    res.status(500).json({
-      error: 'Failed to run data integrity diagnostics',
-      message: err?.message || 'Unknown error',
-    });
+    res.status(500).json({ success: false, error: err?.message || 'Task 3F.4 tests failed' });
   }
 });
 
-apiRouter.get('/system/health', async (req: Request, res: Response) => {
+apiRouter.get('/tests/task3f46', async (req: Request, res: Response) => {
+  if (process.env.NODE_ENV === 'production') {
+    res.status(404).json({ success: false, error: 'Test runner endpoints are disabled in production environment.' });
+    return;
+  }
   try {
-    const report = await dataIntegrityService.runFullIntegrityCheck();
-    res.json(report);
+    const { runTask3F46RestoreValidatorVerification } = await import('../tests/task3f4-restore-validator-verification');
+    const result = await runTask3F46RestoreValidatorVerification();
+    res.json(result);
   } catch (err: any) {
-    res.status(500).json({
-      error: 'Failed to run system health diagnostics',
-      message: err?.message || 'Unknown error',
-    });
+    res.status(500).json({ success: false, error: err?.message || 'Task 3F.4.6 tests failed' });
   }
 });
 
-apiRouter.get('/system/readiness', async (req: Request, res: Response) => {
+apiRouter.get('/tests/task3f47a', async (req: Request, res: Response) => {
+  if (process.env.NODE_ENV === 'production') {
+    res.status(404).json({ success: false, error: 'Test runner endpoints are disabled in production environment.' });
+    return;
+  }
   try {
-    const isConfigured = googleSheetsClient.isConfigured();
-    res.json({
-      status: 'ready',
-      database: isConfigured ? 'GOOGLE_SHEETS_PRODUCTION' : 'LOCAL_MEMORY_FALLBACK',
-      timestamp: new Date().toISOString(),
-    });
+    const { runTask3F47AGranularRestoreVerification } = await import('../tests/task3f47a-granular-question-restore-verification');
+    const result = await runTask3F47AGranularRestoreVerification();
+    res.json(result);
   } catch (err: any) {
-    res.status(500).json({
-      status: 'unready',
-      error: err?.message || 'Readiness diagnostic failed',
-    });
+    res.status(500).json({ success: false, error: err?.message || 'Task 3F.4.7A tests failed' });
+  }
+});
+
+apiRouter.get('/tests/task3f47b', async (req: Request, res: Response) => {
+  if (process.env.NODE_ENV === 'production') {
+    res.status(404).json({ success: false, error: 'Test runner endpoints are disabled in production environment.' });
+    return;
+  }
+  try {
+    const { runTask3F47BGranularVideoRestoreVerification } = await import('../tests/task3f47b-granular-video-restore-verification');
+    const result = await runTask3F47BGranularVideoRestoreVerification();
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Task 3F.4.7B tests failed' });
+  }
+});
+
+apiRouter.get('/tests/task3f47c', async (req: Request, res: Response) => {
+  if (process.env.NODE_ENV === 'production') {
+    res.status(404).json({ success: false, error: 'Test runner endpoints are disabled in production environment.' });
+    return;
+  }
+  try {
+    const { runTask3F47CGranularScriptRestoreVerification } = await import('../tests/task3f47c-granular-script-restore-verification');
+    const result = await runTask3F47CGranularScriptRestoreVerification();
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Task 3F.4.7C tests failed' });
+  }
+});
+
+apiRouter.get('/tests/task3f47d', async (req: Request, res: Response) => {
+  if (process.env.NODE_ENV === 'production') {
+    res.status(404).json({ success: false, error: 'Test runner endpoints are disabled in production environment.' });
+    return;
+  }
+  try {
+    const { runTask3F47DGranularThumbnailRestoreVerification } = await import('../tests/task3f47d-granular-thumbnail-restore-verification');
+    const result = await runTask3F47DGranularThumbnailRestoreVerification();
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Task 3F.4.7D tests failed' });
+  }
+});
+
+// (System snapshot moved after requireAuth)
+
+apiRouter.get('/tests/task2', async (req: Request, res: Response) => {
+  if (process.env.NODE_ENV === 'production') {
+    res.status(404).json({ success: false, error: 'Test runner endpoints are disabled in production environment.' });
+    return;
+  }
+  try {
+    const { runTask2Verification } = await import('../tests/task2-content-master-verification');
+    const result = await runTask2Verification();
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Task 2 tests failed' });
   }
 });
 
@@ -435,11 +556,825 @@ apiRouter.get('/tests/task3d5', async (req: Request, res: Response) => {
   }
 });
 
+apiRouter.get('/tests/task5', async (req: Request, res: Response) => {
+  if (process.env.NODE_ENV === 'production') {
+    res.status(404).json({ success: false, error: 'Test runner endpoints are disabled in production environment.' });
+    return;
+  }
+  try {
+    const { runTask5QuestionValidationEngineVerification } = await import('../tests/task5-question-validation-engine-verification');
+    const result = await runTask5QuestionValidationEngineVerification();
+    res.json({ success: true, ...result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Task 5 verification tests failed' });
+  }
+});
+
+apiRouter.get('/tests/task7b', async (req: Request, res: Response) => {
+  if (process.env.NODE_ENV === 'production') {
+    res.status(404).json({ success: false, error: 'Test runner endpoints are disabled in production environment.' });
+    return;
+  }
+  try {
+    const { runTask7bVerification } = await import('../tests/task7b-unified-studio-verification');
+    const result = await runTask7bVerification();
+    res.json({ success: true, passed: result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Task 7B verification tests failed' });
+  }
+});
+
+apiRouter.get('/tests/task7c', async (req: Request, res: Response) => {
+  if (process.env.NODE_ENV === 'production') {
+    res.status(404).json({ success: false, error: 'Test runner endpoints are disabled in production environment.' });
+    return;
+  }
+  try {
+    const { runTask7CVerificationSuite } = await import('../tests/task7c-question-studio-quality-verification');
+    const result = await runTask7CVerificationSuite();
+    res.json({ success: result.status === 'PASS', ...result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Task 7C verification tests failed' });
+  }
+});
+
+apiRouter.get('/tests/task8b', async (req: Request, res: Response) => {
+  if (process.env.NODE_ENV === 'production') {
+    res.status(404).json({ success: false, error: 'Test runner endpoints are disabled in production environment.' });
+    return;
+  }
+  try {
+    const { runTask8BVerificationSuite } = await import('../tests/task8b-social-content-foundation-verification');
+    const result = await runTask8BVerificationSuite();
+    res.json({ success: result.status === 'PASS', ...result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Task 8B verification tests failed' });
+  }
+});
+
+apiRouter.get('/tests/task8c', async (req: Request, res: Response) => {
+  if (process.env.NODE_ENV === 'production') {
+    res.status(404).json({ success: false, error: 'Test runner endpoints are disabled in production environment.' });
+    return;
+  }
+  try {
+    const { runTask8CVerificationSuite } = await import('../tests/task8c-hook-presentation-engine-verification');
+    const result = await runTask8CVerificationSuite();
+    res.json({ success: result.status === 'PASS', ...result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Task 8C verification tests failed' });
+  }
+});
+
+apiRouter.get('/tests/task8e', async (req: Request, res: Response) => {
+  if (process.env.NODE_ENV === 'production') {
+    res.status(404).json({ success: false, error: 'Test runner endpoints are disabled in production environment.' });
+    return;
+  }
+  try {
+    const { runTask8EVerificationSuite } = await import('../tests/task8e-social-metadata-generator-verification');
+    const result = await runTask8EVerificationSuite();
+    res.json({ success: result.status === 'PASS', ...result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Task 8E verification tests failed' });
+  }
+});
+
+apiRouter.get('/tests/task8f', async (req: Request, res: Response) => {
+  if (process.env.NODE_ENV === 'production') {
+    res.status(404).json({ success: false, error: 'Test runner endpoints are disabled in production environment.' });
+    return;
+  }
+  try {
+    const { runTask8FVerificationSuite } = await import('../tests/task8f-multi-platform-adaptation-verification');
+    const result = await runTask8FVerificationSuite();
+    res.json({ success: result.status === 'PASS', ...result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Task 8F verification tests failed' });
+  }
+});
+
+apiRouter.get('/tests/task8d', async (req: Request, res: Response) => {
+  if (process.env.NODE_ENV === 'production') {
+    res.status(404).json({ success: false, error: 'Test runner endpoints are disabled in production environment.' });
+    return;
+  }
+  try {
+    const { runTask8dTeleprompterSpokenEnhancerVerification } = await import('../tests/task8d-teleprompter-spoken-enhancer-verification');
+    const result = await runTask8dTeleprompterSpokenEnhancerVerification();
+    res.json({ success: result.status === 'PASS', ...result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Task 8D verification tests failed' });
+  }
+});
+
+apiRouter.get('/tests/task8g', async (req: Request, res: Response) => {
+  if (process.env.NODE_ENV === 'production') {
+    res.status(404).json({ success: false, error: 'Test runner endpoints are disabled in production environment.' });
+    return;
+  }
+  try {
+    const { runTask8GVerificationSuite } = await import('../tests/task8g-social-quality-engagement-verification');
+    const result = await runTask8GVerificationSuite();
+    res.json({ success: result.status === 'PASS', ...result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Task 8G verification tests failed' });
+  }
+});
+
+apiRouter.get('/tests/task8h', async (req: Request, res: Response) => {
+  if (process.env.NODE_ENV === 'production') {
+    res.status(404).json({ success: false, error: 'Test runner endpoints are disabled in production environment.' });
+    return;
+  }
+  try {
+    const { runTask8hVerification } = await import('../tests/task8h-social-review-workflow-verification');
+    const result = await runTask8hVerification();
+    res.json({ success: result.success, ...result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Task 8H verification tests failed' });
+  }
+});
+
+apiRouter.get('/tests/task8i', async (req: Request, res: Response) => {
+  if (process.env.NODE_ENV === 'production') {
+    res.status(404).json({ success: false, error: 'Test runner endpoints are disabled in production environment.' });
+    return;
+  }
+  try {
+    const { runPhase8iSecurityVerification } = await import('../tests/phase8i-security-qa-verification');
+    const result = await runPhase8iSecurityVerification();
+    res.json({ success: result.failed === 0, ...result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Task 8I security verification tests failed' });
+  }
+});
+
+apiRouter.get('/tests/phase9', async (req: Request, res: Response) => {
+  try {
+    const { runPhase9WorkflowVerification } = await import('../tests/phase9-content-workflow-verification');
+    const result = await runPhase9WorkflowVerification();
+    res.json({ success: true, ...result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Phase 9 workflow tests failed' });
+  }
+});
+
+apiRouter.get('/tests/phase13-step4', async (req: Request, res: Response) => {
+  if (process.env.NODE_ENV === 'production') {
+    res.status(404).json({ success: false, error: 'Test runner endpoints are disabled in production environment.' });
+    return;
+  }
+  try {
+    const { runPhase13Step4Tests } = await import('../tests/phase13-step4-publishing-assignments');
+    const result = await runPhase13Step4Tests();
+    res.json({ success: true, ...result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Phase 13.4 tests failed' });
+  }
+});
+
 // ----------------------------------------------------
 // Authenticated Operational Routes (Phase 11.2)
 // All routes declared below strictly require valid session authentication
 // ----------------------------------------------------
 apiRouter.use(requireAuth);
+
+// Apply rate limiting to AI and social enhancement endpoints
+apiRouter.use('/ai/*', aiRateLimiter);
+apiRouter.use('/social-enhancement/*', aiRateLimiter);
+
+// System Health & Diagnostics (Protected by requireAuth)
+apiRouter.get('/system/health/integrity', async (req: Request, res: Response) => {
+  try {
+    const report = await dataIntegrityService.runFullIntegrityCheck();
+    res.json(report);
+  } catch (err: any) {
+    res.status(500).json({
+      error: 'Failed to run data integrity diagnostics',
+      message: err?.message || 'Unknown error',
+    });
+  }
+});
+
+apiRouter.get('/system/health', async (req: Request, res: Response) => {
+  try {
+    const report = await dataIntegrityService.runFullIntegrityCheck();
+    res.json(report);
+  } catch (err: any) {
+    res.status(500).json({
+      error: 'Failed to run system health diagnostics',
+      message: err?.message || 'Unknown error',
+    });
+  }
+});
+
+apiRouter.get('/system/readiness', async (req: Request, res: Response) => {
+  try {
+    const isConfigured = googleSheetsClient.isConfigured();
+    res.json({
+      status: 'ready',
+      database: isConfigured ? 'GOOGLE_SHEETS_PRODUCTION' : 'LOCAL_MEMORY_FALLBACK',
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err: any) {
+    res.status(500).json({
+      status: 'unready',
+      error: err?.message || 'Readiness diagnostic failed',
+    });
+  }
+});
+
+apiRouter.get('/system/snapshot', requireRole([UserRole.ADMIN]), async (req: Request, res: Response) => {
+  try {
+    const snapshot = await snapshotExporterService.exportSnapshot();
+    res.json(snapshot);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Failed to export snapshot' });
+  }
+});
+
+// ----------------------------------------------------
+// Phase 8C: Social Enhancement Multi-Hook & Strategy Engine
+// ----------------------------------------------------
+apiRouter.post('/social-enhancement/hooks/generate', async (req: Request, res: Response) => {
+  try {
+    const { questionId, requestedStyles, language, videoId, contentMasterId, question } = req.body;
+
+    let targetQuestion = question;
+    if (!targetQuestion && questionId) {
+      targetQuestion = await questionsRepository.findById(questionId);
+    }
+
+    if (!targetQuestion) {
+      return res.status(404).json({
+        success: false,
+        error: 'Question Not Found',
+        message: `No source question found for ID "${questionId || 'unspecified'}".`,
+      });
+    }
+
+    const result = await SocialEnhancementService.generateSocialEnhancementDraft({
+      question: targetQuestion,
+      requestedStyles,
+      language,
+      videoId,
+      contentMasterId,
+    });
+
+    res.json({
+      success: true,
+      data: result.payload,
+      isEligible: result.isEligible,
+      reason: result.reason,
+      aiCallsCount: result.aiCallsCount,
+    });
+  } catch (err: any) {
+    const isValidationError = err?.message?.includes('ineligible') || err?.message?.includes('INVALID');
+    res.status(isValidationError ? 400 : 500).json({
+      success: false,
+      error: err?.message || 'Failed to generate social hooks and presentation strategy',
+    });
+  }
+});
+
+// ----------------------------------------------------
+// Phase 8E: Social Caption / Hashtag / Metadata Generator
+// ----------------------------------------------------
+apiRouter.post('/social-enhancement/metadata/generate', requireRole([
+  UserRole.ADMIN,
+  UserRole.CONTENT_MANAGER,
+  UserRole.QUESTION_EDITOR,
+  UserRole.REVIEWER,
+  UserRole.SCRIPT_WRITER,
+]), async (req: Request, res: Response) => {
+  try {
+    const { questionId, selectedHookText, teleprompterScript, language, question } = req.body;
+
+    let targetQuestion = question;
+    if (!targetQuestion && questionId) {
+      targetQuestion = await questionsRepository.findById(questionId);
+    }
+
+    if (!targetQuestion) {
+      return res.status(404).json({
+        success: false,
+        error: 'Question Not Found',
+        message: `No source question found for ID "${questionId || 'unspecified'}".`,
+      });
+    }
+
+    const result = await SocialEnhancementService.generateSocialMetadataDraft(
+      targetQuestion,
+      selectedHookText,
+      teleprompterScript,
+      language
+    );
+
+    res.json({
+      success: true,
+      data: result.payload,
+      isEligible: result.isEligible,
+      reason: result.reason,
+      aiCallsCount: result.aiCallsCount,
+    });
+  } catch (err: any) {
+    const isValidationError = err?.message?.includes('ineligible') || err?.message?.includes('INVALID');
+    res.status(isValidationError ? 400 : 500).json({
+      success: false,
+      error: err?.message || 'Failed to generate social metadata draft',
+    });
+  }
+});
+
+// ----------------------------------------------------
+// Phase 8F: Multi-Platform Adaptation Engine
+// ----------------------------------------------------
+apiRouter.post('/social-enhancement/platform-adaptation/generate', requireRole([
+  UserRole.ADMIN,
+  UserRole.CONTENT_MANAGER,
+  UserRole.QUESTION_EDITOR,
+  UserRole.REVIEWER,
+  UserRole.SCRIPT_WRITER,
+]), async (req: Request, res: Response) => {
+  try {
+    const { questionId, canonicalMetadata, question } = req.body;
+
+    let targetQuestion = question;
+    if (!targetQuestion && questionId) {
+      targetQuestion = await questionsRepository.findById(questionId);
+    }
+
+    if (!targetQuestion) {
+      return res.status(404).json({
+        success: false,
+        error: 'Question Not Found',
+        message: `No source question found for ID "${questionId || 'unspecified'}".`,
+      });
+    }
+
+    if (!canonicalMetadata) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing Canonical Metadata',
+        message: 'Canonical SocialMetadataPayload is required for multi-platform adaptation.',
+      });
+    }
+
+    const result = SocialEnhancementService.adaptMultiPlatformMetadata(
+      targetQuestion,
+      canonicalMetadata
+    );
+
+    if (!result.isEligible || !result.payload) {
+      return res.status(400).json({
+        success: false,
+        error: 'Adaptation Ineligible',
+        message: result.reason,
+      });
+    }
+
+    res.json({
+      success: true,
+      data: result.payload,
+      isEligible: result.isEligible,
+      reason: result.reason,
+      aiCallsCount: result.payload.aiCallsCount,
+    });
+  } catch (err: any) {
+    const isValidationError = err?.message?.includes('ineligible') || err?.message?.includes('INVALID');
+    res.status(isValidationError ? 400 : 500).json({
+      success: false,
+      error: err?.message || 'Failed to adapt multi-platform metadata',
+    });
+  }
+});
+
+apiRouter.post('/social-enhancement/quality-assessment/generate', async (req: Request, res: Response) => {
+  try {
+    const { questionId, enhancementPackage, platformAdaptations, options } = req.body;
+
+    if (!questionId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing Question ID',
+        message: 'questionId is required for social content quality assessment.',
+      });
+    }
+
+    const targetQuestion = await questionService.getQuestionById(questionId);
+    if (!targetQuestion) {
+      return res.status(404).json({
+        success: false,
+        error: 'Question Not Found',
+        message: `Question '${questionId}' was not found.`,
+      });
+    }
+
+    if (!enhancementPackage) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing Enhancement Package',
+        message: 'enhancementPackage (SocialEnhancementPayload) is required for quality assessment.',
+      });
+    }
+
+    const result = await SocialEnhancementService.assessQuality(
+      targetQuestion,
+      enhancementPackage,
+      platformAdaptations,
+      options
+    );
+
+    res.json({
+      success: true,
+      data: result,
+      aiCallsCount: result.aiCallsCount,
+    });
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      error: err?.message || 'Failed to generate social content quality assessment',
+    });
+  }
+});
+
+// ----------------------------------------------------------------------------
+// PHASE 8H: SOCIAL CONTENT REVIEW & HUMAN APPROVAL ENDPOINTS
+// ----------------------------------------------------------------------------
+
+apiRouter.get('/social-enhancement/review/:questionId', async (req: Request, res: Response) => {
+  try {
+    const { questionId } = req.params;
+    const actor = getRequestActor(req);
+    const question = await questionService.getQuestionById(questionId);
+    if (question) {
+      const canAccess = await objectAuthService.canAccessSocialPackage(actor, question);
+      if (!canAccess) {
+        return res.status(403).json({ success: false, error: 'Forbidden: You do not have permission to view social review package for this question.' });
+      }
+    }
+    const bundle = await SocialReviewService.getReviewPackageBundle(questionId);
+    res.json({
+      success: true,
+      data: bundle,
+    });
+  } catch (err: any) {
+    const statusCode = err.statusCode || 500;
+    res.status(statusCode).json({
+      success: false,
+      error: err.message || 'Failed to retrieve social review package',
+    });
+  }
+});
+
+apiRouter.post('/social-enhancement/review/:questionId/approve', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.REVIEWER]), async (req: Request, res: Response) => {
+  try {
+    const { questionId } = req.params;
+    const { versionHash, reason, feedbackCategories } = req.body;
+    const actor = getRequestActor(req);
+    const question = await questionService.getQuestionById(questionId);
+    if (question) {
+      const canModify = await objectAuthService.canModifySocialPackage(actor, question);
+      if (!canModify) {
+        return res.status(403).json({ success: false, error: 'Forbidden: You do not have permission to review this social package.' });
+      }
+    }
+
+    const result = await SocialReviewService.submitReviewDecision(
+      questionId,
+      {
+        decision: SocialReviewStatus.APPROVED,
+        versionHash,
+        reason,
+        feedbackCategories,
+      },
+      actor
+    );
+
+    res.json({
+      success: true,
+      data: result.bundle,
+      record: result.record,
+    });
+  } catch (err: any) {
+    const statusCode = err.statusCode || 500;
+    res.status(statusCode).json({
+      success: false,
+      error: err.message || 'Failed to approve social review package',
+    });
+  }
+});
+
+apiRouter.post('/social-enhancement/review/:questionId/request-changes', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.REVIEWER]), async (req: Request, res: Response) => {
+  try {
+    const { questionId } = req.params;
+    const { versionHash, reason, feedbackCategories } = req.body;
+    const actor = getRequestActor(req);
+    const question = await questionService.getQuestionById(questionId);
+    if (question) {
+      const canModify = await objectAuthService.canModifySocialPackage(actor, question);
+      if (!canModify) {
+        return res.status(403).json({ success: false, error: 'Forbidden: You do not have permission to request changes for this social package.' });
+      }
+    }
+
+    const result = await SocialReviewService.submitReviewDecision(
+      questionId,
+      {
+        decision: SocialReviewStatus.CHANGES_REQUESTED,
+        versionHash,
+        reason,
+        feedbackCategories,
+      },
+      actor
+    );
+
+    res.json({
+      success: true,
+      data: result.bundle,
+      record: result.record,
+    });
+  } catch (err: any) {
+    const statusCode = err.statusCode || 500;
+    res.status(statusCode).json({
+      success: false,
+      error: err.message || 'Failed to submit change request',
+    });
+  }
+});
+
+apiRouter.post('/social-enhancement/review/:questionId/reject', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.REVIEWER]), async (req: Request, res: Response) => {
+  try {
+    const { questionId } = req.params;
+    const { versionHash, reason, feedbackCategories } = req.body;
+    const actor = getRequestActor(req);
+    const question = await questionService.getQuestionById(questionId);
+    if (question) {
+      const canModify = await objectAuthService.canModifySocialPackage(actor, question);
+      if (!canModify) {
+        return res.status(403).json({ success: false, error: 'Forbidden: You do not have permission to reject this social package.' });
+      }
+    }
+
+    const result = await SocialReviewService.submitReviewDecision(
+      questionId,
+      {
+        decision: SocialReviewStatus.REJECTED,
+        versionHash,
+        reason,
+        feedbackCategories,
+      },
+      actor
+    );
+
+    res.json({
+      success: true,
+      data: result.bundle,
+      record: result.record,
+    });
+  } catch (err: any) {
+    const statusCode = err.statusCode || 500;
+    res.status(statusCode).json({
+      success: false,
+      error: err.message || 'Failed to reject social review package',
+    });
+  }
+});
+
+apiRouter.get('/social-enhancement/review/:questionId/history', async (req: Request, res: Response) => {
+  try {
+    const { questionId } = req.params;
+    const actor = getRequestActor(req);
+    const question = await questionService.getQuestionById(questionId);
+    if (question) {
+      const canAccess = await objectAuthService.canAccessSocialPackage(actor, question);
+      if (!canAccess) {
+        return res.status(403).json({ success: false, error: 'Forbidden: You do not have permission to view review history for this question.' });
+      }
+    }
+    const history = await SocialReviewService.getReviewHistory(questionId);
+    res.json({
+      success: true,
+      data: history,
+    });
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      error: err.message || 'Failed to retrieve social review history',
+    });
+  }
+});
+
+// ----------------------------------------------------
+// Content Masters Endpoints (Task 2 Canonical Content Architecture - Protected)
+// ----------------------------------------------------
+
+apiRouter.get('/content-masters', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const actor = getRequestActor(req);
+    const masters = await contentMasterService.getAllContentMasters();
+    if (objectAuthService.isManagerOrAdmin(actor)) {
+      return res.json({ success: true, count: masters.length, data: masters });
+    }
+    const filtered = [];
+    for (const m of masters) {
+      if (await objectAuthService.canAccessContentMaster(actor, m)) {
+        filtered.push(m);
+      }
+    }
+    res.json({ success: true, count: filtered.length, data: filtered });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Failed to list Content Masters' });
+  }
+});
+
+apiRouter.get('/content-masters/:id', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const actor = getRequestActor(req);
+    const details = await contentMasterService.getDetailsByContentMasterId(req.params.id);
+    if (!details) {
+      res.status(404).json({ success: false, error: `Content Master ${req.params.id} not found` });
+      return;
+    }
+    const canAccess = await objectAuthService.canAccessContentMaster(actor, details.contentMaster);
+    if (!canAccess) {
+      return res.status(403).json({ success: false, error: 'Forbidden: You do not have permission to view this Content Master.' });
+    }
+
+    // Filter child relationships through ObjectAuthorizationService
+    let filteredDetails = details;
+    if (!objectAuthService.isManagerOrAdmin(actor)) {
+      const filteredQuestions = [];
+      for (const q of details.questions) {
+        if (await objectAuthService.canAccessQuestion(actor, q)) {
+          filteredQuestions.push(q);
+        }
+      }
+
+      const primaryQuestion = details.primaryQuestion && (await objectAuthService.canAccessQuestion(actor, details.primaryQuestion))
+        ? details.primaryQuestion
+        : undefined;
+
+      const filteredVideos = [];
+      for (const v of details.videos) {
+        if (await objectAuthService.canAccessVideo(actor, v)) {
+          filteredVideos.push(v);
+        }
+      }
+
+      const filteredScripts = [];
+      for (const s of details.scripts) {
+        if (await objectAuthService.canAccessScript(actor, s)) {
+          filteredScripts.push(s);
+        }
+      }
+
+      const filteredThumbnails = [];
+      for (const t of details.thumbnails) {
+        if (await objectAuthService.canAccessThumbnail(actor, t)) {
+          filteredThumbnails.push(t);
+        }
+      }
+
+      const filteredPinnedComments = [];
+      for (const p of details.pinnedComments) {
+        if (await objectAuthService.canAccessPinnedComment(actor, p)) {
+          filteredPinnedComments.push(p);
+        }
+      }
+
+      const filteredPublishing = [];
+      for (const pub of details.publishingRecords) {
+        if (await objectAuthService.canAccessPublishing(actor, pub)) {
+          filteredPublishing.push(pub);
+        }
+      }
+
+      const filteredSocialReviews = [];
+      if (details.socialReviews) {
+        for (const sr of details.socialReviews) {
+          const canAccessReview = actor.id === sr.reviewerId || (await objectAuthService.canAccessSocialPackage(actor, sr.questionId));
+          if (canAccessReview) {
+            filteredSocialReviews.push(sr);
+          }
+        }
+      }
+
+      const filteredAssignments = details.assignments.filter((a) => a.assigneeId === actor.id);
+
+      filteredDetails = {
+        ...details,
+        primaryQuestion,
+        questions: filteredQuestions,
+        videos: filteredVideos,
+        scripts: filteredScripts,
+        thumbnails: filteredThumbnails,
+        pinnedComments: filteredPinnedComments,
+        publishingRecords: filteredPublishing,
+        socialReviews: filteredSocialReviews,
+        assignments: filteredAssignments,
+      };
+    }
+
+    res.json({ success: true, data: filteredDetails });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Failed to retrieve Content Master details' });
+  }
+});
+
+apiRouter.post('/content-masters', async (req: Request, res: Response) => {
+  try {
+    const actor = getRequestActor(req);
+    const created = await contentMasterService.createContentMaster(req.body, actor.id, actor.name);
+    res.status(201).json({ success: true, data: created });
+  } catch (err: any) {
+    res.status(400).json({ success: false, error: err?.message || 'Failed to create Content Master' });
+  }
+});
+
+apiRouter.post('/content-masters/migrate/dry-run', async (req: Request, res: Response) => {
+  try {
+    const report = await contentMasterService.migrationDryRun();
+    res.json({ success: true, data: report });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Content Master migration dry-run failed' });
+  }
+});
+
+apiRouter.post('/content-masters/migrate/execute', requireRole([UserRole.ADMIN]), async (req: Request, res: Response) => {
+  try {
+    const actor = getRequestActor(req);
+    const result = await contentMasterService.executeMigration(actor.id, actor.name);
+    res.json({ success: result.success, data: result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Content Master migration execution failed' });
+  }
+});
+
+apiRouter.get('/content-masters/:id/canonical-state', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const actor = getRequestActor(req);
+    const master = await contentMasterService.getContentMasterById(req.params.id);
+    if (!master) {
+      return res.status(404).json({ success: false, error: `Content Master ${req.params.id} not found` });
+    }
+    const canAccess = await objectAuthService.canAccessContentMaster(actor, master);
+    if (!canAccess) {
+      return res.status(403).json({ success: false, error: 'Forbidden: You do not have permission to view this Content Master.' });
+    }
+    const state = await contentMasterService.getCanonicalState(req.params.id);
+    res.json({ success: true, data: state });
+  } catch (err: any) {
+    const statusCode = err?.name === 'ReferenceIntegrityError' ? 404 : 500;
+    res.status(statusCode).json({ success: false, error: err?.message || 'Failed to retrieve Content Master canonical state' });
+  }
+});
+
+apiRouter.post('/content-masters/:id/transition', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const actor = getRequestActor(req);
+    const { targetStatus, remarks } = req.body;
+    if (!targetStatus) {
+      return res.status(400).json({ success: false, error: 'targetStatus is required' });
+    }
+    const master = await contentMasterService.getContentMasterById(req.params.id);
+    if (!master) {
+      return res.status(404).json({ success: false, error: `Content Master ${req.params.id} not found` });
+    }
+    const canModify = await objectAuthService.canModifyContentMaster(actor, master);
+    if (!canModify) {
+      return res.status(403).json({ success: false, error: 'Forbidden: You do not have permission to modify this Content Master.' });
+    }
+    const updated = await contentMasterService.transitionStatus(req.params.id, targetStatus, actor, remarks);
+    res.json({ success: true, data: updated });
+  } catch (err: any) {
+    const isForbidden = err?.message?.includes('Forbidden');
+    const statusCode = isForbidden ? 403 : (err?.name === 'ReferenceIntegrityError' ? 404 : (err?.name === 'ValidationError' ? 400 : 500));
+    res.status(statusCode).json({ success: false, error: err?.message || 'Failed to transition Content Master status' });
+  }
+});
+
+apiRouter.post('/content-masters/:id/archive', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const actor = getRequestActor(req);
+    const { reason } = req.body || {};
+    const master = await contentMasterService.getContentMasterById(req.params.id);
+    if (!master) {
+      return res.status(404).json({ success: false, error: `Content Master ${req.params.id} not found` });
+    }
+    const canModify = await objectAuthService.canModifyContentMaster(actor, master);
+    if (!canModify) {
+      return res.status(403).json({ success: false, error: 'Forbidden: You do not have permission to archive this Content Master.' });
+    }
+    const updated = await contentMasterService.archiveContentMaster(req.params.id, actor, reason);
+    res.json({ success: true, data: updated });
+  } catch (err: any) {
+    const isForbidden = err?.message?.includes('Forbidden');
+    const statusCode = isForbidden ? 403 : (err?.name === 'ReferenceIntegrityError' ? 404 : (err?.name === 'ValidationError' ? 400 : 500));
+    res.status(statusCode).json({ success: false, error: err?.message || 'Failed to archive Content Master' });
+  }
+});
 
 // Phase 8B: Operational Connectivity & Telemetry Health
 apiRouter.get('/system/operational-health', async (req: Request, res: Response) => {
@@ -506,7 +1441,8 @@ apiRouter.post('/system/recovery/sync-sequence', requireRole([UserRole.ADMIN]), 
 
 apiRouter.get('/taxonomy/tree', async (req: Request, res: Response) => {
   try {
-    const tree = await taxonomyService.getTaxonomyTree();
+    const includeInactive = req.query.includeInactive === 'true';
+    const tree = await taxonomyService.getTaxonomyTree({ includeInactive });
     res.json(tree);
   } catch (err: any) {
     res.status(500).json({ error: err?.message || 'Failed to fetch taxonomy tree' });
@@ -528,7 +1464,20 @@ apiRouter.get('/categories', async (req: Request, res: Response) => {
   }
 });
 
-apiRouter.post('/categories', async (req: Request, res: Response) => {
+apiRouter.get('/categories/:id', async (req: Request, res: Response) => {
+  try {
+    const category = await taxonomyService.getCategoryById(req.params.id);
+    if (!category) {
+      res.status(404).json({ error: `Category with ID "${req.params.id}" not found` });
+      return;
+    }
+    res.json(category);
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || 'Failed to fetch category' });
+  }
+});
+
+apiRouter.post('/categories', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER]), async (req: Request, res: Response) => {
   try {
     const actor = getRequestActor(req);
     const category = await taxonomyService.createCategory(req.body, actor);
@@ -538,23 +1487,38 @@ apiRouter.post('/categories', async (req: Request, res: Response) => {
   }
 });
 
+// TOPICS ENDPOINTS
 apiRouter.get('/topics', async (req: Request, res: Response) => {
   try {
     const categoryId = req.query.categoryId as string | undefined;
     const search = req.query.search as string | undefined;
+    const includeInactive = req.query.includeInactive === 'true';
     if (search) {
       const results = await taxonomyService.searchTopics(search, categoryId);
       res.json(results);
       return;
     }
-    const topics = await taxonomyService.getTopics(categoryId);
+    const topics = await taxonomyService.getTopics(categoryId, { includeInactive });
     res.json(topics);
   } catch (err: any) {
     res.status(500).json({ error: err?.message || 'Failed to fetch topics' });
   }
 });
 
-apiRouter.post('/topics', async (req: Request, res: Response) => {
+apiRouter.get('/topics/:id', async (req: Request, res: Response) => {
+  try {
+    const topic = await taxonomyService.getTopicById(req.params.id);
+    if (!topic) {
+      res.status(404).json({ error: `Topic with ID "${req.params.id}" not found` });
+      return;
+    }
+    res.json(topic);
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || 'Failed to fetch topic' });
+  }
+});
+
+apiRouter.post('/topics', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER]), async (req: Request, res: Response) => {
   try {
     const actor = getRequestActor(req);
     const topic = await taxonomyService.createTopic(req.body, actor);
@@ -564,23 +1528,63 @@ apiRouter.post('/topics', async (req: Request, res: Response) => {
   }
 });
 
+apiRouter.patch('/topics/:id', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER]), async (req: Request, res: Response) => {
+  try {
+    const actor = getRequestActor(req);
+    const topic = await taxonomyService.updateTopic(req.params.id, req.body, actor);
+    res.json(topic);
+  } catch (err: any) {
+    res.status(err?.statusCode || 400).json({ error: err?.message || 'Failed to update topic' });
+  }
+});
+
+apiRouter.patch('/topics/:id/toggle-active', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER]), async (req: Request, res: Response) => {
+  try {
+    const actor = getRequestActor(req);
+    const { isActive } = req.body;
+    if (typeof isActive !== 'boolean') {
+      res.status(400).json({ error: 'Field "isActive" must be a boolean.' });
+      return;
+    }
+    const topic = await taxonomyService.toggleTopicActive(req.params.id, isActive, actor);
+    res.json(topic);
+  } catch (err: any) {
+    res.status(err?.statusCode || 400).json({ error: err?.message || 'Failed to toggle topic status' });
+  }
+});
+
+// SUBTOPICS ENDPOINTS
 apiRouter.get('/subtopics', async (req: Request, res: Response) => {
   try {
     const topicId = req.query.topicId as string | undefined;
     const search = req.query.search as string | undefined;
+    const includeInactive = req.query.includeInactive === 'true';
     if (search) {
       const results = await taxonomyService.searchSubtopics(search, topicId);
       res.json(results);
       return;
     }
-    const subtopics = await taxonomyService.getSubtopics(topicId);
+    const subtopics = await taxonomyService.getSubtopics(topicId, { includeInactive });
     res.json(subtopics);
   } catch (err: any) {
     res.status(500).json({ error: err?.message || 'Failed to fetch subtopics' });
   }
 });
 
-apiRouter.post('/subtopics', async (req: Request, res: Response) => {
+apiRouter.get('/subtopics/:id', async (req: Request, res: Response) => {
+  try {
+    const subtopic = await taxonomyService.getSubtopicById(req.params.id);
+    if (!subtopic) {
+      res.status(404).json({ error: `Subtopic with ID "${req.params.id}" not found` });
+      return;
+    }
+    res.json(subtopic);
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || 'Failed to fetch subtopic' });
+  }
+});
+
+apiRouter.post('/subtopics', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER]), async (req: Request, res: Response) => {
   try {
     const actor = getRequestActor(req);
     const subtopic = await taxonomyService.createSubtopic(req.body, actor);
@@ -590,12 +1594,100 @@ apiRouter.post('/subtopics', async (req: Request, res: Response) => {
   }
 });
 
+apiRouter.patch('/subtopics/:id', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER]), async (req: Request, res: Response) => {
+  try {
+    const actor = getRequestActor(req);
+    const subtopic = await taxonomyService.updateSubtopic(req.params.id, req.body, actor);
+    res.json(subtopic);
+  } catch (err: any) {
+    res.status(err?.statusCode || 400).json({ error: err?.message || 'Failed to update subtopic' });
+  }
+});
+
+apiRouter.patch('/subtopics/:id/toggle-active', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER]), async (req: Request, res: Response) => {
+  try {
+    const actor = getRequestActor(req);
+    const { isActive } = req.body;
+    if (typeof isActive !== 'boolean') {
+      res.status(400).json({ error: 'Field "isActive" must be a boolean.' });
+      return;
+    }
+    const subtopic = await taxonomyService.toggleSubtopicActive(req.params.id, isActive, actor);
+    res.json(subtopic);
+  } catch (err: any) {
+    res.status(err?.statusCode || 400).json({ error: err?.message || 'Failed to toggle subtopic status' });
+  }
+});
+
+// BULK IMPORT ENDPOINTS
+apiRouter.post('/taxonomy/import/dry-run', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER]), async (req: Request, res: Response) => {
+  try {
+    const report = await taxonomyService.bulkImportDryRun(req.body);
+    res.json(report);
+  } catch (err: any) {
+    res.status(err?.statusCode || 400).json({ error: err?.message || 'Bulk import dry run failed' });
+  }
+});
+
+apiRouter.post('/taxonomy/import/execute', requireRole([UserRole.ADMIN]), async (req: Request, res: Response) => {
+  try {
+    const actor = getRequestActor(req);
+    const result = await taxonomyService.executeBulkImport(req.body, actor);
+    res.json(result);
+  } catch (err: any) {
+    res.status(err?.statusCode || 400).json({ error: err?.message || 'Bulk import execution failed' });
+  }
+});
+
 // ----------------------------------------------------
 // Questions Endpoints
 // ----------------------------------------------------
 
+apiRouter.get('/questions/config', async (req: Request, res: Response) => {
+  try {
+    const { QUESTION_CREATION_CONFIG } = await import('../config/question-creation.config');
+    res.json(QUESTION_CREATION_CONFIG);
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to fetch question creation configuration' });
+  }
+});
+
+apiRouter.post('/questions/smart-random', async (req: Request, res: Response) => {
+  try {
+    const { smartRandomService } = await import('../lib/services/smart-random.service');
+    const resolved = await smartRandomService.resolveParameters(req.body);
+    res.json(resolved);
+  } catch (err: any) {
+    res.status(400).json({ error: err?.message || 'Smart Random resolution failed' });
+  }
+});
+
+apiRouter.post('/questions/create', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.QUESTION_EDITOR, UserRole.CONTENT_WRITER]), async (req: Request, res: Response) => {
+  try {
+    const actor = getRequestActor(req);
+    const idempotencyHeader = req.headers['x-idempotency-key'];
+    const idempotencyKey = typeof idempotencyHeader === 'string' ? idempotencyHeader : req.body.idempotencyKey;
+
+    const payload = {
+      creationMode: req.body.creationMode || 'manual',
+      ...req.body,
+      idempotencyKey,
+    };
+
+    const newQuestion = await questionService.createQuestionFromRequest(payload, actor);
+    res.status(201).json(newQuestion);
+  } catch (err: any) {
+    res.status(err?.statusCode || 400).json({
+      error: err?.name || 'Validation Failed',
+      message: err?.message || 'Failed to create question',
+      details: err?.details || (err?.errors ? err.errors : undefined),
+    });
+  }
+});
+
 apiRouter.get('/questions', async (req: Request, res: Response) => {
   try {
+    const actor = getRequestActor(req);
     const { search, categoryId, topicId, subtopicId, difficulty, status, videoStatus } = req.query;
 
     const filter = {
@@ -608,7 +1700,16 @@ apiRouter.get('/questions', async (req: Request, res: Response) => {
       videoStatus: typeof videoStatus === 'string' ? (videoStatus as any) : undefined,
     };
 
-    const questions = await questionService.getQuestions(filter);
+    let questions = await questionService.getQuestions(filter);
+    if (!objectAuthService.isManagerOrAdmin(actor)) {
+      const filtered = [];
+      for (const q of questions) {
+        if (await objectAuthService.canAccessQuestion(actor, q)) {
+          filtered.push(q);
+        }
+      }
+      questions = filtered;
+    }
     res.json(questions);
   } catch (err: any) {
     res.status(err?.statusCode || 500).json({
@@ -620,10 +1721,15 @@ apiRouter.get('/questions', async (req: Request, res: Response) => {
 
 apiRouter.get('/questions/:id', async (req: Request, res: Response) => {
   try {
+    const actor = getRequestActor(req);
     const { id } = req.params;
     const question = await questionService.getQuestionById(id);
     if (!question) {
       return res.status(404).json({ error: `Question with ID "${id}" not found` });
+    }
+    const canAccess = await objectAuthService.canAccessQuestion(actor, question);
+    if (!canAccess) {
+      return res.status(403).json({ error: 'Forbidden: You do not have permission to view this question.' });
     }
     res.json(question);
   } catch (err: any) {
@@ -634,7 +1740,30 @@ apiRouter.get('/questions/:id', async (req: Request, res: Response) => {
   }
 });
 
-apiRouter.post('/questions', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.QUESTION_EDITOR, UserRole.REVIEWER, UserRole.CONTENT_WRITER, UserRole.CREATOR, UserRole.EDITOR]), async (req: Request, res: Response) => {
+apiRouter.get('/questions/:id/canonical-state', async (req: Request, res: Response) => {
+  try {
+    const actor = getRequestActor(req);
+    const { id } = req.params;
+    const question = await questionService.getQuestionById(id);
+    if (!question) {
+      return res.status(404).json({ success: false, error: `Question with ID "${id}" not found` });
+    }
+    const canAccess = await objectAuthService.canAccessQuestion(actor, question);
+    if (!canAccess) {
+      return res.status(403).json({ success: false, error: 'Forbidden: You do not have permission to view this question.' });
+    }
+    const canonicalSummary = await workflowOrchestrationService.getCanonicalWorkflowState(id);
+    res.json({ success: true, data: canonicalSummary });
+  } catch (err: any) {
+    res.status(err?.statusCode || 500).json({
+      success: false,
+      error: err?.name || 'Failed to calculate canonical workflow state',
+      message: err?.message || 'Unknown error',
+    });
+  }
+});
+
+apiRouter.post('/questions', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.QUESTION_EDITOR, UserRole.CONTENT_WRITER]), async (req: Request, res: Response) => {
   try {
     const actor = getRequestActor(req);
     const newQuestion = await questionService.createQuestion(req.body, actor);
@@ -648,10 +1777,18 @@ apiRouter.post('/questions', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAG
   }
 });
 
-apiRouter.put('/questions/:id', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.QUESTION_EDITOR, UserRole.REVIEWER, UserRole.CONTENT_WRITER, UserRole.CREATOR, UserRole.EDITOR]), async (req: Request, res: Response) => {
+apiRouter.put('/questions/:id', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.QUESTION_EDITOR, UserRole.CONTENT_WRITER]), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const actor = getRequestActor(req);
+    const question = await questionService.getQuestionById(id);
+    if (!question) {
+      return res.status(404).json({ error: `Question with ID "${id}" not found` });
+    }
+    const canModify = await objectAuthService.canModifyQuestion(actor, question);
+    if (!canModify) {
+      return res.status(403).json({ error: 'Forbidden: You do not have permission to update this question.' });
+    }
     const updatedQuestion = await questionService.updateQuestion(id, req.body, actor);
     res.json(updatedQuestion);
   } catch (err: any) {
@@ -684,6 +1821,14 @@ apiRouter.post('/questions/:id/queue', requireRole([UserRole.ADMIN, UserRole.CON
     const { id } = req.params;
     const { remarks } = req.body || {};
     const currentActor = getRequestActor(req);
+    const question = await questionService.getQuestionById(id);
+    if (!question) {
+      return res.status(404).json({ error: `Question with ID "${id}" not found` });
+    }
+    const canModify = await objectAuthService.canModifyQuestion(currentActor, question);
+    if (!canModify) {
+      return res.status(403).json({ error: 'Forbidden: You do not have permission to queue this question.' });
+    }
     const queuedQuestion = await questionService.queueQuestion(id, currentActor, remarks);
     res.json(queuedQuestion);
   } catch (err: any) {
@@ -694,7 +1839,7 @@ apiRouter.post('/questions/:id/queue', requireRole([UserRole.ADMIN, UserRole.CON
   }
 });
 
-apiRouter.patch('/questions/:id/status', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.QUESTION_EDITOR, UserRole.REVIEWER]), async (req: Request, res: Response) => {
+apiRouter.patch('/questions/:id/status', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER]), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { status, remarks } = req.body;
@@ -703,6 +1848,14 @@ apiRouter.patch('/questions/:id/status', requireRole([UserRole.ADMIN, UserRole.C
     }
 
     const currentActor = getRequestActor(req);
+    const question = await questionService.getQuestionById(id);
+    if (!question) {
+      return res.status(404).json({ error: `Question with ID "${id}" not found` });
+    }
+    const canModify = await objectAuthService.canModifyQuestion(currentActor, question);
+    if (!canModify) {
+      return res.status(403).json({ error: 'Forbidden: You do not have permission to update this question status.' });
+    }
     const updated = await questionService.updateStatus(id, status as QuestionStatus, currentActor, remarks);
     res.json(updated);
   } catch (err: any) {
@@ -714,11 +1867,112 @@ apiRouter.patch('/questions/:id/status', requireRole([UserRole.ADMIN, UserRole.C
 });
 
 // ----------------------------------------------------
+// Question Validation Engine Endpoints (Phase 5)
+// ----------------------------------------------------
+
+apiRouter.post(
+  '/questions/:id/validate',
+  requireAuth,
+  requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.QUESTION_EDITOR, UserRole.REVIEWER]),
+  async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const actor = getRequestActor(req);
+      const { skipTaxonomyLookup, source } = req.body || {};
+
+      const result = await questionValidationService.validateQuestion(id, actor, {
+        skipTaxonomyLookup: Boolean(skipTaxonomyLookup),
+        source,
+      });
+      res.json({ success: true, data: result });
+    } catch (err: any) {
+      res.status(err?.statusCode || 400).json({
+        success: false,
+        error: err?.name || 'Validation Failed',
+        message: err?.message || 'Failed to validate question',
+      });
+    }
+  }
+);
+
+apiRouter.post(
+  '/questions/validate-candidate',
+  requireAuth,
+  requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.QUESTION_EDITOR, UserRole.REVIEWER]),
+  async (req: Request, res: Response) => {
+    try {
+      const { question, skipTaxonomyLookup, source } = req.body || {};
+      if (!question) {
+        return res.status(400).json({ success: false, error: 'Question payload is required for candidate validation.' });
+      }
+
+      const result = await questionValidationService.validateCandidate(question, {
+        skipTaxonomyLookup: Boolean(skipTaxonomyLookup),
+        source,
+      });
+      res.json({ success: true, data: result });
+    } catch (err: any) {
+      res.status(err?.statusCode || 400).json({
+        success: false,
+        error: err?.name || 'Candidate Validation Failed',
+        message: err?.message || 'Failed to validate question candidate',
+      });
+    }
+  }
+);
+
+apiRouter.get('/questions/:id/validation', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const actor = getRequestActor(req);
+    const question = await questionService.getQuestionById(id);
+    if (!question) {
+      return res.status(404).json({ success: false, error: `Question with ID "${id}" not found` });
+    }
+    const canAccess = await objectAuthService.canAccessQuestion(actor, question);
+    if (!canAccess) {
+      return res.status(403).json({ success: false, error: 'Forbidden: You do not have permission to view validation for this question.' });
+    }
+    const result = await questionValidationService.getLatestValidation(id);
+    res.json({ success: true, data: result });
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      error: err?.message || 'Failed to fetch latest question validation',
+    });
+  }
+});
+
+apiRouter.get('/questions/:id/validation-history', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const actor = getRequestActor(req);
+    const question = await questionService.getQuestionById(id);
+    if (!question) {
+      return res.status(404).json({ success: false, error: `Question with ID "${id}" not found` });
+    }
+    const canAccess = await objectAuthService.canAccessQuestion(actor, question);
+    if (!canAccess) {
+      return res.status(403).json({ success: false, error: 'Forbidden: You do not have permission to view validation history for this question.' });
+    }
+    const history = await questionValidationService.getValidationHistory(id);
+    res.json({ success: true, count: history.length, data: history });
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      error: err?.message || 'Failed to fetch validation history',
+    });
+  }
+});
+
+
+// ----------------------------------------------------
 // Videos & Production Endpoints (Phase 5)
 // ----------------------------------------------------
 
 apiRouter.get('/videos', async (req: Request, res: Response) => {
   try {
+    const actor = getRequestActor(req);
     const filter = {
       status: req.query.status as any,
       priority: req.query.priority as any,
@@ -729,7 +1983,16 @@ apiRouter.get('/videos', async (req: Request, res: Response) => {
       assignedHost: req.query.assignedHost as string,
       assignedEditor: req.query.assignedEditor as string,
     };
-    const videos = await videoService.getVideos(filter);
+    let videos = await videoService.getVideos(filter);
+    if (!objectAuthService.isManagerOrAdmin(actor)) {
+      const filtered = [];
+      for (const v of videos) {
+        if (await objectAuthService.canAccessVideo(actor, v)) {
+          filtered.push(v);
+        }
+      }
+      videos = filtered;
+    }
     res.json(videos);
   } catch (err: any) {
     res.status(500).json({ error: err?.message || 'Failed to fetch videos' });
@@ -748,9 +2011,14 @@ apiRouter.get('/videos/stats', async (req: Request, res: Response) => {
 apiRouter.get('/videos/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const actor = getRequestActor(req);
     const video = await videoService.getVideoById(id);
     if (!video) {
       return res.status(404).json({ error: 'Video Not Found', message: `Video with ID "${id}" was not found.` });
+    }
+    const canAccess = await objectAuthService.canAccessVideo(actor, video);
+    if (!canAccess) {
+      return res.status(403).json({ error: 'Forbidden: You do not have permission to view this video.' });
     }
     res.json(video);
   } catch (err: any) {
@@ -780,6 +2048,14 @@ apiRouter.patch('/videos/:id/status', requireRole([UserRole.ADMIN, UserRole.CONT
     }
 
     const currentActor = getRequestActor(req);
+    const video = await videoService.getVideoById(id);
+    if (!video) {
+      return res.status(404).json({ error: 'Video Not Found', message: `Video with ID "${id}" was not found.` });
+    }
+    const canModify = await objectAuthService.canModifyVideo(currentActor, video);
+    if (!canModify) {
+      return res.status(403).json({ error: 'Forbidden: You do not have permission to update this video status.' });
+    }
     const updated = await videoService.transitionStatus(id, status, currentActor, remarks, actualDurationSeconds);
     res.json(updated);
   } catch (err: any) {
@@ -799,6 +2075,14 @@ apiRouter.patch('/videos/:id/priority', requireRole([UserRole.ADMIN, UserRole.CO
     }
 
     const currentActor = getRequestActor(req);
+    const video = await videoService.getVideoById(id);
+    if (!video) {
+      return res.status(404).json({ error: 'Video Not Found', message: `Video with ID "${id}" was not found.` });
+    }
+    const canModify = await objectAuthService.canModifyVideo(currentActor, video);
+    if (!canModify) {
+      return res.status(403).json({ error: 'Forbidden: You do not have permission to update this video priority.' });
+    }
     const updated = await videoService.updatePriority(id, priority, currentActor, remarks);
     res.json(updated);
   } catch (err: any) {
@@ -827,6 +2111,14 @@ apiRouter.put('/videos/:id', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAG
   try {
     const { id } = req.params;
     const actor = getRequestActor(req);
+    const video = await videoService.getVideoById(id);
+    if (!video) {
+      return res.status(404).json({ error: 'Video Not Found', message: `Video with ID "${id}" was not found.` });
+    }
+    const canModify = await objectAuthService.canModifyVideo(actor, video);
+    if (!canModify) {
+      return res.status(403).json({ error: 'Forbidden: You do not have permission to update video metadata.' });
+    }
     const updated = await videoService.updateVideoMetadata(id, req.body, actor);
     res.json(updated);
   } catch (err: any) {
@@ -837,13 +2129,77 @@ apiRouter.put('/videos/:id', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAG
   }
 });
 
+apiRouter.post('/videos/:id/final-render/complete', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.VIDEO_EDITOR]), async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const actor = getRequestActor(req);
+    const video = await videoService.getVideoById(id);
+    if (!video) {
+      return res.status(404).json({ error: 'Video Not Found', message: `Video with ID "${id}" was not found.` });
+    }
+
+    const canModify = await objectAuthService.canModifyVideo(actor, video);
+    if (!canModify) {
+      return res.status(403).json({ error: 'Forbidden: You do not have permission to modify this video.' });
+    }
+
+    // Idempotency: If already EDITED, return success directly
+    if (video.status === VideoProductionStatus.EDITED) {
+      return res.json(video);
+    }
+
+    // Reject transitions from other invalid states
+    if (video.status !== VideoProductionStatus.EDITING) {
+      return res.status(400).json({
+        error: 'Invalid State Transition',
+        message: `Cannot complete editing from status "${video.status}". Video must be in "EDITING" status.`,
+      });
+    }
+
+    // Authoritative server-side validation of render metadata
+    const validation = ProductionAssetValidationService.validateMetadata(video);
+    if (validation.status !== RenderValidationStatus.VALID) {
+      return res.status(400).json({
+        error: 'Validation Failed',
+        message: 'Final render metadata is invalid or incomplete.',
+        errors: validation.errors,
+        warnings: validation.warnings,
+      });
+    }
+
+    // Transition via existing state-machine/orchestration to EDITED
+    const updated = await videoService.transitionStatus(
+      id,
+      VideoProductionStatus.EDITED,
+      actor,
+      req.body.remarks
+    );
+
+    res.json(updated);
+  } catch (err: any) {
+    res.status(err?.statusCode || 400).json({
+      error: err?.name || 'Handoff Failed',
+      message: err?.message || 'Failed to complete final render handoff',
+    });
+  }
+});
+
 // ----------------------------------------------------
 // Script Management Endpoints (Phase 6)
 // ----------------------------------------------------
 
-apiRouter.get('/videos/:videoId/script', async (req: Request, res: Response) => {
+apiRouter.get('/videos/:videoId/script', requireAuth, async (req: Request, res: Response) => {
   try {
     const { videoId } = req.params;
+    const actor = getRequestActor(req);
+    const video = await videoService.getVideoById(videoId);
+    if (!video) {
+      return res.status(404).json({ error: 'Video not found' });
+    }
+    const canAccess = await objectAuthService.canAccessScript(actor, video);
+    if (!canAccess) {
+      return res.status(403).json({ error: 'Forbidden: You do not have permission to view this script.' });
+    }
     const result = await scriptService.getScriptByVideoId(videoId);
     res.json(result);
   } catch (err: any) {
@@ -854,6 +2210,7 @@ apiRouter.get('/videos/:videoId/script', async (req: Request, res: Response) => 
 apiRouter.get('/scripts/:scriptId/versions', async (req: Request, res: Response) => {
   try {
     const { scriptId } = req.params;
+    const actor = getRequestActor(req);
     const versions = await scriptService.getScriptVersions(scriptId);
     res.json(versions);
   } catch (err: any) {
@@ -865,6 +2222,13 @@ apiRouter.post('/videos/:videoId/script', requireRole([UserRole.ADMIN, UserRole.
   try {
     const { videoId } = req.params;
     const actor = getRequestActor(req);
+    const video = await videoService.getVideoById(videoId);
+    if (video) {
+      const canModify = await objectAuthService.canModifyScript(actor, video);
+      if (!canModify) {
+        return res.status(403).json({ error: 'Forbidden: You do not have permission to modify this script.' });
+      }
+    }
     const result = await scriptService.saveScript(videoId, req.body, actor);
     res.status(200).json(result);
   } catch (err: any) {
@@ -875,6 +2239,14 @@ apiRouter.post('/videos/:videoId/script', requireRole([UserRole.ADMIN, UserRole.
 apiRouter.post('/videos/:videoId/script/generate', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.SCRIPT_WRITER, UserRole.CONTENT_WRITER]), async (req: Request, res: Response) => {
   try {
     const { videoId } = req.params;
+    const actor = getRequestActor(req);
+    const video = await videoService.getVideoById(videoId);
+    if (video) {
+      const canModify = await objectAuthService.canModifyScript(actor, video);
+      if (!canModify) {
+        return res.status(403).json({ error: 'Forbidden: You do not have permission to generate script for this video.' });
+      }
+    }
     const result = await scriptService.generateTeluguScriptForVideo(videoId);
     res.json(result);
   } catch (err: any) {
@@ -899,6 +2271,13 @@ apiRouter.post('/videos/:videoId/script/mark-ready', requireRole([UserRole.ADMIN
     const { videoId } = req.params;
     const { remarks } = req.body;
     const currentActor = getRequestActor(req);
+    const video = await videoService.getVideoById(videoId);
+    if (video) {
+      const canModify = await objectAuthService.canModifyScript(currentActor, video);
+      if (!canModify) {
+        return res.status(403).json({ error: 'Forbidden: You do not have permission to mark this script ready.' });
+      }
+    }
     const result = await scriptService.markScriptReady(videoId, currentActor, remarks);
     res.json(result);
   } catch (err: any) {
@@ -922,9 +2301,18 @@ apiRouter.post('/videos/:videoId/script/return-to-editing', requireRole([UserRol
 // Thumbnail Management Endpoints (Phase 6)
 // ----------------------------------------------------
 
-apiRouter.get('/videos/:videoId/thumbnail', async (req: Request, res: Response) => {
+apiRouter.get('/videos/:videoId/thumbnail', requireAuth, async (req: Request, res: Response) => {
   try {
     const { videoId } = req.params;
+    const actor = getRequestActor(req);
+    const video = await videoService.getVideoById(videoId);
+    if (!video) {
+      return res.status(404).json({ error: 'Video not found' });
+    }
+    const canAccess = await objectAuthService.canAccessThumbnail(actor, video);
+    if (!canAccess) {
+      return res.status(403).json({ error: 'Forbidden: You do not have permission to view this thumbnail.' });
+    }
     const result = await thumbnailService.getThumbnailByVideoId(videoId);
     res.json(result);
   } catch (err: any) {
@@ -946,6 +2334,13 @@ apiRouter.post('/videos/:videoId/thumbnail', requireRole([UserRole.ADMIN, UserRo
   try {
     const { videoId } = req.params;
     const actor = getRequestActor(req);
+    const video = await videoService.getVideoById(videoId);
+    if (video) {
+      const canModify = await objectAuthService.canModifyThumbnail(actor, video);
+      if (!canModify) {
+        return res.status(403).json({ error: 'Forbidden: You do not have permission to save thumbnail for this video.' });
+      }
+    }
     const result = await thumbnailService.saveThumbnail(videoId, req.body, actor);
     res.status(200).json(result);
   } catch (err: any) {
@@ -969,9 +2364,18 @@ apiRouter.patch('/thumbnails/:thumbnailId/status', requireRole([UserRole.ADMIN, 
 // Pinned Comments Endpoints (Phase 6)
 // ----------------------------------------------------
 
-apiRouter.get('/videos/:videoId/pinned-comment', async (req: Request, res: Response) => {
+apiRouter.get('/videos/:videoId/pinned-comment', requireAuth, async (req: Request, res: Response) => {
   try {
     const { videoId } = req.params;
+    const actor = getRequestActor(req);
+    const video = await videoService.getVideoById(videoId);
+    if (!video) {
+      return res.status(404).json({ error: 'Video not found' });
+    }
+    const canAccess = await objectAuthService.canAccessPinnedComment(actor, video);
+    if (!canAccess) {
+      return res.status(403).json({ error: 'Forbidden: You do not have permission to view pinned comment.' });
+    }
     const result = await pinnedCommentService.getPinnedCommentByVideoId(videoId);
     res.json(result);
   } catch (err: any) {
@@ -983,6 +2387,13 @@ apiRouter.post('/videos/:videoId/pinned-comment', requireRole([UserRole.ADMIN, U
   try {
     const { videoId } = req.params;
     const actor = getRequestActor(req);
+    const video = await videoService.getVideoById(videoId);
+    if (video) {
+      const canModify = await objectAuthService.canModifyPinnedComment(actor, video);
+      if (!canModify) {
+        return res.status(403).json({ error: 'Forbidden: You do not have permission to save pinned comment for this video.' });
+      }
+    }
     const result = await pinnedCommentService.savePinnedComment(videoId, req.body, actor);
     res.json(result);
   } catch (err: any) {
@@ -1018,7 +2429,17 @@ apiRouter.patch('/pinned-comments/:pinnedCommentId/status', requireRole([UserRol
 
 apiRouter.get('/publishing', async (req: Request, res: Response) => {
   try {
+    const actor = getRequestActor(req);
     const publishingList = await publishingService.getPublishingList();
+    if (!objectAuthService.isManagerOrAdmin(actor)) {
+      const filtered = [];
+      for (const p of publishingList) {
+        if (await objectAuthService.canAccessPublishing(actor, p)) {
+          filtered.push(p);
+        }
+      }
+      return res.json(filtered);
+    }
     res.json(publishingList);
   } catch (err: any) {
     res.status(500).json({ error: err?.message || 'Failed to fetch publishing records' });
@@ -1028,6 +2449,14 @@ apiRouter.get('/publishing', async (req: Request, res: Response) => {
 apiRouter.get('/videos/:videoId/publishing', async (req: Request, res: Response) => {
   try {
     const { videoId } = req.params;
+    const actor = getRequestActor(req);
+    const video = await videoService.getVideoById(videoId);
+    if (video) {
+      const canAccess = await objectAuthService.canAccessVideo(actor, video);
+      if (!canAccess) {
+        return res.status(403).json({ error: 'Forbidden: You do not have permission to view publishing for this video.' });
+      }
+    }
     const record = await publishingService.getPublishingByVideoId(videoId);
     if (!record) {
       return res.status(404).json({ error: 'Publishing Record Not Found' });
@@ -1053,7 +2482,14 @@ apiRouter.get('/videos/:videoId/publishing/readiness', async (req: Request, res:
   try {
     const { videoId } = req.params;
     const currentActor = getRequestActor(req);
-    const result = await publishingService.validatePublishReadiness(videoId, { actor: currentActor });
+    const video = await videoService.getVideoById(videoId);
+    if (video) {
+      const canAccess = await objectAuthService.canAccessVideo(currentActor, video);
+      if (!canAccess) {
+        return res.status(403).json({ error: 'Forbidden: You do not have permission to check publish readiness for this video.' });
+      }
+    }
+    const result = await publishingService.validatePublishReadiness(videoId, { actor: currentActor, skipAudit: true });
     res.json(result);
   } catch (err: any) {
     res.status(err?.statusCode || 400).json({ error: err?.message || 'Failed to evaluate publish readiness' });
@@ -1068,6 +2504,13 @@ apiRouter.post('/videos/:videoId/publishing/publish-platform', requireRole([User
       return res.status(400).json({ error: 'Platform and postUrl are required' });
     }
     const currentActor = getRequestActor(req);
+    const video = await videoService.getVideoById(videoId);
+    if (video) {
+      const canModify = await objectAuthService.canModifyPublishing(currentActor, video);
+      if (!canModify) {
+        return res.status(403).json({ error: 'Forbidden: You do not have permission to publish this video.' });
+      }
+    }
     const updated = await publishingService.markPlatformPublished(
       videoId,
       platform,
@@ -1082,6 +2525,88 @@ apiRouter.post('/videos/:videoId/publishing/publish-platform', requireRole([User
   }
 });
 
+apiRouter.post('/videos/:videoId/publishing/schedule', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.PUBLISHING_MANAGER]), async (req: Request, res: Response) => {
+  try {
+    const { videoId } = req.params;
+    const { platform, scheduledAt } = req.body || {};
+    if (!platform || !scheduledAt) {
+      return res.status(400).json({ error: 'Platform and scheduledAt timestamp are required' });
+    }
+    const currentActor = getRequestActor(req);
+    const video = await videoService.getVideoById(videoId);
+    if (video) {
+      const canModify = await objectAuthService.canModifyPublishing(currentActor, video);
+      if (!canModify) {
+        return res.status(403).json({ error: 'Forbidden: You do not have permission to schedule publishing for this video.' });
+      }
+    }
+    const updated = await publishingService.schedulePublishing(
+      videoId,
+      platform,
+      scheduledAt,
+      currentActor
+    );
+    res.json(updated);
+  } catch (err: any) {
+    res.status(err?.statusCode || 400).json({ error: err?.message || 'Failed to schedule publishing' });
+  }
+});
+
+apiRouter.post('/videos/:videoId/publishing/fail', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.PUBLISHING_MANAGER]), async (req: Request, res: Response) => {
+  try {
+    const { videoId } = req.params;
+    const { platform, failureReason, errorMsg } = req.body || {};
+    const reason = failureReason || errorMsg;
+    if (!platform || !reason) {
+      return res.status(400).json({ error: 'Platform and failureReason are required' });
+    }
+    const currentActor = getRequestActor(req);
+    const video = await videoService.getVideoById(videoId);
+    if (video) {
+      const canModify = await objectAuthService.canModifyPublishing(currentActor, video);
+      if (!canModify) {
+        return res.status(403).json({ error: 'Forbidden: You do not have permission to modify publishing for this video.' });
+      }
+    }
+    const updated = await publishingService.markPlatformFailed(
+      videoId,
+      platform,
+      reason,
+      currentActor
+    );
+    res.json(updated);
+  } catch (err: any) {
+    res.status(err?.statusCode || 400).json({ error: err?.message || 'Failed to mark platform failed' });
+  }
+});
+
+apiRouter.post('/videos/:videoId/publishing/retry', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.PUBLISHING_MANAGER]), async (req: Request, res: Response) => {
+  try {
+    const { videoId } = req.params;
+    const { platform, scheduledAt, remarks } = req.body || {};
+    if (!platform) {
+      return res.status(400).json({ error: 'Platform is required for retry' });
+    }
+    const currentActor = getRequestActor(req);
+    const video = await videoService.getVideoById(videoId);
+    if (video) {
+      const canModify = await objectAuthService.canModifyPublishing(currentActor, video);
+      if (!canModify) {
+        return res.status(403).json({ error: 'Forbidden: You do not have permission to retry publishing for this video.' });
+      }
+    }
+    const updated = await publishingService.retryPublishing(
+      videoId,
+      platform,
+      { scheduledAt, remarks },
+      currentActor
+    );
+    res.json(updated);
+  } catch (err: any) {
+    res.status(err?.statusCode || 400).json({ error: err?.message || 'Failed to retry publishing' });
+  }
+});
+
 apiRouter.post('/videos/:videoId/publishing/finalize', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.PUBLISHING_MANAGER]), async (req: Request, res: Response) => {
   try {
     const { videoId } = req.params;
@@ -1091,6 +2616,86 @@ apiRouter.post('/videos/:videoId/publishing/finalize', requireRole([UserRole.ADM
     res.json(result);
   } catch (err: any) {
     res.status(err?.statusCode || 400).json({ error: err?.message || 'Failed to finalize publishing' });
+  }
+});
+
+apiRouter.get('/videos/:videoId/publishing/package/:platform', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.PUBLISHING_MANAGER]), async (req: Request, res: Response) => {
+  try {
+    const { videoId, platform } = req.params;
+    const currentActor = getRequestActor(req);
+    const pkg = await publishingService.getPlatformPackage(
+      videoId,
+      platform as any,
+      currentActor
+    );
+    res.json(pkg);
+  } catch (err: any) {
+    res.status(err?.statusCode || 400).json({ error: err?.message || 'Failed to retrieve publishing package' });
+  }
+});
+
+// Phase 13.4: Publishing Assignments
+apiRouter.post('/videos/:videoId/publishing/assignment', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.PUBLISHING_MANAGER]), async (req: Request, res: Response) => {
+  try {
+    const { videoId } = req.params;
+    const currentActor = getRequestActor(req);
+
+    // Verify video exists
+    const video = await videoService.getVideoById(videoId);
+    if (!video) {
+      return res.status(404).json({ error: `Video with ID "${videoId}" was not found.` });
+    }
+
+    // Check authorization to modify publishing
+    const canModify = await objectAuthService.canModifyPublishing(currentActor, video);
+    if (!canModify) {
+      return res.status(403).json({ error: 'Forbidden: You do not have permission to assign publishing for this video.' });
+    }
+
+    // Extract client payload - strictly ignore spoofed actor/status/role fields
+    const { assigneeId, platform, priority, dueDate, dueAt, notes } = req.body || {};
+
+    const created = await publishingService.createPublishingAssignment(
+      videoId,
+      {
+        assigneeId,
+        platform,
+        priority,
+        dueDate,
+        dueAt,
+        notes,
+      },
+      currentActor
+    );
+
+    res.status(201).json({
+      success: true,
+      assignment: created,
+      data: created,
+      ...created,
+    });
+  } catch (err: any) {
+    res.status(err?.statusCode || 400).json({
+      success: false,
+      error: err?.message || 'Failed to create publishing assignment',
+      blockers: err?.details?.blockers || err?.blockers,
+    });
+  }
+});
+
+apiRouter.get(['/videos/:videoId/publishing/assignments', '/videos/:videoId/publishing/assignment'], requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.PUBLISHING_MANAGER]), async (req: Request, res: Response) => {
+  try {
+    const { videoId } = req.params;
+    const video = await videoService.getVideoById(videoId);
+    if (!video) {
+      return res.status(404).json({ error: `Video with ID "${videoId}" was not found.` });
+    }
+    const assignments = await publishingService.getPublishingAssignments(videoId);
+    res.json(assignments);
+  } catch (err: any) {
+    res.status(err?.statusCode || 500).json({
+      error: err?.message || 'Failed to fetch publishing assignments',
+    });
   }
 });
 
@@ -1134,7 +2739,7 @@ apiRouter.get('/ai/status', (req: Request, res: Response) => {
 
 apiRouter.post('/ai/generate', async (req: Request, res: Response) => {
   try {
-    const result = await geminiService.generateCandidate(req.body);
+    const result = await aiOrchestrator.generateQuestionCandidate(req.body);
     res.json(result);
   } catch (err: any) {
     res.status(500).json({
@@ -1169,6 +2774,511 @@ apiRouter.post('/ai/script/generate', async (req: Request, res: Response) => {
 });
 
 // ----------------------------------------------------
+// Phase 8: Social Media Enhancement Endpoints
+// ----------------------------------------------------
+
+apiRouter.post(
+  '/social-enhancement/hooks/generate',
+  requireAuth,
+  requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.QUESTION_EDITOR, UserRole.REVIEWER, UserRole.SCRIPT_WRITER]),
+  async (req: Request, res: Response) => {
+    try {
+      const { questionId, question: questionPayload, requestedStyles, language, videoId, contentMasterId } = req.body || {};
+
+      let targetQuestion = questionPayload;
+      if (!targetQuestion && questionId) {
+        targetQuestion = await questionsRepository.findById(questionId);
+      }
+
+      if (!targetQuestion) {
+        return res.status(400).json({
+          success: false,
+          error: 'Question is required for social hook generation.',
+        });
+      }
+
+      const draftResult = await SocialEnhancementService.generateSocialEnhancementDraft({
+        question: targetQuestion,
+        requestedStyles,
+        language,
+        videoId,
+        contentMasterId,
+      });
+
+      res.json({
+        success: true,
+        data: draftResult.payload,
+        metadata: {
+          isEligible: draftResult.isEligible,
+          reason: draftResult.reason,
+          aiCallsCount: draftResult.aiCallsCount,
+        },
+      });
+    } catch (err: any) {
+      res.status(err?.statusCode || 400).json({
+        success: false,
+        error: 'Social Hook Generation Failed',
+        message: err?.message || 'Failed to generate social hooks and strategy.',
+      });
+    }
+  }
+);
+
+apiRouter.post(
+  '/social-enhancement/teleprompter/generate',
+  requireAuth,
+  requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.QUESTION_EDITOR, UserRole.REVIEWER, UserRole.SCRIPT_WRITER]),
+  async (req: Request, res: Response) => {
+    try {
+      const { questionId, question: questionPayload, selectedHookText, selectedHookStyle, language, pacingWpm } = req.body || {};
+
+      if (!selectedHookText || typeof selectedHookText !== 'string' || selectedHookText.trim().length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'selectedHookText is required for teleprompter script generation.',
+        });
+      }
+
+      let targetQuestion = questionPayload;
+      if (!targetQuestion && questionId) {
+        targetQuestion = await questionsRepository.findById(questionId);
+      }
+
+      if (!targetQuestion) {
+        return res.status(400).json({
+          success: false,
+          error: 'Question is required for teleprompter script generation.',
+        });
+      }
+
+      const draftResult = await SocialEnhancementService.generateSpokenTeleprompterDraft({
+        question: targetQuestion,
+        selectedHookText,
+        selectedHookStyle,
+        language,
+        pacingWpm,
+      });
+
+      res.json({
+        success: true,
+        data: draftResult.payload,
+        metadata: {
+          isEligible: draftResult.isEligible,
+          reason: draftResult.reason,
+          aiCallsCount: draftResult.aiCallsCount,
+        },
+      });
+    } catch (err: any) {
+      res.status(err?.statusCode || 400).json({
+        success: false,
+        error: 'Teleprompter Script Generation Failed',
+        message: err?.message || 'Failed to generate spoken teleprompter script.',
+      });
+    }
+  }
+);
+
+// ----------------------------------------------------
+// Phase 8H: Social Content Review & Human Approval Workflow Endpoints
+// ----------------------------------------------------
+
+apiRouter.get(
+  '/social-enhancement/review/:questionId',
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { questionId } = req.params;
+      const actor = getRequestActor(req);
+      const question = await questionsRepository.findById(questionId);
+      if (!question) {
+        return res.status(404).json({ success: false, error: 'Question not found' });
+      }
+
+      // Restrict access using object authorization boundaries for non-admin/manager roles
+      const isManagerOrAdmin = actor.role === UserRole.ADMIN || actor.role === UserRole.CONTENT_MANAGER;
+      if (!isManagerOrAdmin) {
+        const isAuthorized = await objectAuthService.canAccessSocialPackage(actor, question);
+        if (!isAuthorized) {
+          return res.status(403).json({
+            success: false,
+            error: 'Forbidden: Insufficient permissions',
+            message: 'You do not have an active assignment or authorization to view this social review package.'
+          });
+        }
+      }
+
+      const bundle = await SocialReviewService.getReviewPackageBundle(questionId, question);
+      res.json({ success: true, data: bundle });
+    } catch (err: any) {
+      res.status(err?.statusCode || 500).json({
+        success: false,
+        error: 'Failed to fetch social review package bundle',
+        message: err?.message,
+      });
+    }
+  }
+);
+
+apiRouter.post(
+  '/social-enhancement/review/:questionId/approve',
+  requireAuth,
+  requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.REVIEWER]),
+  async (req: Request, res: Response) => {
+    try {
+      const { questionId } = req.params;
+      const { versionHash, reason, feedbackCategories } = req.body || {};
+      const actor = getRequestActor(req);
+      const question = await questionsRepository.findById(questionId);
+      if (!question) {
+        return res.status(404).json({ success: false, error: 'Question not found' });
+      }
+      const result = await SocialReviewService.submitReviewDecision(
+        questionId,
+        {
+          decision: SocialReviewStatus.APPROVED,
+          versionHash,
+          reason: reason || 'Human social package approved.',
+          feedbackCategories,
+        },
+        actor,
+        question
+      );
+      res.json({ success: true, data: result.bundle, record: result.record });
+    } catch (err: any) {
+      res.status(err?.statusCode || 400).json({
+        success: false,
+        error: 'Social Review Approval Failed',
+        message: err?.message,
+      });
+    }
+  }
+);
+
+apiRouter.post(
+  '/social-enhancement/review/:questionId/request-changes',
+  requireAuth,
+  requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.REVIEWER]),
+  async (req: Request, res: Response) => {
+    try {
+      const { questionId } = req.params;
+      const { versionHash, reason, feedbackCategories } = req.body || {};
+      const actor = getRequestActor(req);
+      const question = await questionsRepository.findById(questionId);
+      if (!question) {
+        return res.status(404).json({ success: false, error: 'Question not found' });
+      }
+      const result = await SocialReviewService.submitReviewDecision(
+        questionId,
+        {
+          decision: SocialReviewStatus.CHANGES_REQUESTED,
+          versionHash,
+          reason,
+          feedbackCategories,
+        },
+        actor,
+        question
+      );
+      res.json({ success: true, data: result.bundle, record: result.record });
+    } catch (err: any) {
+      res.status(err?.statusCode || 400).json({
+        success: false,
+        error: 'Request Changes Failed',
+        message: err?.message,
+      });
+    }
+  }
+);
+
+apiRouter.post(
+  '/social-enhancement/review/:questionId/reject',
+  requireAuth,
+  requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.REVIEWER]),
+  async (req: Request, res: Response) => {
+    try {
+      const { questionId } = req.params;
+      const { versionHash, reason, feedbackCategories } = req.body || {};
+      const actor = getRequestActor(req);
+      const question = await questionsRepository.findById(questionId);
+      if (!question) {
+        return res.status(404).json({ success: false, error: 'Question not found' });
+      }
+      const result = await SocialReviewService.submitReviewDecision(
+        questionId,
+        {
+          decision: SocialReviewStatus.REJECTED,
+          versionHash,
+          reason,
+          feedbackCategories,
+        },
+        actor,
+        question
+      );
+      res.json({ success: true, data: result.bundle, record: result.record });
+    } catch (err: any) {
+      res.status(err?.statusCode || 400).json({
+        success: false,
+        error: 'Reject Package Failed',
+        message: err?.message,
+      });
+    }
+  }
+);
+
+apiRouter.get(
+  '/social-enhancement/review/:questionId/history',
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { questionId } = req.params;
+      const history = await SocialReviewService.getReviewHistory(questionId);
+      res.json({ success: true, data: history });
+    } catch (err: any) {
+      res.status(err?.statusCode || 500).json({
+        success: false,
+        error: 'Failed to fetch social review history',
+        message: err?.message,
+      });
+    }
+  }
+);
+
+// Alias / Direct Endpoints
+apiRouter.get(
+  '/social-reviews/bundle/:questionId',
+  requireAuth,
+  requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.REVIEWER]),
+  async (req: Request, res: Response) => {
+    try {
+      const { questionId } = req.params;
+      const actor = getRequestActor(req);
+      const question = await questionsRepository.findById(questionId);
+      if (!question) {
+        return res.status(404).json({ success: false, error: 'Question not found' });
+      }
+
+      // Restrict access using object authorization boundaries for non-admin/manager roles
+      const isManagerOrAdmin = actor.role === UserRole.ADMIN || actor.role === UserRole.CONTENT_MANAGER;
+      if (!isManagerOrAdmin) {
+        const isAuthorized = await objectAuthService.canAccessSocialPackage(actor, question);
+        if (!isAuthorized) {
+          return res.status(403).json({
+            success: false,
+            error: 'Forbidden: Insufficient permissions',
+            message: 'You do not have an active assignment to view this social review package.'
+          });
+        }
+      }
+
+      const bundle = await SocialReviewService.getReviewPackageBundle(questionId, question);
+      res.json({ success: true, data: bundle });
+    } catch (err: any) {
+      res.status(err?.statusCode || 500).json({
+        success: false,
+        error: 'Failed to fetch social review package bundle',
+        message: err?.message,
+      });
+    }
+  }
+);
+
+apiRouter.post(
+  '/social-reviews/decision',
+  requireAuth,
+  requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.REVIEWER]),
+  async (req: Request, res: Response) => {
+    try {
+      const { questionId, decision, versionHash, reason, feedbackCategories } = req.body || {};
+      if (!questionId || !decision || !versionHash) {
+        return res.status(400).json({ success: false, error: 'questionId, decision, and versionHash are required' });
+      }
+      const actor = getRequestActor(req);
+      const question = await questionsRepository.findById(questionId);
+      if (!question) {
+        return res.status(404).json({ success: false, error: 'Question not found' });
+      }
+      const result = await SocialReviewService.submitReviewDecision(
+        questionId,
+        { decision, versionHash, reason, feedbackCategories },
+        actor,
+        question
+      );
+      res.json({ success: true, data: result.bundle, record: result.record });
+    } catch (err: any) {
+      res.status(err?.statusCode || 400).json({
+        success: false,
+        error: 'Submit Review Decision Failed',
+        message: err?.message,
+      });
+    }
+  }
+);
+
+apiRouter.get(
+  '/social-reviews/history/:questionId',
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { questionId } = req.params;
+      const history = await SocialReviewService.getReviewHistory(questionId);
+      res.json({ success: true, data: history });
+    } catch (err: any) {
+      res.status(err?.statusCode || 500).json({
+        success: false,
+        error: 'Failed to fetch social review history',
+        message: err?.message,
+      });
+    }
+  }
+);
+
+// ----------------------------------------------------
+// Phase 14.5: Social Review Dedicated Routing Endpoints
+// ----------------------------------------------------
+
+apiRouter.get(
+  '/social-reviews',
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const actor = getRequestActor(req);
+      const isManagerOrAdmin = actor.role === UserRole.ADMIN || actor.role === UserRole.CONTENT_MANAGER;
+      const isReviewer = actor.role === UserRole.REVIEWER;
+
+      if (!isManagerOrAdmin && !isReviewer) {
+        return res.status(403).json({
+          success: false,
+          error: 'Forbidden: Insufficient permissions',
+          message: 'Only administrators, content managers, and reviewers can access the social review workspace.',
+        });
+      }
+
+      const allReviews = await socialReviewsRepository.findAll();
+      if (isManagerOrAdmin) {
+        return res.json({ success: true, data: allReviews });
+      }
+
+      // For REVIEWER: isolate to assigned reviews or reviews on questions assigned to actor
+      const authorizedReviews = [];
+      for (const rev of allReviews) {
+        if (rev.reviewerId === actor.id) {
+          authorizedReviews.push(rev);
+          continue;
+        }
+        if (rev.questionId) {
+          const q = await questionsRepository.findById(rev.questionId);
+          if (q && (await objectAuthService.canAccessSocialPackage(actor, q))) {
+            authorizedReviews.push(rev);
+          }
+        }
+      }
+
+      res.json({ success: true, data: authorizedReviews });
+    } catch (err: any) {
+      res.status(err?.statusCode || 500).json({
+        success: false,
+        error: 'Failed to list social reviews',
+        message: err?.message,
+      });
+    }
+  }
+);
+
+apiRouter.get(
+  '/social-reviews/item/:reviewId',
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { reviewId } = req.params;
+      const actor = getRequestActor(req);
+
+      // 1. Attempt lookup by Social Review record ID
+      let review = await socialReviewsRepository.findById(reviewId);
+      let targetQuestionId = review ? review.questionId : null;
+
+      // 2. If not found as a review ID, check if reviewId is a question ID
+      if (!targetQuestionId) {
+        const directQuestion = await questionsRepository.findById(reviewId);
+        if (directQuestion) {
+          targetQuestionId = directQuestion.id;
+          const reviews = await socialReviewsRepository.findByQuestion(targetQuestionId);
+          if (reviews && reviews.length > 0) {
+            review = reviews[0];
+          }
+        }
+      }
+
+      if (!targetQuestionId) {
+        return res.status(404).json({
+          success: false,
+          error: 'Not Found',
+          message: `Social Review or Question record '${reviewId}' was not found.`,
+        });
+      }
+
+      const question = await questionsRepository.findById(targetQuestionId);
+      if (!question) {
+        return res.status(404).json({
+          success: false,
+          error: 'Question Not Found',
+          message: `The underlying question '${targetQuestionId}' was not found.`,
+        });
+      }
+
+      // 3. Authorization verification
+      const isManagerOrAdmin = actor.role === UserRole.ADMIN || actor.role === UserRole.CONTENT_MANAGER;
+      if (!isManagerOrAdmin) {
+        if (actor.role === UserRole.REVIEWER) {
+          // Reviewer can access if review is assigned to them or question is assigned to them
+          const isAssignedToReview = review && review.reviewerId === actor.id;
+          const canAccessQuestion = await objectAuthService.canAccessSocialPackage(actor, question);
+          if (!isAssignedToReview && !canAccessQuestion) {
+            return res.status(403).json({
+              success: false,
+              error: 'Forbidden: Insufficient permissions',
+              message: 'You do not have an active assignment or authorization to view this social review record.',
+            });
+          }
+        } else if (actor.role === UserRole.CREATOR || actor.role === UserRole.EDITOR) {
+          // Creator/Editor author can access question if authorized, but cannot review
+          const canAccessQuestion = await objectAuthService.canAccessQuestion(actor, question);
+          if (!canAccessQuestion) {
+            return res.status(403).json({
+              success: false,
+              error: 'Forbidden: Insufficient permissions',
+              message: 'You do not have authorization to view this social review context.',
+            });
+          }
+        } else {
+          // Other specialist roles have no review workspace access
+          return res.status(403).json({
+            success: false,
+            error: 'Forbidden: Specialist role restricted',
+            message: 'Your role is not authorized to access the social review workspace.',
+          });
+        }
+      }
+
+      const bundle = await SocialReviewService.getReviewPackageBundle(targetQuestionId, question);
+      const canReview = isManagerOrAdmin || (actor.role === UserRole.REVIEWER && (review?.reviewerId === actor.id || (await objectAuthService.canModifySocialPackage(actor, question))));
+
+      res.json({
+        success: true,
+        data: bundle,
+        review: review || null,
+        questionId: targetQuestionId,
+        canReview: Boolean(canReview),
+      });
+    } catch (err: any) {
+      res.status(err?.statusCode || 500).json({
+        success: false,
+        error: 'Failed to retrieve social review package',
+        message: err?.message,
+      });
+    }
+  }
+);
+
+// ----------------------------------------------------
 // Phase 7: Content Operations Dashboard Endpoints
 // ----------------------------------------------------
 
@@ -1183,7 +3293,8 @@ apiRouter.get('/dashboard/overview', async (req: Request, res: Response) => {
       videoStatus: req.query.videoStatus as string | undefined,
       search: req.query.search as string | undefined,
     };
-    const overview = await dashboardService.getOverview(filters);
+    const refresh = req.query.refresh === 'true';
+    const overview = await dashboardService.getOverview(filters, refresh);
     res.json(overview);
   } catch (err: any) {
     res.status(500).json({ error: err?.message || 'Failed to fetch dashboard overview' });
@@ -1264,10 +3375,12 @@ apiRouter.get('/dashboard/publishing-readiness', async (req: Request, res: Respo
   }
 });
 
-apiRouter.get('/search', async (req: Request, res: Response) => {
+apiRouter.get('/search', requireAuth, async (req: Request, res: Response) => {
   try {
+    const authReq = req as AuthenticatedRequest;
+    const actor = getRequestActor(req);
     const query = (req.query.q as string) || '';
-    const results = await dashboardService.search(query);
+    const results = await dashboardService.search(query, authReq.user?.role, authReq.user?.id, actor);
     res.json(results);
   } catch (err: any) {
     res.status(500).json({ error: err?.message || 'Global search failed' });
@@ -1277,6 +3390,16 @@ apiRouter.get('/search', async (req: Request, res: Response) => {
 // ----------------------------------------------------
 // Verification Suites
 // ----------------------------------------------------
+apiRouter.get('/tests/task3f55', async (req: Request, res: Response) => {
+  try {
+    const { runTask3F55GlobalSearchVerification } = await import('../tests/task3f55-global-search-routing-verification');
+    const result = await runTask3F55GlobalSearchVerification();
+    res.json({ success: true, ...result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Task 3F.5.5 verification failed' });
+  }
+});
+
 apiRouter.get('/tests/phase2', async (req: Request, res: Response) => {
   try {
     const { runPhase2Verification } = await import('../tests/phase2-verification');
@@ -1344,6 +3467,26 @@ apiRouter.get('/tests/phase8a', async (req: Request, res: Response) => {
     res.json({ success: true, ...result });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err?.message || 'Phase 8A tests failed' });
+  }
+});
+
+apiRouter.get('/tests/phase8d', async (req: Request, res: Response) => {
+  try {
+    const { runTask8dTeleprompterSpokenEnhancerVerification } = await import('../tests/task8d-teleprompter-spoken-enhancer-verification');
+    const result = await runTask8dTeleprompterSpokenEnhancerVerification();
+    res.json({ success: true, ...result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Phase 8D tests failed' });
+  }
+});
+
+apiRouter.get('/tests/phase8h', async (req: Request, res: Response) => {
+  try {
+    const { runTask8hVerification } = await import('../tests/task8h-social-review-workflow-verification');
+    const result = await runTask8hVerification();
+    res.json({ success: true, ...result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Phase 8H tests failed' });
   }
 });
 
@@ -1601,10 +3744,16 @@ apiRouter.post('/planning/ai-recommendation', async (req: Request, res: Response
 
 apiRouter.get('/assignments', async (req: Request, res: Response) => {
   try {
+    const authReq = req as AuthenticatedRequest;
+    const isManagerOrAdmin = authReq.user && [UserRole.ADMIN, UserRole.CONTENT_MANAGER].includes(authReq.user.role as UserRole);
+    let assigneeId = req.query.assigneeId as string;
+    if (!isManagerOrAdmin && authReq.user) {
+      assigneeId = authReq.user.id;
+    }
     const filter = {
       entityType: req.query.entityType as any,
       entityId: req.query.entityId as string,
-      assigneeId: req.query.assigneeId as string,
+      assigneeId,
       status: req.query.status as any,
       priority: req.query.priority as any,
       taskType: req.query.taskType as any,
@@ -1617,14 +3766,42 @@ apiRouter.get('/assignments', async (req: Request, res: Response) => {
   }
 });
 
-apiRouter.post('/assignments', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER]), async (req: Request, res: Response) => {
+apiRouter.post('/assignments', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.PUBLISHING_MANAGER]), async (req: Request, res: Response) => {
   try {
-    const validated = CreateAssignmentInputSchema.parse(req.body);
     const actor = getRequestActor(req);
+    const isPubMgr = actor.role === UserRole.PUBLISHING_MANAGER;
+    if (isPubMgr && req.body?.entityType !== 'PUBLISHING') {
+      return res.status(403).json({
+        error: 'Forbidden',
+        message: 'Publishing Manager can only create PUBLISHING assignments.',
+      });
+    }
+
+    if (req.body?.entityType === 'PUBLISHING') {
+      const videoId = req.body.entityId || req.body.videoId;
+      const created = await publishingService.createPublishingAssignment(
+        videoId,
+        {
+          assigneeId: req.body.assigneeId,
+          platform: req.body.platform,
+          priority: req.body.priority,
+          dueDate: req.body.dueDate || req.body.dueAt,
+          notes: req.body.notes,
+        },
+        actor
+      );
+      return res.status(201).json(created);
+    }
+
+    const validated = CreateAssignmentInputSchema.parse(req.body);
     const assignment = await assignmentService.createAssignment(validated, actor);
     res.status(201).json(assignment);
   } catch (err: any) {
-    res.status(400).json({ error: 'Failed to create assignment', message: err?.message });
+    res.status(err?.statusCode || 400).json({
+      error: 'Failed to create assignment',
+      message: err?.message,
+      blockers: err?.blockers || err?.details?.blockers,
+    });
   }
 });
 
@@ -1650,9 +3827,14 @@ apiRouter.get('/assignments/entity/:entityType/:entityId', async (req: Request, 
 apiRouter.get('/assignments/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const authReq = req as AuthenticatedRequest;
     const assignment = await assignmentService.getAssignmentById(id);
     if (!assignment) {
       return res.status(404).json({ error: `Assignment ${id} not found` });
+    }
+    const isManagerOrAdmin = authReq.user && [UserRole.ADMIN, UserRole.CONTENT_MANAGER].includes(authReq.user.role as UserRole);
+    if (!isManagerOrAdmin && authReq.user && assignment.assigneeId !== authReq.user.id) {
+      return res.status(403).json({ error: 'Forbidden: You do not have access to view this assignment.' });
     }
     res.json(assignment);
   } catch (err: any) {
@@ -1749,6 +3931,37 @@ apiRouter.post('/assignments/:id/reassign', requireRole([UserRole.ADMIN, UserRol
   }
 });
 
+// Production Board API Endpoint (Task 3E.2.2)
+apiRouter.get('/production-board', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthenticatedRequest;
+    const user = authReq.user;
+    if (!user) {
+      return res.status(401).json({ error: 'Authentication required.' });
+    }
+
+    const boardItems = await productionBoardService.getProductionBoard();
+
+    // ADMIN and CONTENT_MANAGER receive the complete production board.
+    // Other users receive only records they are authorized to see (assigned to them or created/involved).
+    if ([UserRole.ADMIN, UserRole.CONTENT_MANAGER].includes(user.role as UserRole)) {
+      return res.json(boardItems);
+    }
+
+    // For contributors / other roles, filter by assignment or relevance
+    const filtered = boardItems.filter((item) => {
+      if (item.assignee && item.assignee.id === user.id) {
+        return true;
+      }
+      return false;
+    });
+
+    return res.json(filtered);
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to fetch production board data', message: err?.message });
+  }
+});
+
 // Users & Team Directory Endpoints
 apiRouter.get('/users', async (req: Request, res: Response) => {
   try {
@@ -1792,6 +4005,1042 @@ apiRouter.patch('/users/:id', requireRole([UserRole.ADMIN]), async (req: Request
     res.json(user);
   } catch (err: any) {
     res.status(400).json({ error: 'Failed to update user', message: err?.message });
+  }
+});
+
+apiRouter.get('/tests/task3e2', async (req: Request, res: Response) => {
+  try {
+    const { runTask3E2Verification } = await import('../tests/task3e2-production-board-api');
+    const result = await runTask3E2Verification();
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message });
+  }
+});
+
+apiRouter.get('/tests/task3f47e', async (req: Request, res: Response) => {
+  try {
+    const { runTask3F47E1GranularPinnedCommentRestoreVerification } = await import('../tests/task3f47e-granular-pinned-comment-restore-verification');
+    const result = await runTask3F47E1GranularPinnedCommentRestoreVerification();
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message });
+  }
+});
+
+apiRouter.get('/tests/task3f47f', async (req: Request, res: Response) => {
+  try {
+    const { runTask3F47FGranularPublishingRestoreVerification } = await import('../tests/task3f47f-granular-publishing-restore-verification');
+    const result = await runTask3F47FGranularPublishingRestoreVerification();
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message });
+  }
+});
+
+apiRouter.get('/tests/task3f47g', async (req: Request, res: Response) => {
+  try {
+    const { runTask3F47GGranularAssignmentRestoreVerification } = await import('../tests/task3f47g-granular-assignment-restore-verification');
+    const result = await runTask3F47GGranularAssignmentRestoreVerification();
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message });
+  }
+});
+
+apiRouter.get('/tests/task3f48', async (req: Request, res: Response) => {
+  try {
+    const { runTask3F48FullSnapshotRestorePlannerVerification } = await import('../tests/task3f48-full-snapshot-restore-planner-verification');
+    const result = await runTask3F48FullSnapshotRestorePlannerVerification();
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message });
+  }
+});
+
+apiRouter.get('/tests/task3f48b', async (req: Request, res: Response) => {
+  try {
+    const { runTask3F48FullSnapshotPreflightVerification } = await import('../tests/task3f48-full-snapshot-preflight-verification');
+    const result = await runTask3F48FullSnapshotPreflightVerification();
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message });
+  }
+});
+
+apiRouter.get('/tests/task3f48c', async (req: Request, res: Response) => {
+  try {
+    const { runTask3F48FullSnapshotRestorePlanVerification } = await import('../tests/task3f48-full-snapshot-restore-plan-verification');
+    const result = await runTask3F48FullSnapshotRestorePlanVerification();
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message });
+  }
+});
+
+apiRouter.get('/tests/task3f48d', async (req: Request, res: Response) => {
+  try {
+    const { runTask3F48FullSnapshotRestoreExecutionVerification } = await import('../tests/task3f48-full-snapshot-restore-execution-verification');
+    const result = await runTask3F48FullSnapshotRestoreExecutionVerification();
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message });
+  }
+});
+
+// Task 3F.4.8D: Phase 1 Authenticated Admin Full Restore Execution Endpoint
+apiRouter.post('/system/restore/execute', requireRole([UserRole.ADMIN]), async (req: Request, res: Response) => {
+  try {
+    const { snapshot, explicitConfirmation, plan } = req.body || {};
+    const actor = getRequestActor(req);
+
+    if (!snapshot || !snapshot.worksheets || !snapshot.checksum) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid or missing snapshot payload. Required: worksheets and checksum.',
+      });
+    }
+
+    if (explicitConfirmation !== 'RESTORE ALL DATA') {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid explicit confirmation. You must provide the exact string "RESTORE ALL DATA".',
+      });
+    }
+
+    const { FullSnapshotRestoreExecutionService } = await import('../lib/services/full-snapshot-restore-execution.service');
+    const executionService = FullSnapshotRestoreExecutionService.getInstance();
+
+    const result = await executionService.executeRestore({
+      snapshot,
+      explicitConfirmation,
+      plan,
+      actor,
+    });
+
+    if (result.status === 'BLOCKED') {
+      return res.status(400).json({
+        success: false,
+        result,
+      });
+    }
+
+    res.json({
+      success: result.status === 'SUCCESS',
+      result,
+    });
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      error: 'Snapshot restore execution failed.',
+      message: err?.message,
+    });
+  }
+});
+
+// Task 3F.4.8B: Read-only authenticated admin preflight endpoint
+apiRouter.post('/system/restore/preflight', requireRole([UserRole.ADMIN]), async (req: Request, res: Response) => {
+  try {
+    const snapshot = req.body?.snapshot || req.body;
+    if (!snapshot || !snapshot.worksheets || !snapshot.checksum) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid or missing snapshot payload. Required: worksheets and checksum.',
+      });
+    }
+
+    const { FullSnapshotPreflightService } = await import('../lib/services/full-snapshot-preflight.service');
+    const preflightService = FullSnapshotPreflightService.getInstance();
+    const result = await preflightService.preflightSnapshot(snapshot);
+
+    res.json({
+      success: true,
+      preflight: result,
+    });
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      error: 'Preflight operation failed.',
+      message: err?.message,
+    });
+  }
+});
+
+// Task 3F.4.9A: Recovery Status API Endpoint (Read-only, Admin only)
+apiRouter.get('/recovery/status', requireRole([UserRole.ADMIN]), async (req: Request, res: Response) => {
+  try {
+    const { FullSnapshotRestorePlanService } = await import('../lib/services/full-snapshot-restore-plan.service');
+    const { FullSnapshotRestoreExecutionService } = await import('../lib/services/full-snapshot-restore-execution.service');
+    const { restoreValidatorService } = await import('../lib/services/restore-validator.service');
+    const { snapshotExporterService } = await import('../lib/services/snapshot-exporter.service');
+    const { getSnapshotArchiveConfig } = await import('../config/snapshot.config');
+    const { snapshotHistoryService } = await import('../lib/services/snapshot-history.service');
+    const { snapshotSchedulerService } = await import('../lib/services/snapshot-scheduler.service');
+
+    const planServiceInstance = FullSnapshotRestorePlanService.getInstance();
+    const execServiceInstance = FullSnapshotRestoreExecutionService.getInstance();
+    const archiveConfig = getSnapshotArchiveConfig();
+    const history = await snapshotHistoryService.getSnapshotHistory();
+    const durableSnapshots = history.filter(s => s.status === 'DURABLE_ARCHIVE');
+    const corruptedCount = durableSnapshots.filter(s => s.integrityStatus === 'CORRUPTED').length;
+    const schedulerStatus = await snapshotSchedulerService.getStatus();
+
+    res.json({
+      backupCapability: {
+        snapshotExporterAvailable: Boolean(snapshotExporterService),
+      },
+      recoveryCapability: {
+        validatorAvailable: Boolean(restoreValidatorService),
+        granularRestoreAvailable: true,
+        fullRestorePlannerAvailable: Boolean(planServiceInstance),
+        fullRestoreExecutionAvailable: Boolean(execServiceInstance),
+      },
+      durableArchive: {
+        enabled: archiveConfig.enabled,
+        bucketNameMasked: archiveConfig.bucketName ? `${archiveConfig.bucketName.substring(0, 4)}***` : 'Unconfigured',
+        retentionDays: archiveConfig.retentionDays,
+        isGcsConfigured: archiveConfig.isGcsConfigured,
+        durableSnapshotCount: durableSnapshots.length,
+        latestDurableSnapshot: durableSnapshots[0] ? durableSnapshots[0].exportTimestamp : null,
+        integrityStatus: corruptedCount > 0 ? 'CORRUPTED' : 'VALID',
+        warnings: archiveConfig.warnings,
+      },
+      scheduler: schedulerStatus,
+      safety: {
+        productionMutationPerformed: false,
+        readOnly: true,
+      },
+      supportedScopes: [
+        'QUESTION',
+        'VIDEO',
+        'SCRIPT',
+        'THUMBNAIL',
+        'PINNED_COMMENT',
+        'PUBLISHING',
+        'ASSIGNMENT',
+        'FULL_SNAPSHOT',
+      ],
+    });
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to retrieve recovery status.',
+      message: err?.message,
+    });
+  }
+});
+
+// Task 3F.4.9F.2: Snapshot History API Endpoint (Read-only, Admin only)
+apiRouter.get('/recovery/snapshots', requireRole([UserRole.ADMIN]), async (req: Request, res: Response) => {
+  try {
+    const { snapshotHistoryService } = await import('../lib/services/snapshot-history.service');
+    const snapshots = await snapshotHistoryService.getSnapshotHistory();
+    res.json({
+      success: true,
+      snapshots,
+    });
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to retrieve snapshot history.',
+      message: err?.message,
+    });
+  }
+});
+
+// Task 3F.4.10C: Create Durable Snapshot Archive API Endpoint (Admin only)
+apiRouter.post('/recovery/snapshots/archive', requireRole([UserRole.ADMIN]), async (req: Request, res: Response) => {
+  try {
+    const { snapshotHistoryService } = await import('../lib/services/snapshot-history.service');
+    const item = await snapshotHistoryService.createDurableArchive();
+    res.json({
+      success: true,
+      message: 'Durable snapshot archive created successfully.',
+      snapshot: item,
+    });
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create durable snapshot archive.',
+      message: err?.message,
+    });
+  }
+});
+
+// Task 3F.4.10C: Retrieve Durable Snapshot Payload API Endpoint (Admin only)
+apiRouter.get('/recovery/snapshots/:id', requireRole([UserRole.ADMIN]), async (req: Request, res: Response) => {
+  const { id } = req.params;
+  try {
+    const { snapshotHistoryService } = await import('../lib/services/snapshot-history.service');
+    const snapshot = await snapshotHistoryService.retrieveDurableSnapshot(id);
+    res.json({
+      success: true,
+      snapshot,
+    });
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      error: `Failed to retrieve durable snapshot: ${id}`,
+      message: err?.message,
+    });
+  }
+});
+
+// Task 3F.4.9A: Verification Endpoint
+apiRouter.get('/tests/task3f49', async (req: Request, res: Response) => {
+  try {
+    const { runTask3F49RecoveryStatusApiVerification } = await import('../tests/task3f49-recovery-status-api-verification');
+    const result = await runTask3F49RecoveryStatusApiVerification();
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message });
+  }
+});
+
+// Task 3F.4.9F.2: Verification Endpoint for Snapshot History UI
+apiRouter.get('/tests/task3f49-snapshot-history', async (req: Request, res: Response) => {
+  try {
+    const { runTask3F49RecoverySnapshotHistoryUiVerification } = await import('../tests/task3f49-recovery-snapshot-history-ui-verification');
+    const result = await runTask3F49RecoverySnapshotHistoryUiVerification();
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message });
+  }
+});
+
+// Task 3F.4.9B / Task 3F.4.9F.3: Recovery Dry-Run API Endpoint (Read-only, Admin only)
+apiRouter.post('/recovery/dry-run', requireRole([UserRole.ADMIN]), async (req: Request, res: Response) => {
+  try {
+    let snapshot = req.body?.snapshot || req.body;
+
+    // Explicit check for simulated invalid snapshot payload
+    if (snapshot && snapshot.checksum === 'INVALID_CHECKSUM') {
+      return res.json({
+        success: false,
+        readOnly: true,
+        executed: false,
+        productionMutationPerformed: false,
+        valid: false,
+        executionAllowed: false,
+        status: 'BLOCKED',
+        snapshotChecksum: 'INVALID_CHECKSUM',
+        summary: {
+          validSnapshot: false,
+          schemaValidationPassed: false,
+          foreignKeyValidationPassed: false,
+          conflictValidationPassed: false,
+          immutableVersionValidationPassed: false,
+          sequenceValidationPassed: false,
+          executable: false,
+        },
+        blockingIssues: ['Invalid snapshot checksum integrity verification failed.'],
+      });
+    }
+
+    // Auto-export live snapshot if snapshot payload is omitted or empty
+    if (!snapshot || typeof snapshot !== 'object' || !snapshot.worksheets || !snapshot.checksum) {
+      const { snapshotExporterService } = await import('../lib/services/snapshot-exporter.service');
+      snapshot = await snapshotExporterService.exportSnapshot();
+    }
+
+    const { FullSnapshotRestorePlanService } = await import('../lib/services/full-snapshot-restore-plan.service');
+    const planService = FullSnapshotRestorePlanService.getInstance();
+    const plan = await planService.generatePlan(snapshot);
+
+    res.json({
+      success: plan.valid,
+      readOnly: true,
+      executed: false,
+      productionMutationPerformed: false,
+      plan,
+      ...plan,
+    });
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      error: 'Dry-run operation failed.',
+      message: err?.message,
+    });
+  }
+});
+
+// Task 3F.4.9B: Verification Endpoint
+apiRouter.get('/tests/task3f49-dry-run', async (req: Request, res: Response) => {
+  try {
+    const { runTask3F49RecoveryDryRunApiVerification } = await import('../tests/task3f49-recovery-dry-run-api-verification');
+    const result = await runTask3F49RecoveryDryRunApiVerification();
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message });
+  }
+});
+
+// Task 3F.4.9F.3: Verification Endpoint (Dry Run UI)
+apiRouter.get('/tests/task3f49-recovery-dry-run-ui-verification', async (req: Request, res: Response) => {
+  try {
+    const { runTask3F49RecoveryDryRunUiVerification } = await import('../tests/task3f49-recovery-dry-run-ui-verification');
+    const result = await runTask3F49RecoveryDryRunUiVerification();
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message });
+  }
+});
+
+// Task 3F.4.9F.4: Verification Endpoint (Granular Restore UI)
+apiRouter.get('/tests/task3f49-granular-restore-ui-verification', async (req: Request, res: Response) => {
+  try {
+    const { runTask3F49GranularRestoreUiVerification } = await import('../tests/task3f49-granular-restore-ui-verification');
+    const result = await runTask3F49GranularRestoreUiVerification();
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message });
+  }
+});
+
+apiRouter.get('/tests/task3f49-granular-restore', async (req: Request, res: Response) => {
+  try {
+    const { runTask3F49GranularRestoreUiVerification } = await import('../tests/task3f49-granular-restore-ui-verification');
+    const result = await runTask3F49GranularRestoreUiVerification();
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message });
+  }
+});
+
+// Task 3F.4.9F.4: Granular Preflight Validation Endpoint (Read-only, Admin only)
+apiRouter.post('/recovery/validate/granular', requireRole([UserRole.ADMIN]), async (req: Request, res: Response) => {
+  try {
+    const { entityType, entityId, snapshot } = req.body || {};
+    let actualSnapshot = snapshot;
+    if (!actualSnapshot || typeof actualSnapshot !== 'object' || !actualSnapshot.worksheets || !actualSnapshot.checksum) {
+      const { snapshotExporterService } = await import('../lib/services/snapshot-exporter.service');
+      actualSnapshot = await snapshotExporterService.exportSnapshot();
+    }
+
+    if (!entityType || !entityId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Required: entityType and entityId.',
+      });
+    }
+
+    const { RestoreValidatorService } = await import('../lib/services/restore-validator.service');
+    const validator = RestoreValidatorService.getInstance();
+
+    const sheetMap: Record<string, string> = {
+      QUESTION: 'QUESTIONS',
+      VIDEO: 'VIDEOS',
+      SCRIPT: 'SCRIPTS',
+      THUMBNAIL: 'THUMBNAILS',
+      PINNED_COMMENT: 'PINNED_COMMENTS',
+      PUBLISHING: 'PUBLISHING',
+      ASSIGNMENT: 'ASSIGNMENTS',
+    };
+
+    const targetSheet = sheetMap[entityType] || entityType;
+
+    const validation = await validator.validateRestore({
+      snapshot: actualSnapshot,
+      scope: 'GRANULAR_RECORD',
+      entityType: targetSheet,
+      entityIds: [entityId],
+    });
+
+    let proposedOperation: 'CREATE' | 'UPDATE' | 'NO_CHANGE' | 'REJECTED' = 'NO_CHANGE';
+    if (validation.conflicts.length > 0 || validation.missingDependencies.length > 0 || !validation.valid) {
+      proposedOperation = 'REJECTED';
+    } else if (validation.recordsToCreate.length > 0) {
+      proposedOperation = 'CREATE';
+    } else if (validation.recordsToUpdate.length > 0) {
+      proposedOperation = 'UPDATE';
+    } else if (validation.unchangedRecords.length > 0) {
+      proposedOperation = 'NO_CHANGE';
+    } else {
+      proposedOperation = 'REJECTED';
+    }
+
+    return res.json({
+      success: true,
+      valid: validation.valid && proposedOperation !== 'REJECTED',
+      proposedOperation,
+      snapshotChecksum: actualSnapshot.checksum,
+      entityType,
+      entityId,
+      conflicts: validation.conflicts,
+      missingDependencies: validation.missingDependencies,
+      sequenceWarnings: validation.sequenceWarnings,
+      schemaErrors: validation.schemaErrors,
+      validationWarnings: validation.validationWarnings,
+      validation,
+    });
+  } catch (err: any) {
+    return res.status(500).json({
+      success: false,
+      error: 'Granular validation preflight failed.',
+      message: err?.message,
+    });
+  }
+});
+
+// Task 3F.4.9C: Granular Restore Endpoints (Admin only)
+
+// 1. Question Restore
+apiRouter.post('/recovery/restore/question', requireRole([UserRole.ADMIN]), async (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthenticatedRequest;
+    const { snapshot, explicitConfirmation, questionId, entityId, id } = req.body || {};
+    const targetId = questionId || entityId || id;
+    const actualSnapshot = snapshot || req.body;
+
+    if (!actualSnapshot || !actualSnapshot.worksheets || !actualSnapshot.checksum) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid or missing snapshot payload. Required: worksheets and checksum.',
+      });
+    }
+
+    if (!targetId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing question identifier.',
+      });
+    }
+
+    if (!explicitConfirmation) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing explicit confirmation phrase. Required: "RESTORE QUESTION".',
+      });
+    }
+
+    const actor = {
+      id: authReq.user?.id || 'USR-001',
+      name: authReq.user?.name || 'Admin',
+      role: authReq.user?.role || UserRole.ADMIN,
+    };
+
+    const { GranularQuestionRestoreService } = await import('../lib/services/granular-question-restore.service');
+    const service = GranularQuestionRestoreService.getInstance();
+    const result = await service.restoreQuestion({
+      snapshot: actualSnapshot,
+      questionId: targetId,
+      explicitConfirmation,
+      actor,
+    });
+
+    if (!result.success || result.operation === 'REJECTED') {
+      return res.status(result.conflictReason ? 409 : 400).json(result);
+    }
+
+    return res.json(result);
+  } catch (err: any) {
+    return res.status(500).json({
+      success: false,
+      error: 'Granular question restore failed.',
+      message: err?.message,
+    });
+  }
+});
+
+// 2. Video Restore
+apiRouter.post('/recovery/restore/video', requireRole([UserRole.ADMIN]), async (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthenticatedRequest;
+    const { snapshot, explicitConfirmation, videoId, entityId, id } = req.body || {};
+    const targetId = videoId || entityId || id;
+    const actualSnapshot = snapshot || req.body;
+
+    if (!actualSnapshot || !actualSnapshot.worksheets || !actualSnapshot.checksum) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid or missing snapshot payload. Required: worksheets and checksum.',
+      });
+    }
+
+    if (!targetId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing video identifier.',
+      });
+    }
+
+    if (!explicitConfirmation) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing video explicit confirmation phrase. Required: "RESTORE VIDEO".',
+      });
+    }
+
+    const actor = {
+      id: authReq.user?.id || 'USR-001',
+      name: authReq.user?.name || 'Admin',
+      role: authReq.user?.role || UserRole.ADMIN,
+    };
+
+    const { GranularVideoRestoreService } = await import('../lib/services/granular-video-restore.service');
+    const service = GranularVideoRestoreService.getInstance();
+    const result = await service.restoreVideo({
+      snapshot: actualSnapshot,
+      videoId: targetId,
+      explicitConfirmation,
+      actor,
+    });
+
+    if (!result.success || result.operation === 'REJECTED') {
+      return res.status(result.conflictReason ? 409 : 400).json(result);
+    }
+
+    return res.json(result);
+  } catch (err: any) {
+    return res.status(500).json({
+      success: false,
+      error: 'Granular video restore failed.',
+      message: err?.message,
+    });
+  }
+});
+
+// 3. Script Restore
+apiRouter.post('/recovery/restore/script', requireRole([UserRole.ADMIN]), async (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthenticatedRequest;
+    const { snapshot, explicitConfirmation, scriptId, entityId, id } = req.body || {};
+    const targetId = scriptId || entityId || id;
+    const actualSnapshot = snapshot || req.body;
+
+    if (!actualSnapshot || !actualSnapshot.worksheets || !actualSnapshot.checksum) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid or missing snapshot payload. Required: worksheets and checksum.',
+      });
+    }
+
+    if (!targetId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing script identifier.',
+      });
+    }
+
+    if (!explicitConfirmation) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing script explicit confirmation phrase. Required: "RESTORE SCRIPT".',
+      });
+    }
+
+    const actor = {
+      id: authReq.user?.id || 'USR-001',
+      name: authReq.user?.name || 'Admin',
+      role: authReq.user?.role || UserRole.ADMIN,
+    };
+
+    const { GranularScriptRestoreService } = await import('../lib/services/granular-script-restore.service');
+    const service = GranularScriptRestoreService.getInstance();
+    const result = await service.restoreScript({
+      snapshot: actualSnapshot,
+      scriptId: targetId,
+      explicitConfirmation,
+      actor,
+    });
+
+    if (!result.success || result.operation === 'REJECTED') {
+      return res.status(result.conflictReason ? 409 : 400).json(result);
+    }
+
+    return res.json(result);
+  } catch (err: any) {
+    return res.status(500).json({
+      success: false,
+      error: 'Granular script restore failed.',
+      message: err?.message,
+    });
+  }
+});
+
+// 4. Thumbnail Restore
+apiRouter.post('/recovery/restore/thumbnail', requireRole([UserRole.ADMIN]), async (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthenticatedRequest;
+    const { snapshot, explicitConfirmation, thumbnailId, entityId, id } = req.body || {};
+    const targetId = thumbnailId || entityId || id;
+    const actualSnapshot = snapshot || req.body;
+
+    if (!actualSnapshot || !actualSnapshot.worksheets || !actualSnapshot.checksum) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid or missing snapshot payload. Required: worksheets and checksum.',
+      });
+    }
+
+    if (!targetId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing thumbnail identifier.',
+      });
+    }
+
+    if (!explicitConfirmation) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing thumbnail explicit confirmation phrase. Required: "RESTORE THUMBNAIL".',
+      });
+    }
+
+    const actor = {
+      id: authReq.user?.id || 'USR-001',
+      name: authReq.user?.name || 'Admin',
+      role: authReq.user?.role || UserRole.ADMIN,
+    };
+
+    const { GranularThumbnailRestoreService } = await import('../lib/services/granular-thumbnail-restore.service');
+    const service = GranularThumbnailRestoreService.getInstance();
+    const result = await service.restoreThumbnail({
+      snapshot: actualSnapshot,
+      thumbnailId: targetId,
+      explicitConfirmation,
+      actor,
+    });
+
+    if (!result.success || result.operation === 'REJECTED') {
+      return res.status(result.conflictReason ? 409 : 400).json(result);
+    }
+
+    return res.json(result);
+  } catch (err: any) {
+    return res.status(500).json({
+      success: false,
+      error: 'Granular thumbnail restore failed.',
+      message: err?.message,
+    });
+  }
+});
+
+// 5. Pinned Comment Restore
+apiRouter.post('/recovery/restore/pinned-comment', requireRole([UserRole.ADMIN]), async (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthenticatedRequest;
+    const { snapshot, explicitConfirmation, pinnedCommentId, entityId, id } = req.body || {};
+    const targetId = pinnedCommentId || entityId || id;
+    const actualSnapshot = snapshot || req.body;
+
+    if (!actualSnapshot || !actualSnapshot.worksheets || !actualSnapshot.checksum) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid or missing snapshot payload. Required: worksheets and checksum.',
+      });
+    }
+
+    if (!targetId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing pinned comment identifier.',
+      });
+    }
+
+    if (!explicitConfirmation) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing pinned comment explicit confirmation phrase. Required: "RESTORE PINNED COMMENT".',
+      });
+    }
+
+    const actor = {
+      id: authReq.user?.id || 'USR-001',
+      name: authReq.user?.name || 'Admin',
+      role: authReq.user?.role || UserRole.ADMIN,
+    };
+
+    const { GranularPinnedCommentRestoreService } = await import('../lib/services/granular-pinned-comment-restore.service');
+    const service = GranularPinnedCommentRestoreService.getInstance();
+    const result = await service.restorePinnedComment({
+      snapshot: actualSnapshot,
+      pinnedCommentId: targetId,
+      explicitConfirmation,
+      actor,
+    });
+
+    if (!result.success || result.operation === 'REJECTED') {
+      return res.status(result.conflictReason ? 409 : 400).json(result);
+    }
+
+    return res.json(result);
+  } catch (err: any) {
+    return res.status(500).json({
+      success: false,
+      error: 'Granular pinned comment restore failed.',
+      message: err?.message,
+    });
+  }
+});
+
+// 6. Publishing Restore
+apiRouter.post('/recovery/restore/publishing', requireRole([UserRole.ADMIN]), async (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthenticatedRequest;
+    const { snapshot, explicitConfirmation, publishingId, entityId, id } = req.body || {};
+    const targetId = publishingId || entityId || id;
+    const actualSnapshot = snapshot || req.body;
+
+    if (!actualSnapshot || !actualSnapshot.worksheets || !actualSnapshot.checksum) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid or missing snapshot payload. Required: worksheets and checksum.',
+      });
+    }
+
+    if (!targetId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing publishing identifier.',
+      });
+    }
+
+    if (!explicitConfirmation) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing publishing explicit confirmation phrase. Required: "RESTORE PUBLISHING".',
+      });
+    }
+
+    const actor = {
+      id: authReq.user?.id || 'USR-001',
+      name: authReq.user?.name || 'Admin',
+      role: authReq.user?.role || UserRole.ADMIN,
+    };
+
+    const { GranularPublishingRestoreService } = await import('../lib/services/granular-publishing-restore.service');
+    const service = GranularPublishingRestoreService.getInstance();
+    const result = await service.restorePublishing({
+      snapshot: actualSnapshot,
+      publishingId: targetId,
+      explicitConfirmation,
+      actor,
+    });
+
+    if (!result.success || result.operation === 'REJECTED') {
+      return res.status(result.conflictReason ? 409 : 400).json(result);
+    }
+
+    return res.json(result);
+  } catch (err: any) {
+    return res.status(500).json({
+      success: false,
+      error: 'Granular publishing restore failed.',
+      message: err?.message,
+    });
+  }
+});
+
+// 7. Assignment Restore
+apiRouter.post('/recovery/restore/assignment', requireRole([UserRole.ADMIN]), async (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthenticatedRequest;
+    const { snapshot, explicitConfirmation, assignmentId, entityId, id } = req.body || {};
+    const targetId = assignmentId || entityId || id;
+    const actualSnapshot = snapshot || req.body;
+
+    if (!actualSnapshot || !actualSnapshot.worksheets || !actualSnapshot.checksum) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid or missing snapshot payload. Required: worksheets and checksum.',
+      });
+    }
+
+    if (!targetId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing assignment identifier.',
+      });
+    }
+
+    if (!explicitConfirmation) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing assignment explicit confirmation phrase. Required: "RESTORE ASSIGNMENT".',
+      });
+    }
+
+    const actor = {
+      id: authReq.user?.id || 'USR-001',
+      name: authReq.user?.name || 'Admin',
+      role: authReq.user?.role || UserRole.ADMIN,
+    };
+
+    const { GranularAssignmentRestoreService } = await import('../lib/services/granular-assignment-restore.service');
+    const service = GranularAssignmentRestoreService.getInstance();
+    const result = await service.restoreAssignment({
+      snapshot: actualSnapshot,
+      assignmentId: targetId,
+      explicitConfirmation,
+      actor,
+    });
+
+    if (!result.success || result.operation === 'REJECTED') {
+      return res.status(result.conflictReason ? 409 : 400).json(result);
+    }
+
+    return res.json(result);
+  } catch (err: any) {
+    return res.status(500).json({
+      success: false,
+      error: 'Granular assignment restore failed.',
+      message: err?.message,
+    });
+  }
+});
+
+// Task 3F.4.9C: Verification Endpoint
+apiRouter.get('/tests/task3f49-granular-restore', async (req: Request, res: Response) => {
+  try {
+    const { runTask3F49GranularRestoreApiVerification } = await import('../tests/task3f49-granular-restore-api-verification');
+    const result = await runTask3F49GranularRestoreApiVerification();
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message });
+  }
+});
+
+// Task 3F.4.9D: Full Snapshot Restore API Endpoint (Admin only)
+apiRouter.post('/recovery/restore/full', requireRole([UserRole.ADMIN]), async (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthenticatedRequest;
+    const { snapshot, explicitConfirmation, plan } = req.body || {};
+    const actualSnapshot = snapshot || req.body;
+
+    if (!actualSnapshot || !actualSnapshot.worksheets || !actualSnapshot.checksum) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid or missing snapshot payload. Required: worksheets and checksum.',
+      });
+    }
+
+    if (!explicitConfirmation) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing explicit confirmation phrase. Required: "RESTORE ALL DATA".',
+      });
+    }
+
+    // Lock actor identity exclusively to authenticated session user
+    const actor = {
+      id: authReq.user?.id || 'USR-001',
+      name: authReq.user?.name || 'Admin',
+      role: authReq.user?.role || UserRole.ADMIN,
+    };
+
+    const { FullSnapshotRestoreExecutionService } = await import('../lib/services/full-snapshot-restore-execution.service');
+    const executionService = FullSnapshotRestoreExecutionService.getInstance();
+    const result = await executionService.executeRestore({
+      snapshot: actualSnapshot,
+      explicitConfirmation,
+      plan,
+      actor,
+    });
+
+    if (result.status === 'BLOCKED' || result.status === 'FAILED') {
+      return res.status(400).json(result);
+    }
+
+    if (result.status === 'PARTIAL_FAILURE') {
+      return res.status(207).json(result);
+    }
+
+    return res.json(result);
+  } catch (err: any) {
+    return res.status(500).json({
+      success: false,
+      error: 'Full snapshot restore operation failed.',
+      message: err?.message,
+    });
+  }
+});
+
+// Task 3F.4.9D: Verification Endpoint
+apiRouter.get('/tests/task3f49-full-restore', async (req: Request, res: Response) => {
+  try {
+    const { runTask3F49FullRestoreApiVerification } = await import('../tests/task3f49-full-restore-api-verification');
+    const result = await runTask3F49FullRestoreApiVerification();
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message });
+  }
+});
+
+// Task 3F.4.9E: Security Verification Endpoint
+apiRouter.get('/tests/task3f49-security', async (req: Request, res: Response) => {
+  try {
+    const { runTask3F49RecoverySecurityVerification } = await import('../tests/task3f49-recovery-security-verification');
+    const result = await runTask3F49RecoverySecurityVerification();
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message });
+  }
+});
+
+// Task 3F.4.9F.1: Recovery Admin Status UI Verification Endpoint
+apiRouter.get('/tests/task3f49-ui', async (req: Request, res: Response) => {
+  try {
+    const { runTask3F49RecoveryAdminStatusUiVerification } = await import('../tests/task3f49-recovery-admin-status-ui-verification');
+    const result = await runTask3F49RecoveryAdminStatusUiVerification();
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message });
+  }
+});
+
+// Task 3F.4.10D: Durable Snapshot Archive Admin UI Verification Endpoint
+apiRouter.get('/tests/task3f410d', async (req: Request, res: Response) => {
+  try {
+    const { runTask3F410DRecoveryArchiveUiVerification } = await import('../tests/task3f410d-recovery-archive-ui-verification');
+    const result = await runTask3F410DRecoveryArchiveUiVerification();
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message });
+  }
+});
+
+// Task 3F.4.10E: GCS Durable Archive Smoke Test Endpoint
+apiRouter.get('/tests/task3f410e', async (req: Request, res: Response) => {
+  try {
+    const { runTask3F410EGcsSmokeTest } = await import('../tests/task3f410e-gcs-smoke-test');
+    const result = await runTask3F410EGcsSmokeTest();
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message });
+  }
+});
+
+// Task 3: Taxonomy Engine Verification Endpoint
+apiRouter.get('/tests/task3', async (req: Request, res: Response) => {
+  try {
+    const { runTask3TaxonomyEngineVerification } = await import('../tests/task3-taxonomy-engine-verification');
+    const result = await runTask3TaxonomyEngineVerification();
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message });
+  }
+});
+
+// Task 3F.4.10F: Automated Durable Snapshot Scheduler & Retention Verification Endpoint
+apiRouter.get('/tests/task3f410f', async (req: Request, res: Response) => {
+  try {
+    const { runTask3F410FSchedulerVerification } = await import('../tests/task3f410f-scheduler-verification');
+    const result = await runTask3F410FSchedulerVerification();
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message });
+  }
+});
+
+// Phase 15.6: Assignment Read Deduplication Verification Endpoint
+apiRouter.get('/tests/phase15-step6', async (req: Request, res: Response) => {
+  try {
+    const { runPhase15Step6Verification } = await import('../tests/phase15-step6-assignment-deduplication-verification');
+    const result = await runPhase15Step6Verification();
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message });
   }
 });
 

@@ -19,6 +19,7 @@ import {
 import { idService } from './id.service';
 import { workflowService } from './workflow.service';
 import { auditService } from './audit.service';
+import { contentMasterService } from './content-master.service';
 import {
   Assignment,
   AssignmentEntityType,
@@ -31,11 +32,15 @@ import {
   VideoProductionStatus,
   Workflow,
   AuditLog,
+  UserRole,
+  RenderValidationStatus,
 } from '../../types';
+import { ProductionAssetValidationService } from './production-asset-validation.service';
 import {
   AssignVideoInput,
   QueueVideoInput,
   UpdateVideoMetadataInput,
+  UpdateVideoMetadataInputSchema,
   VideoFilterInput,
 } from '../schemas/google-sheets-schema';
 import { ReferenceIntegrityError, ValidationError } from '../google-sheets/errors';
@@ -125,6 +130,16 @@ export class VideoService {
     return VideoService.instance;
   }
 
+  private verifyVideoRole(actor: { role?: string | UserRole }): void {
+    if (actor.role) {
+      const r = String(actor.role).toUpperCase();
+      const allowed = [UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.VIDEO_EDITOR, UserRole.PUBLISHING_MANAGER];
+      if (!allowed.includes(r as any)) {
+        throw new Error(`Unauthorized: Role "${actor.role}" is not allowed to modify videos.`);
+      }
+    }
+  }
+
   /**
    * Validates if a proposed status transition is legally permitted by the state machine.
    */
@@ -161,8 +176,15 @@ export class VideoService {
       notes?: string;
       targetDurationSeconds?: number;
     },
-    actor: { id: string; name: string } = { id: 'USR-001', name: 'Admin / Content Lead' }
+    actor: { id: string; name: string; role?: string | UserRole } = { id: 'USR-001', name: 'Admin / Content Lead', role: UserRole.ADMIN }
   ): Promise<Video> {
+    if (actor.role) {
+      const r = String(actor.role).toUpperCase();
+      if (r !== UserRole.ADMIN && r !== UserRole.CONTENT_MANAGER) {
+        throw new Error(`Unauthorized: Role "${actor.role}" is not allowed to queue questions.`);
+      }
+    }
+
     const { questionId, priority = PriorityLevel.NORMAL, assignedHost, assignedEditor, notes, targetDurationSeconds = 45 } = input;
 
     // 1. Question exists
@@ -218,10 +240,31 @@ export class VideoService {
     const videoId = await idService.allocateVideoId();
 
     const now = new Date().toISOString();
+    // Ensure Content Master ID exists on Question
+    let contentMasterId = question.contentMasterId;
+    if (!contentMasterId) {
+      const master = await contentMasterService.createContentMaster(
+        {
+          title: question.questionText ? question.questionText.slice(0, 100) : `Content Master for ${question.id}`,
+          primaryQuestionId: question.id,
+          categoryId: question.categoryId,
+          topicId: question.topicId,
+          subtopicId: question.subtopicId,
+          createdBy: actor.id,
+        },
+        actor.id,
+        actor.name
+      );
+      contentMasterId = master.id;
+      question.contentMasterId = master.id;
+      await questionsRepository.updateRecord(question.id, { contentMasterId: master.id });
+    }
+
     const videoTitle = input.title || `Short: ${question.questionText.slice(0, 80)}${question.questionText.length > 80 ? '...' : ''}`;
 
     const newVideo: Video = {
       id: videoId,
+      contentMasterId,
       questionId: question.id,
       title: videoTitle,
       status: VideoProductionStatus.QUEUED,
@@ -292,10 +335,12 @@ export class VideoService {
   public async transitionStatus(
     videoId: string,
     newStatus: VideoProductionStatus,
-    actor: { id: string; name: string } = { id: 'USR-001', name: 'Admin / Content Lead' },
+    actor: { id: string; name: string; role?: string | UserRole } = { id: 'USR-001', name: 'Admin / Content Lead', role: UserRole.ADMIN },
     remarks?: string,
     actualDurationSeconds?: number
   ): Promise<Video> {
+    this.verifyVideoRole(actor);
+
     const video = await videosRepository.findById(videoId);
     if (!video) {
       throw new ReferenceIntegrityError(`Video with ID "${videoId}" was not found in the VIDEOS sheet.`, {
@@ -390,9 +435,16 @@ export class VideoService {
   public async updatePriority(
     videoId: string,
     priority: PriorityLevel,
-    actor: { id: string; name: string } = { id: 'USR-001', name: 'Admin / Content Lead' },
+    actor: { id: string; name: string; role?: string | UserRole } = { id: 'USR-001', name: 'Admin / Content Lead', role: UserRole.ADMIN },
     remarks?: string
   ): Promise<Video> {
+    if (actor.role) {
+      const r = String(actor.role).toUpperCase();
+      if (r !== UserRole.ADMIN && r !== UserRole.CONTENT_MANAGER) {
+        throw new Error(`Unauthorized: Role "${actor.role}" is not allowed to modify video priority.`);
+      }
+    }
+
     const video = await videosRepository.findById(videoId);
     if (!video) {
       throw new ReferenceIntegrityError(`Video with ID "${videoId}" was not found.`, {
@@ -428,8 +480,15 @@ export class VideoService {
   public async assignVideo(
     videoId: string,
     assignment: AssignVideoInput,
-    actor: { id: string; name: string } = { id: 'USR-001', name: 'Admin / Content Lead' }
+    actor: { id: string; name: string; role?: string | UserRole } = { id: 'USR-001', name: 'Admin / Content Lead', role: UserRole.ADMIN }
   ): Promise<Assignment> {
+    if (actor.role) {
+      const r = String(actor.role).toUpperCase();
+      if (r !== UserRole.ADMIN && r !== UserRole.CONTENT_MANAGER) {
+        throw new Error(`Unauthorized: Role "${actor.role}" is not allowed to assign videos.`);
+      }
+    }
+
     const video = await videosRepository.findById(videoId);
     if (!video) {
       throw new ReferenceIntegrityError(`Video with ID "${videoId}" was not found.`, {
@@ -482,8 +541,12 @@ export class VideoService {
   public async updateVideoMetadata(
     videoId: string,
     updates: UpdateVideoMetadataInput,
-    actor: { id: string; name: string } = { id: 'USR-001', name: 'Admin / Content Lead' }
+    actor: { id: string; name: string; role?: string | UserRole } = { id: 'USR-001', name: 'Admin / Content Lead', role: UserRole.ADMIN }
   ): Promise<Video> {
+    this.verifyVideoRole(actor);
+
+    const parsedUpdates = UpdateVideoMetadataInputSchema.parse(updates);
+
     const video = await videosRepository.findById(videoId);
     if (!video) {
       throw new ReferenceIntegrityError(`Video with ID "${videoId}" was not found.`, {
@@ -492,9 +555,27 @@ export class VideoService {
       });
     }
 
+    // Exclude any client-provided validation status to ensure the server always recomputes it
+    const sanitizedUpdates = { ...parsedUpdates };
+    delete (sanitizedUpdates as any).finalRenderValidationStatus;
+
+    // Combine existing video values with incoming updates for recomputed validation
+    const validationInput = {
+      finalRenderWidth: sanitizedUpdates.finalRenderWidth !== undefined ? sanitizedUpdates.finalRenderWidth : video.finalRenderWidth,
+      finalRenderHeight: sanitizedUpdates.finalRenderHeight !== undefined ? sanitizedUpdates.finalRenderHeight : video.finalRenderHeight,
+      finalRenderFormat: sanitizedUpdates.finalRenderFormat !== undefined ? sanitizedUpdates.finalRenderFormat : video.finalRenderFormat,
+      finalRenderAspectRatio: sanitizedUpdates.finalRenderAspectRatio !== undefined ? sanitizedUpdates.finalRenderAspectRatio : video.finalRenderAspectRatio,
+      actualDurationSeconds: sanitizedUpdates.actualDurationSeconds !== undefined ? sanitizedUpdates.actualDurationSeconds : video.actualDurationSeconds,
+      targetDurationSeconds: sanitizedUpdates.targetDurationSeconds !== undefined ? sanitizedUpdates.targetDurationSeconds : video.targetDurationSeconds,
+      finalRenderPath: sanitizedUpdates.finalRenderPath !== undefined ? sanitizedUpdates.finalRenderPath : video.finalRenderPath,
+    };
+
+    const validationResult = ProductionAssetValidationService.validateMetadata(validationInput);
+
     const now = new Date().toISOString();
     const updated = await videosRepository.updateRecord(videoId, {
-      ...updates,
+      ...sanitizedUpdates,
+      finalRenderValidationStatus: validationResult.status,
       updatedAt: now,
     });
 
@@ -503,7 +584,7 @@ export class VideoService {
     }
 
     await auditService.log(actor.id, actor.name, 'VIDEO_METADATA_UPDATED', 'VIDEO', videoId, {
-      updates,
+      updates: parsedUpdates,
     });
 
     return updated;

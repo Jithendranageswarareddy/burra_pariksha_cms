@@ -102,7 +102,7 @@ export const ProductionKanban: React.FC<ProductionKanbanProps> = ({
                   return (
                     <div
                       key={video.id}
-                      id={`kanban-card-${video.id.toLowerCase()}`}
+                      id={`kanban-card-${(video.id || '').toLowerCase()}`}
                       onClick={() => {
                         if (onSelectVideo) {
                           onSelectVideo(video);
@@ -128,6 +128,20 @@ export const ProductionKanban: React.FC<ProductionKanbanProps> = ({
                       <h5 className="text-xs font-semibold text-slate-900 leading-snug line-clamp-2 group-hover:text-indigo-600 transition-colors">
                         {video.title}
                       </h5>
+
+                      {video.finalRenderPath && (
+                        <div className="flex items-center gap-1">
+                          <span className={`px-1 rounded text-[9px] font-mono font-bold border ${
+                            video.finalRenderValidationStatus === 'VALID'
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              : video.finalRenderValidationStatus === 'INVALID'
+                              ? 'bg-rose-50 text-rose-700 border-rose-200'
+                              : 'bg-slate-50 text-slate-600 border-slate-200'
+                          }`}>
+                            RENDER: {video.finalRenderValidationStatus || 'NOT_VALIDATED'}
+                          </span>
+                        </div>
+                      )}
 
                       {/* Sub-status Indicator if different from column */}
                       {video.status !== col.status && (

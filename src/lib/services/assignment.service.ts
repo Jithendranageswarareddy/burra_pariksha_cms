@@ -31,7 +31,9 @@ import {
   TeamWorkloadSummary,
   UnassignedWorkItem,
   User,
+  UserRole,
   UserWorkload,
+  Video,
   VideoProductionStatus,
 } from '../../types';
 import {
@@ -155,16 +157,43 @@ export class AssignmentService {
   }
 
   private parseActor(
-    actor?: { id?: string; name?: string } | string,
+    actor?: { id?: string; name?: string; role?: string } | string,
     fallbackName?: string
-  ): { id: string; name: string } {
+  ): { id: string; name: string; role?: string } {
     if (typeof actor === 'string') {
       return { id: actor, name: fallbackName || 'Admin / Content Lead' };
     }
     return {
       id: actor?.id || 'USR-001',
       name: actor?.name || fallbackName || 'Admin / Content Lead',
+      role: actor?.role,
     };
+  }
+
+  private async getActorRole(actorId: string, parsedRole?: string): Promise<string> {
+    if (parsedRole) return parsedRole;
+    const user = await usersRepository.findById(actorId);
+    return user?.role || UserRole.ADMIN;
+  }
+
+  private async authorizeAction(
+    actorId: string,
+    parsedRole: string | undefined,
+    action: 'CREATE' | 'UPDATE' | 'CANCEL' | 'REASSIGN',
+    assignment?: Assignment
+  ): Promise<void> {
+    const role = await this.getActorRole(actorId, parsedRole);
+    const isManagerOrAdmin = role === UserRole.ADMIN || role === UserRole.CONTENT_MANAGER;
+
+    if (action === 'CREATE' || action === 'CANCEL' || action === 'REASSIGN') {
+      if (!isManagerOrAdmin) {
+        throw new Error(`Unauthorized: Role "${role}" is not allowed to ${action.toLowerCase()} assignments.`);
+      }
+    } else if (action === 'UPDATE') {
+      if (!isManagerOrAdmin && assignment && assignment.assigneeId !== actorId) {
+        throw new Error(`Forbidden: Assignees cannot modify unrelated users' assignments.`);
+      }
+    }
   }
 
   // ============================================================================
@@ -176,10 +205,11 @@ export class AssignmentService {
    */
   public async createAssignment(
     input: CreateAssignmentInput,
-    actor?: { id?: string; name?: string } | string,
+    actor?: { id?: string; name?: string; role?: string } | string,
     actorNameParam?: string
   ): Promise<Assignment> {
-    const { id: actorId, name: actorName } = this.parseActor(actor, actorNameParam);
+    const { id: actorId, name: actorName, role: actorRole } = this.parseActor(actor, actorNameParam);
+    await this.authorizeAction(actorId, actorRole, 'CREATE');
     const entityType = input.entityType as AssignmentEntityType;
     // 1. Validate entity existence
     await this.validateTargetEntity(entityType, input.entityId);
@@ -191,6 +221,11 @@ export class AssignmentService {
     }
     if (!user.isActive) {
       throw new Error(`Cannot assign work to inactive user "${user.name}" (${user.id}).`);
+    }
+
+    const assignmentRole = (input as any).assignmentRole || input.taskType;
+    if (assignmentRole === 'EDITOR' || assignmentRole === 'CREATOR') {
+      throw new Error(`Cannot assign legacy role "${assignmentRole}" to newly created assignment.`);
     }
 
     // 3. Prevent duplicate active assignment for same entity and taskType
@@ -346,11 +381,12 @@ export class AssignmentService {
   public async updateAssignment(
     id: string,
     input: UpdateAssignmentInput,
-    actor?: { id?: string; name?: string } | string,
+    actor?: { id?: string; name?: string; role?: string } | string,
     actorNameParam?: string
   ): Promise<Assignment> {
-    const { id: actorId, name: actorName } = this.parseActor(actor, actorNameParam);
+    const { id: actorId, name: actorName, role: actorRole } = this.parseActor(actor, actorNameParam);
     const existing = await this.getAssignmentById(id);
+    await this.authorizeAction(actorId, actorRole, 'UPDATE', existing);
     const now = new Date().toISOString();
 
     let newStatus = existing.status;
@@ -408,11 +444,12 @@ export class AssignmentService {
   public async reassignAssignment(
     id: string,
     input: ReassignAssignmentInput,
-    actor?: { id?: string; name?: string } | string,
+    actor?: { id?: string; name?: string; role?: string } | string,
     actorNameParam?: string
   ): Promise<Assignment> {
-    const { id: actorId, name: actorName } = this.parseActor(actor, actorNameParam);
+    const { id: actorId, name: actorName, role: actorRole } = this.parseActor(actor, actorNameParam);
     const existing = await this.getAssignmentById(id);
+    await this.authorizeAction(actorId, actorRole, 'REASSIGN', existing);
 
     if (existing.status === AssignmentStatus.COMPLETED || existing.status === AssignmentStatus.CANCELLED) {
       throw new Error(`Cannot reassign a terminal assignment (Status: ${existing.status}).`);
@@ -484,11 +521,15 @@ export class AssignmentService {
    */
   public async startAssignment(
     id: string,
-    actor?: { id?: string; name?: string } | string,
+    actor?: { id?: string; name?: string; role?: string } | string,
     actorNameParam?: string
   ): Promise<Assignment> {
-    const { id: actorId, name: actorName } = this.parseActor(actor, actorNameParam);
+    const { id: actorId, name: actorName, role: actorRole } = this.parseActor(actor, actorNameParam);
     const existing = await this.getAssignmentById(id);
+    if (existing.status === AssignmentStatus.IN_PROGRESS) {
+      return existing; // Idempotent
+    }
+    await this.authorizeAction(actorId, actorRole, 'UPDATE', existing);
     this.validateTransition(existing.status, AssignmentStatus.IN_PROGRESS);
 
     const now = new Date().toISOString();
@@ -528,15 +569,19 @@ export class AssignmentService {
   public async blockAssignment(
     id: string,
     reason: string,
-    actor?: { id?: string; name?: string } | string,
+    actor?: { id?: string; name?: string; role?: string } | string,
     actorNameParam?: string
   ): Promise<Assignment> {
-    const { id: actorId, name: actorName } = this.parseActor(actor, actorNameParam);
+    const { id: actorId, name: actorName, role: actorRole } = this.parseActor(actor, actorNameParam);
     if (!reason || reason.trim() === '') {
       throw new Error('A reason or blocking note is required to mark an assignment as BLOCKED.');
     }
 
     const existing = await this.getAssignmentById(id);
+    if (existing.status === AssignmentStatus.BLOCKED) {
+      return existing; // Idempotent
+    }
+    await this.authorizeAction(actorId, actorRole, 'UPDATE', existing);
     this.validateTransition(existing.status, AssignmentStatus.BLOCKED);
 
     const now = new Date().toISOString();
@@ -580,11 +625,15 @@ export class AssignmentService {
   public async completeAssignment(
     id: string,
     input?: CompleteAssignmentInput,
-    actor?: { id?: string; name?: string } | string,
+    actor?: { id?: string; name?: string; role?: string } | string,
     actorNameParam?: string
   ): Promise<Assignment> {
-    const { id: actorId, name: actorName } = this.parseActor(actor, actorNameParam);
+    const { id: actorId, name: actorName, role: actorRole } = this.parseActor(actor, actorNameParam);
     const existing = await this.getAssignmentById(id);
+    if (existing.status === AssignmentStatus.COMPLETED) {
+      return existing; // Idempotent
+    }
+    await this.authorizeAction(actorId, actorRole, 'UPDATE', existing);
     this.validateTransition(existing.status, AssignmentStatus.COMPLETED);
 
     const now = new Date().toISOString();
@@ -623,6 +672,38 @@ export class AssignmentService {
       `Completed task "${existing.taskType}"`
     );
 
+    // Workflow coordination (Phase 9 Step 5)
+    try {
+      const parsedActor = { id: actorId, name: actorName };
+      if (existing.entityType === 'SCRIPT') {
+        let s = await scriptsRepository.findById(existing.entityId);
+        if (!s) {
+          s = await scriptsRepository.findByVideoId(existing.entityId);
+        }
+        if (s && s.hookText?.trim() && s.problemStatement?.trim() && s.stepByStepSolution?.trim()) {
+          const { videoService } = await import('./video.service');
+          const video = await videosRepository.findById(s.videoId);
+          if (video && video.status === VideoProductionStatus.SCRIPT_REQUIRED) {
+            const { scriptService } = await import('./script.service');
+            await scriptService.markScriptReady(s.videoId, parsedActor, `Completed script assignment: ${existing.id}`);
+          }
+        }
+      } else if (existing.entityType === 'THUMBNAIL') {
+        let t = await thumbnailsRepository.findById(existing.entityId);
+        if (!t) {
+          t = await thumbnailsRepository.findByVideoId(existing.entityId);
+        }
+        if (t && (t.previewUrl?.trim() || t.driveAssetUrl?.trim())) {
+          if (t.status === 'PENDING' || t.status === 'REJECTED') {
+            const { thumbnailService } = await import('./thumbnail.service');
+            await thumbnailService.updateStatus(t.id, 'DESIGNED', parsedActor, `Completed thumbnail assignment: ${existing.id}`);
+          }
+        }
+      }
+    } catch (coordErr) {
+      console.warn('Assignment completion workflow coordination warning:', coordErr);
+    }
+
     return result;
   }
 
@@ -632,11 +713,15 @@ export class AssignmentService {
   public async cancelAssignment(
     id: string,
     input?: CancelAssignmentInput,
-    actor?: { id?: string; name?: string } | string,
+    actor?: { id?: string; name?: string; role?: string } | string,
     actorNameParam?: string
   ): Promise<Assignment> {
-    const { id: actorId, name: actorName } = this.parseActor(actor, actorNameParam);
+    const { id: actorId, name: actorName, role: actorRole } = this.parseActor(actor, actorNameParam);
     const existing = await this.getAssignmentById(id);
+    if (existing.status === AssignmentStatus.CANCELLED) {
+      return existing; // Idempotent
+    }
+    await this.authorizeAction(actorId, actorRole, 'CANCEL', existing);
     this.validateTransition(existing.status, AssignmentStatus.CANCELLED);
 
     const now = new Date().toISOString();
@@ -690,10 +775,20 @@ export class AssignmentService {
 
   public async createUser(
     input: { name: string; email: string; role: any; avatarUrl?: string; isActive?: boolean },
-    actor?: { id?: string; name?: string } | string,
+    actor?: { id?: string; name?: string; role?: string } | string,
     actorNameParam?: string
   ): Promise<User> {
-    const { id: actorId, name: actorName } = this.parseActor(actor, actorNameParam);
+    const parsedActor = this.parseActor(actor, actorNameParam);
+    const actorId = parsedActor.id;
+    const actorName = parsedActor.name;
+    const actorRole = await this.getActorRole(actorId, parsedActor.role);
+    if (actorRole !== UserRole.ADMIN) {
+      throw new Error(`Unauthorized: User management is restricted to Admin role.`);
+    }
+
+    if (input.role === UserRole.CREATOR || input.role === UserRole.EDITOR) {
+      throw new Error(`Cannot assign legacy role "${input.role}" to newly created or updated user.`);
+    }
     const id = await idService.allocateId('USERS');
     const now = new Date().toISOString();
     const user: User = {
@@ -714,10 +809,20 @@ export class AssignmentService {
   public async updateUser(
     id: string,
     input: Partial<User>,
-    actor?: { id?: string; name?: string } | string,
+    actor?: { id?: string; name?: string; role?: string } | string,
     actorNameParam?: string
   ): Promise<User> {
-    const { id: actorId, name: actorName } = this.parseActor(actor, actorNameParam);
+    const parsedActor = this.parseActor(actor, actorNameParam);
+    const actorId = parsedActor.id;
+    const actorName = parsedActor.name;
+    const actorRole = await this.getActorRole(actorId, parsedActor.role);
+    if (actorRole !== UserRole.ADMIN) {
+      throw new Error(`Unauthorized: User management is restricted to Admin role.`);
+    }
+
+    if (input.role === UserRole.CREATOR || input.role === UserRole.EDITOR) {
+      throw new Error(`Cannot assign legacy role "${input.role}" to newly created or updated user.`);
+    }
     const existing = await usersRepository.findById(id);
     if (!existing) {
       throw new Error(`User "${id}" not found.`);
@@ -863,10 +968,60 @@ export class AssignmentService {
    * Computes team-wide operational workload balancing summary across all team members.
    */
   public async getTeamWorkloadSummary(): Promise<TeamWorkloadSummary> {
-    const users = await usersRepository.findAll();
-    const activeUsers = users.filter((u) => u.isActive);
+    const [users, assignments] = await Promise.all([
+      usersRepository.findAll(),
+      assignmentsRepository.findAll(),
+    ]);
+    return this.getTeamWorkloadSummaryWithData(users, assignments);
+  }
 
-    const userWorkloads = await Promise.all(activeUsers.map((u) => this.getUserWorkload(u.id)));
+  public getTeamWorkloadSummaryWithData(users: User[], allAssignments: Assignment[]): TeamWorkloadSummary {
+    const activeUsers = users.filter((u) => u.isActive);
+    const assignmentsByAssignee = new Map<string, Assignment[]>();
+    allAssignments.forEach((a) => {
+      if (!a.assigneeId) return;
+      const list = assignmentsByAssignee.get(a.assigneeId) || [];
+      list.push(a);
+      assignmentsByAssignee.set(a.assigneeId, list);
+    });
+
+    const userWorkloads = activeUsers.map((u) => {
+      const allUserAssignments = assignmentsByAssignee.get(u.id) || [];
+      const activeAssignments = allUserAssignments.filter(
+        (a) => a.status !== AssignmentStatus.COMPLETED && a.status !== AssignmentStatus.CANCELLED
+      );
+
+      const urgentCount = activeAssignments.filter((a) => a.priority === PriorityLevel.URGENT).length;
+      const highCount = activeAssignments.filter((a) => a.priority === PriorityLevel.HIGH).length;
+      const normalCount = activeAssignments.filter(
+        (a) => a.priority === PriorityLevel.NORMAL || a.priority === PriorityLevel.MEDIUM
+      ).length;
+      const lowCount = activeAssignments.filter((a) => a.priority === PriorityLevel.LOW).length;
+
+      const overdueCount = activeAssignments.filter((a) => this.isAssignmentOverdue(a)).length;
+      const dueTodayCount = activeAssignments.filter((a) => this.isAssignmentDueToday(a)).length;
+      const dueTomorrowCount = activeAssignments.filter((a) => this.isAssignmentDueTomorrow(a)).length;
+      const blockedCount = activeAssignments.filter((a) => a.status === AssignmentStatus.BLOCKED).length;
+      const completedCount = allUserAssignments.filter((a) => a.status === AssignmentStatus.COMPLETED).length;
+
+      const workloadScore = this.calculateWorkloadScore(activeAssignments);
+
+      return {
+        user: u,
+        totalActiveAssignments: activeAssignments.length,
+        urgentAssignments: urgentCount,
+        highPriorityAssignments: highCount,
+        normalPriorityAssignments: normalCount,
+        lowPriorityAssignments: lowCount,
+        overdueAssignments: overdueCount,
+        dueTodayAssignments: dueTodayCount,
+        dueTomorrowAssignments: dueTomorrowCount,
+        blockedAssignments: blockedCount,
+        completedAssignments: completedCount,
+        workloadScore,
+        activeAssignments,
+      };
+    });
 
     let totalActive = 0;
     let totalOverdue = 0;
@@ -982,9 +1137,19 @@ export class AssignmentService {
       assignmentsRepository.findActive(),
       publishingRepository.findAll(),
     ]);
+    return this.getUnassignedWorkWithData(allVideos, allAssignments, allPublishing);
+  }
 
+  public getUnassignedWorkWithData(
+    allVideos: Video[],
+    allAssignments: Assignment[],
+    allPublishing: any[]
+  ): UnassignedWorkItem[] {
+    const activeAssignments = allAssignments.filter(
+      (a) => a.status !== AssignmentStatus.COMPLETED && a.status !== AssignmentStatus.CANCELLED
+    );
     const activeAssignmentsByEntity = new Map<string, Assignment[]>();
-    allAssignments.forEach((a) => {
+    activeAssignments.forEach((a) => {
       const key = `${a.entityType}:${a.entityId}`;
       const list = activeAssignmentsByEntity.get(key) || [];
       list.push(a);

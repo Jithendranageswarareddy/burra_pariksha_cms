@@ -81,7 +81,7 @@ export const QuestionGeneratorPage: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [aiStatus, setAiStatus] = useState<{ isConfigured: boolean; model: string }>({
     isConfigured: false,
-    model: 'gemini-3.7-flash',
+    model: 'gemini-3.1-flash-lite',
   });
   const [loadingTaxonomy, setLoadingTaxonomy] = useState(true);
 
@@ -136,7 +136,7 @@ export const QuestionGeneratorPage: React.FC = () => {
         const [tree, cats, aiInfo] = await Promise.all([
           apiClient.getTaxonomyTree().catch(() => []),
           apiClient.getCategories().catch(() => []),
-          apiClient.getAiStatus().catch(() => ({ isConfigured: false, model: 'gemini-3.7-flash' })),
+          apiClient.getAiStatus().catch(() => ({ isConfigured: false, model: 'gemini-3.1-flash-lite' })),
         ]);
 
         setTaxonomyTree(tree);
@@ -318,7 +318,10 @@ export const QuestionGeneratorPage: React.FC = () => {
       setIsSaving(true);
       setErrorMessage(null);
 
-      const created = await apiClient.createQuestion({
+      const idempotencyKey = `ai-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+
+      const created = await apiClient.createQuestionCanonical({
+        creationMode: 'ai',
         categoryId: candidate.taxonomy?.categoryId || selectedCategory,
         topicId: candidate.taxonomy?.topicId || selectedTopic,
         subtopicId: candidate.taxonomy?.subtopicId || selectedSubtopic,
@@ -332,13 +335,14 @@ export const QuestionGeneratorPage: React.FC = () => {
         },
         correctAnswer: candidate.correct_answer,
         explanation: candidate.explanation,
-        realWorldContext: candidate.real_world_context || realWorldContext,
-        questionStyle: candidate.question_style as any,
+        realLifeContext: candidate.real_world_context || realWorldContext,
+        language: candidate.language || language,
         tags: [candidate.language, isFallbackMode ? 'FALLBACK_ENGINE' : 'AI_STUDIO'],
         source: isFallbackMode ? 'Pedagogical Fallback Engine' : 'Gemini AI Studio',
         aiPromptUsed: isFallbackMode
           ? `[Pedagogical Fallback] Topic: ${candidate.taxonomy?.topicName || selectedTopic} | Diff: ${candidate.difficulty} | Lang: ${candidate.language}`
           : `[Gemini ${aiStatus.model}] Topic: ${candidate.taxonomy?.topicName || selectedTopic} | Diff: ${candidate.difficulty} | Lang: ${candidate.language}`,
+        idempotencyKey,
       });
 
       setSavedSuccessInfo({

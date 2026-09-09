@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   Loader2,
   BookOpen,
+  CheckCheck,
 } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { Button } from '../components/common/Button';
@@ -99,7 +100,7 @@ export const QuestionDetailPage: React.FC = () => {
     setEditCategoryId(q.categoryId);
     setEditTopicId(q.topicId);
     setEditSubtopicId(q.subtopicId);
-    setEditDifficulty(q.difficulty);
+    setEditDifficulty(q.difficulty as DifficultyLevel);
     setEditQuestionStyle(q.questionStyle || QuestionStyle.SPEED_MATH_TRICK);
     setEditQuestionText(q.questionText);
     setEditOptA(q.options?.a || '');
@@ -374,6 +375,12 @@ export const QuestionDetailPage: React.FC = () => {
             </Button>
           )}
 
+          <Link to={`/social-review/${encodeURIComponent(question.id)}`}>
+            <Button variant="outline" size="sm" icon={CheckCheck}>
+              Social Review
+            </Button>
+          </Link>
+
           <Link to="/queue">
             <Button variant="outline" size="sm" icon={ListOrdered}>
               Video Queue
@@ -402,8 +409,21 @@ export const QuestionDetailPage: React.FC = () => {
         description={`${question.categoryName} → ${question.topicName} → ${question.subtopicName}`}
         badge={
           <div className="flex items-center gap-2">
+            {question.contentMasterId ? (
+              <Link
+                to={`/content-masters/${encodeURIComponent(question.contentMasterId)}`}
+                className="px-2 py-0.5 bg-purple-100 hover:bg-purple-200 text-purple-800 border border-purple-300 rounded text-xs font-mono font-bold transition-colors inline-flex items-center gap-1"
+                title="View Content Master Explorer"
+              >
+                Content Master: {question.contentMasterId}
+              </Link>
+            ) : (
+              <span className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded text-xs font-mono">
+                Master: Not linked
+              </span>
+            )}
             <QuestionStatusBadge status={question.status} />
-            <DifficultyBadge difficulty={question.difficulty} />
+            <DifficultyBadge difficulty={question.difficulty as DifficultyLevel} />
             <VideoStatusBadge status={question.videoStatus} />
           </div>
         }
@@ -934,6 +954,20 @@ export const QuestionDetailPage: React.FC = () => {
             </h4>
 
             <div className="space-y-2 text-slate-600">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">Content Master:</span>
+                {question.contentMasterId ? (
+                  <Link
+                    to={`/content-masters/${encodeURIComponent(question.contentMasterId)}`}
+                    className="font-mono font-bold text-purple-700 hover:text-purple-900 bg-purple-50 hover:bg-purple-100 px-1.5 py-0.5 rounded border border-purple-200 transition-colors inline-flex items-center gap-1"
+                    title="View Content Master Explorer"
+                  >
+                    {question.contentMasterId}
+                  </Link>
+                ) : (
+                  <span className="text-slate-400 italic">Not linked</span>
+                )}
+              </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-400">Permanent ID:</span>
                 <span className="font-mono font-bold text-indigo-700">{question.id}</span>

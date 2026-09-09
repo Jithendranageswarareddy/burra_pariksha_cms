@@ -7,12 +7,14 @@
  */
 
 import { questionsRepository } from '../repositories/questions.repository';
+import { validationsRepository } from '../repositories/validations.repository';
 import { CreateQuestionInput, CreateQuestionInputSchema, QuestionFilterInput, UpdateQuestionInputSchema } from '../schemas/google-sheets-schema';
-import { Question, QuestionStatus, VideoProductionStatus } from '../../types';
+import { Question, QuestionStatus, VideoProductionStatus, QuestionValidationStatus, UserRole } from '../../types';
 import { idService } from './id.service';
 import { taxonomyService } from './taxonomy.service';
 import { workflowService } from './workflow.service';
 import { auditService } from './audit.service';
+import { contentMasterService } from './content-master.service';
 import { ReferenceIntegrityError, ValidationError } from '../google-sheets/errors';
 
 export interface DuplicateMatch {
@@ -85,9 +87,12 @@ const VALID_QUESTION_TRANSITIONS: Record<QuestionStatus, QuestionStatus[]> = {
 };
 
 import { videoService } from './video.service';
+import { QuestionCreationRequestPayload, QuestionCreationValidator } from '../validators/question-creation.validator';
+import { smartRandomService } from './smart-random.service';
 
 export class QuestionService {
   private static instance: QuestionService | null = null;
+  private idempotencyCache: Map<string, Question> = new Map();
 
   private constructor() {}
 
@@ -173,8 +178,16 @@ export class QuestionService {
    */
   public async createQuestion(
     input: CreateQuestionInput,
-    actor: { id: string; name: string } = { id: 'USR-001', name: 'Admin / Content Lead' }
+    actor: { id: string; name: string; role?: string | UserRole } = { id: 'USR-001', name: 'Admin / Content Lead', role: UserRole.ADMIN }
   ): Promise<Question> {
+    if (actor.role) {
+      const r = String(actor.role).toUpperCase();
+      const allowed = [UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.QUESTION_EDITOR, UserRole.CONTENT_WRITER];
+      if (!allowed.includes(r as any)) {
+        throw new Error(`Unauthorized: Role "${actor.role}" is not allowed to create questions.`);
+      }
+    }
+
     // 1. Zod runtime schema validation
     const validatedInput = CreateQuestionInputSchema.parse(input);
 
@@ -188,6 +201,24 @@ export class QuestionService {
     // 3. Permanent ID Allocation via SEQUENCES tab
     const id = await idService.allocateQuestionId();
 
+    // 3B. Content Master allocation / link
+    let contentMasterId = (validatedInput as any).contentMasterId;
+    if (!contentMasterId) {
+      const master = await contentMasterService.createContentMaster(
+        {
+          title: validatedInput.questionText ? validatedInput.questionText.slice(0, 100) : `Content Master for Question ${id}`,
+          primaryQuestionId: id,
+          categoryId: category.id,
+          topicId: topic.id,
+          subtopicId: subtopic.id,
+          createdBy: actor.id,
+        },
+        actor.id,
+        actor.name
+      );
+      contentMasterId = master.id;
+    }
+
     const now = new Date().toISOString();
     // Enforce Phase 3 mandatory creation defaults: status = GENERATED, video_status = NOT_STARTED
     const status = QuestionStatus.GENERATED;
@@ -195,6 +226,7 @@ export class QuestionService {
 
     const newQuestion: Question = {
       id,
+      contentMasterId,
       categoryId: category.id,
       categoryName: category.name,
       topicId: topic.id,
@@ -207,6 +239,12 @@ export class QuestionService {
       correctAnswer: validatedInput.correctAnswer,
       explanation: validatedInput.explanation,
       realWorldContext: validatedInput.realWorldContext || '',
+      realLifeContext: (validatedInput as any).realLifeContext || '',
+      challengeType: (validatedInput as any).challengeType || '',
+      presentationType: (validatedInput as any).presentationType || '',
+      originalityScore: (validatedInput as any).originalityScore || 0,
+      aiModel: (validatedInput as any).aiModel || '',
+      aiPrompt: (validatedInput as any).aiPrompt || '',
       questionStyle: validatedInput.questionStyle,
       status,
       videoStatus,
@@ -251,13 +289,187 @@ export class QuestionService {
   }
 
   /**
+   * Canonical Question Creation Pipeline for both Manual and AI requests.
+   */
+  public async createQuestionFromRequest(
+    requestPayload: QuestionCreationRequestPayload,
+    actor: { id: string; name: string; role?: string | UserRole } = { id: 'USR-001', name: 'Admin / Content Lead', role: UserRole.ADMIN }
+  ): Promise<Question> {
+    if (actor.role) {
+      const r = String(actor.role).toUpperCase();
+      const allowed = [UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.QUESTION_EDITOR, UserRole.CONTENT_WRITER];
+      if (!allowed.includes(r as any)) {
+        throw new Error(`Unauthorized: Role "${actor.role}" is not allowed to create questions.`);
+      }
+    }
+
+    // 0. Idempotency Check
+    if (requestPayload.idempotencyKey && this.idempotencyCache.has(requestPayload.idempotencyKey)) {
+      return this.idempotencyCache.get(requestPayload.idempotencyKey)!;
+    }
+
+    // 1. Resolve RANDOM / SMART_RANDOM parameters if needed
+    const resolvedParams = await smartRandomService.resolveParameters({
+      categoryId: requestPayload.categoryId,
+      topicId: requestPayload.topicId,
+      subtopicId: requestPayload.subtopicId,
+      difficulty: requestPayload.difficulty,
+      realLifeContext: requestPayload.realLifeContext,
+      challengeType: requestPayload.challengeType,
+      presentationType: requestPayload.presentationType,
+      language: requestPayload.language as string,
+    });
+
+    const topicId = resolvedParams.topicId;
+    const subtopicId = resolvedParams.subtopicId;
+    const categoryId = resolvedParams.categoryId || requestPayload.categoryId || 'CAT-QA';
+    const difficulty = resolvedParams.difficulty;
+    const realLifeContext = resolvedParams.realLifeContext;
+    const challengeType = resolvedParams.challengeType;
+    const presentationType = resolvedParams.presentationType;
+    const language = resolvedParams.language;
+
+    // 2. Perform Structural Validation
+    QuestionCreationValidator.validateStructure({
+      ...requestPayload,
+      topicId,
+      subtopicId,
+      difficulty,
+      language,
+      presentationType,
+      challengeType,
+    });
+
+    // 3. Validate Taxonomy Integrity
+    const { category, topic, subtopic } = await taxonomyService.validateTaxonomy(
+      categoryId,
+      topicId,
+      subtopicId
+    );
+
+    // 4. Allocate Permanent Sequence Question ID
+    const id = await idService.allocateQuestionId();
+
+    // 5. Content Master Integration (Phase 2 & Phase 4 rule: Content Master -> Question -> Video)
+    let contentMasterId = requestPayload.contentMasterId;
+    if (!contentMasterId) {
+      const master = await contentMasterService.createContentMaster(
+        {
+          title: requestPayload.questionText
+            ? requestPayload.questionText.slice(0, 100)
+            : `Content Master for Question ${id}`,
+          primaryQuestionId: id,
+          categoryId: category.id,
+          topicId: topic.id,
+          subtopicId: subtopic.id,
+          createdBy: actor.id,
+        },
+        actor.id,
+        actor.name
+      );
+      contentMasterId = master.id;
+    }
+
+    const now = new Date().toISOString();
+    const status = QuestionStatus.GENERATED;
+    const videoStatus = VideoProductionStatus.NOT_STARTED;
+
+    const newQuestion: Question = {
+      id,
+      contentMasterId,
+      categoryId: category.id,
+      categoryName: category.name,
+      topicId: topic.id,
+      topicName: topic.name,
+      subtopicId: subtopic.id,
+      subtopicName: subtopic.name,
+      difficulty,
+      language,
+      questionText: requestPayload.questionText.trim(),
+      options: {
+        a: requestPayload.options.a.trim(),
+        b: requestPayload.options.b.trim(),
+        c: (requestPayload.options.c || '').trim(),
+        d: (requestPayload.options.d || '').trim(),
+      },
+      correctAnswer: requestPayload.correctAnswer,
+      explanation: requestPayload.explanation.trim(),
+      realWorldContext: realLifeContext,
+      realLifeContext: realLifeContext,
+      challengeType: challengeType,
+      presentationType: presentationType,
+      status,
+      videoStatus,
+      tags: requestPayload.tags || [],
+      source: requestPayload.source || (requestPayload.creationMode === 'ai' ? 'AI Generator Studio' : 'Manual Authoring'),
+      aiPromptUsed: requestPayload.aiPromptUsed || '',
+      aiModel: requestPayload.aiModel || '',
+      aiPrompt: requestPayload.aiPrompt || '',
+      originalityScore: requestPayload.originalityScore || 0,
+      authorId: actor.id,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    // 6. Append to authoritative QUESTIONS sheet
+    await questionsRepository.appendRecord(newQuestion);
+
+    // 7. Workflow State Transition
+    await workflowService.recordTransition(
+      'QUESTION',
+      id,
+      'DRAFT',
+      status,
+      actor.name,
+      `Question created via ${requestPayload.creationMode.toUpperCase()} creation pipeline`
+    );
+
+    // 8. Audit Log
+    await auditService.log(
+      actor.id,
+      actor.name,
+      'QUESTION_CREATED',
+      'QUESTION',
+      id,
+      {
+        creationMode: requestPayload.creationMode,
+        questionId: id,
+        contentMasterId,
+        categoryId: category.id,
+        topicId: topic.id,
+        subtopicId: subtopic.id,
+        difficulty,
+        challengeType,
+        presentationType,
+        language,
+        idempotencyKey: requestPayload.idempotencyKey,
+      }
+    );
+
+    // Cache by idempotency key if provided
+    if (requestPayload.idempotencyKey) {
+      this.idempotencyCache.set(requestPayload.idempotencyKey, newQuestion);
+    }
+
+    return newQuestion;
+  }
+
+  /**
    * Updates an existing question with validation, status transition enforcement, and audit logging.
    */
   public async updateQuestion(
     id: string,
     updates: Partial<CreateQuestionInput>,
-    actor: { id: string; name: string } = { id: 'USR-001', name: 'Admin / Content Lead' }
+    actor: { id: string; name: string; role?: string | UserRole } = { id: 'USR-001', name: 'Admin / Content Lead', role: UserRole.ADMIN }
   ): Promise<Question> {
+    if (actor.role) {
+      const r = String(actor.role).toUpperCase();
+      const allowed = [UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.QUESTION_EDITOR, UserRole.CONTENT_WRITER];
+      if (!allowed.includes(r as any)) {
+        throw new Error(`Unauthorized: Role "${actor.role}" is not allowed to edit questions.`);
+      }
+    }
+
     const existing = await questionsRepository.findById(id);
     if (!existing) {
       throw new ReferenceIntegrityError(`Question with ID "${id}" does not exist in the QUESTIONS sheet.`);
@@ -294,7 +506,7 @@ export class QuestionService {
 
     // 3. Status workflow validation
     const previousStatus = existing.status;
-    const nextStatus = updates.status || existing.status;
+    let nextStatus = updates.status || existing.status;
     const statusChanged = previousStatus !== nextStatus;
 
     if (statusChanged) {
@@ -312,7 +524,49 @@ export class QuestionService {
       );
     }
 
-    // 5. Merge record (preserve immutable ID and createdAt, generate new server updatedAt)
+    // 5. Detect material changes that invalidate validation results
+    const isMaterialEdit = Boolean(
+      (updates.questionText !== undefined && updates.questionText !== existing.questionText) ||
+      (updates.options !== undefined && JSON.stringify(updates.options) !== JSON.stringify(existing.options)) ||
+      (updates.correctAnswer !== undefined && updates.correctAnswer !== existing.correctAnswer) ||
+      (updates.explanation !== undefined && updates.explanation !== existing.explanation) ||
+      (updates.topicId !== undefined && updates.topicId !== existing.topicId) ||
+      (updates.subtopicId !== undefined && updates.subtopicId !== existing.subtopicId) ||
+      (updates.difficulty !== undefined && updates.difficulty !== existing.difficulty) ||
+      (updates.challengeType !== undefined && updates.challengeType !== existing.challengeType) ||
+      (updates.presentationType !== undefined && updates.presentationType !== existing.presentationType) ||
+      ((updates as any).language !== undefined && (updates as any).language !== existing.language) ||
+      ((updates as any).realLifeContext !== undefined && (updates as any).realLifeContext !== existing.realLifeContext)
+    );
+
+    let nextValidationStatus = existing.validationStatus;
+    let nextValidationScore = existing.validationScore;
+
+    if (isMaterialEdit) {
+      await validationsRepository.markStaleForQuestion(id);
+      nextValidationStatus = QuestionValidationStatus.NOT_VALIDATED;
+      nextValidationScore = 0;
+
+      // If status is APPROVED (either existing or requested in updates), revert to EDITING on material edit
+      if (nextStatus === QuestionStatus.APPROVED) {
+        nextStatus = QuestionStatus.EDITING;
+      }
+
+      await auditService.log(
+        actor.id,
+        actor.name,
+        'QUESTION_VALIDATION_INVALIDATED',
+        'QUESTION',
+        id,
+        {
+          reason: 'Material question properties were edited; previous validation invalidated',
+          previousValidationStatus: existing.validationStatus,
+          previousValidationId: existing.lastValidationId,
+        }
+      );
+    }
+
+    // 6. Merge record (preserve immutable ID and createdAt, generate new server updatedAt)
     const updatedRecord: Partial<Question> = {
       ...updates,
       ...enrichedTaxonomy,
@@ -320,6 +574,9 @@ export class QuestionService {
       createdAt: existing.createdAt,
       status: nextStatus,
       videoStatus: nextVideoStatus,
+      validationStatus: nextValidationStatus,
+      validationScore: nextValidationScore,
+      lastValidationId: isMaterialEdit ? '' : (updates as any).lastValidationId || existing.lastValidationId,
       updatedAt: new Date().toISOString(),
     };
 
@@ -378,9 +635,23 @@ export class QuestionService {
   public async updateStatus(
     id: string,
     newStatus: QuestionStatus,
-    actor: { id: string; name: string } = { id: 'USR-001', name: 'Admin / Content Lead' },
+    actor: { id: string; name: string; role?: string | UserRole } = { id: 'USR-001', name: 'Admin / Content Lead', role: UserRole.ADMIN },
     remarks?: string
   ): Promise<Question> {
+    if (actor.role) {
+      const r = String(actor.role).toUpperCase();
+      if (newStatus === QuestionStatus.APPROVED) {
+        if (r !== UserRole.ADMIN && r !== UserRole.CONTENT_MANAGER) {
+          throw new Error(`Unauthorized: Role "${actor.role}" is not allowed to approve questions.`);
+        }
+      } else {
+        const allowed = [UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.QUESTION_EDITOR, UserRole.CONTENT_WRITER];
+        if (!allowed.includes(r as any)) {
+          throw new Error(`Unauthorized: Role "${actor.role}" is not allowed to modify question status.`);
+        }
+      }
+    }
+
     const existing = await questionsRepository.findById(id);
     if (!existing) {
       throw new ReferenceIntegrityError(`Question with ID "${id}" does not exist in the QUESTIONS sheet.`);
@@ -431,9 +702,16 @@ export class QuestionService {
    */
   public async queueQuestion(
     id: string,
-    actor: { id: string; name: string } = { id: 'USR-001', name: 'Admin / Content Lead' },
+    actor: { id: string; name: string; role?: string | UserRole } = { id: 'USR-001', name: 'Admin / Content Lead', role: UserRole.ADMIN },
     remarks?: string
   ): Promise<Question> {
+    if (actor.role) {
+      const r = String(actor.role).toUpperCase();
+      if (r !== UserRole.ADMIN && r !== UserRole.CONTENT_MANAGER) {
+        throw new Error(`Unauthorized: Role "${actor.role}" is not allowed to queue questions.`);
+      }
+    }
+
     // 1. Delegate full validation and video entity creation to VideoService
     await videoService.queueApprovedQuestion(
       {

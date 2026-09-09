@@ -470,7 +470,7 @@ export const PlanningPage: React.FC = () => {
       if (planSearchQuery.trim()) {
         const q = planSearchQuery.toLowerCase();
         const matches =
-          p.id.toLowerCase().includes(q) ||
+          (p.id || '').toLowerCase().includes(q) ||
           (p.subtopicName && p.subtopicName.toLowerCase().includes(q)) ||
           (p.topicName && p.topicName.toLowerCase().includes(q)) ||
           (p.categoryName && p.categoryName.toLowerCase().includes(q)) ||
@@ -516,8 +516,8 @@ export const PlanningPage: React.FC = () => {
       if (batchSearchQuery.trim()) {
         const q = batchSearchQuery.toLowerCase();
         const matches =
-          batch.id.toLowerCase().includes(q) ||
-          batch.name.toLowerCase().includes(q) ||
+          (batch.id || '').toLowerCase().includes(q) ||
+          (batch.name || '').toLowerCase().includes(q) ||
           (batch.description && batch.description.toLowerCase().includes(q)) ||
           (batch.planId && batch.planId.toLowerCase().includes(q));
         if (!matches) return false;
@@ -2245,7 +2245,7 @@ export const PlanningPage: React.FC = () => {
                   if (!questionSearchQuery) return true;
                   const query = questionSearchQuery.toLowerCase();
                   return (
-                    q.id.toLowerCase().includes(query) ||
+                    (q.id || '').toLowerCase().includes(query) ||
                     q.questionText?.toLowerCase().includes(query) ||
                     q.subtopicName?.toLowerCase().includes(query) ||
                     q.topicName?.toLowerCase().includes(query)

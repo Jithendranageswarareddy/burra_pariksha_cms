@@ -90,9 +90,9 @@ export const QueuePage: React.FC = () => {
         // Search query filter
         if (searchQuery.trim()) {
           const q = searchQuery.toLowerCase().trim();
-          const matchId = v.id.toLowerCase().includes(q);
-          const matchQId = v.questionId.toLowerCase().includes(q);
-          const matchTitle = v.title.toLowerCase().includes(q);
+          const matchId = (v.id || '').toLowerCase().includes(q);
+          const matchQId = (v.questionId || '').toLowerCase().includes(q);
+          const matchTitle = (v.title || '').toLowerCase().includes(q);
           const matchText = v.question?.questionText?.toLowerCase().includes(q);
           const matchTopic = v.question?.topicName?.toLowerCase().includes(q);
           const matchCat = v.question?.categoryName?.toLowerCase().includes(q);

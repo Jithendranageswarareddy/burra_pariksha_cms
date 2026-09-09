@@ -35,15 +35,22 @@ import { Button } from '../components/common/Button';
 import { APP_CONFIG } from '../config/constants';
 import { MOCK_CATEGORIES, MOCK_TOPICS } from '../lib/mock-data/taxonomy';
 import { apiClient } from '../lib/api-client';
-import { SpreadsheetHealthReport, SystemHealthReport, IntegrityIssue, IntegritySeverity, IntegrityCategory } from '../types';
+import { SpreadsheetHealthReport, SystemHealthReport, IntegrityIssue, IntegritySeverity, IntegrityCategory, UserRole } from '../types';
 import { ALL_SHEET_TABS, ID_PREFIX_MAP, SequenceEntityType } from '../lib/schemas/google-sheets-schema';
 import { OperationalHealthReport } from '../lib/services/operational-health.service';
 import { SequenceSafetyReport } from '../lib/services/sequence-safety.service';
 import { OperationalRecoveryState } from '../lib/services/operational-recovery.service';
+import { useAuth } from '../contexts/AuthContext';
 
 export const SettingsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const initialTab = (searchParams.get('tab') as any) || 'recovery';
+  const { user } = useAuth();
+  const isAdmin = user?.role === UserRole.ADMIN;
+
+  const urlTab = searchParams.get('tab');
+  const initialTab = (urlTab && ['sheets', 'taxonomy', 'app', 'ai', 'drive', 'publishing', ...(user?.role === UserRole.ADMIN ? ['recovery', 'integrity'] : [])].includes(urlTab))
+    ? (urlTab as any)
+    : (user?.role === UserRole.ADMIN ? 'recovery' : 'sheets');
 
   const [activeTab, setActiveTab] = useState<
     'recovery' | 'integrity' | 'sheets' | 'taxonomy' | 'app' | 'ai' | 'drive' | 'publishing'
@@ -255,18 +262,30 @@ export const SettingsPage: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
+  // Redirect restricted tabs for non-admin users
+  useEffect(() => {
+    if (user && user.role !== UserRole.ADMIN) {
+      if (['recovery', 'integrity'].includes(activeTab)) {
+        setActiveTab('sheets');
+        setSearchParams({ tab: 'sheets' });
+      }
+    }
+  }, [user, activeTab, setSearchParams]);
+
   useEffect(() => {
     fetchSheetsHealth();
-    fetchIntegrityHealth();
-    fetchRecoveryHealth();
-  }, []);
+    if (user?.role === UserRole.ADMIN) {
+      fetchIntegrityHealth();
+      fetchRecoveryHealth();
+    }
+  }, [user?.role]);
 
   const handleTabChange = (tabId: typeof activeTab) => {
     setActiveTab(tabId);
     setSearchParams({ tab: tabId });
   };
 
-  const tabs = [
+  const rawTabs = [
     { id: 'recovery', label: 'Reliability & Recovery (Phase 8B)', icon: Wrench, highlight: true },
     { id: 'integrity', label: 'Data Integrity & Diagnostics', icon: ShieldCheck },
     { id: 'sheets', label: 'Google Sheets Database', icon: Database },
@@ -276,6 +295,13 @@ export const SettingsPage: React.FC = () => {
     { id: 'drive', label: 'Google Drive (Storage)', icon: HardDrive },
     { id: 'publishing', label: 'Publishing Rules', icon: Share2 },
   ] as const;
+
+  const tabs = rawTabs.filter((tab) => {
+    if (['recovery', 'integrity'].includes(tab.id)) {
+      return isAdmin;
+    }
+    return true;
+  });
 
 
   // Filtered issues list
@@ -288,10 +314,10 @@ export const SettingsPage: React.FC = () => {
     }
     if (issueSearchQuery.trim()) {
       const q = issueSearchQuery.toLowerCase();
-      const matchId = issue.id.toLowerCase().includes(q);
-      const matchMsg = issue.message.toLowerCase().includes(q);
+      const matchId = (issue.id || '').toLowerCase().includes(q);
+      const matchMsg = (issue.message || '').toLowerCase().includes(q);
       const matchEntity = (issue.entityId || '').toLowerCase().includes(q);
-      const matchSheet = issue.worksheet.toLowerCase().includes(q);
+      const matchSheet = (issue.worksheet || '').toLowerCase().includes(q);
       return matchId || matchMsg || matchEntity || matchSheet;
     }
     return true;

@@ -22,6 +22,13 @@ interface PipelineVisualizerProps {
 }
 
 export const PipelineVisualizer: React.FC<PipelineVisualizerProps> = ({ metrics }) => {
+  if (!metrics || !metrics.questions || !metrics.videos || !metrics.publishing) {
+    return (
+      <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-xs text-center text-xs text-slate-500">
+        Pipeline metrics unavailable or incomplete.
+      </div>
+    );
+  }
   const videoPipelineStages = [
     {
       status: VideoProductionStatus.QUEUED,

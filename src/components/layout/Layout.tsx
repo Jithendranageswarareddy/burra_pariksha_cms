@@ -29,10 +29,10 @@ export const Layout: React.FC = () => {
             <div className="flex items-center gap-2">
               <span className="font-semibold text-slate-700">Burra Pariksha CMS</span>
               <span>•</span>
-              <span>Phase 1: Application Architecture & UI Shell</span>
+              <span>Content Operations System</span>
             </div>
             <div className="text-[11px] text-slate-400">
-              Future integrations: Google Sheets (DB) • Google Drive (Media) • Gemini (AI)
+              Authoritative Persistence: Google Sheets DB
             </div>
           </footer>
         </div>

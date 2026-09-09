@@ -18,7 +18,7 @@ import { idService } from './id.service';
 import { auditService } from './audit.service';
 import { videoService } from './video.service';
 import { geminiService } from '../ai/gemini.service';
-import { Question, Script, ScriptVersion, VideoProductionStatus } from '../../types';
+import { Question, Script, ScriptVersion, VideoProductionStatus, UserRole } from '../../types';
 
 export interface ScriptContentPayload {
   hookText: string;
@@ -45,6 +45,16 @@ export class ScriptService {
       ScriptService.instance = new ScriptService();
     }
     return ScriptService.instance;
+  }
+
+  private verifyScriptRole(actor: { role?: string | UserRole }): void {
+    if (actor.role) {
+      const r = String(actor.role).toUpperCase();
+      const allowed = [UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.SCRIPT_WRITER, UserRole.CONTENT_WRITER];
+      if (!allowed.includes(r as any)) {
+        throw new Error(`Unauthorized: Role "${actor.role}" is not allowed to modify scripts.`);
+      }
+    }
   }
 
   /**
@@ -147,8 +157,10 @@ export class ScriptService {
   public async saveScript(
     videoId: string,
     payload: SaveScriptOptions,
-    actor: { id: string; name: string } = { id: 'USR-001', name: 'Admin / Content Lead' }
+    actor: { id: string; name: string; role?: string | UserRole } = { id: 'USR-001', name: 'Admin / Content Lead', role: UserRole.ADMIN }
   ): Promise<{ script: Script; version?: ScriptVersion }> {
+    this.verifyScriptRole(actor);
+
     const video = await videosRepository.findById(videoId);
     if (!video) {
       throw new Error(`Video with ID "${videoId}" not found in database.`);
@@ -280,8 +292,10 @@ export class ScriptService {
   public async revertToVersion(
     scriptId: string,
     versionNumber: number,
-    actor: { id: string; name: string } = { id: 'USR-001', name: 'Admin / Content Lead' }
+    actor: { id: string; name: string; role?: string | UserRole } = { id: 'USR-001', name: 'Admin / Content Lead', role: UserRole.ADMIN }
   ): Promise<Script> {
+    this.verifyScriptRole(actor);
+
     const script = await scriptsRepository.findById(scriptId);
     if (!script) {
       throw new Error(`Script "${scriptId}" not found.`);
@@ -327,9 +341,11 @@ export class ScriptService {
    */
   public async markScriptReady(
     videoId: string,
-    actor: { id: string; name: string } = { id: 'USR-001', name: 'Admin / Content Lead' },
+    actor: { id: string; name: string; role?: string | UserRole } = { id: 'USR-001', name: 'Admin / Content Lead', role: UserRole.ADMIN },
     remarks?: string
   ): Promise<{ script: Script; videoStatus: VideoProductionStatus }> {
+    this.verifyScriptRole(actor);
+
     const existing = await scriptsRepository.findByVideoId(videoId);
     if (!existing) {
       throw new Error(`Cannot mark script ready: No script record exists for video "${videoId}".`);
@@ -371,9 +387,11 @@ export class ScriptService {
    */
   public async returnScriptToEditing(
     videoId: string,
-    actor: { id: string; name: string } = { id: 'USR-001', name: 'Admin / Content Lead' },
+    actor: { id: string; name: string; role?: string | UserRole } = { id: 'USR-001', name: 'Admin / Content Lead', role: UserRole.ADMIN },
     remarks?: string
   ): Promise<{ script: Script; videoStatus: VideoProductionStatus }> {
+    this.verifyScriptRole(actor);
+
     const existing = await scriptsRepository.findByVideoId(videoId);
     if (!existing) {
       throw new Error(`No script record found for video "${videoId}".`);

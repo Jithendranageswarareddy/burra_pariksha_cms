@@ -12,6 +12,7 @@
 import { sequencesRepository } from '../repositories/sequences.repository';
 import {
   categoriesRepository,
+  contentMastersRepository,
   pinnedCommentsRepository,
   questionsRepository,
   scriptsRepository,
@@ -136,6 +137,11 @@ export class SequenceSafetyService {
         case SEQUENCE_ENTITIES.TOPIC: {
           const items = await topicsRepository.findAll();
           ids = items.map((t) => t.id);
+          break;
+        }
+        case SEQUENCE_ENTITIES.CONTENT_MASTER: {
+          const items = await contentMastersRepository.findAll();
+          ids = items.map((m) => m.id);
           break;
         }
         case SEQUENCE_ENTITIES.SUBTOPIC: {

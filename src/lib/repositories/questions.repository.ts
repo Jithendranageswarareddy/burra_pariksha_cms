@@ -87,6 +87,11 @@ export class QuestionsRepository extends BaseRepository<Question> {
       return true;
     });
   }
+
+  public async findByContentMasterId(contentMasterId: string): Promise<Question[]> {
+    const all = await this.findAll();
+    return all.filter((q) => q.contentMasterId === contentMasterId);
+  }
 }
 
 export const questionsRepository = QuestionsRepository.getInstance();

@@ -11,6 +11,7 @@ import { z } from 'zod';
 import {
   AssignmentEntityType,
   ContentBatchStatus,
+  ContentMasterStatus,
   ContentPlanStatus,
   DifficultyLevel,
   PriorityLevel,
@@ -44,6 +45,9 @@ export const SHEET_TABS = {
   PUBLISHING: 'PUBLISHING',
   AUDIT_LOG: 'AUDIT_LOG',
   SEQUENCES: 'SEQUENCES',
+  CONTENT_MASTERS: 'CONTENT_MASTERS',
+  QUESTION_VALIDATIONS: 'QUESTION_VALIDATIONS',
+  SOCIAL_REVIEWS: 'SOCIAL_REVIEWS',
 } as const;
 
 // Phase 9 Extended Planning Worksheet Names
@@ -74,6 +78,8 @@ export const ALL_SHEET_TABS: SheetTabName[] = [
   SHEET_TABS.PUBLISHING,
   SHEET_TABS.AUDIT_LOG,
   SHEET_TABS.SEQUENCES,
+  SHEET_TABS.CONTENT_MASTERS,
+  SHEET_TABS.SOCIAL_REVIEWS,
   PLANNING_SHEET_TABS.CONTENT_PLANS,
   PLANNING_SHEET_TABS.CONTENT_BATCHES,
 ];
@@ -95,6 +101,8 @@ export const SEQUENCE_ENTITIES = {
   CONTENT_PLAN: 'CONTENT_PLAN',
   CONTENT_BATCH: 'CONTENT_BATCH',
   ASSIGNMENT: 'ASSIGNMENT',
+  CONTENT_MASTER: 'CONTENT_MASTER',
+  SOCIAL_REVIEW: 'SOCIAL_REVIEW',
 } as const;
 
 export type SequenceEntityType = typeof SEQUENCE_ENTITIES[keyof typeof SEQUENCE_ENTITIES];
@@ -112,6 +120,8 @@ export const ID_PREFIX_MAP: Record<SequenceEntityType, { prefix: string; padLeng
   [SEQUENCE_ENTITIES.CONTENT_PLAN]: { prefix: 'BP-PLN-', padLength: 4 },
   [SEQUENCE_ENTITIES.CONTENT_BATCH]: { prefix: 'BP-BCH-', padLength: 4 },
   [SEQUENCE_ENTITIES.ASSIGNMENT]: { prefix: 'BP-ASN-', padLength: 6 },
+  [SEQUENCE_ENTITIES.CONTENT_MASTER]: { prefix: 'BP-MST-', padLength: 6 },
+  [SEQUENCE_ENTITIES.SOCIAL_REVIEW]: { prefix: 'BP-REV-', padLength: 6 },
 };
 
 // ============================================================================
@@ -138,6 +148,26 @@ export interface SheetSchemaContract {
 }
 
 export const SHEET_SCHEMAS: Record<SheetTabName, SheetSchemaContract> = {
+  // 0. CONTENT_MASTERS
+  [SHEET_TABS.CONTENT_MASTERS]: {
+    sheetName: SHEET_TABS.CONTENT_MASTERS,
+    purpose: 'Root Content Master identity tracking logical content across downstream production',
+    primaryKey: 'id',
+    columns: [
+      { name: 'id', propertyKey: 'id', type: 'string', required: true, isPrimaryKey: true },
+      { name: 'title', propertyKey: 'title', type: 'string', required: true },
+      { name: 'status', propertyKey: 'status', type: 'string', required: true },
+      { name: 'primary_question_id', propertyKey: 'primaryQuestionId', type: 'string', required: false, isForeignKey: true, foreignKeyTarget: { sheet: SHEET_TABS.QUESTIONS, column: 'id' } },
+      { name: 'category_id', propertyKey: 'categoryId', type: 'string', required: false, isForeignKey: true, foreignKeyTarget: { sheet: SHEET_TABS.CATEGORIES, column: 'id' } },
+      { name: 'topic_id', propertyKey: 'topicId', type: 'string', required: false, isForeignKey: true, foreignKeyTarget: { sheet: SHEET_TABS.TOPICS, column: 'id' } },
+      { name: 'subtopic_id', propertyKey: 'subtopicId', type: 'string', required: false, isForeignKey: true, foreignKeyTarget: { sheet: SHEET_TABS.SUBTOPICS, column: 'id' } },
+      { name: 'created_by', propertyKey: 'createdBy', type: 'string', required: false },
+      { name: 'created_at', propertyKey: 'createdAt', type: 'date', required: true },
+      { name: 'updated_at', propertyKey: 'updatedAt', type: 'date', required: true },
+      { name: 'archived_at', propertyKey: 'archivedAt', type: 'date', required: false },
+    ],
+  },
+
   // 1. USERS
   [SHEET_TABS.USERS]: {
     sheetName: SHEET_TABS.USERS,
@@ -197,12 +227,14 @@ export const SHEET_SCHEMAS: Record<SheetTabName, SheetSchemaContract> = {
     primaryKey: 'id',
     columns: [
       { name: 'id', propertyKey: 'id', type: 'string', required: true, isPrimaryKey: true },
-      { name: 'category_id', propertyKey: 'categoryId', type: 'string', required: true, isForeignKey: true, foreignKeyTarget: { sheet: SHEET_TABS.CATEGORIES, column: 'id' } },
+      { name: 'category_id', propertyKey: 'categoryId', type: 'string', required: false, isForeignKey: true, foreignKeyTarget: { sheet: SHEET_TABS.CATEGORIES, column: 'id' } },
       { name: 'name', propertyKey: 'name', type: 'string', required: true },
       { name: 'slug', propertyKey: 'slug', type: 'string', required: true },
       { name: 'description', propertyKey: 'description', type: 'string', required: false },
+      { name: 'display_order', propertyKey: 'displayOrder', type: 'number', required: false },
+      { name: 'is_active', propertyKey: 'isActive', type: 'boolean', required: false },
       { name: 'created_at', propertyKey: 'createdAt', type: 'date', required: true },
-      { name: 'updated_at', propertyKey: 'updatedAt', type: 'date', required: true },
+      { name: 'updated_at', propertyKey: 'updatedAt', type: 'date', required: false },
     ],
   },
 
@@ -216,9 +248,12 @@ export const SHEET_SCHEMAS: Record<SheetTabName, SheetSchemaContract> = {
       { name: 'topic_id', propertyKey: 'topicId', type: 'string', required: true, isForeignKey: true, foreignKeyTarget: { sheet: SHEET_TABS.TOPICS, column: 'id' } },
       { name: 'name', propertyKey: 'name', type: 'string', required: true },
       { name: 'slug', propertyKey: 'slug', type: 'string', required: true },
+      { name: 'description', propertyKey: 'description', type: 'string', required: false },
       { name: 'notes', propertyKey: 'notes', type: 'string', required: false },
+      { name: 'display_order', propertyKey: 'displayOrder', type: 'number', required: false },
+      { name: 'is_active', propertyKey: 'isActive', type: 'boolean', required: false },
       { name: 'created_at', propertyKey: 'createdAt', type: 'date', required: true },
-      { name: 'updated_at', propertyKey: 'updatedAt', type: 'date', required: true },
+      { name: 'updated_at', propertyKey: 'updatedAt', type: 'date', required: false },
     ],
   },
 
@@ -229,13 +264,14 @@ export const SHEET_SCHEMAS: Record<SheetTabName, SheetSchemaContract> = {
     primaryKey: 'id',
     columns: [
       { name: 'id', propertyKey: 'id', type: 'string', required: true, isPrimaryKey: true },
+      { name: 'content_master_id', propertyKey: 'contentMasterId', type: 'string', required: false, isForeignKey: true, foreignKeyTarget: { sheet: SHEET_TABS.CONTENT_MASTERS, column: 'id' } },
       { name: 'category_id', propertyKey: 'categoryId', type: 'string', required: true, isForeignKey: true, foreignKeyTarget: { sheet: SHEET_TABS.CATEGORIES, column: 'id' } },
       { name: 'category_name', propertyKey: 'categoryName', type: 'string', required: true },
       { name: 'topic_id', propertyKey: 'topicId', type: 'string', required: true, isForeignKey: true, foreignKeyTarget: { sheet: SHEET_TABS.TOPICS, column: 'id' } },
       { name: 'topic_name', propertyKey: 'topicName', type: 'string', required: true },
       { name: 'subtopic_id', propertyKey: 'subtopicId', type: 'string', required: true, isForeignKey: true, foreignKeyTarget: { sheet: SHEET_TABS.SUBTOPICS, column: 'id' } },
       { name: 'subtopic_name', propertyKey: 'subtopicName', type: 'string', required: true },
-      { name: 'difficulty', propertyKey: 'difficulty', type: 'string', required: true, allowedValues: Object.values(DifficultyLevel) },
+      { name: 'difficulty', propertyKey: 'difficulty', type: 'string', required: true },
       { name: 'question_text', propertyKey: 'questionText', type: 'string', required: true },
       { name: 'option_a', propertyKey: 'optionA', type: 'string', required: true },
       { name: 'option_b', propertyKey: 'optionB', type: 'string', required: true },
@@ -244,6 +280,12 @@ export const SHEET_SCHEMAS: Record<SheetTabName, SheetSchemaContract> = {
       { name: 'correct_answer', propertyKey: 'correctAnswer', type: 'string', required: true, allowedValues: ['A', 'B', 'C', 'D'] },
       { name: 'explanation', propertyKey: 'explanation', type: 'string', required: true },
       { name: 'real_world_context', propertyKey: 'realWorldContext', type: 'string', required: false },
+      { name: 'real_life_context', propertyKey: 'realLifeContext', type: 'string', required: false },
+      { name: 'challenge_type', propertyKey: 'challengeType', type: 'string', required: false },
+      { name: 'presentation_type', propertyKey: 'presentationType', type: 'string', required: false },
+      { name: 'originality_score', propertyKey: 'originalityScore', type: 'number', required: false },
+      { name: 'ai_model', propertyKey: 'aiModel', type: 'string', required: false },
+      { name: 'ai_prompt', propertyKey: 'aiPrompt', type: 'string', required: false },
       { name: 'question_style', propertyKey: 'questionStyle', type: 'string', required: false, allowedValues: Object.values(QuestionStyle) },
       { name: 'status', propertyKey: 'status', type: 'string', required: true, allowedValues: Object.values(QuestionStatus) },
       { name: 'video_status', propertyKey: 'videoStatus', type: 'string', required: true, allowedValues: Object.values(VideoProductionStatus) },
@@ -251,6 +293,9 @@ export const SHEET_SCHEMAS: Record<SheetTabName, SheetSchemaContract> = {
       { name: 'source', propertyKey: 'source', type: 'string', required: false },
       { name: 'ai_prompt_used', propertyKey: 'aiPromptUsed', type: 'string', required: false },
       { name: 'author_id', propertyKey: 'authorId', type: 'string', required: false },
+      { name: 'validation_status', propertyKey: 'validationStatus', type: 'string', required: false },
+      { name: 'last_validation_id', propertyKey: 'lastValidationId', type: 'string', required: false },
+      { name: 'validation_score', propertyKey: 'validationScore', type: 'number', required: false },
       { name: 'created_at', propertyKey: 'createdAt', type: 'date', required: true },
       { name: 'updated_at', propertyKey: 'updatedAt', type: 'date', required: true },
     ],
@@ -277,6 +322,7 @@ export const SHEET_SCHEMAS: Record<SheetTabName, SheetSchemaContract> = {
     primaryKey: 'id',
     columns: [
       { name: 'id', propertyKey: 'id', type: 'string', required: true, isPrimaryKey: true },
+      { name: 'content_master_id', propertyKey: 'contentMasterId', type: 'string', required: false, isForeignKey: true, foreignKeyTarget: { sheet: SHEET_TABS.CONTENT_MASTERS, column: 'id' } },
       { name: 'question_id', propertyKey: 'questionId', type: 'string', required: true, isForeignKey: true, foreignKeyTarget: { sheet: SHEET_TABS.QUESTIONS, column: 'id' } },
       { name: 'title', propertyKey: 'title', type: 'string', required: true },
       { name: 'status', propertyKey: 'status', type: 'string', required: true, allowedValues: Object.values(VideoProductionStatus) },
@@ -289,6 +335,11 @@ export const SHEET_SCHEMAS: Record<SheetTabName, SheetSchemaContract> = {
       { name: 'drive_folder_url', propertyKey: 'driveFolderUrl', type: 'string', required: false },
       { name: 'raw_footage_path', propertyKey: 'rawFootagePath', type: 'string', required: false },
       { name: 'final_render_path', propertyKey: 'finalRenderPath', type: 'string', required: false },
+      { name: 'final_render_width', propertyKey: 'finalRenderWidth', type: 'number', required: false },
+      { name: 'final_render_height', propertyKey: 'finalRenderHeight', type: 'number', required: false },
+      { name: 'final_render_format', propertyKey: 'finalRenderFormat', type: 'string', required: false },
+      { name: 'final_render_aspect_ratio', propertyKey: 'finalRenderAspectRatio', type: 'string', required: false },
+      { name: 'final_render_validation_status', propertyKey: 'finalRenderValidationStatus', type: 'string', required: false },
       { name: 'youtube_id', propertyKey: 'youtubeId', type: 'string', required: false },
       { name: 'scheduled_recording_date', propertyKey: 'scheduledRecordingDate', type: 'string', required: false },
       { name: 'scheduled_publish_date', propertyKey: 'scheduledPublishDate', type: 'string', required: false },
@@ -455,12 +506,24 @@ export const SHEET_SCHEMAS: Record<SheetTabName, SheetSchemaContract> = {
       { name: 'youtube_status', propertyKey: 'youtubeStatus', type: 'string', required: true, allowedValues: Object.values(SocialPublishStatus) },
       { name: 'youtube_url', propertyKey: 'youtubeUrl', type: 'string', required: false },
       { name: 'youtube_published_at', propertyKey: 'youtubePublishedAt', type: 'string', required: false },
+      { name: 'youtube_scheduled_at', propertyKey: 'youtubeScheduledAt', type: 'string', required: false },
+      { name: 'youtube_last_failure_reason', propertyKey: 'youtubeLastFailureReason', type: 'string', required: false },
+      { name: 'youtube_retry_count', propertyKey: 'youtubeRetryCount', type: 'number', required: false },
+      { name: 'youtube_failed_at', propertyKey: 'youtubeFailedAt', type: 'string', required: false },
       { name: 'instagram_status', propertyKey: 'instagramStatus', type: 'string', required: true, allowedValues: Object.values(SocialPublishStatus) },
       { name: 'instagram_url', propertyKey: 'instagramUrl', type: 'string', required: false },
       { name: 'instagram_published_at', propertyKey: 'instagramPublishedAt', type: 'string', required: false },
+      { name: 'instagram_scheduled_at', propertyKey: 'instagramScheduledAt', type: 'string', required: false },
+      { name: 'instagram_last_failure_reason', propertyKey: 'instagramLastFailureReason', type: 'string', required: false },
+      { name: 'instagram_retry_count', propertyKey: 'instagramRetryCount', type: 'number', required: false },
+      { name: 'instagram_failed_at', propertyKey: 'instagramFailedAt', type: 'string', required: false },
       { name: 'facebook_status', propertyKey: 'facebookStatus', type: 'string', required: true, allowedValues: Object.values(SocialPublishStatus) },
       { name: 'facebook_url', propertyKey: 'facebookUrl', type: 'string', required: false },
       { name: 'facebook_published_at', propertyKey: 'facebookPublishedAt', type: 'string', required: false },
+      { name: 'facebook_scheduled_at', propertyKey: 'facebookScheduledAt', type: 'string', required: false },
+      { name: 'facebook_last_failure_reason', propertyKey: 'facebookLastFailureReason', type: 'string', required: false },
+      { name: 'facebook_retry_count', propertyKey: 'facebookRetryCount', type: 'number', required: false },
+      { name: 'facebook_failed_at', propertyKey: 'facebookFailedAt', type: 'string', required: false },
       { name: 'pinned_comment_ready', propertyKey: 'pinnedCommentReady', type: 'boolean', required: true },
       { name: 'thumbnail_ready', propertyKey: 'thumbnailReady', type: 'boolean', required: true },
       { name: 'completed_platforms_count', propertyKey: 'completedPlatformsCount', type: 'number', required: true },
@@ -484,6 +547,29 @@ export const SHEET_SCHEMAS: Record<SheetTabName, SheetSchemaContract> = {
       { name: 'entity_type', propertyKey: 'entityType', type: 'string', required: true },
       { name: 'entity_id', propertyKey: 'entityId', type: 'string', required: true },
       { name: 'details', propertyKey: 'details', type: 'string', required: false },
+    ],
+  },
+
+  // 18. SOCIAL_REVIEWS
+  [SHEET_TABS.SOCIAL_REVIEWS]: {
+    sheetName: SHEET_TABS.SOCIAL_REVIEWS,
+    purpose: 'Human review decisions and feedback history for social content packages',
+    primaryKey: 'id',
+    columns: [
+      { name: 'id', propertyKey: 'id', type: 'string', required: true, isPrimaryKey: true },
+      { name: 'question_id', propertyKey: 'questionId', type: 'string', required: true, isForeignKey: true, foreignKeyTarget: { sheet: SHEET_TABS.QUESTIONS, column: 'id' } },
+      { name: 'content_master_id', propertyKey: 'contentMasterId', type: 'string', required: false },
+      { name: 'reviewed_version_hash', propertyKey: 'reviewedVersionHash', type: 'string', required: true },
+      { name: 'reviewer_id', propertyKey: 'reviewerId', type: 'string', required: true },
+      { name: 'reviewer_name', propertyKey: 'reviewerName', type: 'string', required: true },
+      { name: 'reviewer_role', propertyKey: 'reviewerRole', type: 'string', required: true },
+      { name: 'decision', propertyKey: 'decision', type: 'string', required: true },
+      { name: 'reason', propertyKey: 'reason', type: 'string', required: false },
+      { name: 'feedback_categories', propertyKey: 'feedbackCategories', type: 'json', required: false },
+      { name: 'overall_quality_score_at_review', propertyKey: 'overallQualityScoreAtReview', type: 'number', required: false },
+      { name: 'quality_status_at_review', propertyKey: 'qualityStatusAtReview', type: 'string', required: false },
+      { name: 'is_admin_override', propertyKey: 'isAdminOverride', type: 'boolean', required: false },
+      { name: 'reviewed_at', propertyKey: 'reviewedAt', type: 'date', required: true },
     ],
   },
 
@@ -547,6 +633,32 @@ export const SHEET_SCHEMAS: Record<SheetTabName, SheetSchemaContract> = {
       { name: 'updated_at', propertyKey: 'updatedAt', type: 'date', required: true },
     ],
   },
+
+  // 21. QUESTION_VALIDATIONS (Phase 5: Question Validation Engine)
+  [SHEET_TABS.QUESTION_VALIDATIONS]: {
+    sheetName: SHEET_TABS.QUESTION_VALIDATIONS,
+    purpose: 'Question verification and quality gate audit records',
+    primaryKey: 'id',
+    columns: [
+      { name: 'id', propertyKey: 'id', type: 'string', required: true, isPrimaryKey: true },
+      { name: 'question_id', propertyKey: 'questionId', type: 'string', required: true, isForeignKey: true, foreignKeyTarget: { sheet: SHEET_TABS.QUESTIONS, column: 'id' } },
+      { name: 'status', propertyKey: 'status', type: 'string', required: true },
+      { name: 'confidence_score', propertyKey: 'confidenceScore', type: 'number', required: true },
+      { name: 'validator_version', propertyKey: 'validatorVersion', type: 'string', required: true },
+      { name: 'validation_rule_version', propertyKey: 'validationRuleVersion', type: 'string', required: true },
+      { name: 'source', propertyKey: 'source', type: 'string', required: true },
+      { name: 'summary', propertyKey: 'summary', type: 'string', required: true },
+      { name: 'checks_json', propertyKey: 'checksJson', type: 'string', required: false },
+      { name: 'errors_json', propertyKey: 'errorsJson', type: 'string', required: false },
+      { name: 'warnings_json', propertyKey: 'warningsJson', type: 'string', required: false },
+      { name: 'recommendations_json', propertyKey: 'recommendationsJson', type: 'string', required: false },
+      { name: 'details_json', propertyKey: 'detailsJson', type: 'string', required: false },
+      { name: 'is_stale', propertyKey: 'isStale', type: 'boolean', required: false },
+      { name: 'validated_by', propertyKey: 'validatedBy', type: 'string', required: false },
+      { name: 'created_at', propertyKey: 'createdAt', type: 'date', required: true },
+      { name: 'updated_at', propertyKey: 'updatedAt', type: 'date', required: true },
+    ],
+  },
 };
 
 // ============================================================================
@@ -554,13 +666,14 @@ export const SHEET_SCHEMAS: Record<SheetTabName, SheetSchemaContract> = {
 // ============================================================================
 
 export const CreateQuestionInputSchema = z.object({
+  contentMasterId: z.string().optional(),
   categoryId: z.string().min(1, 'Category ID is required'),
   categoryName: z.string().optional(),
   topicId: z.string().min(1, 'Topic ID is required'),
   topicName: z.string().optional(),
   subtopicId: z.string().min(1, 'Subtopic ID is required'),
   subtopicName: z.string().optional(),
-  difficulty: z.nativeEnum(DifficultyLevel),
+  difficulty: z.union([z.nativeEnum(DifficultyLevel), z.string()]),
   questionText: z.string().min(5, 'Question text must be at least 5 characters'),
   options: z.object({
     a: z.string().min(1, 'Option A is required'),
@@ -571,12 +684,18 @@ export const CreateQuestionInputSchema = z.object({
   correctAnswer: z.enum(['A', 'B', 'C', 'D']),
   explanation: z.string().min(5, 'Explanation must be at least 5 characters'),
   realWorldContext: z.string().optional(),
+  realLifeContext: z.string().optional(),
+  challengeType: z.string().optional(),
+  presentationType: z.string().optional(),
   questionStyle: z.nativeEnum(QuestionStyle).optional(),
   status: z.nativeEnum(QuestionStatus).optional().default(QuestionStatus.GENERATED),
   videoStatus: z.nativeEnum(VideoProductionStatus).optional().default(VideoProductionStatus.NOT_STARTED),
   tags: z.array(z.string()).optional().default([]),
   source: z.string().optional(),
   aiPromptUsed: z.string().optional(),
+  aiModel: z.string().optional(),
+  aiPrompt: z.string().optional(),
+  originalityScore: z.number().optional(),
   authorId: z.string().optional(),
 });
 
@@ -649,6 +768,11 @@ export const UpdateVideoMetadataInputSchema = z.object({
   driveFolderUrl: z.string().optional(),
   rawFootagePath: z.string().optional(),
   finalRenderPath: z.string().optional(),
+  finalRenderWidth: z.number().positive().optional(),
+  finalRenderHeight: z.number().positive().optional(),
+  finalRenderFormat: z.string().optional(),
+  finalRenderAspectRatio: z.string().optional(),
+  finalRenderValidationStatus: z.enum(['NOT_VALIDATED', 'VALID', 'INVALID', 'NEEDS_REVIEW']).optional(),
   youtubeId: z.string().optional(),
   scheduledRecordingDate: z.string().optional(),
   scheduledPublishDate: z.string().optional(),
@@ -892,6 +1016,100 @@ export const UpdateUserInputSchema = z.object({
 });
 
 export type UpdateUserInput = z.infer<typeof UpdateUserInputSchema>;
+
+export const CreateContentMasterInputSchema = z.object({
+  title: z.string().min(1, 'Title is required'),
+  status: z.union([z.nativeEnum(ContentMasterStatus), z.string()]).optional().default(ContentMasterStatus.ACTIVE),
+  primaryQuestionId: z.string().optional(),
+  categoryId: z.string().optional(),
+  topicId: z.string().optional(),
+  subtopicId: z.string().optional(),
+  createdBy: z.string().optional(),
+});
+
+export type CreateContentMasterInput = z.input<typeof CreateContentMasterInputSchema>;
+
+export const UpdateContentMasterInputSchema = CreateContentMasterInputSchema.partial().extend({
+  id: z.string().min(1, 'Content Master ID is required for update'),
+  archivedAt: z.string().optional(),
+});
+
+export type UpdateContentMasterInput = z.infer<typeof UpdateContentMasterInputSchema>;
+
+// ----------------------------------------------------
+// Taxonomy Zod Input Schemas (Task 3 Canonical Taxonomy Engine)
+// ----------------------------------------------------
+
+export const CreateTopicInputSchema = z.object({
+  name: z.string().min(1, 'Topic name is required'),
+  categoryId: z.string().optional(),
+  slug: z.string().optional(),
+  description: z.string().optional(),
+  displayOrder: z.number().optional(),
+  isActive: z.boolean().optional().default(true),
+});
+
+export type CreateTopicInput = z.input<typeof CreateTopicInputSchema>;
+
+export const UpdateTopicInputSchema = z.object({
+  id: z.string().min(1, 'Topic ID is required for update'),
+  name: z.string().min(1).optional(),
+  categoryId: z.string().optional(),
+  slug: z.string().optional(),
+  description: z.string().optional(),
+  displayOrder: z.number().optional(),
+  isActive: z.boolean().optional(),
+});
+
+export type UpdateTopicInput = z.infer<typeof UpdateTopicInputSchema>;
+
+export const CreateSubtopicInputSchema = z.object({
+  topicId: z.string().min(1, 'Parent Topic ID is required'),
+  name: z.string().min(1, 'Subtopic name is required'),
+  slug: z.string().optional(),
+  description: z.string().optional(),
+  notes: z.string().optional(),
+  displayOrder: z.number().optional(),
+  isActive: z.boolean().optional().default(true),
+});
+
+export type CreateSubtopicInput = z.input<typeof CreateSubtopicInputSchema>;
+
+export const UpdateSubtopicInputSchema = z.object({
+  id: z.string().min(1, 'Subtopic ID is required for update'),
+  topicId: z.string().min(1).optional(),
+  name: z.string().min(1).optional(),
+  slug: z.string().optional(),
+  description: z.string().optional(),
+  notes: z.string().optional(),
+  displayOrder: z.number().optional(),
+  isActive: z.boolean().optional(),
+});
+
+export type UpdateSubtopicInput = z.infer<typeof UpdateSubtopicInputSchema>;
+
+export const BulkImportTaxonomyItemSchema = z.object({
+  name: z.string().min(1, 'Topic name is required'),
+  slug: z.string().optional(),
+  categoryId: z.string().optional(),
+  description: z.string().optional(),
+  displayOrder: z.number().optional(),
+  subtopics: z.array(
+    z.object({
+      name: z.string().min(1, 'Subtopic name is required'),
+      slug: z.string().optional(),
+      description: z.string().optional(),
+      notes: z.string().optional(),
+      displayOrder: z.number().optional(),
+    })
+  ).optional().default([]),
+});
+
+export const BulkImportTaxonomyInputSchema = z.object({
+  topics: z.array(BulkImportTaxonomyItemSchema).min(1, 'At least one topic must be provided for import'),
+});
+
+export type BulkImportTaxonomyInput = z.infer<typeof BulkImportTaxonomyInputSchema>;
 
 
 

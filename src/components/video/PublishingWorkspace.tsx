@@ -47,6 +47,9 @@ export const PublishingWorkspace: React.FC<PublishingWorkspaceProps> = ({
   const [fbUrl, setFbUrl] = useState<string>('');
   const [fbNotes, setFbNotes] = useState<string>('');
 
+  const [uploadPath, setUploadPath] = useState<string>(video.finalRenderPath || '');
+  const [uploadRemarks, setUploadRemarks] = useState<string>('');
+
   const fetchPublishingData = async () => {
     try {
       setIsLoading(true);
@@ -146,10 +149,13 @@ export const PublishingWorkspace: React.FC<PublishingWorkspaceProps> = ({
     try {
       setIsSaving(true);
       setError(null);
+      if (uploadPath) {
+        await apiClient.updateVideoMetadata(video.id, { finalRenderPath: uploadPath });
+      }
       await apiClient.updateVideoStatus(
         video.id,
         VideoProductionStatus.UPLOADED,
-        'All manual platform uploads completed and confirmed live'
+        uploadRemarks || 'Manual upload recorded and verified'
       );
       setSuccessMessage('Video production state advanced to terminal UPLOADED state!');
       if (onStatusChange) onStatusChange();
@@ -242,6 +248,52 @@ export const PublishingWorkspace: React.FC<PublishingWorkspaceProps> = ({
           )}
         </div>
       </div>
+
+      {video.status === VideoProductionStatus.READY_TO_UPLOAD && (
+        <div className="bg-emerald-50/60 rounded-xl border border-emerald-200 p-5 space-y-3">
+          <div className="flex items-center gap-2 text-emerald-900 font-bold text-sm">
+            <UploadCloud className="w-4 h-4 text-emerald-600" />
+            <span>Manual Upload Recording (Ready for UPLOADED State Transition)</span>
+          </div>
+          <p className="text-xs text-emerald-800">
+            Record the final uploaded asset path or master file reference and optional upload notes before marking the production status as UPLOADED. This does not automatically publish to social platforms.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+            <div>
+              <label className="block text-[11px] font-bold text-emerald-900 mb-1">Uploaded Asset URL / Final Render Path</label>
+              <input
+                type="text"
+                value={uploadPath}
+                onChange={(e) => setUploadPath(e.target.value)}
+                placeholder="e.g. s3://bucket/videos/BP-V-000001-final.mp4 or Drive Link"
+                className="w-full bg-white border border-emerald-300 rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold text-emerald-900 mb-1">Upload Notes / Verification Remarks</label>
+              <input
+                type="text"
+                value={uploadRemarks}
+                onChange={(e) => setUploadRemarks(e.target.value)}
+                placeholder="e.g. Verified 1080p master exported and uploaded"
+                className="w-full bg-white border border-emerald-300 rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end pt-2">
+            <Button
+              variant="primary"
+              size="sm"
+              disabled={isSaving}
+              onClick={handleMarkVideoUploaded}
+              className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1.5"
+              icon={CheckCircle2}
+            >
+              Confirm Manual Upload & Transition to UPLOADED
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Readiness Pre-Flight Checklist */}
       <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-3">

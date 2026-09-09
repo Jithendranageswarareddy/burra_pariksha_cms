@@ -18,8 +18,13 @@ import {
   categoriesRepository,
   topicsRepository,
   auditLogRepository,
+  assignmentsRepository,
+  usersRepository,
+  contentMastersRepository,
+  socialReviewsRepository,
 } from '../repositories';
 import { assignmentService } from './assignment.service';
+import { objectAuthService, ActorContext } from './object-auth.service';
 import {
   AGING_THRESHOLDS,
   BOTTLENECK_CONFIG,
@@ -38,6 +43,7 @@ import {
   SocialPublishStatus,
   StaleContentItem,
   TodaysWorkItem,
+  UserRole,
   Video,
   VideoProductionStatus,
 } from '../../types';
@@ -52,8 +58,32 @@ export interface DashboardFilterOptions {
   search?: string;
 }
 
+export interface DashboardDataContext {
+  allQuestions: Question[];
+  allVideos: Video[];
+  allPublishing: any[];
+  allThumbnails: any[];
+  allPinnedComments: any[];
+  allAuditLogs: any[];
+  allAssignments: any[];
+  allUsers: any[];
+  qMap: Map<string, Question>;
+}
+
+function safeTruncate(str: string | undefined | null, maxLength = 60, fallback = 'Untitled Item'): string {
+  if (typeof str !== 'string' || !str.trim()) {
+    return fallback;
+  }
+  const trimmed = str.trim();
+  return trimmed.length > maxLength ? `${trimmed.substring(0, maxLength)}...` : trimmed;
+}
+
 export class DashboardService {
   private static instance: DashboardService | null = null;
+
+  private overviewCache = new Map<string, { timestamp: number; data: DashboardOverviewData }>();
+  private overviewInFlight = new Map<string, Promise<DashboardOverviewData>>();
+  private readonly OVERVIEW_CACHE_TTL_MS = 20_000; // 20 seconds TTL
 
   private constructor() {}
 
@@ -64,19 +94,61 @@ export class DashboardService {
     return DashboardService.instance;
   }
 
+  public clearOverviewCache(): void {
+    this.overviewCache.clear();
+    this.overviewInFlight.clear();
+  }
+
+  /**
+   * Single-pass fetch of all required repositories in parallel for dashboard calculations.
+   */
+  public async buildDataContext(): Promise<DashboardDataContext> {
+    const [
+      allQuestions,
+      allVideos,
+      allPublishing,
+      allThumbnails,
+      allPinnedComments,
+      allAuditLogs,
+      allAssignments,
+      allUsers,
+    ] = await Promise.all([
+      questionsRepository.findAll(),
+      videosRepository.findAll(),
+      publishingRepository.findAll(),
+      thumbnailsRepository.findAll(),
+      pinnedCommentsRepository.findAll(),
+      auditLogRepository.findAll(),
+      assignmentsRepository.findAll(),
+      usersRepository.findAll(),
+    ]);
+
+    const qMap = new Map<string, Question>(allQuestions.map((q) => [q.id, q]));
+    return {
+      allQuestions,
+      allVideos,
+      allPublishing,
+      allThumbnails,
+      allPinnedComments,
+      allAuditLogs,
+      allAssignments,
+      allUsers,
+      qMap,
+    };
+  }
+
   /**
    * Computes comprehensive dashboard metric cards across Questions, Videos, and Publishing.
    */
   public async getMetrics(filters?: DashboardFilterOptions): Promise<DashboardMetrics> {
-    const [allQuestions, allVideos, allPublishing] = await Promise.all([
-      questionsRepository.findAll(),
-      videosRepository.findAll(),
-      publishingRepository.findAll(),
-    ]);
+    const ctx = await this.buildDataContext();
+    return this.getMetricsFromContext(ctx, filters);
+  }
 
-    const qMap = new Map<string, Question>(allQuestions.map((q) => [q.id, q]));
-    const questions = this.applyQuestionFilters(allQuestions, filters);
-    const videos = this.applyVideoFilters(allVideos, filters, qMap);
+  public getMetricsFromContext(ctx: DashboardDataContext, filters?: DashboardFilterOptions): DashboardMetrics {
+    const questions = this.applyQuestionFilters(ctx.allQuestions, filters);
+    const videos = this.applyVideoFilters(ctx.allVideos, filters, ctx.qMap);
+    const allPublishing = ctx.allPublishing;
 
     // Questions Breakdown
     const qGenerated = questions.filter((q) => q.status === QuestionStatus.GENERATED || q.status === QuestionStatus.DRAFT).length;
@@ -161,15 +233,15 @@ export class DashboardService {
    * Generates Today's Priority Work list identifying immediate actionable records.
    */
   public async getTodaysWork(filters?: DashboardFilterOptions): Promise<TodaysWorkItem[]> {
-    const [questions, videos, publishingList] = await Promise.all([
-      questionsRepository.findAll(),
-      videosRepository.findAll(),
-      publishingRepository.findAll(),
-    ]);
+    const ctx = await this.buildDataContext();
+    return this.getTodaysWorkFromContext(ctx, filters);
+  }
 
-    const qMap = new Map<string, Question>(questions.map((q) => [q.id, q]));
-    const filteredQuestions = this.applyQuestionFilters(questions, filters);
-    const filteredVideos = this.applyVideoFilters(videos, filters, qMap);
+  public getTodaysWorkFromContext(ctx: DashboardDataContext, filters?: DashboardFilterOptions): TodaysWorkItem[] {
+    const qMap = ctx.qMap;
+    const filteredQuestions = this.applyQuestionFilters(ctx.allQuestions, filters);
+    const filteredVideos = this.applyVideoFilters(ctx.allVideos, filters, qMap);
+    const publishingList = ctx.allPublishing;
     const items: TodaysWorkItem[] = [];
 
     const now = Date.now();
@@ -181,7 +253,7 @@ export class DashboardService {
       items.push({
         id: v.id,
         entityType: 'VIDEO',
-        title: v.title || (q ? q.questionText.substring(0, 60) : `Video for Question ${v.questionId}`),
+        title: safeTruncate(v.title || q?.questionText, 60, `Video for Question ${v.questionId}`),
         category: q?.categoryName || q?.categoryId || 'Quantitative Aptitude',
         topic: q?.topicName || q?.topicId || 'General',
         currentStatus: v.status,
@@ -200,14 +272,14 @@ export class DashboardService {
       items.push({
         id: v.id,
         entityType: 'VIDEO',
-        title: v.title || (q ? q.questionText.substring(0, 60) : `Video for Question ${v.questionId}`),
+        title: safeTruncate(v.title || q?.questionText, 60, `Video for Question ${v.questionId}`),
         category: q?.categoryName || q?.categoryId || 'Quantitative Aptitude',
         topic: q?.topicName || q?.topicId || 'General',
         currentStatus: v.status,
         priority: 'HIGH',
         ageDays: days,
         recommendedAction: 'Perform Final QC Review',
-        actionUrl: `/videos/${encodeURIComponent(v.id)}`,
+        actionUrl: `/production/${encodeURIComponent(v.id)}`,
         reason: 'Edited video awaiting administrative approval and thumbnail sign-off',
       });
     }
@@ -219,14 +291,14 @@ export class DashboardService {
       items.push({
         id: v.id,
         entityType: 'VIDEO',
-        title: v.title || (q ? q.questionText.substring(0, 60) : `Video for Question ${v.questionId}`),
+        title: safeTruncate(v.title || q?.questionText, 60, `Video for Question ${v.questionId}`),
         category: q?.categoryName || q?.categoryId || 'Quantitative Aptitude',
         topic: q?.topicName || q?.topicId || 'General',
         currentStatus: v.status,
         priority: v.priority === 'HIGH' || v.priority === 'URGENT' ? 'HIGH' : 'MEDIUM',
         ageDays: days,
         recommendedAction: 'Draft Telugu Script & Hook',
-        actionUrl: `/videos/${encodeURIComponent(v.id)}?tab=script`,
+        actionUrl: `/production/${encodeURIComponent(v.id)}?tab=script`,
         reason: 'Video in queue requires 10-second hook and Telugu timing breakdown',
       });
     }
@@ -238,14 +310,14 @@ export class DashboardService {
       items.push({
         id: v.id,
         entityType: 'VIDEO',
-        title: v.title || (q ? q.questionText.substring(0, 60) : `Video for Question ${v.questionId}`),
+        title: safeTruncate(v.title || q?.questionText, 60, `Video for Question ${v.questionId}`),
         category: q?.categoryName || q?.categoryId || 'Quantitative Aptitude',
         topic: q?.topicName || q?.topicId || 'General',
         currentStatus: v.status,
         priority: 'HIGH',
         ageDays: days,
         recommendedAction: 'Record in Studio with Teleprompter',
-        actionUrl: `/videos/${encodeURIComponent(v.id)}?tab=script`,
+        actionUrl: `/production/${encodeURIComponent(v.id)}?tab=script`,
         reason: 'Script approved, ready for host filming in studio',
       });
     }
@@ -257,14 +329,14 @@ export class DashboardService {
       items.push({
         id: v.id,
         entityType: 'VIDEO',
-        title: v.title || (q ? q.questionText.substring(0, 60) : `Video for Question ${v.questionId}`),
+        title: safeTruncate(v.title || q?.questionText, 60, `Video for Question ${v.questionId}`),
         category: q?.categoryName || q?.categoryId || 'Quantitative Aptitude',
         topic: q?.topicName || q?.topicId || 'General',
         currentStatus: v.status,
         priority: 'HIGH',
         ageDays: days,
         recommendedAction: 'Edit 9:16 Vertical Video & Captions',
-        actionUrl: `/videos/${encodeURIComponent(v.id)}`,
+        actionUrl: `/production/${encodeURIComponent(v.id)}`,
         reason: 'Raw studio footage filmed; editor assignment and cut needed',
       });
     }
@@ -276,26 +348,26 @@ export class DashboardService {
       items.push({
         id: v.id,
         entityType: 'VIDEO',
-        title: v.title || (q ? q.questionText.substring(0, 60) : `Video for Question ${v.questionId}`),
+        title: safeTruncate(v.title || q?.questionText, 60, `Video for Question ${v.questionId}`),
         category: q?.categoryName || q?.categoryId || 'Quantitative Aptitude',
         topic: q?.topicName || q?.topicId || 'General',
         currentStatus: v.status,
         priority: 'MEDIUM',
         ageDays: days,
         recommendedAction: 'Complete Video Edit & Render',
-        actionUrl: `/videos/${encodeURIComponent(v.id)}`,
+        actionUrl: `/production/${encodeURIComponent(v.id)}`,
         reason: 'Video undergoing editing; finalize captions and motion graphics',
       });
     }
 
     // 7. Approved questions not yet queued
-    const queuedQuestionIds = new Set(videos.map((v) => v.questionId));
+    const queuedQuestionIds = new Set(ctx.allVideos.map((v) => v.questionId));
     for (const q of filteredQuestions.filter((item) => item.status === QuestionStatus.APPROVED && !queuedQuestionIds.has(item.id))) {
       const days = this.calculateDays(q.updatedAt || q.createdAt, now);
       items.push({
         id: q.id,
         entityType: 'QUESTION',
-        title: q.questionText.substring(0, 60),
+        title: safeTruncate(q.questionText, 60, `Question ${q.id}`),
         category: q.categoryName || q.categoryId,
         topic: q.topicName || q.topicId,
         currentStatus: q.status,
@@ -308,14 +380,14 @@ export class DashboardService {
     }
 
     // 8. Incomplete publishing records
-    for (const pub of publishingList.filter((p) => p.completedPlatformsCount > 0 && p.completedPlatformsCount < p.totalPlatformsCount)) {
+    for (const pub of publishingList.filter((p: any) => p.completedPlatformsCount > 0 && p.completedPlatformsCount < p.totalPlatformsCount)) {
       const days = this.calculateDays(pub.updatedAt || pub.createdAt, now);
-      const vid = videos.find((v) => v.id === pub.videoId);
+      const vid = ctx.allVideos.find((v) => v.id === pub.videoId);
       const q = vid ? qMap.get(vid.questionId) : undefined;
       items.push({
         id: pub.videoId,
         entityType: 'VIDEO',
-        title: vid?.title || `Publishing Record for ${pub.videoId}`,
+        title: safeTruncate(vid?.title || q?.questionText, 60, `Publishing Record for ${pub.videoId}`),
         category: q?.categoryName || q?.categoryId || 'Quantitative Aptitude',
         topic: q?.topicName || q?.topicId || 'General',
         currentStatus: 'INCOMPLETE_PUBLISHING',
@@ -333,7 +405,7 @@ export class DashboardService {
       items.push({
         id: q.id,
         entityType: 'QUESTION',
-        title: q.questionText.substring(0, 60),
+        title: safeTruncate(q.questionText, 60, `Question ${q.id}`),
         category: q.categoryName || q.categoryId,
         topic: q.topicName || q.topicId,
         currentStatus: q.status,
@@ -365,14 +437,13 @@ export class DashboardService {
    * Analyzes production pipeline accumulation to detect workflow bottlenecks.
    */
   public async getBottlenecks(filters?: DashboardFilterOptions): Promise<BottleneckStage[]> {
-    const [allVideos, allQuestions] = await Promise.all([
-      videosRepository.findAll(),
-      questionsRepository.findAll(),
-    ]);
+    const ctx = await this.buildDataContext();
+    return this.getBottlenecksFromContext(ctx, filters);
+  }
 
-    const qMap = new Map<string, Question>(allQuestions.map((q) => [q.id, q]));
-    const videos = this.applyVideoFilters(allVideos, filters, qMap);
-    const questions = this.applyQuestionFilters(allQuestions, filters);
+  public getBottlenecksFromContext(ctx: DashboardDataContext, filters?: DashboardFilterOptions): BottleneckStage[] {
+    const videos = this.applyVideoFilters(ctx.allVideos, filters, ctx.qMap);
+    const questions = this.applyQuestionFilters(ctx.allQuestions, filters);
 
     const stages: BottleneckStage[] = [
       {
@@ -425,7 +496,6 @@ export class DashboardService {
       },
     ];
 
-    // Find the max count among non-zero stages
     let maxCount = 0;
     let bottleneckIndex = -1;
 
@@ -464,14 +534,13 @@ export class DashboardService {
    * Detects aging / stale content that has lingered in its current workflow stage.
    */
   public async getStaleContent(filters?: DashboardFilterOptions): Promise<StaleContentItem[]> {
-    const [allVideos, allQuestions] = await Promise.all([
-      videosRepository.findAll(),
-      questionsRepository.findAll(),
-    ]);
+    const ctx = await this.buildDataContext();
+    return this.getStaleContentFromContext(ctx, filters);
+  }
 
-    const qMap = new Map<string, Question>(allQuestions.map((q) => [q.id, q]));
-    const videos = this.applyVideoFilters(allVideos, filters, qMap);
-    const questions = this.applyQuestionFilters(allQuestions, filters);
+  public getStaleContentFromContext(ctx: DashboardDataContext, filters?: DashboardFilterOptions): StaleContentItem[] {
+    const videos = this.applyVideoFilters(ctx.allVideos, filters, ctx.qMap);
+    const questions = this.applyQuestionFilters(ctx.allQuestions, filters);
     const now = Date.now();
     const staleItems: StaleContentItem[] = [];
 
@@ -480,7 +549,7 @@ export class DashboardService {
       if (v.status === VideoProductionStatus.UPLOADED || v.status === VideoProductionStatus.CANCELLED) {
         continue;
       }
-      const q = qMap.get(v.questionId);
+      const q = ctx.qMap.get(v.questionId);
       const days = this.calculateDays(v.updatedAt || v.createdAt, now);
       let statusCategory: 'FRESH' | 'WAITING' | 'STALE' = 'FRESH';
       if (days >= AGING_THRESHOLDS.STALE_MIN_DAYS) {
@@ -492,14 +561,14 @@ export class DashboardService {
       staleItems.push({
         id: v.id,
         entityType: 'VIDEO',
-        title: v.title || (q ? q.questionText.substring(0, 60) : `Video for Question ${v.questionId}`),
+        title: safeTruncate(v.title || q?.questionText, 60, `Video for Question ${v.questionId}`),
         category: q?.categoryName || q?.categoryId || 'Quantitative Aptitude',
         topic: q?.topicName || q?.topicId || 'General',
         currentStatus: v.status,
         daysInStage: days,
         statusCategory,
         lastUpdated: v.updatedAt || v.createdAt,
-        actionUrl: `/videos/${encodeURIComponent(v.id)}`,
+        actionUrl: `/production/${encodeURIComponent(v.id)}`,
       });
     }
 
@@ -519,7 +588,7 @@ export class DashboardService {
       staleItems.push({
         id: q.id,
         entityType: 'QUESTION',
-        title: q.questionText.substring(0, 60),
+        title: safeTruncate(q.questionText, 60, `Question ${q.id}`),
         category: q.categoryName || q.categoryId,
         topic: q.topicName || q.topicId,
         currentStatus: q.status,
@@ -530,7 +599,6 @@ export class DashboardService {
       });
     }
 
-    // Sort: Stale first, then Waiting, then Fresh; within category by daysInStage descending
     const categoryOrder = { STALE: 3, WAITING: 2, FRESH: 1 };
     return staleItems.sort((a, b) => {
       const orderDiff = categoryOrder[b.statusCategory] - categoryOrder[a.statusCategory];
@@ -543,26 +611,22 @@ export class DashboardService {
    * Evaluates publishing readiness for READY_TO_UPLOAD videos based on authoritative Phase 6 records.
    */
   public async getPublishingReadiness(filters?: DashboardFilterOptions): Promise<PublishingReadinessItem[]> {
-    const [allVideos, publishingList, thumbnails, pinnedComments, allQuestions] = await Promise.all([
-      videosRepository.findAll(),
-      publishingRepository.findAll(),
-      thumbnailsRepository.findAll(),
-      pinnedCommentsRepository.findAll(),
-      questionsRepository.findAll(),
-    ]);
+    const ctx = await this.buildDataContext();
+    return this.getPublishingReadinessFromContext(ctx, filters);
+  }
 
-    const qMap = new Map<string, Question>(allQuestions.map((q) => [q.id, q]));
-    const targetVideos = this.applyVideoFilters(allVideos, filters, qMap).filter(
+  public getPublishingReadinessFromContext(ctx: DashboardDataContext, filters?: DashboardFilterOptions): PublishingReadinessItem[] {
+    const targetVideos = this.applyVideoFilters(ctx.allVideos, filters, ctx.qMap).filter(
       (v) => v.status === VideoProductionStatus.READY_TO_UPLOAD || v.status === VideoProductionStatus.FINAL_REVIEW || v.status === VideoProductionStatus.UPLOADED
     );
 
     const results: PublishingReadinessItem[] = [];
 
     for (const v of targetVideos) {
-      const q = qMap.get(v.questionId);
-      const pub = publishingList.find((p) => p.videoId === v.id);
-      const thumb = thumbnails.find((t) => t.videoId === v.id);
-      const pin = pinnedComments.find((p) => p.videoId === v.id);
+      const q = ctx.qMap.get(v.questionId);
+      const pub = ctx.allPublishing.find((p: any) => p.videoId === v.id);
+      const thumb = ctx.allThumbnails.find((t: any) => t.videoId === v.id);
+      const pin = ctx.allPinnedComments.find((p: any) => p.videoId === v.id);
 
       const videoRenderReady = v.status === VideoProductionStatus.READY_TO_UPLOAD || v.status === VideoProductionStatus.UPLOADED;
       const thumbnailApproved = thumb?.status === 'APPROVED' || pub?.thumbnailReady === true;
@@ -584,7 +648,7 @@ export class DashboardService {
 
       results.push({
         videoId: v.id,
-        title: v.title || (q ? q.questionText.substring(0, 60) : `Video for Question ${v.questionId}`),
+        title: safeTruncate(v.title || q?.questionText, 60, `Video for Question ${v.questionId}`),
         category: q?.categoryName || q?.categoryId || 'Quantitative Aptitude',
         topic: q?.topicName || q?.topicId || 'General',
         videoRenderReady,
@@ -608,130 +672,667 @@ export class DashboardService {
   /**
    * Fast global search across questions and videos.
    */
-  public async search(query: string): Promise<GlobalSearchResult[]> {
+  public async search(
+    query: string,
+    userRole?: string,
+    userId?: string,
+    existingActor?: ActorContext
+  ): Promise<GlobalSearchResult[]> {
     if (!query || query.trim().length === 0) {
       return [];
     }
+    if (!userId || !userRole) {
+      return [];
+    }
 
+    const actor: ActorContext = existingActor || { id: userId, role: userRole as UserRole };
     const q = query.toLowerCase().trim();
-    const [questions, videos, categories, topics] = await Promise.all([
+    const [questions, videos, categories, topics, scripts, thumbnails, pinnedComments, assignments, contentMasters, socialReviews, publishingRecords] = await Promise.all([
       questionsRepository.findAll(),
       videosRepository.findAll(),
       categoriesRepository.findAll(),
       topicsRepository.findAll(),
+      scriptsRepository.findAll().catch(() => []),
+      thumbnailsRepository.findAll().catch(() => []),
+      pinnedCommentsRepository.findAll().catch(() => []),
+      assignmentsRepository.findAll().catch(() => []),
+      contentMastersRepository.findAll().catch(() => []),
+      socialReviewsRepository.findAll().catch(() => []),
+      publishingRepository.findAll().catch(() => []),
     ]);
+
+    // Request-scoped optimization: Pre-populate actor active assignments from already fetched assignments
+    if (!actor._cachedActiveAssignments && assignments && Array.isArray(assignments)) {
+      actor._cachedActiveAssignments = assignments.filter(
+        (a) => a.assigneeId === actor.id && a.status === 'ACTIVE'
+      );
+    }
 
     const results: GlobalSearchResult[] = [];
 
-    // Helper map for names
     const catMap = new Map(categories.map((c) => [c.id, c.name]));
     const topicMap = new Map(topics.map((t) => [t.id, t.name]));
     const qMap = new Map<string, Question>(questions.map((item) => [item.id, item]));
+    const vMap = new Map(videos.map((v) => [v.id, v]));
 
-    // Search Questions
-    for (const item of questions) {
-      const matchId = item.id.toLowerCase().includes(q);
-      const matchText = item.questionText.toLowerCase().includes(q);
-      const matchTopic = (item.topicName || topicMap.get(item.topicId) || item.topicId).toLowerCase().includes(q);
-      const matchCat = (item.categoryName || catMap.get(item.categoryId) || item.categoryId).toLowerCase().includes(q);
+    // Bounded concurrency helper to evaluate independent authorization checks concurrently
+    // without unrestricted Promise.all or excessive simultaneous calls.
+    const mapLimit = async <T, R>(
+      items: T[],
+      limit: number,
+      fn: (item: T) => Promise<R>
+    ): Promise<R[]> => {
+      const results: R[] = new Array(items.length);
+      let index = 0;
+      const worker = async () => {
+        while (index < items.length) {
+          const current = index++;
+          results[current] = await fn(items[current]);
+        }
+      };
+      const workers = Array.from({ length: Math.min(limit, items.length) }, () => worker());
+      await Promise.all(workers);
+      return results;
+    };
 
-      if (matchId || matchText || matchTopic || matchCat) {
-        results.push({
-          id: item.id,
-          type: 'QUESTION',
-          title: item.questionText.substring(0, 60),
-          subtitle: `Question • ${item.difficulty} • ${QUESTION_STATUS_CONFIG[item.status]?.label || item.status}`,
-          category: item.categoryName || catMap.get(item.categoryId) || item.categoryId,
-          topic: item.topicName || topicMap.get(item.topicId) || item.topicId,
-          status: item.status,
-          url: `/questions/${encodeURIComponent(item.id)}`,
-        });
+    const isManagerOrAdmin = objectAuthService.isManagerOrAdmin(actor);
+    const CONCURRENCY_LIMIT = 6;
+
+    // 0. Content Masters
+    const matchingMasters = contentMasters.filter((m) => {
+      const matchId = (m.id || '').toLowerCase().includes(q);
+      const matchTitle = (m.title || '').toLowerCase().includes(q);
+      const matchPrimary = (m.primaryQuestionId || '').toLowerCase().includes(q);
+      return matchId || matchTitle || matchPrimary;
+    });
+
+    if (matchingMasters.length > 0) {
+      if (isManagerOrAdmin) {
+        for (const m of matchingMasters) {
+          const primaryQuestion = m.primaryQuestionId ? qMap.get(m.primaryQuestionId) : undefined;
+          const targetUrl = m.id
+            ? `/content-masters/${encodeURIComponent(m.id)}`
+            : (primaryQuestion ? `/questions/${encodeURIComponent(primaryQuestion.id)}` : `/questions`);
+
+          results.push({
+            id: m.id,
+            type: 'CONTENT_MASTER' as any,
+            title: safeTruncate(m.title, 60, `Content Master ${m.id}`),
+            subtitle: `Content Master • ${m.status} • Primary: ${m.primaryQuestionId || 'N/A'}`,
+            category: primaryQuestion?.categoryName || catMap.get(m.categoryId || '') || 'General',
+            topic: primaryQuestion?.topicName || topicMap.get(m.topicId || '') || 'General',
+            status: m.status,
+            url: targetUrl,
+          });
+          if (results.length >= 15) break;
+        }
+      } else {
+        const authDecisions = await mapLimit(matchingMasters, CONCURRENCY_LIMIT, (m) =>
+          objectAuthService.canAccessContentMaster(actor, m).catch(() => false)
+        );
+        for (let i = 0; i < matchingMasters.length; i++) {
+          if (authDecisions[i]) {
+            const m = matchingMasters[i];
+            const primaryQuestion = m.primaryQuestionId ? qMap.get(m.primaryQuestionId) : undefined;
+            const targetUrl = m.id
+              ? `/content-masters/${encodeURIComponent(m.id)}`
+              : (primaryQuestion ? `/questions/${encodeURIComponent(primaryQuestion.id)}` : `/questions`);
+
+            results.push({
+              id: m.id,
+              type: 'CONTENT_MASTER' as any,
+              title: safeTruncate(m.title, 60, `Content Master ${m.id}`),
+              subtitle: `Content Master • ${m.status} • Primary: ${m.primaryQuestionId || 'N/A'}`,
+              category: primaryQuestion?.categoryName || catMap.get(m.categoryId || '') || 'General',
+              topic: primaryQuestion?.topicName || topicMap.get(m.topicId || '') || 'General',
+              status: m.status,
+              url: targetUrl,
+            });
+            if (results.length >= 15) break;
+          }
+        }
       }
-      if (results.length >= 25) break;
     }
 
-    // Search Videos
-    for (const v of videos) {
+    // 1. Questions
+    const matchingQuestions = questions.filter((item) => {
+      const matchId = (item.id || '').toLowerCase().includes(q);
+      const matchText = (item.questionText || '').toLowerCase().includes(q);
+      const matchTopic = (item.topicName || topicMap.get(item.topicId) || item.topicId || '').toLowerCase().includes(q);
+      const matchCat = (item.categoryName || catMap.get(item.categoryId) || item.categoryId || '').toLowerCase().includes(q);
+      return matchId || matchText || matchTopic || matchCat;
+    });
+
+    if (matchingQuestions.length > 0 && results.length < 25) {
+      if (isManagerOrAdmin) {
+        for (const item of matchingQuestions) {
+          results.push({
+            id: item.id,
+            type: 'QUESTION',
+            title: safeTruncate(item.questionText, 60, `Question ${item.id}`),
+            subtitle: `Question • ${item.difficulty || 'MEDIUM'} • ${QUESTION_STATUS_CONFIG[item.status]?.label || item.status}`,
+            category: item.categoryName || catMap.get(item.categoryId) || item.categoryId || 'General',
+            topic: item.topicName || topicMap.get(item.topicId) || item.topicId || 'General',
+            status: item.status,
+            url: `/questions/${encodeURIComponent(item.id)}`,
+          });
+          if (results.length >= 25) break;
+        }
+      } else {
+        const authDecisions = await mapLimit(matchingQuestions, CONCURRENCY_LIMIT, (item) =>
+          objectAuthService.canAccessQuestion(actor, item).catch(() => false)
+        );
+        for (let i = 0; i < matchingQuestions.length; i++) {
+          if (authDecisions[i]) {
+            const item = matchingQuestions[i];
+            results.push({
+              id: item.id,
+              type: 'QUESTION',
+              title: safeTruncate(item.questionText, 60, `Question ${item.id}`),
+              subtitle: `Question • ${item.difficulty || 'MEDIUM'} • ${QUESTION_STATUS_CONFIG[item.status]?.label || item.status}`,
+              category: item.categoryName || catMap.get(item.categoryId) || item.categoryId || 'General',
+              topic: item.topicName || topicMap.get(item.topicId) || item.topicId || 'General',
+              status: item.status,
+              url: `/questions/${encodeURIComponent(item.id)}`,
+            });
+            if (results.length >= 25) break;
+          }
+        }
+      }
+    }
+
+    // 2. Videos
+    const matchingVideos = videos.filter((v) => {
       const question = qMap.get(v.questionId);
-      const matchId = v.id.toLowerCase().includes(q);
-      const matchQId = v.questionId.toLowerCase().includes(q);
+      const matchId = (v.id || '').toLowerCase().includes(q);
+      const matchQId = (v.questionId || '').toLowerCase().includes(q);
       const matchTitle = (v.title || '').toLowerCase().includes(q);
       const catName = question?.categoryName || (question ? catMap.get(question.categoryId) : '') || 'Quantitative Aptitude';
       const topName = question?.topicName || (question ? topicMap.get(question.topicId) : '') || 'General';
       const matchTopic = topName.toLowerCase().includes(q);
       const matchCat = catName.toLowerCase().includes(q);
+      return matchId || matchQId || matchTitle || matchTopic || matchCat;
+    });
 
-      if (matchId || matchQId || matchTitle || matchTopic || matchCat) {
+    if (matchingVideos.length > 0 && results.length < 50) {
+      if (isManagerOrAdmin) {
+        for (const v of matchingVideos) {
+          const question = qMap.get(v.questionId);
+          const catName = question?.categoryName || (question ? catMap.get(question.categoryId) : '') || 'Quantitative Aptitude';
+          const topName = question?.topicName || (question ? topicMap.get(question.topicId) : '') || 'General';
+          results.push({
+            id: v.id,
+            type: 'VIDEO',
+            title: safeTruncate(v.title || question?.questionText, 60, `Video for Question ${v.questionId}`),
+            subtitle: `Video • ${VIDEO_STATUS_CONFIG[v.status]?.label || v.status} • Priority: ${v.priority}`,
+            category: catName,
+            topic: topName,
+            status: v.status,
+            url: `/production/${encodeURIComponent(v.id)}`,
+          });
+          if (results.length >= 50) break;
+        }
+      } else {
+        const authDecisions = await mapLimit(matchingVideos, CONCURRENCY_LIMIT, (v) =>
+          objectAuthService.canAccessVideo(actor, v).catch(() => false)
+        );
+        for (let i = 0; i < matchingVideos.length; i++) {
+          if (authDecisions[i]) {
+            const v = matchingVideos[i];
+            const question = qMap.get(v.questionId);
+            const catName = question?.categoryName || (question ? catMap.get(question.categoryId) : '') || 'Quantitative Aptitude';
+            const topName = question?.topicName || (question ? topicMap.get(question.topicId) : '') || 'General';
+            results.push({
+              id: v.id,
+              type: 'VIDEO',
+              title: safeTruncate(v.title || question?.questionText, 60, `Video for Question ${v.questionId}`),
+              subtitle: `Video • ${VIDEO_STATUS_CONFIG[v.status]?.label || v.status} • Priority: ${v.priority}`,
+              category: catName,
+              topic: topName,
+              status: v.status,
+              url: `/production/${encodeURIComponent(v.id)}`,
+            });
+            if (results.length >= 50) break;
+          }
+        }
+      }
+    }
+
+    // Role permissions for entity search results
+    const canViewScript = userRole && [UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.SCRIPT_WRITER, UserRole.CONTENT_WRITER].includes(userRole as UserRole);
+    const canViewThumbnail = userRole && [UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.DESIGNER].includes(userRole as UserRole);
+    const canViewPinnedComment = userRole && [UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.PUBLISHING_MANAGER, UserRole.CONTENT_WRITER, UserRole.SCRIPT_WRITER].includes(userRole as UserRole);
+    const canViewAllAssignments = userRole && [UserRole.ADMIN, UserRole.CONTENT_MANAGER].includes(userRole as UserRole);
+
+    // 3. Scripts
+    if (canViewScript && results.length < 65) {
+      const matchingScripts = scripts.filter((s) => {
+        const matchId = (s.id || '').toLowerCase().includes(q);
+        const matchVId = (s.videoId || '').toLowerCase().includes(q);
+        const matchContent = (s.content || s.hook || '').toLowerCase().includes(q);
+        return matchId || matchVId || matchContent;
+      });
+
+      if (matchingScripts.length > 0) {
+        if (isManagerOrAdmin) {
+          for (const s of matchingScripts) {
+            const v = vMap.get(s.videoId);
+            const qRecord = v ? qMap.get(v.questionId) : undefined;
+            const catName = qRecord?.categoryName || (qRecord ? catMap.get(qRecord.categoryId) : '') || 'General';
+            const topName = qRecord?.topicName || (qRecord ? topicMap.get(qRecord.topicId) : '') || 'General';
+            results.push({
+              id: s.id,
+              type: 'SCRIPT',
+              title: safeTruncate(s.hook || s.content || v?.title || `Script for ${s.videoId}`, 60, `Script ${s.id}`),
+              subtitle: `Script • ${s.status || 'DRAFT'} • Video: ${s.videoId}`,
+              category: catName,
+              topic: topName,
+              status: s.status || 'DRAFT',
+              url: `/production/${encodeURIComponent(s.videoId)}?tab=script`,
+            });
+            if (results.length >= 65) break;
+          }
+        } else {
+          const authDecisions = await mapLimit(matchingScripts, CONCURRENCY_LIMIT, (s) =>
+            objectAuthService.canAccessScript(actor, s).catch(() => false)
+          );
+          for (let i = 0; i < matchingScripts.length; i++) {
+            if (authDecisions[i]) {
+              const s = matchingScripts[i];
+              const v = vMap.get(s.videoId);
+              const qRecord = v ? qMap.get(v.questionId) : undefined;
+              const catName = qRecord?.categoryName || (qRecord ? catMap.get(qRecord.categoryId) : '') || 'General';
+              const topName = qRecord?.topicName || (qRecord ? topicMap.get(qRecord.topicId) : '') || 'General';
+              results.push({
+                id: s.id,
+                type: 'SCRIPT',
+                title: safeTruncate(s.hook || s.content || v?.title || `Script for ${s.videoId}`, 60, `Script ${s.id}`),
+                subtitle: `Script • ${s.status || 'DRAFT'} • Video: ${s.videoId}`,
+                category: catName,
+                topic: topName,
+                status: s.status || 'DRAFT',
+                url: `/production/${encodeURIComponent(s.videoId)}?tab=script`,
+              });
+              if (results.length >= 65) break;
+            }
+          }
+        }
+      }
+    }
+
+    // 4. Thumbnails
+    if (canViewThumbnail && results.length < 75) {
+      const matchingThumbnails = thumbnails.filter((t) => {
+        const matchId = (t.id || '').toLowerCase().includes(q);
+        const matchVId = (t.videoId || '').toLowerCase().includes(q);
+        const matchConcept = (t.conceptTitle || t.prompt || '').toLowerCase().includes(q);
+        return matchId || matchVId || matchConcept;
+      });
+
+      if (matchingThumbnails.length > 0) {
+        if (isManagerOrAdmin) {
+          for (const t of matchingThumbnails) {
+            const v = vMap.get(t.videoId);
+            const qRecord = v ? qMap.get(v.questionId) : undefined;
+            const catName = qRecord?.categoryName || (qRecord ? catMap.get(qRecord.categoryId) : '') || 'General';
+            const topName = qRecord?.topicName || (qRecord ? topicMap.get(qRecord.topicId) : '') || 'General';
+            results.push({
+              id: t.id,
+              type: 'THUMBNAIL',
+              title: safeTruncate(t.conceptTitle || t.prompt || `Thumbnail for ${t.videoId}`, 60, `Thumbnail ${t.id}`),
+              subtitle: `Thumbnail • ${t.status || 'PENDING'} • Video: ${t.videoId}`,
+              category: catName,
+              topic: topName,
+              status: t.status || 'PENDING',
+              url: `/production/${encodeURIComponent(t.videoId)}?tab=thumbnail`,
+            });
+            if (results.length >= 75) break;
+          }
+        } else {
+          const authDecisions = await mapLimit(matchingThumbnails, CONCURRENCY_LIMIT, (t) =>
+            objectAuthService.canAccessThumbnail(actor, t).catch(() => false)
+          );
+          for (let i = 0; i < matchingThumbnails.length; i++) {
+            if (authDecisions[i]) {
+              const t = matchingThumbnails[i];
+              const v = vMap.get(t.videoId);
+              const qRecord = v ? qMap.get(v.questionId) : undefined;
+              const catName = qRecord?.categoryName || (qRecord ? catMap.get(qRecord.categoryId) : '') || 'General';
+              const topName = qRecord?.topicName || (qRecord ? topicMap.get(qRecord.topicId) : '') || 'General';
+              results.push({
+                id: t.id,
+                type: 'THUMBNAIL',
+                title: safeTruncate(t.conceptTitle || t.prompt || `Thumbnail for ${t.videoId}`, 60, `Thumbnail ${t.id}`),
+                subtitle: `Thumbnail • ${t.status || 'PENDING'} • Video: ${t.videoId}`,
+                category: catName,
+                topic: topName,
+                status: t.status || 'PENDING',
+                url: `/production/${encodeURIComponent(t.videoId)}?tab=thumbnail`,
+              });
+              if (results.length >= 75) break;
+            }
+          }
+        }
+      }
+    }
+
+    // 5. Pinned Comments
+    if (canViewPinnedComment && results.length < 85) {
+      const matchingComments = pinnedComments.filter((p) => {
+        const matchId = (p.id || '').toLowerCase().includes(q);
+        const matchVId = (p.videoId || '').toLowerCase().includes(q);
+        const matchComment = (p.commentText || '').toLowerCase().includes(q);
+        return matchId || matchVId || matchComment;
+      });
+
+      if (matchingComments.length > 0) {
+        if (isManagerOrAdmin) {
+          for (const p of matchingComments) {
+            const v = vMap.get(p.videoId);
+            const qRecord = v ? qMap.get(v.questionId) : undefined;
+            const catName = qRecord?.categoryName || (qRecord ? catMap.get(qRecord.categoryId) : '') || 'General';
+            const topName = qRecord?.topicName || (qRecord ? topicMap.get(qRecord.topicId) : '') || 'General';
+            results.push({
+              id: p.id,
+              type: 'PINNED_COMMENT',
+              title: safeTruncate(p.commentText || `Pinned comment for ${p.videoId}`, 60, `Comment ${p.id}`),
+              subtitle: `Pinned Comment • ${p.status || 'DRAFT'} • Video: ${p.videoId}`,
+              category: catName,
+              topic: topName,
+              status: p.status || 'DRAFT',
+              url: `/production/${encodeURIComponent(p.videoId)}?tab=pinned-comment`,
+            });
+            if (results.length >= 85) break;
+          }
+        } else {
+          const authDecisions = await mapLimit(matchingComments, CONCURRENCY_LIMIT, (p) =>
+            objectAuthService.canAccessPinnedComment(actor, p).catch(() => false)
+          );
+          for (let i = 0; i < matchingComments.length; i++) {
+            if (authDecisions[i]) {
+              const p = matchingComments[i];
+              const v = vMap.get(p.videoId);
+              const qRecord = v ? qMap.get(v.questionId) : undefined;
+              const catName = qRecord?.categoryName || (qRecord ? catMap.get(qRecord.categoryId) : '') || 'General';
+              const topName = qRecord?.topicName || (qRecord ? topicMap.get(qRecord.topicId) : '') || 'General';
+              results.push({
+                id: p.id,
+                type: 'PINNED_COMMENT',
+                title: safeTruncate(p.commentText || `Pinned comment for ${p.videoId}`, 60, `Comment ${p.id}`),
+                subtitle: `Pinned Comment • ${p.status || 'DRAFT'} • Video: ${p.videoId}`,
+                category: catName,
+                topic: topName,
+                status: p.status || 'DRAFT',
+                url: `/production/${encodeURIComponent(p.videoId)}?tab=pinned-comment`,
+              });
+              if (results.length >= 85) break;
+            }
+          }
+        }
+      }
+    }
+
+    // 6. Assignments
+    for (const a of assignments) {
+      const isAssignedToUser = userId && a.assigneeId === userId;
+      if (!canViewAllAssignments && !isAssignedToUser) {
+        continue;
+      }
+
+      const matchId = (a.id || '').toLowerCase().includes(q);
+      const matchEId = (a.entityId || a.videoId || '').toLowerCase().includes(q);
+      const matchName = (a.assigneeName || a.notes || '').toLowerCase().includes(q);
+
+      if (matchId || matchEId || matchName) {
+        const entityId = a.entityId || a.videoId || '';
+        const entityType = a.entityType || 'VIDEO';
+        const isQuestion = entityType === 'QUESTION';
+        const url = isQuestion
+          ? `/questions/${encodeURIComponent(entityId)}`
+          : `/production/${encodeURIComponent(entityId)}`;
+
         results.push({
-          id: v.id,
-          type: 'VIDEO',
-          title: v.title || (question ? question.questionText.substring(0, 60) : `Video for Question ${v.questionId}`),
-          subtitle: `Video • ${VIDEO_STATUS_CONFIG[v.status]?.label || v.status} • Priority: ${v.priority}`,
-          category: catName,
-          topic: topName,
-          status: v.status,
-          url: `/videos/${encodeURIComponent(v.id)}`,
+          id: a.id,
+          type: 'ASSIGNMENT',
+          title: safeTruncate(`Assignment: ${a.assigneeName || 'Unassigned'} (${a.role})`, 60, `Assignment ${a.id}`),
+          subtitle: `Assignment • ${a.status} • Entity: ${entityId}`,
+          category: 'Team Operations',
+          topic: a.role || 'General',
+          status: a.status,
+          url,
         });
       }
-      if (results.length >= 50) break;
+      if (results.length >= 100) break;
+    }
+
+    // 7. Social Reviews (Phase 14.2)
+    if (results.length < 115) {
+      const matchingReviews = socialReviews.filter((sr) => {
+        const matchId = (sr.id || '').toLowerCase().includes(q);
+        const matchQId = (sr.questionId || '').toLowerCase().includes(q);
+        const matchCMId = (sr.contentMasterId || '').toLowerCase().includes(q);
+        const matchDecision = (sr.decision || '').toLowerCase().includes(q);
+        const matchReason = (sr.reason || '').toLowerCase().includes(q);
+
+        const qRecord = sr.questionId ? qMap.get(sr.questionId) : undefined;
+        const matchQText = (qRecord?.questionText || '').toLowerCase().includes(q);
+
+        const linkedVideo = Array.from(vMap.values()).find((v) => v.questionId === sr.questionId);
+        const matchVId = Boolean(linkedVideo && (linkedVideo.id || '').toLowerCase().includes(q));
+
+        const canSearchReviewerInfo = isManagerOrAdmin || actor.id === sr.reviewerId;
+        const matchReviewer = canSearchReviewerInfo && (
+          (sr.reviewerName || '').toLowerCase().includes(q) ||
+          (sr.reviewerId || '').toLowerCase().includes(q)
+        );
+
+        return matchId || matchQId || matchCMId || matchDecision || matchReason || matchQText || matchVId || matchReviewer;
+      });
+
+      if (matchingReviews.length > 0) {
+        if (isManagerOrAdmin) {
+          for (const sr of matchingReviews) {
+            const qRecord = sr.questionId ? qMap.get(sr.questionId) : undefined;
+            const catName = qRecord?.categoryName || (qRecord ? catMap.get(qRecord.categoryId) : '') || 'Quality Assurance';
+            const topName = qRecord?.topicName || (qRecord ? topicMap.get(qRecord.topicId) : '') || 'Social Review';
+            results.push({
+              id: sr.id,
+              type: 'SOCIAL_REVIEW',
+              title: safeTruncate(
+                `Social Review (${sr.decision || 'PENDING'}): ${qRecord?.questionText || sr.questionId}`,
+                60,
+                `Review ${sr.id}`
+              ),
+              subtitle: `Social Review • ${sr.decision || 'PENDING'} • Question: ${sr.questionId}${sr.reviewerName ? ` • Reviewer: ${sr.reviewerName}` : ''}`,
+              category: catName,
+              topic: topName,
+              status: sr.decision || 'PENDING',
+              url: sr.questionId ? `/questions/${encodeURIComponent(sr.questionId)}` : `/questions`,
+            });
+            if (results.length >= 115) break;
+          }
+        } else {
+          const authDecisions = await mapLimit(matchingReviews, CONCURRENCY_LIMIT, async (sr) => {
+            const qRecord = sr.questionId ? qMap.get(sr.questionId) : undefined;
+            if (actor.role === UserRole.REVIEWER) {
+              if (sr.reviewerId === actor.id) return true;
+              if (sr.questionId) {
+                return await objectAuthService.hasActiveAssignment(actor, 'QUESTION', sr.questionId).catch(() => false);
+              }
+            } else if (qRecord && (qRecord.authorId === actor.id || (qRecord as any).createdBy === actor.id)) {
+              return true;
+            }
+            return false;
+          });
+
+          for (let i = 0; i < matchingReviews.length; i++) {
+            if (authDecisions[i]) {
+              const sr = matchingReviews[i];
+              const qRecord = sr.questionId ? qMap.get(sr.questionId) : undefined;
+              const catName = qRecord?.categoryName || (qRecord ? catMap.get(qRecord.categoryId) : '') || 'Quality Assurance';
+              const topName = qRecord?.topicName || (qRecord ? topicMap.get(qRecord.topicId) : '') || 'Social Review';
+              results.push({
+                id: sr.id,
+                type: 'SOCIAL_REVIEW',
+                title: safeTruncate(
+                  `Social Review (${sr.decision || 'PENDING'}): ${qRecord?.questionText || sr.questionId}`,
+                  60,
+                  `Review ${sr.id}`
+                ),
+                subtitle: `Social Review • ${sr.decision || 'PENDING'} • Question: ${sr.questionId}${sr.reviewerName ? ` • Reviewer: ${sr.reviewerName}` : ''}`,
+                category: catName,
+                topic: topName,
+                status: sr.decision || 'PENDING',
+                url: sr.questionId ? `/questions/${encodeURIComponent(sr.questionId)}` : `/questions`,
+              });
+              if (results.length >= 115) break;
+            }
+          }
+        }
+      }
+    }
+
+    // 8. Publishing Records (Phase 14.2)
+    if (results.length < 130) {
+      const matchingPublishing = publishingRecords.filter((p) => {
+        const matchId = (p.id || '').toLowerCase().includes(q);
+        const matchVId = (p.videoId || '').toLowerCase().includes(q);
+        const matchQId = (p.questionId || '').toLowerCase().includes(q);
+        const matchTitle = (p.videoTitle || '').toLowerCase().includes(q);
+        const matchStatus = (p.finalVideoStatus || '').toLowerCase().includes(q);
+        const matchYoutube = (p.youtube?.status || '').toLowerCase().includes(q);
+        const matchInstagram = (p.instagram?.status || '').toLowerCase().includes(q);
+        const matchFacebook = (p.facebook?.status || '').toLowerCase().includes(q);
+        const matchScheduled = (
+          (p.youtubeScheduledAt || '').toLowerCase().includes(q) ||
+          (p.instagramScheduledAt || '').toLowerCase().includes(q) ||
+          (p.facebookScheduledAt || '').toLowerCase().includes(q)
+        );
+        return matchId || matchVId || matchQId || matchTitle || matchStatus || matchYoutube || matchInstagram || matchFacebook || matchScheduled;
+      });
+
+      if (matchingPublishing.length > 0) {
+        if (isManagerOrAdmin) {
+          for (const p of matchingPublishing) {
+            const qRecord = p.questionId ? qMap.get(p.questionId) : undefined;
+            const catName = qRecord?.categoryName || (qRecord ? catMap.get(qRecord.categoryId) : '') || 'Publishing';
+            const topName = qRecord?.topicName || (qRecord ? topicMap.get(qRecord.topicId) : '') || 'Distribution';
+            results.push({
+              id: p.id,
+              type: 'PUBLISHING',
+              title: safeTruncate(
+                p.videoTitle || `Publishing Package for ${p.videoId}`,
+                60,
+                `Publishing ${p.id}`
+              ),
+              subtitle: `Publishing • ${p.finalVideoStatus || 'READY'} • Video: ${p.videoId}`,
+              category: catName,
+              topic: topName,
+              status: p.finalVideoStatus || 'READY',
+              url: p.videoId ? `/publishing?videoId=${encodeURIComponent(p.videoId)}` : `/publishing`,
+            });
+            if (results.length >= 130) break;
+          }
+        } else {
+          const authDecisions = await mapLimit(matchingPublishing, CONCURRENCY_LIMIT, (p) =>
+            objectAuthService.canAccessPublishing(actor, p).catch(() => false)
+          );
+          for (let i = 0; i < matchingPublishing.length; i++) {
+            if (authDecisions[i]) {
+              const p = matchingPublishing[i];
+              const qRecord = p.questionId ? qMap.get(p.questionId) : undefined;
+              const catName = qRecord?.categoryName || (qRecord ? catMap.get(qRecord.categoryId) : '') || 'Publishing';
+              const topName = qRecord?.topicName || (qRecord ? topicMap.get(qRecord.topicId) : '') || 'Distribution';
+              results.push({
+                id: p.id,
+                type: 'PUBLISHING',
+                title: safeTruncate(
+                  p.videoTitle || `Publishing Package for ${p.videoId}`,
+                  60,
+                  `Publishing ${p.id}`
+                ),
+                subtitle: `Publishing • ${p.finalVideoStatus || 'READY'} • Video: ${p.videoId}`,
+                category: catName,
+                topic: topName,
+                status: p.finalVideoStatus || 'READY',
+                url: p.videoId ? `/publishing?videoId=${encodeURIComponent(p.videoId)}` : `/publishing`,
+              });
+              if (results.length >= 130) break;
+            }
+          }
+        }
+      }
     }
 
     return results;
   }
 
   /**
-   * Unified dashboard overview data aggregator.
+   * Unified dashboard overview data aggregator with single-pass repository fetch and short-lived memory cache.
    */
-  public async getOverview(filters?: DashboardFilterOptions): Promise<DashboardOverviewData> {
-    const [
-      metrics,
-      todaysWork,
-      bottlenecks,
-      staleContent,
-      publishingReadiness,
-      allQuestions,
-      allVideos,
-      auditLogs,
-      teamWorkload,
-      unassignedWork,
-    ] = await Promise.all([
-      this.getMetrics(filters),
-      this.getTodaysWork(filters),
-      this.getBottlenecks(filters),
-      this.getStaleContent(filters),
-      this.getPublishingReadiness(filters),
-      questionsRepository.findAll(),
-      videosRepository.findAll(),
-      auditLogRepository.findAll(),
-      assignmentService.getTeamWorkloadSummary(),
-      assignmentService.getUnassignedWork(),
-    ]);
+  public async getOverview(filters?: DashboardFilterOptions, forceRefresh = false): Promise<DashboardOverviewData> {
+    const cacheKey = JSON.stringify(filters || {});
+    const now = Date.now();
 
-    const qMap = new Map<string, Question>(allQuestions.map((q) => [q.id, q]));
-    const recentQuestions = this.applyQuestionFilters(allQuestions, filters).slice(0, 5);
-    const recentVideos = this.applyVideoFilters(allVideos, filters, qMap).slice(0, 5);
-    const recentAuditLogs = auditLogs.slice(0, 10);
+    if (!forceRefresh) {
+      const cached = this.overviewCache.get(cacheKey);
+      if (cached && now - cached.timestamp < this.OVERVIEW_CACHE_TTL_MS) {
+        return cached.data;
+      }
 
-    return {
-      metrics,
-      todaysWork,
-      bottlenecks,
-      staleContent,
-      publishingReadiness,
-      recentQuestions,
-      recentVideos,
-      recentAuditLogs,
-      teamOperations: {
-        totalActiveTasks: teamWorkload.totalActiveTasks,
-        totalOverdueTasks: teamWorkload.totalOverdueTasks,
-        totalBlockedTasks: teamWorkload.totalBlockedTasks,
-        totalUnassignedTasks: unassignedWork.length,
-        unassignedWork: unassignedWork.slice(0, 6),
-        topWorkloadUser: teamWorkload.highestWorkloadUser
-          ? { name: teamWorkload.highestWorkloadUser.name, score: teamWorkload.highestWorkloadUser.score }
-          : undefined,
-      },
-    };
+      const inFlight = this.overviewInFlight.get(cacheKey);
+      if (inFlight) {
+        return inFlight;
+      }
+    }
+
+    const computePromise = (async () => {
+      const ctx = await this.buildDataContext();
+
+      const metrics = this.getMetricsFromContext(ctx, filters);
+      const todaysWork = this.getTodaysWorkFromContext(ctx, filters);
+      const bottlenecks = this.getBottlenecksFromContext(ctx, filters);
+      const staleContent = this.getStaleContentFromContext(ctx, filters);
+      const publishingReadiness = this.getPublishingReadinessFromContext(ctx, filters);
+      const teamWorkload = assignmentService.getTeamWorkloadSummaryWithData(ctx.allUsers, ctx.allAssignments);
+      const unassignedWork = assignmentService.getUnassignedWorkWithData(ctx.allVideos, ctx.allAssignments, ctx.allPublishing);
+
+      const recentQuestions = this.applyQuestionFilters(ctx.allQuestions, filters).slice(0, 5);
+      const recentVideos = this.applyVideoFilters(ctx.allVideos, filters, ctx.qMap).slice(0, 5);
+      const recentAuditLogs = ctx.allAuditLogs.slice(0, 10);
+
+      const data: DashboardOverviewData = {
+        metrics,
+        todaysWork,
+        bottlenecks,
+        staleContent,
+        publishingReadiness,
+        recentQuestions,
+        recentVideos,
+        recentAuditLogs,
+        teamOperations: {
+          totalActiveTasks: teamWorkload.totalActiveTasks,
+          totalOverdueTasks: teamWorkload.totalOverdueTasks,
+          totalBlockedTasks: teamWorkload.totalBlockedTasks,
+          totalUnassignedTasks: unassignedWork.length,
+          unassignedWork: unassignedWork.slice(0, 6),
+          topWorkloadUser: teamWorkload.highestWorkloadUser
+            ? { name: teamWorkload.highestWorkloadUser.name, score: teamWorkload.highestWorkloadUser.score }
+            : undefined,
+        },
+      };
+
+      this.overviewCache.set(cacheKey, { timestamp: Date.now(), data });
+      return data;
+    })();
+
+    this.overviewInFlight.set(cacheKey, computePromise);
+
+    try {
+      return await computePromise;
+    } finally {
+      this.overviewInFlight.delete(cacheKey);
+    }
   }
 
   // --- Helper Functions ---

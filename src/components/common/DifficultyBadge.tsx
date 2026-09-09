@@ -8,8 +8,9 @@ interface DifficultyBadgeProps {
 }
 
 export const DifficultyBadge: React.FC<DifficultyBadgeProps> = ({ difficulty, size = 'md' }) => {
+  const safeDifficulty = difficulty || 'MEDIUM';
   const config = DIFFICULTY_CONFIG[difficulty] || {
-    label: difficulty,
+    label: difficulty || 'MEDIUM',
     bg: 'bg-slate-100 text-slate-700 border-slate-200',
     dot: 'bg-slate-500',
   };
@@ -18,7 +19,7 @@ export const DifficultyBadge: React.FC<DifficultyBadgeProps> = ({ difficulty, si
 
   return (
     <span
-      id={`badge-difficulty-${difficulty.toLowerCase()}`}
+      id={`badge-difficulty-${safeDifficulty.toString().toLowerCase()}`}
       className={`inline-flex items-center rounded border ${config.bg} ${sizeClasses} select-none`}
     >
       <span className={`w-1.5 h-1.5 rounded-full ${config.dot} mr-1.5`} />

@@ -423,3 +423,16 @@ export async function runTask3D2Verification() {
     };
   }
 }
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  runTask3D2Verification()
+    .then((summary) => {
+      if (!summary.passed) {
+        process.exit(1);
+      }
+    })
+    .catch((err) => {
+      console.error('Fatal execution error:', err);
+      process.exit(1);
+    });
+}

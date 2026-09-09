@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Plus, Sparkles, RotateCcw, BookOpen, RefreshCw, AlertCircle } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { Button } from '../components/common/Button';
@@ -15,14 +15,75 @@ export const QuestionLibraryPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Filter states
-  const [search, setSearch] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [selectedTopic, setSelectedTopic] = useState('');
-  const [selectedSubtopic, setSelectedSubtopic] = useState('');
-  const [selectedDifficulty, setSelectedDifficulty] = useState('');
-  const [selectedQuestionStatus, setSelectedQuestionStatus] = useState('');
-  const [selectedVideoStatus, setSelectedVideoStatus] = useState('');
+  // URL search parameter synchronization (Phase 14.3)
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const urlSearch = searchParams.get('search') || searchParams.get('q') || '';
+  const selectedCategory = searchParams.get('categoryId') || '';
+  const selectedTopic = searchParams.get('topicId') || '';
+  const selectedSubtopic = searchParams.get('subtopicId') || '';
+  const selectedDifficulty = searchParams.get('difficulty') || '';
+  const selectedQuestionStatus = searchParams.get('status') || '';
+  const selectedVideoStatus = searchParams.get('videoStatus') || '';
+
+  const [searchInput, setSearchInput] = useState(urlSearch);
+
+  useEffect(() => {
+    setSearchInput(urlSearch);
+  }, [urlSearch]);
+
+  // Debounced URL sync for text search with replace: true to prevent history stack pollution
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        const currentSearch = next.get('search') || next.get('q') || '';
+        if (searchInput.trim() !== currentSearch) {
+          if (searchInput.trim()) {
+            next.set('search', searchInput.trim());
+            next.delete('q');
+          } else {
+            next.delete('search');
+            next.delete('q');
+          }
+          return next;
+        }
+        return prev;
+      }, { replace: true });
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [searchInput, setSearchParams]);
+
+  const updateFilter = (key: string, value: string, extraClears?: string[]) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (value) {
+        next.set(key, value);
+      } else {
+        next.delete(key);
+      }
+      if (extraClears) {
+        extraClears.forEach((k) => next.delete(k));
+      }
+      return next;
+    });
+  };
+
+  const resetFilters = () => {
+    setSearchInput('');
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete('search');
+      next.delete('q');
+      next.delete('categoryId');
+      next.delete('topicId');
+      next.delete('subtopicId');
+      next.delete('difficulty');
+      next.delete('status');
+      next.delete('videoStatus');
+      return next;
+    });
+  };
 
   // Load taxonomy once
   useEffect(() => {
@@ -43,7 +104,7 @@ export const QuestionLibraryPage: React.FC = () => {
     setError(null);
     try {
       const data = await apiClient.getQuestions({
-        search: search.trim() || undefined,
+        search: urlSearch.trim() || undefined,
         categoryId: selectedCategory || undefined,
         topicId: selectedTopic || undefined,
         subtopicId: selectedSubtopic || undefined,
@@ -62,7 +123,7 @@ export const QuestionLibraryPage: React.FC = () => {
   useEffect(() => {
     loadQuestions();
   }, [
-    search,
+    urlSearch,
     selectedCategory,
     selectedTopic,
     selectedSubtopic,
@@ -79,18 +140,8 @@ export const QuestionLibraryPage: React.FC = () => {
   const currentTopic = availableTopics.find((t: any) => t.id === selectedTopic);
   const availableSubtopics = currentTopic ? currentTopic.subtopics : [];
 
-  const resetFilters = () => {
-    setSearch('');
-    setSelectedCategory('');
-    setSelectedTopic('');
-    setSelectedSubtopic('');
-    setSelectedDifficulty('');
-    setSelectedQuestionStatus('');
-    setSelectedVideoStatus('');
-  };
-
   const hasActiveFilters =
-    Boolean(search) ||
+    Boolean(urlSearch) ||
     Boolean(selectedCategory) ||
     Boolean(selectedTopic) ||
     Boolean(selectedSubtopic) ||
@@ -148,8 +199,8 @@ export const QuestionLibraryPage: React.FC = () => {
         <div className="flex flex-col sm:flex-row items-center gap-3">
           <SearchInput
             id="question-search-bar"
-            value={search}
-            onChange={setSearch}
+            value={searchInput}
+            onChange={setSearchInput}
             placeholder="Search by question text, formula, tag, ID..."
             className="flex-1 w-full"
           />
@@ -174,9 +225,7 @@ export const QuestionLibraryPage: React.FC = () => {
             <select
               value={selectedCategory}
               onChange={(e) => {
-                setSelectedCategory(e.target.value);
-                setSelectedTopic('');
-                setSelectedSubtopic('');
+                updateFilter('categoryId', e.target.value, ['topicId', 'subtopicId']);
               }}
               className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             >
@@ -195,8 +244,7 @@ export const QuestionLibraryPage: React.FC = () => {
             <select
               value={selectedTopic}
               onChange={(e) => {
-                setSelectedTopic(e.target.value);
-                setSelectedSubtopic('');
+                updateFilter('topicId', e.target.value, ['subtopicId']);
               }}
               className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             >
@@ -214,7 +262,7 @@ export const QuestionLibraryPage: React.FC = () => {
             <label className="block text-[11px] font-semibold text-slate-500 mb-1">Subtopic</label>
             <select
               value={selectedSubtopic}
-              onChange={(e) => setSelectedSubtopic(e.target.value)}
+              onChange={(e) => updateFilter('subtopicId', e.target.value)}
               className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             >
               <option value="">All Subtopics</option>
@@ -231,7 +279,7 @@ export const QuestionLibraryPage: React.FC = () => {
             <label className="block text-[11px] font-semibold text-slate-500 mb-1">Difficulty</label>
             <select
               value={selectedDifficulty}
-              onChange={(e) => setSelectedDifficulty(e.target.value)}
+              onChange={(e) => updateFilter('difficulty', e.target.value)}
               className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             >
               <option value="">All Difficulties</option>
@@ -246,7 +294,7 @@ export const QuestionLibraryPage: React.FC = () => {
             <label className="block text-[11px] font-semibold text-slate-500 mb-1">Q-Status</label>
             <select
               value={selectedQuestionStatus}
-              onChange={(e) => setSelectedQuestionStatus(e.target.value)}
+              onChange={(e) => updateFilter('status', e.target.value)}
               className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             >
               <option value="">All Statuses</option>
@@ -263,7 +311,7 @@ export const QuestionLibraryPage: React.FC = () => {
             <label className="block text-[11px] font-semibold text-slate-500 mb-1">Video Stage</label>
             <select
               value={selectedVideoStatus}
-              onChange={(e) => setSelectedVideoStatus(e.target.value)}
+              onChange={(e) => updateFilter('videoStatus', e.target.value)}
               className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             >
               <option value="">All Stages</option>

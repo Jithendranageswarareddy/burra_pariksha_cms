@@ -196,10 +196,10 @@ export const TeamOperationsPage: React.FC = () => {
     if (selectedEntityFilter !== 'ALL' && asn.entityType !== selectedEntityFilter) return false;
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      const matchId = asn.id.toLowerCase().includes(q);
-      const matchEntity = asn.entityId.toLowerCase().includes(q);
-      const matchName = asn.assigneeName.toLowerCase().includes(q);
-      const matchTask = asn.taskType.toLowerCase().includes(q);
+      const matchId = (asn.id || '').toLowerCase().includes(q);
+      const matchEntity = (asn.entityId || '').toLowerCase().includes(q);
+      const matchName = (asn.assigneeName || '').toLowerCase().includes(q);
+      const matchTask = (asn.taskType || '').toLowerCase().includes(q);
       const matchNotes = (asn.notes || '').toLowerCase().includes(q);
       if (!matchId && !matchEntity && !matchName && !matchTask && !matchNotes) return false;
     }

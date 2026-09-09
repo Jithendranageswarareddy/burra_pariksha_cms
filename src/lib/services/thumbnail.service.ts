@@ -18,7 +18,7 @@ import { publishingRepository } from '../repositories/publishing.repository';
 import { idService } from './id.service';
 import { auditService } from './audit.service';
 import { workflowService } from './workflow.service';
-import { Thumbnail, ThumbnailVersion } from '../../types';
+import { Thumbnail, ThumbnailVersion, UserRole } from '../../types';
 
 export interface ThumbnailPayload {
   hookHeadline: string;
@@ -42,6 +42,16 @@ export class ThumbnailService {
       ThumbnailService.instance = new ThumbnailService();
     }
     return ThumbnailService.instance;
+  }
+
+  private verifyThumbnailRole(actor: { role?: string | UserRole }): void {
+    if (actor.role) {
+      const r = String(actor.role).toUpperCase();
+      const allowed = [UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.DESIGNER];
+      if (!allowed.includes(r as any)) {
+        throw new Error(`Unauthorized: Role "${actor.role}" is not allowed to modify thumbnails.`);
+      }
+    }
   }
 
   /**
@@ -80,8 +90,10 @@ export class ThumbnailService {
   public async saveThumbnail(
     videoId: string,
     payload: SaveThumbnailOptions,
-    actor: { id: string; name: string } = { id: 'USR-001', name: 'Admin / Content Lead' }
+    actor: { id: string; name: string; role?: string | UserRole } = { id: 'USR-001', name: 'Admin / Content Lead', role: UserRole.ADMIN }
   ): Promise<{ thumbnail: Thumbnail; version?: ThumbnailVersion }> {
+    this.verifyThumbnailRole(actor);
+
     const video = await videosRepository.findById(videoId);
     if (!video) {
       throw new Error(`Video "${videoId}" not found.`);
@@ -223,9 +235,11 @@ export class ThumbnailService {
   public async updateStatus(
     thumbnailId: string,
     newStatus: 'PENDING' | 'DESIGNED' | 'APPROVED' | 'REJECTED',
-    actor: { id: string; name: string } = { id: 'USR-001', name: 'Admin / Content Lead' },
+    actor: { id: string; name: string; role?: string | UserRole } = { id: 'USR-001', name: 'Admin / Content Lead', role: UserRole.ADMIN },
     remarks?: string
   ): Promise<Thumbnail> {
+    this.verifyThumbnailRole(actor);
+
     const existing = await thumbnailsRepository.findById(thumbnailId);
     if (!existing) {
       throw new Error(`Thumbnail "${thumbnailId}" not found.`);

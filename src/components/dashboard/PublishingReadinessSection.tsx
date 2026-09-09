@@ -18,6 +18,7 @@ interface PublishingReadinessSectionProps {
 }
 
 export const PublishingReadinessSection: React.FC<PublishingReadinessSectionProps> = ({ items }) => {
+  const safeItems = Array.isArray(items) ? items : [];
   const getStatusBadge = (status: 'READY' | 'BLOCKED' | 'INCOMPLETE') => {
     switch (status) {
       case 'READY':

@@ -38,7 +38,7 @@ export const StatCard: React.FC<StatCardProps> = ({
 }) => {
   return (
     <div
-      id={id || `stat-card-${title.toLowerCase().replace(/\s+/g, '-')}`}
+      id={id || `stat-card-${(title || '').toString().toLowerCase().replace(/\s+/g, '-')}`}
       onClick={onClick}
       className={`bg-white rounded-xl border border-slate-200 p-5 shadow-xs transition-all hover:border-slate-300 ${
         onClick ? 'cursor-pointer hover:shadow-sm' : ''

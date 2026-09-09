@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   Kanban,
   Table,
@@ -25,16 +25,74 @@ import { apiClient } from '../lib/api-client';
 import { PriorityLevel, ProductionStats, Video, VideoProductionStatus } from '../types';
 
 export const ProductionTrackerPage: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // URL search parameter synchronization (Phase 14.3)
+  const urlSearchQuery = searchParams.get('searchQuery') || searchParams.get('search') || searchParams.get('q') || '';
+  const selectedStatus = searchParams.get('status') || '';
+  const selectedPriority = searchParams.get('priority') || '';
+  const selectedAssignee = searchParams.get('assignee') || '';
+
   const [viewMode, setViewMode] = useState<'kanban' | 'table'>('kanban');
   const [videos, setVideos] = useState<Video[]>([]);
   const [stats, setStats] = useState<ProductionStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Filter state
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState<string>('');
-  const [selectedPriority, setSelectedPriority] = useState<string>('');
-  const [selectedAssignee, setSelectedAssignee] = useState<string>('');
+  // Search input state with debounced URL synchronization
+  const [searchInput, setSearchInput] = useState(urlSearchQuery);
+
+  useEffect(() => {
+    setSearchInput(urlSearchQuery);
+  }, [urlSearchQuery]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        const current = next.get('searchQuery') || next.get('search') || next.get('q') || '';
+        if (searchInput.trim() !== current) {
+          if (searchInput.trim()) {
+            next.set('searchQuery', searchInput.trim());
+            next.delete('search');
+            next.delete('q');
+          } else {
+            next.delete('searchQuery');
+            next.delete('search');
+            next.delete('q');
+          }
+          return next;
+        }
+        return prev;
+      }, { replace: true });
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [searchInput, setSearchParams]);
+
+  const updateFilter = (key: string, value: string) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (value) {
+        next.set(key, value);
+      } else {
+        next.delete(key);
+      }
+      return next;
+    });
+  };
+
+  const resetFilters = () => {
+    setSearchInput('');
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete('searchQuery');
+      next.delete('search');
+      next.delete('q');
+      next.delete('status');
+      next.delete('priority');
+      next.delete('assignee');
+      return next;
+    });
+  };
 
   const loadProductionData = async () => {
     setIsLoading(true);
@@ -78,23 +136,24 @@ export const ProductionTrackerPage: React.FC = () => {
       if (selectedAssignee && v.assignedEditor !== selectedAssignee && v.assignedHost !== selectedAssignee) {
         return false;
       }
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
-        const matchId = v.id.toLowerCase().includes(q);
-        const matchQId = v.questionId.toLowerCase().includes(q);
-        const matchTitle = v.title.toLowerCase().includes(q);
-        const matchNotes = v.notes?.toLowerCase().includes(q);
+      const activeSearch = searchInput.trim() || urlSearchQuery.trim();
+      if (activeSearch) {
+        const q = activeSearch.toLowerCase().trim();
+        const matchId = (v.id || '').toLowerCase().includes(q);
+        const matchQId = (v.questionId || '').toLowerCase().includes(q);
+        const matchTitle = (v.title || '').toLowerCase().includes(q);
+        const matchNotes = (v.notes || '').toLowerCase().includes(q);
         if (!matchId && !matchQId && !matchTitle && !matchNotes) return false;
       }
       return true;
     });
-  }, [videos, selectedStatus, selectedPriority, selectedAssignee, searchQuery]);
+  }, [videos, selectedStatus, selectedPriority, selectedAssignee, searchInput, urlSearchQuery]);
 
   const activeFiltersCount = [
     selectedStatus,
     selectedPriority,
     selectedAssignee,
-    searchQuery,
+    searchInput || urlSearchQuery,
   ].filter(Boolean).length;
 
   return (
@@ -216,8 +275,8 @@ export const ProductionTrackerPage: React.FC = () => {
             <input
               type="text"
               placeholder="Search title, ID..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
           </div>
@@ -230,7 +289,7 @@ export const ProductionTrackerPage: React.FC = () => {
           {/* Stage Selector */}
           <select
             value={selectedStatus}
-            onChange={(e) => setSelectedStatus(e.target.value)}
+            onChange={(e) => updateFilter('status', e.target.value)}
             className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:ring-1 focus:ring-indigo-500"
           >
             <option value="">All Pipeline Stages</option>
@@ -244,7 +303,7 @@ export const ProductionTrackerPage: React.FC = () => {
           {/* Priority Selector */}
           <select
             value={selectedPriority}
-            onChange={(e) => setSelectedPriority(e.target.value)}
+            onChange={(e) => updateFilter('priority', e.target.value)}
             className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:ring-1 focus:ring-indigo-500"
           >
             <option value="">All Priorities</option>
@@ -258,7 +317,7 @@ export const ProductionTrackerPage: React.FC = () => {
           {assigneesList.length > 0 && (
             <select
               value={selectedAssignee}
-              onChange={(e) => setSelectedAssignee(e.target.value)}
+              onChange={(e) => updateFilter('assignee', e.target.value)}
               className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:ring-1 focus:ring-indigo-500"
             >
               <option value="">All Staff Members</option>
@@ -274,12 +333,7 @@ export const ProductionTrackerPage: React.FC = () => {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => {
-                setSelectedStatus('');
-                setSelectedPriority('');
-                setSelectedAssignee('');
-                setSearchQuery('');
-              }}
+              onClick={resetFilters}
               className="text-xs text-slate-500 hover:text-slate-900"
             >
               Reset Filters

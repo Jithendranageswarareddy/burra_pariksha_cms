@@ -134,7 +134,7 @@ export const EntityAssignmentsSection: React.FC<EntityAssignmentsSectionProps> =
       {assignments.length === 0 ? (
         <div className="py-6 text-center border border-dashed border-slate-200 rounded-lg bg-slate-50/50">
           <UserCheck className="w-8 h-8 mx-auto text-slate-300 mb-1" />
-          <p className="text-xs text-slate-500 font-medium">No team tasks assigned yet for this {entityType.toLowerCase()}</p>
+          <p className="text-xs text-slate-500 font-medium">No team tasks assigned yet for this {(entityType || '').toLowerCase()}</p>
           <button
             type="button"
             onClick={handleOpenCreate}

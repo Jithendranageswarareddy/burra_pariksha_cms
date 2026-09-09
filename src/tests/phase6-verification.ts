@@ -23,6 +23,7 @@ import { scriptService } from '../lib/services/script.service';
 import { thumbnailService } from '../lib/services/thumbnail.service';
 import { pinnedCommentService } from '../lib/services/pinned-comment.service';
 import { publishingService } from '../lib/services/publishing.service';
+import { UserRole } from '../types';
 import { videoService } from '../lib/services/video.service';
 import { SocialPublishStatus, VideoProductionStatus } from '../types';
 
@@ -181,10 +182,12 @@ export async function runPhase6Verification() {
   );
 
   // Test 14: Manual Platform Publishing Mark
+  const adminActor = { id: 'VERIFY-ADMIN-01', name: 'Phase 6 Verifier', role: UserRole.ADMIN };
   const updatedPub = await publishingService.markPlatformPublished(
     targetVideo.id,
     'youtube',
-    'https://youtube.com/shorts/test-phase6-verify'
+    'https://youtube.com/shorts/test-phase6-verify',
+    adminActor
   );
 
   assert(
@@ -200,12 +203,14 @@ export async function runPhase6Verification() {
   await publishingService.markPlatformPublished(
     targetVideo.id,
     'instagram',
-    'https://instagram.com/reel/test-phase6-verify'
+    'https://instagram.com/reel/test-phase6-verify',
+    adminActor
   );
   const finalPub = await publishingService.markPlatformPublished(
     targetVideo.id,
     'facebook',
-    'https://facebook.com/watch/test-phase6-verify'
+    'https://facebook.com/watch/test-phase6-verify',
+    adminActor
   );
 
   assert(

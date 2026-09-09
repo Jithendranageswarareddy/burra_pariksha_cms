@@ -8,8 +8,9 @@ interface QuestionStatusBadgeProps {
 }
 
 export const QuestionStatusBadge: React.FC<QuestionStatusBadgeProps> = ({ status, size = 'md' }) => {
+  const safeStatus = status || 'DRAFT';
   const config = QUESTION_STATUS_CONFIG[status] || {
-    label: status,
+    label: status || 'DRAFT',
     bg: 'bg-slate-100',
     text: 'text-slate-700',
     border: 'border-slate-300',
@@ -19,7 +20,7 @@ export const QuestionStatusBadge: React.FC<QuestionStatusBadgeProps> = ({ status
 
   return (
     <span
-      id={`badge-qstatus-${status.toLowerCase()}`}
+      id={`badge-qstatus-${safeStatus.toString().toLowerCase()}`}
       className={`inline-flex items-center rounded-md border ${config.bg} ${config.text} ${config.border} ${sizeClasses} transition-colors select-none`}
     >
       <span className="w-1.5 h-1.5 rounded-full bg-current mr-1.5 opacity-70" />
@@ -34,8 +35,9 @@ interface VideoStatusBadgeProps {
 }
 
 export const VideoStatusBadge: React.FC<VideoStatusBadgeProps> = ({ status, size = 'md' }) => {
+  const safeStatus = status || 'NOT_STARTED';
   const config = VIDEO_STATUS_CONFIG[status] || {
-    label: status,
+    label: status || 'NOT_STARTED',
     bg: 'bg-slate-100',
     text: 'text-slate-700',
     border: 'border-slate-300',
@@ -45,7 +47,7 @@ export const VideoStatusBadge: React.FC<VideoStatusBadgeProps> = ({ status, size
 
   return (
     <span
-      id={`badge-vstatus-${status.toLowerCase()}`}
+      id={`badge-vstatus-${safeStatus.toString().toLowerCase()}`}
       className={`inline-flex items-center rounded-md border ${config.bg} ${config.text} ${config.border} ${sizeClasses} select-none`}
     >
       <span className="w-1.5 h-1.5 rounded-full bg-current mr-1.5 opacity-75" />

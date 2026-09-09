@@ -8,15 +8,16 @@ interface StaleContentSectionProps {
 }
 
 export const StaleContentSection: React.FC<StaleContentSectionProps> = ({ items }) => {
+  const safeItems = Array.isArray(items) ? items : [];
   const [filterCategory, setFilterCategory] = useState<'ALL' | 'STALE' | 'WAITING'>('ALL');
 
-  const filteredItems = items.filter((item) => {
+  const filteredItems = safeItems.filter((item) => {
     if (filterCategory === 'ALL') return true;
     return item.statusCategory === filterCategory;
   });
 
-  const staleCount = items.filter((i) => i.statusCategory === 'STALE').length;
-  const waitingCount = items.filter((i) => i.statusCategory === 'WAITING').length;
+  const staleCount = safeItems.filter((i) => i.statusCategory === 'STALE').length;
+  const waitingCount = safeItems.filter((i) => i.statusCategory === 'WAITING').length;
 
   const getCategoryBadge = (cat: 'FRESH' | 'WAITING' | 'STALE') => {
     switch (cat) {

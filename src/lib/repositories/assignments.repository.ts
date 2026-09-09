@@ -28,7 +28,7 @@ export class AssignmentsRepository extends BaseRepository<Assignment> {
   private normalizeAssignment(a: Assignment): Assignment {
     const entityType: AssignmentEntityType = (a.entityType as AssignmentEntityType) || AssignmentEntityType.VIDEO;
     const entityId = a.entityId || a.videoId || '';
-    const videoId = a.videoId || (entityType === 'VIDEO' ? entityId : undefined);
+    const videoId = a.videoId || (entityType === 'VIDEO' || entityType === 'PUBLISHING' ? entityId : undefined);
     let dueDate = a.dueDate || a.dueAt || undefined;
     if (dueDate && /^\d{5}$/.test(String(dueDate).trim())) {
       const serial = Number(dueDate);
@@ -65,6 +65,7 @@ export class AssignmentsRepository extends BaseRepository<Assignment> {
     return all.filter((a) => {
       if (a.entityType === entityType && a.entityId === entityId) return true;
       if (entityType === 'VIDEO' && a.videoId === entityId) return true;
+      if (entityType === 'PUBLISHING' && (a.videoId === entityId || a.entityId === entityId)) return true;
       return false;
     });
   }
@@ -97,6 +98,11 @@ export class AssignmentsRepository extends BaseRepository<Assignment> {
     return all.filter(
       (a) => a.status !== AssignmentStatus.COMPLETED && a.status !== AssignmentStatus.CANCELLED
     );
+  }
+
+  public async findByContentMasterId(contentMasterId: string): Promise<Assignment[]> {
+    const all = await this.findAll();
+    return all.filter((a) => a.entityType === 'CONTENT_MASTER' && a.entityId === contentMasterId);
   }
 }
 

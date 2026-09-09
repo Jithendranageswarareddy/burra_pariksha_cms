@@ -24,6 +24,28 @@ export function colIndexToA1Letter(colIndex: number): string {
 }
 
 /**
+ * Sanitizes a string value to prevent Google Sheets Formula Injection (CSV/Sheet Injection).
+ * Dangerous formula triggers include =, +, -, @, \t, \r.
+ * Prefixing formula-like strings with a single quote (') prevents spreadsheet execution
+ * while allowing application data to be stored and reconstructed accurately.
+ */
+export function sanitizeSpreadsheetCellValue(val: string): string {
+  if (!val || typeof val !== 'string') return val;
+  const trimmed = val.trim();
+  if (/^[=+\-@\t\r]/.test(trimmed)) {
+    return "'" + val;
+  }
+  return val;
+}
+
+export function unescapeSpreadsheetCellValue(val: string): string {
+  if (typeof val === 'string' && val.startsWith("'") && /^[=+\-@\t\r]/.test(val.slice(1).trim())) {
+    return val.slice(1);
+  }
+  return val;
+}
+
+/**
  * Parses raw cell value into typed TypeScript property according to ColumnDefinition.
  */
 export function parseCellValue(rawValue: unknown, colDef: ColumnDefinition): unknown {
@@ -63,7 +85,7 @@ export function parseCellValue(rawValue: unknown, colDef: ColumnDefinition): unk
     }
     case 'string':
     default:
-      return strVal;
+      return unescapeSpreadsheetCellValue(strVal);
   }
 }
 
@@ -91,7 +113,7 @@ export function formatCellValue(value: unknown, colDef: ColumnDefinition): strin
       return String(value);
     case 'string':
     default:
-      return String(value);
+      return sanitizeSpreadsheetCellValue(String(value));
   }
 }
 
@@ -155,16 +177,28 @@ export function rowToObject<T = Record<string, unknown>>(
       status: obj['youtubeStatus'] || 'NOT_STARTED',
       videoUrl: obj['youtubeUrl'] || '',
       publishedAt: obj['youtubePublishedAt'] || undefined,
+      scheduledAt: obj['youtubeScheduledAt'] || undefined,
+      lastFailureReason: obj['youtubeLastFailureReason'] || undefined,
+      retryCount: typeof obj['youtubeRetryCount'] === 'number' ? obj['youtubeRetryCount'] : (obj['youtubeRetryCount'] !== undefined && obj['youtubeRetryCount'] !== '' ? Number(obj['youtubeRetryCount']) : undefined),
+      failedAt: obj['youtubeFailedAt'] || undefined,
     };
     obj['instagram'] = {
       status: obj['instagramStatus'] || 'NOT_STARTED',
       postUrl: obj['instagramUrl'] || '',
       publishedAt: obj['instagramPublishedAt'] || undefined,
+      scheduledAt: obj['instagramScheduledAt'] || undefined,
+      lastFailureReason: obj['instagramLastFailureReason'] || undefined,
+      retryCount: typeof obj['instagramRetryCount'] === 'number' ? obj['instagramRetryCount'] : (obj['instagramRetryCount'] !== undefined && obj['instagramRetryCount'] !== '' ? Number(obj['instagramRetryCount']) : undefined),
+      failedAt: obj['instagramFailedAt'] || undefined,
     };
     obj['facebook'] = {
       status: obj['facebookStatus'] || 'NOT_STARTED',
       postUrl: obj['facebookUrl'] || '',
       publishedAt: obj['facebookPublishedAt'] || undefined,
+      scheduledAt: obj['facebookScheduledAt'] || undefined,
+      lastFailureReason: obj['facebookLastFailureReason'] || undefined,
+      retryCount: typeof obj['facebookRetryCount'] === 'number' ? obj['facebookRetryCount'] : (obj['facebookRetryCount'] !== undefined && obj['facebookRetryCount'] !== '' ? Number(obj['facebookRetryCount']) : undefined),
+      failedAt: obj['facebookFailedAt'] || undefined,
     };
   }
 
@@ -196,22 +230,34 @@ export function objectToRow(
 
   if (schema.sheetName === 'PUBLISHING') {
     if (obj['youtube'] && typeof obj['youtube'] === 'object') {
-      const yt = obj['youtube'] as { status?: string; videoUrl?: string; publishedAt?: string };
+      const yt = obj['youtube'] as Record<string, any>;
       flatObj['youtubeStatus'] = yt.status;
       flatObj['youtubeUrl'] = yt.videoUrl;
       flatObj['youtubePublishedAt'] = yt.publishedAt;
+      flatObj['youtubeScheduledAt'] = yt.scheduledAt;
+      flatObj['youtubeLastFailureReason'] = yt.lastFailureReason;
+      flatObj['youtubeRetryCount'] = yt.retryCount;
+      flatObj['youtubeFailedAt'] = yt.failedAt;
     }
     if (obj['instagram'] && typeof obj['instagram'] === 'object') {
-      const ig = obj['instagram'] as { status?: string; postUrl?: string; publishedAt?: string };
+      const ig = obj['instagram'] as Record<string, any>;
       flatObj['instagramStatus'] = ig.status;
       flatObj['instagramUrl'] = ig.postUrl;
       flatObj['instagramPublishedAt'] = ig.publishedAt;
+      flatObj['instagramScheduledAt'] = ig.scheduledAt;
+      flatObj['instagramLastFailureReason'] = ig.lastFailureReason;
+      flatObj['instagramRetryCount'] = ig.retryCount;
+      flatObj['instagramFailedAt'] = ig.failedAt;
     }
     if (obj['facebook'] && typeof obj['facebook'] === 'object') {
-      const fb = obj['facebook'] as { status?: string; postUrl?: string; publishedAt?: string };
+      const fb = obj['facebook'] as Record<string, any>;
       flatObj['facebookStatus'] = fb.status;
       flatObj['facebookUrl'] = fb.postUrl;
       flatObj['facebookPublishedAt'] = fb.publishedAt;
+      flatObj['facebookScheduledAt'] = fb.scheduledAt;
+      flatObj['facebookLastFailureReason'] = fb.lastFailureReason;
+      flatObj['facebookRetryCount'] = fb.retryCount;
+      flatObj['facebookFailedAt'] = fb.failedAt;
     }
   }
 

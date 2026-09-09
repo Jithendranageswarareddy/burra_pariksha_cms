@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { authService } from '../../lib/services/auth.service';
+import { UserRole } from '../../types';
 
 export interface AuthUserContext {
   id: string;
@@ -69,6 +70,7 @@ export function requireAuth(req: AuthenticatedRequest, res: Response, next: Next
   next();
 }
 
+
 /**
  * Middleware: requireRole
  * Validates that authenticated user has one of the allowed roles
@@ -83,7 +85,15 @@ export function requireRole(allowedRoles: string[]) {
       return;
     }
 
-    if (!allowedRoles.includes(req.user.role)) {
+    const userRole = req.user.role;
+    let isAllowed = allowedRoles.includes(userRole);
+
+    // ADMIN global authority bypass
+    if (userRole === UserRole.ADMIN) {
+      isAllowed = true;
+    }
+
+    if (!isAllowed) {
       res.status(403).json({
         success: false,
         error: 'Forbidden: Insufficient role permissions.',

@@ -28,9 +28,16 @@ export class TopicsRepository extends BaseRepository<Topic> {
     return all.filter((t) => t.categoryId === categoryId);
   }
 
+  public async findByName(name: string): Promise<Topic | null> {
+    const all = await this.findAll();
+    const clean = name.trim().toLowerCase();
+    return all.find((t) => (t.name || '').trim().toLowerCase() === clean) || null;
+  }
+
   public async findBySlug(slug: string): Promise<Topic | null> {
     const all = await this.findAll();
-    return all.find((t) => t.slug === slug) || null;
+    const clean = slug.trim().toLowerCase();
+    return all.find((t) => (t.slug || '').trim().toLowerCase() === clean) || null;
   }
 }
 

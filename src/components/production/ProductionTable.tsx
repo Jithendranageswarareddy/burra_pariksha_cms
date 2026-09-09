@@ -37,7 +37,7 @@ export const ProductionTable: React.FC<ProductionTableProps> = ({ videos, onSele
               return (
                 <tr
                   key={v.id}
-                  id={`row-video-${v.id.toLowerCase()}`}
+                  id={`row-video-${(v.id || '').toLowerCase()}`}
                   className="hover:bg-slate-50 transition-colors cursor-pointer group"
                   onClick={() => {
                     if (onSelectVideo) {
@@ -76,6 +76,29 @@ export const ProductionTable: React.FC<ProductionTableProps> = ({ videos, onSele
                         <span>• {v.question.categoryName}</span>
                       )}
                     </div>
+                    {v.finalRenderPath && (
+                      <div className="text-[10px] text-slate-500 flex items-center gap-1.5 flex-wrap mt-1">
+                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold border ${
+                          v.finalRenderValidationStatus === 'VALID'
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            : v.finalRenderValidationStatus === 'INVALID'
+                            ? 'bg-rose-50 text-rose-700 border-rose-200'
+                            : 'bg-slate-50 text-slate-600 border-slate-200'
+                        }`}>
+                          RENDER: {v.finalRenderValidationStatus || 'NOT_VALIDATED'}
+                        </span>
+                        {v.finalRenderWidth && v.finalRenderHeight && (
+                          <span className="bg-slate-100 px-1 py-0.5 rounded text-slate-600 font-mono">
+                            {v.finalRenderWidth}x{v.finalRenderHeight}
+                          </span>
+                        )}
+                        {v.finalRenderFormat && (
+                          <span className="text-slate-400 font-mono">
+                            {v.finalRenderFormat}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </td>
 
                   {/* Stage / Status */}

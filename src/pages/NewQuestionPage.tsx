@@ -5,6 +5,7 @@ import { PageHeader } from '../components/layout/PageHeader';
 import { Button } from '../components/common/Button';
 import { apiClient } from '../lib/api-client';
 import { DifficultyLevel, QuestionStatus, QuestionStyle, VideoProductionStatus } from '../types';
+import { QUESTION_CREATION_CONFIG } from '../config/question-creation.config';
 
 export const NewQuestionPage: React.FC = () => {
   const navigate = useNavigate();
@@ -17,8 +18,11 @@ export const NewQuestionPage: React.FC = () => {
   const [categoryId, setCategoryId] = useState('');
   const [topicId, setTopicId] = useState('');
   const [subtopicId, setSubtopicId] = useState('');
-  const [difficulty, setDifficulty] = useState<DifficultyLevel>(DifficultyLevel.MEDIUM);
-  const [questionStyle, setQuestionStyle] = useState<QuestionStyle>(QuestionStyle.SPEED_MATH_TRICK);
+  const [difficulty, setDifficulty] = useState<string>('Intermediate');
+  const [challengeType, setChallengeType] = useState<string>('ABCD');
+  const [presentationType, setPresentationType] = useState<string>('Text');
+  const [language, setLanguage] = useState<string>('ENGLISH');
+  const [realLifeContext, setRealLifeContext] = useState<string>('Shopping & E-commerce');
   const [questionText, setQuestionText] = useState('');
   const [optA, setOptA] = useState('');
   const [optB, setOptB] = useState('');
@@ -26,8 +30,10 @@ export const NewQuestionPage: React.FC = () => {
   const [optD, setOptD] = useState('');
   const [correctAnswer, setCorrectAnswer] = useState<'A' | 'B' | 'C' | 'D'>('A');
   const [explanation, setExplanation] = useState('');
-  const [realWorldContext, setRealWorldContext] = useState('');
   const [tags, setTags] = useState('Aptitude, SpeedMath, CompetitiveExams');
+
+  // Config data from API
+  const [config, setConfig] = useState<any>(null);
 
   // Submit / Status state
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -38,38 +44,17 @@ export const NewQuestionPage: React.FC = () => {
   const [duplicateMatches, setDuplicateMatches] = useState<any[]>([]);
   const [isCheckingDuplicate, setIsCheckingDuplicate] = useState(false);
 
-  // Debounced duplicate detection
+  // Load config & taxonomy tree
   useEffect(() => {
-    if (!questionText || questionText.trim().length < 10) {
-      setDuplicateMatches([]);
-      return;
-    }
-
-    const timer = setTimeout(async () => {
-      setIsCheckingDuplicate(true);
+    const loadData = async () => {
       try {
-        const res = await apiClient.checkDuplicate(questionText.trim());
-        if (res && res.matches) {
-          setDuplicateMatches(res.matches);
-        } else {
-          setDuplicateMatches([]);
-        }
-      } catch (err) {
-        console.error('Failed to run duplicate check:', err);
-      } finally {
-        setIsCheckingDuplicate(false);
-      }
-    }, 450);
-
-    return () => clearTimeout(timer);
-  }, [questionText]);
-
-  // Load taxonomy tree
-  useEffect(() => {
-    const loadTaxonomy = async () => {
-      try {
-        const tree = await apiClient.getTaxonomyTree();
+        const [tree, configData] = await Promise.all([
+          apiClient.getTaxonomyTree().catch(() => []),
+          apiClient.getQuestionCreationConfig().catch(() => null),
+        ]);
         setTaxonomyTree(tree);
+        if (configData) setConfig(configData);
+
         if (tree.length > 0) {
           const firstCat = tree[0];
           setCategoryId(firstCat.id);
@@ -82,12 +67,12 @@ export const NewQuestionPage: React.FC = () => {
           }
         }
       } catch (err: any) {
-        console.error('Failed to load taxonomy:', err);
+        console.error('Failed to load initial page data:', err);
       } finally {
         setIsLoadingTaxonomy(false);
       }
     };
-    loadTaxonomy();
+    loadData();
   }, []);
 
   const currentCategory = taxonomyTree.find((c) => c.id === categoryId);
@@ -133,15 +118,18 @@ export const NewQuestionPage: React.FC = () => {
         .map((t) => t.trim())
         .filter(Boolean);
 
-      const created = await apiClient.createQuestion({
+      const idempotencyKey = `manual-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+
+      const created = await apiClient.createQuestionCanonical({
+        creationMode: 'manual',
         categoryId,
-        categoryName: currentCategory?.name || 'Quantitative Aptitude',
         topicId,
-        topicName: currentTopic?.name || 'General',
         subtopicId,
-        subtopicName: availableSubtopics.find((s: any) => s.id === subtopicId)?.name || 'General',
         difficulty,
-        questionStyle,
+        challengeType,
+        presentationType,
+        language,
+        realLifeContext,
         questionText: questionText.trim(),
         options: {
           a: optA.trim(),
@@ -151,11 +139,8 @@ export const NewQuestionPage: React.FC = () => {
         },
         correctAnswer,
         explanation: explanation.trim(),
-        realWorldContext: realWorldContext.trim() || undefined,
         tags: parsedTags,
-        status: QuestionStatus.GENERATED,
-        videoStatus: VideoProductionStatus.QUEUED,
-        source: 'Manual Authoring',
+        idempotencyKey,
       });
 
       setSuccessQuestionId(created.id);
@@ -271,34 +256,62 @@ export const NewQuestionPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Difficulty & Style */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Difficulty & Challenge Type Row */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">Difficulty Level</label>
             <select
               value={difficulty}
-              onChange={(e) => setDifficulty(e.target.value as any)}
-              className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-xs text-slate-900 focus:ring-2 focus:ring-indigo-500"
+              onChange={(e) => setDifficulty(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-xs text-slate-900 focus:ring-2 focus:ring-indigo-500 font-medium"
             >
-              <option value={DifficultyLevel.EASY}>Easy (Standard Foundation)</option>
-              <option value={DifficultyLevel.MEDIUM}>Medium (Competitive Standard)</option>
-              <option value={DifficultyLevel.HARD}>Hard (Advanced Multi-Step)</option>
+              {(config?.difficulties || QUESTION_CREATION_CONFIG.difficulties).map((d: any) => (
+                <option key={d.id} value={d.id}>
+                  {d.label || d.name || d.id}
+                </option>
+              ))}
             </select>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Question Pedagogy Style</label>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Challenge Type</label>
             <select
-              value={questionStyle}
-              onChange={(e) => setQuestionStyle(e.target.value as any)}
-              className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-xs text-slate-900 focus:ring-2 focus:ring-indigo-500"
+              value={challengeType}
+              onChange={(e) => setChallengeType(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-xs text-slate-900 focus:ring-2 focus:ring-indigo-500 font-medium"
             >
-              <option value={QuestionStyle.SPEED_MATH_TRICK}>Speed Math / Mental Calculation</option>
-              <option value={QuestionStyle.REAL_WORLD_SCENARIO}>Real-World Scenario</option>
-              <option value={QuestionStyle.LOGICAL_PUZZLE}>Logical Puzzle</option>
-              <option value={QuestionStyle.DATA_INTERPRETATION}>Data Interpretation / Chart Analysis</option>
-              <option value={QuestionStyle.VERBAL_TRAP}>Verbal Trap / Ambiguity</option>
-              <option value={QuestionStyle.CONCEPTUAL_PROBE}>Conceptual Probe</option>
+              {(config?.challengeTypes || QUESTION_CREATION_CONFIG.challengeTypes).map((ct: any) => (
+                <option key={ct.id} value={ct.id}>
+                  {ct.name || ct.id}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Presentation Type</label>
+            <select
+              value={presentationType}
+              onChange={(e) => setPresentationType(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-xs text-slate-900 focus:ring-2 focus:ring-indigo-500 font-medium"
+            >
+              {(config?.presentationTypes || QUESTION_CREATION_CONFIG.presentationTypes).map((pt: any) => (
+                <option key={pt.id} value={pt.id}>
+                  {pt.name || pt.id}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Language</label>
+            <select
+              value={language}
+              onChange={(e) => setLanguage(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-xs text-slate-900 focus:ring-2 focus:ring-indigo-500 font-medium"
+            >
+              <option value="ENGLISH">English</option>
+              <option value="TELUGU">Telugu (తెలుగు)</option>
             </select>
           </div>
         </div>
@@ -424,14 +437,22 @@ export const NewQuestionPage: React.FC = () => {
         {/* Metadata: Context & Tags */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Real-World Context Hook (Optional)</label>
-            <input
-              type="text"
-              value={realWorldContext}
-              onChange={(e) => setRealWorldContext(e.target.value)}
-              placeholder="e.g. Train speed overtaking calculation in Indian Railways"
-              className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-900 focus:ring-2 focus:ring-indigo-500"
-            />
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Real-World Context Category</label>
+            <select
+              value={realLifeContext}
+              onChange={(e) => setRealLifeContext(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-900 focus:ring-2 focus:ring-indigo-500 font-medium"
+            >
+              {(config?.realLifeContexts || [
+                { id: 'Shopping & E-commerce', name: 'Shopping & E-commerce' },
+                { id: 'Banking & Finance', name: 'Banking & Finance' },
+                { id: 'Travel & Distance', name: 'Travel & Distance' },
+              ]).map((c: any) => (
+                <option key={c.id || c.name} value={c.id || c.name}>
+                  {c.name || c.id}
+                </option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">Tags (Comma-separated)</label>

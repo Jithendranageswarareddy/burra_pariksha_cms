@@ -73,6 +73,9 @@ export class GoogleSheetsClient {
   private rowCache = new Map<string, { data: { headers: string[]; rows: (string | number | boolean)[][] }; timestamp: number }>();
   private readonly ROW_CACHE_TTL_MS = 2500;
 
+  // In-flight read deduplication map to coalesce concurrent requests
+  private inFlightReads = new Map<string, Promise<{ headers: string[]; rows: (string | number | boolean)[][] }>>();
+
   // Operational telemetry
   private lastSuccessfulOp: string | null = null;
   private lastFailedOp: string | null = null;
@@ -293,43 +296,68 @@ export class GoogleSheetsClient {
 
   /**
    * Retrieves all data rows (starting from row 2) for the specified worksheet.
+   * Deduplicates concurrent in-flight requests when row cache is cold/expired.
    */
-  public async getRows(sheetName: string): Promise<{ headers: string[]; rows: (string | number | boolean)[][] }> {
+  public async getRows(
+    sheetName: string,
+    endColLetter?: string
+  ): Promise<{ headers: string[]; rows: (string | number | boolean)[][] }> {
     const now = Date.now();
     const cached = this.rowCache.get(sheetName);
     if (cached && now - cached.timestamp < this.ROW_CACHE_TTL_MS) {
       return { headers: [...cached.data.headers], rows: cached.data.rows.map((r) => [...r]) };
     }
 
-    return this.executeWithRetry(async () => {
-      const sheets = this.getSheetsApi();
-      const spreadsheetId = this.getSpreadsheetId();
+    // Check if an in-flight read for this sheet already exists
+    const existingInFlight = this.inFlightReads.get(sheetName);
+    if (existingInFlight) {
+      const sharedResult = await existingInFlight;
+      return { headers: [...sharedResult.headers], rows: sharedResult.rows.map((r) => [...r]) };
+    }
 
-      try {
-        const res = await sheets.spreadsheets.values.get({
-          spreadsheetId,
-          range: `'${sheetName}'!A:ZZ`,
-          valueRenderOption: 'UNFORMATTED_VALUE',
-        });
+    const colBound = endColLetter ? endColLetter.trim().toUpperCase() : 'ZZ';
+    const readRange = `'${sheetName}'!A:${colBound}`;
 
-        const values = res.data.values || [];
-        if (values.length === 0) {
-          const emptyResult = { headers: [], rows: [] };
-          this.rowCache.set(sheetName, { data: emptyResult, timestamp: Date.now() });
-          return emptyResult;
+    const readPromise = (async () => {
+      return this.executeWithRetry(async () => {
+        const sheets = this.getSheetsApi();
+        const spreadsheetId = this.getSpreadsheetId();
+
+        try {
+          const res = await sheets.spreadsheets.values.get({
+            spreadsheetId,
+            range: readRange,
+            valueRenderOption: 'UNFORMATTED_VALUE',
+          });
+
+          const values = res.data.values || [];
+          if (values.length === 0) {
+            const emptyResult = { headers: [], rows: [] };
+            this.rowCache.set(sheetName, { data: emptyResult, timestamp: Date.now() });
+            return emptyResult;
+          }
+
+          const headers = (values[0] || []).map((v) => String(v).trim());
+          const rows = values.slice(1);
+          const result = { headers, rows };
+
+          this.rowCache.set(sheetName, { data: result, timestamp: Date.now() });
+          return result;
+        } catch (err: any) {
+          this.handleApiError(err, `getRows(${sheetName})`, sheetName);
+          throw err;
         }
+      }, `getRows(${sheetName})`);
+    })();
 
-        const headers = (values[0] || []).map((v) => String(v).trim());
-        const rows = values.slice(1);
-        const result = { headers, rows };
+    this.inFlightReads.set(sheetName, readPromise);
 
-        this.rowCache.set(sheetName, { data: result, timestamp: Date.now() });
-        return result;
-      } catch (err: any) {
-        this.handleApiError(err, `getRows(${sheetName})`, sheetName);
-        throw err;
-      }
-    }, `getRows(${sheetName})`);
+    try {
+      const freshResult = await readPromise;
+      return { headers: [...freshResult.headers], rows: freshResult.rows.map((r) => [...r]) };
+    } finally {
+      this.inFlightReads.delete(sheetName);
+    }
   }
 
   /**

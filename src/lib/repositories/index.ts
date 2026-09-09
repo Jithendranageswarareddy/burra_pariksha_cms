@@ -24,4 +24,7 @@ export * from './audit-log.repository';
 export * from './users.repository';
 export * from './content-plans.repository';
 export * from './content-batches.repository';
+export * from './content-masters.repository';
+export * from './validations.repository';
+export * from './social-reviews.repository';
 

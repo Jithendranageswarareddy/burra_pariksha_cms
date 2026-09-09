@@ -17,7 +17,7 @@ export const APP_CONFIG = {
   shortName: 'Burra Pariksha',
   tagline: 'Content Database & Video Production Workflow System',
   version: '0.1.0-alpha',
-  phase: 'Phase 1: Foundation & UI Shell',
+  phase: 'Content Operations System',
   mockMode: true,
   adminUser: {
     name: 'Admin / Content Lead',

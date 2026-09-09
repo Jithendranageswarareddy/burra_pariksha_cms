@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   ArrowLeft,
   Video,
@@ -23,6 +23,10 @@ import {
   ExternalLink,
   ChevronRight,
   Sparkles,
+  Mic,
+  Scissors,
+  ShieldCheck,
+  CheckCheck,
 } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { Button } from '../components/common/Button';
@@ -32,6 +36,7 @@ import { PipelineProgress } from '../components/production/PipelineProgress';
 import { EntityAssignmentsSection } from '../components/assignments/EntityAssignmentsSection';
 import { apiClient } from '../lib/api-client';
 import {
+  DifficultyLevel,
   PriorityLevel,
   Video as VideoType,
   VideoProductionStatus,
@@ -44,17 +49,29 @@ import { ScriptWorkspace } from '../components/video/ScriptWorkspace';
 import { ThumbnailWorkspace } from '../components/video/ThumbnailWorkspace';
 import { PinnedCommentWorkspace } from '../components/video/PinnedCommentWorkspace';
 import { PublishingWorkspace } from '../components/video/PublishingWorkspace';
+import { RecordingWorkspace } from '../components/video/RecordingWorkspace';
+import { EditingWorkspace } from '../components/video/EditingWorkspace';
+import { FinalReviewWorkspace } from '../components/video/FinalReviewWorkspace';
 
 export const VideoDetailPage: React.FC = () => {
   const { videoId } = useParams<{ videoId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [video, setVideo] = useState<VideoType | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [notification, setNotification] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'script' | 'thumbnail' | 'pinned-comment' | 'publishing'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'recording' | 'editing' | 'final-review' | 'script' | 'thumbnail' | 'pinned-comment' | 'publishing'>('overview');
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const tabParam = params.get('tab');
+    if (tabParam && ['overview', 'recording', 'editing', 'final-review', 'script', 'thumbnail', 'pinned-comment', 'publishing'].includes(tabParam)) {
+      setActiveTab(tabParam as any);
+    }
+  }, [location.search]);
 
   // Status transition form state
   const [statusRemark, setStatusRemark] = useState('');
@@ -226,6 +243,13 @@ export const VideoDetailPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          {video.questionId && (
+            <Link to={`/social-review/${encodeURIComponent(video.questionId)}`}>
+              <Button variant="outline" size="sm" icon={CheckCheck} className="text-xs">
+                Social Review
+              </Button>
+            </Link>
+          )}
           <Link to="/queue">
             <Button variant="outline" size="sm" className="text-xs">
               View Video Queue
@@ -265,6 +289,19 @@ export const VideoDetailPage: React.FC = () => {
               <span className="font-mono text-sm font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded border border-indigo-200">
                 {video.id}
               </span>
+              {video.contentMasterId ? (
+                <Link
+                  to={`/content-masters/${encodeURIComponent(video.contentMasterId)}`}
+                  className="font-mono text-xs font-bold text-purple-800 hover:text-purple-950 bg-purple-100 hover:bg-purple-200 px-2.5 py-1 rounded border border-purple-300 transition-colors inline-flex items-center gap-1"
+                  title="View Content Master Explorer"
+                >
+                  Master: {video.contentMasterId}
+                </Link>
+              ) : (
+                <span className="text-xs font-mono bg-slate-100 text-slate-500 px-2.5 py-1 rounded">
+                  Master: Not linked
+                </span>
+              )}
               <VideoStatusBadge status={video.status} size="md" />
               <span className={`text-xs px-2.5 py-1 rounded font-semibold ${priorityConfig.bg} ${priorityConfig.text}`}>
                 Priority: {priorityConfig.label}
@@ -332,6 +369,45 @@ export const VideoDetailPage: React.FC = () => {
         >
           <Film className="w-4 h-4" />
           <span>Stage Flow & Details</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('recording')}
+          className={`px-4 py-2.5 rounded-lg flex items-center gap-2 transition-all shrink-0 ${
+            activeTab === 'recording'
+              ? 'bg-indigo-50 text-indigo-700 font-bold border border-indigo-200'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+          }`}
+        >
+          <Mic className="w-4 h-4 text-indigo-600" />
+          <span>Recording Workspace</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('editing')}
+          className={`px-4 py-2.5 rounded-lg flex items-center gap-2 transition-all shrink-0 ${
+            activeTab === 'editing'
+              ? 'bg-indigo-50 text-indigo-700 font-bold border border-indigo-200'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+          }`}
+        >
+          <Scissors className="w-4 h-4 text-indigo-600" />
+          <span>Editing Workspace</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('final-review')}
+          className={`px-4 py-2.5 rounded-lg flex items-center gap-2 transition-all shrink-0 ${
+            activeTab === 'final-review'
+              ? 'bg-indigo-50 text-indigo-700 font-bold border border-indigo-200'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+          }`}
+        >
+          <ShieldCheck className="w-4 h-4 text-indigo-600" />
+          <span>Final Review</span>
         </button>
 
         <button
@@ -503,7 +579,7 @@ export const VideoDetailPage: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-2">
                   <QuestionStatusBadge status={video.question.status} size="sm" />
-                  <DifficultyBadge difficulty={video.question.difficulty} />
+                  <DifficultyBadge difficulty={video.question.difficulty as DifficultyLevel} />
                 </div>
               </div>
 
@@ -763,6 +839,35 @@ export const VideoDetailPage: React.FC = () => {
           </div>
         </div>
       </div>
+      )}
+
+      {/* Tab: Recording Workspace */}
+      {activeTab === 'recording' && (
+        <RecordingWorkspace
+          videoId={video.id}
+          video={video}
+          onStatusChange={fetchVideoDetails}
+        />
+      )}
+
+      {/* Tab: Editing Workspace */}
+      {activeTab === 'editing' && (
+        <EditingWorkspace
+          videoId={video.id}
+          video={video}
+          onStatusChange={fetchVideoDetails}
+          onNavigateTab={(tab) => setActiveTab(tab)}
+        />
+      )}
+
+      {/* Tab: Final Review Workspace */}
+      {activeTab === 'final-review' && (
+        <FinalReviewWorkspace
+          videoId={video.id}
+          video={video}
+          onStatusChange={fetchVideoDetails}
+          onNavigateTab={(tab) => setActiveTab(tab)}
+        />
       )}
 
       {/* Tab 2: Script Management */}

@@ -5,6 +5,7 @@
 
 import { DifficultyLevel, QuestionLanguage, QuestionStyle } from '../../types';
 import { CandidateValidationReport } from './validators/candidate.validator';
+import { AIErrorClassification } from './error';
 
 export enum AiRefinementAction {
   REGENERATE = 'REGENERATE',
@@ -65,11 +66,19 @@ export interface RefineCandidateInput {
 export interface GenerationMetadata {
   modelUsed: string;
   generationDurationMs: number;
+  providerId?: string;
+  modelId?: string;
+  requestId?: string;
+  latencyMs?: number;
+  retryCount?: number;
   promptTokens?: number;
   outputTokens?: number;
   isMockFallback?: boolean;
-  generatorType?: 'GEMINI_AI' | 'PEDAGOGICAL_FALLBACK';
+  generatorType?: string;
   fallbackReason?: string;
+  errorClassification?: AIErrorClassification;
+  fallbackUsed?: boolean;
+  attemptedProviders?: string[];
 }
 
 export interface GenerationResult {
@@ -77,3 +86,32 @@ export interface GenerationResult {
   metadata: GenerationMetadata;
   validation: CandidateValidationReport;
 }
+
+export interface AIProviderOptions {
+  modelId?: string;
+  temperature?: number;
+  timeoutMs?: number;
+  maxRetries?: number;
+  requestId?: string;
+}
+
+export interface ScriptGenerationResult {
+  scriptPayload: any;
+  metadata: GenerationMetadata;
+  validation?: any;
+}
+
+/**
+ * Provider-Neutral AI Provider Interface.
+ * Implementations must remain completely isolated from client-side or provider-specific SDK leaks.
+ */
+export interface AIProvider {
+  readonly providerId: string;
+  readonly defaultModelId: string;
+  isConfigured(): boolean;
+  generateCandidate(input: GenerateCandidateInput, options?: AIProviderOptions): Promise<GenerationResult>;
+  refineCandidate(input: RefineCandidateInput, options?: AIProviderOptions): Promise<GenerationResult>;
+  generateTeluguScript?(question: QuestionCandidate | any, options?: AIProviderOptions): Promise<ScriptGenerationResult>;
+  generateContentPlanRecommendation?(input: any, options?: AIProviderOptions): Promise<any>;
+}
+

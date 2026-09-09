@@ -4,7 +4,7 @@ import { PlayCircle, FileText, ArrowRight, Video as VideoIcon } from 'lucide-rea
 import { DifficultyBadge } from '../common/DifficultyBadge';
 import { VideoStatusBadge } from '../common/StatusBadge';
 import { PRIORITY_CONFIG } from '../../config/constants';
-import { PriorityLevel, Video } from '../../types';
+import { DifficultyLevel, PriorityLevel, Video } from '../../types';
 
 interface QueueTableProps {
   videos: Video[];
@@ -38,7 +38,7 @@ export const QueueTable: React.FC<QueueTableProps> = ({ videos, onSelectVideo })
               return (
                 <tr
                   key={item.id}
-                  id={`row-queue-${item.id.toLowerCase()}`}
+                  id={`row-queue-${(item.id || '').toLowerCase()}`}
                   className="hover:bg-slate-50 transition-colors group cursor-pointer"
                   onClick={() => {
                     if (onSelectVideo) {
@@ -90,7 +90,7 @@ export const QueueTable: React.FC<QueueTableProps> = ({ videos, onSelectVideo })
                   {/* Difficulty */}
                   <td className="py-3 px-4 whitespace-nowrap">
                     {item.question?.difficulty ? (
-                      <DifficultyBadge difficulty={item.question.difficulty} size="sm" />
+                      <DifficultyBadge difficulty={item.question.difficulty as DifficultyLevel} size="sm" />
                     ) : (
                       <span className="text-slate-400">—</span>
                     )}

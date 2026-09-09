@@ -8,8 +8,8 @@
 
 import { SheetSchemaContract, SheetTabName } from '../schemas/google-sheets-schema';
 import { googleSheetsClient, GoogleSheetsClient } from '../google-sheets/client';
-import { objectToRow, rowToObject, validateWorksheetHeaders } from '../google-sheets/helpers';
-import { MissingHeaderError } from '../google-sheets/errors';
+import { colIndexToA1Letter, objectToRow, rowToObject, validateWorksheetHeaders } from '../google-sheets/helpers';
+import { MissingHeaderError, WorksheetNotFoundError } from '../google-sheets/errors';
 
 export abstract class BaseRepository<T extends Record<string, any>> {
   protected schema: SheetSchemaContract;
@@ -17,6 +17,7 @@ export abstract class BaseRepository<T extends Record<string, any>> {
   protected cachedHeaders: string[] | null = null;
   protected lastHeaderFetchTime: number = 0;
   protected HEADER_CACHE_TTL_MS = 60000; // 1 minute header cache
+  protected worksheetChecked: boolean = false;
 
   // Local fallback storage for development when Google credentials are not provided
   protected static fallbackStore: Map<string, Map<string, Record<string, any>>> = new Map();
@@ -46,6 +47,45 @@ export abstract class BaseRepository<T extends Record<string, any>> {
   }
 
   /**
+   * Calculates the canonical A1 column letter corresponding to the declared schema width.
+   * e.g. 7 columns -> 'G', 10 columns -> 'J', 35 columns -> 'AI'.
+   */
+  protected getEndColLetter(): string {
+    const numCols = this.schema.columns?.length || 0;
+    return numCols > 0 ? colIndexToA1Letter(numCols - 1) : 'ZZ';
+  }
+
+  /**
+   * Ensures the remote worksheet tab exists with declared headers, creating it if needed.
+   */
+  public async ensureWorksheet(): Promise<boolean> {
+    if (!this.client.isConfigured() || this.worksheetChecked) {
+      return true;
+    }
+    try {
+      await this.client.createWorksheetIfNotExists(
+        this.schema.sheetName,
+        this.schema.columns.map((c) => c.name)
+      );
+      this.worksheetChecked = true;
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Checks if an error is a WorksheetNotFoundError or missing tab error.
+   */
+  protected isWorksheetNotFoundError(err: any): boolean {
+    return (
+      err instanceof WorksheetNotFoundError ||
+      err?.name === 'WorksheetNotFoundError' ||
+      (typeof err?.message === 'string' && err.message.includes('does not exist'))
+    );
+  }
+
+  /**
    * Retrieves worksheet headers with validation.
    */
   public async getValidatedHeaders(): Promise<string[]> {
@@ -58,16 +98,33 @@ export abstract class BaseRepository<T extends Record<string, any>> {
       return this.cachedHeaders;
     }
 
-    const headers = await this.client.getHeaders(this.schema.sheetName);
-    const validation = validateWorksheetHeaders(headers, this.schema);
+    try {
+      const headers = await this.client.getHeaders(this.schema.sheetName);
+      const validation = validateWorksheetHeaders(headers, this.schema);
 
-    if (!validation.isValid) {
-      throw new MissingHeaderError(this.schema.sheetName, validation.missingHeaders);
+      if (!validation.isValid) {
+        throw new MissingHeaderError(this.schema.sheetName, validation.missingHeaders);
+      }
+
+      this.cachedHeaders = headers;
+      this.lastHeaderFetchTime = now;
+      return headers;
+    } catch (err: any) {
+      if (this.isWorksheetNotFoundError(err)) {
+        const created = await this.ensureWorksheet();
+        if (created) {
+          try {
+            const headers = await this.client.getHeaders(this.schema.sheetName);
+            this.cachedHeaders = headers;
+            this.lastHeaderFetchTime = now;
+            return headers;
+          } catch {
+            // fallback
+          }
+        }
+      }
+      return this.schema.columns.map((c) => c.name);
     }
-
-    this.cachedHeaders = headers;
-    this.lastHeaderFetchTime = now;
-    return headers;
   }
 
   /**
@@ -81,28 +138,37 @@ export abstract class BaseRepository<T extends Record<string, any>> {
       return Array.from(sheetStore.values()) as T[];
     }
 
-    const { headers, rows } = await this.client.getRows(this.schema.sheetName);
-    if (!headers || headers.length === 0) {
-      return [];
-    }
-
-    const validation = validateWorksheetHeaders(headers, this.schema);
-    if (!validation.isValid) {
-      throw new MissingHeaderError(this.schema.sheetName, validation.missingHeaders);
-    }
-
-    const records: T[] = [];
-    for (const row of rows) {
-      if (!row || row.length === 0 || row.every((c) => c === '' || c === undefined)) {
-        continue; // Skip empty rows
+    try {
+      const { headers, rows } = await this.client.getRows(this.schema.sheetName, this.getEndColLetter());
+      if (!headers || headers.length === 0) {
+        return [];
       }
-      const record = rowToObject<T>(row, headers, this.schema);
-      if (record && record[pkProp]) {
-        records.push(record);
-      }
-    }
 
-    return records;
+      const validation = validateWorksheetHeaders(headers, this.schema);
+      if (!validation.isValid) {
+        throw new MissingHeaderError(this.schema.sheetName, validation.missingHeaders);
+      }
+
+      const records: T[] = [];
+      for (const row of rows) {
+        if (!row || row.length === 0 || row.every((c) => c === '' || c === undefined)) {
+          continue; // Skip empty rows
+        }
+        const record = rowToObject<T>(row, headers, this.schema);
+        if (record && record[pkProp]) {
+          records.push(record);
+        }
+      }
+
+      return records;
+    } catch (err: any) {
+      if (this.isWorksheetNotFoundError(err)) {
+        await this.ensureWorksheet();
+        const sheetStore = BaseRepository.fallbackStore.get(this.schema.sheetName)!;
+        return Array.from(sheetStore.values()) as T[];
+      }
+      throw err;
+    }
   }
 
   /**
@@ -118,17 +184,27 @@ export abstract class BaseRepository<T extends Record<string, any>> {
       return item ? ({ ...item } as T) : null;
     }
 
-    const { headers, rows } = await this.client.getRows(this.schema.sheetName);
-    if (!headers || headers.length === 0) return null;
+    try {
+      const { headers, rows } = await this.client.getRows(this.schema.sheetName, this.getEndColLetter());
+      if (!headers || headers.length === 0) return null;
 
-    for (const row of rows) {
-      const record = rowToObject<T>(row, headers, this.schema);
-      if (record && String(record[pkProp]) === String(id)) {
-        return record;
+      for (const row of rows) {
+        const record = rowToObject<T>(row, headers, this.schema);
+        if (record && String(record[pkProp]) === String(id)) {
+          return record;
+        }
       }
-    }
 
-    return null;
+      return null;
+    } catch (err: any) {
+      if (this.isWorksheetNotFoundError(err)) {
+        await this.ensureWorksheet();
+        const sheetStore = BaseRepository.fallbackStore.get(this.schema.sheetName)!;
+        const item = sheetStore.get(id);
+        return item ? ({ ...item } as T) : null;
+      }
+      throw err;
+    }
   }
 
   /**
@@ -138,18 +214,46 @@ export abstract class BaseRepository<T extends Record<string, any>> {
     const pkProp = this.getPrimaryKeyProperty();
     const pkValue = record[pkProp];
 
+    // Always mirror in fallbackStore
+    const sheetStore = BaseRepository.fallbackStore.get(this.schema.sheetName)!;
+    if (pkValue !== undefined && pkValue !== null) {
+      sheetStore.set(String(pkValue), { ...record });
+    }
+
     if (!this.client.isConfigured()) {
-      const sheetStore = BaseRepository.fallbackStore.get(this.schema.sheetName)!;
-      if (pkValue !== undefined && pkValue !== null) {
-        sheetStore.set(String(pkValue), { ...record });
-      }
       return record;
     }
 
-    const headers = await this.getValidatedHeaders();
-    const row = objectToRow(record, headers, this.schema);
-    await this.client.appendRow(this.schema.sheetName, row);
-    return record;
+    try {
+      const headers = await this.getValidatedHeaders();
+      const row = objectToRow(record, headers, this.schema);
+      await this.client.appendRow(this.schema.sheetName, row);
+      return record;
+    } catch (err: any) {
+      if (this.isWorksheetNotFoundError(err)) {
+        const created = await this.ensureWorksheet();
+        if (created) {
+          try {
+            const headers = await this.getValidatedHeaders();
+            const row = objectToRow(record, headers, this.schema);
+            await this.client.appendRow(this.schema.sheetName, row);
+            return record;
+          } catch {
+            // Already mirrored in local fallback store
+            return record;
+          }
+        }
+        return record;
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * Alias for appendRecord to support standard repository contract.
+   */
+  public async create(record: T): Promise<T> {
+    return this.appendRecord(record);
   }
 
   /**
@@ -159,44 +263,70 @@ export abstract class BaseRepository<T extends Record<string, any>> {
     if (!id) return null;
     const pkProp = this.getPrimaryKeyProperty();
 
-    if (!this.client.isConfigured()) {
-      const sheetStore = BaseRepository.fallbackStore.get(this.schema.sheetName)!;
-      const existing = sheetStore.get(id);
-      if (!existing) return null;
-      const updated = { ...existing, ...updates, updatedAt: new Date().toISOString() };
+    const sheetStore = BaseRepository.fallbackStore.get(this.schema.sheetName)!;
+    const localExisting = sheetStore.get(id);
+    let updated: any = null;
+    if (localExisting) {
+      updated = { ...localExisting, ...updates, updatedAt: new Date().toISOString() };
       sheetStore.set(id, updated);
+    }
+
+    if (!this.client.isConfigured()) {
       return updated as unknown as T;
     }
 
-    const { headers, rows } = await this.client.getRows(this.schema.sheetName);
-    if (!headers || headers.length === 0) return null;
+    try {
+      const { headers, rows } = await this.client.getRows(this.schema.sheetName, this.getEndColLetter());
+      if (!headers || headers.length === 0) return updated as unknown as T;
 
-    let targetRowIndex = -1;
-    let existingRecord: T | null = null;
+      let targetRowIndex = -1;
+      let existingRecord: T | null = null;
 
-    for (let i = 0; i < rows.length; i++) {
-      const rec = rowToObject<T>(rows[i], headers, this.schema);
-      if (rec && String(rec[pkProp]) === String(id)) {
-        targetRowIndex = i + 2; // Row 1 is header, so row 0 in array is sheet row 2
-        existingRecord = rec;
-        break;
+      for (let i = 0; i < rows.length; i++) {
+        const rec = rowToObject<T>(rows[i], headers, this.schema);
+        if (rec && String(rec[pkProp]) === String(id)) {
+          targetRowIndex = i + 2; // Row 1 is header, so row 0 in array is sheet row 2
+          existingRecord = rec;
+          break;
+        }
       }
+
+      if (targetRowIndex === -1 || !existingRecord) {
+        return updated as unknown as T;
+      }
+
+      const mergedRecord = {
+        ...(localExisting || {}),
+        ...existingRecord,
+        ...updates,
+        updatedAt: new Date().toISOString(),
+      } as unknown as T;
+      sheetStore.set(id, mergedRecord);
+
+      const newRow = objectToRow(mergedRecord, headers, this.schema);
+      await this.client.updateRow(this.schema.sheetName, targetRowIndex, newRow);
+
+      return mergedRecord;
+    } catch (err: any) {
+      if (this.isWorksheetNotFoundError(err)) {
+        await this.ensureWorksheet();
+        return updated as unknown as T;
+      }
+      throw err;
     }
+  }
 
-    if (targetRowIndex === -1 || !existingRecord) {
-      return null;
+  /**
+   * Alias for updateRecord supporting both update(id, updates) and update(record).
+   */
+  public async update(recordOrId: T | string, updates?: Partial<T>): Promise<T | null> {
+    if (typeof recordOrId === 'string') {
+      return this.updateRecord(recordOrId, updates || {});
     }
-
-    const mergedRecord = {
-      ...existingRecord,
-      ...updates,
-      updatedAt: new Date().toISOString(),
-    } as unknown as T;
-
-    const newRow = objectToRow(mergedRecord, headers, this.schema);
-    await this.client.updateRow(this.schema.sheetName, targetRowIndex, newRow);
-
-    return mergedRecord;
+    const pkProp = this.getPrimaryKeyProperty();
+    const id = recordOrId[pkProp];
+    if (!id) return null;
+    return this.updateRecord(String(id), recordOrId as Partial<T>);
   }
 
   /**
@@ -214,7 +344,7 @@ export abstract class BaseRepository<T extends Record<string, any>> {
       return false;
     }
 
-    const { headers, rows } = await this.client.getRows(this.schema.sheetName);
+    const { headers, rows } = await this.client.getRows(this.schema.sheetName, this.getEndColLetter());
     if (!headers || headers.length === 0) return false;
 
     let targetRowIndex = -1;

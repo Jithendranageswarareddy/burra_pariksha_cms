@@ -86,6 +86,10 @@ export class IdService {
     return this.generateId(SEQUENCE_ENTITIES.ASSIGNMENT);
   }
 
+  public async allocateContentMasterId(): Promise<string> {
+    return this.generateId(SEQUENCE_ENTITIES.CONTENT_MASTER);
+  }
+
   public async allocateUserId(): Promise<string> {
     const timestamp = Date.now();
     return `USR-${timestamp.toString().slice(-4)}`;

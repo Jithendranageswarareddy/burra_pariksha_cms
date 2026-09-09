@@ -8,33 +8,34 @@ import path from 'path';
 import fs from 'fs';
 import { createServer as createViteServer } from 'vite';
 import { apiRouter } from './src/server/routes';
+import { snapshotSchedulerService } from './src/lib/services/snapshot-scheduler.service';
 
 async function startServer() {
   const app = express();
+  app.set('trust proxy', 1);
   const PORT = 3000;
+
+  // Initialize server-side snapshot scheduler (starts if GCS_SNAPSHOT_SCHEDULE_ENABLED=true)
+  snapshotSchedulerService.startScheduler();
 
   // Mount API routes FIRST
   app.use('/api', apiRouter);
 
-  // Vite middleware for development vs Static serving in production
-  if (process.env.NODE_ENV !== 'production') {
+  // Mount Vite middleware when in dev or when dist bundle has not been built
+  const distPath = path.join(process.cwd(), 'dist');
+  const indexHtmlPath = path.join(distPath, 'index.html');
+  const isProductionBundleReady = process.env.NODE_ENV === 'production' && fs.existsSync(indexHtmlPath);
+
+  if (!isProductionBundleReady) {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(process.cwd(), 'dist');
-    const indexHtmlPath = path.join(distPath, 'index.html');
-    if (fs.existsSync(distPath)) {
-      app.use(express.static(distPath));
-    }
+    app.use(express.static(distPath));
     app.get('*', (req, res) => {
-      if (fs.existsSync(indexHtmlPath)) {
-        res.sendFile(indexHtmlPath);
-      } else {
-        res.status(200).send(`<!doctype html><html><head><meta charset="UTF-8"><title>Burra Pariksha CMS</title></head><body><div id="root"></div><script type="module" src="/src/main.tsx"></script></body></html>`);
-      }
+      res.sendFile(indexHtmlPath);
     });
   }
 

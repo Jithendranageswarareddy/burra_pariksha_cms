@@ -55,7 +55,11 @@ class GeminiClientWrapper {
   }
 
   public getModelName(): string {
-    return process.env.GEMINI_MODEL || 'gemini-3.7-flash';
+    const envModel = process.env.GEMINI_MODEL;
+    if (!envModel || envModel === 'gemini-3.7-flash') {
+      return 'gemini-3.1-flash-lite';
+    }
+    return envModel;
   }
 }
 

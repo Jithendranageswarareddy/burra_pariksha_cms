@@ -6,6 +6,7 @@ import {
   BookOpen,
   ListOrdered,
   Kanban,
+  Table,
   Share2,
   Settings,
   GraduationCap,
@@ -14,10 +15,13 @@ import {
   Compass,
   UserCheck,
   Users,
+  RotateCcw,
+  CheckCheck,
 } from 'lucide-react';
 import { NAVIGATION_SECTIONS } from '../../config/navigation';
 import { APP_CONFIG } from '../../config/constants';
 import { useAuth } from '../../contexts/AuthContext';
+import { UserRole } from '../../types';
 
 // Icon map for navigation configuration
 const iconMap: Record<string, React.ElementType> = {
@@ -26,11 +30,15 @@ const iconMap: Record<string, React.ElementType> = {
   BookOpen,
   ListOrdered,
   Kanban,
+  Table,
   Share2,
   Settings,
   Compass,
   UserCheck,
   Users,
+  RotateCcw,
+  Layers,
+  CheckCheck,
 };
 
 interface SidebarProps {
@@ -90,6 +98,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpenMobile, onCloseMobile })
               </p>
               <div className="space-y-0.5 mt-1">
                 {section.items.map((item) => {
+                  if (item.href === '/recovery' && user?.role !== UserRole.ADMIN && user?.role !== 'ADMIN') {
+                    return null;
+                  }
+                  if (item.href === '/social-review') {
+                    const allowed = [UserRole.ADMIN, 'ADMIN', UserRole.CONTENT_MANAGER, 'CONTENT_MANAGER', UserRole.REVIEWER, 'REVIEWER'];
+                    if (!user || !allowed.includes(user.role as any)) {
+                      return null;
+                    }
+                  }
                   const Icon = iconMap[item.iconName] || Layers;
                   const active = isCurrentActive(item.href);
 

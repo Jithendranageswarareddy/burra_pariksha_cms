@@ -219,9 +219,9 @@ export const MyWorkPage: React.FC = () => {
     if (entityFilter !== 'ALL' && t.entityType !== entityFilter) return false;
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      const matchId = t.id.toLowerCase().includes(q);
-      const matchEntity = t.entityId.toLowerCase().includes(q);
-      const matchTask = t.taskType.toLowerCase().includes(q);
+      const matchId = (t.id || '').toLowerCase().includes(q);
+      const matchEntity = (t.entityId || '').toLowerCase().includes(q);
+      const matchTask = (t.taskType || '').toLowerCase().includes(q);
       const matchNotes = (t.notes || '').toLowerCase().includes(q);
       if (!matchId && !matchEntity && !matchTask && !matchNotes) return false;
     }

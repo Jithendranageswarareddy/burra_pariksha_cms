@@ -4,6 +4,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { APP_CONFIG } from '../../config/constants';
 import { apiClient } from '../../lib/api-client';
 import { useAuth } from '../../contexts/AuthContext';
+import { GlobalSearchBar } from '../dashboard/GlobalSearchBar';
 
 interface HeaderProps {
   onOpenMobileMenu: () => void;
@@ -34,18 +35,22 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
   const getPageTitle = () => {
     const path = location.pathname;
     if (path === '/' || path === '/dashboard') return 'Dashboard';
+    if (path.startsWith('/studio')) return 'Question Studio';
     if (path.startsWith('/questions/new')) return 'New Question';
     if (path.startsWith('/questions/')) return 'Question Detail & Editor';
     if (path === '/questions') return 'Question Library';
-    if (path === '/generate') return 'AI Question Studio';
+    if (path === '/generate') return 'Question Studio';
     if (path === '/queue') return 'Video Queue';
+    if (path.startsWith('/production/')) return 'Production Workspace Detail';
+    if (path.startsWith('/videos/')) return 'Production Workspace Detail';
     if (path === '/production') return 'Production Tracker';
+    if (path === '/production-board') return 'Production Board';
     if (path === '/publishing') return 'Publishing Manager';
     if (path === '/planning') return 'Planning & Batches';
     if (path === '/my-work') return 'My Work & Schedule';
     if (path === '/team') return 'Team Operations & Workload';
     if (path === '/settings') return 'System Settings';
-    return 'CMS';
+    return 'Overview';
   };
 
   const getInitials = (name?: string) => {
@@ -74,14 +79,19 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
         </button>
 
         <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold text-slate-400 hidden sm:inline">CMS</span>
+          <span className="text-xs font-semibold text-slate-400 hidden sm:inline">Burra Pariksha</span>
           <span className="text-xs text-slate-300 hidden sm:inline">/</span>
           <h1 className="text-sm font-bold text-slate-900 tracking-tight">{getPageTitle()}</h1>
         </div>
       </div>
 
-      {/* Center: Persistence Mode Flag (Requirement 19) */}
-      <div className="hidden md:flex items-center gap-2.5 px-3 py-1 rounded-full text-xs font-mono font-medium border">
+      {/* Center: Persistent Global Search Bar (Phase 14.2) */}
+      <div id="header-global-search-container" className="flex-1 max-w-md mx-4 hidden sm:block">
+        <GlobalSearchBar id="header-global-search" className="relative w-full max-w-md" />
+      </div>
+
+      {/* Persistence Mode Flag (Requirement 19) */}
+      <div className="hidden xl:flex items-center gap-2.5 px-3 py-1 rounded-full text-xs font-mono font-medium border shrink-0">
         {dbMode === 'LIVE' ? (
           <div className="flex items-center gap-2 text-emerald-700 bg-emerald-50 border-emerald-200 px-2 py-0.5 rounded-full">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -100,7 +110,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
       {/* Right: Quick Actions & Profile */}
       <div className="flex items-center gap-2.5">
         <Link
-          to="/questions/new"
+          to="/studio?mode=manual"
           className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors shadow-xs"
         >
           <Plus className="w-3.5 h-3.5" />

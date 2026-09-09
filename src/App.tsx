@@ -13,14 +13,19 @@ import { QuestionLibraryPage } from './pages/QuestionLibraryPage';
 import { QuestionDetailPage } from './pages/QuestionDetailPage';
 import { NewQuestionPage } from './pages/NewQuestionPage';
 import { QuestionGeneratorPage } from './pages/QuestionGeneratorPage';
+import { QuestionStudioPage } from './pages/QuestionStudioPage';
 import { QueuePage } from './pages/QueuePage';
 import { ProductionTrackerPage } from './pages/ProductionTrackerPage';
+import { ProductionBoardPage } from './pages/ProductionBoardPage';
 import { VideoDetailPage } from './pages/VideoDetailPage';
 import { PublishingPage } from './pages/PublishingPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { RecoveryAdminPage } from './pages/RecoveryAdminPage';
 import { PlanningPage } from './pages/PlanningPage';
 import { MyWorkPage } from './pages/MyWorkPage';
 import { TeamOperationsPage } from './pages/TeamOperationsPage';
+import { ContentMasterPage } from './pages/ContentMasterPage';
+import { SocialReviewPage } from './pages/SocialReviewPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 
 function AppRoutes() {
@@ -51,14 +56,21 @@ function AppRoutes() {
         {/* Content Routes */}
         <Route path="planning" element={<PlanningPage />} />
         <Route path="questions" element={<QuestionLibraryPage />} />
-        <Route path="questions/new" element={<NewQuestionPage />} />
+        <Route path="content-masters" element={<ContentMasterPage />} />
+        <Route path="content-masters/:id" element={<ContentMasterPage />} />
+        <Route path="social-review" element={<SocialReviewPage />} />
+        <Route path="social-review/:reviewId" element={<SocialReviewPage />} />
+        <Route path="studio" element={<QuestionStudioPage />} />
+        <Route path="questions/new" element={<Navigate to="/studio?mode=manual" replace />} />
         <Route path="questions/:id" element={<QuestionDetailPage />} />
-        <Route path="generate" element={<QuestionGeneratorPage />} />
+        <Route path="generate" element={<Navigate to="/studio?mode=ai" replace />} />
 
         {/* Production Routes */}
         <Route path="queue" element={<QueuePage />} />
         <Route path="production" element={<ProductionTrackerPage />} />
+        <Route path="production-board" element={<ProductionBoardPage />} />
         <Route path="production/:videoId" element={<VideoDetailPage />} />
+        <Route path="videos/:videoId" element={<VideoDetailPage />} />
 
         {/* Publishing Route */}
         <Route path="publishing" element={<PublishingPage />} />
@@ -70,6 +82,7 @@ function AppRoutes() {
 
         {/* System Settings Route */}
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="recovery" element={<RecoveryAdminPage />} />
 
         {/* 404 Fallback */}
         <Route path="*" element={<NotFoundPage />} />

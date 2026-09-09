@@ -18,6 +18,7 @@ interface TodaysWorkSectionProps {
 }
 
 export const TodaysWorkSection: React.FC<TodaysWorkSectionProps> = ({ items }) => {
+  const safeItems = Array.isArray(items) ? items : [];
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
   const [selectedType, setSelectedType] = useState<'ALL' | 'VIDEO' | 'QUESTION'>('ALL');
 
@@ -33,7 +34,7 @@ export const TodaysWorkSection: React.FC<TodaysWorkSectionProps> = ({ items }) =
     });
   };
 
-  const filteredItems = items.filter((item) => {
+  const filteredItems = safeItems.filter((item) => {
     if (selectedType === 'ALL') return true;
     return item.entityType === selectedType;
   });
@@ -121,7 +122,7 @@ export const TodaysWorkSection: React.FC<TodaysWorkSectionProps> = ({ items }) =
             return (
               <div
                 key={item.id}
-                id={`todays-work-${item.id.toLowerCase()}`}
+                id={`todays-work-${(item.id || '').toLowerCase()}`}
                 className={`p-3.5 rounded-lg border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
                   isCompleted
                     ? 'bg-slate-50 border-slate-200 opacity-60'

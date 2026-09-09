@@ -8,7 +8,8 @@ interface BottleneckSectionProps {
 }
 
 export const BottleneckSection: React.FC<BottleneckSectionProps> = ({ bottlenecks }) => {
-  const activeBottleneck = bottlenecks.find((b) => b.isBottleneck && b.count > 0);
+  const safeBottlenecks = Array.isArray(bottlenecks) ? bottlenecks : [];
+  const activeBottleneck = safeBottlenecks.find((b) => b.isBottleneck && b.count > 0);
 
   const getSeverityBadge = (severity: string) => {
     switch (severity) {
@@ -49,7 +50,7 @@ export const BottleneckSection: React.FC<BottleneckSectionProps> = ({ bottleneck
 
         {/* Bottleneck Accumulation List */}
         <div className="space-y-2.5">
-          {bottlenecks.map((stage) => (
+          {safeBottlenecks.map((stage) => (
             <div
               key={stage.stage}
               className={`p-3 rounded-lg border transition-all ${
