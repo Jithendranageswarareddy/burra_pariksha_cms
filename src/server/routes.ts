@@ -63,6 +63,9 @@ import {
   UpdateUserInputSchema,
 } from '../lib/schemas/google-sheets-schema';
 import helmet from 'helmet';
+import busboy from 'busboy';
+import { google } from 'googleapis';
+import { googleDriveService } from '../lib/services/google-drive.service';
 import rateLimit from 'express-rate-limit';
 import { requireAuth, requireRole, extractSessionToken, AuthenticatedRequest } from './middleware/auth.middleware';
 
@@ -96,20 +99,22 @@ export const aiRateLimiter = rateLimit({
  * Helper to derive actor identity strictly from verified session context (req.user)
  * SEC-02: Never trusts client-supplied req.body._actor or req.body.actor
  */
-export function getRequestActor(req: Request): ActorContext & { name: string } {
-  const authReq = req as AuthenticatedRequest & { _requestActor?: ActorContext & { name: string } };
+export function getRequestActor(req: Request): ActorContext & { name: string; role: string } {
+  const authReq = req as AuthenticatedRequest & { _requestActor?: ActorContext & { name: string; role: string } };
   if (authReq._requestActor) {
     return authReq._requestActor;
   }
-  let actor: ActorContext & { name: string };
+  let actor: ActorContext & { name: string; role: string };
   if (authReq.user?.id) {
+    const fallbackRole = (authReq.user.roles && authReq.user.roles[0]) || authReq.user.role || UserRole.ADMIN;
     actor = {
       id: authReq.user.id,
       name: authReq.user.name || authReq.user.id,
-      role: authReq.user.role || UserRole.ADMIN,
+      role: authReq.user.role || fallbackRole,
+      roles: authReq.user.roles || (authReq.user.role ? [authReq.user.role] : [fallbackRole]),
     };
   } else {
-    actor = { id: 'USR-001', name: 'Admin / Content Lead', role: UserRole.ADMIN };
+    actor = { id: 'USR-001', name: 'Admin / Content Lead', role: UserRole.ADMIN, roles: [UserRole.ADMIN] };
   }
   authReq._requestActor = actor;
   return actor;
@@ -207,6 +212,107 @@ apiRouter.get('/auth/me', async (req: Request, res: Response) => {
     });
   } catch {
     res.status(500).json({ authenticated: false, error: 'Session verification error.' });
+  }
+});
+
+// Helper for self-contained cookie extraction (since cookie-parser is not used directly)
+function getCookieValue(req: Request, name: string): string | undefined {
+  const cookieHeader = req.headers.cookie || '';
+  const cookies = cookieHeader.split(';').map(c => c.trim());
+  const found = cookies.find(c => c.startsWith(`${name}=`));
+  return found ? found.split('=')[1] : undefined;
+}
+
+// GET /api/auth/google/url - Generates Google OAuth 2.0 URL
+apiRouter.get('/auth/google/url', async (req: Request, res: Response) => {
+  try {
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    if (!clientId || !clientSecret) {
+      res.status(400).json({
+        success: false,
+        error: 'Google OAuth Client ID or Client Secret is not configured on the server.'
+      });
+      return;
+    }
+
+    const state = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/api/auth/google/callback';
+
+    const oauth2Client = new google.auth.OAuth2(
+      clientId,
+      clientSecret,
+      redirectUri
+    );
+
+    const authorizationUrl = oauth2Client.generateAuthUrl({
+      access_type: 'offline',
+      prompt: 'consent',
+      scope: ['https://www.googleapis.com/auth/drive.file'],
+      state,
+    });
+
+    // Using SameSite=None and Secure=true as mandated by the oauth-integration skill for cross-origin iframe contexts
+    res.setHeader('Set-Cookie', `google_oauth_state=${state}; Path=/; HttpOnly; Max-Age=600; SameSite=None; Secure`);
+
+    res.json({ success: true, url: authorizationUrl });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: `Failed to generate auth URL: ${err?.message || err}` });
+  }
+});
+
+// GET /api/auth/google/callback - Receives authorization code from Google
+apiRouter.get('/auth/google/callback', async (req: Request, res: Response) => {
+  try {
+    const { code, state } = req.query;
+    const cookieState = getCookieValue(req, 'google_oauth_state');
+
+    // Clear the verification cookie immediately
+    res.setHeader('Set-Cookie', 'google_oauth_state=; Path=/; HttpOnly; Max-Age=0; SameSite=None; Secure');
+
+    if (!state || !cookieState || state !== cookieState) {
+      res.status(400).send('<h1>CSRF Verification Failed</h1><p>The state parameter does not match or has expired. Please try authorizing again.</p>');
+      return;
+    }
+
+    if (!code || typeof code !== 'string') {
+      res.status(400).send('<h1>Missing Code</h1><p>No authorization code was returned from Google.</p>');
+      return;
+    }
+
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/api/auth/google/callback';
+
+    if (!clientId || !clientSecret) {
+      res.status(500).send('<h1>OAuth Configuration Error</h1><p>Client credentials are not configured on the server.</p>');
+      return;
+    }
+
+    const oauth2Client = new google.auth.OAuth2(
+      clientId,
+      clientSecret,
+      redirectUri
+    );
+
+    const { tokens } = await oauth2Client.getToken(code);
+
+    if (!tokens.refresh_token) {
+      res.status(400).send(
+        '<h1>No Refresh Token Returned</h1>' +
+        '<p>Google did not return a refresh token. This usually happens if you have already authorized the application.</p>' +
+        '<p>Please visit your <a href="https://myaccount.google.com/permissions" target="_blank">Google Account Security Permissions</a>, revoke permissions for this app, and try again to force consent prompts.</p>'
+      );
+      return;
+    }
+
+    // Securely set the refresh token in the running server memory
+    googleDriveService.setInMemoryAuth(tokens.refresh_token);
+
+    // Secure confirmation message without exposing, printing, or returning the token
+    res.send('<h1>Google Drive authorization completed. Configure the server-side refresh token securely.</h1>');
+  } catch (err: any) {
+    res.status(500).send(`<h1>OAuth Authorization Failed</h1><p>Error details: ${err?.message || err}</p>`);
   }
 });
 
@@ -795,50 +901,6 @@ apiRouter.get('/system/snapshot', requireRole([UserRole.ADMIN]), async (req: Req
 });
 
 // ----------------------------------------------------
-// Phase 8C: Social Enhancement Multi-Hook & Strategy Engine
-// ----------------------------------------------------
-apiRouter.post('/social-enhancement/hooks/generate', async (req: Request, res: Response) => {
-  try {
-    const { questionId, requestedStyles, language, videoId, contentMasterId, question } = req.body;
-
-    let targetQuestion = question;
-    if (!targetQuestion && questionId) {
-      targetQuestion = await questionsRepository.findById(questionId);
-    }
-
-    if (!targetQuestion) {
-      return res.status(404).json({
-        success: false,
-        error: 'Question Not Found',
-        message: `No source question found for ID "${questionId || 'unspecified'}".`,
-      });
-    }
-
-    const result = await SocialEnhancementService.generateSocialEnhancementDraft({
-      question: targetQuestion,
-      requestedStyles,
-      language,
-      videoId,
-      contentMasterId,
-    });
-
-    res.json({
-      success: true,
-      data: result.payload,
-      isEligible: result.isEligible,
-      reason: result.reason,
-      aiCallsCount: result.aiCallsCount,
-    });
-  } catch (err: any) {
-    const isValidationError = err?.message?.includes('ineligible') || err?.message?.includes('INVALID');
-    res.status(isValidationError ? 400 : 500).json({
-      success: false,
-      error: err?.message || 'Failed to generate social hooks and presentation strategy',
-    });
-  }
-});
-
-// ----------------------------------------------------
 // Phase 8E: Social Caption / Hashtag / Metadata Generator
 // ----------------------------------------------------
 apiRouter.post('/social-enhancement/metadata/generate', requireRole([
@@ -950,7 +1012,13 @@ apiRouter.post('/social-enhancement/platform-adaptation/generate', requireRole([
   }
 });
 
-apiRouter.post('/social-enhancement/quality-assessment/generate', async (req: Request, res: Response) => {
+apiRouter.post('/social-enhancement/quality-assessment/generate', requireRole([
+  UserRole.ADMIN,
+  UserRole.CONTENT_MANAGER,
+  UserRole.QUESTION_EDITOR,
+  UserRole.REVIEWER,
+  UserRole.SCRIPT_WRITER,
+]), async (req: Request, res: Response) => {
   try {
     const { questionId, enhancementPackage, platformAdaptations, options } = req.body;
 
@@ -995,173 +1063,6 @@ apiRouter.post('/social-enhancement/quality-assessment/generate', async (req: Re
     res.status(500).json({
       success: false,
       error: err?.message || 'Failed to generate social content quality assessment',
-    });
-  }
-});
-
-// ----------------------------------------------------------------------------
-// PHASE 8H: SOCIAL CONTENT REVIEW & HUMAN APPROVAL ENDPOINTS
-// ----------------------------------------------------------------------------
-
-apiRouter.get('/social-enhancement/review/:questionId', async (req: Request, res: Response) => {
-  try {
-    const { questionId } = req.params;
-    const actor = getRequestActor(req);
-    const question = await questionService.getQuestionById(questionId);
-    if (question) {
-      const canAccess = await objectAuthService.canAccessSocialPackage(actor, question);
-      if (!canAccess) {
-        return res.status(403).json({ success: false, error: 'Forbidden: You do not have permission to view social review package for this question.' });
-      }
-    }
-    const bundle = await SocialReviewService.getReviewPackageBundle(questionId);
-    res.json({
-      success: true,
-      data: bundle,
-    });
-  } catch (err: any) {
-    const statusCode = err.statusCode || 500;
-    res.status(statusCode).json({
-      success: false,
-      error: err.message || 'Failed to retrieve social review package',
-    });
-  }
-});
-
-apiRouter.post('/social-enhancement/review/:questionId/approve', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.REVIEWER]), async (req: Request, res: Response) => {
-  try {
-    const { questionId } = req.params;
-    const { versionHash, reason, feedbackCategories } = req.body;
-    const actor = getRequestActor(req);
-    const question = await questionService.getQuestionById(questionId);
-    if (question) {
-      const canModify = await objectAuthService.canModifySocialPackage(actor, question);
-      if (!canModify) {
-        return res.status(403).json({ success: false, error: 'Forbidden: You do not have permission to review this social package.' });
-      }
-    }
-
-    const result = await SocialReviewService.submitReviewDecision(
-      questionId,
-      {
-        decision: SocialReviewStatus.APPROVED,
-        versionHash,
-        reason,
-        feedbackCategories,
-      },
-      actor
-    );
-
-    res.json({
-      success: true,
-      data: result.bundle,
-      record: result.record,
-    });
-  } catch (err: any) {
-    const statusCode = err.statusCode || 500;
-    res.status(statusCode).json({
-      success: false,
-      error: err.message || 'Failed to approve social review package',
-    });
-  }
-});
-
-apiRouter.post('/social-enhancement/review/:questionId/request-changes', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.REVIEWER]), async (req: Request, res: Response) => {
-  try {
-    const { questionId } = req.params;
-    const { versionHash, reason, feedbackCategories } = req.body;
-    const actor = getRequestActor(req);
-    const question = await questionService.getQuestionById(questionId);
-    if (question) {
-      const canModify = await objectAuthService.canModifySocialPackage(actor, question);
-      if (!canModify) {
-        return res.status(403).json({ success: false, error: 'Forbidden: You do not have permission to request changes for this social package.' });
-      }
-    }
-
-    const result = await SocialReviewService.submitReviewDecision(
-      questionId,
-      {
-        decision: SocialReviewStatus.CHANGES_REQUESTED,
-        versionHash,
-        reason,
-        feedbackCategories,
-      },
-      actor
-    );
-
-    res.json({
-      success: true,
-      data: result.bundle,
-      record: result.record,
-    });
-  } catch (err: any) {
-    const statusCode = err.statusCode || 500;
-    res.status(statusCode).json({
-      success: false,
-      error: err.message || 'Failed to submit change request',
-    });
-  }
-});
-
-apiRouter.post('/social-enhancement/review/:questionId/reject', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.REVIEWER]), async (req: Request, res: Response) => {
-  try {
-    const { questionId } = req.params;
-    const { versionHash, reason, feedbackCategories } = req.body;
-    const actor = getRequestActor(req);
-    const question = await questionService.getQuestionById(questionId);
-    if (question) {
-      const canModify = await objectAuthService.canModifySocialPackage(actor, question);
-      if (!canModify) {
-        return res.status(403).json({ success: false, error: 'Forbidden: You do not have permission to reject this social package.' });
-      }
-    }
-
-    const result = await SocialReviewService.submitReviewDecision(
-      questionId,
-      {
-        decision: SocialReviewStatus.REJECTED,
-        versionHash,
-        reason,
-        feedbackCategories,
-      },
-      actor
-    );
-
-    res.json({
-      success: true,
-      data: result.bundle,
-      record: result.record,
-    });
-  } catch (err: any) {
-    const statusCode = err.statusCode || 500;
-    res.status(statusCode).json({
-      success: false,
-      error: err.message || 'Failed to reject social review package',
-    });
-  }
-});
-
-apiRouter.get('/social-enhancement/review/:questionId/history', async (req: Request, res: Response) => {
-  try {
-    const { questionId } = req.params;
-    const actor = getRequestActor(req);
-    const question = await questionService.getQuestionById(questionId);
-    if (question) {
-      const canAccess = await objectAuthService.canAccessSocialPackage(actor, question);
-      if (!canAccess) {
-        return res.status(403).json({ success: false, error: 'Forbidden: You do not have permission to view review history for this question.' });
-      }
-    }
-    const history = await SocialReviewService.getReviewHistory(questionId);
-    res.json({
-      success: true,
-      data: history,
-    });
-  } catch (err: any) {
-    res.status(500).json({
-      success: false,
-      error: err.message || 'Failed to retrieve social review history',
     });
   }
 });
@@ -2023,6 +1924,144 @@ apiRouter.get('/videos/:id', async (req: Request, res: Response) => {
     res.json(video);
   } catch (err: any) {
     res.status(500).json({ error: err?.message || 'Failed to fetch video' });
+  }
+});
+
+// Phase 7: Video Upload, Download, and Streaming endpoints
+const handleVideoUploadRoute = async (req: Request, res: Response) => {
+  try {
+    const actor = getRequestActor(req);
+    const videoIdParam = req.params.id;
+
+    const bb = busboy({ headers: req.headers });
+    let contentId = req.query.contentId as string | undefined;
+    let videoId = videoIdParam || (req.query.videoId as string | undefined);
+    let uploadedFile: { stream: any; filename: string; mimeType: string } | null = null;
+    let fileSize = 0;
+
+    bb.on('field', (name, val) => {
+      if (name === 'contentId') contentId = val;
+      if (name === 'videoId') videoId = val;
+    });
+
+    bb.on('file', (name, fileStream, info) => {
+      const chunks: Buffer[] = [];
+      fileStream.on('data', (chunk) => {
+        chunks.push(chunk);
+        fileSize += chunk.length;
+      });
+      fileStream.on('end', () => {
+        const buffer = Buffer.concat(chunks);
+        uploadedFile = {
+          stream: buffer,
+          filename: info.filename,
+          mimeType: info.mimeType,
+        };
+      });
+    });
+
+    bb.on('finish', async () => {
+      try {
+        if (!uploadedFile) {
+          return res.status(400).json({ error: 'Bad Request', message: 'No video file provided in multipart upload body.' });
+        }
+
+        const video = await videoService.uploadVideoAsset({
+          contentId,
+          videoId,
+          fileName: uploadedFile.filename,
+          mimeType: uploadedFile.mimeType,
+          size: fileSize,
+          fileStreamOrBuffer: uploadedFile.stream,
+          actor,
+        });
+
+        res.status(201).json(video);
+      } catch (err: any) {
+        res.status(err?.statusCode || 400).json({
+          error: err?.name || 'Upload Failed',
+          message: err?.message || 'Failed to upload video asset.',
+        });
+      }
+    });
+
+    bb.on('error', (err: any) => {
+      res.status(400).json({ error: 'Multipart Error', message: err?.message || 'Error parsing file upload stream.' });
+    });
+
+    req.pipe(bb);
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || 'Failed to initialize upload handler' });
+  }
+};
+
+apiRouter.post('/videos/upload', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.VIDEO_EDITOR]), handleVideoUploadRoute);
+apiRouter.post('/videos/:id/upload', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.VIDEO_EDITOR]), handleVideoUploadRoute);
+
+apiRouter.get('/videos/:id/download', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const actor = getRequestActor(req);
+    const video = await videoService.getVideoById(id);
+    if (!video) {
+      return res.status(404).json({ error: 'Video Not Found', message: `Video with ID "${id}" was not found.` });
+    }
+    const canAccess = await objectAuthService.canAccessVideo(actor, video);
+    if (!canAccess) {
+      return res.status(403).json({ error: 'Forbidden: You do not have permission to download this video.' });
+    }
+
+    if (!video.driveFileId) {
+      return res.status(404).json({ error: 'No Drive Asset', message: `Video "${id}" does not have an attached Google Drive asset.` });
+    }
+
+    const download = await googleDriveService.downloadFile(video.driveFileId);
+    res.setHeader('Content-Type', download.contentType || video.mimeType || 'video/mp4');
+    if (download.contentLength) {
+      res.setHeader('Content-Length', download.contentLength);
+    }
+    const safeName = (video.fileName || `video-${video.id}.mp4`).replace(/["\r\n]/g, '_');
+    res.setHeader('Content-Disposition', `attachment; filename="${safeName}"`);
+
+    download.stream.pipe(res);
+  } catch (err: any) {
+    res.status(err?.statusCode || 500).json({ error: err?.name || 'Download Error', message: err?.message || 'Failed to download video stream.' });
+  }
+});
+
+apiRouter.get('/videos/:id/stream', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const actor = getRequestActor(req);
+    const video = await videoService.getVideoById(id);
+    if (!video) {
+      return res.status(404).json({ error: 'Video Not Found', message: `Video with ID "${id}" was not found.` });
+    }
+    const canAccess = await objectAuthService.canAccessVideo(actor, video);
+    if (!canAccess) {
+      return res.status(403).json({ error: 'Forbidden: You do not have permission to stream this video.' });
+    }
+
+    if (!video.driveFileId) {
+      return res.status(404).json({ error: 'No Drive Asset', message: `Video "${id}" does not have an attached Google Drive asset.` });
+    }
+
+    const rangeHeader = req.headers.range;
+    const download = await googleDriveService.downloadFile(video.driveFileId, rangeHeader);
+
+    res.status(download.statusCode || (rangeHeader ? 206 : 200));
+    res.setHeader('Content-Type', download.contentType || video.mimeType || 'video/mp4');
+    res.setHeader('Accept-Ranges', 'bytes');
+    if (download.contentLength) {
+      res.setHeader('Content-Length', download.contentLength);
+    }
+    if (download.contentRange) {
+      res.setHeader('Content-Range', download.contentRange);
+    }
+
+    download.stream.pipe(res);
+  } catch (err: any) {
+    res.status(err?.statusCode || 500).json({ error: err?.name || 'Stream Error', message: err?.message || 'Failed to stream video.' });
   }
 });
 
@@ -3282,7 +3321,7 @@ apiRouter.get(
 // Phase 7: Content Operations Dashboard Endpoints
 // ----------------------------------------------------
 
-apiRouter.get('/dashboard/overview', async (req: Request, res: Response) => {
+apiRouter.get('/dashboard/overview', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER]), async (req: Request, res: Response) => {
   try {
     const filters = {
       categoryId: req.query.categoryId as string | undefined,
@@ -3301,7 +3340,7 @@ apiRouter.get('/dashboard/overview', async (req: Request, res: Response) => {
   }
 });
 
-apiRouter.get('/dashboard/metrics', async (req: Request, res: Response) => {
+apiRouter.get('/dashboard/metrics', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER]), async (req: Request, res: Response) => {
   try {
     const filters = {
       categoryId: req.query.categoryId as string | undefined,
@@ -3318,7 +3357,7 @@ apiRouter.get('/dashboard/metrics', async (req: Request, res: Response) => {
   }
 });
 
-apiRouter.get('/dashboard/todays-work', async (req: Request, res: Response) => {
+apiRouter.get('/dashboard/todays-work', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER]), async (req: Request, res: Response) => {
   try {
     const filters = {
       categoryId: req.query.categoryId as string | undefined,
@@ -3335,7 +3374,7 @@ apiRouter.get('/dashboard/todays-work', async (req: Request, res: Response) => {
   }
 });
 
-apiRouter.get('/dashboard/bottlenecks', async (req: Request, res: Response) => {
+apiRouter.get('/dashboard/bottlenecks', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER]), async (req: Request, res: Response) => {
   try {
     const filters = {
       categoryId: req.query.categoryId as string | undefined,
@@ -3348,7 +3387,7 @@ apiRouter.get('/dashboard/bottlenecks', async (req: Request, res: Response) => {
   }
 });
 
-apiRouter.get('/dashboard/stale-content', async (req: Request, res: Response) => {
+apiRouter.get('/dashboard/stale-content', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER]), async (req: Request, res: Response) => {
   try {
     const filters = {
       categoryId: req.query.categoryId as string | undefined,
@@ -3362,7 +3401,7 @@ apiRouter.get('/dashboard/stale-content', async (req: Request, res: Response) =>
   }
 });
 
-apiRouter.get('/dashboard/publishing-readiness', async (req: Request, res: Response) => {
+apiRouter.get('/dashboard/publishing-readiness', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER]), async (req: Request, res: Response) => {
   try {
     const filters = {
       categoryId: req.query.categoryId as string | undefined,

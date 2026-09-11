@@ -337,8 +337,21 @@ export async function runTask3D2Verification() {
     // ------------------------------------------------------------------------
     // 6. Live Google Sheets Data Lifecycle Verification with TASK-3D.2-TEST
     // ------------------------------------------------------------------------
+    const createdQuestionIds: string[] = [];
     const existingQuestions = await questionsRepository.findAll();
-    const targetQuestion = existingQuestions[0] || { id: 'BP-Q-000001' };
+    let targetQuestion = existingQuestions[0];
+    if (!targetQuestion) {
+      const now = new Date().toISOString();
+      targetQuestion = await questionsRepository.appendRecord({
+        id: 'BP-Q-999999',
+        questionText: 'TASK-3D.2-TEST Temporary Question',
+        status: 'DRAFT',
+        authorId: adminUser.id,
+        createdAt: now,
+        updatedAt: now,
+      } as any);
+      createdQuestionIds.push(targetQuestion.id);
+    }
     const testNotes = 'TASK-3D.2-TEST: Role verification test assignment';
     const testAssignment = await assignmentService.createAssignment(
       {
@@ -389,6 +402,10 @@ export async function runTask3D2Verification() {
     for (const id of createdRecordIds) {
       await assignmentsRepository.deleteRecord(id);
       console.log(`[CLEANUP] Deleted temporary test assignment: ${id}`);
+    }
+    for (const qid of createdQuestionIds) {
+      await questionsRepository.deleteRecord(qid);
+      console.log(`[CLEANUP] Deleted temporary test question: ${qid}`);
     }
 
     const verifyDeleted = await assignmentsRepository.findById(createdRecordIds[0]);

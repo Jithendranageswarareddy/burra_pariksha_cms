@@ -74,9 +74,10 @@ import { questionsRepository } from '../repositories/questions.repository';
 import { ScriptContentPayload } from '../services/script.service';
 
 async function withTimeout<T>(promise: Promise<T>, ms: number = 30000, errorMsg: string = 'Gemini API call timed out'): Promise<T> {
+  const effectiveMs = process.env.GEMINI_API_KEY ? ms : 200;
   let timeoutId: any;
   const timeoutPromise = new Promise<T>((_, reject) => {
-    timeoutId = setTimeout(() => reject(new Error(errorMsg)), ms);
+    timeoutId = setTimeout(() => reject(new Error(errorMsg)), effectiveMs);
   });
 
   return Promise.race([

@@ -157,9 +157,9 @@ export class AssignmentService {
   }
 
   private parseActor(
-    actor?: { id?: string; name?: string; role?: string } | string,
+    actor?: { id?: string; name?: string; role?: string; roles?: string[] } | string,
     fallbackName?: string
-  ): { id: string; name: string; role?: string } {
+  ): { id: string; name: string; role?: string; roles?: string[] } {
     if (typeof actor === 'string') {
       return { id: actor, name: fallbackName || 'Admin / Content Lead' };
     }
@@ -167,27 +167,48 @@ export class AssignmentService {
       id: actor?.id || 'USR-001',
       name: actor?.name || fallbackName || 'Admin / Content Lead',
       role: actor?.role,
+      roles: actor?.roles,
     };
   }
 
-  private async getActorRole(actorId: string, parsedRole?: string): Promise<string> {
-    if (parsedRole) return parsedRole;
+  private async getActorRoles(actorId: string, parsedRole?: string, parsedRoles?: string[]): Promise<string[]> {
+    const roles: string[] = [];
+    if (parsedRoles && Array.isArray(parsedRoles) && parsedRoles.length > 0) {
+      parsedRoles.forEach((r) => r && roles.push(String(r).trim().toUpperCase()));
+    }
+    if (parsedRole) {
+      String(parsedRole).split(',').forEach((r) => {
+        const tr = r.trim().toUpperCase();
+        if (tr && !roles.includes(tr)) roles.push(tr);
+      });
+    }
+    if (roles.length > 0) return roles;
     const user = await usersRepository.findById(actorId);
-    return user?.role || UserRole.ADMIN;
+    if (user?.roles && Array.isArray(user.roles) && user.roles.length > 0) {
+      user.roles.forEach((r) => r && roles.push(String(r).trim().toUpperCase()));
+    }
+    if (user?.role) {
+      String(user.role).split(',').forEach((r) => {
+        const tr = r.trim().toUpperCase();
+        if (tr && !roles.includes(tr)) roles.push(tr);
+      });
+    }
+    return roles.length > 0 ? roles : [UserRole.ADMIN];
   }
 
   private async authorizeAction(
     actorId: string,
     parsedRole: string | undefined,
     action: 'CREATE' | 'UPDATE' | 'CANCEL' | 'REASSIGN',
-    assignment?: Assignment
+    assignment?: Assignment,
+    parsedRoles?: string[]
   ): Promise<void> {
-    const role = await this.getActorRole(actorId, parsedRole);
-    const isManagerOrAdmin = role === UserRole.ADMIN || role === UserRole.CONTENT_MANAGER;
+    const roles = await this.getActorRoles(actorId, parsedRole, parsedRoles);
+    const isManagerOrAdmin = roles.includes(UserRole.ADMIN) || roles.includes(UserRole.CONTENT_MANAGER) || roles.includes('ADMIN') || roles.includes('CONTENT_MANAGER');
 
     if (action === 'CREATE' || action === 'CANCEL' || action === 'REASSIGN') {
       if (!isManagerOrAdmin) {
-        throw new Error(`Unauthorized: Role "${role}" is not allowed to ${action.toLowerCase()} assignments.`);
+        throw new Error(`Unauthorized: Roles "${roles.join(', ')}" not allowed to ${action.toLowerCase()} assignments.`);
       }
     } else if (action === 'UPDATE') {
       if (!isManagerOrAdmin && assignment && assignment.assigneeId !== actorId) {
@@ -774,28 +795,46 @@ export class AssignmentService {
   }
 
   public async createUser(
-    input: { name: string; email: string; role: any; avatarUrl?: string; isActive?: boolean },
-    actor?: { id?: string; name?: string; role?: string } | string,
+    input: { name: string; email: string; role?: any; roles?: (UserRole | string)[]; avatarUrl?: string; isActive?: boolean },
+    actor?: { id?: string; name?: string; role?: string; roles?: string[] } | string,
     actorNameParam?: string
   ): Promise<User> {
     const parsedActor = this.parseActor(actor, actorNameParam);
     const actorId = parsedActor.id;
     const actorName = parsedActor.name;
-    const actorRole = await this.getActorRole(actorId, parsedActor.role);
-    if (actorRole !== UserRole.ADMIN) {
+    const actorRoles = await this.getActorRoles(actorId, parsedActor.role, parsedActor.roles);
+    if (!actorRoles.includes(UserRole.ADMIN) && !actorRoles.includes('ADMIN')) {
       throw new Error(`Unauthorized: User management is restricted to Admin role.`);
     }
 
-    if (input.role === UserRole.CREATOR || input.role === UserRole.EDITOR) {
-      throw new Error(`Cannot assign legacy role "${input.role}" to newly created or updated user.`);
+    const trimmedEmail = input.email.trim().toLowerCase();
+    const existingUser = await usersRepository.findByEmail(trimmedEmail);
+    if (existingUser) {
+      throw new Error(`User with email "${trimmedEmail}" already exists (ID: ${existingUser.id}). Duplicate accounts are prohibited.`);
     }
+
+    // Determine normalized roles array and primary role string
+    let rolesArray: (UserRole | string)[] = [];
+    if (Array.isArray(input.roles) && input.roles.length > 0) {
+      rolesArray = input.roles.map((r) => String(r).trim().toUpperCase());
+    } else if (input.role) {
+      rolesArray = String(input.role).split(',').map((r) => r.trim().toUpperCase()).filter(Boolean);
+    }
+
+    if (rolesArray.length === 0) {
+      rolesArray = [UserRole.VIDEO_EDITOR];
+    }
+
+    const roleString = rolesArray.join(', ');
+
     const id = await idService.allocateId('USERS');
     const now = new Date().toISOString();
     const user: User = {
       id,
       name: input.name.trim(),
-      email: input.email.trim(),
-      role: input.role,
+      email: trimmedEmail,
+      role: roleString,
+      roles: rolesArray,
       avatarUrl: input.avatarUrl?.trim() || undefined,
       isActive: input.isActive !== undefined ? input.isActive : true,
       createdAt: now,
@@ -809,29 +848,49 @@ export class AssignmentService {
   public async updateUser(
     id: string,
     input: Partial<User>,
-    actor?: { id?: string; name?: string; role?: string } | string,
+    actor?: { id?: string; name?: string; role?: string; roles?: string[] } | string,
     actorNameParam?: string
   ): Promise<User> {
     const parsedActor = this.parseActor(actor, actorNameParam);
     const actorId = parsedActor.id;
     const actorName = parsedActor.name;
-    const actorRole = await this.getActorRole(actorId, parsedActor.role);
-    if (actorRole !== UserRole.ADMIN) {
+    const actorRoles = await this.getActorRoles(actorId, parsedActor.role, parsedActor.roles);
+    if (!actorRoles.includes(UserRole.ADMIN) && !actorRoles.includes('ADMIN')) {
       throw new Error(`Unauthorized: User management is restricted to Admin role.`);
     }
 
-    if (input.role === UserRole.CREATOR || input.role === UserRole.EDITOR) {
-      throw new Error(`Cannot assign legacy role "${input.role}" to newly created or updated user.`);
-    }
     const existing = await usersRepository.findById(id);
     if (!existing) {
       throw new Error(`User "${id}" not found.`);
     }
+
+    if (input.email) {
+      const trimmedEmail = input.email.trim().toLowerCase();
+      const existingWithEmail = await usersRepository.findByEmail(trimmedEmail);
+      if (existingWithEmail && existingWithEmail.id !== id) {
+        throw new Error(`Another user with email "${trimmedEmail}" already exists. Duplicate accounts are prohibited.`);
+      }
+    }
+
+    // Normalize roles
+    let rolesArray = existing.roles || [];
+    let roleString = existing.role || '';
+
+    if (Array.isArray(input.roles)) {
+      rolesArray = input.roles.map((r) => String(r).trim().toUpperCase());
+      roleString = rolesArray.join(', ');
+    } else if (input.role !== undefined) {
+      rolesArray = String(input.role).split(',').map((r) => r.trim().toUpperCase()).filter(Boolean);
+      roleString = rolesArray.join(', ');
+    }
+
     const now = new Date().toISOString();
     const updated: User = {
       ...existing,
       ...input,
       id: existing.id,
+      role: roleString,
+      roles: rolesArray,
       updatedAt: now,
     };
     const result = await usersRepository.updateRecord(id, updated);

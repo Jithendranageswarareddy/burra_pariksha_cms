@@ -50,7 +50,12 @@ export function unescapeSpreadsheetCellValue(val: string): string {
  */
 export function parseCellValue(rawValue: unknown, colDef: ColumnDefinition): unknown {
   if (rawValue === undefined || rawValue === null || rawValue === '') {
-    if (colDef.type === 'boolean') return false;
+    if (colDef.type === 'boolean') {
+      if (colDef.name.toLowerCase().includes('active') || colDef.propertyKey === 'isActive') {
+        return true;
+      }
+      return false;
+    }
     if (colDef.type === 'number') return undefined;
     if (colDef.type === 'json') return undefined;
     return undefined;
@@ -202,6 +207,19 @@ export function rowToObject<T = Record<string, unknown>>(
     };
   }
 
+  // Handle USERS multi-role parsing
+  if (schema.sheetName === 'USERS') {
+    if (obj['role'] && typeof obj['role'] === 'string') {
+      const roleStr = obj['role'] as string;
+      const parsedRoles = roleStr.split(',').map((r) => r.trim()).filter(Boolean);
+      obj['roles'] = parsedRoles.length > 0 ? parsedRoles : [roleStr];
+    } else if (Array.isArray(obj['roles'])) {
+      // already parsed
+    } else {
+      obj['roles'] = obj['role'] ? [obj['role']] : ['ADMIN'];
+    }
+  }
+
   return obj as T;
 }
 
@@ -215,6 +233,12 @@ export function objectToRow(
 ): (string | number | boolean)[] {
   // Pre-flatten special nested properties if required
   const flatObj = { ...obj };
+
+  if (schema.sheetName === 'USERS') {
+    if (Array.isArray(obj['roles']) && obj['roles'].length > 0) {
+      flatObj['role'] = (obj['roles'] as string[]).join(', ');
+    }
+  }
 
   if (schema.sheetName === 'QUESTIONS' && obj['options'] && typeof obj['options'] === 'object') {
     const opts = obj['options'] as { a?: string; b?: string; c?: string; d?: string };

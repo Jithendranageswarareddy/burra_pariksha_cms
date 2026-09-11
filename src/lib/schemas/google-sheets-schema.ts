@@ -80,6 +80,7 @@ export const ALL_SHEET_TABS: SheetTabName[] = [
   SHEET_TABS.SEQUENCES,
   SHEET_TABS.CONTENT_MASTERS,
   SHEET_TABS.SOCIAL_REVIEWS,
+  SHEET_TABS.QUESTION_VALIDATIONS,
   PLANNING_SHEET_TABS.CONTENT_PLANS,
   PLANNING_SHEET_TABS.CONTENT_BATCHES,
 ];
@@ -102,6 +103,7 @@ export const SEQUENCE_ENTITIES = {
   CONTENT_BATCH: 'CONTENT_BATCH',
   ASSIGNMENT: 'ASSIGNMENT',
   CONTENT_MASTER: 'CONTENT_MASTER',
+  CONTENT_ID: 'CONTENT_ID',
   SOCIAL_REVIEW: 'SOCIAL_REVIEW',
 } as const;
 
@@ -120,7 +122,8 @@ export const ID_PREFIX_MAP: Record<SequenceEntityType, { prefix: string; padLeng
   [SEQUENCE_ENTITIES.CONTENT_PLAN]: { prefix: 'BP-PLN-', padLength: 4 },
   [SEQUENCE_ENTITIES.CONTENT_BATCH]: { prefix: 'BP-BCH-', padLength: 4 },
   [SEQUENCE_ENTITIES.ASSIGNMENT]: { prefix: 'BP-ASN-', padLength: 6 },
-  [SEQUENCE_ENTITIES.CONTENT_MASTER]: { prefix: 'BP-MST-', padLength: 6 },
+  [SEQUENCE_ENTITIES.CONTENT_MASTER]: { prefix: 'BP-CNT-', padLength: 6 },
+  [SEQUENCE_ENTITIES.CONTENT_ID]: { prefix: 'BP-CNT-', padLength: 6 },
   [SEQUENCE_ENTITIES.SOCIAL_REVIEW]: { prefix: 'BP-REV-', padLength: 6 },
 };
 
@@ -155,6 +158,7 @@ export const SHEET_SCHEMAS: Record<SheetTabName, SheetSchemaContract> = {
     primaryKey: 'id',
     columns: [
       { name: 'id', propertyKey: 'id', type: 'string', required: true, isPrimaryKey: true },
+      { name: 'content_id', propertyKey: 'contentId', type: 'string', required: false },
       { name: 'title', propertyKey: 'title', type: 'string', required: true },
       { name: 'status', propertyKey: 'status', type: 'string', required: true },
       { name: 'primary_question_id', propertyKey: 'primaryQuestionId', type: 'string', required: false, isForeignKey: true, foreignKeyTarget: { sheet: SHEET_TABS.QUESTIONS, column: 'id' } },
@@ -264,14 +268,16 @@ export const SHEET_SCHEMAS: Record<SheetTabName, SheetSchemaContract> = {
     primaryKey: 'id',
     columns: [
       { name: 'id', propertyKey: 'id', type: 'string', required: true, isPrimaryKey: true },
+      { name: 'content_id', propertyKey: 'contentId', type: 'string', required: false },
       { name: 'content_master_id', propertyKey: 'contentMasterId', type: 'string', required: false, isForeignKey: true, foreignKeyTarget: { sheet: SHEET_TABS.CONTENT_MASTERS, column: 'id' } },
-      { name: 'category_id', propertyKey: 'categoryId', type: 'string', required: true, isForeignKey: true, foreignKeyTarget: { sheet: SHEET_TABS.CATEGORIES, column: 'id' } },
-      { name: 'category_name', propertyKey: 'categoryName', type: 'string', required: true },
+      { name: 'category_id', propertyKey: 'categoryId', type: 'string', required: false, isForeignKey: true, foreignKeyTarget: { sheet: SHEET_TABS.CATEGORIES, column: 'id' } },
+      { name: 'category_name', propertyKey: 'categoryName', type: 'string', required: false },
       { name: 'topic_id', propertyKey: 'topicId', type: 'string', required: true, isForeignKey: true, foreignKeyTarget: { sheet: SHEET_TABS.TOPICS, column: 'id' } },
       { name: 'topic_name', propertyKey: 'topicName', type: 'string', required: true },
       { name: 'subtopic_id', propertyKey: 'subtopicId', type: 'string', required: true, isForeignKey: true, foreignKeyTarget: { sheet: SHEET_TABS.SUBTOPICS, column: 'id' } },
       { name: 'subtopic_name', propertyKey: 'subtopicName', type: 'string', required: true },
       { name: 'difficulty', propertyKey: 'difficulty', type: 'string', required: true },
+      { name: 'language', propertyKey: 'language', type: 'string', required: false },
       { name: 'question_text', propertyKey: 'questionText', type: 'string', required: true },
       { name: 'option_a', propertyKey: 'optionA', type: 'string', required: true },
       { name: 'option_b', propertyKey: 'optionB', type: 'string', required: true },
@@ -296,6 +302,7 @@ export const SHEET_SCHEMAS: Record<SheetTabName, SheetSchemaContract> = {
       { name: 'validation_status', propertyKey: 'validationStatus', type: 'string', required: false },
       { name: 'last_validation_id', propertyKey: 'lastValidationId', type: 'string', required: false },
       { name: 'validation_score', propertyKey: 'validationScore', type: 'number', required: false },
+      { name: 'generation_mode', propertyKey: 'generationMode', type: 'string', required: false },
       { name: 'created_at', propertyKey: 'createdAt', type: 'date', required: true },
       { name: 'updated_at', propertyKey: 'updatedAt', type: 'date', required: true },
     ],
@@ -322,6 +329,7 @@ export const SHEET_SCHEMAS: Record<SheetTabName, SheetSchemaContract> = {
     primaryKey: 'id',
     columns: [
       { name: 'id', propertyKey: 'id', type: 'string', required: true, isPrimaryKey: true },
+      { name: 'content_id', propertyKey: 'contentId', type: 'string', required: false },
       { name: 'content_master_id', propertyKey: 'contentMasterId', type: 'string', required: false, isForeignKey: true, foreignKeyTarget: { sheet: SHEET_TABS.CONTENT_MASTERS, column: 'id' } },
       { name: 'question_id', propertyKey: 'questionId', type: 'string', required: true, isForeignKey: true, foreignKeyTarget: { sheet: SHEET_TABS.QUESTIONS, column: 'id' } },
       { name: 'title', propertyKey: 'title', type: 'string', required: true },
@@ -333,6 +341,12 @@ export const SHEET_SCHEMAS: Record<SheetTabName, SheetSchemaContract> = {
       { name: 'assigned_host', propertyKey: 'assignedHost', type: 'string', required: false },
       { name: 'assigned_editor', propertyKey: 'assignedEditor', type: 'string', required: false },
       { name: 'drive_folder_url', propertyKey: 'driveFolderUrl', type: 'string', required: false },
+      { name: 'drive_file_id', propertyKey: 'driveFileId', type: 'string', required: false },
+      { name: 'drive_folder_id', propertyKey: 'driveFolderId', type: 'string', required: false },
+      { name: 'file_name', propertyKey: 'fileName', type: 'string', required: false },
+      { name: 'mime_type', propertyKey: 'mimeType', type: 'string', required: false },
+      { name: 'file_size', propertyKey: 'fileSize', type: 'number', required: false },
+      { name: 'version', propertyKey: 'version', type: 'number', required: false },
       { name: 'raw_footage_path', propertyKey: 'rawFootagePath', type: 'string', required: false },
       { name: 'final_render_path', propertyKey: 'finalRenderPath', type: 'string', required: false },
       { name: 'final_render_width', propertyKey: 'finalRenderWidth', type: 'number', required: false },
@@ -356,6 +370,7 @@ export const SHEET_SCHEMAS: Record<SheetTabName, SheetSchemaContract> = {
     primaryKey: 'id',
     columns: [
       { name: 'id', propertyKey: 'id', type: 'string', required: true, isPrimaryKey: true },
+      { name: 'content_id', propertyKey: 'contentId', type: 'string', required: false },
       { name: 'video_id', propertyKey: 'videoId', type: 'string', required: true, isForeignKey: true, foreignKeyTarget: { sheet: SHEET_TABS.VIDEOS, column: 'id' } },
       { name: 'question_id', propertyKey: 'questionId', type: 'string', required: true, isForeignKey: true, foreignKeyTarget: { sheet: SHEET_TABS.QUESTIONS, column: 'id' } },
       { name: 'hook_text', propertyKey: 'hookText', type: 'string', required: true },
@@ -393,6 +408,7 @@ export const SHEET_SCHEMAS: Record<SheetTabName, SheetSchemaContract> = {
     primaryKey: 'id',
     columns: [
       { name: 'id', propertyKey: 'id', type: 'string', required: true, isPrimaryKey: true },
+      { name: 'content_id', propertyKey: 'contentId', type: 'string', required: false },
       { name: 'video_id', propertyKey: 'videoId', type: 'string', required: true, isForeignKey: true, foreignKeyTarget: { sheet: SHEET_TABS.VIDEOS, column: 'id' } },
       { name: 'hook_headline', propertyKey: 'hookHeadline', type: 'string', required: true },
       { name: 'drive_asset_url', propertyKey: 'driveAssetUrl', type: 'string', required: false },
@@ -426,6 +442,7 @@ export const SHEET_SCHEMAS: Record<SheetTabName, SheetSchemaContract> = {
     primaryKey: 'id',
     columns: [
       { name: 'id', propertyKey: 'id', type: 'string', required: true, isPrimaryKey: true },
+      { name: 'content_id', propertyKey: 'contentId', type: 'string', required: false },
       { name: 'video_id', propertyKey: 'videoId', type: 'string', required: true, isForeignKey: true, foreignKeyTarget: { sheet: SHEET_TABS.VIDEOS, column: 'id' } },
       { name: 'comment_text', propertyKey: 'commentText', type: 'string', required: true },
       { name: 'solution_breakdown', propertyKey: 'solutionBreakdown', type: 'string', required: true },
@@ -499,6 +516,7 @@ export const SHEET_SCHEMAS: Record<SheetTabName, SheetSchemaContract> = {
     primaryKey: 'id',
     columns: [
       { name: 'id', propertyKey: 'id', type: 'string', required: true, isPrimaryKey: true },
+      { name: 'content_id', propertyKey: 'contentId', type: 'string', required: false },
       { name: 'video_id', propertyKey: 'videoId', type: 'string', required: true, isForeignKey: true, foreignKeyTarget: { sheet: SHEET_TABS.VIDEOS, column: 'id' } },
       { name: 'question_id', propertyKey: 'questionId', type: 'string', required: true, isForeignKey: true, foreignKeyTarget: { sheet: SHEET_TABS.QUESTIONS, column: 'id' } },
       { name: 'video_title', propertyKey: 'videoTitle', type: 'string', required: true },
@@ -557,6 +575,7 @@ export const SHEET_SCHEMAS: Record<SheetTabName, SheetSchemaContract> = {
     primaryKey: 'id',
     columns: [
       { name: 'id', propertyKey: 'id', type: 'string', required: true, isPrimaryKey: true },
+      { name: 'content_id', propertyKey: 'contentId', type: 'string', required: false },
       { name: 'question_id', propertyKey: 'questionId', type: 'string', required: true, isForeignKey: true, foreignKeyTarget: { sheet: SHEET_TABS.QUESTIONS, column: 'id' } },
       { name: 'content_master_id', propertyKey: 'contentMasterId', type: 'string', required: false },
       { name: 'reviewed_version_hash', propertyKey: 'reviewedVersionHash', type: 'string', required: true },
@@ -594,8 +613,8 @@ export const SHEET_SCHEMAS: Record<SheetTabName, SheetSchemaContract> = {
     primaryKey: 'id',
     columns: [
       { name: 'id', propertyKey: 'id', type: 'string', required: true, isPrimaryKey: true },
-      { name: 'category_id', propertyKey: 'categoryId', type: 'string', required: true },
-      { name: 'category_name', propertyKey: 'categoryName', type: 'string', required: true },
+      { name: 'category_id', propertyKey: 'categoryId', type: 'string', required: false },
+      { name: 'category_name', propertyKey: 'categoryName', type: 'string', required: false },
       { name: 'topic_id', propertyKey: 'topicId', type: 'string', required: true },
       { name: 'topic_name', propertyKey: 'topicName', type: 'string', required: true },
       { name: 'subtopic_id', propertyKey: 'subtopicId', type: 'string', required: true },
@@ -666,14 +685,16 @@ export const SHEET_SCHEMAS: Record<SheetTabName, SheetSchemaContract> = {
 // ============================================================================
 
 export const CreateQuestionInputSchema = z.object({
+  contentId: z.string().optional(),
   contentMasterId: z.string().optional(),
-  categoryId: z.string().min(1, 'Category ID is required'),
+  categoryId: z.string().optional(),
   categoryName: z.string().optional(),
   topicId: z.string().min(1, 'Topic ID is required'),
   topicName: z.string().optional(),
   subtopicId: z.string().min(1, 'Subtopic ID is required'),
   subtopicName: z.string().optional(),
   difficulty: z.union([z.nativeEnum(DifficultyLevel), z.string()]),
+  language: z.string().optional().default('ENGLISH'),
   questionText: z.string().min(5, 'Question text must be at least 5 characters'),
   options: z.object({
     a: z.string().min(1, 'Option A is required'),
@@ -687,7 +708,7 @@ export const CreateQuestionInputSchema = z.object({
   realLifeContext: z.string().optional(),
   challengeType: z.string().optional(),
   presentationType: z.string().optional(),
-  questionStyle: z.nativeEnum(QuestionStyle).optional(),
+  questionStyle: z.union([z.nativeEnum(QuestionStyle), z.string()]).optional(),
   status: z.nativeEnum(QuestionStatus).optional().default(QuestionStatus.GENERATED),
   videoStatus: z.nativeEnum(VideoProductionStatus).optional().default(VideoProductionStatus.NOT_STARTED),
   tags: z.array(z.string()).optional().default([]),
@@ -697,6 +718,7 @@ export const CreateQuestionInputSchema = z.object({
   aiPrompt: z.string().optional(),
   originalityScore: z.number().optional(),
   authorId: z.string().optional(),
+  generationMode: z.string().optional(),
 });
 
 export type CreateQuestionInput = z.input<typeof CreateQuestionInputSchema>;
@@ -996,11 +1018,15 @@ export type CancelAssignmentInput = z.infer<typeof CancelAssignmentInputSchema>;
 export const CreateUserInputSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   email: z.string().email('Valid email is required'),
-  role: z.string().min(1, 'Role is required'),
+  role: z.string().optional(),
+  roles: z.array(z.string()).optional(),
   avatarUrl: z.string().optional(),
   isActive: z.boolean().optional().default(true),
   password_hash: z.string().optional(),
   last_login_at: z.string().optional(),
+}).refine((data) => data.role || (data.roles && data.roles.length > 0), {
+  message: 'At least one role or roles array is required',
+  path: ['roles'],
 });
 
 export type CreateUserInput = z.infer<typeof CreateUserInputSchema>;
@@ -1009,6 +1035,7 @@ export const UpdateUserInputSchema = z.object({
   name: z.string().optional(),
   email: z.string().email().optional(),
   role: z.string().optional(),
+  roles: z.array(z.string()).optional(),
   avatarUrl: z.string().optional(),
   isActive: z.boolean().optional(),
   password_hash: z.string().optional(),

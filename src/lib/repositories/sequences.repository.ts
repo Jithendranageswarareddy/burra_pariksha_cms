@@ -124,6 +124,13 @@ export class SequencesRepository extends BaseRepository<SequenceRecord> {
       padLength: Number(sequence.padLength) || config.padLength,
     };
   }
+
+  public async updateCurrentValue(entityType: string, currentVal: number): Promise<void> {
+    await this.updateRecord(entityType, {
+      nextNumber: currentVal + 1,
+      updatedAt: new Date().toISOString(),
+    });
+  }
 }
 
 export const sequencesRepository = SequencesRepository.getInstance();

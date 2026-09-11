@@ -7,6 +7,7 @@ export interface SessionPayload {
   userId: string;
   name: string;
   role: string;
+  roles?: string[];
   issuedAt: number;
   expiresAt: number;
 }
@@ -229,10 +230,21 @@ export class AuthService {
       const nowIso = new Date().toISOString();
       await usersRepository.updateRecord(user.id, { last_login_at: nowIso });
 
+      const userRoles: string[] = [];
+      if (Array.isArray(user.roles) && user.roles.length > 0) {
+        user.roles.forEach((r) => r && userRoles.push(String(r).trim()));
+      } else if (user.role) {
+        String(user.role).split(',').forEach((r) => r.trim() && userRoles.push(r.trim()));
+      }
+      if (userRoles.length === 0) {
+        userRoles.push(String(user.role || 'ADMIN'));
+      }
+
       const token = this.generateSessionToken({
         userId: user.id,
         name: user.name,
-        role: String(user.role),
+        role: userRoles[0],
+        roles: userRoles,
       });
 
       await auditService.log(
@@ -241,7 +253,7 @@ export class AuthService {
         'LOGIN_SUCCESS',
         'SYSTEM',
         'AUTH',
-        { role: user.role }
+        { role: user.role, roles: userRoles }
       );
 
       const safeUser: SafeUser = {
@@ -249,6 +261,7 @@ export class AuthService {
         name: user.name,
         email: user.email,
         role: user.role,
+        roles: userRoles,
         avatarUrl: user.avatarUrl,
         isActive: user.isActive,
         last_login_at: nowIso,

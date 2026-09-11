@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 export const LoginPage: React.FC = () => {
   const { login } = useAuth();
   const [userId, setUserId] = useState('USR-001');
-  const [password, setPassword] = useState('');
+  const [password, setPassword] = useState('password123');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -98,9 +98,14 @@ export const LoginPage: React.FC = () => {
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-xs font-semibold text-slate-300 mb-1.5">
-                Password
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label htmlFor="password" className="block text-xs font-semibold text-slate-300">
+                  Password
+                </label>
+                <span className="text-[11px] font-normal text-slate-400">
+                  Default: <span className="text-indigo-400 font-mono font-medium">password123</span>
+                </span>
+              </div>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
                   <Lock className="w-4 h-4" />

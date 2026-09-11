@@ -70,13 +70,31 @@ export const TeamOperationsPage: React.FC = () => {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [userName, setUserName] = useState('');
   const [userEmail, setUserEmail] = useState('');
-  const [userRole, setUserRole] = useState<string>('CONTENT_WRITER');
+  const [userRoles, setUserRoles] = useState<string[]>([UserRole.QUESTION_EDITOR]);
   const [userIsActive, setUserIsActive] = useState(true);
   const [userModalLoading, setUserModalLoading] = useState(false);
   const [userModalError, setUserModalError] = useState<string | null>(null);
 
+  const AVAILABLE_ROLES = [
+    { value: UserRole.ADMIN, label: 'Administrator (Full Access)' },
+    { value: UserRole.CONTENT_MANAGER, label: 'Content Manager (Workflow Lead)' },
+    { value: UserRole.QUESTION_CREATOR, label: 'Question Creator (Drafting)' },
+    { value: UserRole.QUESTION_EDITOR, label: 'Question Editor (Verification & Refinement)' },
+    { value: UserRole.SCRIPT_WRITER, label: 'Script Writer (Script Adaptation)' },
+    { value: UserRole.TELUGU_TRANSLATOR, label: 'Telugu Translator (Translation)' },
+    { value: UserRole.TOPIC_LEAD, label: 'Topic Lead (Domain Reviewer)' },
+    { value: UserRole.STUDIO_PRESENTER, label: 'Studio Presenter / Speaker (Presenter)' },
+    { value: UserRole.VIDEO_EDITOR, label: 'Video Editor (Editing & Graphics)' },
+    { value: UserRole.THUMBNAIL_DESIGNER, label: 'Thumbnail Designer (Creative & Packaging)' },
+    { value: UserRole.REVIEWER, label: 'Reviewer (QA & Final Verification)' },
+    { value: UserRole.PUBLISHING_MANAGER, label: 'Publishing Manager (Release Operations)' },
+    { value: UserRole.COMMUNITY_MANAGER, label: 'Community Manager (Engagement)' },
+  ];
+
   const isManagerOrAdmin = authUser
-    ? [UserRole.ADMIN, UserRole.CONTENT_MANAGER].includes(authUser.role as UserRole) || (authUser.role as string) === 'CONTENT_LEAD'
+    ? (Array.isArray(authUser.roles) && (authUser.roles.includes(UserRole.ADMIN) || authUser.roles.includes(UserRole.CONTENT_MANAGER))) ||
+      [UserRole.ADMIN, UserRole.CONTENT_MANAGER].includes(authUser.role as UserRole) ||
+      (authUser.role as string) === 'CONTENT_LEAD'
     : true; // Default to true if not strictly logged in for developer preview
 
   useEffect(() => {
@@ -121,7 +139,7 @@ export const TeamOperationsPage: React.FC = () => {
     setEditingUser(null);
     setUserName('');
     setUserEmail('');
-    setUserRole('CONTENT_WRITER');
+    setUserRoles([UserRole.QUESTION_EDITOR]);
     setUserIsActive(true);
     setUserModalError(null);
     setIsUserModalOpen(true);
@@ -131,10 +149,27 @@ export const TeamOperationsPage: React.FC = () => {
     setEditingUser(u);
     setUserName(u.name);
     setUserEmail(u.email);
-    setUserRole(u.role);
+    const existingRoles: string[] = [];
+    if (Array.isArray(u.roles) && u.roles.length > 0) {
+      u.roles.forEach((r) => r && existingRoles.push(String(r).trim()));
+    } else if (u.role) {
+      String(u.role).split(',').forEach((r) => r.trim() && existingRoles.push(r.trim()));
+    }
+    setUserRoles(existingRoles.length > 0 ? existingRoles : [UserRole.QUESTION_EDITOR]);
     setUserIsActive(u.isActive);
     setUserModalError(null);
     setIsUserModalOpen(true);
+  };
+
+  const toggleRole = (roleValue: string) => {
+    setUserRoles((prev) => {
+      if (prev.includes(roleValue)) {
+        if (prev.length === 1) return prev; // Keep at least one role
+        return prev.filter((r) => r !== roleValue);
+      } else {
+        return [...prev, roleValue];
+      }
+    });
   };
 
   const handleSaveUser = async (e: React.FormEvent) => {
@@ -143,21 +178,27 @@ export const TeamOperationsPage: React.FC = () => {
       setUserModalError('Name and valid email are required');
       return;
     }
+    if (userRoles.length === 0) {
+      setUserModalError('Please select at least one role for the user');
+      return;
+    }
     setUserModalLoading(true);
     setUserModalError(null);
     try {
       if (editingUser) {
         await apiClient.updateUser(editingUser.id, {
-          name: userName,
-          email: userEmail,
-          role: userRole,
+          name: userName.trim(),
+          email: userEmail.trim(),
+          role: userRoles[0] as UserRole,
+          roles: userRoles as UserRole[],
           isActive: userIsActive,
         });
       } else {
         await apiClient.createUser({
-          name: userName,
-          email: userEmail,
-          role: userRole,
+          name: userName.trim(),
+          email: userEmail.trim(),
+          role: userRoles[0] as UserRole,
+          roles: userRoles as UserRole[],
           isActive: userIsActive,
         });
       }
@@ -776,43 +817,54 @@ export const TeamOperationsPage: React.FC = () => {
           </div>
 
           <div className="divide-y divide-slate-100">
-            {users.map((u) => (
-              <div key={u.id} className="p-4 hover:bg-slate-50/80 transition-colors flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-sm">
-                    {u.name.charAt(0)}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h4 className="font-bold text-sm text-slate-900">{u.name}</h4>
-                      <span className="px-2 py-0.5 rounded text-2xs font-semibold bg-slate-100 text-slate-700">
-                        {u.role}
-                      </span>
-                      {u.isActive ? (
-                        <span className="px-1.5 py-0.5 rounded-full text-2xs font-bold bg-emerald-50 text-emerald-700">
-                          Active
-                        </span>
-                      ) : (
-                        <span className="px-1.5 py-0.5 rounded-full text-2xs font-bold bg-rose-50 text-rose-700">
-                          Inactive
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-slate-500">{u.email} • ID: {u.id}</p>
-                  </div>
-                </div>
+            {users.map((u) => {
+              const userRolesList: string[] = [];
+              if (Array.isArray(u.roles) && u.roles.length > 0) {
+                u.roles.forEach((r) => r && userRolesList.push(String(r).trim()));
+              } else if (u.role) {
+                String(u.role).split(',').forEach((r) => r.trim() && userRolesList.push(r.trim()));
+              }
 
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleOpenEditUser(u)}
-                    className="px-3 py-1 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors"
-                  >
-                    Edit Profile
-                  </button>
+              return (
+                <div key={u.id} className="p-4 hover:bg-slate-50/80 transition-colors flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-sm">
+                      {u.name.charAt(0)}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h4 className="font-bold text-sm text-slate-900">{u.name}</h4>
+                        {userRolesList.map((r) => (
+                          <span key={r} className="px-2 py-0.5 rounded text-2xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                            {r}
+                          </span>
+                        ))}
+                        {u.isActive ? (
+                          <span className="px-1.5 py-0.5 rounded-full text-2xs font-bold bg-emerald-50 text-emerald-700">
+                            Active
+                          </span>
+                        ) : (
+                          <span className="px-1.5 py-0.5 rounded-full text-2xs font-bold bg-rose-50 text-rose-700">
+                            Inactive
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-500">{u.email} • ID: {u.id}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenEditUser(u)}
+                      className="px-3 py-1 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors"
+                    >
+                      Edit Roles & Profile
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -834,7 +886,7 @@ export const TeamOperationsPage: React.FC = () => {
       {/* User Management Modal */}
       {isUserModalOpen && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden">
+          <div className="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden">
             <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
               <h3 className="font-semibold text-base">
                 {editingUser ? `Edit User: ${editingUser.name}` : 'Add New Team Member'}
@@ -883,22 +935,36 @@ export const TeamOperationsPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                  Role
-                </label>
-                <select
-                  value={userRole}
-                  onChange={(e) => setUserRole(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white text-slate-900 focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="CONTENT_WRITER">Content Writer</option>
-                  <option value="CONTENT_LEAD">Content Lead</option>
-                  <option value="SPEAKER">Speaker (Filming / Voiceover)</option>
-                  <option value="VIDEO_EDITOR">Video Editor</option>
-                  <option value="GRAPHIC_DESIGNER">Graphic Designer</option>
-                  <option value="COMMUNITY_MANAGER">Community Manager</option>
-                  <option value="ADMIN">Admin</option>
-                </select>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                    Assigned Roles ({userRoles.length} selected)
+                  </label>
+                  <span className="text-2xs text-slate-500 font-medium">Multi-role RBAC</span>
+                </div>
+                <div className="max-h-56 overflow-y-auto p-3 border border-slate-200 rounded-lg bg-slate-50/50 space-y-2">
+                  {AVAILABLE_ROLES.map((role) => {
+                    const isChecked = userRoles.includes(role.value);
+                    return (
+                      <label
+                        key={role.value}
+                        className={`flex items-start gap-2.5 p-2 rounded-md cursor-pointer transition-colors text-xs ${
+                          isChecked ? 'bg-indigo-50/80 border border-indigo-200/80 text-indigo-950 font-medium' : 'hover:bg-white text-slate-700 border border-transparent'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => toggleRole(role.value)}
+                          className="mt-0.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5"
+                        />
+                        <div className="flex-1">
+                          <div className="font-semibold text-slate-900">{role.label}</div>
+                          <div className="text-2xs text-slate-500 font-mono">{role.value}</div>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
 
               <div className="flex items-center gap-2 pt-2">

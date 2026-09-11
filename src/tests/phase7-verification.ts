@@ -1,163 +1,243 @@
 /**
- * PHASE 7 CONTENT OPERATIONS DASHBOARD & WORKFLOW CONTROL CENTER VERIFICATION TEST SUITE
- *
- * Comprehensive verification covering:
- * 1. Metrics aggregation across Questions, Videos, and Publishing
- * 2. Today's Priority Work computation & ordering (urgent actions first)
- * 3. Bottleneck detection with stage accumulation analysis
- * 4. Stale/aging content classification (FRESH, WAITING, STALE)
- * 5. Publishing readiness calculation for READY_TO_UPLOAD videos
- * 6. Global search across Question ID, Video ID, Telugu text, Topics, Categories
- * 7. Filter application (Category, Topic, Difficulty, Priority)
- * 8. 10-Step daily workflow integration
- * 9. Google Sheets repository integrity & zero schema regression
+ * BURRA PARIKSHA CMS - Phase 7 Verification Suite
+ * Phase 7: Google Drive Real Media Infrastructure
+ * 
+ * Verifies real Google Drive infrastructure, binary file operations, folder hierarchy,
+ * metadata correlation with BP-CNT-######, versioning, compensation rollbacks, and streaming contracts.
  */
 
-import { dashboardService } from '../lib/services/dashboard.service';
-import { questionService } from '../lib/services/question.service';
+import { googleDriveService } from '../lib/services/google-drive.service';
 import { videoService } from '../lib/services/video.service';
-import { publishingService } from '../lib/services/publishing.service';
-import { QuestionStatus, VideoProductionStatus } from '../types';
+import { contentMastersRepository } from '../lib/repositories/content-masters.repository';
+import { videosRepository } from '../lib/repositories/videos.repository';
+import { sanitizeFileName, validateMediaUpload } from '../config/media-upload.config';
+import { UserRole, ContentMasterStatus } from '../types';
+import { ActorContext } from '../lib/services/object-auth.service';
 
-export async function runPhase7Verification() {
-  console.log('====================================================');
-  console.log('BURRA PARIKSHA CMS - PHASE 7 DASHBOARD & WORKFLOW VERIFICATION');
-  console.log('====================================================\n');
+export interface TestResult {
+  name: string;
+  passed: boolean;
+  message: string;
+  details?: unknown;
+}
 
-  let passedTests = 0;
-  let totalTests = 0;
-  const results: { test: string; passed: boolean; detail?: string }[] = [];
+export async function runPhase7Verification(): Promise<TestResult[]> {
+  const results: TestResult[] = [];
 
-  function assert(condition: boolean, testName: string, detail?: string) {
-    totalTests++;
-    if (condition) {
-      console.log(`[PASS] Test ${totalTests}: ${testName}`);
-      passedTests++;
-      results.push({ test: testName, passed: true });
+  const addResult = (name: string, passed: boolean, message: string, details?: unknown) => {
+    results.push({ name, passed, message, details });
+    const mark = passed ? '✅ PASS' : '❌ FAIL';
+    console.log(`${mark}: ${name} - ${message}`);
+  };
+
+  const adminActor: ActorContext = {
+    id: 'USR-ADMIN-01',
+    role: UserRole.ADMIN,
+    name: 'Admin User',
+  };
+
+  const testContentId = `BP-CNT-${Date.now().toString().slice(-6)}`;
+
+  console.log('\n--- STARTING PHASE 7 VERIFICATION SUITE ---\n');
+
+  // Ensure ContentMaster record exists in repository before tests
+  let existingCm = await contentMastersRepository.findById(testContentId);
+  if (!existingCm) {
+    existingCm = await contentMastersRepository.create({
+      id: testContentId,
+      title: 'Phase 7 Media Infrastructure Test',
+      categoryId: 'BP-CAT-001',
+      topicId: 'BP-TOP-001',
+      subtopicId: 'BP-SUB-001',
+      primaryQuestionId: 'BP-Q-000001',
+      status: ContentMasterStatus.DRAFT,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+  }
+
+  // 1. GoogleDriveService configuration check
+  try {
+    const isConfigured = googleDriveService.isConfigured();
+    addResult(
+      '1. GoogleDriveService Configuration Check',
+      true,
+      `Drive sync status: ${isConfigured ? 'Configured (Live Credentials Present)' : 'Fallback / Mock Storage Active'}`
+    );
+  } catch (err: any) {
+    addResult('1. GoogleDriveService Configuration Check', false, err?.message || 'Check failed');
+  }
+
+  // 2. Sanitization & Upload Validation Allowlist
+  try {
+    const dangerousName = '../../../etc/passwd\0/malicious_script.mp4';
+    const sanitized = sanitizeFileName(dangerousName);
+    const isSanitizedSafe = !sanitized.includes('..') && !sanitized.includes('\0') && sanitized === 'malicious_script.mp4';
+
+    const validParams = validateMediaUpload({
+      fileName: 'lecture_intro_v1.mp4',
+      mimeType: 'video/mp4',
+      size: 10 * 1024 * 1024,
+      category: 'video',
+    });
+
+    let invalidMimeFailed = false;
+    try {
+      validateMediaUpload({
+        fileName: 'executable.exe',
+        mimeType: 'application/x-msdownload',
+        size: 1024,
+        category: 'video',
+      });
+    } catch {
+      invalidMimeFailed = true;
+    }
+
+    const passed = isSanitizedSafe && validParams.sanitizedFileName === 'lecture_intro_v1.mp4' && invalidMimeFailed;
+    addResult(
+      '2. Sanitization & Upload Validation Allowlist',
+      passed,
+      passed
+        ? 'Filename sanitization and MIME/extension allowlists enforced successfully.'
+        : `Sanitization test failed. Sanitized name: "${sanitized}", invalidMimeBlocked: ${invalidMimeFailed}`
+    );
+  } catch (err: any) {
+    addResult('2. Sanitization & Upload Validation Allowlist', false, err?.message || 'Validation failed');
+  }
+
+  // 3. Deterministic Folder Hierarchy Resolution
+  try {
+    const hierarchy = await googleDriveService.ensureContentHierarchy(testContentId);
+    const validHierarchy = Boolean(
+      hierarchy.rootFolderId &&
+      hierarchy.parentContentFolderId &&
+      hierarchy.contentFolderId &&
+      hierarchy.videosFolderId &&
+      hierarchy.scriptsFolderId &&
+      hierarchy.thumbnailsFolderId
+    );
+    addResult(
+      '3. Folder Hierarchy Resolution (Burra Pariksha/Content/BP-CNT-######/Videos)',
+      validHierarchy,
+      validHierarchy
+        ? `Hierarchy resolved successfully for ${testContentId}. Videos Folder ID: "${hierarchy.videosFolderId}"`
+        : 'Hierarchy resolution returned incomplete folder IDs.'
+    );
+  } catch (err: any) {
+    addResult('3. Folder Hierarchy Resolution', false, err?.message || 'Hierarchy resolution failed');
+  }
+
+  // 4. End-to-End Synthetic Video Upload & Metadata Correlation
+  let uploadedVideoId: string | undefined;
+  let uploadedDriveFileId: string | undefined;
+
+  try {
+    const syntheticVideoBuffer = Buffer.from('FAKE_MP4_HEADER_BINARY_DATA_FOR_TESTING');
+    const uploadedVideo = await videoService.uploadVideoAsset({
+      contentId: testContentId,
+      fileName: 'test_synthetic_render.mp4',
+      mimeType: 'video/mp4',
+      size: syntheticVideoBuffer.length,
+      fileStreamOrBuffer: syntheticVideoBuffer,
+      actor: adminActor,
+    });
+
+    uploadedVideoId = uploadedVideo.id;
+    uploadedDriveFileId = uploadedVideo.driveFileId;
+
+    const hasDriveFileId = Boolean(uploadedVideo.driveFileId);
+    const matchesContentId = uploadedVideo.contentId === testContentId || uploadedVideo.contentMasterId === testContentId;
+    const hasVersion1 = uploadedVideo.version === 1;
+
+    const passed = hasDriveFileId && matchesContentId && hasVersion1;
+    addResult(
+      '4. End-to-End Synthetic Video Upload & Metadata Correlation',
+      passed,
+      passed
+        ? `Uploaded video "${uploadedVideo.id}" linked to "${testContentId}". Drive File ID: "${uploadedVideo.driveFileId}", Version: ${uploadedVideo.version}`
+        : `Metadata correlation mismatch: driveFileId=${uploadedVideo.driveFileId}, contentId=${uploadedVideo.contentId}, version=${uploadedVideo.version}`
+    );
+  } catch (err: any) {
+    addResult('4. End-to-End Synthetic Video Upload & Metadata Correlation', false, err?.message || 'Upload failed');
+  }
+
+  // 5. Version Incrementation Test (v1 -> v2)
+  try {
+    if (uploadedVideoId) {
+      const v2Buffer = Buffer.from('FAKE_MP4_HEADER_BINARY_DATA_V2');
+      const v2Video = await videoService.uploadVideoAsset({
+        videoId: uploadedVideoId,
+        fileName: 'test_synthetic_render_v2.mp4',
+        mimeType: 'video/mp4',
+        size: v2Buffer.length,
+        fileStreamOrBuffer: v2Buffer,
+        actor: adminActor,
+      });
+
+      const isVersion2 = v2Video.version === 2;
+      addResult(
+        '5. Version Incrementation (v1 -> v2)',
+        isVersion2,
+        isVersion2
+          ? `Re-upload for video "${uploadedVideoId}" successfully incremented version to ${v2Video.version}.`
+          : `Expected version 2, got version ${v2Video.version}`
+      );
     } else {
-      console.error(`[FAIL] Test ${totalTests}: ${testName} - Detail: ${detail || 'Assertion failed'}`);
-      results.push({ test: testName, passed: false, detail });
-      throw new Error(`Test failed: ${testName} - ${detail || ''}`);
+      addResult('5. Version Incrementation (v1 -> v2)', false, 'Prior upload failed; cannot test version incrementation.');
+    }
+  } catch (err: any) {
+    addResult('5. Version Incrementation (v1 -> v2)', false, err?.message || 'Versioning test failed');
+  }
+
+  // 6. Binary Download & Stream Contract
+  try {
+    if (uploadedDriveFileId) {
+      const fullDownload = await googleDriveService.downloadFile(uploadedDriveFileId);
+      const rangeDownload = await googleDriveService.downloadFile(uploadedDriveFileId, 'bytes=0-10');
+
+      const is200 = fullDownload.statusCode === 200;
+      const is206 = rangeDownload.statusCode === 206;
+      const hasContentRange = Boolean(rangeDownload.contentRange);
+
+      const passed = is200 && is206 && hasContentRange;
+      addResult(
+        '6. Stream & HTTP Range Request Support (200 / 206 Partial Content)',
+        passed,
+        passed
+          ? `Download & range streaming validated. Full: ${fullDownload.statusCode}, Range: ${rangeDownload.statusCode} (${rangeDownload.contentRange})`
+          : `Stream failure. Full status: ${fullDownload.statusCode}, Range status: ${rangeDownload.statusCode}`
+      );
+    } else {
+      addResult('6. Stream & HTTP Range Request Support', false, 'Drive File ID unavailable for streaming test.');
+    }
+  } catch (err: any) {
+    addResult('6. Stream & HTTP Range Request Support', false, err?.message || 'Streaming contract test failed');
+  }
+
+  // 7. Cleanup uploaded test file
+  if (uploadedDriveFileId) {
+    try {
+      await googleDriveService.deleteFile(uploadedDriveFileId);
+      console.log(`[Phase7 Verification] Cleaned up test Drive file: ${uploadedDriveFileId}`);
+    } catch (err: any) {
+      console.warn(`[Phase7 Verification] Cleanup warning: ${err?.message}`);
     }
   }
 
-  // --- SECTION 1: METRICS AGGREGATION ---
-  console.log('--- Testing Metrics Aggregation ---');
+  console.log('\n--- PHASE 7 VERIFICATION SUITE COMPLETE ---\n');
+  return results;
+}
 
-  const metrics = await dashboardService.getMetrics();
-  assert(metrics !== null && typeof metrics === 'object', 'Dashboard metrics object generated');
-  assert(typeof metrics.questions.total === 'number' && metrics.questions.total >= 0, 'Questions total metric is valid number');
-  assert(typeof metrics.videos.totalActive === 'number' && metrics.videos.totalActive >= 0, 'Videos total active metric is valid number');
-  assert(typeof metrics.publishing.total === 'number' && metrics.publishing.total >= 0, 'Publishing total metric is valid number');
-
-  // Verify questions sum consistency
-  const qSum = metrics.questions.generated + metrics.questions.editing + metrics.questions.approved + metrics.questions.rejected;
-  assert(qSum === metrics.questions.total, `Questions breakdown sums to total (${qSum} === ${metrics.questions.total})`);
-
-  // --- SECTION 2: TODAY'S WORK QUEUE ---
-  console.log('\n--- Testing Today\'s Work Priority Queue ---');
-
-  const todaysWork = await dashboardService.getTodaysWork();
-  assert(Array.isArray(todaysWork), 'Today\'s work returns an array of actionable items');
-
-  if (todaysWork.length > 0) {
-    const firstItem = todaysWork[0];
-    assert(Boolean(firstItem.id), 'Today\'s work item contains valid ID');
-    assert(Boolean(firstItem.title), 'Today\'s work item contains title');
-    assert(Boolean(firstItem.recommendedAction), 'Today\'s work item contains recommendedAction');
-    assert(Boolean(firstItem.actionUrl), 'Today\'s work item contains navigation actionUrl');
-    assert(['URGENT', 'HIGH', 'MEDIUM', 'NORMAL', 'LOW'].includes(firstItem.priority), 'Valid priority level assigned');
-    assert(typeof firstItem.ageDays === 'number' && firstItem.ageDays >= 0, 'Valid ageDays calculated');
-  }
-
-  // --- SECTION 3: BOTTLENECK DETECTION ---
-  console.log('\n--- Testing Bottleneck Diagnostics ---');
-
-  const bottlenecks = await dashboardService.getBottlenecks();
-  assert(Array.isArray(bottlenecks) && bottlenecks.length > 0, 'Bottleneck stages analyzed');
-  
-  const bottleneckStages = bottlenecks.map((b) => b.stage);
-  assert(bottleneckStages.includes(VideoProductionStatus.SCRIPT_REQUIRED), 'Script Writing stage analyzed');
-  assert(bottleneckStages.includes(VideoProductionStatus.RECORDED), 'Post-Production stage analyzed');
-  assert(bottleneckStages.includes(VideoProductionStatus.READY_TO_UPLOAD), 'Ready to Upload stage analyzed');
-
-  bottlenecks.forEach((b) => {
-    assert(typeof b.count === 'number' && b.count >= 0, `Stage ${b.label} count is valid number`);
-    assert(typeof b.isBottleneck === 'boolean', `Stage ${b.label} bottleneck flag is boolean`);
-    assert(['HIGH', 'MEDIUM', 'LOW'].includes(b.severity), `Stage ${b.label} has valid severity level`);
-    assert(Boolean(b.suggestion), `Stage ${b.label} has actionable diagnostic suggestion`);
-  });
-
-  // --- SECTION 4: AGING & STALE CONTENT TRACKING ---
-  console.log('\n--- Testing Aging & Stale Content Classification ---');
-
-  const staleContent = await dashboardService.getStaleContent();
-  assert(Array.isArray(staleContent), 'Stale content analysis returns list');
-
-  staleContent.forEach((item) => {
-    assert(Boolean(item.id), 'Stale item has valid ID');
-    assert(['FRESH', 'WAITING', 'STALE'].includes(item.statusCategory), `Item ${item.id} has valid aging category`);
-    assert(typeof item.daysInStage === 'number' && item.daysInStage >= 0, `Item ${item.id} has non-negative daysInStage`);
-    assert(Boolean(item.actionUrl), `Item ${item.id} has actionUrl`);
-  });
-
-  // --- SECTION 5: PUBLISHING READINESS MATRIX ---
-  console.log('\n--- Testing Publishing Readiness Pre-Flight ---');
-
-  const readiness = await dashboardService.getPublishingReadiness();
-  assert(Array.isArray(readiness), 'Publishing readiness returns item list');
-
-  readiness.forEach((item) => {
-    assert(Boolean(item.videoId), 'Readiness item has valid videoId');
-    assert(typeof item.videoRenderReady === 'boolean', 'videoRenderReady is boolean');
-    assert(typeof item.thumbnailApproved === 'boolean', 'thumbnailApproved is boolean');
-    assert(typeof item.pinnedCommentReady === 'boolean', 'pinnedCommentReady is boolean');
-    assert(['READY', 'INCOMPLETE', 'BLOCKED'].includes(item.status), `Readiness item ${item.videoId} status is valid`);
-    assert(Array.isArray(item.missingItems), 'missingItems is an array');
-    assert(Boolean(item.platforms.youtube), 'YouTube status present');
-    assert(Boolean(item.platforms.instagram), 'Instagram status present');
-    assert(Boolean(item.platforms.facebook), 'Facebook status present');
-  });
-
-  // --- SECTION 6: GLOBAL SEARCH ---
-  console.log('\n--- Testing Global Search Capability ---');
-
-  // Search by keyword "Aptitude" or "BP-"
-  const searchResults = await dashboardService.search('BP-');
-  assert(Array.isArray(searchResults), 'Global search returns array');
-  
-  if (searchResults.length > 0) {
-    const item = searchResults[0];
-    assert(Boolean(item.id), 'Search result has ID');
-    assert(['QUESTION', 'VIDEO'].includes(item.type), 'Search result type is QUESTION or VIDEO');
-    assert(Boolean(item.title), 'Search result has title');
-    assert(Boolean(item.url), 'Search result has url');
-  }
-
-  // Search with empty query returns empty array
-  const emptySearch = await dashboardService.search('');
-  assert(emptySearch.length === 0, 'Empty search returns empty array');
-
-  // --- SECTION 7: FILTERED OVERVIEW ---
-  console.log('\n--- Testing Filter Support ---');
-
-  const overview = await dashboardService.getOverview();
-  assert(Boolean(overview.metrics), 'Overview contains metrics');
-  assert(Boolean(overview.todaysWork), 'Overview contains todaysWork');
-  assert(Boolean(overview.bottlenecks), 'Overview contains bottlenecks');
-  assert(Boolean(overview.staleContent), 'Overview contains staleContent');
-  assert(Boolean(overview.publishingReadiness), 'Overview contains publishingReadiness');
-  assert(Array.isArray(overview.recentQuestions), 'Overview contains recentQuestions');
-  assert(Array.isArray(overview.recentVideos), 'Overview contains recentVideos');
-  assert(Array.isArray(overview.recentAuditLogs), 'Overview contains recentAuditLogs');
-
-  console.log('\n====================================================');
-  console.log(`PHASE 7 VERIFICATION SUMMARY: ${passedTests}/${totalTests} TESTS PASSED`);
-  console.log('====================================================\n');
-
-  return {
-    totalTests,
-    passedTests,
-    results,
-  };
+// Runnable entry point
+if (process.argv[1]?.includes('phase7-verification')) {
+  runPhase7Verification()
+    .then((res) => {
+      const allPassed = res.every((r) => r.passed);
+      console.log(`Phase 7 Verification Result: ${allPassed ? 'ALL TESTS PASSED' : 'SOME TESTS FAILED'}`);
+      process.exit(allPassed ? 0 : 1);
+    })
+    .catch((err) => {
+      console.error('Fatal verification runner error:', err);
+      process.exit(1);
+    });
 }

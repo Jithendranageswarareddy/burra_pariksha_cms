@@ -539,6 +539,7 @@ export const QuestionGeneratorPage: React.FC = () => {
               disabled={loadingTaxonomy || isGenerating}
               className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-900 focus:ring-2 focus:ring-indigo-500 font-medium"
             >
+              <option value="RANDOM">🎲 RANDOM (Random Subtopic from Topic)</option>
               {currentSubtopics.length > 0 ? (
                 currentSubtopics.map((s: any) => (
                   <option key={s.id} value={s.id}>

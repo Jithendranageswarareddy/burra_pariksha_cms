@@ -126,7 +126,7 @@ export class ContentMasterService {
     const master: ContentMaster = {
       id,
       title: input.title,
-      status: input.status || ContentMasterStatus.ACTIVE,
+      status: input.status || ContentMasterStatus.DRAFT,
       primaryQuestionId: input.primaryQuestionId || '',
       categoryId: input.categoryId || '',
       topicId: input.topicId || '',
@@ -189,10 +189,35 @@ export class ContentMasterService {
   }
 
   /**
-   * Retrieves a ContentMaster by ID.
+   * Retrieves a ContentMaster by ID or legacy/canonical identifier with dual-format resolution.
    */
   public async getContentMasterById(id: string): Promise<ContentMaster | null> {
-    return contentMastersRepository.findById(id);
+    const directMatch = await contentMastersRepository.findById(id);
+    if (directMatch) {
+      return directMatch;
+    }
+    // Legacy / canonical alias resolution (e.g., BP-CNT-000001 <-> BP-MST-000001)
+    if (id.startsWith('BP-CNT-') || id.startsWith('BP-MST-')) {
+      const allMasters = await contentMastersRepository.findAll();
+      const numPart = id.replace(/^(BP-CNT-|BP-MST-)/, '');
+      const matched = allMasters.find(
+        (m) =>
+          m.id === id ||
+          m.id === `BP-CNT-${numPart}` ||
+          m.id === `BP-MST-${numPart}` ||
+          m.contentId === id
+      );
+      if (matched) return matched;
+    }
+    return null;
+  }
+
+  /**
+   * Authoritative business operation to retrieve the complete lifecycle bundle for a Canonical Content ID (BP-CNT-######).
+   * Supports seamless legacy resolution for BP-MST-###### identifiers.
+   */
+  public async getContentLifecycle(contentId: string): Promise<ContentMasterDetails | null> {
+    return this.getDetailsByContentMasterId(contentId);
   }
 
   /**
@@ -203,13 +228,22 @@ export class ContentMasterService {
   }
 
   /**
-   * Retrieves full 360-degree content hierarchy for a ContentMaster ID.
+   * Retrieves full 360-degree content hierarchy for a ContentMaster ID or Canonical Content ID.
    */
   public async getDetailsByContentMasterId(id: string): Promise<ContentMasterDetails | null> {
-    const master = await contentMastersRepository.findById(id);
+    const master = await this.getContentMasterById(id);
     if (!master) {
       return null;
     }
+
+    const canonicalId = master.id;
+    const numPart = canonicalId.replace(/^(BP-CNT-|BP-MST-)/, '');
+    const candidateIds = new Set<string>([
+      id,
+      canonicalId,
+      `BP-CNT-${numPart}`,
+      `BP-MST-${numPart}`,
+    ]);
 
     // Parallel fetch of all child repositories once canonical Content Master is resolved
     const [
@@ -235,7 +269,10 @@ export class ContentMasterService {
     ]);
 
     const questions = allQuestions.filter(
-      (q) => q.contentMasterId === id || master.primaryQuestionId === q.id
+      (q) =>
+        (q.contentMasterId && candidateIds.has(q.contentMasterId)) ||
+        (q.contentId && candidateIds.has(q.contentId)) ||
+        master.primaryQuestionId === q.id
     );
 
     const primaryQuestion = master.primaryQuestionId
@@ -245,20 +282,47 @@ export class ContentMasterService {
     const questionIds = new Set(questions.map((q) => q.id));
 
     const videos = allVideos.filter(
-      (v) => v.contentMasterId === id || (v.questionId && questionIds.has(v.questionId))
+      (v) =>
+        (v.contentMasterId && candidateIds.has(v.contentMasterId)) ||
+        (v.contentId && candidateIds.has(v.contentId)) ||
+        (v.questionId && questionIds.has(v.questionId))
     );
 
     const videoIds = new Set(videos.map((v) => v.id));
 
-    const scripts = allScripts.filter((s) => videoIds.has(s.videoId));
-    const thumbnails = allThumbnails.filter((t) => videoIds.has(t.videoId));
-    const pinnedComments = allPinnedComments.filter((p) => videoIds.has(p.videoId));
-    const publishingRecords = allPublishing.filter((pub) => videoIds.has(pub.videoId));
+    const scripts = allScripts.filter(
+      (s) =>
+        videoIds.has(s.videoId) ||
+        (s.contentId && candidateIds.has(s.contentId)) ||
+        (s.contentMasterId && candidateIds.has(s.contentMasterId)) ||
+        (s.questionId && questionIds.has(s.questionId))
+    );
+    const thumbnails = allThumbnails.filter(
+      (t) =>
+        videoIds.has(t.videoId) ||
+        (t.contentId && candidateIds.has(t.contentId)) ||
+        (t.contentMasterId && candidateIds.has(t.contentMasterId))
+    );
+    const pinnedComments = allPinnedComments.filter(
+      (p) =>
+        videoIds.has(p.videoId) ||
+        (p.contentId && candidateIds.has(p.contentId)) ||
+        (p.contentMasterId && candidateIds.has(p.contentMasterId))
+    );
+    const publishingRecords = allPublishing.filter(
+      (pub) =>
+        videoIds.has(pub.videoId) ||
+        (pub.contentId && candidateIds.has(pub.contentId)) ||
+        (pub.contentMasterId && candidateIds.has(pub.contentMasterId)) ||
+        (pub.questionId && questionIds.has(pub.questionId))
+    );
     const socialReviews = allSocialReviews.filter(
-      (sr) => (sr.contentMasterId && sr.contentMasterId === id) || (sr.questionId && questionIds.has(sr.questionId))
+      (sr) =>
+        (sr.contentMasterId && candidateIds.has(sr.contentMasterId)) ||
+        (sr.questionId && questionIds.has(sr.questionId))
     );
 
-    const targetEntityIds = new Set([id, ...questionIds, ...videoIds]);
+    const targetEntityIds = new Set([id, canonicalId, ...candidateIds, ...questionIds, ...videoIds]);
     const assignments = allAssignments.filter(
       (a) => targetEntityIds.has(a.entityId || '') || targetEntityIds.has(a.videoId || '')
     );
@@ -615,12 +679,7 @@ export class ContentMasterService {
     }
 
     // 5. Validate target status is valid enum value
-    const validStatuses = [
-      ContentMasterStatus.DRAFT,
-      ContentMasterStatus.ACTIVE,
-      ContentMasterStatus.COMPLETED,
-      ContentMasterStatus.ARCHIVED,
-    ];
+    const validStatuses = Object.values(ContentMasterStatus);
     if (!validStatuses.includes(targetStatus)) {
       throw new ValidationError(
         `Invalid target status "${targetStatus}". Allowed statuses are: ${validStatuses.join(', ')}.`
@@ -636,39 +695,72 @@ export class ContentMasterService {
       );
     }
 
-    if (currentStatus === ContentMasterStatus.DRAFT) {
-      if (targetStatus === ContentMasterStatus.COMPLETED) {
+    // Phase 6 Unified Lifecycle State Machine Transitions Matrix
+    const ALLOWED_TRANSITIONS: Record<string, string[]> = {
+      [ContentMasterStatus.DRAFT]: [
+        ContentMasterStatus.READY_FOR_REVIEW,
+        ContentMasterStatus.ACTIVE,
+        ContentMasterStatus.ARCHIVED,
+      ],
+      [ContentMasterStatus.READY_FOR_REVIEW]: [
+        ContentMasterStatus.APPROVED,
+        ContentMasterStatus.CHANGES_REQUESTED,
+        ContentMasterStatus.ARCHIVED,
+      ],
+      [ContentMasterStatus.CHANGES_REQUESTED]: [
+        ContentMasterStatus.DRAFT,
+        ContentMasterStatus.READY_FOR_REVIEW,
+        ContentMasterStatus.ARCHIVED,
+      ],
+      [ContentMasterStatus.APPROVED]: [
+        ContentMasterStatus.SCHEDULED,
+        ContentMasterStatus.PUBLISHED,
+        ContentMasterStatus.COMPLETED,
+        ContentMasterStatus.ARCHIVED,
+      ],
+      [ContentMasterStatus.SCHEDULED]: [
+        ContentMasterStatus.PUBLISHED,
+        ContentMasterStatus.ARCHIVED,
+      ],
+      [ContentMasterStatus.PUBLISHED]: [
+        ContentMasterStatus.ARCHIVED,
+        ContentMasterStatus.COMPLETED,
+      ],
+      [ContentMasterStatus.ACTIVE]: [
+        ContentMasterStatus.COMPLETED,
+        ContentMasterStatus.PUBLISHED,
+        ContentMasterStatus.SCHEDULED,
+        ContentMasterStatus.APPROVED,
+        ContentMasterStatus.READY_FOR_REVIEW,
+        ContentMasterStatus.ARCHIVED,
+      ],
+      [ContentMasterStatus.COMPLETED]: [
+        ContentMasterStatus.ARCHIVED,
+      ],
+    };
+
+    const allowedNext = ALLOWED_TRANSITIONS[currentStatus] || [ContentMasterStatus.ARCHIVED];
+    if (!allowedNext.includes(targetStatus)) {
+      throw new ValidationError(
+        `Invalid status transition from "${currentStatus}" to "${targetStatus}" for Content Master "${contentMasterId}". Allowed next statuses: [${allowedNext.join(', ')}].`
+      );
+    }
+
+    if (targetStatus === ContentMasterStatus.ACTIVE) {
+      if (!master.title || master.title.trim().length === 0) {
+        throw new ValidationError(`Cannot activate Content Master "${contentMasterId}": Title is required.`);
+      }
+      const details = await this.getDetailsByContentMasterId(contentMasterId);
+      if (!details || details.questions.length === 0) {
         throw new ValidationError(
-          'Invalid transition: DRAFT Content Master cannot transition directly to COMPLETED. It must be activated into production first.'
+          `Cannot activate Content Master "${contentMasterId}": At least one linked question is required.`
         );
       }
-      if (targetStatus === ContentMasterStatus.ACTIVE) {
-        if (!master.title || master.title.trim().length === 0) {
-          throw new ValidationError(`Cannot activate Content Master "${contentMasterId}": Title is required.`);
-        }
-        const details = await this.getDetailsByContentMasterId(contentMasterId);
-        if (!details || details.questions.length === 0) {
-          throw new ValidationError(
-            `Cannot activate Content Master "${contentMasterId}": At least one linked question is required.`
-          );
-        }
-      }
-    } else if (currentStatus === ContentMasterStatus.ACTIVE) {
-      if (targetStatus === ContentMasterStatus.DRAFT) {
-        throw new ValidationError('Invalid transition: ACTIVE Content Master cannot be reverted to DRAFT.');
-      }
-      if (targetStatus === ContentMasterStatus.COMPLETED) {
-        const readiness = await this.validateCompletionReadiness(contentMasterId);
-        if (!readiness.isEligible) {
-          throw new ValidationError(
-            `Cannot complete Content Master "${contentMasterId}": ${readiness.blockers.join('; ')}`
-          );
-        }
-      }
-    } else if (currentStatus === ContentMasterStatus.COMPLETED) {
-      if (targetStatus === ContentMasterStatus.ACTIVE || targetStatus === ContentMasterStatus.DRAFT) {
+    } else if (targetStatus === ContentMasterStatus.COMPLETED) {
+      const readiness = await this.validateCompletionReadiness(contentMasterId);
+      if (!readiness.isEligible) {
         throw new ValidationError(
-          `Invalid transition: COMPLETED Content Master cannot be reverted to ${targetStatus}.`
+          `Cannot complete Content Master "${contentMasterId}": ${readiness.blockers.join('; ')}`
         );
       }
     }

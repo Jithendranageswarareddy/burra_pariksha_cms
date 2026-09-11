@@ -784,6 +784,7 @@ export const QuestionStudioPage: React.FC = () => {
                   disabled={loadingTaxonomy || currentSubtopics.length === 0}
                   className="w-full mt-1 px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:bg-white focus:border-indigo-500 focus:outline-hidden"
                 >
+                  <option value="RANDOM">🎲 RANDOM (Random Subtopic from Topic)</option>
                   {currentSubtopics.map((sub: any) => (
                     <option key={sub.id} value={sub.id}>
                       {sub.name}

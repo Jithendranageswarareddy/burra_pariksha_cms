@@ -137,6 +137,9 @@ export class GoogleSheetsClient {
    * Checks if Google Service Account credentials and Spreadsheet ID are configured.
    */
   public isConfigured(): boolean {
+    if (process.env.SKIP_SHEETS_SYNC === 'true') {
+      return false;
+    }
     const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
     const key = process.env.GOOGLE_PRIVATE_KEY;
     const sheetId = process.env.GOOGLE_SHEETS_ID;
@@ -506,6 +509,52 @@ export class GoogleSheetsClient {
       }
       return false;
     }, `createWorksheetIfNotExists(${sheetName})`);
+  }
+
+  /**
+   * Clears all data rows in a worksheet below row 1 (headers).
+   */
+  public async clearDataRows(sheetName: string): Promise<void> {
+    this.invalidateRowCache(sheetName);
+    return this.executeWithRetry(async () => {
+      const sheets = this.getSheetsApi();
+      const spreadsheetId = this.getSpreadsheetId();
+      try {
+        await sheets.spreadsheets.values.clear({
+          spreadsheetId,
+          range: `'${sheetName}'!A2:ZZ10000`,
+        });
+        this.invalidateRowCache(sheetName);
+      } catch (err: any) {
+        this.handleApiError(err, `clearDataRows(${sheetName})`, sheetName);
+        throw err;
+      }
+    }, `clearDataRows(${sheetName})`);
+  }
+
+  /**
+   * Overwrites values in a worksheet starting at a specific range (e.g. 'A2').
+   */
+  public async updateRangeValues(sheetName: string, rangeA1: string, values: (string | number | boolean)[][]): Promise<void> {
+    this.invalidateRowCache(sheetName);
+    return this.executeWithRetry(async () => {
+      const sheets = this.getSheetsApi();
+      const spreadsheetId = this.getSpreadsheetId();
+      try {
+        await sheets.spreadsheets.values.update({
+          spreadsheetId,
+          range: `'${sheetName}'!${rangeA1}`,
+          valueInputOption: 'USER_ENTERED',
+          requestBody: {
+            values,
+          },
+        });
+        this.invalidateRowCache(sheetName);
+      } catch (err: any) {
+        this.handleApiError(err, `updateRangeValues(${sheetName})`, sheetName);
+        throw err;
+      }
+    }, `updateRangeValues(${sheetName})`);
   }
 
   /**

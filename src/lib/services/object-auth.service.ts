@@ -26,6 +26,7 @@ import { contentMastersRepository } from '../repositories/content-masters.reposi
 export interface ActorContext {
   id: string;
   role: string | UserRole;
+  roles?: (string | UserRole)[];
   name?: string;
   _cachedActiveAssignments?: Assignment[];
   _inFlightActiveAssignments?: Promise<Assignment[]>;
@@ -42,12 +43,30 @@ export class ObjectAuthorizationService {
   }
 
   /**
+   * Helper: Check if actor has ANY of the given roles
+   */
+  public hasAnyRole(actor: ActorContext, allowedRoles: (string | UserRole)[]): boolean {
+    if (!actor) return false;
+    const actorRoles: string[] = [];
+    if (Array.isArray(actor.roles) && actor.roles.length > 0) {
+      actor.roles.forEach((r) => r && actorRoles.push(String(r).trim().toUpperCase()));
+    }
+    if (actor.role) {
+      String(actor.role).split(',').forEach((r) => {
+        const trimmed = r.trim().toUpperCase();
+        if (trimmed && !actorRoles.includes(trimmed)) actorRoles.push(trimmed);
+      });
+    }
+    const normalizedAllowed = allowedRoles.map((r) => String(r).trim().toUpperCase());
+    return actorRoles.some((r) => normalizedAllowed.includes(r));
+  }
+
+  /**
    * Helper: Check if actor is an Admin or Content Manager (Global Authority)
    */
   public isManagerOrAdmin(actor: ActorContext): boolean {
-    if (!actor || !actor.role) return false;
-    const r = String(actor.role).toUpperCase();
-    return r === UserRole.ADMIN || r === UserRole.CONTENT_MANAGER;
+    if (!actor) return false;
+    return this.hasAnyRole(actor, [UserRole.ADMIN, UserRole.CONTENT_MANAGER, 'ADMIN', 'CONTENT_MANAGER', 'CONTENT_LEAD']);
   }
 
   /**
@@ -133,11 +152,13 @@ export class ObjectAuthorizationService {
 
     const allowedRoles = [
       UserRole.QUESTION_EDITOR,
+      UserRole.QUESTION_CREATOR,
+      UserRole.TOPIC_LEAD,
       UserRole.CREATOR,
       UserRole.CONTENT_WRITER,
       UserRole.EDITOR,
     ];
-    if (!allowedRoles.includes(actor.role as UserRole)) return false;
+    if (!this.hasAnyRole(actor, allowedRoles)) return false;
 
     if (question.authorId === actor.id || (question as any).createdBy === actor.id) return true;
 
@@ -174,12 +195,13 @@ export class ObjectAuthorizationService {
 
     const allowedRoles = [
       UserRole.VIDEO_EDITOR,
+      UserRole.STUDIO_PRESENTER,
       UserRole.CREATOR,
       UserRole.EDITOR,
       UserRole.SPEAKER,
       UserRole.PUBLISHING_MANAGER,
     ];
-    if (!allowedRoles.includes(actor.role as UserRole)) return false;
+    if (!this.hasAnyRole(actor, allowedRoles)) return false;
 
     if (video.assignedHost === actor.id || video.assignedEditor === actor.id) return true;
 
@@ -232,11 +254,12 @@ export class ObjectAuthorizationService {
 
     const allowedRoles = [
       UserRole.SCRIPT_WRITER,
+      UserRole.TELUGU_TRANSLATOR,
       UserRole.CREATOR,
       UserRole.CONTENT_WRITER,
       UserRole.EDITOR,
     ];
-    if (!allowedRoles.includes(actor.role as UserRole)) return false;
+    if (!this.hasAnyRole(actor, allowedRoles)) return false;
 
     if (typeof target === 'string') {
       const video = await videosRepository.findById(target);
@@ -297,8 +320,8 @@ export class ObjectAuthorizationService {
     if (this.isManagerOrAdmin(actor)) return true;
     if (!target) return false;
 
-    const allowedRoles = [UserRole.DESIGNER, UserRole.CREATOR];
-    if (!allowedRoles.includes(actor.role as UserRole)) return false;
+    const allowedRoles = [UserRole.DESIGNER, UserRole.THUMBNAIL_DESIGNER, UserRole.CREATOR];
+    if (!this.hasAnyRole(actor, allowedRoles)) return false;
 
     if (typeof target === 'string') {
       const video = await videosRepository.findById(target);
@@ -363,8 +386,9 @@ export class ObjectAuthorizationService {
       UserRole.CONTENT_WRITER,
       UserRole.EDITOR,
       UserRole.PUBLISHING_MANAGER,
+      UserRole.COMMUNITY_MANAGER,
     ];
-    if (!allowedRoles.includes(actor.role as UserRole)) return false;
+    if (!this.hasAnyRole(actor, allowedRoles)) return false;
 
     if (typeof target === 'string') {
       const video = await videosRepository.findById(target);
@@ -372,12 +396,17 @@ export class ObjectAuthorizationService {
       return false;
     }
 
-    const commentObj = target as any;
-    if (commentObj.videoId) {
-      const video = await videosRepository.findById(commentObj.videoId);
+    const thumbObj = target as any;
+    if (thumbObj.id) {
+      const hasAssignedThm = await this.hasActiveAssignment(actor, 'THUMBNAIL', thumbObj.id);
+      if (hasAssignedThm) return true;
+    }
+
+    if (thumbObj.videoId) {
+      const video = await videosRepository.findById(thumbObj.videoId);
       if (video) return await this.canModifyVideo(actor, video);
-    } else if (commentObj.assignedHost || commentObj.assignedEditor || commentObj.title) {
-      return await this.canModifyVideo(actor, commentObj as Video);
+    } else if (thumbObj.assignedHost || thumbObj.assignedEditor || thumbObj.title) {
+      return await this.canModifyVideo(actor, thumbObj as Video);
     }
 
     return false;
@@ -498,7 +527,7 @@ export class ObjectAuthorizationService {
     if (this.isManagerOrAdmin(actor)) return true;
     if (!videoId) return false;
 
-    if (actor.role !== UserRole.REVIEWER) return false;
+    if (!this.hasAnyRole(actor, [UserRole.REVIEWER, 'REVIEWER'])) return false;
 
     const video = await videosRepository.findById(videoId);
     if (!video) return false;
@@ -523,7 +552,7 @@ export class ObjectAuthorizationService {
     target: Publishing | Video | string
   ): Promise<boolean> {
     if (this.isManagerOrAdmin(actor)) return true;
-    if (actor.role === UserRole.PUBLISHING_MANAGER) return true;
+    if (this.hasAnyRole(actor, [UserRole.PUBLISHING_MANAGER, 'PUBLISHING_MANAGER'])) return true;
     if (!target) return false;
 
     const targetId = typeof target === 'string' ? target : (target as any).videoId || (target as any).id;
@@ -540,7 +569,7 @@ export class ObjectAuthorizationService {
     target: Publishing | Video | string
   ): Promise<boolean> {
     if (this.isManagerOrAdmin(actor)) return true;
-    if (actor.role === UserRole.PUBLISHING_MANAGER) return true;
+    if (this.hasAnyRole(actor, [UserRole.PUBLISHING_MANAGER, 'PUBLISHING_MANAGER'])) return true;
     if (!target) return false;
 
     const targetId = typeof target === 'string' ? target : (target as any).videoId || (target as any).id;
@@ -565,7 +594,7 @@ export class ObjectAuthorizationService {
   }
 
   public canModifyUser(actor: ActorContext, targetUserOrId: any): boolean {
-    if (actor.role === UserRole.ADMIN) return true;
+    if (this.hasAnyRole(actor, [UserRole.ADMIN, 'ADMIN'])) return true;
     const targetId = typeof targetUserOrId === 'string' ? targetUserOrId : targetUserOrId?.id;
     return actor.id === targetId;
   }

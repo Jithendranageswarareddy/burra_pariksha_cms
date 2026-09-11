@@ -175,9 +175,10 @@ export class ProductionSheetInitializer {
           const defaultInitialUsers: User[] = [
             {
               id: 'USR-001',
-              name: 'Admin / Content Lead',
-              email: 'admin@burrapariksha.com',
+              name: 'Jithendra',
+              email: 'jithendrareddy629@gmail.com',
               role: UserRole.ADMIN,
+              roles: [UserRole.ADMIN],
               isActive: true,
               password_hash: defaultPasswordHash,
               createdAt: now,
@@ -185,9 +186,10 @@ export class ProductionSheetInitializer {
             },
             {
               id: 'USR-002',
-              name: 'Production Lead',
-              email: 'brother@burrapariksha.com',
-              role: UserRole.CONTENT_MANAGER,
+              name: 'Surendra Reddy',
+              email: 'seelamsurendrareddy999@gmail.com',
+              role: UserRole.VIDEO_EDITOR,
+              roles: [UserRole.VIDEO_EDITOR],
               isActive: true,
               password_hash: defaultPasswordHash,
               createdAt: now,

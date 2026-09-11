@@ -172,6 +172,8 @@ export class PublishingService {
     const now = new Date().toISOString();
     const newRecord: Publishing = {
       id: `PUB-${videoId.replace('BP-V-', '')}`,
+      contentId: video.contentId || video.contentMasterId,
+      contentMasterId: video.contentMasterId,
       videoId,
       videoTitle: video.title,
       questionId: video.questionId,

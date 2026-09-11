@@ -135,11 +135,17 @@ export enum AssignmentStatus {
 export enum UserRole {
   ADMIN = 'ADMIN',
   CONTENT_MANAGER = 'CONTENT_MANAGER',
+  TOPIC_LEAD = 'TOPIC_LEAD',
+  QUESTION_CREATOR = 'QUESTION_CREATOR',
   QUESTION_EDITOR = 'QUESTION_EDITOR',
+  TELUGU_TRANSLATOR = 'TELUGU_TRANSLATOR',
+  STUDIO_PRESENTER = 'STUDIO_PRESENTER',
   SCRIPT_WRITER = 'SCRIPT_WRITER',
   VIDEO_EDITOR = 'VIDEO_EDITOR',
+  THUMBNAIL_DESIGNER = 'THUMBNAIL_DESIGNER',
   DESIGNER = 'DESIGNER',
   PUBLISHING_MANAGER = 'PUBLISHING_MANAGER',
+  COMMUNITY_MANAGER = 'COMMUNITY_MANAGER',
   CREATOR = 'CREATOR',
   EDITOR = 'EDITOR',
   REVIEWER = 'REVIEWER',
@@ -197,6 +203,7 @@ export interface User {
   name: string;
   email: string;
   role: UserRole | string;
+  roles?: (UserRole | string)[];
   avatarUrl?: string;
   isActive: boolean;
   password_hash?: string;
@@ -259,9 +266,15 @@ export interface Subtopic {
 
 export enum ContentMasterStatus {
   DRAFT = 'DRAFT',
+  READY_FOR_REVIEW = 'READY_FOR_REVIEW',
+  CHANGES_REQUESTED = 'CHANGES_REQUESTED',
+  APPROVED = 'APPROVED',
+  SCHEDULED = 'SCHEDULED',
+  PUBLISHED = 'PUBLISHED',
+  ARCHIVED = 'ARCHIVED',
+  // Legacy/Compatibility Aliases
   ACTIVE = 'ACTIVE',
   COMPLETED = 'COMPLETED',
-  ARCHIVED = 'ARCHIVED',
 }
 
 /**
@@ -269,7 +282,8 @@ export enum ContentMasterStatus {
  * Root identity connecting a piece of content across its full lifecycle.
  */
 export interface ContentMaster {
-  id: string; // e.g. BP-MST-000001
+  id: string; // e.g. BP-CNT-000001 (or legacy BP-MST-000001)
+  contentId?: string; // Canonical correlation identity BP-CNT-######
   title: string;
   status: ContentMasterStatus | string;
   primaryQuestionId?: string;
@@ -333,7 +347,8 @@ export interface ContentMasterCanonicalState {
  */
 export interface Question {
   id: string; // e.g. BP-Q-1042
-  contentMasterId?: string; // Reference to ContentMaster.id (BP-MST-******)
+  contentId?: string; // Canonical correlation identity BP-CNT-######
+  contentMasterId?: string; // Reference to ContentMaster.id (BP-CNT-****** or legacy BP-MST-******)
   categoryId: string;
   categoryName: string;
   topicId: string;
@@ -368,6 +383,7 @@ export interface Question {
   lastValidationId?: string;
   validationScore?: number;
   authorId?: string;
+  generationMode?: 'SUBTOPIC' | 'RANDOM' | string;
   createdAt: string;
   updatedAt: string;
 }
@@ -506,7 +522,8 @@ export interface QuestionVideo {
  */
 export interface Video {
   id: string; // e.g. BP-V-000001
-  contentMasterId?: string; // Reference to ContentMaster.id (BP-MST-******)
+  contentId?: string; // Canonical correlation identity BP-CNT-######
+  contentMasterId?: string; // Reference to ContentMaster.id (BP-CNT-****** or legacy BP-MST-******)
   questionId: string;
   title: string;
   targetDurationSeconds?: number;
@@ -517,6 +534,12 @@ export interface Video {
   assignedHost?: string;
   assignedEditor?: string;
   driveFolderUrl?: string;
+  driveFileId?: string;
+  driveFolderId?: string;
+  fileName?: string;
+  mimeType?: string;
+  fileSize?: number;
+  version?: number;
   rawFootagePath?: string;
   finalRenderPath?: string;
   finalRenderWidth?: number;
@@ -566,7 +589,9 @@ export interface ProductionStats {
  * Short-form / long-form video script content.
  */
 export interface Script {
-  id: string; // e.g. SCR-204
+  id: string; // e.g. SCR-204 or BP-S-000001
+  contentId?: string; // Canonical correlation identity BP-CNT-######
+  contentMasterId?: string; // Reference to ContentMaster.id (BP-CNT-****** or legacy BP-MST-******)
   videoId: string;
   questionId: string;
   hookText: string;
@@ -601,7 +626,9 @@ export interface ScriptVersion {
  * Thumbnail asset references and review status.
  */
 export interface Thumbnail {
-  id: string; // e.g. THM-204
+  id: string; // e.g. THM-204 or BP-T-000001
+  contentId?: string; // Canonical correlation identity BP-CNT-######
+  contentMasterId?: string; // Reference to ContentMaster.id (BP-CNT-****** or legacy BP-MST-******)
   videoId: string;
   hookHeadline: string;
   driveAssetUrl?: string;
@@ -631,7 +658,9 @@ export interface ThumbnailVersion {
  * Engagement and solution comments for social uploads.
  */
 export interface PinnedComment {
-  id: string; // e.g. PIN-204
+  id: string; // e.g. PIN-204 or BP-PIN-000001
+  contentId?: string; // Canonical correlation identity BP-CNT-######
+  contentMasterId?: string; // Reference to ContentMaster.id (BP-CNT-****** or legacy BP-MST-******)
   videoId: string;
   commentText: string;
   solutionBreakdown: string;
@@ -785,7 +814,9 @@ export interface PlatformPublishInfo {
  * Manual multi-platform upload tracking (YouTube, Instagram, Facebook).
  */
 export interface Publishing {
-  id: string; // e.g. PUB-204
+  id: string; // e.g. PUB-204 or BP-PUB-000001
+  contentId?: string; // Canonical correlation identity BP-CNT-######
+  contentMasterId?: string; // Reference to ContentMaster.id (BP-CNT-****** or legacy BP-MST-******)
   videoId: string;
   videoTitle: string;
   questionId: string;
@@ -1732,6 +1763,7 @@ export enum SocialReviewStatus {
 export interface SocialReviewRecord {
   id: string;
   questionId: string;
+  contentId?: string;
   contentMasterId?: string;
   reviewedVersionHash: string;
   reviewerId: string;

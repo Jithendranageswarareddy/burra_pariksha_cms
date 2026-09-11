@@ -1,0 +1,158 @@
+{
+  "timestamp": "2026-09-11T13-18-39-950Z",
+  "topicsBefore": {
+    "headers": [
+      "id",
+      "category_id",
+      "name",
+      "slug",
+      "description",
+      "display_order",
+      "is_active",
+      "created_at",
+      "updated_at"
+    ],
+    "rows": [
+      [
+        "TOP-QA-01",
+        "CAT-QA",
+        "Time, Speed & Distance",
+        "time-speed-distance",
+        "Relative speed, trains, races, and average speed problems",
+        "",
+        "",
+        "2026-01-10T10:00:00.000Z"
+      ],
+      [
+        "TOP-QA-02",
+        "CAT-QA",
+        "Time & Work",
+        "time-and-work",
+        "Efficiency ratios, pipes & cisterns, alternate work schedules",
+        "",
+        "",
+        "2026-01-10T10:00:00.000Z"
+      ],
+      [
+        "TOP-QA-03",
+        "CAT-QA",
+        "Profit, Loss & Discount",
+        "profit-loss-discount",
+        "Marked price tricks, successive discounts, false weight scams",
+        "",
+        "",
+        "2026-01-12T10:00:00.000Z"
+      ],
+      [
+        "TOP-QA-04",
+        "CAT-QA",
+        "Permutations & Probability",
+        "permutations-probability",
+        "Arrangements, selections, conditional probability & dice problems",
+        "",
+        "",
+        "2026-01-14T10:00:00.000Z"
+      ],
+      [
+        "TOP-LR-01",
+        "CAT-LR",
+        "Seating Arrangement",
+        "seating-arrangement",
+        "Circular, linear & rectangular placement conditions",
+        "",
+        "",
+        "2026-01-10T10:00:00.000Z"
+      ],
+      [
+        "TOP-LR-02",
+        "CAT-LR",
+        "Clocks & Calendars",
+        "clocks-and-calendars",
+        "Odd days, leap years, angle between clock hands, slow/fast clocks",
+        "",
+        "",
+        "2026-01-15T10:00:00.000Z"
+      ],
+      [
+        "TOP-LR-03",
+        "CAT-LR",
+        "Blood Relations & Family Tree",
+        "blood-relations",
+        "Coded relations, pointing to photographs, multi-generation trees",
+        "",
+        "",
+        "2026-01-18T10:00:00.000Z"
+      ],
+      [
+        "TOP-DI-01",
+        "CAT-DI",
+        "Pie Chart & Bar Graphs",
+        "pie-charts-bar-graphs",
+        "Degree-to-percentage conversion and multi-company revenue analysis",
+        "",
+        "",
+        "2026-01-15T10:00:00.000Z"
+      ]
+    ]
+  },
+  "subtopicsBefore": {
+    "headers": [
+      "id",
+      "topic_id",
+      "name",
+      "slug",
+      "description",
+      "notes",
+      "display_order",
+      "is_active",
+      "created_at",
+      "updated_at"
+    ],
+    "rows": [
+      [
+        "SUB-01",
+        "TOP-QA-01",
+        "Trains & Moving Platforms",
+        "trains-moving-platforms",
+        "",
+        "Classic aptitude question style for reel speed tricks",
+        "",
+        "",
+        "2026-01-10T10:00:00.000Z"
+      ],
+      [
+        "SUB-02",
+        "TOP-QA-01",
+        "Escalators & Walking Speeds",
+        "escalators-walking-speeds",
+        "",
+        "High-engagement viral puzzle style",
+        "",
+        "",
+        "2026-01-11T10:00:00.000Z"
+      ],
+      [
+        "SUB-03",
+        "TOP-QA-02",
+        "Pipes with Leakage",
+        "pipes-leakage",
+        "",
+        "Common competitive exam trap",
+        "",
+        "",
+        "2026-01-12T10:00:00.000Z"
+      ],
+      [
+        "SUB-04",
+        "TOP-LR-02",
+        "Clock Angle Traps",
+        "clock-angle-traps",
+        "",
+        "Short formula tricks: |30H - 11/2 M|",
+        "",
+        "",
+        "2026-01-15T10:00:00.000Z"
+      ]
+    ]
+  }
+}

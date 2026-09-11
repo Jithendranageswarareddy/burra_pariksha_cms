@@ -16,6 +16,7 @@ import { workflowRepository } from '../repositories/workflow.repository';
 import { idService } from './id.service';
 import { auditService } from './audit.service';
 import { PinnedComment, PinnedCommentVersion, Workflow } from '../../types';
+import { ValidationError } from '../google-sheets/errors';
 
 export interface PinnedCommentPayload {
   commentText: string;
@@ -83,6 +84,13 @@ export class PinnedCommentService {
       throw new Error(`Video "${videoId}" not found.`);
     }
 
+    const videoContentId = video.contentId || video.contentMasterId;
+    if ((payload as any).contentId && videoContentId && (payload as any).contentId !== videoContentId) {
+      throw new ValidationError(
+        `Cross-content entity attachment rejected: provided Content ID "${(payload as any).contentId}" does not match parent video Content ID "${videoContentId}".`
+      );
+    }
+
     const existing = await pinnedCommentsRepository.findByVideoId(videoId);
     const now = new Date().toISOString();
 
@@ -90,6 +98,8 @@ export class PinnedCommentService {
       const pinId = await idService.allocatePinnedCommentId();
       const newRecord: PinnedComment = {
         id: pinId,
+        contentId: video.contentId || video.contentMasterId,
+        contentMasterId: video.contentMasterId,
         videoId,
         commentText: payload.commentText,
         solutionBreakdown: payload.solutionBreakdown,

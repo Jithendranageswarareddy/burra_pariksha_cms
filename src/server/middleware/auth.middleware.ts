@@ -6,6 +6,7 @@ export interface AuthUserContext {
   id: string;
   name: string;
   role: string;
+  roles?: string[];
 }
 
 export interface AuthenticatedRequest extends Request {
@@ -60,12 +61,21 @@ export function requireAuth(req: AuthenticatedRequest, res: Response, next: Next
     return;
   }
 
-  // Attach verified user context containing only id, name, role
+  // Attach verified user context containing id, name, role, roles
   // Never attach password_hash, session token, secrets, or credentials
+  const rolesList: string[] = [];
+  if (Array.isArray((payload as any).roles)) {
+    (payload as any).roles.forEach((r: any) => r && rolesList.push(String(r).trim()));
+  }
+  if (rolesList.length === 0 && payload.role) {
+    String(payload.role).split(',').forEach((r) => r.trim() && rolesList.push(r.trim()));
+  }
+
   req.user = {
     id: payload.userId,
     name: payload.name,
-    role: payload.role,
+    role: payload.role || rolesList[0] || UserRole.ADMIN,
+    roles: rolesList.length > 0 ? rolesList : [payload.role || UserRole.ADMIN],
   };
   next();
 }
@@ -85,13 +95,17 @@ export function requireRole(allowedRoles: string[]) {
       return;
     }
 
-    const userRole = req.user.role;
-    let isAllowed = allowedRoles.includes(userRole);
+    const userRoles: string[] = [];
+    if (Array.isArray(req.user.roles) && req.user.roles.length > 0) {
+      req.user.roles.forEach((r) => r && userRoles.push(String(r).trim()));
+    }
+    if (req.user.role) {
+      String(req.user.role).split(',').forEach((r) => r.trim() && !userRoles.includes(r.trim()) && userRoles.push(r.trim()));
+    }
 
     // ADMIN global authority bypass
-    if (userRole === UserRole.ADMIN) {
-      isAllowed = true;
-    }
+    const isAdmin = userRoles.includes(UserRole.ADMIN) || userRoles.includes('ADMIN');
+    const isAllowed = isAdmin || userRoles.some((r) => allowedRoles.includes(r));
 
     if (!isAllowed) {
       res.status(403).json({

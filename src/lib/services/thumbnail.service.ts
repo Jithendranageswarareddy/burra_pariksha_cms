@@ -19,6 +19,7 @@ import { idService } from './id.service';
 import { auditService } from './audit.service';
 import { workflowService } from './workflow.service';
 import { Thumbnail, ThumbnailVersion, UserRole } from '../../types';
+import { ValidationError } from '../google-sheets/errors';
 
 export interface ThumbnailPayload {
   hookHeadline: string;
@@ -99,6 +100,13 @@ export class ThumbnailService {
       throw new Error(`Video "${videoId}" not found.`);
     }
 
+    const videoContentId = video.contentId || video.contentMasterId;
+    if ((payload as any).contentId && videoContentId && (payload as any).contentId !== videoContentId) {
+      throw new ValidationError(
+        `Cross-content entity attachment rejected: provided Content ID "${(payload as any).contentId}" does not match parent video Content ID "${videoContentId}".`
+      );
+    }
+
     const existing = await thumbnailsRepository.findByVideoId(videoId);
     const now = new Date().toISOString();
 
@@ -107,6 +115,8 @@ export class ThumbnailService {
       const thumbnailId = await idService.allocateThumbnailId();
       const newThumbnail: Thumbnail = {
         id: thumbnailId,
+        contentId: video.contentId || video.contentMasterId,
+        contentMasterId: video.contentMasterId,
         videoId,
         hookHeadline: payload.hookHeadline || video.title,
         driveAssetUrl: payload.driveAssetUrl || '',

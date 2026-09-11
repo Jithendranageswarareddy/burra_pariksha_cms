@@ -28,6 +28,7 @@
 
 import { questionService } from '../lib/services/question.service';
 import { taxonomyService } from '../lib/services/taxonomy.service';
+import { googleSheetsClient } from '../lib/google-sheets/client';
 import { workflowService } from '../lib/services/workflow.service';
 import { auditService } from '../lib/services/audit.service';
 import { DifficultyLevel, QuestionStatus, QuestionStyle, VideoProductionStatus } from '../types';
@@ -51,12 +52,20 @@ export async function runPhase3Verification() {
     }
   }
 
+  // Invalidate caches to ensure fresh reads from Google Sheets
+  googleSheetsClient.invalidateRowCache();
+  taxonomyService.invalidateCache();
+
   // Fetch baseline taxonomy
   const tree = await taxonomyService.getTaxonomyTree();
   assert(tree.length > 0, 'Taxonomy tree loaded successfully');
-  const testCat = tree[0];
-  const testTopic = testCat.topics[0];
-  const testSubtopic = testTopic.subtopics[0];
+
+  const allTopics = await taxonomyService.getTopics();
+  const allSubtopics = await taxonomyService.getSubtopics();
+
+  const testSubtopic = allSubtopics[0]; // e.g. SUB-04 or SUB-01
+  const testTopic = allTopics.find((t) => t.id === testSubtopic?.topicId) || allTopics[0];
+  const testCat = tree.find((c) => c.id === testTopic?.categoryId) || tree[0];
 
   const testActor = { id: 'USR-001', name: 'Test Editor' };
 

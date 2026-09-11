@@ -517,6 +517,7 @@ export class SocialReviewService {
     const reviewRecord: SocialReviewRecord = {
       id: recordId,
       questionId,
+      contentId: liveBundle.question.contentId || liveBundle.question.contentMasterId,
       contentMasterId: liveBundle.question.contentMasterId,
       reviewedVersionHash: liveBundle.currentVersionHash,
       reviewerId: actor.id,

@@ -229,7 +229,7 @@ export async function runTask3D1Verification() {
     // 15. Verify authorization controls on admin endpoints
     let authCheckPassed = false;
     const mockReq: Partial<AuthenticatedRequest> = {
-      user: { id: reviewerUser.id, name: reviewerUser.name, role: reviewerUser.role },
+      user: { id: reviewerUser.id, name: reviewerUser.name, role: reviewerUser.role, roles: [reviewerUser.role as UserRole] },
     };
     let forbiddenCalled = false;
     const mockRes: any = {

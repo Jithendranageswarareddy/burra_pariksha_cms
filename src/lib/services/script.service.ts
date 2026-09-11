@@ -19,6 +19,7 @@ import { auditService } from './audit.service';
 import { videoService } from './video.service';
 import { geminiService } from '../ai/gemini.service';
 import { Question, Script, ScriptVersion, VideoProductionStatus, UserRole } from '../../types';
+import { ValidationError } from '../google-sheets/errors';
 
 export interface ScriptContentPayload {
   hookText: string;
@@ -166,6 +167,13 @@ export class ScriptService {
       throw new Error(`Video with ID "${videoId}" not found in database.`);
     }
 
+    const videoContentId = video.contentId || video.contentMasterId;
+    if ((payload as any).contentId && videoContentId && (payload as any).contentId !== videoContentId) {
+      throw new ValidationError(
+        `Cross-content entity attachment rejected: provided Content ID "${(payload as any).contentId}" does not match parent video Content ID "${videoContentId}".`
+      );
+    }
+
     const existing = await scriptsRepository.findByVideoId(videoId);
     const now = new Date().toISOString();
 
@@ -174,6 +182,8 @@ export class ScriptService {
       const scriptId = await idService.allocateScriptId();
       const newScript: Script = {
         id: scriptId,
+        contentId: video.contentId || video.contentMasterId,
+        contentMasterId: video.contentMasterId,
         videoId,
         questionId: video.questionId,
         hookText: payload.hookText || '',

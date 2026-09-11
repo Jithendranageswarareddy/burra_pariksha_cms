@@ -1,5 +1,5 @@
 {
-  "name": "react-example",
+  "name": "burra-pariksha-cms",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -15,6 +15,7 @@
     "@google/genai": "^2.4.0",
     "@tailwindcss/vite": "^4.1.14",
     "@vitejs/plugin-react": "^5.0.4",
+    "busboy": "^1.6.0",
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
     "express-rate-limit": "^8.7.0",
@@ -28,6 +29,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@types/busboy": "^1.5.4",
     "@types/express": "^4.17.21",
     "@types/node": "^22.14.0",
     "@types/react": "^19.2.18",

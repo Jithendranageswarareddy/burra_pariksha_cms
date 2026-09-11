@@ -191,24 +191,55 @@ export class QuestionService {
     // 1. Zod runtime schema validation
     const validatedInput = CreateQuestionInputSchema.parse(input);
 
-    // 2. Validate Taxonomy Integrity (Category -> Topic -> Subtopic)
-    const { category, topic, subtopic } = await taxonomyService.validateTaxonomy(
-      validatedInput.categoryId,
+    // Validate distinct options and correct answer choice
+    const optValues = [
+      validatedInput.options.a.trim().toLowerCase(),
+      validatedInput.options.b.trim().toLowerCase(),
+      validatedInput.options.c.trim().toLowerCase(),
+      validatedInput.options.d.trim().toLowerCase(),
+    ];
+    if (new Set(optValues).size < 4) {
+      throw new ValidationError('Question options must contain 4 distinct choices.');
+    }
+
+    const correctKey = validatedInput.correctAnswer.toLowerCase() as 'a' | 'b' | 'c' | 'd';
+    if (!validatedInput.options[correctKey] || !validatedInput.options[correctKey].trim()) {
+      throw new ValidationError(`Selected correct answer (${validatedInput.correctAnswer}) corresponds to an empty option choice.`);
+    }
+
+    // Handle RANDOM mode or subtopicId = 'RANDOM'
+    let resolvedSubtopicId = validatedInput.subtopicId;
+    let resolvedGenerationMode: 'SUBTOPIC' | 'RANDOM' =
+      validatedInput.generationMode?.toUpperCase() === 'RANDOM' ||
+      validatedInput.subtopicId?.toUpperCase() === 'RANDOM'
+        ? 'RANDOM'
+        : 'SUBTOPIC';
+
+    if (resolvedGenerationMode === 'RANDOM' || resolvedSubtopicId?.toUpperCase() === 'RANDOM') {
+      const resolved = await taxonomyService.resolveSubtopicSelection(validatedInput.topicId, 'RANDOM');
+      resolvedSubtopicId = resolved.subtopicId;
+      resolvedGenerationMode = 'RANDOM';
+    }
+
+    // 2. Validate Taxonomy Integrity (Topic -> Subtopic primary, optional legacy category)
+    const { category, topic, subtopic } = await taxonomyService.validateQuestionTaxonomy(
       validatedInput.topicId,
-      validatedInput.subtopicId
+      resolvedSubtopicId,
+      validatedInput.categoryId
     );
 
     // 3. Permanent ID Allocation via SEQUENCES tab
     const id = await idService.allocateQuestionId();
 
-    // 3B. Content Master allocation / link
-    let contentMasterId = (validatedInput as any).contentMasterId;
+    // 3B. Canonical Content ID / Content Master allocation & correlation
+    let contentId = (validatedInput as any).contentId || (validatedInput as any).contentMasterId;
+    let contentMasterId = (validatedInput as any).contentMasterId || (validatedInput as any).contentId;
     if (!contentMasterId) {
       const master = await contentMasterService.createContentMaster(
         {
           title: validatedInput.questionText ? validatedInput.questionText.slice(0, 100) : `Content Master for Question ${id}`,
           primaryQuestionId: id,
-          categoryId: category.id,
+          categoryId: category?.id || '',
           topicId: topic.id,
           subtopicId: subtopic.id,
           createdBy: actor.id,
@@ -217,6 +248,7 @@ export class QuestionService {
         actor.name
       );
       contentMasterId = master.id;
+      contentId = master.id;
     }
 
     const now = new Date().toISOString();
@@ -226,32 +258,35 @@ export class QuestionService {
 
     const newQuestion: Question = {
       id,
+      contentId,
       contentMasterId,
-      categoryId: category.id,
-      categoryName: category.name,
+      categoryId: category?.id || '',
+      categoryName: category?.name || '',
       topicId: topic.id,
       topicName: topic.name,
       subtopicId: subtopic.id,
       subtopicName: subtopic.name,
       difficulty: validatedInput.difficulty,
+      language: (validatedInput as any).language || 'ENGLISH',
       questionText: validatedInput.questionText,
       options: validatedInput.options,
       correctAnswer: validatedInput.correctAnswer,
       explanation: validatedInput.explanation,
-      realWorldContext: validatedInput.realWorldContext || '',
-      realLifeContext: (validatedInput as any).realLifeContext || '',
+      realWorldContext: validatedInput.realWorldContext || (validatedInput as any).realLifeContext || '',
+      realLifeContext: (validatedInput as any).realLifeContext || validatedInput.realWorldContext || '',
       challengeType: (validatedInput as any).challengeType || '',
       presentationType: (validatedInput as any).presentationType || '',
       originalityScore: (validatedInput as any).originalityScore || 0,
       aiModel: (validatedInput as any).aiModel || '',
       aiPrompt: (validatedInput as any).aiPrompt || '',
-      questionStyle: validatedInput.questionStyle,
+      questionStyle: validatedInput.questionStyle as any,
       status,
       videoStatus,
       tags: validatedInput.tags || [],
       source: validatedInput.source || 'Manual Authoring',
       aiPromptUsed: validatedInput.aiPromptUsed || '',
       authorId: actor.id,
+      generationMode: resolvedGenerationMode,
       createdAt: now,
       updatedAt: now,
     };
@@ -278,7 +313,7 @@ export class QuestionService {
       id,
       {
         questionId: id,
-        categoryId: category.id,
+        categoryId: category?.id || '',
         topicId: topic.id,
         subtopicId: subtopic.id,
         difficulty: validatedInput.difficulty,
@@ -478,6 +513,15 @@ export class QuestionService {
     // 1. Zod update validation
     UpdateQuestionInputSchema.parse({ id, ...updates });
 
+    // 1B. Enforce Content ID Immutability
+    const currentCanonicalId = existing.contentId || existing.contentMasterId;
+    if ((updates as any).contentId && currentCanonicalId && (updates as any).contentId !== currentCanonicalId) {
+      throw new ValidationError(`Cannot modify immutable Content ID "${currentCanonicalId}" to "${(updates as any).contentId}".`);
+    }
+    if ((updates as any).contentMasterId && currentCanonicalId && (updates as any).contentMasterId !== currentCanonicalId) {
+      throw new ValidationError(`Cannot modify immutable Content Master ID "${currentCanonicalId}" to "${(updates as any).contentMasterId}".`);
+    }
+
     // 2. Validate taxonomy if any taxonomy field changed
     const targetCat = updates.categoryId || existing.categoryId;
     const targetTopic = updates.topicId || existing.topicId;
@@ -566,11 +610,13 @@ export class QuestionService {
       );
     }
 
-    // 6. Merge record (preserve immutable ID and createdAt, generate new server updatedAt)
-    const updatedRecord: Partial<Question> = {
+    // 6. Merge record (preserve immutable ID, contentId, contentMasterId, and createdAt, generate new server updatedAt)
+    const updatedRecord: any = {
       ...updates,
       ...enrichedTaxonomy,
       id: existing.id,
+      contentId: existing.contentId,
+      contentMasterId: existing.contentMasterId,
       createdAt: existing.createdAt,
       status: nextStatus,
       videoStatus: nextVideoStatus,

@@ -120,7 +120,18 @@ export class TaxonomyService {
 
   public async getCategoryById(id: string): Promise<Category | null> {
     const categories = await this.getCategories();
-    return categories.find((c) => c.id === id) || null;
+    const found = categories.find((c) => c.id === id);
+    if (found) return found;
+    if (id === 'CAT-GENERAL') {
+      return {
+        id: 'CAT-GENERAL',
+        name: 'General / Uncategorized Topics',
+        slug: 'general-topics',
+        description: 'Standalone topics without assigned parent category',
+        createdAt: new Date().toISOString(),
+      };
+    }
+    return null;
   }
 
   public async createCategory(
@@ -388,6 +399,83 @@ export class TaxonomyService {
   public async getSubtopicById(id: string): Promise<Subtopic | null> {
     const all = await this.getSubtopics(undefined, { includeInactive: true });
     return all.find((s) => s.id === id) || null;
+  }
+
+  /**
+   * Resolves a subtopic selection for content generation.
+   * If subtopicIdOrMode is 'RANDOM' (case-insensitive) or empty, uniformly selects ONE active subtopic
+   * from the provided topicId.
+   * Returns the resolved subtopic, actual subtopicId, subtopicName, and generationMode ('SUBTOPIC' | 'RANDOM').
+   */
+  public async resolveSubtopicSelection(
+    topicId: string,
+    subtopicIdOrMode?: string
+  ): Promise<{
+    topicId: string;
+    topicName: string;
+    subtopicId: string;
+    subtopicName: string;
+    generationMode: 'SUBTOPIC' | 'RANDOM';
+    selectedSubtopic: Subtopic;
+  }> {
+    const parentTopic = await this.getTopicById(topicId);
+    if (!parentTopic) {
+      throw new ReferenceIntegrityError(
+        `Referenced Topic with ID "${topicId}" does not exist.`
+      );
+    }
+    if (parentTopic.isActive === false) {
+      throw new ValidationError(
+        `Referenced Topic "${parentTopic.name}" (${parentTopic.id}) is inactive and cannot be used.`
+      );
+    }
+
+    const isRandomMode =
+      !subtopicIdOrMode ||
+      subtopicIdOrMode.trim().toUpperCase() === 'RANDOM' ||
+      subtopicIdOrMode.trim().toUpperCase() === 'SUB-GEN';
+
+    if (isRandomMode) {
+      const activeSubtopics = await this.getSubtopics(topicId, { includeInactive: false });
+      if (activeSubtopics.length === 0) {
+        throw new ValidationError(`No active subtopics found under Topic "${parentTopic.name}" (${topicId}).`);
+      }
+      const randomIndex = Math.floor(Math.random() * activeSubtopics.length);
+      const chosenSubtopic = activeSubtopics[randomIndex];
+
+      return {
+        topicId: parentTopic.id,
+        topicName: parentTopic.name,
+        subtopicId: chosenSubtopic.id,
+        subtopicName: chosenSubtopic.name,
+        generationMode: 'RANDOM',
+        selectedSubtopic: chosenSubtopic,
+      };
+    } else {
+      const subtopic = await this.getSubtopicById(subtopicIdOrMode);
+      if (!subtopic) {
+        throw new ValidationError(`Referenced Subtopic with ID "${subtopicIdOrMode}" does not exist.`);
+      }
+      if (subtopic.isActive === false) {
+        throw new ValidationError(
+          `Referenced Subtopic "${subtopic.name}" (${subtopic.id}) is inactive and cannot be used.`
+        );
+      }
+      if (subtopic.topicId !== topicId) {
+        throw new ValidationError(
+          `Subtopic "${subtopic.name}" (${subtopic.id}) does not belong to Topic "${parentTopic.name}" (${topicId}).`
+        );
+      }
+
+      return {
+        topicId: parentTopic.id,
+        topicName: parentTopic.name,
+        subtopicId: subtopic.id,
+        subtopicName: subtopic.name,
+        generationMode: 'SUBTOPIC',
+        selectedSubtopic: subtopic,
+      };
+    }
   }
 
   public async createSubtopic(
@@ -658,9 +746,15 @@ export class TaxonomyService {
     if (!topic) {
       throw new ReferenceIntegrityError(`Referenced Topic with ID "${topicId}" does not exist in the TOPICS sheet.`);
     }
+    if (topic.isActive === false) {
+      throw new ValidationError(`Referenced Topic "${topic.name}" (${topic.id}) is inactive and cannot be used.`);
+    }
 
     if (!subtopic) {
       throw new ReferenceIntegrityError(`Referenced Subtopic with ID "${subtopicId}" does not exist in the SUBTOPICS sheet.`);
+    }
+    if (subtopic.isActive === false) {
+      throw new ValidationError(`Referenced Subtopic "${subtopic.name}" (${subtopic.id}) is inactive and cannot be used.`);
     }
 
     // STRICT INTEGRITY CHECK: Subtopic MUST belong to the specified Topic

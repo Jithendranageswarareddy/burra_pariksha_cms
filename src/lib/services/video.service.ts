@@ -15,11 +15,17 @@ import {
   workflowRepository,
   auditLogRepository,
   publishingRepository,
+  usersRepository,
 } from '../repositories';
 import { idService } from './id.service';
 import { workflowService } from './workflow.service';
 import { auditService } from './audit.service';
+import { assignmentService } from './assignment.service';
 import { contentMasterService } from './content-master.service';
+import { googleDriveService } from './google-drive.service';
+import { objectAuthService, ActorContext } from './object-auth.service';
+import { validateMediaUpload } from '../../config/media-upload.config';
+import { Readable } from 'stream';
 import {
   Assignment,
   AssignmentEntityType,
@@ -196,6 +202,13 @@ export class VideoService {
       });
     }
 
+    // 1B. Validate Content ID correlation if explicitly provided
+    if ((input as any).contentId && question.contentId && (input as any).contentId !== question.contentId) {
+      throw new ValidationError(
+        `Cross-content entity attachment rejected: provided Content ID "${(input as any).contentId}" does not match parent question Content ID "${question.contentId}".`
+      );
+    }
+
     // 2. Question status is APPROVED
     if (question.status !== QuestionStatus.APPROVED) {
       throw new ValidationError(
@@ -264,6 +277,7 @@ export class VideoService {
 
     const newVideo: Video = {
       id: videoId,
+      contentId: question.contentId || contentMasterId,
       contentMasterId,
       questionId: question.id,
       title: videoTitle,
@@ -497,39 +511,46 @@ export class VideoService {
       });
     }
 
+    let resolvedAssigneeId = assignment.assigneeId;
+    const directUser = await usersRepository.findById(resolvedAssigneeId);
+    if (!directUser && assignment.assigneeName) {
+      const allUsers = await usersRepository.findAll();
+      const matched = allUsers.find(
+        (u) => u.isActive && (u.name.toLowerCase() === assignment.assigneeName.toLowerCase() || u.id === assignment.assigneeId)
+      );
+      if (matched) {
+        resolvedAssigneeId = matched.id;
+      }
+    }
+
+    const createdAssignment = await assignmentService.createAssignment(
+      {
+        entityType: AssignmentEntityType.VIDEO,
+        entityId: videoId,
+        assigneeId: resolvedAssigneeId,
+        taskType: assignment.taskType || 'RECORDING',
+        priority: video.priority || PriorityLevel.NORMAL,
+        dueDate: assignment.dueDate,
+        notes: assignment.notes,
+      },
+      actor
+    );
+
     const now = new Date().toISOString();
-    const assignmentId = `ASG-${Date.now().toString(36).toUpperCase()}`;
-
-    const newAssignment: Assignment = {
-      id: assignmentId,
-      entityType: AssignmentEntityType.VIDEO,
-      entityId: videoId,
-      videoId,
-      assigneeId: assignment.assigneeId,
-      assigneeName: assignment.assigneeName,
-      taskType: assignment.taskType,
-      status: 'PENDING',
-      priority: video.priority || PriorityLevel.NORMAL,
-      dueDate: assignment.dueDate,
-      notes: assignment.notes,
-      createdAt: now,
-    };
-
-    const createdAssignment = await assignmentsRepository.appendRecord(newAssignment);
-
     // Update video helper fields
     const videoUpdates: Partial<Video> = { updatedAt: now };
     if (assignment.taskType === 'RECORDING') {
-      videoUpdates.assignedHost = assignment.assigneeName;
+      videoUpdates.assignedHost = assignment.assigneeName || createdAssignment.assigneeName;
     } else if (assignment.taskType === 'EDITING') {
-      videoUpdates.assignedEditor = assignment.assigneeName;
+      videoUpdates.assignedEditor = assignment.assigneeName || createdAssignment.assigneeName;
     }
     await videosRepository.updateRecord(videoId, videoUpdates);
 
     await auditService.log(actor.id, actor.name, 'VIDEO_ASSIGNMENT_CHANGED', 'VIDEO', videoId, {
-      assigneeId: assignment.assigneeId,
-      assigneeName: assignment.assigneeName,
-      taskType: assignment.taskType,
+      assignmentId: createdAssignment.id,
+      assigneeId: createdAssignment.assigneeId,
+      assigneeName: createdAssignment.assigneeName,
+      taskType: assignment.taskType || 'RECORDING',
     });
 
     return createdAssignment;
@@ -775,6 +796,153 @@ export class VideoService {
     }
 
     return stats;
+  }
+
+  /**
+   * Phase 7: Real Google Drive binary upload & correlation with Content ID / Video metadata.
+   */
+  public async uploadVideoAsset(params: {
+    contentId?: string;
+    videoId?: string;
+    fileName: string;
+    mimeType: string;
+    size: number;
+    fileStreamOrBuffer: Readable | Buffer;
+    actor: ActorContext;
+  }): Promise<Video> {
+    const { contentId: rawContentId, videoId, fileName, mimeType, size, fileStreamOrBuffer, actor } = params;
+
+    if (!actor || !actor.id) {
+      throw new ValidationError('Authentication required: Valid actor context is required for video asset upload.');
+    }
+
+    // 1. Validate file parameters against media allowlist
+    const { sanitizedFileName } = validateMediaUpload({
+      fileName,
+      mimeType,
+      size,
+      category: 'video',
+    });
+
+    let existingVideo: Video | null = null;
+    let targetContentId = rawContentId;
+
+    if (videoId) {
+      existingVideo = await videosRepository.findById(videoId);
+      if (!existingVideo) {
+        throw new ReferenceIntegrityError(`Video record with ID "${videoId}" was not found.`);
+      }
+      const canModify = await objectAuthService.canModifyVideo(actor, existingVideo);
+      if (!canModify) {
+        throw new ValidationError(`Forbidden: Actor "${actor.id}" is not authorized to upload assets for video "${videoId}".`);
+      }
+      targetContentId = targetContentId || existingVideo.contentId || existingVideo.contentMasterId;
+    }
+
+    if (!targetContentId) {
+      throw new ValidationError('Canonical Content ID (e.g. BP-CNT-000001) or videoId is required for asset upload.');
+    }
+
+    // Ensure content master exists or validate content ID
+    const contentDetails = await contentMasterService.getDetailsByContentMasterId(targetContentId);
+    if (!contentDetails || !contentDetails.contentMaster) {
+      throw new ReferenceIntegrityError(`Content Master with ID "${targetContentId}" does not exist.`);
+    }
+
+    // 2. Ensure deterministic Google Drive folder hierarchy
+    const hierarchy = await googleDriveService.ensureContentHierarchy(targetContentId);
+
+    // 3. Perform binary upload to Drive
+    const driveFile = await googleDriveService.uploadFile({
+      fileName: sanitizedFileName,
+      mimeType,
+      bodyStreamOrBuffer: fileStreamOrBuffer,
+      folderId: hierarchy.videosFolderId,
+      description: `Uploaded video asset for Content ID: ${targetContentId}`,
+    });
+
+    // 4. Compute incremented version number
+    let nextVersion = 1;
+    if (existingVideo) {
+      const currentVer = Number(existingVideo.version) || 1;
+      nextVersion = currentVer + 1;
+    } else {
+      const allContentVideos = await videosRepository.findAll();
+      const matchingVideos = allContentVideos.filter(
+        (v) => v.contentId === targetContentId || v.contentMasterId === targetContentId
+      );
+      if (matchingVideos.length > 0) {
+        const maxVer = Math.max(...matchingVideos.map((v) => Number(v.version) || 1));
+        nextVersion = maxVer + 1;
+      }
+    }
+
+    try {
+      // 5. Update or create video record metadata in Google Sheets
+      const now = new Date().toISOString();
+      let updatedVideo: Video;
+
+      if (existingVideo) {
+        const updatePayload: Partial<Video> = {
+          driveFileId: driveFile.fileId,
+          driveFolderId: hierarchy.videosFolderId,
+          driveFolderUrl: driveFile.webViewLink || `https://drive.google.com/drive/folders/${hierarchy.videosFolderId}`,
+          fileName: sanitizedFileName,
+          mimeType,
+          fileSize: driveFile.size || size,
+          version: nextVersion,
+          finalRenderFormat: mimeType.split('/')[1] || 'mp4',
+          updatedAt: now,
+        };
+        updatedVideo = (await videosRepository.update(existingVideo.id, updatePayload)) as Video;
+      } else {
+        const primaryQuestionId = contentDetails.questions[0]?.id || `BP-Q-000000`;
+        const newVideoId = await idService.generateId('VIDEO');
+        const newVideoPayload: Video = {
+          id: newVideoId,
+          contentId: targetContentId,
+          contentMasterId: targetContentId,
+          questionId: primaryQuestionId,
+          title: contentDetails.contentMaster.title || `Video for ${targetContentId}`,
+          status: VideoProductionStatus.EDITED,
+          priority: PriorityLevel.NORMAL,
+          driveFileId: driveFile.fileId,
+          driveFolderId: hierarchy.videosFolderId,
+          driveFolderUrl: driveFile.webViewLink || `https://drive.google.com/drive/folders/${hierarchy.videosFolderId}`,
+          fileName: sanitizedFileName,
+          mimeType,
+          fileSize: driveFile.size || size,
+          version: nextVersion,
+          finalRenderFormat: mimeType.split('/')[1] || 'mp4',
+          createdAt: now,
+          updatedAt: now,
+        };
+        updatedVideo = await videosRepository.create(newVideoPayload);
+      }
+
+      // Audit log
+      await auditService.log(
+        actor.id,
+        actor.name || actor.id,
+        'VIDEO_ASSET_UPLOAD',
+        'VIDEO',
+        updatedVideo.id,
+        {
+          contentId: targetContentId,
+          driveFileId: driveFile.fileId,
+          fileName: sanitizedFileName,
+          mimeType,
+          fileSize: size,
+          version: nextVersion,
+        }
+      );
+
+      return updatedVideo;
+    } catch (err: any) {
+      // Compensation: Rollback Drive file if Sheets metadata persistence fails
+      await googleDriveService.deleteFile(driveFile.fileId);
+      throw new Error(`Failed to persist video metadata after Drive upload: ${err?.message || 'Unknown error'}`);
+    }
   }
 }
 
