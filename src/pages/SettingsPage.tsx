@@ -999,7 +999,7 @@ export const SettingsPage: React.FC = () => {
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                  Diagnostic Check Suites (10 Categories)
+                  Diagnostic Check Suites ({integrityReport?.integrityChecks.length || 11} Categories)
                 </h4>
                 <span className="text-xs text-slate-400">
                   Read-only referential & schema invariant verifications
@@ -1159,6 +1159,7 @@ export const SettingsPage: React.FC = () => {
                     <option value="WORKFLOW_INTEGRITY">Workflow</option>
                     <option value="AUDIT_LOG_INTEGRITY">Audit Log</option>
                     <option value="SEQUENCE_INTEGRITY">Sequences</option>
+                    <option value="CONTENT_MASTER_INTEGRITY">Content Masters</option>
                   </select>
 
                   {/* Search Input */}

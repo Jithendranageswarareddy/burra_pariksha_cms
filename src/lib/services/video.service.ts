@@ -11,6 +11,7 @@ import {
   videosRepository,
   questionVideosRepository,
   questionsRepository,
+  contentMastersRepository,
   assignmentsRepository,
   workflowRepository,
   auditLogRepository,
@@ -34,6 +35,7 @@ import {
   AuditLog,
   UserRole,
   RenderValidationStatus,
+  ContentMasterStatus,
 } from '../../types';
 import { ProductionAssetValidationService } from './production-asset-validation.service';
 import {
@@ -133,7 +135,13 @@ export class VideoService {
   private verifyVideoRole(actor: { role?: string | UserRole }): void {
     if (actor.role) {
       const r = String(actor.role).toUpperCase();
-      const allowed = [UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.VIDEO_EDITOR, UserRole.PUBLISHING_MANAGER];
+      const allowed = [
+        UserRole.ADMIN,
+        UserRole.CONTENT_MANAGER,
+        UserRole.VIDEO_EDITOR,
+        UserRole.PUBLISHING_MANAGER,
+        UserRole.REVIEWER,
+      ];
       if (!allowed.includes(r as any)) {
         throw new Error(`Unauthorized: Role "${actor.role}" is not allowed to modify videos.`);
       }
@@ -258,6 +266,18 @@ export class VideoService {
       contentMasterId = master.id;
       question.contentMasterId = master.id;
       await questionsRepository.updateRecord(question.id, { contentMasterId: master.id });
+    } else {
+      const cm = await contentMastersRepository.findById(contentMasterId);
+      if (!cm) {
+        throw new ReferenceIntegrityError(
+          `Content Master with ID "${contentMasterId}" referenced by Question "${question.id}" was not found in CONTENT_MASTERS sheet.`
+        );
+      }
+      if (cm.status === ContentMasterStatus.ARCHIVED || cm.status === ContentMasterStatus.COMPLETED) {
+        throw new ValidationError(
+          `Cannot queue video for production: Parent Content Master "${contentMasterId}" is in status "${cm.status}".`
+        );
+      }
     }
 
     const videoTitle = input.title || `Short: ${question.questionText.slice(0, 80)}${question.questionText.length > 80 ? '...' : ''}`;
@@ -330,6 +350,24 @@ export class VideoService {
   }
 
   /**
+   * Phase 16.7: Alias for queueApprovedQuestion conforming to workflow naming.
+   */
+  public async queueVideoForProduction(
+    input: {
+      questionId: string;
+      title?: string;
+      priority?: PriorityLevel;
+      assignedHost?: string;
+      assignedEditor?: string;
+      notes?: string;
+      targetDurationSeconds?: number;
+    },
+    actor: { id: string; name: string; role?: string | UserRole } = { id: 'USR-001', name: 'Admin / Content Lead', role: UserRole.ADMIN }
+  ): Promise<Video> {
+    return this.queueApprovedQuestion(input, actor);
+  }
+
+  /**
    * Transitions a video to a new production status following state machine rules.
    */
   public async transitionStatus(
@@ -355,6 +393,37 @@ export class VideoService {
 
     // Enforce state machine rules
     this.validateTransition(video.status, newStatus);
+
+    // Reviewer role transition boundary
+    if (actor.role && String(actor.role).toUpperCase() === UserRole.REVIEWER) {
+      const allowedReviewTransitions = [
+        VideoProductionStatus.FINAL_REVIEW,
+        VideoProductionStatus.READY_TO_UPLOAD,
+        VideoProductionStatus.EDITING,
+      ];
+      if (!allowedReviewTransitions.includes(newStatus)) {
+        throw new ValidationError(
+          `Unauthorized: Role "REVIEWER" is only permitted to transition video to FINAL_REVIEW, READY_TO_UPLOAD, or EDITING.`
+        );
+      }
+    }
+
+    // Phase 18: Content Master Downstream Terminal-State Guardrail
+    let cmId = video.contentMasterId;
+    if (!cmId && video.questionId) {
+      const q = await questionsRepository.findById(video.questionId);
+      cmId = q?.contentMasterId;
+    }
+    if (cmId) {
+      const cm = await contentMastersRepository.findById(cmId);
+      if (cm && cm.status === ContentMasterStatus.ARCHIVED) {
+        if (newStatus !== VideoProductionStatus.CANCELLED && newStatus !== VideoProductionStatus.ON_HOLD) {
+          throw new ValidationError(
+            `Cannot transition video "${videoId}" to "${newStatus}": Parent Content Master "${cmId}" is in terminal status "ARCHIVED". Only CANCELLED and ON_HOLD transitions are permitted for retirement.`
+          );
+        }
+      }
+    }
 
     const prevStatus = video.status;
     const now = new Date().toISOString();
@@ -544,6 +613,10 @@ export class VideoService {
     actor: { id: string; name: string; role?: string | UserRole } = { id: 'USR-001', name: 'Admin / Content Lead', role: UserRole.ADMIN }
   ): Promise<Video> {
     this.verifyVideoRole(actor);
+
+    if (actor.role && String(actor.role).toUpperCase() === UserRole.REVIEWER) {
+      throw new Error(`Unauthorized: Role "REVIEWER" is not allowed to modify video metadata.`);
+    }
 
     const parsedUpdates = UpdateVideoMetadataInputSchema.parse(updates);
 

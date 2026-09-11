@@ -346,7 +346,7 @@ export async function runPhase16Step3RbacGateVerification(): Promise<GateSummary
 }
 
 // CLI execution
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.includes('phase16-step3-rbac-gate')) {
   runPhase16Step3RbacGateVerification()
     .then((summary) => {
       console.log('====================================================');

@@ -9,6 +9,7 @@ export * from './production';
 export * from './queue';
 export * from './publishing';
 export * from './dashboard';
+export * from './content-masters';
 
 import { MOCK_QUESTIONS } from './questions';
 import { MOCK_VIDEOS } from './production';

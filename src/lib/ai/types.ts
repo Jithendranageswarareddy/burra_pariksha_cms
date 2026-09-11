@@ -85,6 +85,7 @@ export interface GenerationResult {
   candidate: QuestionCandidate;
   metadata: GenerationMetadata;
   validation: CandidateValidationReport;
+  arbitration?: import('./verifier/types').BlindVerificationArbitrationResult;
 }
 
 export interface AIProviderOptions {
@@ -93,6 +94,8 @@ export interface AIProviderOptions {
   timeoutMs?: number;
   maxRetries?: number;
   requestId?: string;
+  propagateProviderErrors?: boolean;
+  fallbackUsed?: boolean;
 }
 
 export interface ScriptGenerationResult {

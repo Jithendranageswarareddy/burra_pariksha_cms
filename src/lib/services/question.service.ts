@@ -8,8 +8,9 @@
 
 import { questionsRepository } from '../repositories/questions.repository';
 import { validationsRepository } from '../repositories/validations.repository';
+import { contentMastersRepository } from '../repositories/content-masters.repository';
 import { CreateQuestionInput, CreateQuestionInputSchema, QuestionFilterInput, UpdateQuestionInputSchema } from '../schemas/google-sheets-schema';
-import { Question, QuestionStatus, VideoProductionStatus, QuestionValidationStatus, UserRole } from '../../types';
+import { Question, QuestionStatus, VideoProductionStatus, QuestionValidationStatus, UserRole, ContentMasterStatus } from '../../types';
 import { idService } from './id.service';
 import { taxonomyService } from './taxonomy.service';
 import { workflowService } from './workflow.service';
@@ -173,6 +174,43 @@ export class QuestionService {
   }
 
   /**
+   * Phase 16.7: Validates explicit Content Master attachment at Question creation time.
+   * Enforces existence, non-archived, non-completed, and taxonomy invariance.
+   */
+  private async validateExplicitContentMasterAttachment(
+    contentMasterId: string,
+    categoryId: string,
+    topicId: string,
+    subtopicId: string
+  ): Promise<void> {
+    const cm = await contentMastersRepository.findById(contentMasterId);
+    if (!cm) {
+      throw new ReferenceIntegrityError(
+        `Content Master with ID "${contentMasterId}" was not found in CONTENT_MASTERS sheet. Cannot link question to a non-existent Content Master.`
+      );
+    }
+    if (cm.status === ContentMasterStatus.ARCHIVED) {
+      throw new ValidationError(
+        `Cannot link question to Content Master "${contentMasterId}": Content Master is ARCHIVED.`
+      );
+    }
+    if (cm.status === ContentMasterStatus.COMPLETED) {
+      throw new ValidationError(
+        `Cannot link question to Content Master "${contentMasterId}": Content Master is COMPLETED.`
+      );
+    }
+    if (
+      cm.categoryId !== categoryId ||
+      cm.topicId !== topicId ||
+      cm.subtopicId !== subtopicId
+    ) {
+      throw new ValidationError(
+        `Taxonomy mismatch between Question and Content Master "${contentMasterId}". Question taxonomy (${categoryId}/${topicId}/${subtopicId}) does not match Content Master taxonomy (${cm.categoryId}/${cm.topicId}/${cm.subtopicId}).`
+      );
+    }
+  }
+
+  /**
    * Creates a new question with schema & taxonomy validation, permanent sequence ID allocation,
    * enforced default statuses (status=GENERATED, video_status=NOT_STARTED), and audit/workflow tracking.
    */
@@ -203,7 +241,14 @@ export class QuestionService {
 
     // 3B. Content Master allocation / link
     let contentMasterId = (validatedInput as any).contentMasterId;
-    if (!contentMasterId) {
+    if (contentMasterId) {
+      await this.validateExplicitContentMasterAttachment(
+        contentMasterId,
+        category.id,
+        topic.id,
+        subtopic.id
+      );
+    } else {
       const master = await contentMasterService.createContentMaster(
         {
           title: validatedInput.questionText ? validatedInput.questionText.slice(0, 100) : `Content Master for Question ${id}`,
@@ -214,7 +259,8 @@ export class QuestionService {
           createdBy: actor.id,
         },
         actor.id,
-        actor.name
+        actor.name,
+        { isQuestionCreationFactory: true }
       );
       contentMasterId = master.id;
     }
@@ -352,7 +398,14 @@ export class QuestionService {
 
     // 5. Content Master Integration (Phase 2 & Phase 4 rule: Content Master -> Question -> Video)
     let contentMasterId = requestPayload.contentMasterId;
-    if (!contentMasterId) {
+    if (contentMasterId) {
+      await this.validateExplicitContentMasterAttachment(
+        contentMasterId,
+        category.id,
+        topic.id,
+        subtopic.id
+      );
+    } else {
       const master = await contentMasterService.createContentMaster(
         {
           title: requestPayload.questionText
@@ -365,7 +418,8 @@ export class QuestionService {
           createdBy: actor.id,
         },
         actor.id,
-        actor.name
+        actor.name,
+        { isQuestionCreationFactory: true }
       );
       contentMasterId = master.id;
     }
@@ -502,6 +556,45 @@ export class QuestionService {
         subtopicId: subtopic.id,
         subtopicName: subtopic.name,
       };
+    }
+
+    // 2B. Content Master Referential Integrity & Taxonomy Invariance Guards (Phase 16.7)
+    const targetMasterId = updates.contentMasterId !== undefined ? updates.contentMasterId : existing.contentMasterId;
+
+    if (updates.contentMasterId !== undefined && updates.contentMasterId !== existing.contentMasterId) {
+      const targetCm = await contentMastersRepository.findById(updates.contentMasterId);
+      if (!targetCm) {
+        throw new ReferenceIntegrityError(
+          `Target Content Master "${updates.contentMasterId}" does not exist in CONTENT_MASTERS sheet. Cannot reassign question.`
+        );
+      }
+      if (targetCm.status !== ContentMasterStatus.DRAFT && targetCm.status !== ContentMasterStatus.ACTIVE) {
+        throw new ValidationError(
+          `Cannot reassign question to Content Master "${updates.contentMasterId}": Target Content Master is in status "${targetCm.status}" (must be DRAFT or ACTIVE).`
+        );
+      }
+      if (
+        targetCm.categoryId !== enrichedTaxonomy.categoryId ||
+        targetCm.topicId !== enrichedTaxonomy.topicId ||
+        targetCm.subtopicId !== enrichedTaxonomy.subtopicId
+      ) {
+        throw new ValidationError(
+          `Taxonomy mismatch: Question taxonomy (${enrichedTaxonomy.categoryId}/${enrichedTaxonomy.topicId}/${enrichedTaxonomy.subtopicId}) does not match target Content Master "${updates.contentMasterId}" taxonomy (${targetCm.categoryId}/${targetCm.topicId}/${targetCm.subtopicId}).`
+        );
+      }
+    } else if (targetMasterId && (updates.categoryId || updates.topicId || updates.subtopicId)) {
+      const currentCm = await contentMastersRepository.findById(targetMasterId);
+      if (currentCm) {
+        if (
+          currentCm.categoryId !== enrichedTaxonomy.categoryId ||
+          currentCm.topicId !== enrichedTaxonomy.topicId ||
+          currentCm.subtopicId !== enrichedTaxonomy.subtopicId
+        ) {
+          throw new ValidationError(
+            `Cannot change question taxonomy: Question is linked to Content Master "${targetMasterId}". Resulting taxonomy (${enrichedTaxonomy.categoryId}/${enrichedTaxonomy.topicId}/${enrichedTaxonomy.subtopicId}) diverges from Content Master taxonomy (${currentCm.categoryId}/${currentCm.topicId}/${currentCm.subtopicId}).`
+          );
+        }
+      }
     }
 
     // 3. Status workflow validation

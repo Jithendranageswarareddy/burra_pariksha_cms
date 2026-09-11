@@ -21,6 +21,7 @@ import { scriptsRepository } from '../repositories/scripts.repository';
 import { assignmentsRepository } from '../repositories/assignments.repository';
 import { usersRepository } from '../repositories/users.repository';
 import { auditLogRepository } from '../repositories/audit-log.repository';
+import { contentMastersRepository } from '../repositories/content-masters.repository';
 import { auditService } from './audit.service';
 import { workflowService } from './workflow.service';
 import { videoService } from './video.service';
@@ -44,6 +45,7 @@ import {
   AssignmentTaskType,
   AssignmentRole,
   PriorityLevel,
+  ContentMasterStatus,
 } from '../../types';
 import { SocialReviewService } from './social-review.service';
 import { ProductionAssetValidationService } from './production-asset-validation.service';
@@ -661,6 +663,22 @@ export class PublishingService {
       throw new ReferenceIntegrityError(`Publishing record for video "${videoId}" not found.`);
     }
 
+    // Phase 18: Content Master Downstream Terminal-State Guardrail
+    const video = await videosRepository.findById(videoId);
+    let cmId = video?.contentMasterId;
+    if (!cmId && video?.questionId) {
+      const q = await questionsRepository.findById(video.questionId);
+      cmId = q?.contentMasterId;
+    }
+    if (cmId) {
+      const cm = await contentMastersRepository.findById(cmId);
+      if (cm && cm.status === ContentMasterStatus.ARCHIVED) {
+        throw new ValidationError(
+          `Cannot schedule publishing for video "${videoId}": Parent Content Master "${cmId}" is in terminal status "ARCHIVED".`
+        );
+      }
+    }
+
     // 5. Gate D Readiness Check
     const readiness = await this.validatePublishReadiness(videoId, {
       skipAudit: true,
@@ -1066,6 +1084,21 @@ export class PublishingService {
       throw new ReferenceIntegrityError(`Publishing record for video "${videoId}" not found.`);
     }
 
+    // Phase 18: Content Master Downstream Terminal-State Guardrail
+    let cmId = video.contentMasterId;
+    if (!cmId && video.questionId) {
+      const q = await questionsRepository.findById(video.questionId);
+      cmId = q?.contentMasterId;
+    }
+    if (cmId) {
+      const cm = await contentMastersRepository.findById(cmId);
+      if (cm && cm.status === ContentMasterStatus.ARCHIVED) {
+        throw new ValidationError(
+          `Cannot finalize publishing for video "${videoId}": Parent Content Master "${cmId}" is in terminal status "ARCHIVED".`
+        );
+      }
+    }
+
     // Idempotency: If already UPLOADED, safely return existing state
     if (video.status === VideoProductionStatus.UPLOADED) {
       await auditService.log(
@@ -1178,6 +1211,23 @@ export class PublishingService {
     const pinnedComment = variant?.pinnedComment || pinnedCommentRecord?.commentText || canonicalMeta?.cta?.pinnedCommentPrompt || '';
     const finalRenderAssetPath = video.finalRenderPath || video.driveFolderUrl || null;
 
+    // 7B. Retrieve Associated Thumbnail Asset safely
+    let thumbnailUrl: string | null = null;
+    let thumbnailDriveUrl: string | null = null;
+    let thumbnailStatus: string | null = null;
+    try {
+      const thumbnailRecord = await thumbnailsRepository.findByVideoId(videoId);
+      if (thumbnailRecord) {
+        thumbnailUrl = thumbnailRecord.previewUrl || null;
+        thumbnailDriveUrl = thumbnailRecord.driveAssetUrl || null;
+        thumbnailStatus = thumbnailRecord.status || null;
+      }
+    } catch {
+      thumbnailUrl = null;
+      thumbnailDriveUrl = null;
+      thumbnailStatus = null;
+    }
+
     const basePackage = {
       platform: normalizedPlatform as PlatformType,
       videoId: video.id,
@@ -1189,6 +1239,9 @@ export class PublishingService {
       cta,
       pinnedComment,
       finalRenderAssetPath,
+      thumbnailUrl,
+      thumbnailDriveUrl,
+      thumbnailStatus,
       isApprovedPackage: true,
       versionHash: bundle.currentVersionHash,
       reviewedAt: bundle.latestReviewRecord?.reviewedAt,

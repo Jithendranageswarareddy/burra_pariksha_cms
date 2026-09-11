@@ -1,0 +1,3357 @@
+{
+  "backupCreatedAt": "2026-09-10T11:50:53.414Z",
+  "spreadsheetId": "1oy_EJkt6fR5KmgqMJi4tkunrj2L9qz-Xa1tje5G2DgM",
+  "preCounts": {
+    "categories": {
+      "dataRows": 201,
+      "totalRows": 202
+    },
+    "topics": {
+      "dataRows": 73,
+      "totalRows": 74
+    },
+    "subtopics": {
+      "dataRows": 80,
+      "totalRows": 81
+    },
+    "questions": {
+      "dataRows": 333,
+      "totalRows": 334
+    },
+    "contentMasters": {
+      "dataRows": 259,
+      "totalRows": 260
+    },
+    "contentPlans": {
+      "dataRows": 34,
+      "totalRows": 35
+    },
+    "contentBatches": {
+      "dataRows": 37,
+      "totalRows": 38
+    },
+    "sequences": {
+      "dataRows": 13,
+      "totalRows": 14
+    }
+  },
+  "categories": {
+    "headers": [
+      "id",
+      "name",
+      "slug",
+      "description",
+      "color_code",
+      "created_at",
+      "updated_at"
+    ],
+    "rows": [
+      [
+        "CAT-QA",
+        "Quantitative Aptitude",
+        "quantitative-aptitude",
+        "Arithmetic, Algebra, Geometry, Numbers & Calculation Puzzles",
+        "#2563eb",
+        "2026-01-10T10:00:00.000Z"
+      ],
+      [
+        "CAT-LR",
+        "Logical Reasoning",
+        "logical-reasoning",
+        "Puzzles, Coding-Decoding, Syllogisms, Direction & Blood Relations",
+        "#7c3aed",
+        "2026-01-10T10:00:00.000Z"
+      ],
+      [
+        "CAT-DI",
+        "Data Interpretation",
+        "data-interpretation",
+        "Charts, Tables, Pie Diagrams, Caselets & Trend Analytics",
+        "#0891b2",
+        "2026-01-15T10:00:00.000Z"
+      ],
+      [
+        "CAT-VA",
+        "Verbal Ability",
+        "verbal-ability",
+        "Vocabulary, Critical Reasoning, Sentence Correction & Reading Comprehension",
+        "#d97706",
+        "2026-01-20T10:00:00.000Z"
+      ],
+      [
+        "BP-CAT-001",
+        "Test Automation Aptitude 1788076849359",
+        "test-automation-aptitude-1788076849359",
+        "Temporary category for Task 2B automated verification",
+        "#10B981",
+        "2026-08-30T08:00:49.936Z"
+      ],
+      [
+        "CAT-TEST-EXEC-CREATE-001",
+        "Test Create Category",
+        "test-create-category",
+        "",
+        "",
+        "",
+        "2026-08-31T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-UPDATE-001",
+        "Initial Category Name",
+        "initial-category-name",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-NOCHANGE-001",
+        "Exact Match Category",
+        "exact-match-category",
+        "",
+        "",
+        "2026-08-31T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-PRESERVE-001",
+        "Preserved Unchanged",
+        "preserved-unchanged",
+        "",
+        "",
+        "2026-08-31T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-IMMUT-ID-001",
+        "Original Category",
+        "original-category",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-UPDATE-001",
+        "Initial Category Name",
+        "initial-category-name",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-NOCHANGE-001",
+        "Exact Match Category",
+        "exact-match-category",
+        "",
+        "",
+        "2026-08-31T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-PRESERVE-001",
+        "Preserved Unchanged",
+        "preserved-unchanged",
+        "",
+        "",
+        "2026-08-31T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-IMMUT-ID-001",
+        "Original Category",
+        "original-category",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "ID-CATEGORIES-EXEC-1",
+        "Test Cat",
+        "test-cat",
+        "",
+        "",
+        "",
+        "2026-08-31T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-UPDATE-001",
+        "Initial Category Name",
+        "initial-category-name",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-NOCHANGE-001",
+        "Exact Match Category",
+        "exact-match-category",
+        "",
+        "",
+        "2026-08-31T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-PRESERVE-001",
+        "Preserved Unchanged",
+        "preserved-unchanged",
+        "",
+        "",
+        "2026-08-31T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-IMMUT-ID-001",
+        "Original Category",
+        "original-category",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-UPDATE-001",
+        "Initial Category Name",
+        "initial-category-name",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-NOCHANGE-001",
+        "Exact Match Category",
+        "exact-match-category",
+        "",
+        "",
+        "2026-08-31T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-PRESERVE-001",
+        "Preserved Unchanged",
+        "preserved-unchanged",
+        "",
+        "",
+        "2026-08-31T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-IMMUT-ID-001",
+        "Original Category",
+        "original-category",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-UPDATE-001",
+        "Initial Category Name",
+        "initial-category-name",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-NOCHANGE-001",
+        "Exact Match Category",
+        "exact-match-category",
+        "",
+        "",
+        "2026-08-31T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-PRESERVE-001",
+        "Preserved Unchanged",
+        "preserved-unchanged",
+        "",
+        "",
+        "2026-08-31T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-IMMUT-ID-001",
+        "Original Category",
+        "original-category",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "ID-CATEGORIES-T1",
+        "Test Cat",
+        "test-cat",
+        "",
+        "",
+        "",
+        "2099-01-01T00:00:00.000Z"
+      ],
+      [
+        "CAT-NEW-T1",
+        "Test Create Category",
+        "test-create-category",
+        "",
+        "",
+        "",
+        "2099-01-01T00:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-UPDATE-001",
+        "Initial Category Name",
+        "initial-category-name",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-NOCHANGE-001",
+        "Exact Match Category",
+        "exact-match-category",
+        "",
+        "",
+        "2026-08-31T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-PRESERVE-001",
+        "Preserved Unchanged",
+        "preserved-unchanged",
+        "",
+        "",
+        "2026-08-31T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-IMMUT-ID-001",
+        "Original Category",
+        "original-category",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "ID-CATEGORIES-EXEC-T9-1",
+        "Test Cat T9",
+        "test-cat-T9",
+        "",
+        "",
+        "",
+        "2026-09-01T13:21:37.197Z"
+      ],
+      [
+        "CAT-TEST-EXEC-CREATE-T9",
+        "Test Create Category",
+        "test-create-category",
+        "",
+        "",
+        "",
+        "2026-09-01T13:21:37.823Z"
+      ],
+      [
+        "CAT-TEST-EXEC-UPDATE-T10",
+        "Updated Category Name",
+        "updated-category-name",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-09-01T13:22:25.986Z"
+      ],
+      [
+        "ID-CATEGORIES-EXEC-T10-1",
+        "Test Cat T10",
+        "test-cat-T10",
+        "",
+        "",
+        "",
+        "2026-09-01T13:22:25.190Z"
+      ],
+      [
+        "CAT-TEST-EXEC-NOCHANGE-T11",
+        "Exact Match Category",
+        "exact-match-category",
+        "",
+        "",
+        "2026-08-31T10:00:00.000Z",
+        "2026-09-01T08:35:14.975Z"
+      ],
+      [
+        "ID-CATEGORIES-EXEC-T11-1",
+        "Test Cat T11",
+        "test-cat-T11",
+        "",
+        "",
+        "",
+        "2026-08-31T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-PRESERVE-T12",
+        "Preserved Unchanged",
+        "preserved-unchanged",
+        "",
+        "",
+        "2026-09-01T08:36:21.701Z",
+        "2026-09-01T08:36:21.701Z"
+      ],
+      [
+        "ID-CATEGORIES-EXEC-T12-1",
+        "Test Cat T12",
+        "test-cat-T12",
+        "",
+        "",
+        "",
+        "2026-09-01T13:24:18.742Z"
+      ],
+      [
+        "ID-CATEGORIES-EXEC-T13-1",
+        "Test Cat T13",
+        "test-cat-T13",
+        "",
+        "",
+        "",
+        "2026-09-01T13:24:33.403Z"
+      ],
+      [
+        "ID-CATEGORIES-EXEC-T14-1",
+        "Test Cat T14",
+        "test-cat-T14",
+        "",
+        "",
+        "",
+        "2026-09-01T13:24:34.977Z"
+      ],
+      [
+        "ID-CATEGORIES-EXEC-T15-1",
+        "Test Cat T15",
+        "test-cat-T15",
+        "",
+        "",
+        "",
+        "2026-09-01T13:25:21.241Z"
+      ],
+      [
+        "ID-CATEGORIES-EXEC-T16-1",
+        "Test Cat T16",
+        "test-cat-T16",
+        "",
+        "",
+        "",
+        "2026-09-01T13:25:24.242Z"
+      ],
+      [
+        "ID-CATEGORIES-EXEC-T17-1",
+        "Test Cat T17",
+        "test-cat-T17",
+        "",
+        "",
+        "",
+        "2026-09-01T13:26:23.066Z"
+      ],
+      [
+        "CAT-TEST-EXEC-UPDATE-T10",
+        "Initial Category Name",
+        "initial-category-name",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-NOCHANGE-T11",
+        "Exact Match Category",
+        "exact-match-category",
+        "",
+        "",
+        "2026-08-31T10:00:00.000Z",
+        "2026-08-31T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-PRESERVE-T12",
+        "Preserved Unchanged",
+        "preserved-unchanged",
+        "",
+        "",
+        "2026-09-01T08:38:06.623Z",
+        "2026-09-01T08:38:06.623Z"
+      ],
+      [
+        "ID-CATEGORIES-EXEC-T18-1",
+        "Test Cat T18",
+        "test-cat-T18",
+        "",
+        "",
+        "",
+        "2026-09-01T13:26:29.546Z"
+      ],
+      [
+        "CAT-TEST-EXEC-IMMUT-ID-T19",
+        "Modified Category Name",
+        "modified-category-name",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-09-01T13:27:29.979Z"
+      ],
+      [
+        "ID-CATEGORIES-EXEC-T19-1",
+        "Test Cat T19",
+        "test-cat-T19",
+        "",
+        "",
+        "",
+        "2026-09-01T13:27:29.193Z"
+      ],
+      [
+        "CAT-TEST-EXEC-IMMUT-ID-T19",
+        "Original Category",
+        "original-category",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "ID-CATEGORIES-EXEC-T20-1",
+        "Test Cat T20",
+        "test-cat-T20",
+        "",
+        "",
+        "",
+        "2026-09-01T13:28:26.860Z"
+      ],
+      [
+        "CAT-TEST-EXEC-UPDATE-T10",
+        "Initial Category Name",
+        "initial-category-name",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-NOCHANGE-T11",
+        "Exact Match Category",
+        "exact-match-category",
+        "",
+        "",
+        "2026-08-31T10:00:00.000Z",
+        "2026-08-31T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-PRESERVE-T12",
+        "Preserved Unchanged",
+        "preserved-unchanged",
+        "",
+        "",
+        "2026-09-01T08:41:58.084Z",
+        "2026-09-01T08:41:58.084Z"
+      ],
+      [
+        "ID-CATEGORIES-EXEC-T21-1",
+        "Test Cat T21",
+        "test-cat-T21",
+        "",
+        "",
+        "",
+        "2026-09-01T13:28:39.731Z"
+      ],
+      [
+        "ID-CATEGORIES-EXEC-T22-1",
+        "Test Cat T22",
+        "test-cat-T22",
+        "",
+        "",
+        "",
+        "2026-09-01T13:29:26.156Z"
+      ],
+      [
+        "CAT-TEST-EXEC-IMMUT-ID-T19",
+        "Original Category",
+        "original-category",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-UPDATE-T10",
+        "Initial Category Name",
+        "initial-category-name",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "ID-CATEGORIES-EXEC-T23-1",
+        "Test Cat T23",
+        "test-cat-T23",
+        "",
+        "",
+        "",
+        "2026-09-01T13:29:41.963Z"
+      ],
+      [
+        "CAT-TEST-EXEC-NOCHANGE-T11",
+        "Exact Match Category",
+        "exact-match-category",
+        "",
+        "",
+        "2026-08-31T10:00:00.000Z",
+        "2026-08-31T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-PRESERVE-T12",
+        "Preserved Unchanged",
+        "preserved-unchanged",
+        "",
+        "",
+        "2026-09-01T08:43:58.323Z",
+        "2026-09-01T08:43:58.323Z"
+      ],
+      [
+        "CAT-TEST-EXEC-UPDATE-T10",
+        "Initial Category Name",
+        "initial-category-name",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-NOCHANGE-T11",
+        "Exact Match Category",
+        "exact-match-category",
+        "",
+        "",
+        "2026-08-31T10:00:00.000Z",
+        "2026-08-31T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-PRESERVE-T12",
+        "Preserved Unchanged",
+        "preserved-unchanged",
+        "",
+        "",
+        "2026-09-01T08:44:59.117Z",
+        "2026-09-01T08:44:59.117Z"
+      ],
+      [
+        "ID-CATEGORIES-EXEC-T24-1",
+        "Test Cat T24",
+        "test-cat-T24",
+        "",
+        "",
+        "",
+        "2026-09-01T13:30:39.790Z"
+      ],
+      [
+        "CAT-TEST-EXEC-IMMUT-ID-T19",
+        "Original Category",
+        "original-category",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "ID-CATEGORIES-EXEC-T25-1",
+        "Test Cat T25",
+        "test-cat-T25",
+        "",
+        "",
+        "",
+        "2026-09-01T13:30:42.553Z"
+      ],
+      [
+        "ID-CATEGORIES-EXEC-T26-1",
+        "Test Cat T26",
+        "test-cat-T26",
+        "",
+        "",
+        "",
+        "2026-09-01T13:31:15.921Z"
+      ],
+      [
+        "CAT-TEST-DUP-PREVENTION-T26",
+        "Duplicate Guard Category",
+        "duplicate-guard-category",
+        "",
+        "",
+        "",
+        "2026-09-01T13:31:16.786Z"
+      ],
+      [
+        "CAT-TEST-EXEC-IMMUT-ID-T19",
+        "Original Category",
+        "original-category",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "ID-CATEGORIES-EXEC-T29-1",
+        "Test Cat T29",
+        "test-cat-T29",
+        "",
+        "",
+        "",
+        "2026-09-01T13:31:30.071Z"
+      ],
+      [
+        "CAT-TEST-EXEC-UPDATE-T10",
+        "Initial Category Name",
+        "initial-category-name",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-NOCHANGE-T11",
+        "Exact Match Category",
+        "exact-match-category",
+        "",
+        "",
+        "2026-08-31T10:00:00.000Z",
+        "2026-08-31T10:00:00.000Z"
+      ],
+      [
+        "ID-CATEGORIES-EXEC-T30-1",
+        "Test Cat T30",
+        "test-cat-T30",
+        "",
+        "",
+        "",
+        "2026-09-01T13:32:28.150Z"
+      ],
+      [
+        "CAT-TEST-EXEC-PRESERVE-T12",
+        "Preserved Unchanged",
+        "preserved-unchanged",
+        "",
+        "",
+        "2026-09-01T08:53:57.425Z",
+        "2026-09-01T08:53:57.425Z"
+      ],
+      [
+        "CAT-TEST-EXEC-IMMUT-ID-T19",
+        "Original Category",
+        "original-category",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-UPDATE-T10",
+        "Initial Category Name",
+        "initial-category-name",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-NOCHANGE-T11",
+        "Exact Match Category",
+        "exact-match-category",
+        "",
+        "",
+        "2026-08-31T10:00:00.000Z",
+        "2026-08-31T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-PRESERVE-T12",
+        "Preserved Unchanged",
+        "preserved-unchanged",
+        "",
+        "",
+        "2026-09-01T09:07:34.240Z",
+        "2026-09-01T09:07:34.240Z"
+      ],
+      [
+        "CAT-TEST-EXEC-IMMUT-ID-T19",
+        "Original Category",
+        "original-category",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-UPDATE-T10",
+        "Initial Category Name",
+        "initial-category-name",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-NOCHANGE-T11",
+        "Exact Match Category",
+        "exact-match-category",
+        "",
+        "",
+        "2026-08-31T10:00:00.000Z",
+        "2026-08-31T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-PRESERVE-T12",
+        "Preserved Unchanged",
+        "preserved-unchanged",
+        "",
+        "",
+        "2026-09-01T09:15:14.371Z",
+        "2026-09-01T09:15:14.371Z"
+      ],
+      [
+        "CAT-TEST-EXEC-IMMUT-ID-T19",
+        "Original Category",
+        "original-category",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-UPDATE-T10",
+        "Initial Category Name",
+        "initial-category-name",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-NOCHANGE-T11",
+        "Exact Match Category",
+        "exact-match-category",
+        "",
+        "",
+        "2026-08-31T10:00:00.000Z",
+        "2026-08-31T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-PRESERVE-T12",
+        "Preserved Unchanged",
+        "preserved-unchanged",
+        "",
+        "",
+        "2026-09-01T09:21:24.868Z",
+        "2026-09-01T09:21:24.868Z"
+      ],
+      [
+        "CAT-TEST-EXEC-IMMUT-ID-T19",
+        "Original Category",
+        "original-category",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-UPDATE-T10",
+        "Initial Category Name",
+        "initial-category-name",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-NOCHANGE-T11",
+        "Exact Match Category",
+        "exact-match-category",
+        "",
+        "",
+        "2026-08-31T10:00:00.000Z",
+        "2026-08-31T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-PRESERVE-T12",
+        "Preserved Unchanged",
+        "preserved-unchanged",
+        "",
+        "",
+        "2026-09-01T09:28:19.602Z",
+        "2026-09-01T09:28:19.602Z"
+      ],
+      [
+        "CAT-TEST-EXEC-IMMUT-ID-T19",
+        "Original Category",
+        "original-category",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "ID-CATEGORIES-EXEC-T9B-1",
+        "Test Cat T9B",
+        "test-cat-T9B",
+        "",
+        "",
+        "",
+        "2026-09-01T09:33:54.326Z"
+      ],
+      [
+        "CAT-TEST-EXEC-CREATE-T9B",
+        "Test Create Category",
+        "test-create-category",
+        "",
+        "",
+        "",
+        "2026-09-01T09:33:54.326Z"
+      ],
+      [
+        "CAT-TEST-EXEC-UPDATE-T10",
+        "Initial Category Name",
+        "initial-category-name",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-NOCHANGE-T11",
+        "Exact Match Category",
+        "exact-match-category",
+        "",
+        "",
+        "2026-08-31T10:00:00.000Z",
+        "2026-08-31T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-PRESERVE-T12",
+        "Preserved Unchanged",
+        "preserved-unchanged",
+        "",
+        "",
+        "2026-09-01T09:34:30.738Z",
+        "2026-09-01T09:34:30.738Z"
+      ],
+      [
+        "CAT-TEST-EXEC-IMMUT-ID-T19",
+        "Original Category",
+        "original-category",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "ID-CATEGORIES-EXEC-TEST_DEBUG_NOW_9-1",
+        "Test Cat TEST_DEBUG_NOW_9",
+        "test-cat-TEST_DEBUG_NOW_9",
+        "",
+        "",
+        "",
+        "2026-09-01T09:40:00.663Z"
+      ],
+      [
+        "CAT-TEST-EXEC-CREATE-TEST_DEBUG_NOW_9",
+        "Test Create Category",
+        "test-create-category",
+        "",
+        "",
+        "",
+        "2026-09-01T09:40:00.663Z"
+      ],
+      [
+        "CAT-TEST-EXEC-UPDATE-T10",
+        "Initial Category Name",
+        "initial-category-name",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-NOCHANGE-T11",
+        "Exact Match Category",
+        "exact-match-category",
+        "",
+        "",
+        "2026-08-31T10:00:00.000Z",
+        "2026-08-31T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-PRESERVE-T12",
+        "Preserved Unchanged",
+        "preserved-unchanged",
+        "",
+        "",
+        "2026-09-01T09:43:27.134Z",
+        "2026-09-01T09:43:27.134Z"
+      ],
+      [
+        "CAT-TEST-EXEC-IMMUT-ID-T19",
+        "Original Category",
+        "original-category",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-UPDATE-T10",
+        "Initial Category Name",
+        "initial-category-name",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-NOCHANGE-T11",
+        "Exact Match Category",
+        "exact-match-category",
+        "",
+        "",
+        "2026-08-31T10:00:00.000Z",
+        "2026-08-31T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-PRESERVE-T12",
+        "Preserved Unchanged",
+        "preserved-unchanged",
+        "",
+        "",
+        "2026-09-01T09:46:56.395Z",
+        "2026-09-01T09:46:56.395Z"
+      ],
+      [
+        "CAT-TEST-EXEC-IMMUT-ID-T19",
+        "Original Category",
+        "original-category",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "ID-CATEGORIES-EXEC-T9_DIAG-1",
+        "Test Cat T9_DIAG",
+        "test-cat-T9_DIAG",
+        "",
+        "",
+        "",
+        "2026-09-01T09:47:57.208Z"
+      ],
+      [
+        "CAT-TEST-EXEC-CREATE-T9_DIAG",
+        "Test Create Category",
+        "test-create-category",
+        "",
+        "",
+        "",
+        "2026-09-01T09:47:57.208Z"
+      ],
+      [
+        "CAT-TEST-EXEC-UPDATE-T10",
+        "Initial Category Name",
+        "initial-category-name",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-NOCHANGE-T11",
+        "Exact Match Category",
+        "exact-match-category",
+        "",
+        "",
+        "2026-08-31T10:00:00.000Z",
+        "2026-08-31T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-PRESERVE-T12",
+        "Preserved Unchanged",
+        "preserved-unchanged",
+        "",
+        "",
+        "2026-09-01T09:48:50.003Z",
+        "2026-09-01T09:48:50.003Z"
+      ],
+      [
+        "CAT-TEST-EXEC-IMMUT-ID-T19",
+        "Original Category",
+        "original-category",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-UPDATE-T10",
+        "Initial Category Name",
+        "initial-category-name",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-NOCHANGE-T11",
+        "Exact Match Category",
+        "exact-match-category",
+        "",
+        "",
+        "2026-08-31T10:00:00.000Z",
+        "2026-08-31T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-PRESERVE-T12",
+        "Preserved Unchanged",
+        "preserved-unchanged",
+        "",
+        "",
+        "2026-09-01T09:50:25.984Z",
+        "2026-09-01T09:50:25.984Z"
+      ],
+      [
+        "CAT-TEST-EXEC-IMMUT-ID-T19",
+        "Original Category",
+        "original-category",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-UPDATE-T10",
+        "Initial Category Name",
+        "initial-category-name",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-NOCHANGE-T11",
+        "Exact Match Category",
+        "exact-match-category",
+        "",
+        "",
+        "2026-08-31T10:00:00.000Z",
+        "2026-08-31T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-PRESERVE-T12",
+        "Preserved Unchanged",
+        "preserved-unchanged",
+        "",
+        "",
+        "2026-09-01T09:55:13.585Z",
+        "2026-09-01T09:55:13.585Z"
+      ],
+      [
+        "CAT-TEST-EXEC-UPDATE-T10",
+        "Initial Category Name",
+        "initial-category-name",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-IMMUT-ID-T19",
+        "Original Category",
+        "original-category",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-NOCHANGE-T11",
+        "Exact Match Category",
+        "exact-match-category",
+        "",
+        "",
+        "2026-08-31T10:00:00.000Z",
+        "2026-08-31T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-PRESERVE-T12",
+        "Preserved Unchanged",
+        "preserved-unchanged",
+        "",
+        "",
+        "2026-09-01T09:56:18.344Z",
+        "2026-09-01T09:56:18.344Z"
+      ],
+      [
+        "CAT-TEST-EXEC-IMMUT-ID-T19",
+        "Original Category",
+        "original-category",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-UPDATE-T10",
+        "Initial Category Name",
+        "initial-category-name",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-NOCHANGE-T11",
+        "Exact Match Category",
+        "exact-match-category",
+        "",
+        "",
+        "2026-08-31T10:00:00.000Z",
+        "2026-08-31T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-PRESERVE-T12",
+        "Preserved Unchanged",
+        "preserved-unchanged",
+        "",
+        "",
+        "2026-09-01T10:02:24.752Z",
+        "2026-09-01T10:02:24.752Z"
+      ],
+      [
+        "CAT-TEST-EXEC-IMMUT-ID-T19",
+        "Original Category",
+        "original-category",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-UPDATE-T10",
+        "Initial Category Name",
+        "initial-category-name",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-NOCHANGE-T11",
+        "Exact Match Category",
+        "exact-match-category",
+        "",
+        "",
+        "2026-08-31T10:00:00.000Z",
+        "2026-08-31T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-PRESERVE-T12",
+        "Preserved Unchanged",
+        "preserved-unchanged",
+        "",
+        "",
+        "2026-09-01T10:10:17.909Z",
+        "2026-09-01T10:10:17.909Z"
+      ],
+      [
+        "CAT-TEST-EXEC-CREATE-T9",
+        "Test Create Category",
+        "test-create-category",
+        "",
+        "",
+        "",
+        "2026-09-01T10:15:14.889Z"
+      ],
+      [
+        "CAT-TEST-EXEC-IMMUT-ID-T19",
+        "Original Category",
+        "original-category",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-UPDATE-T10",
+        "Initial Category Name",
+        "initial-category-name",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-UPDATE-T10",
+        "Initial Category Name",
+        "initial-category-name",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-NOCHANGE-T11",
+        "Exact Match Category",
+        "exact-match-category",
+        "",
+        "",
+        "2026-08-31T10:00:00.000Z",
+        "2026-08-31T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-NOCHANGE-T11",
+        "Exact Match Category",
+        "exact-match-category",
+        "",
+        "",
+        "2026-08-31T10:00:00.000Z",
+        "2026-08-31T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-PRESERVE-T12",
+        "Preserved Unchanged",
+        "preserved-unchanged",
+        "",
+        "",
+        "2026-09-01T10:19:19.079Z",
+        "2026-09-01T10:19:19.079Z"
+      ],
+      [
+        "CAT-TEST-EXEC-PRESERVE-T12",
+        "Preserved Unchanged",
+        "preserved-unchanged",
+        "",
+        "",
+        "2026-09-01T10:19:19.194Z",
+        "2026-09-01T10:19:19.194Z"
+      ],
+      [
+        "CAT-TEST-EXEC-UPDATE-T10",
+        "Initial Category Name",
+        "initial-category-name",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-NOCHANGE-T11",
+        "Exact Match Category",
+        "exact-match-category",
+        "",
+        "",
+        "2026-08-31T10:00:00.000Z",
+        "2026-08-31T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-IMMUT-ID-T19",
+        "Original Category",
+        "original-category",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-PRESERVE-T12",
+        "Preserved Unchanged",
+        "preserved-unchanged",
+        "",
+        "",
+        "2026-09-01T10:27:24.435Z",
+        "2026-09-01T10:27:24.435Z"
+      ],
+      [
+        "CAT-TEST-EXEC-IMMUT-ID-T19",
+        "Modified Category Name",
+        "modified-category-name",
+        "",
+        "",
+        "",
+        "2026-09-01T10:30:42.239Z"
+      ],
+      [
+        "CAT-TEST-EXEC-IMMUT-ID-T19",
+        "Original Category",
+        "original-category",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-UPDATE-T10",
+        "Initial Category Name",
+        "initial-category-name",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "ID-CATEGORIES-EXEC-T9_DIRECT-1",
+        "Test Cat T9_DIRECT",
+        "test-cat-T9_DIRECT",
+        "",
+        "",
+        "",
+        "2026-09-01T10:29:13.649Z"
+      ],
+      [
+        "CAT-TEST-EXEC-CREATE-T9_DIRECT",
+        "Test Create Category",
+        "test-create-category",
+        "",
+        "",
+        "",
+        "2026-09-01T10:29:13.649Z"
+      ],
+      [
+        "ID-CATEGORIES-EXEC-T9_FAST-1",
+        "Test Cat T9_FAST",
+        "test-cat-T9_FAST",
+        "",
+        "",
+        "",
+        "2026-09-01T10:29:51.441Z"
+      ],
+      [
+        "CAT-TEST-EXEC-CREATE-T9_FAST",
+        "Test Create Category",
+        "test-create-category",
+        "",
+        "",
+        "",
+        "2026-09-01T10:29:51.441Z"
+      ],
+      [
+        "CAT-TEST-EXEC-NOCHANGE-T11",
+        "Exact Match Category",
+        "exact-match-category",
+        "",
+        "",
+        "2026-08-31T10:00:00.000Z",
+        "2026-08-31T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-NOCHANGE-T11",
+        "Exact Match Category",
+        "exact-match-category",
+        "",
+        "",
+        "2026-08-31T10:00:00.000Z",
+        "2026-08-31T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-PRESERVE-T12",
+        "Preserved Unchanged",
+        "preserved-unchanged",
+        "",
+        "",
+        "2026-09-01T10:34:19.266Z",
+        "2026-09-01T10:34:19.266Z"
+      ],
+      [
+        "CAT-TEST-EXEC-PRESERVE-T12",
+        "Preserved Unchanged",
+        "preserved-unchanged",
+        "",
+        "",
+        "2026-09-01T10:34:20.126Z",
+        "2026-09-01T10:34:20.126Z"
+      ],
+      [
+        "CAT-TEST-EXEC-IMMUT-ID-T19",
+        "Original Category",
+        "original-category",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-IMMUT-ID-T19",
+        "Modified Category Name",
+        "modified-category-name",
+        "",
+        "",
+        "",
+        "2026-09-01T10:39:39.329Z"
+      ],
+      [
+        "CAT-TEST-EXEC-CREATE-T9",
+        "Test Create Category",
+        "test-create-category",
+        "",
+        "",
+        "",
+        "2026-09-01T10:41:21.630Z"
+      ],
+      [
+        "CAT-TEST-EXEC-IMMUT-ID-T19",
+        "Original Category",
+        "original-category",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-IMMUT-ID-T19",
+        "Original Category",
+        "original-category",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-UPDATE-T10",
+        "Initial Category Name",
+        "initial-category-name",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-NOCHANGE-T11",
+        "Exact Match Category",
+        "exact-match-category",
+        "",
+        "",
+        "2026-08-31T10:00:00.000Z",
+        "2026-08-31T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-PRESERVE-T12",
+        "Preserved Unchanged",
+        "preserved-unchanged",
+        "",
+        "",
+        "2026-09-01T10:48:16.952Z",
+        "2026-09-01T10:48:16.952Z"
+      ],
+      [
+        "CAT-TEST-EXEC-UPDATE-T10",
+        "Initial Category Name",
+        "initial-category-name",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-UPDATE-T10",
+        "Updated Category Name",
+        "updated-category-name",
+        "",
+        "",
+        "",
+        "2026-09-01T10:53:02.072Z"
+      ],
+      [
+        "CAT-TEST-EXEC-NOCHANGE-T11",
+        "Exact Match Category",
+        "exact-match-category",
+        "",
+        "",
+        "2026-08-31T10:00:00.000Z",
+        "2026-08-31T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-PRESERVE-T12",
+        "Preserved Unchanged",
+        "preserved-unchanged",
+        "",
+        "",
+        "2026-09-01T10:54:23.689Z",
+        "2026-09-01T10:54:23.689Z"
+      ],
+      [
+        "CAT-TEST-EXEC-UPDATE-T10",
+        "Initial Category Name",
+        "initial-category-name",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-IMMUT-ID-T19",
+        "Original Category",
+        "original-category",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-UPDATE-T10",
+        "Updated Category Name",
+        "updated-category-name",
+        "",
+        "",
+        "",
+        "2026-09-01T10:59:58.345Z"
+      ],
+      [
+        "CAT-TEST-EXEC-IMMUT-ID-T19",
+        "Modified Category Name",
+        "modified-category-name",
+        "",
+        "",
+        "",
+        "2026-09-01T11:01:41.853Z"
+      ],
+      [
+        "CAT-TEST-DUP-PREVENTION-T26",
+        "Duplicate Guard Category",
+        "duplicate-guard-category",
+        "",
+        "",
+        "",
+        "2026-09-01T10:58:19.674Z"
+      ],
+      [
+        "CAT-TEST-EXEC-UPDATE-T10",
+        "Initial Category Name",
+        "initial-category-name",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-UPDATE-T10",
+        "Updated Category Name",
+        "updated-category-name",
+        "",
+        "",
+        "",
+        "2026-09-01T11:01:59.909Z"
+      ],
+      [
+        "CAT-TEST-EXEC-NOCHANGE-T11",
+        "Exact Match Category",
+        "exact-match-category",
+        "",
+        "",
+        "2026-08-31T10:00:00.000Z",
+        "2026-08-31T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-PRESERVE-T12",
+        "Preserved Unchanged",
+        "preserved-unchanged",
+        "",
+        "",
+        "2026-09-01T11:01:20.558Z",
+        "2026-09-01T11:01:20.558Z"
+      ],
+      [
+        "CAT-TEST-EXEC-UPDATE-T10",
+        "Initial Category Name",
+        "initial-category-name",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-CREATE-T9",
+        "Test Create Category",
+        "test-create-category",
+        "",
+        "",
+        "",
+        "2026-09-01T11:04:21.077Z"
+      ],
+      [
+        "CAT-TEST-EXEC-UPDATE-T10",
+        "Initial Category Name",
+        "initial-category-name",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-UPDATE-T10",
+        "Updated Category Name",
+        "updated-category-name",
+        "",
+        "",
+        "",
+        "2026-09-01T11:07:01.623Z"
+      ],
+      [
+        "CAT-TEST-EXEC-NOCHANGE-T11",
+        "Exact Match Category",
+        "exact-match-category",
+        "",
+        "",
+        "2026-08-31T10:00:00.000Z",
+        "2026-08-31T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-PRESERVE-T12",
+        "Preserved Unchanged",
+        "preserved-unchanged",
+        "",
+        "",
+        "2026-09-01T11:06:21.122Z",
+        "2026-09-01T11:06:21.122Z"
+      ],
+      [
+        "CAT-TEST-EXEC-IMMUT-ID-T19",
+        "Original Category",
+        "original-category",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-UPDATE-T10",
+        "Initial Category Name",
+        "initial-category-name",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-UPDATE-T10",
+        "Initial Category Name",
+        "initial-category-name",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "ID-CATEGORIES-1",
+        "Test CATEGORIES",
+        "",
+        "",
+        "",
+        "",
+        "2026-08-31T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-UPDATE-T10",
+        "Initial Category Name",
+        "initial-category-name",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-NOCHANGE-T11",
+        "Exact Match Category",
+        "exact-match-category",
+        "",
+        "",
+        "2026-08-31T10:00:00.000Z",
+        "2026-08-31T10:00:00.000Z"
+      ],
+      [
+        "CAT-TEST-EXEC-PRESERVE-T12",
+        "Preserved Unchanged",
+        "preserved-unchanged",
+        "",
+        "",
+        "2026-09-01T13:23:33.146Z",
+        "2026-09-01T13:23:33.146Z"
+      ],
+      [
+        "CAT-TEST-EXEC-IMMUT-ID-T19",
+        "Original Category",
+        "original-category",
+        "",
+        "",
+        "2026-08-30T10:00:00.000Z",
+        "2026-08-30T10:00:00.000Z"
+      ],
+      [
+        "BP-CAT-999999",
+        "Test Automation Aptitude 1788438231379",
+        "test-automation-aptitude-1788438231379",
+        "Temporary category for Task 2B automated verification",
+        "#10B981",
+        "2026-09-03T12:23:52.776Z"
+      ],
+      [
+        "BP-CAT-1000000",
+        "Test Automation Aptitude 1788438326228",
+        "test-automation-aptitude-1788438326228",
+        "Temporary category for Task 2B automated verification",
+        "#10B981",
+        "2026-09-03T12:25:26.924Z"
+      ],
+      [
+        "BP-CAT-1000001",
+        "Test Automation Aptitude 1788438399326",
+        "test-automation-aptitude-1788438399326",
+        "Temporary category for Task 2B automated verification",
+        "#10B981",
+        "2026-09-03T12:26:40.023Z"
+      ],
+      [
+        "BP-CAT-1000002",
+        "Test Automation Aptitude 1788438481300",
+        "test-automation-aptitude-1788438481300",
+        "Temporary category for Task 2B automated verification",
+        "#10B981",
+        "2026-09-03T12:28:02.018Z"
+      ],
+      [
+        "BP-CAT-1000003",
+        "Test Automation Aptitude 1788439332460",
+        "test-automation-aptitude-1788439332460",
+        "Temporary category for Task 2B automated verification",
+        "#10B981",
+        "2026-09-03T12:42:13.289Z"
+      ],
+      [
+        "BP-CAT-1000004",
+        "Test Automation Aptitude 1788506727965",
+        "test-automation-aptitude-1788506727965",
+        "Temporary category for Task 2B automated verification",
+        "#10B981",
+        "2026-09-04T07:25:28.752Z"
+      ],
+      [
+        "BP-CAT-1000005",
+        "Test Automation Aptitude 1788516556566",
+        "test-automation-aptitude-1788516556566",
+        "Temporary category for Task 2B automated verification",
+        "#10B981",
+        "2026-09-04T10:09:17.356Z"
+      ]
+    ]
+  },
+  "topics": {
+    "headers": [
+      "id",
+      "category_id",
+      "name",
+      "slug",
+      "description",
+      "created_at",
+      "updated_at"
+    ],
+    "rows": [
+      [
+        "TOP-QA-01",
+        "CAT-QA",
+        "Time, Speed & Distance",
+        "time-speed-distance",
+        "Relative speed, trains, races, and average speed problems",
+        "2026-01-10T10:00:00.000Z"
+      ],
+      [
+        "TOP-QA-02",
+        "CAT-QA",
+        "Time & Work",
+        "time-and-work",
+        "Efficiency ratios, pipes & cisterns, alternate work schedules",
+        "2026-01-10T10:00:00.000Z"
+      ],
+      [
+        "TOP-QA-03",
+        "CAT-QA",
+        "Profit, Loss & Discount",
+        "profit-loss-discount",
+        "Marked price tricks, successive discounts, false weight scams",
+        "2026-01-12T10:00:00.000Z"
+      ],
+      [
+        "TOP-QA-04",
+        "CAT-QA",
+        "Permutations & Probability",
+        "permutations-probability",
+        "Arrangements, selections, conditional probability & dice problems",
+        "2026-01-14T10:00:00.000Z"
+      ],
+      [
+        "TOP-LR-01",
+        "CAT-LR",
+        "Seating Arrangement",
+        "seating-arrangement",
+        "Circular, linear & rectangular placement conditions",
+        "2026-01-10T10:00:00.000Z"
+      ],
+      [
+        "TOP-LR-02",
+        "CAT-LR",
+        "Clocks & Calendars",
+        "clocks-and-calendars",
+        "Odd days, leap years, angle between clock hands, slow/fast clocks",
+        "2026-01-15T10:00:00.000Z"
+      ],
+      [
+        "TOP-LR-03",
+        "CAT-LR",
+        "Blood Relations & Family Tree",
+        "blood-relations",
+        "Coded relations, pointing to photographs, multi-generation trees",
+        "2026-01-18T10:00:00.000Z"
+      ],
+      [
+        "TOP-DI-01",
+        "CAT-DI",
+        "Pie Chart & Bar Graphs",
+        "pie-charts-bar-graphs",
+        "Degree-to-percentage conversion and multi-company revenue analysis",
+        "2026-01-15T10:00:00.000Z"
+      ],
+      [
+        "BP-TOP-001",
+        "BP-CAT-001",
+        "Test Logic & Speed 1788076851710",
+        "test-logic-speed-1788076851710",
+        "Temporary topic for Task 2B verification",
+        "2026-08-30T08:00:52.286Z"
+      ],
+      [
+        "ID-TOPICS-EXEC-1",
+        "ID-CATEGORIES-EXEC-1",
+        "Test Topic",
+        "test-top",
+        "",
+        "",
+        "2026-09-01T08:21:47.654Z"
+      ],
+      [
+        "ID-TOPICS-T1",
+        "ID-CATEGORIES-T1",
+        "Test Topic",
+        "test-top",
+        "",
+        "",
+        "2099-01-01T00:00:00.000Z"
+      ],
+      [
+        "ID-TOPICS-EXEC-T9-1",
+        "ID-CATEGORIES-EXEC-T9-1",
+        "Test Topic T9",
+        "test-top-T9",
+        "",
+        "",
+        "2026-09-01T13:21:38.459Z"
+      ],
+      [
+        "ID-TOPICS-EXEC-T10-1",
+        "ID-CATEGORIES-EXEC-T10-1",
+        "Test Topic T10",
+        "test-top-T10",
+        "",
+        "",
+        "2026-09-01T13:22:26.375Z"
+      ],
+      [
+        "ID-TOPICS-EXEC-T11-1",
+        "ID-CATEGORIES-EXEC-T11-1",
+        "Test Topic T11",
+        "test-top-T11",
+        "",
+        "",
+        "2026-08-31T10:00:00.000Z"
+      ],
+      [
+        "ID-TOPICS-EXEC-T12-1",
+        "ID-CATEGORIES-EXEC-T12-1",
+        "Test Topic T12",
+        "test-top-T12",
+        "",
+        "",
+        "2026-09-01T13:24:19.028Z"
+      ],
+      [
+        "ID-TOPICS-EXEC-T16-1",
+        "ID-CATEGORIES-EXEC-T16-1",
+        "Test Topic T16",
+        "test-top-T16",
+        "",
+        "",
+        "2026-09-01T13:25:24.567Z"
+      ],
+      [
+        "ID-TOPICS-EXEC-T17-1",
+        "ID-CATEGORIES-EXEC-T17-1",
+        "Test Topic T17",
+        "test-top-T17",
+        "",
+        "",
+        "2026-09-01T13:26:23.355Z"
+      ],
+      [
+        "ID-TOPICS-EXEC-T18-1",
+        "ID-CATEGORIES-EXEC-T18-1",
+        "Test Topic T18",
+        "test-top-T18",
+        "",
+        "",
+        "2026-09-01T13:26:30.931Z"
+      ],
+      [
+        "ID-TOPICS-EXEC-T19-1",
+        "ID-CATEGORIES-EXEC-T19-1",
+        "Test Topic T19",
+        "test-top-T19",
+        "",
+        "",
+        "2026-09-01T13:27:30.460Z"
+      ],
+      [
+        "ID-TOPICS-EXEC-T20-1",
+        "ID-CATEGORIES-EXEC-T20-1",
+        "Test Topic T20",
+        "test-top-T20",
+        "",
+        "",
+        "2026-09-01T13:28:27.160Z"
+      ],
+      [
+        "ID-TOPICS-EXEC-T22-1",
+        "ID-CATEGORIES-EXEC-T22-1",
+        "Test Topic T22",
+        "test-top-T22",
+        "",
+        "",
+        "2026-09-01T13:29:26.450Z"
+      ],
+      [
+        "ID-TOPICS-EXEC-T21-1",
+        "ID-CATEGORIES-EXEC-T21-1",
+        "Test Topic T21",
+        "test-top-T21",
+        "",
+        "",
+        "2026-09-01T13:28:40.181Z"
+      ],
+      [
+        "ID-TOPICS-EXEC-T23-1",
+        "ID-CATEGORIES-EXEC-T23-1",
+        "Test Topic T23",
+        "test-top-T23",
+        "",
+        "",
+        "2026-09-01T13:29:42.840Z"
+      ],
+      [
+        "ID-TOPICS-EXEC-T25-1",
+        "ID-CATEGORIES-EXEC-T25-1",
+        "Test Topic T25",
+        "test-top-T25",
+        "",
+        "",
+        "2026-09-01T13:30:42.865Z"
+      ],
+      [
+        "ID-TOPICS-EXEC-T26-1",
+        "ID-CATEGORIES-EXEC-T26-1",
+        "Test Topic T26",
+        "test-top-T26",
+        "",
+        "",
+        "2026-09-01T13:31:17.056Z"
+      ],
+      [
+        "ID-TOPICS-EXEC-T29-1",
+        "ID-CATEGORIES-EXEC-T29-1",
+        "Test Topic T29",
+        "test-top-T29",
+        "",
+        "",
+        "2026-09-01T13:31:30.357Z"
+      ],
+      [
+        "ID-TOPICS-EXEC-T30-1",
+        "ID-CATEGORIES-EXEC-T30-1",
+        "Test Topic T30",
+        "test-top-T30",
+        "",
+        "",
+        "2026-09-01T13:32:28.467Z"
+      ],
+      [
+        "ID-TOPICS-EXEC-T9B-1",
+        "ID-CATEGORIES-EXEC-T9B-1",
+        "Test Topic T9B",
+        "test-top-T9B",
+        "",
+        "",
+        "2026-09-01T09:33:54.326Z"
+      ],
+      [
+        "ID-TOPICS-EXEC-TEST_DEBUG_NOW_9-1",
+        "ID-CATEGORIES-EXEC-TEST_DEBUG_NOW_9-1",
+        "Test Topic TEST_DEBUG_NOW_9",
+        "test-top-TEST_DEBUG_NOW_9",
+        "",
+        "",
+        "2026-09-01T09:40:00.663Z"
+      ],
+      [
+        "ID-TOPICS-EXEC-T9_DIAG-1",
+        "ID-CATEGORIES-EXEC-T9_DIAG-1",
+        "Test Topic T9_DIAG",
+        "test-top-T9_DIAG",
+        "",
+        "",
+        "2026-09-01T09:47:57.208Z"
+      ],
+      [
+        "ID-TOPICS-EXEC-T19-1",
+        "ID-CATEGORIES-EXEC-T19-1",
+        "Test Topic T19",
+        "test-top-T19",
+        "",
+        "",
+        "2026-09-01T10:46:36.068Z"
+      ],
+      [
+        "ID-TOPICS-EXEC-T20-1",
+        "ID-CATEGORIES-EXEC-T20-1",
+        "Test Topic T20",
+        "test-top-T20",
+        "",
+        "",
+        "2026-09-01T11:02:15.278Z"
+      ],
+      [
+        "ID-TOPICS-EXEC-T18-1",
+        "ID-CATEGORIES-EXEC-T18-1",
+        "Test Topic T18",
+        "test-top-T18",
+        "",
+        "",
+        "2026-09-01T11:02:16.007Z"
+      ],
+      [
+        "ID-TOPICS-EXEC-T9-1",
+        "ID-CATEGORIES-EXEC-T9-1",
+        "Test Topic T9",
+        "test-top-T9",
+        "",
+        "",
+        "2026-09-01T11:03:16.050Z"
+      ],
+      [
+        "ID-TOPICS-1",
+        "",
+        "Test TOPICS",
+        "",
+        "",
+        "",
+        "2026-08-31T10:00:00.000Z"
+      ],
+      [
+        "BP-TOP-999999",
+        "CAT-QA",
+        "Test Quant Topic 1788424603942",
+        "test-quant-topic-1788424603942",
+        "Updated test topic description",
+        "2026-09-03T08:36:44.853Z",
+        "2026-09-03T08:36:49.403Z"
+      ],
+      [
+        "BP-TOP-1000000",
+        "CAT-QA",
+        "Second Test Topic 1788424614546",
+        "second-test-topic-1788424614546",
+        "",
+        "2026-09-03T08:36:55.409Z",
+        "2026-09-03T08:36:55.409Z"
+      ],
+      [
+        "BP-TOP-1000001",
+        "",
+        "Bulk Import Topic Alpha 1788424617651",
+        "bulk-import-topic-alpha-1788424617651",
+        "Dry run test topic A",
+        "2026-09-03T08:36:58.217Z",
+        "2026-09-03T08:36:58.217Z"
+      ],
+      [
+        "BP-TOP-1000002",
+        "CAT-QA",
+        "Test Quant Topic 1788424627469",
+        "test-quant-topic-1788424627469",
+        "Updated test topic description",
+        "2026-09-03T08:37:08.388Z",
+        "2026-09-03T08:37:11.510Z"
+      ],
+      [
+        "BP-TOP-1000003",
+        "CAT-QA",
+        "Second Test Topic 1788424636349",
+        "second-test-topic-1788424636349",
+        "",
+        "2026-09-03T08:37:17.230Z",
+        "2026-09-03T08:37:17.230Z"
+      ],
+      [
+        "BP-TOP-1000004",
+        "",
+        "Bulk Import Topic Alpha 1788424639440",
+        "bulk-import-topic-alpha-1788424639440",
+        "Dry run test topic A",
+        "2026-09-03T08:37:19.992Z",
+        "2026-09-03T08:37:19.992Z"
+      ],
+      [
+        "BP-TOP-1000005",
+        "",
+        "Task4 Test Topic 1788427387827",
+        "task4-test-topic-1788427387827",
+        "Test topic for Phase 4 verification",
+        "2026-09-03T09:23:11.586Z",
+        "2026-09-03T09:23:11.586Z"
+      ],
+      [
+        "BP-TOP-1000006",
+        "",
+        "Task4 Test Topic 1788427410913",
+        "task4-test-topic-1788427410913",
+        "Test topic for Phase 4 verification",
+        "2026-09-03T09:23:32.708Z",
+        "2026-09-03T09:23:32.708Z"
+      ],
+      [
+        "BP-TOP-1000007",
+        "",
+        "Task4 Test Topic 1788427555113",
+        "task4-test-topic-1788427555113",
+        "Test topic for Phase 4 verification",
+        "2026-09-03T09:25:56.491Z",
+        "2026-09-03T09:25:56.491Z"
+      ],
+      [
+        "BP-TOP-1000008",
+        "CAT-QA",
+        "Task4 Test Topic 1788427615110",
+        "task4-test-topic-1788427615110",
+        "Test topic for Phase 4 verification",
+        "2026-09-03T09:26:56.260Z",
+        "2026-09-03T09:26:56.260Z"
+      ],
+      [
+        "BP-TOP-1000009",
+        "CAT-QA",
+        "Task4 Test Topic 1788427693101",
+        "task4-test-topic-1788427693101",
+        "Test topic for Phase 4 verification",
+        "2026-09-03T09:28:14.250Z",
+        "2026-09-03T09:28:14.250Z"
+      ],
+      [
+        "BP-TOP-1000010",
+        "CAT-QA",
+        "Task4 Test Topic 1788427800676",
+        "task4-test-topic-1788427800676",
+        "Test topic for Phase 4 verification",
+        "2026-09-03T09:30:01.912Z",
+        "2026-09-03T09:30:01.912Z"
+      ],
+      [
+        "BP-TOP-1000011",
+        "CAT-QA",
+        "Task4 Test Topic 1788430587326",
+        "task4-test-topic-1788430587326",
+        "Test topic for Phase 4 verification",
+        "2026-09-03T10:16:28.193Z",
+        "2026-09-03T10:16:28.193Z"
+      ],
+      [
+        "BP-TOP-1000012",
+        "CAT-QA",
+        "Task4 Test Topic 1788430611643",
+        "task4-test-topic-1788430611643",
+        "Test topic for Phase 4 verification",
+        "2026-09-03T10:16:52.509Z",
+        "2026-09-03T10:16:52.509Z"
+      ],
+      [
+        "BP-TOP-1000013",
+        "CAT-QA",
+        "Task4 Test Topic 1788430683138",
+        "task4-test-topic-1788430683138",
+        "Test topic for Phase 4 verification",
+        "2026-09-03T10:18:34.989Z",
+        "2026-09-03T10:18:34.989Z"
+      ],
+      [
+        "BP-TOP-1000014",
+        "CAT-QA",
+        "Task4 Test Topic 1788438074022",
+        "task4-test-topic-1788438074022",
+        "Test topic for Phase 4 verification",
+        "2026-09-03T12:21:15.157Z",
+        "2026-09-03T12:21:15.157Z"
+      ],
+      [
+        "BP-TOP-1000015",
+        "CAT-QA",
+        "Task4 Test Topic 1788438210577",
+        "task4-test-topic-1788438210577",
+        "Test topic for Phase 4 verification",
+        "2026-09-03T12:23:32.198Z",
+        "2026-09-03T12:23:32.198Z"
+      ],
+      [
+        "BP-TOP-1000016",
+        "CAT-QA",
+        "Test Quant Topic 1788438230396",
+        "test-quant-topic-1788438230396",
+        "Updated test topic description",
+        "2026-09-03T12:23:51.970Z",
+        "2026-09-03T12:23:58.812Z"
+      ],
+      [
+        "BP-TOP-1000017",
+        "BP-CAT-999999",
+        "Test Logic & Speed 1788438235676",
+        "test-logic-speed-1788438235676",
+        "Temporary topic for Task 2B verification",
+        "2026-09-03T12:23:56.710Z",
+        "2026-09-03T12:23:56.710Z"
+      ],
+      [
+        "BP-TOP-1000018",
+        "CAT-QA",
+        "Task4 Test Topic 1788438265299",
+        "task4-test-topic-1788438265299",
+        "Test topic for Phase 4 verification",
+        "2026-09-03T12:24:26.329Z",
+        "2026-09-03T12:24:26.329Z"
+      ],
+      [
+        "BP-TOP-1000019",
+        "CAT-QA",
+        "Test Quant Topic 1788438324736",
+        "test-quant-topic-1788438324736",
+        "Updated test topic description",
+        "2026-09-03T12:25:25.780Z",
+        "2026-09-03T12:25:29.518Z"
+      ],
+      [
+        "BP-TOP-1000020",
+        "BP-CAT-1000000",
+        "Test Logic & Speed 1788438328308",
+        "test-logic-speed-1788438328308",
+        "Temporary topic for Task 2B verification",
+        "2026-09-03T12:25:29.379Z",
+        "2026-09-03T12:25:29.379Z"
+      ],
+      [
+        "BP-TOP-1000021",
+        "CAT-QA",
+        "Second Test Topic 1788438337151",
+        "second-test-topic-1788438337151",
+        "",
+        "2026-09-03T12:25:37.812Z",
+        "2026-09-03T12:25:37.812Z"
+      ],
+      [
+        "BP-TOP-1000022",
+        "",
+        "Bulk Import Topic Alpha 1788438340771",
+        "bulk-import-topic-alpha-1788438340771",
+        "Dry run test topic A",
+        "2026-09-03T12:25:41.449Z",
+        "2026-09-03T12:25:41.449Z"
+      ],
+      [
+        "BP-TOP-1000023",
+        "BP-CAT-1000001",
+        "Test Logic & Speed 1788438401800",
+        "test-logic-speed-1788438401800",
+        "Temporary topic for Task 2B verification",
+        "2026-09-03T12:26:42.842Z",
+        "2026-09-03T12:26:42.842Z"
+      ],
+      [
+        "BP-TOP-1000024",
+        "CAT-QA",
+        "Test Quant Topic 1788438407461",
+        "test-quant-topic-1788438407461",
+        "Updated test topic description",
+        "2026-09-03T12:26:48.161Z",
+        "2026-09-03T12:26:51.458Z"
+      ],
+      [
+        "BP-TOP-1000025",
+        "CAT-QA",
+        "Second Test Topic 1788438417072",
+        "second-test-topic-1788438417072",
+        "",
+        "2026-09-03T12:26:58.571Z",
+        "2026-09-03T12:26:58.571Z"
+      ],
+      [
+        "BP-TOP-1000026",
+        "",
+        "Bulk Import Topic Alpha 1788438421785",
+        "bulk-import-topic-alpha-1788438421785",
+        "Dry run test topic A",
+        "2026-09-03T12:27:02.682Z",
+        "2026-09-03T12:27:02.682Z"
+      ],
+      [
+        "BP-TOP-1000027",
+        "BP-CAT-1000002",
+        "Test Logic & Speed 1788438484422",
+        "test-logic-speed-1788438484422",
+        "Temporary topic for Task 2B verification",
+        "2026-09-03T12:28:05.473Z",
+        "2026-09-03T12:28:05.473Z"
+      ],
+      [
+        "BP-TOP-1000028",
+        "CAT-QA",
+        "Test Quant Topic 1788438490132",
+        "test-quant-topic-1788438490132",
+        "Updated test topic description",
+        "2026-09-03T12:28:10.802Z",
+        "2026-09-03T12:28:14.068Z"
+      ],
+      [
+        "BP-TOP-1000029",
+        "CAT-QA",
+        "Second Test Topic 1788438499889",
+        "second-test-topic-1788438499889",
+        "",
+        "2026-09-03T12:28:20.976Z",
+        "2026-09-03T12:28:20.976Z"
+      ],
+      [
+        "BP-TOP-1000030",
+        "",
+        "Bulk Import Topic Alpha 1788438503750",
+        "bulk-import-topic-alpha-1788438503750",
+        "Dry run test topic A",
+        "2026-09-03T12:28:24.418Z",
+        "2026-09-03T12:28:24.418Z"
+      ],
+      [
+        "BP-TOP-1000031",
+        "BP-CAT-1000003",
+        "Test Logic & Speed 1788439336365",
+        "test-logic-speed-1788439336365",
+        "Temporary topic for Task 2B verification",
+        "2026-09-03T12:42:17.458Z",
+        "2026-09-03T12:42:17.458Z"
+      ],
+      [
+        "BP-TOP-1000032",
+        "BP-CAT-1000004",
+        "Test Logic & Speed 1788506739987",
+        "test-logic-speed-1788506739987",
+        "Temporary topic for Task 2B verification",
+        "2026-09-04T07:26:02.710Z",
+        "2026-09-04T07:26:02.710Z"
+      ],
+      [
+        "BP-TOP-1000033",
+        "BP-CAT-1000005",
+        "Test Logic & Speed 1788516559675",
+        "test-logic-speed-1788516559675",
+        "Temporary topic for Task 2B verification",
+        "2026-09-04T10:09:20.439Z",
+        "2026-09-04T10:09:20.439Z"
+      ],
+      [
+        "BP-TOP-1000034",
+        "CAT-QA",
+        "Test Quant Topic 1788520024044",
+        "test-quant-topic-1788520024044",
+        "Updated test topic description",
+        "2026-09-04T11:07:04.985Z",
+        "2026-09-04T11:07:09.236Z"
+      ],
+      [
+        "BP-TOP-1000035",
+        "CAT-QA",
+        "Second Test Topic 1788520034381",
+        "second-test-topic-1788520034381",
+        "",
+        "2026-09-04T11:07:15.197Z",
+        "2026-09-04T11:07:15.197Z"
+      ],
+      [
+        "BP-TOP-1000036",
+        "",
+        "Bulk Import Topic Alpha 1788520037436",
+        "bulk-import-topic-alpha-1788520037436",
+        "Dry run test topic A",
+        "2026-09-04T11:07:17.987Z",
+        "2026-09-04T11:07:17.987Z"
+      ]
+    ]
+  },
+  "subtopics": {
+    "headers": [
+      "id",
+      "topic_id",
+      "name",
+      "slug",
+      "notes",
+      "created_at",
+      "updated_at"
+    ],
+    "rows": [
+      [
+        "SUB-QA-01-01",
+        "TOP-QA-01",
+        "Time, Speed & Relative Velocity",
+        "time-speed-relative-velocity",
+        "Fundamental speed, time, distance concepts and relative velocity",
+        "2026-08-29T08:55:54.830Z",
+        "2026-08-29T08:55:54.830Z"
+      ],
+      [
+        "SUB-QA-01-01",
+        "TOP-QA-01",
+        "Time & Speed Basics",
+        "time-speed-basics",
+        "",
+        "2026-08-29T08:54:39.332Z",
+        "2026-08-29T08:54:39.332Z"
+      ],
+      [
+        "BP-SUB-0001",
+        "BP-TOP-001",
+        "Test Modular Arithmetic 1788076853343",
+        "test-modular-arithmetic-1788076853343",
+        "Temporary subtopic for Task 2B verification",
+        "2026-08-30T08:00:54.335Z"
+      ],
+      [
+        "ID-SUBTOPICS-EXEC-1",
+        "ID-TOPICS-EXEC-1",
+        "Test Sub",
+        "test-sub",
+        "",
+        "",
+        "2026-09-01T08:21:47.935Z"
+      ],
+      [
+        "ID-SUBTOPICS-T1",
+        "ID-TOPICS-T1",
+        "Test Sub",
+        "test-sub",
+        "",
+        "",
+        "2099-01-01T00:00:00.000Z"
+      ],
+      [
+        "ID-SUBTOPICS-EXEC-T9-1",
+        "ID-TOPICS-EXEC-T9-1",
+        "Test Sub T9",
+        "test-sub-T9",
+        "",
+        "",
+        "2026-09-01T13:21:39.038Z"
+      ],
+      [
+        "ID-SUBTOPICS-EXEC-T10-1",
+        "ID-TOPICS-EXEC-T10-1",
+        "Test Sub T10",
+        "test-sub-T10",
+        "",
+        "",
+        "2026-09-01T13:22:26.803Z"
+      ],
+      [
+        "ID-SUBTOPICS-EXEC-T11-1",
+        "ID-TOPICS-EXEC-T11-1",
+        "Test Sub T11",
+        "test-sub-T11",
+        "",
+        "",
+        "2026-08-31T10:00:00.000Z"
+      ],
+      [
+        "ID-SUBTOPICS-EXEC-T12-1",
+        "ID-TOPICS-EXEC-T12-1",
+        "Test Sub T12",
+        "test-sub-T12",
+        "",
+        "",
+        "2026-09-01T13:24:19.680Z"
+      ],
+      [
+        "ID-SUBTOPICS-EXEC-T16-1",
+        "ID-TOPICS-EXEC-T16-1",
+        "Test Sub T16",
+        "test-sub-T16",
+        "",
+        "",
+        "2026-09-01T13:25:24.878Z"
+      ],
+      [
+        "ID-SUBTOPICS-EXEC-T17-1",
+        "ID-TOPICS-EXEC-T17-1",
+        "Test Sub T17",
+        "test-sub-T17",
+        "",
+        "",
+        "2026-09-01T13:26:23.854Z"
+      ],
+      [
+        "ID-SUBTOPICS-EXEC-T18-1",
+        "ID-TOPICS-EXEC-T18-1",
+        "Test Sub T18",
+        "test-sub-T18",
+        "",
+        "",
+        "2026-09-01T13:26:31.230Z"
+      ],
+      [
+        "ID-SUBTOPICS-EXEC-T19-1",
+        "ID-TOPICS-EXEC-T19-1",
+        "Test Sub T19",
+        "test-sub-T19",
+        "",
+        "",
+        "2026-09-01T13:27:30.756Z"
+      ],
+      [
+        "ID-SUBTOPICS-EXEC-T20-1",
+        "ID-TOPICS-EXEC-T20-1",
+        "Test Sub T20",
+        "test-sub-T20",
+        "",
+        "",
+        "2026-09-01T13:28:27.471Z"
+      ],
+      [
+        "ID-SUBTOPICS-EXEC-T22-1",
+        "ID-TOPICS-EXEC-T22-1",
+        "Test Sub T22",
+        "test-sub-T22",
+        "",
+        "",
+        "2026-09-01T13:29:27.043Z"
+      ],
+      [
+        "ID-SUBTOPICS-EXEC-T21-1",
+        "ID-TOPICS-EXEC-T21-1",
+        "Test Sub T21",
+        "test-sub-T21",
+        "",
+        "",
+        "2026-09-01T13:28:40.492Z"
+      ],
+      [
+        "ID-SUBTOPICS-EXEC-T21-1",
+        "ID-TOPICS-EXEC-T21-1",
+        "Test Sub T21",
+        "test-sub-T21",
+        "",
+        "",
+        "2026-09-01T08:43:02.684Z"
+      ],
+      [
+        "ID-SUBTOPICS-EXEC-T23-1",
+        "ID-TOPICS-EXEC-T23-1",
+        "Test Sub T23",
+        "test-sub-T23",
+        "",
+        "",
+        "2026-09-01T13:30:27.390Z"
+      ],
+      [
+        "ID-SUBTOPICS-EXEC-T26-1",
+        "ID-TOPICS-EXEC-T26-1",
+        "Test Sub T26",
+        "test-sub-T26",
+        "",
+        "",
+        "2026-09-01T13:31:17.326Z"
+      ],
+      [
+        "ID-SUBTOPICS-EXEC-T29-1",
+        "ID-TOPICS-EXEC-T29-1",
+        "Test Sub T29",
+        "test-sub-T29",
+        "",
+        "",
+        "2026-09-01T13:31:30.615Z"
+      ],
+      [
+        "ID-SUBTOPICS-EXEC-T30-1",
+        "ID-TOPICS-EXEC-T30-1",
+        "Test Sub T30",
+        "test-sub-T30",
+        "",
+        "",
+        "2026-09-01T13:32:29.132Z"
+      ],
+      [
+        "ID-SUBTOPICS-EXEC-T9B-1",
+        "ID-TOPICS-EXEC-T9B-1",
+        "Test Sub T9B",
+        "test-sub-T9B",
+        "",
+        "",
+        "2026-09-01T09:33:54.326Z"
+      ],
+      [
+        "ID-SUBTOPICS-EXEC-TEST_DEBUG_NOW_9-1",
+        "ID-TOPICS-EXEC-TEST_DEBUG_NOW_9-1",
+        "Test Sub TEST_DEBUG_NOW_9",
+        "test-sub-TEST_DEBUG_NOW_9",
+        "",
+        "",
+        "2026-09-01T09:40:00.663Z"
+      ],
+      [
+        "ID-SUBTOPICS-EXEC-T9_DIAG-1",
+        "ID-TOPICS-EXEC-T9_DIAG-1",
+        "Test Sub T9_DIAG",
+        "test-sub-T9_DIAG",
+        "",
+        "",
+        "2026-09-01T09:47:57.208Z"
+      ],
+      [
+        "ID-SUBTOPICS-EXEC-T10-1",
+        "ID-TOPICS-EXEC-T10-1",
+        "Test Sub T10",
+        "test-sub-T10",
+        "",
+        "",
+        "2026-09-01T10:19:00.251Z"
+      ],
+      [
+        "ID-SUBTOPICS-EXEC-T9-1",
+        "ID-TOPICS-EXEC-T9-1",
+        "Test Sub T9",
+        "test-sub-T9",
+        "",
+        "",
+        "2026-09-01T10:29:14.017Z"
+      ],
+      [
+        "ID-SUBTOPICS-EXEC-T18-1",
+        "ID-TOPICS-EXEC-T18-1",
+        "Test Sub T18",
+        "test-sub-T18",
+        "",
+        "",
+        "2026-09-01T10:40:19.621Z"
+      ],
+      [
+        "ID-SUBTOPICS-EXEC-T20-1",
+        "ID-TOPICS-EXEC-T20-1",
+        "Test Sub T20",
+        "test-sub-T20",
+        "",
+        "",
+        "2026-09-01T11:02:15.278Z"
+      ],
+      [
+        "ID-SUBTOPICS-EXEC-T18-1",
+        "ID-TOPICS-EXEC-T18-1",
+        "Test Sub T18",
+        "test-sub-T18",
+        "",
+        "",
+        "2026-09-01T11:02:16.007Z"
+      ],
+      [
+        "ID-SUBTOPICS-EXEC-T21-1",
+        "ID-TOPICS-EXEC-T21-1",
+        "Test Sub T21",
+        "test-sub-T21",
+        "",
+        "",
+        "2026-09-01T11:08:15.802Z"
+      ],
+      [
+        "ID-SUBTOPICS-EXEC-T10-1",
+        "ID-TOPICS-EXEC-T10-1",
+        "Test Sub T10",
+        "test-sub-T10",
+        "",
+        "",
+        "2026-09-01T11:09:55.018Z"
+      ],
+      [
+        "ID-SUBTOPICS-1",
+        "",
+        "Test SUBTOPICS",
+        "",
+        "",
+        "",
+        "2026-08-31T10:00:00.000Z"
+      ],
+      [
+        "BP-SUB-999999",
+        "BP-TOP-999999",
+        "Test Linear Subtopic 1788424610182",
+        "test-linear-subtopic-1788424610182",
+        "Verification notes",
+        "2026-09-03T08:36:51.304Z",
+        "2026-09-03T08:36:53.681Z"
+      ],
+      [
+        "BP-SUB-1000000",
+        "BP-TOP-1000000",
+        "Test Linear Subtopic 1788424610182",
+        "test-linear-subtopic-1788424610182",
+        "",
+        "2026-09-03T08:36:56.817Z",
+        "2026-09-03T08:36:56.817Z"
+      ],
+      [
+        "BP-SUB-1000001",
+        "BP-TOP-1000001",
+        "Bulk Subtopic A1",
+        "bulk-subtopic-a1",
+        "",
+        "2026-09-03T08:36:59.633Z",
+        "2026-09-03T08:36:59.633Z"
+      ],
+      [
+        "BP-SUB-1000002",
+        "BP-TOP-1000001",
+        "Bulk Subtopic A2",
+        "bulk-subtopic-a2",
+        "",
+        "2026-09-03T08:37:01.488Z",
+        "2026-09-03T08:37:01.488Z"
+      ],
+      [
+        "BP-SUB-1000003",
+        "BP-TOP-999999",
+        "New Subtopic under Existing Topic",
+        "new-subtopic-under-existing-topic",
+        "",
+        "2026-09-03T08:37:03.378Z",
+        "2026-09-03T08:37:03.378Z"
+      ],
+      [
+        "BP-SUB-1000004",
+        "BP-TOP-1000002",
+        "Test Linear Subtopic 1788424632072",
+        "test-linear-subtopic-1788424632072",
+        "Verification notes",
+        "2026-09-03T08:37:13.176Z",
+        "2026-09-03T08:37:15.448Z"
+      ],
+      [
+        "BP-SUB-1000005",
+        "BP-TOP-1000003",
+        "Test Linear Subtopic 1788424632072",
+        "test-linear-subtopic-1788424632072",
+        "",
+        "2026-09-03T08:37:18.623Z",
+        "2026-09-03T08:37:18.623Z"
+      ],
+      [
+        "BP-SUB-1000006",
+        "BP-TOP-1000004",
+        "Bulk Subtopic A1",
+        "bulk-subtopic-a1",
+        "",
+        "2026-09-03T08:37:21.452Z",
+        "2026-09-03T08:37:21.452Z"
+      ],
+      [
+        "BP-SUB-1000007",
+        "BP-TOP-1000004",
+        "Bulk Subtopic A2",
+        "bulk-subtopic-a2",
+        "",
+        "2026-09-03T08:37:22.789Z",
+        "2026-09-03T08:37:22.789Z"
+      ],
+      [
+        "BP-SUB-1000008",
+        "BP-TOP-1000002",
+        "New Subtopic under Existing Topic",
+        "new-subtopic-under-existing-topic",
+        "",
+        "2026-09-03T08:37:57.109Z",
+        "2026-09-03T08:37:57.109Z"
+      ],
+      [
+        "BP-SUB-1000009",
+        "BP-TOP-1000005",
+        "Task4 Test Subtopic 1788427393238",
+        "task4-test-subtopic-1788427393238",
+        "",
+        "2026-09-03T09:23:17.112Z",
+        "2026-09-03T09:23:17.112Z"
+      ],
+      [
+        "BP-SUB-1000010",
+        "BP-TOP-1000006",
+        "Task4 Test Subtopic 1788427413788",
+        "task4-test-subtopic-1788427413788",
+        "",
+        "2026-09-03T09:23:35.763Z",
+        "2026-09-03T09:23:35.763Z"
+      ],
+      [
+        "BP-SUB-1000011",
+        "BP-TOP-1000007",
+        "Task4 Test Subtopic 1788427557191",
+        "task4-test-subtopic-1788427557191",
+        "",
+        "2026-09-03T09:25:59.453Z",
+        "2026-09-03T09:25:59.453Z"
+      ],
+      [
+        "BP-SUB-1000012",
+        "BP-TOP-1000008",
+        "Task4 Test Subtopic 1788427617025",
+        "task4-test-subtopic-1788427617025",
+        "",
+        "2026-09-03T09:26:58.883Z",
+        "2026-09-03T09:26:58.883Z"
+      ],
+      [
+        "BP-SUB-1000013",
+        "BP-TOP-1000009",
+        "Task4 Test Subtopic 1788427694967",
+        "task4-test-subtopic-1788427694967",
+        "",
+        "2026-09-03T09:28:16.304Z",
+        "2026-09-03T09:28:16.304Z"
+      ],
+      [
+        "BP-SUB-1000014",
+        "BP-TOP-1000010",
+        "Task4 Test Subtopic 1788427802644",
+        "task4-test-subtopic-1788427802644",
+        "",
+        "2026-09-03T09:30:04.139Z",
+        "2026-09-03T09:30:04.139Z"
+      ],
+      [
+        "BP-SUB-1000015",
+        "BP-TOP-1000011",
+        "Task4 Test Subtopic 1788430589668",
+        "task4-test-subtopic-1788430589668",
+        "",
+        "2026-09-03T10:16:30.804Z",
+        "2026-09-03T10:16:30.804Z"
+      ],
+      [
+        "BP-SUB-1000016",
+        "BP-TOP-1000012",
+        "Task4 Test Subtopic 1788430613035",
+        "task4-test-subtopic-1788430613035",
+        "",
+        "2026-09-03T10:16:54.193Z",
+        "2026-09-03T10:16:54.193Z"
+      ],
+      [
+        "BP-SUB-1000017",
+        "BP-TOP-1000013",
+        "Task4 Test Subtopic 1788430715553",
+        "task4-test-subtopic-1788430715553",
+        "",
+        "2026-09-03T10:18:36.631Z",
+        "2026-09-03T10:18:36.631Z"
+      ],
+      [
+        "BP-SUB-1000018",
+        "BP-TOP-1000014",
+        "Task4 Test Subtopic 1788438075912",
+        "task4-test-subtopic-1788438075912",
+        "",
+        "2026-09-03T12:21:17.438Z",
+        "2026-09-03T12:21:17.438Z"
+      ],
+      [
+        "BP-SUB-1000019",
+        "BP-TOP-1000015",
+        "Task4 Test Subtopic 1788438213010",
+        "task4-test-subtopic-1788438213010",
+        "",
+        "2026-09-03T12:23:34.638Z",
+        "2026-09-03T12:23:34.638Z"
+      ],
+      [
+        "BP-SUB-1000020",
+        "BP-TOP-1000017",
+        "Test Modular Arithmetic 1788438239245",
+        "test-modular-arithmetic-1788438239245",
+        "Temporary subtopic for Task 2B verification",
+        "2026-09-03T12:24:00.444Z",
+        "2026-09-03T12:24:00.444Z"
+      ],
+      [
+        "BP-SUB-1000021",
+        "BP-TOP-1000016",
+        "Test Linear Subtopic 1788438239620",
+        "test-linear-subtopic-1788438239620",
+        "Verification notes",
+        "2026-09-03T12:24:01.340Z",
+        "2026-09-03T12:24:01.340Z"
+      ],
+      [
+        "BP-SUB-1000022",
+        "BP-TOP-1000018",
+        "Task4 Test Subtopic 1788438267087",
+        "task4-test-subtopic-1788438267087",
+        "",
+        "2026-09-03T12:24:28.623Z",
+        "2026-09-03T12:24:28.623Z"
+      ],
+      [
+        "BP-SUB-1000023",
+        "BP-TOP-1000020",
+        "Test Modular Arithmetic 1788438330562",
+        "test-modular-arithmetic-1788438330562",
+        "Temporary subtopic for Task 2B verification",
+        "2026-09-03T12:25:31.541Z",
+        "2026-09-03T12:25:31.541Z"
+      ],
+      [
+        "BP-SUB-1000024",
+        "BP-TOP-1000019",
+        "Test Linear Subtopic 1788438330352",
+        "test-linear-subtopic-1788438330352",
+        "Verification notes",
+        "2026-09-03T12:25:32.196Z",
+        "2026-09-03T12:25:35.982Z"
+      ],
+      [
+        "BP-SUB-1000025",
+        "BP-TOP-1000021",
+        "Test Linear Subtopic 1788438330352",
+        "test-linear-subtopic-1788438330352",
+        "",
+        "2026-09-03T12:25:39.732Z",
+        "2026-09-03T12:25:39.732Z"
+      ],
+      [
+        "BP-SUB-1000026",
+        "BP-TOP-1000022",
+        "Bulk Subtopic A1",
+        "bulk-subtopic-a1",
+        "",
+        "2026-09-03T12:25:43.165Z",
+        "2026-09-03T12:25:43.165Z"
+      ],
+      [
+        "BP-SUB-1000028",
+        "BP-TOP-1000023",
+        "Test Modular Arithmetic 1788438404553",
+        "test-modular-arithmetic-1788438404553",
+        "Temporary subtopic for Task 2B verification",
+        "2026-09-03T12:26:45.588Z",
+        "2026-09-03T12:26:45.588Z"
+      ],
+      [
+        "BP-SUB-1000029",
+        "BP-TOP-1000024",
+        "Test Linear Subtopic 1788438412132",
+        "test-linear-subtopic-1788438412132",
+        "Verification notes",
+        "2026-09-03T12:26:53.532Z",
+        "2026-09-03T12:26:56.032Z"
+      ],
+      [
+        "BP-SUB-1000030",
+        "BP-TOP-1000025",
+        "Test Linear Subtopic 1788438412132",
+        "test-linear-subtopic-1788438412132",
+        "",
+        "2026-09-03T12:27:00.738Z",
+        "2026-09-03T12:27:00.738Z"
+      ],
+      [
+        "BP-SUB-1000031",
+        "BP-TOP-1000026",
+        "Bulk Subtopic A1",
+        "bulk-subtopic-a1",
+        "",
+        "2026-09-03T12:27:04.638Z",
+        "2026-09-03T12:27:04.638Z"
+      ],
+      [
+        "BP-SUB-1000032",
+        "BP-TOP-1000026",
+        "Bulk Subtopic A2",
+        "bulk-subtopic-a2",
+        "",
+        "2026-09-03T12:27:06.927Z",
+        "2026-09-03T12:27:06.927Z"
+      ],
+      [
+        "BP-SUB-1000033",
+        "BP-TOP-1000024",
+        "New Subtopic under Existing Topic",
+        "new-subtopic-under-existing-topic",
+        "",
+        "2026-09-03T12:27:09.426Z",
+        "2026-09-03T12:27:09.426Z"
+      ],
+      [
+        "BP-SUB-1000034",
+        "BP-TOP-1000027",
+        "Test Modular Arithmetic 1788438486818",
+        "test-modular-arithmetic-1788438486818",
+        "Temporary subtopic for Task 2B verification",
+        "2026-09-03T12:28:07.790Z",
+        "2026-09-03T12:28:07.790Z"
+      ],
+      [
+        "BP-SUB-1000035",
+        "BP-TOP-1000028",
+        "Test Linear Subtopic 1788438494748",
+        "test-linear-subtopic-1788438494748",
+        "Verification notes",
+        "2026-09-03T12:28:16.224Z",
+        "2026-09-03T12:28:18.844Z"
+      ],
+      [
+        "BP-SUB-1000036",
+        "BP-TOP-1000029",
+        "Test Linear Subtopic 1788438494748",
+        "test-linear-subtopic-1788438494748",
+        "",
+        "2026-09-03T12:28:22.761Z",
+        "2026-09-03T12:28:22.761Z"
+      ],
+      [
+        "BP-SUB-1000037",
+        "BP-TOP-1000030",
+        "Bulk Subtopic A1",
+        "bulk-subtopic-a1",
+        "",
+        "2026-09-03T12:28:26.695Z",
+        "2026-09-03T12:28:26.695Z"
+      ],
+      [
+        "BP-SUB-1000038",
+        "BP-TOP-1000030",
+        "Bulk Subtopic A2",
+        "bulk-subtopic-a2",
+        "",
+        "2026-09-03T12:28:28.606Z",
+        "2026-09-03T12:28:28.606Z"
+      ],
+      [
+        "BP-SUB-1000039",
+        "BP-TOP-1000028",
+        "New Subtopic under Existing Topic",
+        "new-subtopic-under-existing-topic",
+        "",
+        "2026-09-03T12:28:31.261Z",
+        "2026-09-03T12:28:31.261Z"
+      ],
+      [
+        "BP-SUB-1000040",
+        "BP-TOP-1000031",
+        "Test Modular Arithmetic 1788439338852",
+        "test-modular-arithmetic-1788439338852",
+        "Temporary subtopic for Task 2B verification",
+        "2026-09-03T12:42:20.108Z",
+        "2026-09-03T12:42:20.108Z"
+      ],
+      [
+        "BP-SUB-1000041",
+        "BP-TOP-1000032",
+        "Test Modular Arithmetic 1788506767305",
+        "test-modular-arithmetic-1788506767305",
+        "Temporary subtopic for Task 2B verification",
+        "2026-09-04T07:26:20.027Z",
+        "2026-09-04T07:26:20.027Z"
+      ],
+      [
+        "BP-SUB-1000042",
+        "BP-TOP-1000033",
+        "Test Modular Arithmetic 1788516561464",
+        "test-modular-arithmetic-1788516561464",
+        "Temporary subtopic for Task 2B verification",
+        "2026-09-04T10:09:22.288Z",
+        "2026-09-04T10:09:22.288Z"
+      ],
+      [
+        "BP-SUB-1000043",
+        "BP-TOP-1000034",
+        "Test Linear Subtopic 1788520029827",
+        "test-linear-subtopic-1788520029827",
+        "Verification notes",
+        "2026-09-04T11:07:10.928Z",
+        "2026-09-04T11:07:13.517Z"
+      ],
+      [
+        "BP-SUB-1000044",
+        "BP-TOP-1000035",
+        "Test Linear Subtopic 1788520029827",
+        "test-linear-subtopic-1788520029827",
+        "",
+        "2026-09-04T11:07:16.563Z",
+        "2026-09-04T11:07:16.563Z"
+      ],
+      [
+        "BP-SUB-1000045",
+        "BP-TOP-1000036",
+        "Bulk Subtopic A1",
+        "bulk-subtopic-a1",
+        "",
+        "2026-09-04T11:07:19.396Z",
+        "2026-09-04T11:07:19.396Z"
+      ],
+      [
+        "BP-SUB-1000046",
+        "BP-TOP-1000036",
+        "Bulk Subtopic A2",
+        "bulk-subtopic-a2",
+        "",
+        "2026-09-04T11:07:20.837Z",
+        "2026-09-04T11:07:20.837Z"
+      ],
+      [
+        "BP-SUB-1000047",
+        "BP-TOP-1000034",
+        "New Subtopic under Existing Topic",
+        "new-subtopic-under-existing-topic",
+        "",
+        "2026-09-04T11:07:22.507Z",
+        "2026-09-04T11:07:22.507Z"
+      ]
+    ]
+  },
+  "questionsHeaders": [
+    "id",
+    "category_id",
+    "category_name",
+    "topic_id",
+    "topic_name",
+    "subtopic_id",
+    "subtopic_name",
+    "difficulty",
+    "question_text",
+    "option_a",
+    "option_b",
+    "option_c",
+    "option_d",
+    "correct_answer",
+    "explanation",
+    "real_world_context",
+    "question_style",
+    "status",
+    "video_status",
+    "tags",
+    "source",
+    "ai_prompt_used",
+    "author_id",
+    "created_at",
+    "updated_at"
+  ],
+  "contentMastersHeaders": [
+    "id",
+    "title",
+    "status",
+    "primary_question_id",
+    "category_id",
+    "topic_id",
+    "subtopic_id",
+    "created_by",
+    "created_at",
+    "updated_at",
+    "archived_at"
+  ],
+  "sequencesHeaders": [
+    "entity_type",
+    "next_number",
+    "prefix",
+    "pad_length",
+    "updated_at"
+  ],
+  "sequencesRows": [
+    [
+      "QUESTION",
+      1788718410565,
+      "BP-Q-",
+      6,
+      "2026-09-08T17:31:11.601Z"
+    ],
+    [
+      "VIDEO",
+      1000001,
+      "BP-V-",
+      6,
+      "2026-09-02T18:08:04.016Z"
+    ],
+    [
+      "SCRIPT",
+      1000011,
+      "BP-S-",
+      6,
+      "2026-09-09T09:20:42.618Z"
+    ],
+    [
+      "THUMBNAIL",
+      1000000,
+      "BP-T-",
+      6,
+      "2026-09-04T15:06:34.466Z"
+    ],
+    [
+      "PINNED_COMMENT",
+      1000000,
+      "BP-PIN-",
+      6,
+      "2026-09-04T15:06:39.219Z"
+    ],
+    [
+      "CATEGORY",
+      1000006,
+      "BP-CAT-",
+      3,
+      "2026-09-04T10:09:17.058Z"
+    ],
+    [
+      "TOPIC",
+      1000037,
+      "BP-TOP-",
+      3,
+      "2026-09-04T11:07:17.718Z"
+    ],
+    [
+      "SUBTOPIC",
+      1000048,
+      "BP-SUB-",
+      4,
+      "2026-09-04T11:07:22.237Z"
+    ],
+    [
+      "USER",
+      1,
+      "USR-",
+      3,
+      "2026-08-27T13:47:45.034Z"
+    ],
+    [
+      "CONTENT_PLAN",
+      3,
+      "BP-PLN-",
+      4,
+      "2026-08-30T09:19:13.203Z"
+    ],
+    [
+      "CONTENT_BATCH",
+      3,
+      "BP-BCH-",
+      4,
+      "2026-08-30T09:19:20.987Z"
+    ],
+    [
+      "ASSIGNMENT",
+      118,
+      "BP-ASN-",
+      6,
+      "2026-09-09T09:43:49.067Z"
+    ],
+    [
+      "CONTENT_MASTER",
+      259,
+      "BP-MST-",
+      6,
+      "2026-09-06T20:18:09.019Z"
+    ]
+  ]
+}

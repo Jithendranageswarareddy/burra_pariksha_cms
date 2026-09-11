@@ -240,6 +240,12 @@ export class ThumbnailService {
   ): Promise<Thumbnail> {
     this.verifyThumbnailRole(actor);
 
+    if (actor.role && String(actor.role).toUpperCase() === UserRole.DESIGNER) {
+      if (newStatus !== 'DESIGNED') {
+        throw new Error(`Unauthorized: Role "DESIGNER" is only permitted to mark thumbnail status as DESIGNED.`);
+      }
+    }
+
     const existing = await thumbnailsRepository.findById(thumbnailId);
     if (!existing) {
       throw new Error(`Thumbnail "${thumbnailId}" not found.`);

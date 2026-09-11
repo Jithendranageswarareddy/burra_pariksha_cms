@@ -26,6 +26,7 @@ import {
   Trash2,
   Clock,
   ArrowRight,
+  Scale,
 } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { Button } from '../components/common/Button';
@@ -44,6 +45,7 @@ import {
   QuestionCandidate,
   RefineCandidateInput,
 } from '../lib/ai/types';
+import { BlindVerificationArbitrationResult } from '../lib/ai/verifier/types';
 import { CandidateValidator, CandidateValidationReport } from '../lib/ai/validators/candidate.validator';
 import { QUESTION_CREATION_CONFIG } from '../config/question-creation.config';
 
@@ -159,6 +161,7 @@ export const QuestionStudioPage: React.FC = () => {
   const [isValidatingServer, setIsValidatingServer] = useState<boolean>(false);
   const [serverValidationResult, setServerValidationResult] = useState<ValidationResult | null>(null);
   const [isValidationStale, setIsValidationStale] = useState<boolean>(false);
+  const [arbitrationResult, setArbitrationResult] = useState<BlindVerificationArbitrationResult | null>(null);
 
   // Duplicate Check States
   const [duplicateMatches, setDuplicateMatches] = useState<any[]>([]);
@@ -357,6 +360,7 @@ export const QuestionStudioPage: React.FC = () => {
     setIsGenerating(true);
     setServerValidationResult(null);
     setIsValidationStale(false);
+    setArbitrationResult(null);
 
     const startTime = Date.now();
     try {
@@ -402,6 +406,10 @@ export const QuestionStudioPage: React.FC = () => {
       setGenerationDuration(res.metadata?.generationDurationMs || res.metadata?.latencyMs || Date.now() - startTime);
       setIsFallbackMode(Boolean(res.metadata?.fallbackUsed || res.metadata?.isMockFallback));
 
+      if (res.arbitration) {
+        setArbitrationResult(res.arbitration);
+      }
+
       setClientReport(CandidateValidator.validate(generated));
       triggerDuplicateCheck(generated.content);
       isInternalUpdateRef.current = false;
@@ -418,6 +426,7 @@ export const QuestionStudioPage: React.FC = () => {
 
     setErrorMessage(null);
     setIsRefining(true);
+    setArbitrationResult(null);
 
     try {
       const activeAiCandidate: QuestionCandidate = {
@@ -460,6 +469,12 @@ export const QuestionStudioPage: React.FC = () => {
 
       setClientReport(CandidateValidator.validate(refined));
       triggerDuplicateCheck(refined.content);
+
+      if (res.arbitration) {
+        setArbitrationResult(res.arbitration);
+      } else {
+        setArbitrationResult(null);
+      }
 
       if (serverValidationResult) {
         setIsValidationStale(true);
@@ -592,6 +607,7 @@ export const QuestionStudioPage: React.FC = () => {
     setClientReport(null);
     setServerValidationResult(null);
     setIsValidationStale(false);
+    setArbitrationResult(null);
     setDuplicateMatches([]);
     setSavedSuccessInfo(null);
     setErrorMessage(null);
@@ -1375,6 +1391,185 @@ export const QuestionStudioPage: React.FC = () => {
                         </p>
                       ))}
                     </div>
+                  )}
+                </div>
+              )}
+
+              {/* Arbitration & Verifier Consensus */}
+              {arbitrationResult && (
+                <div
+                  className="p-3.5 bg-white border border-slate-200 rounded-lg space-y-2.5 animate-in fade-in"
+                  data-testid="arbitration-consensus-section"
+                >
+                  {/* Header with Title & Verdict Badge */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2">
+                    <div className="flex items-center gap-2">
+                      <Scale className="w-4 h-4 text-indigo-600 shrink-0" />
+                      <h5 className="text-xs font-bold text-slate-900">
+                        Arbitration &amp; Verifier Consensus
+                      </h5>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
+                          arbitrationResult.verdict === 'VALID'
+                            ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                            : arbitrationResult.verdict === 'NEEDS_REVIEW'
+                            ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                            : 'bg-rose-100 text-rose-900 border border-rose-300'
+                        }`}
+                      >
+                        Verdict: {arbitrationResult.verdict}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* NEEDS_REVIEW Prominent Human Editorial Alert */}
+                  {arbitrationResult.verdict === 'NEEDS_REVIEW' && (
+                    <div className="p-2.5 bg-amber-50 border border-amber-300 rounded-md flex items-start gap-2 text-xs text-amber-950">
+                      <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-bold text-amber-900">Manual Editorial Review Required</p>
+                        <p className="text-[11px] text-amber-800 mt-0.5">
+                          The blind verifier or deterministic solver flagged this candidate for human inspection.
+                          This status does NOT approve the candidate or indicate verification readiness.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* INVALID Prominent Alert */}
+                  {arbitrationResult.verdict === 'INVALID' && (
+                    <div className="p-2.5 bg-rose-50 border border-rose-300 rounded-md flex items-start gap-2 text-xs text-rose-950">
+                      <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-bold text-rose-900">Candidate Defect Detected</p>
+                        <p className="text-[11px] text-rose-800 mt-0.5">
+                          The verifier or solver identified contradictions or invalid option derivations.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Consensus & Status Pills */}
+                  <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                    <span
+                      className={`font-semibold px-2 py-0.5 rounded-full ${
+                        arbitrationResult.agreement
+                          ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                          : 'bg-amber-50 text-amber-800 border border-amber-200'
+                      }`}
+                    >
+                      Consensus: {arbitrationResult.agreement ? 'AGREEMENT' : 'DISAGREEMENT'}
+                    </span>
+
+                    <span
+                      className={`font-semibold px-2 py-0.5 rounded-full ${
+                        arbitrationResult.deterministicContradiction
+                          ? 'bg-rose-100 text-rose-800 border border-rose-300'
+                          : 'bg-slate-100 text-slate-700 border border-slate-200'
+                      }`}
+                    >
+                      Deterministic Contradiction: {arbitrationResult.deterministicContradiction ? 'DETECTED' : 'NONE'}
+                    </span>
+
+                    {typeof arbitrationResult.confidenceScore === 'number' && (
+                      <span className="font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
+                        Score: {Math.round(arbitrationResult.confidenceScore * 100)}%
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Answer Comparison */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] bg-slate-50 p-2.5 rounded-md border border-slate-200">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-slate-500 font-medium">Generator Answer:</span>
+                      <span className="font-bold font-mono text-slate-900 bg-white px-2 py-0.5 rounded border border-slate-200">
+                        Option {arbitrationResult.generatorAnswer || 'N/A'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-slate-500 font-medium">Verifier-Derived Answer:</span>
+                      <span className="font-bold font-mono text-slate-900 bg-white px-2 py-0.5 rounded border border-slate-200">
+                        {arbitrationResult.verifierAnswer || 'N/A'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Reasoning */}
+                  {arbitrationResult.reasoning && (
+                    <div className="text-[11px] text-slate-700 bg-slate-50 p-2.5 rounded-md border border-slate-200 space-y-0.5">
+                      <p className="font-bold text-slate-800">Reasoning:</p>
+                      <p className="text-slate-600 leading-relaxed">{arbitrationResult.reasoning}</p>
+                    </div>
+                  )}
+
+                  {/* Failure Reason if present */}
+                  {arbitrationResult.failureReason && (
+                    <div className="text-[11px] text-rose-800 bg-rose-50 p-2.5 rounded-md border border-rose-200 space-y-0.5">
+                      <p className="font-bold text-rose-900">Failure Reason:</p>
+                      <p className="text-rose-700 leading-relaxed">{arbitrationResult.failureReason}</p>
+                    </div>
+                  )}
+
+                  {/* Verifier Evidence Collapsible Details */}
+                  {arbitrationResult.verifierEvidence && (
+                    <details className="text-[11px] text-slate-600 bg-slate-50 rounded-md border border-slate-200 p-2.5">
+                      <summary className="font-semibold text-slate-800 cursor-pointer select-none hover:text-slate-950">
+                        Verifier Evidence Details{' '}
+                        {typeof arbitrationResult.verifierEvidence.confidence === 'number' && (
+                          <span className="font-normal text-slate-500">
+                            (Confidence: {Math.round(arbitrationResult.verifierEvidence.confidence * 100)}%)
+                          </span>
+                        )}
+                      </summary>
+                      <div className="mt-2 space-y-2 pt-2 border-t border-slate-200">
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px]">
+                          <span>
+                            Solved Option:{' '}
+                            <strong className="font-mono text-slate-900">
+                              {arbitrationResult.verifierEvidence.solvedOption}
+                            </strong>
+                          </span>
+                          {arbitrationResult.verifierEvidence.derivedValue && (
+                            <span>
+                              Derived Value:{' '}
+                              <strong className="font-mono text-slate-900">
+                                {arbitrationResult.verifierEvidence.derivedValue}
+                              </strong>
+                            </span>
+                          )}
+                          <span>
+                            Solvable:{' '}
+                            <strong className="text-slate-900">
+                              {arbitrationResult.verifierEvidence.isSolvable ? 'Yes' : 'No'}
+                            </strong>
+                          </span>
+                          <span>
+                            Multiple Valid Options:{' '}
+                            <strong className="text-slate-900">
+                              {arbitrationResult.verifierEvidence.hasMultipleValidOptions ? 'Yes' : 'No'}
+                            </strong>
+                          </span>
+                        </div>
+
+                        {arbitrationResult.verifierEvidence.independentProof && (
+                          <div>
+                            <span className="font-semibold text-slate-700">Independent Proof:</span>
+                            <pre className="font-mono text-[10px] bg-white p-2 rounded border border-slate-200 mt-1 whitespace-pre-wrap text-slate-800 overflow-x-auto max-h-40">
+                              {arbitrationResult.verifierEvidence.independentProof}
+                            </pre>
+                          </div>
+                        )}
+
+                        {arbitrationResult.verifierEvidence.notes && (
+                          <div>
+                            <span className="font-semibold text-slate-700">Notes: </span>
+                            <span className="text-slate-600">{arbitrationResult.verifierEvidence.notes}</span>
+                          </div>
+                        )}
+                      </div>
+                    </details>
                   )}
                 </div>
               )}

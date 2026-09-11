@@ -33,6 +33,9 @@ import {
   PlayCircle,
   RefreshCw,
   Lock,
+  Plus,
+  Edit2,
+  X,
 } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { Button } from '../components/common/Button';
@@ -42,6 +45,7 @@ import { apiClient } from '../lib/api-client';
 import { ContentMaster, ContentMasterCanonicalState, ContentMasterStatus, DifficultyLevel, UserRole } from '../types';
 import { ContentMasterDetails } from '../lib/services/content-master.service';
 import { useAuth } from '../contexts/AuthContext';
+import { EntityAssignmentsSection } from '../components/assignments/EntityAssignmentsSection';
 
 const renderContentMasterStatusBadge = (status?: string) => {
   switch (status) {
@@ -98,6 +102,145 @@ export const ContentMasterPage: React.FC = () => {
   const [remarksInput, setRemarksInput] = useState('');
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
   const [archiveReason, setArchiveReason] = useState('');
+
+  // Phase 16.5: Directory Filtering & Direct Authoring State
+  const [statusFilter, setStatusFilter] = useState<'ALL' | ContentMasterStatus>('ALL');
+
+  // Create Modal State
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [createTitle, setCreateTitle] = useState('');
+  const [createCategoryId, setCreateCategoryId] = useState('');
+  const [createTopicId, setCreateTopicId] = useState('');
+  const [createSubtopicId, setCreateSubtopicId] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+
+  // Edit Modal State
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editCategoryId, setEditCategoryId] = useState('');
+  const [editTopicId, setEditTopicId] = useState('');
+  const [editSubtopicId, setEditSubtopicId] = useState('');
+  const [editPrimaryQuestionId, setEditPrimaryQuestionId] = useState('');
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  // Link Question Modal State (Phase 16.8)
+  const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
+  const [linkQuestionId, setLinkQuestionId] = useState('');
+  const [linkAsPrimary, setLinkAsPrimary] = useState(false);
+  const [isLinking, setIsLinking] = useState(false);
+  const [linkError, setLinkError] = useState<string | null>(null);
+
+  const canCreate = Boolean(
+    user && (
+      user.role === UserRole.ADMIN ||
+      user.role === UserRole.CONTENT_MANAGER
+    )
+  );
+
+  const handleCreateMaster = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!createTitle.trim()) {
+      setCreateError('Please provide a Title for the new Content Master.');
+      return;
+    }
+    setIsCreating(true);
+    setCreateError(null);
+    try {
+      const res = await apiClient.createContentMaster({
+        title: createTitle.trim(),
+        categoryId: createCategoryId.trim() || undefined,
+        topicId: createTopicId.trim() || undefined,
+        subtopicId: createSubtopicId.trim() || undefined,
+      });
+      if (res.success && res.data) {
+        setIsCreateModalOpen(false);
+        setCreateTitle('');
+        setCreateCategoryId('');
+        setCreateTopicId('');
+        setCreateSubtopicId('');
+        const listRes = await apiClient.getContentMasters();
+        setMasterList(listRes.data || []);
+      } else {
+        setCreateError('Failed to create Content Master: Unexpected response.');
+      }
+    } catch (err: any) {
+      setCreateError(err?.message || 'Failed to create Content Master.');
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const openEditModal = () => {
+    if (!details?.contentMaster) return;
+    setEditTitle(details.contentMaster.title || '');
+    setEditCategoryId(details.contentMaster.categoryId || '');
+    setEditTopicId(details.contentMaster.topicId || '');
+    setEditSubtopicId(details.contentMaster.subtopicId || '');
+    setEditPrimaryQuestionId(details.contentMaster.primaryQuestionId || '');
+    setEditError(null);
+    setIsEditModalOpen(true);
+  };
+
+  const handleUpdateMaster = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id || !editTitle.trim()) {
+      setEditError('Title cannot be empty.');
+      return;
+    }
+    setIsUpdating(true);
+    setEditError(null);
+    try {
+      const client = apiClient;
+      const res = await client.updateContentMaster(id, {
+        title: editTitle.trim(),
+        categoryId: editCategoryId.trim() || undefined,
+        topicId: editTopicId.trim() || undefined,
+        subtopicId: editSubtopicId.trim() || undefined,
+        primaryQuestionId: editPrimaryQuestionId.trim() || undefined,
+      });
+      if (res.success && res.data) {
+        setIsEditModalOpen(false);
+        setEditError(null);
+        await loadMasterData(id);
+      } else {
+        setEditError('Failed to update Content Master.');
+      }
+    } catch (err: any) {
+      setEditError(err?.message || 'Failed to update Content Master.');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleLinkQuestion = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id || !linkQuestionId.trim()) {
+      setLinkError('Please provide a Question ID to link.');
+      return;
+    }
+    setIsLinking(true);
+    setLinkError(null);
+    try {
+      const res = await apiClient.linkQuestionToContentMaster(id, {
+        questionId: linkQuestionId.trim(),
+        asPrimary: linkAsPrimary,
+      });
+      if (res.success) {
+        setIsLinkModalOpen(false);
+        setLinkQuestionId('');
+        setLinkAsPrimary(false);
+        await loadMasterData(id);
+      } else {
+        setLinkError('Failed to link Question.');
+      }
+    } catch (err: any) {
+      setLinkError(err?.message || 'Failed to link Question.');
+    } finally {
+      setIsLinking(false);
+    }
+  };
 
   const loadMasterData = async (masterId: string) => {
     setIsLoading(true);
@@ -207,13 +350,17 @@ export const ContentMasterPage: React.FC = () => {
 
   // If no ID is provided, render the Content Masters directory / selection view
   if (!id) {
-    const filteredMasters = masterList.filter(
-      (m) =>
-        m.id.toLowerCase().includes(listSearch.toLowerCase()) ||
-        (m.title || '').toLowerCase().includes(listSearch.toLowerCase()) ||
-        (m.primaryQuestionId || '').toLowerCase().includes(listSearch.toLowerCase()) ||
-        (m.status || '').toLowerCase().includes(listSearch.toLowerCase())
-    );
+    const filteredMasters = masterList.filter((m) => {
+      if (statusFilter !== 'ALL' && m.status !== statusFilter) return false;
+      if (!listSearch.trim()) return true;
+      const q = listSearch.toLowerCase();
+      return (
+        m.id.toLowerCase().includes(q) ||
+        (m.title || '').toLowerCase().includes(q) ||
+        (m.primaryQuestionId || '').toLowerCase().includes(q) ||
+        (m.status || '').toLowerCase().includes(q)
+      );
+    });
 
     return (
       <div className="space-y-6 max-w-7xl mx-auto pb-12">
@@ -229,6 +376,31 @@ export const ContentMasterPage: React.FC = () => {
           }
         />
 
+        {/* Status Filter Tabs (Phase 16.5) */}
+        <div className="flex border-b border-slate-200 gap-2 overflow-x-auto pb-1">
+          {(['ALL', ContentMasterStatus.DRAFT, ContentMasterStatus.ACTIVE, ContentMasterStatus.COMPLETED, ContentMasterStatus.ARCHIVED] as const).map((st) => {
+            const count = st === 'ALL' ? masterList.length : masterList.filter((m) => m.status === st).length;
+            const isSelected = statusFilter === st;
+            return (
+              <button
+                key={st}
+                type="button"
+                onClick={() => setStatusFilter(st)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 ${
+                  isSelected
+                    ? 'bg-purple-700 text-white shadow-xs'
+                    : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                }`}
+              >
+                <span>{st}</span>
+                <span className={`px-1.5 py-0.2 rounded text-[10px] ${isSelected ? 'bg-purple-900 text-purple-100' : 'bg-slate-100 text-slate-600'}`}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
         {/* Directory Controls */}
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="relative flex-1 w-full">
@@ -241,8 +413,27 @@ export const ContentMasterPage: React.FC = () => {
               className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white transition-all"
             />
           </div>
-          <div className="text-xs text-slate-500 font-medium whitespace-nowrap">
-            {filteredMasters.length} authorized master{filteredMasters.length === 1 ? '' : 's'}
+          <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+            <div className="text-xs text-slate-500 font-medium whitespace-nowrap">
+              {filteredMasters.length} authorized master{filteredMasters.length === 1 ? '' : 's'}
+            </div>
+            {canCreate && (
+              <Button
+                variant="primary"
+                size="sm"
+                icon={Plus}
+                onClick={() => {
+                  setCreateTitle('');
+                  setCreateCategoryId('');
+                  setCreateTopicId('');
+                  setCreateSubtopicId('');
+                  setCreateError(null);
+                  setIsCreateModalOpen(true);
+                }}
+              >
+                New Content Master
+              </Button>
+            )}
           </div>
         </div>
 
@@ -322,6 +513,106 @@ export const ContentMasterPage: React.FC = () => {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* CREATE CONTENT MASTER MODAL (Phase 16.5) */}
+        {isCreateModalOpen && (
+          <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+              <div className="px-6 py-4 bg-purple-950 text-white flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Plus className="w-5 h-5 text-purple-400" />
+                  <h3 className="text-base font-semibold">Create New Content Master</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsCreateModalOpen(false)}
+                  className="text-slate-400 hover:text-white p-1 rounded-md transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {createError && (
+                <div className="mx-6 mt-4 p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs">
+                  {createError}
+                </div>
+              )}
+
+              <form onSubmit={handleCreateMaster} className="p-6 space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                    Title *
+                  </label>
+                  <input
+                    type="text"
+                    value={createTitle}
+                    onChange={(e) => setCreateTitle(e.target.value)}
+                    placeholder="Content Master Title..."
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white text-slate-900 focus:ring-2 focus:ring-purple-500"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                    Category ID (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={createCategoryId}
+                    onChange={(e) => setCreateCategoryId(e.target.value)}
+                    placeholder="e.g. BP-CAT-000001"
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white text-slate-900 focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                    Topic ID (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={createTopicId}
+                    onChange={(e) => setCreateTopicId(e.target.value)}
+                    placeholder="e.g. BP-TOP-000001"
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white text-slate-900 focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                    Subtopic ID (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={createSubtopicId}
+                    onChange={(e) => setCreateSubtopicId(e.target.value)}
+                    placeholder="e.g. BP-SUB-000001"
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white text-slate-900 focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                  <Button
+                    variant="ghost"
+                    type="button"
+                    onClick={() => setIsCreateModalOpen(false)}
+                    disabled={isCreating}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="primary"
+                    type="submit"
+                    disabled={isCreating}
+                  >
+                    {isCreating ? 'Creating...' : 'Create Content Master'}
+                  </Button>
+                </div>
+              </form>
+            </div>
           </div>
         )}
       </div>
@@ -462,6 +753,17 @@ export const ContentMasterPage: React.FC = () => {
                 {contentMaster.id}
               </span>
               {renderContentMasterStatusBadge(currentStatus)}
+              {canModify && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={Edit2}
+                  onClick={openEditModal}
+                  className="ml-auto"
+                >
+                  Edit Details
+                </Button>
+              )}
             </div>
 
             <h1 className="text-xl font-bold text-slate-900 tracking-tight">
@@ -977,14 +1279,31 @@ export const ContentMasterPage: React.FC = () => {
             <BookOpen className="w-4 h-4 text-indigo-600" />
             Primary Canonical Question
           </h2>
-          {primaryQuestion && (
-            <Link
-              to={`/questions/${encodeURIComponent(primaryQuestion.id)}`}
-              className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 hover:underline flex items-center gap-1"
-            >
-              Open Question Detail <ExternalLink className="w-3 h-3" />
-            </Link>
-          )}
+          <div className="flex items-center gap-2">
+            {canModify && currentStatus !== ContentMasterStatus.COMPLETED && currentStatus !== ContentMasterStatus.ARCHIVED && (
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={Plus}
+                onClick={() => {
+                  setLinkQuestionId('');
+                  setLinkAsPrimary(!primaryQuestion);
+                  setLinkError(null);
+                  setIsLinkModalOpen(true);
+                }}
+              >
+                Link Question
+              </Button>
+            )}
+            {primaryQuestion && (
+              <Link
+                to={`/questions/${encodeURIComponent(primaryQuestion.id)}`}
+                className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 hover:underline flex items-center gap-1"
+              >
+                Open Question Detail <ExternalLink className="w-3 h-3" />
+              </Link>
+            )}
+          </div>
         </div>
 
         {primaryQuestion ? (
@@ -1392,6 +1711,209 @@ export const ContentMasterPage: React.FC = () => {
                   </Link>
                 </div>
               ))}
+          </div>
+        </div>
+      )}
+
+      {/* SECTION 4: TEAM TASK ASSIGNMENTS (Phase 16.5) */}
+      <div id="content-master-assignments-panel" className="pt-4 border-t border-slate-200">
+        <EntityAssignmentsSection
+          entityType="CONTENT_MASTER"
+          entityId={contentMaster.id}
+          title="Content Master Team Task Assignments"
+          defaultTaskType="QUESTION_REVIEW"
+        />
+      </div>
+
+      {/* EDIT CONTENT MASTER DETAILS MODAL (Phase 16.5) */}
+      {isEditModalOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="px-6 py-4 bg-purple-950 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Edit2 className="w-5 h-5 text-purple-400" />
+                <h3 className="text-base font-semibold">Edit Content Master Details</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsEditModalOpen(false)}
+                className="text-slate-400 hover:text-white p-1 rounded-md transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {editError && (
+              <div className="mx-6 mt-4 p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs">
+                {editError}
+              </div>
+            )}
+
+            <form onSubmit={handleUpdateMaster} className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                  Title *
+                </label>
+                <input
+                  type="text"
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  placeholder="Content Master Title..."
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white text-slate-900 focus:ring-2 focus:ring-purple-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                  Category ID
+                </label>
+                <input
+                  type="text"
+                  value={editCategoryId}
+                  onChange={(e) => setEditCategoryId(e.target.value)}
+                  placeholder="e.g. BP-CAT-000001"
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white text-slate-900 focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                  Topic ID
+                </label>
+                <input
+                  type="text"
+                  value={editTopicId}
+                  onChange={(e) => setEditTopicId(e.target.value)}
+                  placeholder="e.g. BP-TOP-000001"
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white text-slate-900 focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                  Subtopic ID
+                </label>
+                <input
+                  type="text"
+                  value={editSubtopicId}
+                  onChange={(e) => setEditSubtopicId(e.target.value)}
+                  placeholder="e.g. BP-SUB-000001"
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white text-slate-900 focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                  Primary Question ID (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={editPrimaryQuestionId}
+                  onChange={(e) => setEditPrimaryQuestionId(e.target.value)}
+                  placeholder="e.g. BP-Q-000001"
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white text-slate-900 focus:ring-2 focus:ring-purple-500 font-mono"
+                />
+                <p className="text-[11px] text-slate-500 mt-1">
+                  Must be an active, non-archived Question matching this Content Master's taxonomy.
+                </p>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                <Button
+                  variant="ghost"
+                  type="button"
+                  onClick={() => setIsEditModalOpen(false)}
+                  disabled={isUpdating}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="primary"
+                  type="submit"
+                  disabled={isUpdating}
+                >
+                  {isUpdating ? 'Saving...' : 'Save Changes'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* LINK QUESTION MODAL (Phase 16.8) */}
+      {isLinkModalOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="px-6 py-4 bg-purple-950 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <BookOpen className="w-5 h-5 text-purple-400" />
+                <h3 className="text-base font-semibold">Link Question to Content Master</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsLinkModalOpen(false)}
+                className="text-slate-400 hover:text-white p-1 rounded-md transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {linkError && (
+              <div className="mx-6 mt-4 p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs">
+                {linkError}
+              </div>
+            )}
+
+            <form onSubmit={handleLinkQuestion} className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                  Question ID *
+                </label>
+                <input
+                  type="text"
+                  value={linkQuestionId}
+                  onChange={(e) => setLinkQuestionId(e.target.value)}
+                  placeholder="e.g. BP-Q-000001"
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white text-slate-900 focus:ring-2 focus:ring-purple-500 font-mono"
+                  required
+                />
+                <p className="text-[11px] text-slate-500 mt-1">
+                  Question must exist, must not be archived, and taxonomy must match this Content Master.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="set-as-primary"
+                  checked={linkAsPrimary}
+                  onChange={(e) => setLinkAsPrimary(e.target.checked)}
+                  className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 border-slate-300"
+                />
+                <label htmlFor="set-as-primary" className="text-xs font-medium text-slate-700 cursor-pointer">
+                  Designate as Primary Question for this Content Master
+                </label>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                <Button
+                  variant="ghost"
+                  type="button"
+                  onClick={() => setIsLinkModalOpen(false)}
+                  disabled={isLinking}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="primary"
+                  type="submit"
+                  disabled={isLinking}
+                >
+                  {isLinking ? 'Linking...' : 'Link Question'}
+                </Button>
+              </div>
+            </form>
           </div>
         </div>
       )}

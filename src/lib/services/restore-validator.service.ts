@@ -23,6 +23,7 @@ import {
   categoriesRepository,
   topicsRepository,
   subtopicsRepository,
+  contentMastersRepository,
   assignmentsRepository,
   publishingRepository,
   sequencesRepository 
@@ -172,6 +173,7 @@ export class RestoreValidatorService {
     let currentCategories: any[] = [];
     let currentTopics: any[] = [];
     let currentSubtopics: any[] = [];
+    let currentContentMasters: any[] = [];
 
     try {
       currentQuestions = await questionsRepository.findAll();
@@ -185,6 +187,7 @@ export class RestoreValidatorService {
       currentCategories = await categoriesRepository.findAll();
       currentTopics = await topicsRepository.findAll();
       currentSubtopics = await subtopicsRepository.findAll();
+      currentContentMasters = await contentMastersRepository.findAll();
     } catch {
       // If repository read fails in mock/test, fall back gracefully
     }
@@ -201,6 +204,7 @@ export class RestoreValidatorService {
     const categoryMap = new Map(currentCategories.map((c: any) => [c.id || c.categoryId, c]));
     const topicMap = new Map(currentTopics.map((t: any) => [t.id || t.topicId, t]));
     const subtopicMap = new Map(currentSubtopics.map((st: any) => [st.id || st.subtopicId, st]));
+    const contentMasterMap = new Map(currentContentMasters.map((cm: any) => [cm.id || cm.contentMasterId, cm]));
 
     // Helper to convert rows to objects using headers
     for (const sheetName of targetSheets) {
@@ -341,6 +345,36 @@ export class RestoreValidatorService {
           } else {
             recordsToCreate.push({ entityType: sheetName, recordId: versionKey, data: recordObj });
           }
+        } else if (sheetName === 'CONTENT_MASTERS') {
+          const existing = contentMasterMap.get(recordId);
+          if (!existing) {
+            recordsToCreate.push({ entityType: sheetName, recordId, data: recordObj });
+          } else {
+            const snapUpdated = recordObj.updatedAt || recordObj.createdAt || '';
+            const prodUpdated = existing.updatedAt || existing.createdAt || '';
+            if (JSON.stringify(existing) === JSON.stringify(recordObj)) {
+              unchangedRecords.push({ entityType: sheetName, recordId });
+            } else if (snapUpdated && prodUpdated && snapUpdated < prodUpdated) {
+              conflicts.push({
+                entityType: sheetName,
+                entityId: recordId,
+                reason: 'Snapshot record is older than existing production record (Production is newer).',
+              });
+            } else {
+              recordsToUpdate.push({ entityType: sheetName, recordId, data: recordObj });
+            }
+          }
+
+          // Foreign Key Check: Category, Topic, Subtopic
+          if (recordObj.categoryId && !categoryMap.has(recordObj.categoryId)) {
+            missingDependencies.push({ entityType: sheetName, entityId: recordId, missingKey: `categoryId:${recordObj.categoryId}` });
+          }
+          if (recordObj.topicId && !topicMap.has(recordObj.topicId)) {
+            missingDependencies.push({ entityType: sheetName, entityId: recordId, missingKey: `topicId:${recordObj.topicId}` });
+          }
+          if (recordObj.subtopicId && !subtopicMap.has(recordObj.subtopicId)) {
+            missingDependencies.push({ entityType: sheetName, entityId: recordId, missingKey: `subtopicId:${recordObj.subtopicId}` });
+          }
         } else {
           // Default handling for other sheets
           recordsToCreate.push({ entityType: sheetName, recordId, data: recordObj });
@@ -356,11 +390,11 @@ export class RestoreValidatorService {
       } catch {
         prodSequences = [];
       }
-      const prodSeqMap = new Map(prodSequences.map((s: any) => [s.entityName || s.name, s.currentIndex || s.nextIndex || 0]));
+      const prodSeqMap = new Map(prodSequences.map((s: any) => [s.entityType || s.entity_type || s.entityName || s.name, Number(s.nextNumber || s.next_number || s.currentIndex || s.nextIndex || 0)]));
 
       for (const snapSeq of snapshot.sequences) {
-        const entityName = snapSeq.entityName || snapSeq.name;
-        const snapIndex = snapSeq.currentIndex || snapSeq.nextIndex || 0;
+        const entityName = snapSeq.entityType || snapSeq.entity_type || snapSeq.entityName || snapSeq.name;
+        const snapIndex = Number(snapSeq.nextNumber || snapSeq.next_number || snapSeq.currentIndex || snapSeq.nextIndex || 0);
         const prodIndex = prodSeqMap.get(entityName) || 0;
 
         if (snapIndex < prodIndex) {

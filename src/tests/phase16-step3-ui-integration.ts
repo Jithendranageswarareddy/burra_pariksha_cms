@@ -263,7 +263,7 @@ export async function runPhase16Step3Verification(): Promise<{
   };
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.includes('phase16-step3-ui-integration')) {
   runPhase16Step3Verification()
     .then((summary) => {
       console.log('====================================================');

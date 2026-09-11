@@ -88,6 +88,7 @@ export const RecoveryAdminPage: React.FC = () => {
   const [fullRestoreError, setFullRestoreError] = useState<string | null>(null);
 
   const CONFIRMATION_PHRASES: Record<string, string> = {
+    CONTENT_MASTER: 'RESTORE CONTENT MASTER',
     QUESTION: 'RESTORE QUESTION',
     VIDEO: 'RESTORE VIDEO',
     SCRIPT: 'RESTORE SCRIPT',
@@ -356,6 +357,7 @@ export const RecoveryAdminPage: React.FC = () => {
 
   // Scope icons & label mapping
   const scopeConfig: Record<string, { label: string; icon: React.ElementType; description: string }> = {
+    CONTENT_MASTER: { label: 'Content Master Entity', icon: Layers, description: 'Content master record recovery' },
     QUESTION: { label: 'Question Entity', icon: Sparkles, description: 'Single question record recovery' },
     VIDEO: { label: 'Video Entity', icon: Kanban, description: 'Production video record recovery' },
     SCRIPT: { label: 'Script Entity', icon: FileText, description: 'Script and version history recovery' },
@@ -1198,6 +1200,7 @@ export const RecoveryAdminPage: React.FC = () => {
                 }}
                 className="w-full bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
+                <option value="CONTENT_MASTER">CONTENT_MASTER (Content Master Record)</option>
                 <option value="QUESTION">QUESTION (Question Record)</option>
                 <option value="VIDEO">VIDEO (Video Record)</option>
                 <option value="SCRIPT">SCRIPT (Script Record)</option>
@@ -1221,7 +1224,7 @@ export const RecoveryAdminPage: React.FC = () => {
                   setGranularEntityId(e.target.value);
                   setGranularValidationResult(null);
                 }}
-                placeholder="e.g. QST-001 or VID-001"
+                placeholder="e.g. BP-MST-000001, QST-001 or VID-001"
                 className="w-full bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>

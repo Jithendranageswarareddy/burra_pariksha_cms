@@ -114,6 +114,11 @@ export const PackageCopierModal: React.FC<PackageCopierModalProps> = ({
       lines.push(`\n--- RENDER ASSET PATH ---`);
       lines.push(p.finalRenderAssetPath);
     }
+    if (p.thumbnailDriveUrl || p.thumbnailUrl) {
+      lines.push(`\n--- THUMBNAIL ASSET ---`);
+      if (p.thumbnailDriveUrl) lines.push(`Drive Asset: ${p.thumbnailDriveUrl}`);
+      if (p.thumbnailUrl) lines.push(`Preview: ${p.thumbnailUrl}`);
+    }
     return lines.join('\n');
   };
 
@@ -373,23 +378,84 @@ export const PackageCopierModal: React.FC<PackageCopierModalProps> = ({
                 <span className="font-semibold text-slate-700 uppercase tracking-wider text-[10px]">
                   Master Render Asset Path
                 </span>
-                {pkg.finalRenderAssetPath && (
-                  <button
-                    type="button"
-                    onClick={() => copyToClipboard('assetPath', pkg.finalRenderAssetPath || '')}
-                    className="text-[11px] font-medium text-indigo-600 hover:text-indigo-800 flex items-center gap-1 bg-white px-2 py-0.5 rounded border border-slate-200 shadow-2xs"
-                  >
-                    {copiedField === 'assetPath' ? (
-                      <Check className="w-3 h-3 text-emerald-600" />
-                    ) : (
-                      <Copy className="w-3 h-3" />
-                    )}
-                    <span>{copiedField === 'assetPath' ? 'Copied' : 'Copy'}</span>
-                  </button>
-                )}
+                <div className="flex items-center gap-1.5">
+                  {pkg.finalRenderAssetPath && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard('assetPath', pkg.finalRenderAssetPath || '')}
+                        className="text-[11px] font-medium text-indigo-600 hover:text-indigo-800 flex items-center gap-1 bg-white px-2 py-0.5 rounded border border-slate-200 shadow-2xs"
+                      >
+                        {copiedField === 'assetPath' ? (
+                          <Check className="w-3 h-3 text-emerald-600" />
+                        ) : (
+                          <Copy className="w-3 h-3" />
+                        )}
+                        <span>{copiedField === 'assetPath' ? 'Copied' : 'Copy'}</span>
+                      </button>
+                      {(pkg.finalRenderAssetPath.startsWith('http://') || pkg.finalRenderAssetPath.startsWith('https://')) && (
+                        <a
+                          href={pkg.finalRenderAssetPath}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[11px] font-medium text-slate-600 hover:text-indigo-600 flex items-center gap-1 bg-white px-2 py-0.5 rounded border border-slate-200 shadow-2xs"
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                          <span>Open Asset</span>
+                        </a>
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
               <div className="p-2 bg-white rounded border border-slate-200 text-slate-800 font-mono text-[11px] truncate">
                 {pkg.finalRenderAssetPath || 'No render path recorded'}
+              </div>
+            </div>
+
+            {/* Associated Thumbnail Asset */}
+            <div className="space-y-1 bg-slate-50 p-3 rounded-lg border border-slate-200">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-slate-700 uppercase tracking-wider text-[10px]">
+                  Associated Thumbnail Asset
+                </span>
+                <div className="flex items-center gap-1.5">
+                  {(pkg.thumbnailDriveUrl || pkg.thumbnailUrl) && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard('thumbnailUrl', pkg.thumbnailDriveUrl || pkg.thumbnailUrl || '')}
+                        className="text-[11px] font-medium text-indigo-600 hover:text-indigo-800 flex items-center gap-1 bg-white px-2 py-0.5 rounded border border-slate-200 shadow-2xs"
+                      >
+                        {copiedField === 'thumbnailUrl' ? (
+                          <Check className="w-3 h-3 text-emerald-600" />
+                        ) : (
+                          <Copy className="w-3 h-3" />
+                        )}
+                        <span>{copiedField === 'thumbnailUrl' ? 'Copied' : 'Copy Link'}</span>
+                      </button>
+                      <a
+                        href={pkg.thumbnailDriveUrl || pkg.thumbnailUrl || '#'}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[11px] font-medium text-slate-600 hover:text-indigo-600 flex items-center gap-1 bg-white px-2 py-0.5 rounded border border-slate-200 shadow-2xs"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                        <span>Open Asset</span>
+                      </a>
+                    </>
+                  )}
+                </div>
+              </div>
+              <div className="p-2 bg-white rounded border border-slate-200 text-slate-800 font-mono text-[11px] truncate flex items-center justify-between">
+                <span className="truncate">
+                  {pkg.thumbnailDriveUrl || pkg.thumbnailUrl || 'No thumbnail asset linked'}
+                </span>
+                {pkg.thumbnailStatus && (
+                  <span className="ml-2 px-1.5 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-sans font-medium rounded border border-slate-200 shrink-0">
+                    {pkg.thumbnailStatus}
+                  </span>
+                )}
               </div>
             </div>
           </div>

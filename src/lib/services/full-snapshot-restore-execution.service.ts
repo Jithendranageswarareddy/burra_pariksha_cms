@@ -10,11 +10,11 @@
  *    - 0 unresolved conflicts, 0 unresolved dependencies, 0 sequence rollbacks, 0 DELETE operations.
  *    - Explicit confirmation EXACTLY matches "RESTORE ALL DATA".
  *    - Authenticated actor with ADMIN role.
- * 2. Strict 19-Worksheet Dependency Execution Order:
+ * 2. Strict 20-Worksheet Dependency Execution Order:
  *    1. CATEGORIES -> 2. TOPICS -> 3. SUBTOPICS -> 4. USERS -> 5. CONTENT_PLANS -> 6. CONTENT_BATCHES ->
- *    7. QUESTIONS -> 8. VIDEOS -> 9. SCRIPT -> 10. SCRIPT_VERSIONS -> 11. THUMBNAILS -> 12. THUMBNAIL_VERSIONS ->
- *    13. PINNED_COMMENTS -> 14. PINNED_COMMENT_VERSIONS -> 15. ASSIGNMENTS -> 16. PUBLISHING -> 17. WORKFLOW ->
- *    18. AUDIT_LOG -> 19. SEQUENCES
+ *    7. CONTENT_MASTERS -> 8. QUESTIONS -> 9. VIDEOS -> 10. SCRIPT -> 11. SCRIPT_VERSIONS -> 12. THUMBNAILS ->
+ *    13. THUMBNAIL_VERSIONS -> 14. PINNED_COMMENTS -> 15. PINNED_COMMENT_VERSIONS -> 16. ASSIGNMENTS ->
+ *    17. PUBLISHING -> 18. WORKFLOW -> 19. AUDIT_LOG -> 20. SEQUENCES
  * 3. Immutable Version Safety:
  *    - SCRIPT_VERSIONS, THUMBNAIL_VERSIONS, PINNED_COMMENT_VERSIONS permit ONLY CREATE or NO_CHANGE.
  *    - UPDATE or DELETE on immutable versions is strictly prohibited and immediately fails closed.
@@ -50,6 +50,7 @@ import {
   usersRepository,
   contentPlansRepository,
   contentBatchesRepository,
+  contentMastersRepository,
   questionsRepository,
   videosRepository,
   scriptsRepository,
@@ -580,6 +581,8 @@ export class FullSnapshotRestoreExecutionService {
         return contentPlansRepository;
       case 'CONTENT_BATCHES':
         return contentBatchesRepository;
+      case 'CONTENT_MASTERS':
+        return contentMastersRepository;
       case 'QUESTIONS':
         return questionsRepository;
       case 'VIDEOS':

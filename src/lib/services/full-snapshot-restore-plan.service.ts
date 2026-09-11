@@ -98,6 +98,7 @@ export const EXACT_RESTORE_DEPENDENCY_ORDER = [
   'USERS',
   'CONTENT_PLANS',
   'CONTENT_BATCHES',
+  'CONTENT_MASTERS',
   'QUESTIONS',
   'VIDEOS',
   'SCRIPT',
@@ -173,7 +174,19 @@ export class FullSnapshotRestorePlanService {
       availableEntityIds.set(entityType, new Set<string>());
     }
 
-    // Build worksheet plans following the exact 19-worksheet dependency order
+    // Collect all snapshot Question IDs to validate Content Master primaryQuestionId references
+    const snapshotQuestionIds = new Set<string>();
+    const qWs = snapshot.worksheets?.['QUESTIONS'];
+    if (qWs && Array.isArray(qWs.headers) && Array.isArray(qWs.rows)) {
+      const idIdx = qWs.headers.findIndex(h => String(h).toLowerCase() === 'id');
+      if (idIdx >= 0) {
+        for (const row of qWs.rows) {
+          if (row[idIdx]) snapshotQuestionIds.add(String(row[idIdx]));
+        }
+      }
+    }
+
+    // Build worksheet plans following the exact 20-worksheet dependency order
     for (let i = 0; i < EXACT_RESTORE_DEPENDENCY_ORDER.length; i++) {
       const entityType = EXACT_RESTORE_DEPENDENCY_ORDER[i];
       const order = i + 1;
@@ -224,7 +237,17 @@ export class FullSnapshotRestorePlanService {
         // Check if all parent dependencies are available
         const missingDeps = parentDeps.filter(dep => !availableEntityIds.get(dep.entityType)?.has(dep.recordId));
 
+        // Content Master optional primaryQuestionId validation against snapshot questions
+        let primaryQuestionWarning: string | undefined;
+        if (entityType === 'CONTENT_MASTERS' && payload.primaryQuestionId) {
+          const targetQId = String(payload.primaryQuestionId).trim();
+          if (targetQId && !snapshotQuestionIds.has(targetQId)) {
+            primaryQuestionWarning = `Referenced primary question ${targetQId} is not present in snapshot QUESTIONS.`;
+          }
+        }
+
         if (missingDeps.length > 0) {
+          const issues = missingDeps.map(d => `Missing parent dependency ${d.entityType}:${d.recordId}`);
           operations.push({
             operationId: `OP_${entityType}_${recordId}_BLOCKED`,
             operationType: 'BLOCKED',
@@ -233,8 +256,8 @@ export class FullSnapshotRestorePlanService {
             parentDependencies: parentDeps,
             payload,
             isImmutableVersion: isImmutable,
-            reason: `Blocked by missing parent dependencies: ${missingDeps.map(d => `${d.entityType}:${d.recordId}`).join(', ')}`,
-            blockingIssues: missingDeps.map(d => `Missing parent dependency ${d.entityType}:${d.recordId}`),
+            reason: `Blocked by: ${issues.join(', ')}`,
+            blockingIssues: issues,
           });
           blockedCount++;
           globalDependencyErrorCount++;
@@ -247,9 +270,11 @@ export class FullSnapshotRestorePlanService {
             parentDependencies: parentDeps,
             payload,
             isImmutableVersion: isImmutable,
-            reason: isImmutable
-              ? 'Append missing historical immutable version record.'
-              : 'Insert new record in production.',
+            reason: primaryQuestionWarning
+              ? `Insert new record in production. (${primaryQuestionWarning})`
+              : (isImmutable
+                ? 'Append missing historical immutable version record.'
+                : 'Insert new record in production.'),
           });
           createCount++;
           availableEntityIds.get(entityType)?.add(recordId);
@@ -281,6 +306,14 @@ export class FullSnapshotRestorePlanService {
           blockingIssues.push(`Immutable version violation for ${entityType}:${recordId}`);
         } else {
           const parentDeps = this.extractParentDependencies(entityType, payload);
+          let primaryQuestionWarning: string | undefined;
+          if (entityType === 'CONTENT_MASTERS' && payload.primaryQuestionId) {
+            const targetQId = String(payload.primaryQuestionId).trim();
+            if (targetQId && !snapshotQuestionIds.has(targetQId)) {
+              primaryQuestionWarning = `Referenced primary question ${targetQId} is not present in snapshot QUESTIONS.`;
+            }
+          }
+
           operations.push({
             operationId: `OP_${entityType}_${recordId}_UPDATE`,
             operationType: 'UPDATE',
@@ -289,7 +322,9 @@ export class FullSnapshotRestorePlanService {
             parentDependencies: parentDeps,
             payload,
             isImmutableVersion: false,
-            reason: 'Safely update existing production record per restore validation policy.',
+            reason: primaryQuestionWarning
+              ? `Safely update existing production record per restore validation policy. (${primaryQuestionWarning})`
+              : 'Safely update existing production record per restore validation policy.',
           });
           updateCount++;
           availableEntityIds.get(entityType)?.add(recordId);
@@ -407,8 +442,10 @@ export class FullSnapshotRestorePlanService {
         return ['TOPICS'];
       case 'CONTENT_BATCHES':
         return ['CONTENT_PLANS'];
+      case 'CONTENT_MASTERS':
+        return ['CATEGORIES', 'TOPICS', 'SUBTOPICS', 'USERS'];
       case 'QUESTIONS':
-        return ['CATEGORIES', 'TOPICS', 'SUBTOPICS'];
+        return ['CATEGORIES', 'TOPICS', 'SUBTOPICS', 'CONTENT_MASTERS'];
       case 'VIDEOS':
         return ['QUESTIONS'];
       case 'SCRIPT':
@@ -441,10 +478,16 @@ export class FullSnapshotRestorePlanService {
       deps.push({ entityType: 'TOPICS', recordId: String(payload.topicId) });
     } else if (entityType === 'CONTENT_BATCHES' && payload.planId) {
       deps.push({ entityType: 'CONTENT_PLANS', recordId: String(payload.planId) });
+    } else if (entityType === 'CONTENT_MASTERS') {
+      if (payload.categoryId) deps.push({ entityType: 'CATEGORIES', recordId: String(payload.categoryId) });
+      if (payload.topicId) deps.push({ entityType: 'TOPICS', recordId: String(payload.topicId) });
+      if (payload.subtopicId) deps.push({ entityType: 'SUBTOPICS', recordId: String(payload.subtopicId) });
+      if (payload.createdBy) deps.push({ entityType: 'USERS', recordId: String(payload.createdBy) });
     } else if (entityType === 'QUESTIONS') {
       if (payload.categoryId) deps.push({ entityType: 'CATEGORIES', recordId: String(payload.categoryId) });
       if (payload.topicId) deps.push({ entityType: 'TOPICS', recordId: String(payload.topicId) });
       if (payload.subtopicId) deps.push({ entityType: 'SUBTOPICS', recordId: String(payload.subtopicId) });
+      if (payload.contentMasterId) deps.push({ entityType: 'CONTENT_MASTERS', recordId: String(payload.contentMasterId) });
     } else if (entityType === 'VIDEOS' && payload.questionId) {
       deps.push({ entityType: 'QUESTIONS', recordId: String(payload.questionId) });
     } else if (entityType === 'SCRIPT' && payload.videoId) {

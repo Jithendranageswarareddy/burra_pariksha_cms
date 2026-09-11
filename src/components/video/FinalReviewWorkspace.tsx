@@ -14,6 +14,7 @@ import {
   ArrowRight,
   RotateCcw,
   ExternalLink,
+  Copy,
 } from 'lucide-react';
 import { Video, Script, Thumbnail, PinnedComment, VideoProductionStatus, AssignmentTaskType } from '../../types';
 import { apiClient } from '../../lib/api-client';
@@ -42,6 +43,30 @@ export const FinalReviewWorkspace: React.FC<FinalReviewWorkspaceProps> = ({
   const [isUpdating, setIsUpdating] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  const copyToClipboard = async (fieldName: string, text: string) => {
+    if (!text) return;
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
+      setCopiedField(fieldName);
+      setTimeout(() => setCopiedField(null), 2500);
+    } catch {
+      setCopiedField(null);
+    }
+  };
 
   // Return remarks state for sending back to editing
   const [returnRemarks, setReturnRemarks] = useState<string>('');
@@ -262,6 +287,137 @@ export const FinalReviewWorkspace: React.FC<FinalReviewWorkspaceProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left 2 Cols: Review Checklist & Publishing Readiness Summary */}
         <div className="lg:col-span-2 space-y-6">
+          {/* Final Render Asset & Drive Verification Card */}
+          <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-xs space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <FolderKanban className="w-4 h-4 text-indigo-600" />
+                <h3 className="text-sm font-bold text-slate-900">Final Render & Deliverables Verification</h3>
+              </div>
+              <span className="text-[11px] text-slate-500 font-medium">Review Prerequisites</span>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              {/* Final Render Asset Path */}
+              <div className="p-3.5 bg-slate-50 rounded-lg border border-slate-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-700 uppercase tracking-wider text-[10px]">
+                    Final Render Asset Path
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    {video.finalRenderPath && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => copyToClipboard('renderPath', video.finalRenderPath || '')}
+                          className="text-[11px] font-medium text-indigo-600 hover:text-indigo-800 flex items-center gap-1 bg-white px-2 py-0.5 rounded border border-slate-200 shadow-2xs"
+                        >
+                          {copiedField === 'renderPath' ? (
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                          ) : (
+                            <Copy className="w-3 h-3" />
+                          )}
+                          <span>{copiedField === 'renderPath' ? 'Copied' : 'Copy'}</span>
+                        </button>
+                        {(video.finalRenderPath.startsWith('http://') || video.finalRenderPath.startsWith('https://')) && (
+                          <a
+                            href={video.finalRenderPath}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[11px] font-medium text-slate-600 hover:text-indigo-600 flex items-center gap-1 bg-white px-2 py-0.5 rounded border border-slate-200 shadow-2xs"
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                            <span>Open Asset</span>
+                          </a>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+                <div className="p-2 bg-white rounded border border-slate-200 font-mono text-[11px] text-slate-800 break-all">
+                  {video.finalRenderPath || (
+                    <span className="text-amber-700 font-medium font-sans">
+                      ⚠️ No final render asset path recorded. Video must have a completed final render before distribution approval.
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Google Drive Folder Reference */}
+              <div className="p-3.5 bg-slate-50 rounded-lg border border-slate-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-700 uppercase tracking-wider text-[10px]">
+                    Google Drive Folder Reference
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    {video.driveFolderUrl && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => copyToClipboard('driveUrl', video.driveFolderUrl || '')}
+                          className="text-[11px] font-medium text-indigo-600 hover:text-indigo-800 flex items-center gap-1 bg-white px-2 py-0.5 rounded border border-slate-200 shadow-2xs"
+                        >
+                          {copiedField === 'driveUrl' ? (
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                          ) : (
+                            <Copy className="w-3 h-3" />
+                          )}
+                          <span>{copiedField === 'driveUrl' ? 'Copied' : 'Copy'}</span>
+                        </button>
+                        <a
+                          href={video.driveFolderUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[11px] font-medium text-slate-600 hover:text-indigo-600 flex items-center gap-1 bg-white px-2 py-0.5 rounded border border-slate-200 shadow-2xs"
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                          <span>Open Drive Folder</span>
+                        </a>
+                      </>
+                    )}
+                  </div>
+                </div>
+                <div className="p-2 bg-white rounded border border-slate-200 font-mono text-[11px] text-slate-800 break-all">
+                  {video.driveFolderUrl || (
+                    <span className="text-slate-400 font-sans italic">
+                      No Google Drive folder linked
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Technical Specifications Summary */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
+                <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200 space-y-0.5">
+                  <span className="text-[10px] text-slate-500 font-semibold uppercase">Resolution</span>
+                  <p className="font-mono text-xs font-bold text-slate-800">
+                    {video.finalRenderWidth && video.finalRenderHeight
+                      ? `${video.finalRenderWidth} × ${video.finalRenderHeight}`
+                      : '—'}
+                  </p>
+                </div>
+                <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200 space-y-0.5">
+                  <span className="text-[10px] text-slate-500 font-semibold uppercase">Format</span>
+                  <p className="font-mono text-xs font-bold text-slate-800">
+                    {video.finalRenderFormat || '—'}
+                  </p>
+                </div>
+                <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200 space-y-0.5">
+                  <span className="text-[10px] text-slate-500 font-semibold uppercase">Duration</span>
+                  <p className="font-mono text-xs font-bold text-slate-800">
+                    {video.actualDurationSeconds ? `${video.actualDurationSeconds}s` : video.targetDurationSeconds ? `Target: ${video.targetDurationSeconds}s` : '—'}
+                  </p>
+                </div>
+                <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200 space-y-0.5">
+                  <span className="text-[10px] text-slate-500 font-semibold uppercase">Render Status</span>
+                  <p className="font-sans text-xs font-bold text-indigo-700">
+                    {video.finalRenderValidationStatus || 'NOT_VALIDATED'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Review Checklist Card */}
           <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-xs space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
@@ -381,21 +537,23 @@ export const FinalReviewWorkspace: React.FC<FinalReviewWorkspaceProps> = ({
                   </div>
                 </div>
 
-                {/* 5. Video Metadata Valid */}
+                {/* 5. Video Metadata & Render Deliverables */}
                 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
-                    {isMetadataValid ? (
+                    {Boolean(isMetadataValid && video.finalRenderPath) ? (
                       <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                     ) : (
                       <XCircle className="w-4 h-4 text-rose-600 shrink-0" />
                     )}
                     <div>
-                      <p className="font-bold text-slate-800">Video Metadata & Drive Asset</p>
-                      <p className="text-slate-500 text-[11px]">Title & Duration Configured</p>
+                      <p className="font-bold text-slate-800">Video Metadata & Render Deliverable</p>
+                      <p className="text-slate-500 text-[11px]">
+                        {video.finalRenderPath ? 'Final render attached & valid' : 'Missing final render path'}
+                      </p>
                     </div>
                   </div>
-                  <span className={`px-2 py-0.5 rounded font-bold text-[10px] ${isMetadataValid ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
-                    {isMetadataValid ? 'PASS' : 'BLOCKED'}
+                  <span className={`px-2 py-0.5 rounded font-bold text-[10px] ${Boolean(isMetadataValid && video.finalRenderPath) ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
+                    {Boolean(isMetadataValid && video.finalRenderPath) ? 'PASS' : 'BLOCKED'}
                   </span>
                 </div>
 

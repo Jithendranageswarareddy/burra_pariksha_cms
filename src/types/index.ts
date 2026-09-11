@@ -832,6 +832,9 @@ export interface PlatformPackageProjection {
   cta: string;
   pinnedComment: string;
   finalRenderAssetPath: string | null;
+  thumbnailUrl?: string | null;
+  thumbnailDriveUrl?: string | null;
+  thumbnailStatus?: string | null;
   isApprovedPackage: boolean;
   versionHash: string;
   reviewedAt?: string;
@@ -908,7 +911,8 @@ export type IntegrityCategory =
   | 'SEQUENCE_INTEGRITY'
   | 'SCHEMA_INTEGRITY'
   | 'ASSIGNMENT_INTEGRITY'
-  | 'USER_INTEGRITY';
+  | 'USER_INTEGRITY'
+  | 'CONTENT_MASTER_INTEGRITY';
 
 export interface IntegrityIssue {
   id: string;
@@ -1003,6 +1007,13 @@ export interface DashboardMetrics {
     ready: number;
     published: number;
     incomplete: number;
+    total: number;
+  };
+  contentMasters?: {
+    draft: number;
+    active: number;
+    completed: number;
+    archived: number;
     total: number;
   };
   // Backward-compatible flat metrics

@@ -17,6 +17,7 @@ import {
   publishingRepository,
   contentPlansRepository,
   contentBatchesRepository,
+  contentMastersRepository,
   auditLogRepository,
 } from '../repositories';
 import { idService } from './id.service';
@@ -35,6 +36,7 @@ import {
   UserWorkload,
   Video,
   VideoProductionStatus,
+  ContentMasterStatus,
 } from '../../types';
 import {
   CreateAssignmentInput,
@@ -43,6 +45,7 @@ import {
   CompleteAssignmentInput,
   CancelAssignmentInput,
 } from '../schemas/google-sheets-schema';
+import { ValidationError } from '../google-sheets/errors';
 
 export class AssignmentService {
   private static instance: AssignmentService | null = null;
@@ -88,6 +91,14 @@ export class AssignmentService {
       case 'QUESTION': {
         const q = await questionsRepository.findById(entityId);
         if (!q) throw new Error(`Question entity "${entityId}" does not exist.`);
+        if (q.contentMasterId) {
+          const cm = await contentMastersRepository.findById(q.contentMasterId);
+          if (cm && cm.status === ContentMasterStatus.ARCHIVED) {
+            throw new ValidationError(
+              `Cannot create assignment for Question "${entityId}": Parent Content Master "${cm.id}" is in terminal status "ARCHIVED".`
+            );
+          }
+        }
         const text = q.questionText || q.explanation || q.id || 'Untitled Question';
         return {
           title: `Question: ${text.slice(0, 60)}...`,
@@ -97,6 +108,19 @@ export class AssignmentService {
       case 'VIDEO': {
         const v = await videosRepository.findById(entityId);
         if (!v) throw new Error(`Video entity "${entityId}" does not exist.`);
+        let cmId = v.contentMasterId;
+        if (!cmId && v.questionId) {
+          const q = await questionsRepository.findById(v.questionId);
+          cmId = q?.contentMasterId;
+        }
+        if (cmId) {
+          const cm = await contentMastersRepository.findById(cmId);
+          if (cm && cm.status === ContentMasterStatus.ARCHIVED) {
+            throw new ValidationError(
+              `Cannot create assignment for Video "${entityId}": Parent Content Master "${cm.id}" is in terminal status "ARCHIVED".`
+            );
+          }
+        }
         return {
           title: `Video: ${v.title || v.id}`,
           priority: v.priority || PriorityLevel.NORMAL,
@@ -149,6 +173,24 @@ export class AssignmentService {
         return {
           title: `Batch: ${batch.name} (${batch.targetCount} Qs)`,
           priority: batch.priority || PriorityLevel.NORMAL,
+        };
+      }
+      case 'CONTENT_MASTER': {
+        const cm = await contentMastersRepository.findById(entityId);
+        if (!cm) throw new Error(`Content Master entity "${entityId}" does not exist.`);
+        if (cm.status === ContentMasterStatus.COMPLETED) {
+          throw new ValidationError(
+            `Cannot create assignment for Content Master "${entityId}": Content Master is in status "COMPLETED".`
+          );
+        }
+        if (cm.status === ContentMasterStatus.ARCHIVED) {
+          throw new ValidationError(
+            `Cannot create assignment for Content Master "${entityId}": Content Master is in terminal status "ARCHIVED".`
+          );
+        }
+        return {
+          title: `Content Master: ${cm.title || cm.id}`,
+          priority: PriorityLevel.NORMAL,
         };
       }
       default:

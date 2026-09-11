@@ -6,12 +6,14 @@
 import { BaseRepository } from './base.repository';
 import { SHEET_SCHEMAS, SHEET_TABS } from '../schemas/google-sheets-schema';
 import { ContentMaster } from '../../types';
+import { MOCK_CONTENT_MASTERS } from '../mock-data/content-masters';
 
 export class ContentMastersRepository extends BaseRepository<ContentMaster> {
   private static instance: ContentMastersRepository | null = null;
 
   private constructor() {
     super(SHEET_SCHEMAS[SHEET_TABS.CONTENT_MASTERS]);
+    this.seedFallbackData(MOCK_CONTENT_MASTERS);
   }
 
   public static getInstance(): ContentMastersRepository {

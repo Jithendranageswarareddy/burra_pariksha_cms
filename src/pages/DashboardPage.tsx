@@ -11,6 +11,7 @@ import {
   TrendingUp,
   UserCheck,
   Users,
+  Layers,
 } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { Button } from '../components/common/Button';
@@ -1111,6 +1112,67 @@ export const DashboardPage: React.FC = () => {
         <div className="space-y-6">
           {/* 1. Production Lifecycle & Question Funnel Visualizer */}
           <PipelineVisualizer metrics={overview.metrics} />
+
+          {/* Phase 16.4: Content Master Lifecycle Summary Card */}
+          {overview.metrics.contentMasters && (
+            <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-lg bg-indigo-50 text-indigo-600">
+                    <Layers className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900">
+                      Content Master Canonical Lifecycle
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      Canonical root entity governance across aptitude content pipelines
+                    </p>
+                  </div>
+                </div>
+                <Link
+                  to="/content-masters"
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors"
+                >
+                  <span>Explore Content Masters</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-4">
+                <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
+                  <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Total</span>
+                  <div className="text-xl font-bold text-slate-900 mt-1 font-mono">
+                    {overview.metrics.contentMasters.total}
+                  </div>
+                </div>
+                <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
+                  <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Draft</span>
+                  <div className="text-xl font-bold text-slate-700 mt-1 font-mono">
+                    {overview.metrics.contentMasters.draft}
+                  </div>
+                </div>
+                <div className="bg-blue-50/60 rounded-lg p-3 border border-blue-100">
+                  <span className="text-[11px] font-semibold text-blue-700 uppercase tracking-wider">Active</span>
+                  <div className="text-xl font-bold text-blue-800 mt-1 font-mono">
+                    {overview.metrics.contentMasters.active}
+                  </div>
+                </div>
+                <div className="bg-emerald-50/60 rounded-lg p-3 border border-emerald-100">
+                  <span className="text-[11px] font-semibold text-emerald-700 uppercase tracking-wider">Completed</span>
+                  <div className="text-xl font-bold text-emerald-800 mt-1 font-mono">
+                    {overview.metrics.contentMasters.completed}
+                  </div>
+                </div>
+                <div className="bg-amber-50/60 rounded-lg p-3 border border-amber-100 col-span-2 sm:col-span-1">
+                  <span className="text-[11px] font-semibold text-amber-700 uppercase tracking-wider">Archived</span>
+                  <div className="text-xl font-bold text-amber-800 mt-1 font-mono">
+                    {overview.metrics.contentMasters.archived}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* 2. Today's Priority Work Section */}
           <TodaysWorkSection items={overview.todaysWork} />

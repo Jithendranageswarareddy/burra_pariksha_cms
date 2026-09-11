@@ -169,7 +169,8 @@ export async function runPhase11Step1DashboardVerification(): Promise<{
 
   // 10. Existing ADMIN/CONTENT_MANAGER dashboard behavior remains intact
   try {
-    const hasReturnBlock = dashboardContent.includes('return (\n    <div className="space-y-6 pb-12 animate-in fade-in duration-200">') &&
+    const normalizedDashboardContent = dashboardContent.replace(/\r\n/g, '\n');
+    const hasReturnBlock = normalizedDashboardContent.includes('return (\n    <div className="space-y-6 pb-12 animate-in fade-in duration-200">') &&
                            dashboardContent.includes('<DailyWorkflowGuide') &&
                            dashboardContent.includes('<PipelineVisualizer') &&
                            dashboardContent.includes('<TodaysWorkSection');

@@ -118,8 +118,30 @@ export class ContentMasterService {
   public async createContentMaster(
     input: CreateContentMasterInput,
     actorId = 'USR-SYSTEM',
-    actorName = 'System'
+    actorName = 'System',
+    options?: { isQuestionCreationFactory?: boolean }
   ): Promise<ContentMaster> {
+    if (input.primaryQuestionId && !options?.isQuestionCreationFactory) {
+      const q = await questionsRepository.findById(input.primaryQuestionId);
+      if (!q) {
+        throw new ReferenceIntegrityError(
+          `Primary Question "${input.primaryQuestionId}" does not exist in the QUESTIONS sheet.`
+        );
+      }
+      const targetCat = input.categoryId || '';
+      const targetTopic = input.topicId || '';
+      const targetSubtopic = input.subtopicId || '';
+      if (
+        (targetCat && q.categoryId !== targetCat) ||
+        (targetTopic && q.topicId !== targetTopic) ||
+        (targetSubtopic && q.subtopicId !== targetSubtopic)
+      ) {
+        throw new ValidationError(
+          `Taxonomy mismatch: Primary Question "${input.primaryQuestionId}" taxonomy (${q.categoryId}/${q.topicId}/${q.subtopicId}) does not match Content Master taxonomy (${targetCat}/${targetTopic}/${targetSubtopic}).`
+        );
+      }
+    }
+
     const id = await this.idService.allocateContentMasterId();
     const now = new Date().toISOString();
 
@@ -165,10 +187,96 @@ export class ContentMasterService {
       throw new Error(`ContentMaster ${input.id} not found`);
     }
 
+    const targetCat = input.categoryId !== undefined ? input.categoryId : existing.categoryId;
+    const targetTopic = input.topicId !== undefined ? input.topicId : existing.topicId;
+    const targetSubtopic = input.subtopicId !== undefined ? input.subtopicId : existing.subtopicId;
+
+    // Phase 16.7 & Phase 16.8: Validate primaryQuestionId when explicitly supplied and non-empty
+    if (input.primaryQuestionId !== undefined && input.primaryQuestionId.trim() !== '') {
+      const q = await questionsRepository.findById(input.primaryQuestionId);
+      if (!q) {
+        throw new ReferenceIntegrityError(
+          `Primary Question "${input.primaryQuestionId}" does not exist in the QUESTIONS sheet.`
+        );
+      }
+      if ((q.status as any) === 'ARCHIVED') {
+        throw new ValidationError(
+          `Cannot set primaryQuestionId to ARCHIVED Question "${input.primaryQuestionId}".`
+        );
+      }
+      if (
+        (targetCat && q.categoryId !== targetCat) ||
+        (targetTopic && q.topicId !== targetTopic) ||
+        (targetSubtopic && q.subtopicId !== targetSubtopic)
+      ) {
+        throw new ValidationError(
+          `Taxonomy mismatch: Primary Question "${input.primaryQuestionId}" taxonomy (${q.categoryId}/${q.topicId}/${q.subtopicId}) does not match Content Master taxonomy (${targetCat}/${targetTopic}/${targetSubtopic}).`
+        );
+      }
+    }
+
+    // Phase 16.8: Validate reverse taxonomy change against existing primary question and linked child questions
+    const taxonomyChanged =
+      (input.categoryId !== undefined && input.categoryId !== existing.categoryId) ||
+      (input.topicId !== undefined && input.topicId !== existing.topicId) ||
+      (input.subtopicId !== undefined && input.subtopicId !== existing.subtopicId);
+
+    if (taxonomyChanged) {
+      // Check existing primary question if not explicitly supplied above
+      if (
+        (input.primaryQuestionId === undefined || input.primaryQuestionId.trim() === '') &&
+        existing.primaryQuestionId &&
+        existing.primaryQuestionId.trim() !== ''
+      ) {
+        const pq = await questionsRepository.findById(existing.primaryQuestionId);
+        if (!pq) {
+          throw new ReferenceIntegrityError(
+            `Primary Question "${existing.primaryQuestionId}" does not exist in the QUESTIONS sheet.`
+          );
+        }
+        if (
+          (targetCat && pq.categoryId !== targetCat) ||
+          (targetTopic && pq.topicId !== targetTopic) ||
+          (targetSubtopic && pq.subtopicId !== targetSubtopic)
+        ) {
+          throw new ValidationError(
+            `Taxonomy mismatch: Primary Question "${existing.primaryQuestionId}" taxonomy (${pq.categoryId}/${pq.topicId}/${pq.subtopicId}) does not match updated Content Master taxonomy (${targetCat}/${targetTopic}/${targetSubtopic}).`
+          );
+        }
+      }
+
+      // Check all linked child questions
+      const allQuestions = await questionsRepository.findAll();
+      const linkedQuestions = allQuestions.filter((q) => q.contentMasterId === existing.id);
+      const mismatchedChildren = linkedQuestions.filter(
+        (q) =>
+          (targetCat && q.categoryId !== targetCat) ||
+          (targetTopic && q.topicId !== targetTopic) ||
+          (targetSubtopic && q.subtopicId !== targetSubtopic)
+      );
+
+      if (mismatchedChildren.length > 0) {
+        const childIds = mismatchedChildren.map((q) => q.id).join(', ');
+        throw new ValidationError(
+          `Cannot update taxonomy for Content Master "${existing.id}": linked child Question(s) [${childIds}] have conflicting taxonomy.`
+        );
+      }
+    }
+
     const now = new Date().toISOString();
     const updated: ContentMaster = {
       ...existing,
-      ...input,
+      title: input.title !== undefined ? input.title : existing.title,
+      categoryId: input.categoryId !== undefined ? input.categoryId : existing.categoryId,
+      topicId: input.topicId !== undefined ? input.topicId : existing.topicId,
+      subtopicId: input.subtopicId !== undefined ? input.subtopicId : existing.subtopicId,
+      primaryQuestionId: input.primaryQuestionId !== undefined ? input.primaryQuestionId : existing.primaryQuestionId,
+      // Strictly preserve immutable lifecycle fields and invariants:
+      id: existing.id,
+      status: existing.status,
+      createdBy: existing.createdBy,
+      createdAt: existing.createdAt,
+      archivedAt: existing.archivedAt,
       updatedAt: now,
     };
 
@@ -186,6 +294,160 @@ export class ContentMasterService {
     });
 
     return saved;
+  }
+
+  /**
+   * Links an existing Question to a Content Master.
+   * Phase 16.8: Sequential non-atomic cross-sheet operation with strict pre-flight validation.
+   */
+  public async linkQuestionToContentMaster(
+    masterId: string,
+    questionId: string,
+    actor: ActorContext,
+    options?: { asPrimary?: boolean }
+  ): Promise<{
+    contentMaster: ContentMaster;
+    question: Question;
+  }> {
+    // 1. Authenticate actor
+    if (!actor || !actor.id) {
+      throw new ValidationError('Authentication required: Valid actor context is required to link Question to Content Master.');
+    }
+
+    // 2. Fetch Content Master
+    const master = await contentMastersRepository.findById(masterId);
+    if (!master) {
+      throw new ReferenceIntegrityError(`Content Master with ID "${masterId}" was not found.`);
+    }
+
+    // 3. Object-level authorization check
+    const canModify = await objectAuthService.canModifyContentMaster(actor, master);
+    if (!canModify) {
+      throw new ValidationError(`Forbidden: Actor "${actor.id}" lacks authorization to modify Content Master "${masterId}".`);
+    }
+
+    // 4. Content Master status validation
+    if (master.status === ContentMasterStatus.COMPLETED) {
+      throw new ValidationError(`Cannot link question to Content Master "${masterId}" in status "COMPLETED".`);
+    }
+    if (master.status === ContentMasterStatus.ARCHIVED) {
+      throw new ValidationError(`Cannot link question to Content Master "${masterId}" in terminal status "ARCHIVED".`);
+    }
+    if (master.status !== ContentMasterStatus.DRAFT && master.status !== ContentMasterStatus.ACTIVE) {
+      throw new ValidationError(`Cannot link question: Content Master "${masterId}" has invalid status "${master.status}".`);
+    }
+
+    // 5. Fetch Question & validate non-archival & existence
+    const question = await questionsRepository.findById(questionId);
+    if (!question) {
+      throw new ReferenceIntegrityError(`Question with ID "${questionId}" was not found in the QUESTIONS sheet.`);
+    }
+    if ((question.status as any) === 'ARCHIVED') {
+      throw new ValidationError(`Cannot link Question "${questionId}" with status "ARCHIVED" to Content Master.`);
+    }
+
+    // 6. Taxonomy match validation
+    if (
+      (master.categoryId && question.categoryId !== master.categoryId) ||
+      (master.topicId && question.topicId !== master.topicId) ||
+      (master.subtopicId && question.subtopicId !== master.subtopicId)
+    ) {
+      throw new ValidationError(
+        `Taxonomy mismatch: Question "${questionId}" taxonomy (${question.categoryId}/${question.topicId}/${question.subtopicId}) does not match Content Master "${masterId}" taxonomy (${master.categoryId}/${master.topicId}/${master.subtopicId}).`
+      );
+    }
+
+    // 7. Check existing relationship
+    if (question.contentMasterId && question.contentMasterId.trim() !== '' && question.contentMasterId !== masterId) {
+      throw new ValidationError(
+        `Question "${questionId}" is already linked to Content Master "${question.contentMasterId}". Cannot reassign to "${masterId}".`
+      );
+    }
+
+    const asPrimary = Boolean(options?.asPrimary);
+
+    // 8. Pre-flight check for asPrimary
+    if (asPrimary) {
+      if (master.primaryQuestionId && master.primaryQuestionId.trim() !== '' && master.primaryQuestionId !== questionId) {
+        throw new ValidationError(
+          `Content Master "${masterId}" already has primary question "${master.primaryQuestionId}". Cannot replace with "${questionId}".`
+        );
+      }
+    }
+
+    // 9. Idempotency check: if already linked to this Content Master
+    if (question.contentMasterId === masterId) {
+      if (!asPrimary || master.primaryQuestionId === questionId) {
+        return {
+          contentMaster: master,
+          question,
+        };
+      }
+      // asPrimary is requested and master currently has no primaryQuestionId
+      const now = new Date().toISOString();
+      const updatedMaster = await contentMastersRepository.updateRecord(masterId, {
+        primaryQuestionId: questionId,
+        updatedAt: now,
+      });
+      await auditLogRepository.create({
+        id: `AUD-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        timestamp: now,
+        actorId: actor.id,
+        actorName: actor.name,
+        action: 'SET_PRIMARY_QUESTION',
+        entityType: 'CONTENT_MASTER',
+        entityId: master.id,
+        details: JSON.stringify({ questionId, asPrimary: true, previousState: 'ALREADY_LINKED' }),
+      });
+      return {
+        contentMaster: updatedMaster || master,
+        question,
+      };
+    }
+
+    // 10. Sequential non-atomic cross-sheet write
+    const now = new Date().toISOString();
+
+    // Step 1: Update Question
+    const updatedQuestion = await questionsRepository.updateRecord(question.id, {
+      contentMasterId: master.id,
+      updatedAt: now,
+    });
+    if (!updatedQuestion) {
+      throw new Error(`Failed to update Question "${question.id}" with contentMasterId "${master.id}".`);
+    }
+
+    // Step 2: If asPrimary requested and CM has no primary, update CM
+    let finalMaster = master;
+    if (asPrimary && (!master.primaryQuestionId || master.primaryQuestionId.trim() === '')) {
+      const updatedMaster = await contentMastersRepository.updateRecord(master.id, {
+        primaryQuestionId: question.id,
+        updatedAt: now,
+      });
+      if (updatedMaster) {
+        finalMaster = updatedMaster;
+      }
+    }
+
+    // Step 3: Record audit log
+    await auditLogRepository.create({
+      id: `AUD-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      timestamp: now,
+      actorId: actor.id,
+      actorName: actor.name,
+      action: 'LINK_QUESTION_TO_CONTENT_MASTER',
+      entityType: 'CONTENT_MASTER',
+      entityId: master.id,
+      details: JSON.stringify({
+        questionId: question.id,
+        asPrimary,
+      }),
+    });
+
+    return {
+      contentMaster: finalMaster,
+      question: updatedQuestion,
+    };
   }
 
   /**

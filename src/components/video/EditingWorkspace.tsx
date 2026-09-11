@@ -15,6 +15,7 @@ import {
   FileQuestion,
   ArrowRight,
   RotateCcw,
+  Copy,
 } from 'lucide-react';
 import { Video, Script, VideoProductionStatus, AssignmentTaskType, RenderValidationStatus } from '../../types';
 import { ProductionAssetValidationService } from '../../lib/services/production-asset-validation.service';
@@ -41,10 +42,12 @@ export const EditingWorkspace: React.FC<EditingWorkspaceProps> = ({
   const [isUpdating, setIsUpdating] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
 
   // Notes & Asset URLs state
   const [editingNotes, setEditingNotes] = useState<string>(video.notes || '');
   const [driveUrl, setDriveUrl] = useState<string>(video.driveFolderUrl || '');
+  const [rawFootageUrl, setRawFootageUrl] = useState<string>(video.rawFootagePath || '');
   const [finalRenderUrl, setFinalRenderUrl] = useState<string>(video.finalRenderPath || '');
   const [width, setWidth] = useState<string>(video.finalRenderWidth ? String(video.finalRenderWidth) : '');
   const [height, setHeight] = useState<string>(video.finalRenderHeight ? String(video.finalRenderHeight) : '');
@@ -52,6 +55,29 @@ export const EditingWorkspace: React.FC<EditingWorkspaceProps> = ({
   const [aspectRatio, setAspectRatio] = useState<string>(video.finalRenderAspectRatio || '');
   const [actualDuration, setActualDuration] = useState<string>(video.actualDurationSeconds ? String(video.actualDurationSeconds) : '');
   const [isSavingDetails, setIsSavingDetails] = useState<boolean>(false);
+
+  const copyToClipboard = async (fieldName: string, text: string) => {
+    if (!text) return;
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
+      setCopiedField(fieldName);
+      setTimeout(() => setCopiedField(null), 2500);
+    } catch {
+      setCopiedField(null);
+    }
+  };
 
   const fetchScript = async () => {
     try {
@@ -71,6 +97,7 @@ export const EditingWorkspace: React.FC<EditingWorkspaceProps> = ({
     fetchScript();
     setEditingNotes(video.notes || '');
     setDriveUrl(video.driveFolderUrl || '');
+    setRawFootageUrl(video.rawFootagePath || '');
     setFinalRenderUrl(video.finalRenderPath || '');
     setWidth(video.finalRenderWidth ? String(video.finalRenderWidth) : '');
     setHeight(video.finalRenderHeight ? String(video.finalRenderHeight) : '');
@@ -127,6 +154,7 @@ export const EditingWorkspace: React.FC<EditingWorkspaceProps> = ({
       await apiClient.updateVideoMetadata(videoId, {
         notes: editingNotes,
         driveFolderUrl: driveUrl,
+        rawFootagePath: rawFootageUrl,
         finalRenderPath: finalRenderUrl,
         finalRenderWidth: width ? Number(width) : undefined,
         finalRenderHeight: height ? Number(height) : undefined,
@@ -315,6 +343,84 @@ export const EditingWorkspace: React.FC<EditingWorkspaceProps> = ({
             </div>
 
             <div className="space-y-4 text-xs">
+              {/* Quick Access Source Assets Overview */}
+              <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+                <span className="font-bold text-slate-800 text-[11px] flex items-center gap-1.5">
+                  <FolderKanban className="w-3.5 h-3.5 text-indigo-600" />
+                  Editor Source Assets & Quick Links
+                </span>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                  {/* Drive Folder */}
+                  <div className="p-2.5 bg-white rounded-lg border border-slate-200 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase text-slate-500">Google Drive Folder</span>
+                      <div className="flex items-center gap-1">
+                        {video.driveFolderUrl && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => copyToClipboard('driveUrl', video.driveFolderUrl || '')}
+                              className="text-[10px] font-medium text-indigo-600 hover:text-indigo-800 flex items-center gap-0.5 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200"
+                            >
+                              {copiedField === 'driveUrl' ? <CheckCircle2 className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                              <span>{copiedField === 'driveUrl' ? 'Copied' : 'Copy'}</span>
+                            </button>
+                            <a
+                              href={video.driveFolderUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[10px] font-medium text-slate-600 hover:text-indigo-600 flex items-center gap-0.5 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200"
+                            >
+                              <ExternalLink className="w-3 h-3" />
+                              <span>Open Folder</span>
+                            </a>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    <div className="font-mono text-[11px] text-slate-700 truncate">
+                      {video.driveFolderUrl || <span className="text-slate-400 font-sans italic">No Google Drive folder linked</span>}
+                    </div>
+                  </div>
+
+                  {/* Raw Footage Path */}
+                  <div className="p-2.5 bg-white rounded-lg border border-slate-200 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase text-slate-500">Raw Footage Asset</span>
+                      <div className="flex items-center gap-1">
+                        {video.rawFootagePath && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => copyToClipboard('rawPath', video.rawFootagePath || '')}
+                              className="text-[10px] font-medium text-indigo-600 hover:text-indigo-800 flex items-center gap-0.5 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200"
+                            >
+                              {copiedField === 'rawPath' ? <CheckCircle2 className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                              <span>{copiedField === 'rawPath' ? 'Copied' : 'Copy'}</span>
+                            </button>
+                            {(video.rawFootagePath.startsWith('http://') || video.rawFootagePath.startsWith('https://')) && (
+                              <a
+                                href={video.rawFootagePath}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-[10px] font-medium text-slate-600 hover:text-indigo-600 flex items-center gap-0.5 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200"
+                              >
+                                <ExternalLink className="w-3 h-3" />
+                                <span>Open Asset</span>
+                              </a>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    <div className="font-mono text-[11px] text-slate-700 truncate">
+                      {video.rawFootagePath || <span className="text-slate-400 font-sans italic">No raw footage asset recorded</span>}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div className="space-y-1.5">
                 <label className="font-medium text-slate-700">Google Drive Folder URL</label>
                 <div className="flex gap-2">
@@ -328,6 +434,29 @@ export const EditingWorkspace: React.FC<EditingWorkspaceProps> = ({
                   {driveUrl && (
                     <a
                       href={driveUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium inline-flex items-center gap-1 shrink-0"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" /> Open
+                    </a>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="font-medium text-slate-700">Raw Footage Path / Drive File URL</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={rawFootageUrl}
+                    onChange={(e) => setRawFootageUrl(e.target.value)}
+                    placeholder="drive://... or https://drive.google.com/file/d/..."
+                    className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-xs font-mono text-slate-800 focus:ring-1 focus:ring-indigo-500"
+                  />
+                  {rawFootageUrl && (rawFootageUrl.startsWith('http://') || rawFootageUrl.startsWith('https://')) && (
+                    <a
+                      href={rawFootageUrl}
                       target="_blank"
                       rel="noreferrer"
                       className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium inline-flex items-center gap-1 shrink-0"

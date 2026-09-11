@@ -911,6 +911,7 @@ class ApiClient {
     snapshot?: any
   ): Promise<any> {
     const endpointMap: Record<string, string> = {
+      CONTENT_MASTER: '/recovery/restore/content-master',
       QUESTION: '/recovery/restore/question',
       VIDEO: '/recovery/restore/video',
       SCRIPT: '/recovery/restore/script',
@@ -1230,6 +1231,52 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify({ reason }),
     });
+  }
+
+  public async createContentMaster(input: {
+    title: string;
+    categoryId?: string;
+    topicId?: string;
+    subtopicId?: string;
+    primaryQuestionId?: string;
+  }): Promise<{ success: boolean; data: import('../types').ContentMaster }> {
+    return this.request<{ success: boolean; data: import('../types').ContentMaster }>('/content-masters', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  }
+
+  public async updateContentMaster(
+    id: string,
+    input: {
+      title?: string;
+      categoryId?: string;
+      topicId?: string;
+      subtopicId?: string;
+      primaryQuestionId?: string;
+    }
+  ): Promise<{ success: boolean; data: import('../types').ContentMaster }> {
+    return this.request<{ success: boolean; data: import('../types').ContentMaster }>(`/content-masters/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    });
+  }
+
+  // Phase 16.8: Link Existing Question to Content Master
+  public async linkQuestionToContentMaster(
+    id: string,
+    payload: {
+      questionId: string;
+      asPrimary?: boolean;
+    }
+  ): Promise<{ success: boolean; data: { contentMaster: import('../types').ContentMaster; question: import('../types').Question } }> {
+    return this.request<{ success: boolean; data: { contentMaster: import('../types').ContentMaster; question: import('../types').Question } }>(
+      `/content-masters/${encodeURIComponent(id)}/link-question`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }
+    );
   }
 }
 

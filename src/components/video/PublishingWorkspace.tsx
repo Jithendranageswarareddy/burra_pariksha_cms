@@ -14,10 +14,12 @@ import {
   FileCheck,
   Sparkles,
   RotateCcw,
+  Copy,
 } from 'lucide-react';
-import { Publishing, SocialPublishStatus, Video, VideoProductionStatus } from '../../types';
+import { Publishing, SocialPublishStatus, Video, VideoProductionStatus, PlatformType } from '../../types';
 import { apiClient } from '../../lib/api-client';
 import { Button } from '../common/Button';
+import { PackageCopierModal } from '../publishing/PackageCopierModal';
 
 interface PublishingWorkspaceProps {
   video: Video;
@@ -33,6 +35,31 @@ export const PublishingWorkspace: React.FC<PublishingWorkspaceProps> = ({
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [isCopierModalOpen, setIsCopierModalOpen] = useState<boolean>(false);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  const copyToClipboard = async (fieldName: string, text: string) => {
+    if (!text) return;
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
+      setCopiedField(fieldName);
+      setTimeout(() => setCopiedField(null), 2500);
+    } catch {
+      setCopiedField(null);
+    }
+  };
 
   // Platform form state
   const [ytStatus, setYtStatus] = useState<SocialPublishStatus>(SocialPublishStatus.NOT_STARTED);
@@ -226,6 +253,16 @@ export const PublishingWorkspace: React.FC<PublishingWorkspaceProps> = ({
           <Button
             variant="outline"
             size="sm"
+            onClick={() => setIsCopierModalOpen(true)}
+            className="text-xs flex items-center gap-1.5 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border-indigo-200"
+          >
+            <Copy className="w-3.5 h-3.5" />
+            <span>Open Package Copier</span>
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
             disabled={isSaving}
             onClick={handleSavePublishing}
             className="text-xs flex items-center gap-1.5"
@@ -363,6 +400,43 @@ export const PublishingWorkspace: React.FC<PublishingWorkspaceProps> = ({
             <span className="text-[11px] font-mono font-bold">
               {video.actualDurationSeconds ? `${video.actualDurationSeconds}s verified` : 'Pending render'}
             </span>
+          </div>
+        </div>
+
+        {/* Master Render Asset & Drive Folder Reference */}
+        <div className="mt-3 pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="font-bold text-slate-700 uppercase tracking-wider text-[10px] shrink-0">
+              Master Render Asset:
+            </span>
+            <span className="font-mono text-[11px] text-slate-800 truncate">
+              {video.finalRenderPath || video.driveFolderUrl || 'No render path or Drive URL recorded'}
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            {(video.finalRenderPath || video.driveFolderUrl) && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => copyToClipboard('masterAsset', video.finalRenderPath || video.driveFolderUrl || '')}
+                  className="text-[11px] font-medium text-indigo-600 hover:text-indigo-800 flex items-center gap-1 bg-slate-50 px-2 py-0.5 rounded border border-slate-200"
+                >
+                  {copiedField === 'masterAsset' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                  <span>{copiedField === 'masterAsset' ? 'Copied' : 'Copy Link'}</span>
+                </button>
+                {((video.finalRenderPath && (video.finalRenderPath.startsWith('http://') || video.finalRenderPath.startsWith('https://'))) || video.driveFolderUrl) && (
+                  <a
+                    href={video.finalRenderPath && (video.finalRenderPath.startsWith('http://') || video.finalRenderPath.startsWith('https://')) ? video.finalRenderPath : video.driveFolderUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[11px] font-medium text-slate-600 hover:text-indigo-600 flex items-center gap-1 bg-slate-50 px-2 py-0.5 rounded border border-slate-200"
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                    <span>Open Asset</span>
+                  </a>
+                )}
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -600,6 +674,17 @@ export const PublishingWorkspace: React.FC<PublishingWorkspaceProps> = ({
           </Button>
         </div>
       </div>
+
+      {/* Package Copier Modal */}
+      {isCopierModalOpen && (
+        <PackageCopierModal
+          isOpen={isCopierModalOpen}
+          onClose={() => setIsCopierModalOpen(false)}
+          videoId={video.id}
+          videoTitle={video.title}
+          initialPlatform="youtube"
+        />
+      )}
     </div>
   );
 };

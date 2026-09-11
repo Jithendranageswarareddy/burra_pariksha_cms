@@ -39,18 +39,21 @@ import { geminiService } from '../lib/ai/gemini.service';
 import { geminiClient } from '../lib/ai/gemini.client';
 import { aiOrchestrator } from '../lib/ai/orchestrator';
 import { googleSheetsClient } from '../lib/google-sheets/client';
-import { QuestionStatus, UserRole, SocialReviewStatus, RenderValidationStatus, VideoProductionStatus } from '../types';
+import { QuestionStatus, UserRole, SocialReviewStatus, RenderValidationStatus, VideoProductionStatus, ContentMasterStatus } from '../types';
 import { ProductionAssetValidationService } from '../lib/services/production-asset-validation.service';
 import { ActorContext } from '../lib/services/object-auth.service';
 import { usersRepository } from '../lib/repositories/users.repository';
 import { questionsRepository } from '../lib/repositories/questions.repository';
 import { socialReviewsRepository } from '../lib/repositories/social-reviews.repository';
+import { thumbnailsRepository } from '../lib/repositories/thumbnails.repository';
+import { videosRepository } from '../lib/repositories/videos.repository';
 import { SocialEnhancementService } from '../lib/services/social-enhancement.service';
 import { SocialReviewService } from '../lib/services/social-review.service';
 import {
   AiContentPlanRequestSchema,
   CancelAssignmentInputSchema,
   CompleteAssignmentInputSchema,
+  CreateAssignmentInput,
   CreateAssignmentInputSchema,
   CreateContentBatchInputSchema,
   CreateContentPlanInputSchema,
@@ -238,18 +241,30 @@ apiRouter.get('/sheets/health', async (req: Request, res: Response) => {
 });
 
 // Task 4 Verification Endpoint
-apiRouter.all('/test/task4', async (req: Request, res: Response) => {
-  try {
-    const { runTask4QuestionCreationEngineVerification } = await import('../tests/task4-question-creation-engine-verification');
-    const report = await runTask4QuestionCreationEngineVerification();
-    res.json(report);
-  } catch (err: any) {
-    res.status(500).json({
-      error: 'Task 4 verification failed',
-      message: err?.message || 'Unknown error during Task 4 test run',
-    });
+apiRouter.all(
+  '/test/task4',
+  (req: Request, res: Response, next: express.NextFunction) => {
+    if (process.env.NODE_ENV === 'production') {
+      res.status(404).json({ success: false, error: 'Test runner endpoints are disabled in production environment.' });
+      return;
+    }
+    next();
+  },
+  requireAuth,
+  requireRole([UserRole.ADMIN]),
+  async (req: Request, res: Response) => {
+    try {
+      const { runTask4QuestionCreationEngineVerification } = await import('../tests/task4-question-creation-engine-verification');
+      const report = await runTask4QuestionCreationEngineVerification();
+      res.json(report);
+    } catch (err: any) {
+      res.status(500).json({
+        error: 'Task 4 verification failed',
+        message: err?.message || 'Unknown error during Task 4 test run',
+      });
+    }
   }
-});
+);
 
 apiRouter.post('/sheets/initialize', async (req: Request, res: Response) => {
   try {
@@ -710,15 +725,8 @@ apiRouter.get('/tests/task8i', async (req: Request, res: Response) => {
   }
 });
 
-apiRouter.get('/tests/phase9', async (req: Request, res: Response) => {
-  try {
-    const { runPhase9WorkflowVerification } = await import('../tests/phase9-content-workflow-verification');
-    const result = await runPhase9WorkflowVerification();
-    res.json({ success: true, ...result });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message || 'Phase 9 workflow tests failed' });
-  }
-});
+// Phase 20: Duplicate /tests/phase9 registration removed.
+// Authoritative guarded registration is retained at line 405.
 
 apiRouter.get('/tests/phase13-step4', async (req: Request, res: Response) => {
   if (process.env.NODE_ENV === 'production') {
@@ -791,50 +799,6 @@ apiRouter.get('/system/snapshot', requireRole([UserRole.ADMIN]), async (req: Req
     res.json(snapshot);
   } catch (err: any) {
     res.status(500).json({ success: false, error: err?.message || 'Failed to export snapshot' });
-  }
-});
-
-// ----------------------------------------------------
-// Phase 8C: Social Enhancement Multi-Hook & Strategy Engine
-// ----------------------------------------------------
-apiRouter.post('/social-enhancement/hooks/generate', async (req: Request, res: Response) => {
-  try {
-    const { questionId, requestedStyles, language, videoId, contentMasterId, question } = req.body;
-
-    let targetQuestion = question;
-    if (!targetQuestion && questionId) {
-      targetQuestion = await questionsRepository.findById(questionId);
-    }
-
-    if (!targetQuestion) {
-      return res.status(404).json({
-        success: false,
-        error: 'Question Not Found',
-        message: `No source question found for ID "${questionId || 'unspecified'}".`,
-      });
-    }
-
-    const result = await SocialEnhancementService.generateSocialEnhancementDraft({
-      question: targetQuestion,
-      requestedStyles,
-      language,
-      videoId,
-      contentMasterId,
-    });
-
-    res.json({
-      success: true,
-      data: result.payload,
-      isEligible: result.isEligible,
-      reason: result.reason,
-      aiCallsCount: result.aiCallsCount,
-    });
-  } catch (err: any) {
-    const isValidationError = err?.message?.includes('ineligible') || err?.message?.includes('INVALID');
-    res.status(isValidationError ? 400 : 500).json({
-      success: false,
-      error: err?.message || 'Failed to generate social hooks and presentation strategy',
-    });
   }
 });
 
@@ -950,7 +914,11 @@ apiRouter.post('/social-enhancement/platform-adaptation/generate', requireRole([
   }
 });
 
-apiRouter.post('/social-enhancement/quality-assessment/generate', async (req: Request, res: Response) => {
+apiRouter.post(
+  '/social-enhancement/quality-assessment/generate',
+  requireAuth,
+  requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.QUESTION_EDITOR, UserRole.REVIEWER, UserRole.SCRIPT_WRITER]),
+  async (req: Request, res: Response) => {
   try {
     const { questionId, enhancementPackage, platformAdaptations, options } = req.body;
 
@@ -1283,15 +1251,65 @@ apiRouter.get('/content-masters/:id', requireAuth, async (req: Request, res: Res
   }
 });
 
-apiRouter.post('/content-masters', async (req: Request, res: Response) => {
-  try {
-    const actor = getRequestActor(req);
-    const created = await contentMasterService.createContentMaster(req.body, actor.id, actor.name);
-    res.status(201).json({ success: true, data: created });
-  } catch (err: any) {
-    res.status(400).json({ success: false, error: err?.message || 'Failed to create Content Master' });
+apiRouter.post(
+  '/content-masters',
+  requireAuth,
+  requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER]),
+  async (req: Request, res: Response) => {
+    try {
+      const actor = getRequestActor(req);
+      const input = {
+        ...req.body,
+        status: ContentMasterStatus.DRAFT, // Direct creation initializes as DRAFT
+        createdBy: actor.id,
+      };
+      const created = await contentMasterService.createContentMaster(input, actor.id, actor.name);
+      res.status(201).json({ success: true, data: created });
+    } catch (err: any) {
+      res.status(400).json({ success: false, error: err?.message || 'Failed to create Content Master' });
+    }
   }
-});
+);
+
+apiRouter.put(
+  '/content-masters/:id',
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const actor = getRequestActor(req);
+      const existing = await contentMasterService.getContentMasterById(id);
+      if (!existing) {
+        return res.status(404).json({ success: false, error: `Content Master "${id}" not found.` });
+      }
+
+      const canModify = await objectAuthService.canModifyContentMaster(actor, existing);
+      if (!canModify) {
+        return res.status(403).json({
+          success: false,
+          error: `Forbidden: Actor "${actor.id}" (${actor.role}) is not authorized to modify Content Master "${id}".`,
+        });
+      }
+
+      const updated = await contentMasterService.updateContentMaster(
+        {
+          id,
+          title: req.body.title,
+          categoryId: req.body.categoryId,
+          topicId: req.body.topicId,
+          subtopicId: req.body.subtopicId,
+          primaryQuestionId: req.body.primaryQuestionId,
+        },
+        actor.id,
+        actor.name
+      );
+
+      res.json({ success: true, data: updated });
+    } catch (err: any) {
+      res.status(400).json({ success: false, error: err?.message || 'Failed to update Content Master' });
+    }
+  }
+);
 
 apiRouter.post('/content-masters/migrate/dry-run', async (req: Request, res: Response) => {
   try {
@@ -1373,6 +1391,36 @@ apiRouter.post('/content-masters/:id/archive', requireAuth, async (req: Request,
     const isForbidden = err?.message?.includes('Forbidden');
     const statusCode = isForbidden ? 403 : (err?.name === 'ReferenceIntegrityError' ? 404 : (err?.name === 'ValidationError' ? 400 : 500));
     res.status(statusCode).json({ success: false, error: err?.message || 'Failed to archive Content Master' });
+  }
+});
+
+// Phase 16.8: Link Existing Question to Content Master
+apiRouter.post('/content-masters/:id/link-question', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const actor = getRequestActor(req);
+    const { questionId, asPrimary } = req.body || {};
+    if (!questionId) {
+      return res.status(400).json({ success: false, error: 'questionId is required' });
+    }
+    const master = await contentMasterService.getContentMasterById(req.params.id);
+    if (!master) {
+      return res.status(404).json({ success: false, error: `Content Master ${req.params.id} not found` });
+    }
+    const canModify = await objectAuthService.canModifyContentMaster(actor, master);
+    if (!canModify) {
+      return res.status(403).json({ success: false, error: 'Forbidden: You do not have permission to modify this Content Master.' });
+    }
+    const result = await contentMasterService.linkQuestionToContentMaster(
+      req.params.id,
+      questionId,
+      actor,
+      { asPrimary: Boolean(asPrimary) }
+    );
+    res.json({ success: true, data: result });
+  } catch (err: any) {
+    const isForbidden = err?.message?.includes('Forbidden');
+    const statusCode = isForbidden ? 403 : (err?.name === 'ReferenceIntegrityError' ? 404 : (err?.name === 'ValidationError' ? 400 : 500));
+    res.status(statusCode).json({ success: false, error: err?.message || 'Failed to link Question to Content Master' });
   }
 });
 
@@ -1898,7 +1946,7 @@ apiRouter.post(
 apiRouter.post(
   '/questions/validate-candidate',
   requireAuth,
-  requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.QUESTION_EDITOR, UserRole.REVIEWER]),
+  requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.QUESTION_EDITOR, UserRole.CONTENT_WRITER, UserRole.REVIEWER]),
   async (req: Request, res: Response) => {
     try {
       const { question, skipTaxonomyLookup, source } = req.body || {};
@@ -2039,7 +2087,7 @@ apiRouter.post('/videos/queue', requireRole([UserRole.ADMIN, UserRole.CONTENT_MA
   }
 });
 
-apiRouter.patch('/videos/:id/status', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.VIDEO_EDITOR]), async (req: Request, res: Response) => {
+apiRouter.patch('/videos/:id/status', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.VIDEO_EDITOR, UserRole.REVIEWER]), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { status, remarks, actualDurationSeconds } = req.body;
@@ -2052,10 +2100,29 @@ apiRouter.patch('/videos/:id/status', requireRole([UserRole.ADMIN, UserRole.CONT
     if (!video) {
       return res.status(404).json({ error: 'Video Not Found', message: `Video with ID "${id}" was not found.` });
     }
-    const canModify = await objectAuthService.canModifyVideo(currentActor, video);
-    if (!canModify) {
-      return res.status(403).json({ error: 'Forbidden: You do not have permission to update this video status.' });
+
+    if (currentActor.role === UserRole.REVIEWER) {
+      const allowedReviewTransitions = [
+        VideoProductionStatus.FINAL_REVIEW,
+        VideoProductionStatus.READY_TO_UPLOAD,
+        VideoProductionStatus.EDITING,
+      ];
+      if (!allowedReviewTransitions.includes(status)) {
+        return res.status(403).json({
+          error: 'Forbidden: Reviewers can only transition video between EDITING, FINAL_REVIEW, and READY_TO_UPLOAD.',
+        });
+      }
+      const canReview = await objectAuthService.canSubmitSocialReview(currentActor, video.id);
+      if (!canReview) {
+        return res.status(403).json({ error: 'Forbidden: You do not have permission to review this video.' });
+      }
+    } else {
+      const canModify = await objectAuthService.canModifyVideo(currentActor, video);
+      if (!canModify) {
+        return res.status(403).json({ error: 'Forbidden: You do not have permission to update this video status.' });
+      }
     }
+
     const updated = await videoService.transitionStatus(id, status, currentActor, remarks, actualDurationSeconds);
     res.json(updated);
   } catch (err: any) {
@@ -2097,12 +2164,43 @@ apiRouter.post('/videos/:id/assignments', requireRole([UserRole.ADMIN, UserRole.
   try {
     const { id } = req.params;
     const actor = getRequestActor(req);
-    const assignment = await videoService.assignVideo(id, req.body, actor);
+
+    // Verify target video exists
+    const video = await videoService.getVideoById(id);
+    if (!video) {
+      return res.status(404).json({ error: 'Video Not Found', message: `Video with ID "${id}" was not found.` });
+    }
+
+    // Canonical Phase 10 assignment creation via assignmentService
+    // Force entityType to VIDEO and entityId to the route video ID
+    // Strictly ignore client-supplied actor, role, status, or ID
+    const assignmentInput: CreateAssignmentInput = {
+      entityType: 'VIDEO',
+      entityId: id,
+      assigneeId: String(req.body?.assigneeId || '').trim(),
+      taskType: String(req.body?.taskType || 'EDITING').trim(),
+      priority: req.body?.priority,
+      dueDate: req.body?.dueDate || req.body?.dueAt,
+      dueAt: req.body?.dueDate || req.body?.dueAt,
+      notes: req.body?.notes,
+    };
+
+    const validated = CreateAssignmentInputSchema.parse(assignmentInput);
+    const assignment = await assignmentService.createAssignment(validated, actor);
+
+    // Synchronize video helper fields for UI compatibility
+    if (assignment.taskType === 'RECORDING') {
+      await videosRepository.updateRecord(id, { assignedHost: assignment.assigneeName, updatedAt: new Date().toISOString() }).catch(() => {});
+    } else if (assignment.taskType === 'EDITING') {
+      await videosRepository.updateRecord(id, { assignedEditor: assignment.assigneeName, updatedAt: new Date().toISOString() }).catch(() => {});
+    }
+
     res.status(201).json(assignment);
   } catch (err: any) {
     res.status(err?.statusCode || 400).json({
       error: err?.name || 'Assignment Failed',
       message: err?.message || 'Failed to assign video',
+      blockers: err?.blockers || err?.details?.blockers,
     });
   }
 });
@@ -2348,11 +2446,31 @@ apiRouter.post('/videos/:videoId/thumbnail', requireRole([UserRole.ADMIN, UserRo
   }
 });
 
-apiRouter.patch('/thumbnails/:thumbnailId/status', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER]), async (req: Request, res: Response) => {
+apiRouter.patch('/thumbnails/:thumbnailId/status', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.DESIGNER]), async (req: Request, res: Response) => {
   try {
     const { thumbnailId } = req.params;
     const { status, remarks } = req.body;
     const currentActor = getRequestActor(req);
+
+    if (!status) {
+      return res.status(400).json({ error: 'Status is required' });
+    }
+
+    const thumbnail = await thumbnailsRepository.findById(thumbnailId);
+    if (!thumbnail) {
+      return res.status(404).json({ error: `Thumbnail "${thumbnailId}" not found.` });
+    }
+
+    if (currentActor.role === UserRole.DESIGNER) {
+      if (status !== 'DESIGNED') {
+        return res.status(403).json({ error: 'Forbidden: Designers can only mark thumbnails as DESIGNED.' });
+      }
+      const canModify = await objectAuthService.canModifyThumbnail(currentActor, thumbnail);
+      if (!canModify) {
+        return res.status(403).json({ error: 'Forbidden: You do not have permission to update this thumbnail status.' });
+      }
+    }
+
     const updated = await thumbnailService.updateStatus(thumbnailId, status, currentActor, remarks);
     res.json(updated);
   } catch (err: any) {
@@ -2737,41 +2855,56 @@ apiRouter.get('/ai/status', (req: Request, res: Response) => {
   });
 });
 
-apiRouter.post('/ai/generate', async (req: Request, res: Response) => {
-  try {
-    const result = await aiOrchestrator.generateQuestionCandidate(req.body);
-    res.json(result);
-  } catch (err: any) {
-    res.status(500).json({
-      error: 'AI Generation Failed',
-      message: err?.message || 'Failed to generate question candidate',
-    });
+apiRouter.post(
+  '/ai/generate',
+  requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.QUESTION_EDITOR, UserRole.CONTENT_WRITER]),
+  async (req: Request, res: Response) => {
+    try {
+      const result = await aiOrchestrator.generateQuestionCandidate(
+        req.body,
+        { enableBlindVerification: true }
+      );
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({
+        error: 'AI Generation Failed',
+        message: err?.message || 'Failed to generate question candidate',
+      });
+    }
   }
-});
+);
 
-apiRouter.post('/ai/refine', async (req: Request, res: Response) => {
-  try {
-    const result = await geminiService.refineCandidate(req.body);
-    res.json(result);
-  } catch (err: any) {
-    res.status(500).json({
-      error: 'AI Refinement Failed',
-      message: err?.message || 'Failed to refine question candidate',
-    });
+apiRouter.post(
+  '/ai/refine',
+  requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.QUESTION_EDITOR, UserRole.CONTENT_WRITER]),
+  async (req: Request, res: Response) => {
+    try {
+      const result = await geminiService.refineCandidate(req.body);
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({
+        error: 'AI Refinement Failed',
+        message: err?.message || 'Failed to refine question candidate',
+      });
+    }
   }
-});
+);
 
-apiRouter.post('/ai/script/generate', async (req: Request, res: Response) => {
-  try {
-    const result = await geminiService.generateTeluguScript(req.body);
-    res.json(result);
-  } catch (err: any) {
-    res.status(500).json({
-      error: 'AI Script Generation Failed',
-      message: err?.message || 'Failed to generate Telugu script',
-    });
+apiRouter.post(
+  '/ai/script/generate',
+  requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.SCRIPT_WRITER]),
+  async (req: Request, res: Response) => {
+    try {
+      const result = await geminiService.generateTeluguScript(req.body);
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({
+        error: 'AI Script Generation Failed',
+        message: err?.message || 'Failed to generate Telugu script',
+      });
+    }
   }
-});
+);
 
 // ----------------------------------------------------
 // Phase 8: Social Media Enhancement Endpoints
@@ -2813,6 +2946,9 @@ apiRouter.post(
           reason: draftResult.reason,
           aiCallsCount: draftResult.aiCallsCount,
         },
+        isEligible: draftResult.isEligible,
+        reason: draftResult.reason,
+        aiCallsCount: draftResult.aiCallsCount,
       });
     } catch (err: any) {
       res.status(err?.statusCode || 400).json({
@@ -3282,7 +3418,10 @@ apiRouter.get(
 // Phase 7: Content Operations Dashboard Endpoints
 // ----------------------------------------------------
 
-apiRouter.get('/dashboard/overview', async (req: Request, res: Response) => {
+apiRouter.get(
+  '/dashboard/overview',
+  requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER]),
+  async (req: Request, res: Response) => {
   try {
     const filters = {
       categoryId: req.query.categoryId as string | undefined,
@@ -3728,15 +3867,19 @@ apiRouter.post('/planning/similarity-check', async (req: Request, res: Response)
   }
 });
 
-apiRouter.post('/planning/ai-recommendation', async (req: Request, res: Response) => {
-  try {
-    const validated = AiContentPlanRequestSchema.parse(req.body);
-    const recommendation = await geminiService.generateContentPlanRecommendation(validated);
-    res.json(recommendation);
-  } catch (err: any) {
-    res.status(400).json({ error: 'Failed to generate AI plan recommendation', message: err?.message });
+apiRouter.post(
+  '/planning/ai-recommendation',
+  requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER]),
+  async (req: Request, res: Response) => {
+    try {
+      const validated = AiContentPlanRequestSchema.parse(req.body);
+      const recommendation = await geminiService.generateContentPlanRecommendation(validated);
+      res.json(recommendation);
+    } catch (err: any) {
+      res.status(400).json({ error: 'Failed to generate AI plan recommendation', message: err?.message });
+    }
   }
-});
+);
 
 // ----------------------------------------------------
 // PHASE 10: Team Operations & Assignment Endpoints
@@ -3854,13 +3997,13 @@ apiRouter.patch('/assignments/:id', requireRole([UserRole.ADMIN, UserRole.CONTEN
   }
 });
 
-apiRouter.post('/assignments/:id/start', async (req: Request, res: Response) => {
+apiRouter.post('/assignments/:id/start', requireAuth, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const authReq = req as AuthenticatedRequest;
     const assignment = await assignmentService.getAssignmentById(id);
     const isManagerOrAdmin = authReq.user && [UserRole.ADMIN, UserRole.CONTENT_MANAGER].includes(authReq.user.role as UserRole);
-    if (!isManagerOrAdmin && authReq.user && assignment.assigneeId !== authReq.user.id) {
+    if (!isManagerOrAdmin && assignment.assigneeId !== authReq.user!.id) {
       return res.status(403).json({ error: 'Forbidden: You can only update your own assigned tasks.' });
     }
     const actor = getRequestActor(req);
@@ -3871,14 +4014,14 @@ apiRouter.post('/assignments/:id/start', async (req: Request, res: Response) => 
   }
 });
 
-apiRouter.post('/assignments/:id/block', async (req: Request, res: Response) => {
+apiRouter.post('/assignments/:id/block', requireAuth, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { reason } = req.body;
     const authReq = req as AuthenticatedRequest;
     const assignment = await assignmentService.getAssignmentById(id);
     const isManagerOrAdmin = authReq.user && [UserRole.ADMIN, UserRole.CONTENT_MANAGER].includes(authReq.user.role as UserRole);
-    if (!isManagerOrAdmin && authReq.user && assignment.assigneeId !== authReq.user.id) {
+    if (!isManagerOrAdmin && assignment.assigneeId !== authReq.user!.id) {
       return res.status(403).json({ error: 'Forbidden: You can only update your own assigned tasks.' });
     }
     const currentActor = getRequestActor(req);
@@ -3889,13 +4032,13 @@ apiRouter.post('/assignments/:id/block', async (req: Request, res: Response) => 
   }
 });
 
-apiRouter.post('/assignments/:id/complete', async (req: Request, res: Response) => {
+apiRouter.post('/assignments/:id/complete', requireAuth, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const authReq = req as AuthenticatedRequest;
     const assignment = await assignmentService.getAssignmentById(id);
     const isManagerOrAdmin = authReq.user && [UserRole.ADMIN, UserRole.CONTENT_MANAGER].includes(authReq.user.role as UserRole);
-    if (!isManagerOrAdmin && authReq.user && assignment.assigneeId !== authReq.user.id) {
+    if (!isManagerOrAdmin && assignment.assigneeId !== authReq.user!.id) {
       return res.status(403).json({ error: 'Forbidden: You can only update your own assigned tasks.' });
     }
     const validated = CompleteAssignmentInputSchema.parse(req.body);
@@ -4428,6 +4571,7 @@ apiRouter.post('/recovery/validate/granular', requireRole([UserRole.ADMIN]), asy
     const validator = RestoreValidatorService.getInstance();
 
     const sheetMap: Record<string, string> = {
+      CONTENT_MASTER: 'CONTENT_MASTERS',
       QUESTION: 'QUESTIONS',
       VIDEO: 'VIDEOS',
       SCRIPT: 'SCRIPTS',
@@ -4483,6 +4627,64 @@ apiRouter.post('/recovery/validate/granular', requireRole([UserRole.ADMIN]), asy
 });
 
 // Task 3F.4.9C: Granular Restore Endpoints (Admin only)
+
+// 0. Content Master Restore
+apiRouter.post('/recovery/restore/content-master', requireRole([UserRole.ADMIN]), async (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthenticatedRequest;
+    const { snapshot, explicitConfirmation, masterId, contentMasterId, entityId, id } = req.body || {};
+    const targetId = masterId || contentMasterId || entityId || id;
+    const actualSnapshot = snapshot || req.body;
+
+    if (!actualSnapshot || !actualSnapshot.worksheets || !actualSnapshot.checksum) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid or missing snapshot payload. Required: worksheets and checksum.',
+      });
+    }
+
+    if (!targetId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing content master identifier.',
+      });
+    }
+
+    if (!explicitConfirmation) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing explicit confirmation phrase. Required: "RESTORE CONTENT MASTER".',
+      });
+    }
+
+    const actor = {
+      id: authReq.user?.id || 'USR-001',
+      name: authReq.user?.name || 'Admin',
+      role: authReq.user?.role || UserRole.ADMIN,
+    };
+
+    const { GranularContentMasterRestoreService } = await import('../lib/services/granular-content-master-restore.service');
+    const service = GranularContentMasterRestoreService.getInstance();
+    const result = await service.restoreContentMaster({
+      snapshot: actualSnapshot,
+      contentMasterId: targetId,
+      explicitConfirmation,
+      actor,
+    });
+
+    if (!result.success || result.operation === 'REJECTED') {
+      return res.status(result.conflictReason ? 409 : 400).json(result);
+    }
+
+    return res.json(result);
+  } catch (err: any) {
+    return res.status(500).json({
+      success: false,
+      error: 'Granular content master restore failed.',
+      message: err?.message,
+    });
+  }
+});
 
 // 1. Question Restore
 apiRouter.post('/recovery/restore/question', requireRole([UserRole.ADMIN]), async (req: Request, res: Response) => {

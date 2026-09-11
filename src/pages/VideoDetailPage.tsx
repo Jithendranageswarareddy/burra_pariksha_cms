@@ -83,6 +83,8 @@ export const VideoDetailPage: React.FC = () => {
   const [editHost, setEditHost] = useState('');
   const [editEditor, setEditEditor] = useState('');
   const [editDriveUrl, setEditDriveUrl] = useState('');
+  const [editRawFootagePath, setEditRawFootagePath] = useState('');
+  const [editFinalRenderPath, setEditFinalRenderPath] = useState('');
   const [editYoutubeId, setEditYoutubeId] = useState('');
 
   // Quick assignment modal state
@@ -102,6 +104,8 @@ export const VideoDetailPage: React.FC = () => {
       setEditHost(data.assignedHost || '');
       setEditEditor(data.assignedEditor || '');
       setEditDriveUrl(data.driveFolderUrl || '');
+      setEditRawFootagePath(data.rawFootagePath || '');
+      setEditFinalRenderPath(data.finalRenderPath || '');
       setEditYoutubeId(data.youtubeId || '');
       setActualDuration(data.actualDurationSeconds);
     } catch (err: any) {
@@ -163,6 +167,8 @@ export const VideoDetailPage: React.FC = () => {
         assignedHost: editHost || undefined,
         assignedEditor: editEditor || undefined,
         driveFolderUrl: editDriveUrl || undefined,
+        rawFootagePath: editRawFootagePath || undefined,
+        finalRenderPath: editFinalRenderPath || undefined,
         youtubeId: editYoutubeId || undefined,
       });
       setVideo((prev) => (prev ? { ...prev, ...updated } : updated));
@@ -714,7 +720,7 @@ export const VideoDetailPage: React.FC = () => {
                     <a
                       href={video.driveFolderUrl}
                       target="_blank"
-                      rel="noreferrer"
+                      rel="noopener noreferrer"
                       className="text-indigo-600 hover:underline flex items-center gap-1 mt-0.5 truncate"
                     >
                       <span className="truncate">{video.driveFolderUrl}</span>
@@ -722,6 +728,46 @@ export const VideoDetailPage: React.FC = () => {
                     </a>
                   ) : (
                     <span className="text-slate-400">Not configured</span>
+                  )}
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[10px] uppercase font-semibold">Raw Footage Path</span>
+                  {video.rawFootagePath ? (
+                    video.rawFootagePath.startsWith('http://') || video.rawFootagePath.startsWith('https://') ? (
+                      <a
+                        href={video.rawFootagePath}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-indigo-600 hover:underline flex items-center gap-1 mt-0.5 truncate"
+                      >
+                        <span className="truncate">{video.rawFootagePath}</span>
+                        <ExternalLink className="w-3 h-3 shrink-0" />
+                      </a>
+                    ) : (
+                      <span className="font-mono text-slate-800 break-all">{video.rawFootagePath}</span>
+                    )
+                  ) : (
+                    <span className="text-slate-400">Not configured</span>
+                  )}
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[10px] uppercase font-semibold">Final Render Asset Path</span>
+                  {video.finalRenderPath ? (
+                    video.finalRenderPath.startsWith('http://') || video.finalRenderPath.startsWith('https://') ? (
+                      <a
+                        href={video.finalRenderPath}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-indigo-600 hover:underline flex items-center gap-1 mt-0.5 truncate"
+                      >
+                        <span className="truncate">{video.finalRenderPath}</span>
+                        <ExternalLink className="w-3 h-3 shrink-0" />
+                      </a>
+                    ) : (
+                      <span className="font-mono text-slate-800 break-all">{video.finalRenderPath}</span>
+                    )
+                  ) : (
+                    <span className="text-slate-400">Not recorded</span>
                   )}
                 </div>
                 <div>
@@ -764,6 +810,26 @@ export const VideoDetailPage: React.FC = () => {
                     value={editDriveUrl}
                     onChange={(e) => setEditDriveUrl(e.target.value)}
                     placeholder="https://drive.google.com/..."
+                    className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg font-mono text-[11px]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Raw Footage Path / URL</label>
+                  <input
+                    type="text"
+                    value={editRawFootagePath}
+                    onChange={(e) => setEditRawFootagePath(e.target.value)}
+                    placeholder="drive://... or https://..."
+                    className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg font-mono text-[11px]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Final Render Path / URL</label>
+                  <input
+                    type="text"
+                    value={editFinalRenderPath}
+                    onChange={(e) => setEditFinalRenderPath(e.target.value)}
+                    placeholder="gs://... or https://..."
                     className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg font-mono text-[11px]"
                   />
                 </div>

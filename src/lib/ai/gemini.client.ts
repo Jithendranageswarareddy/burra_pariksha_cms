@@ -54,6 +54,11 @@ class GeminiClientWrapper {
     return this.isKeyConfigured && this.client !== null;
   }
 
+  public setClient(client: GoogleGenAI | null): void {
+    this.client = client;
+    this.isKeyConfigured = client !== null;
+  }
+
   public getModelName(): string {
     const envModel = process.env.GEMINI_MODEL;
     if (!envModel || envModel === 'gemini-3.7-flash') {

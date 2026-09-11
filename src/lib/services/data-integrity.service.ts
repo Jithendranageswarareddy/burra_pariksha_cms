@@ -14,6 +14,8 @@
 import {
   AuditLog,
   Category,
+  ContentMaster,
+  ContentMasterStatus,
   IntegrityCategory,
   IntegrityCheckSummary,
   IntegrityIssue,
@@ -44,6 +46,7 @@ import {
   assignmentsRepository,
   auditLogRepository,
   categoriesRepository,
+  contentMastersRepository,
   pinnedCommentsRepository,
   pinnedCommentVersionsRepository,
   publishingRepository,
@@ -136,6 +139,7 @@ export class DataIntegrityService {
       publishingRecords,
       auditLogs,
       sequences,
+      contentMasters,
     ] = await Promise.all([
       usersRepository.findAll().catch(() => [] as User[]),
       categoriesRepository.findAll().catch(() => [] as Category[]),
@@ -155,6 +159,7 @@ export class DataIntegrityService {
       publishingRepository.findAll().catch(() => [] as Publishing[]),
       auditLogRepository.findAll().catch(() => [] as AuditLog[]),
       sequencesRepository.findAll().catch(() => [] as SequenceRecord[]),
+      contentMastersRepository.findAll().catch(() => [] as ContentMaster[]),
     ]);
 
     // Fast lookup maps
@@ -168,6 +173,7 @@ export class DataIntegrityService {
     const pinnedCommentMap = new Map<string, PinnedComment>(pinnedComments.map((p) => [p.id, p]));
     const userMap = new Map<string, User>(users.map((u) => [u.id, u]));
     const publishingMap = new Map<string, Publishing>(publishingRecords.map((p) => [p.id, p]));
+    const contentMasterMap = new Map<string, ContentMaster>(contentMasters.map((m) => [m.id, m]));
 
     // =========================================================================
     // A. ID INTEGRITY CHECKS ACROSS ALL WORKSHEETS
@@ -249,6 +255,7 @@ export class DataIntegrityService {
     checkWorksheetIds(SHEET_TABS.ASSIGNMENTS, assignments, 'id', 'ASG-');
     checkWorksheetIds(SHEET_TABS.PUBLISHING, publishingRecords, 'id', 'PUB-');
     checkWorksheetIds(SHEET_TABS.AUDIT_LOG, auditLogs, 'id', 'LOG-');
+    checkWorksheetIds(SHEET_TABS.CONTENT_MASTERS, contentMasters, 'id', 'BP-MST-');
 
     // =========================================================================
     // B. QUESTION INTEGRITY CHECKS
@@ -1156,6 +1163,7 @@ export class DataIntegrityService {
       [SEQUENCE_ENTITIES.CONTENT_PLAN]: 0,
       [SEQUENCE_ENTITIES.CONTENT_BATCH]: 0,
       [SEQUENCE_ENTITIES.ASSIGNMENT]: Math.max(0, ...assignments.map((a) => this.extractNumericId(a.id) || 0)),
+      [SEQUENCE_ENTITIES.CONTENT_MASTER]: Math.max(0, ...contentMasters.map((m) => this.extractNumericId(m.id) || 0)),
     };
 
     const seenSeqEntities = new Set<string>();
@@ -1409,6 +1417,382 @@ export class DataIntegrityService {
     });
 
     // =========================================================================
+    // L. CONTENT MASTER INTEGRITY CHECKS (Phase 16.4)
+    // =========================================================================
+    const validContentMasterStatuses = new Set<string>([
+      ContentMasterStatus.DRAFT,
+      ContentMasterStatus.ACTIVE,
+      ContentMasterStatus.COMPLETED,
+      ContentMasterStatus.ARCHIVED,
+    ]);
+
+    contentMasters.forEach((master) => {
+      // 1. Canonical Status Validation
+      if (!master.status || !validContentMasterStatuses.has(master.status)) {
+        addIssue(
+          'CRITICAL',
+          'CONTENT_MASTER_INTEGRITY',
+          SHEET_TABS.CONTENT_MASTERS,
+          `Content Master "${master.id}" has invalid or unrecognized status "${master.status}". Expected DRAFT, ACTIVE, COMPLETED, or ARCHIVED.`,
+          `Set status to one of DRAFT, ACTIVE, COMPLETED, or ARCHIVED in CONTENT_MASTERS tab.`,
+          'CONTENT_MASTER',
+          master.id,
+          'status'
+        );
+      }
+
+      // 2. primary_question_id reference validation when populated
+      if (master.primaryQuestionId && master.primaryQuestionId.trim() !== '') {
+        const pq = questionMap.get(master.primaryQuestionId);
+        if (!pq) {
+          addIssue(
+            'ERROR',
+            'CONTENT_MASTER_INTEGRITY',
+            SHEET_TABS.CONTENT_MASTERS,
+            `Content Master "${master.id}" references non-existent primary_question_id "${master.primaryQuestionId}".`,
+            `Ensure primary_question_id "${master.primaryQuestionId}" exists in QUESTIONS tab or reassign a valid question ID.`,
+            'CONTENT_MASTER',
+            master.id,
+            'primaryQuestionId'
+          );
+        } else {
+          // Phase 16.9 Check 1 — PRIMARY QUESTION TAXONOMY DRIFT
+          const catDiverged = Boolean(master.categoryId && pq.categoryId !== master.categoryId);
+          const topicDiverged = Boolean(master.topicId && pq.topicId !== master.topicId);
+          const subtopicDiverged = Boolean(master.subtopicId && pq.subtopicId !== master.subtopicId);
+
+          if (catDiverged || topicDiverged || subtopicDiverged) {
+            addIssue(
+              'ERROR',
+              'CONTENT_MASTER_INTEGRITY',
+              SHEET_TABS.CONTENT_MASTERS,
+              `Content Master "${master.id}" taxonomy (${master.categoryId}/${master.topicId}/${master.subtopicId}) diverges from primary Question "${pq.id}" taxonomy (${pq.categoryId}/${pq.topicId}/${pq.subtopicId}).`,
+              `Synchronize taxonomy between Content Master "${master.id}" and primary Question "${pq.id}" or reassign primary question.`,
+              'CONTENT_MASTER',
+              master.id,
+              'primaryQuestionId'
+            );
+          }
+
+          // Phase 16.9 Check 2 — ARCHIVED PRIMARY QUESTION
+          if ((pq.status as any) === 'ARCHIVED') {
+            addIssue(
+              'ERROR',
+              'CONTENT_MASTER_INTEGRITY',
+              SHEET_TABS.CONTENT_MASTERS,
+              `Content Master "${master.id}" references ARCHIVED Question "${pq.id}" as primary_question_id.`,
+              `Assign an active non-archived Question as primary_question_id for Content Master "${master.id}" or clear the reference.`,
+              'CONTENT_MASTER',
+              master.id,
+              'primaryQuestionId'
+            );
+          }
+        }
+      }
+
+      // 3. category_id reference validation when populated
+      if (master.categoryId && master.categoryId.trim() !== '') {
+        const cat = categoryMap.get(master.categoryId);
+        if (!cat) {
+          addIssue(
+            'ERROR',
+            'CONTENT_MASTER_INTEGRITY',
+            SHEET_TABS.CONTENT_MASTERS,
+            `Content Master "${master.id}" references non-existent category_id "${master.categoryId}".`,
+            `Assign a valid category ID from CATEGORIES tab to Content Master "${master.id}".`,
+            'CONTENT_MASTER',
+            master.id,
+            'categoryId'
+          );
+        }
+      }
+
+      // 4. topic_id reference validation when populated
+      if (master.topicId && master.topicId.trim() !== '') {
+        const top = topicMap.get(master.topicId);
+        if (!top) {
+          addIssue(
+            'ERROR',
+            'CONTENT_MASTER_INTEGRITY',
+            SHEET_TABS.CONTENT_MASTERS,
+            `Content Master "${master.id}" references non-existent topic_id "${master.topicId}".`,
+            `Assign a valid topic ID from TOPICS tab to Content Master "${master.id}".`,
+            'CONTENT_MASTER',
+            master.id,
+            'topicId'
+          );
+        } else if (master.categoryId && top.categoryId !== master.categoryId) {
+          addIssue(
+            'WARNING',
+            'CONTENT_MASTER_INTEGRITY',
+            SHEET_TABS.CONTENT_MASTERS,
+            `Content Master "${master.id}" has topic_id "${master.topicId}" whose parent category "${top.categoryId}" does not match master's category_id "${master.categoryId}".`,
+            `Synchronize topic and category taxonomy hierarchy for Content Master "${master.id}".`,
+            'CONTENT_MASTER',
+            master.id,
+            'topicId'
+          );
+        }
+      }
+
+      // 5. subtopic_id reference validation when populated
+      if (master.subtopicId && master.subtopicId.trim() !== '') {
+        const sub = subtopicMap.get(master.subtopicId);
+        if (!sub) {
+          addIssue(
+            'ERROR',
+            'CONTENT_MASTER_INTEGRITY',
+            SHEET_TABS.CONTENT_MASTERS,
+            `Content Master "${master.id}" references non-existent subtopic_id "${master.subtopicId}".`,
+            `Assign a valid subtopic ID from SUBTOPICS tab to Content Master "${master.id}".`,
+            'CONTENT_MASTER',
+            master.id,
+            'subtopicId'
+          );
+        } else if (master.topicId && sub.topicId !== master.topicId) {
+          addIssue(
+            'WARNING',
+            'CONTENT_MASTER_INTEGRITY',
+            SHEET_TABS.CONTENT_MASTERS,
+            `Content Master "${master.id}" has subtopic_id "${master.subtopicId}" whose parent topic "${sub.topicId}" does not match master's topic_id "${master.topicId}".`,
+            `Synchronize subtopic and topic taxonomy hierarchy for Content Master "${master.id}".`,
+            'CONTENT_MASTER',
+            master.id,
+            'subtopicId'
+          );
+        }
+      }
+
+      // 6. created_by reference validation when populated
+      if (master.createdBy && master.createdBy.trim() !== '') {
+        const createdByStr = master.createdBy.trim();
+        if (createdByStr.startsWith('USR-') && !userMap.has(createdByStr)) {
+          addIssue(
+            'WARNING',
+            'CONTENT_MASTER_INTEGRITY',
+            SHEET_TABS.CONTENT_MASTERS,
+            `Content Master "${master.id}" references creator ID "${createdByStr}" which was not found in USERS directory.`,
+            `Verify creator user ID in USERS tab or update created_by for Content Master "${master.id}".`,
+            'CONTENT_MASTER',
+            master.id,
+            'createdBy'
+          );
+        }
+      }
+
+      // 7. Conditional two-way Question <-> Content Master consistency
+      if (master.primaryQuestionId && master.primaryQuestionId.trim() !== '') {
+        const pq = questionMap.get(master.primaryQuestionId);
+        if (pq && pq.contentMasterId && pq.contentMasterId.trim() !== '') {
+          if (pq.contentMasterId !== master.id) {
+            addIssue(
+              'ERROR',
+              'CONTENT_MASTER_INTEGRITY',
+              SHEET_TABS.CONTENT_MASTERS,
+              `Two-way referential mismatch: Content Master "${master.id}" has primary_question_id "${master.primaryQuestionId}", but that question points to contentMasterId "${pq.contentMasterId}".`,
+              `Reconcile primary question linkage between Content Master "${master.id}" and Question "${pq.id}".`,
+              'CONTENT_MASTER',
+              master.id,
+              'primaryQuestionId'
+            );
+          }
+        }
+      }
+
+      // 8. ARCHIVED master integrity
+      if (master.status === ContentMasterStatus.ARCHIVED) {
+        // a. archivedAt should be populated
+        if (!master.archivedAt || master.archivedAt.trim() === '') {
+          addIssue(
+            'WARNING',
+            'CONTENT_MASTER_INTEGRITY',
+            SHEET_TABS.CONTENT_MASTERS,
+            `ARCHIVED Content Master "${master.id}" is missing archived_at timestamp.`,
+            `Set archived_at ISO timestamp on archived Content Master "${master.id}".`,
+            'CONTENT_MASTER',
+            master.id,
+            'archivedAt'
+          );
+        }
+
+        // b. No linked active/in-flight production videos
+        const linkedVideos = videos.filter(
+          (v) => v.contentMasterId === master.id || (master.primaryQuestionId && v.questionId === master.primaryQuestionId)
+        );
+        const activeProductionVideos = linkedVideos.filter(
+          (v) =>
+            v.status === VideoProductionStatus.QUEUED ||
+            v.status === VideoProductionStatus.SCRIPT_REQUIRED ||
+            v.status === VideoProductionStatus.SCRIPT_READY ||
+            v.status === VideoProductionStatus.RECORDING ||
+            v.status === VideoProductionStatus.RECORDED ||
+            v.status === VideoProductionStatus.EDITING ||
+            v.status === VideoProductionStatus.EDITED ||
+            v.status === VideoProductionStatus.FINAL_REVIEW ||
+            v.status === VideoProductionStatus.READY_TO_UPLOAD
+        );
+        if (activeProductionVideos.length > 0) {
+          addIssue(
+            'ERROR',
+            'CONTENT_MASTER_INTEGRITY',
+            SHEET_TABS.CONTENT_MASTERS,
+            `ARCHIVED Content Master "${master.id}" has ${activeProductionVideos.length} linked video(s) actively in production: ${activeProductionVideos.map((v) => `${v.id} (${v.status})`).join(', ')}.`,
+            `Complete, cancel, or retire in-flight production videos for archived Content Master "${master.id}".`,
+            'CONTENT_MASTER',
+            master.id,
+            'status'
+          );
+        }
+
+        // c. No active Content Master assignments
+        const linkedVideoIds = new Set(linkedVideos.map((v) => v.id));
+        const activeAssignments = assignments.filter((a) => {
+          const matchesMaster = a.entityType === 'CONTENT_MASTER' && a.entityId === master.id;
+          const matchesVideo = a.entityType === 'VIDEO' && (linkedVideoIds.has(a.entityId) || (a.videoId && linkedVideoIds.has(a.videoId)));
+          const matchesQuestion = a.entityType === 'QUESTION' && master.primaryQuestionId && a.entityId === master.primaryQuestionId;
+          const isPending = a.status === 'ASSIGNED' || a.status === 'IN_PROGRESS' || a.status === 'ACTIVE';
+          return (matchesMaster || matchesVideo || matchesQuestion) && isPending;
+        });
+        if (activeAssignments.length > 0) {
+          addIssue(
+            'ERROR',
+            'CONTENT_MASTER_INTEGRITY',
+            SHEET_TABS.CONTENT_MASTERS,
+            `ARCHIVED Content Master "${master.id}" has ${activeAssignments.length} active assignment(s) in progress: ${activeAssignments.map((a) => `${a.id} (${a.taskType || a.status})`).join(', ')}.`,
+            `Reassign, complete, or cancel active tasks associated with archived Content Master "${master.id}".`,
+            'CONTENT_MASTER',
+            master.id,
+            'status'
+          );
+        }
+
+        // d. No scheduled publishing on linked videos
+        const linkedVideoIdSet = new Set(linkedVideos.map((v) => v.id));
+        const scheduledPubs = publishingRecords.filter((p) => {
+          if (!linkedVideoIdSet.has(p.videoId)) return false;
+          return (
+            p.youtube?.status === SocialPublishStatus.SCHEDULED ||
+            p.instagram?.status === SocialPublishStatus.SCHEDULED ||
+            p.facebook?.status === SocialPublishStatus.SCHEDULED
+          );
+        });
+        if (scheduledPubs.length > 0) {
+          addIssue(
+            'ERROR',
+            'CONTENT_MASTER_INTEGRITY',
+            SHEET_TABS.CONTENT_MASTERS,
+            `ARCHIVED Content Master "${master.id}" has ${scheduledPubs.length} scheduled publishing distribution record(s).`,
+            `Cancel or update scheduled publishing records for archived Content Master "${master.id}".`,
+            'CONTENT_MASTER',
+            master.id,
+            'status'
+          );
+        }
+      }
+    });
+
+    // 9. Orphaned QUESTIONS.content_master_id references & taxonomy drift
+    questions.forEach((q) => {
+      if (q.contentMasterId && q.contentMasterId.trim() !== '') {
+        const cm = contentMasterMap.get(q.contentMasterId);
+        if (!cm) {
+          addIssue(
+            'ERROR',
+            'CONTENT_MASTER_INTEGRITY',
+            SHEET_TABS.QUESTIONS,
+            `Question "${q.id}" references non-existent contentMasterId "${q.contentMasterId}".`,
+            `Assign a valid Content Master ID to Question "${q.id}" or clear the orphaned reference.`,
+            'QUESTION',
+            q.id,
+            'contentMasterId'
+          );
+        } else {
+          // Phase 16.9 Check 3 — LINKED CHILD QUESTION TAXONOMY DRIFT
+          const catDiverged = Boolean(cm.categoryId && q.categoryId !== cm.categoryId);
+          const topicDiverged = Boolean(cm.topicId && q.topicId !== cm.topicId);
+          const subtopicDiverged = Boolean(cm.subtopicId && q.subtopicId !== cm.subtopicId);
+
+          if (catDiverged || topicDiverged || subtopicDiverged) {
+            addIssue(
+              'ERROR',
+              'CONTENT_MASTER_INTEGRITY',
+              SHEET_TABS.QUESTIONS,
+              `Question "${q.id}" taxonomy (${q.categoryId}/${q.topicId}/${q.subtopicId}) diverges from parent Content Master "${cm.id}" taxonomy (${cm.categoryId}/${cm.topicId}/${cm.subtopicId}).`,
+              `Reconcile taxonomy on Question "${q.id}" to match Content Master "${cm.id}" or reassign to a compatible Content Master.`,
+              'QUESTION',
+              q.id,
+              'contentMasterId'
+            );
+          }
+        }
+      }
+    });
+
+    // 10. Orphaned VIDEOS.content_master_id references, active video on archived CM, and 3-way pointer divergence
+    const activeProductionStatuses = new Set<string>([
+      VideoProductionStatus.QUEUED,
+      VideoProductionStatus.SCRIPT_REQUIRED,
+      VideoProductionStatus.SCRIPT_READY,
+      VideoProductionStatus.RECORDING,
+      VideoProductionStatus.RECORDED,
+      VideoProductionStatus.EDITING,
+      VideoProductionStatus.EDITED,
+      VideoProductionStatus.FINAL_REVIEW,
+      VideoProductionStatus.READY_TO_UPLOAD,
+    ]);
+
+    videos.forEach((v) => {
+      if (v.contentMasterId && v.contentMasterId.trim() !== '') {
+        const cm = contentMasterMap.get(v.contentMasterId);
+        if (!cm) {
+          addIssue(
+            'ERROR',
+            'CONTENT_MASTER_INTEGRITY',
+            SHEET_TABS.VIDEOS,
+            `Video "${v.id}" references non-existent contentMasterId "${v.contentMasterId}".`,
+            `Assign a valid Content Master ID to Video "${v.id}" or clear the orphaned reference.`,
+            'VIDEO',
+            v.id,
+            'contentMasterId'
+          );
+        } else {
+          // Phase 16.9 Check 5 — ACTIVE VIDEO ON ARCHIVED CONTENT MASTER
+          if (cm.status === ContentMasterStatus.ARCHIVED && activeProductionStatuses.has(v.status)) {
+            addIssue(
+              'ERROR',
+              'CONTENT_MASTER_INTEGRITY',
+              SHEET_TABS.VIDEOS,
+              `Video "${v.id}" actively in production (${v.status}) references ARCHIVED Content Master "${cm.id}".`,
+              `Cancel or retire Video "${v.id}" or reactivate Content Master "${cm.id}".`,
+              'VIDEO',
+              v.id,
+              'contentMasterId'
+            );
+          }
+        }
+
+        // Phase 16.9 Check 4 — VIDEO ↔ QUESTION ↔ CONTENT MASTER POINTER DIVERGENCE
+        if (v.questionId && v.questionId.trim() !== '') {
+          const q = questionMap.get(v.questionId);
+          if (q && q.contentMasterId && q.contentMasterId.trim() !== '') {
+            if (v.contentMasterId !== q.contentMasterId) {
+              addIssue(
+                'ERROR',
+                'CONTENT_MASTER_INTEGRITY',
+                SHEET_TABS.VIDEOS,
+                `Three-way referential mismatch: Video "${v.id}" references Content Master "${v.contentMasterId}", but its associated Question "${q.id}" references Content Master "${q.contentMasterId}".`,
+                `Reconcile contentMasterId between Video "${v.id}" and Question "${q.id}".`,
+                'VIDEO',
+                v.id,
+                'contentMasterId'
+              );
+            }
+          }
+        }
+      }
+    });
+
+    // =========================================================================
     // WORKSHEET HEALTH & CATEGORY AGGREGATION
     // =========================================================================
     const countBySheet = (name: string) => {
@@ -1431,6 +1815,7 @@ export class DataIntegrityService {
         case SHEET_TABS.PUBLISHING: return publishingRecords.length;
         case SHEET_TABS.AUDIT_LOG: return auditLogs.length;
         case SHEET_TABS.SEQUENCES: return sequences.length;
+        case SHEET_TABS.CONTENT_MASTERS: return contentMasters.length;
         default: return 0;
       }
     };
@@ -1462,6 +1847,7 @@ export class DataIntegrityService {
       { category: 'SEQUENCE_INTEGRITY', name: 'Sequences Table Allocation Integrity', description: 'Guarantees next_number values are valid and ahead of existing IDs.' },
       { category: 'ASSIGNMENT_INTEGRITY', name: 'Team Assignments & Entity Association', description: 'Validates assignee presence, active status, target entity links, and duplicate prevention.' },
       { category: 'USER_INTEGRITY', name: 'Team Directory & Role Assignment', description: 'Checks user profile completeness, role authorization, and active status.' },
+      { category: 'CONTENT_MASTER_INTEGRITY', name: 'Content Master Lifecycle & Relational Integrity', description: 'Validates Content Master identity, taxonomy relations, orphan linkages, and terminal state invariants.' },
     ];
 
     const integrityChecks: IntegrityCheckSummary[] = categoriesList.map((c) => {

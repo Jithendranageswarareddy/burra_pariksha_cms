@@ -194,6 +194,8 @@ export const MyWorkPage: React.FC = () => {
       case 'CONTENT_PLAN':
       case 'CONTENT_BATCH':
         return `/planning`;
+      case 'CONTENT_MASTER':
+        return `/content-masters/${encodeURIComponent(entityId)}`;
       default:
         return `/dashboard`;
     }
@@ -515,6 +517,7 @@ export const MyWorkPage: React.FC = () => {
                 <option value="PUBLISHING">Publishing</option>
                 <option value="CONTENT_PLAN">Content Plans</option>
                 <option value="CONTENT_BATCH">Content Batches</option>
+                <option value="CONTENT_MASTER">Content Masters</option>
               </select>
             </div>
           </div>

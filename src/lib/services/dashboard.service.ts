@@ -33,6 +33,8 @@ import {
 } from '../../config/constants';
 import {
   BottleneckStage,
+  ContentMaster,
+  ContentMasterStatus,
   DashboardMetrics,
   DashboardOverviewData,
   GlobalSearchResult,
@@ -67,6 +69,7 @@ export interface DashboardDataContext {
   allAuditLogs: any[];
   allAssignments: any[];
   allUsers: any[];
+  allContentMasters?: ContentMaster[];
   qMap: Map<string, Question>;
 }
 
@@ -112,6 +115,7 @@ export class DashboardService {
       allAuditLogs,
       allAssignments,
       allUsers,
+      allContentMasters,
     ] = await Promise.all([
       questionsRepository.findAll(),
       videosRepository.findAll(),
@@ -121,6 +125,7 @@ export class DashboardService {
       auditLogRepository.findAll(),
       assignmentsRepository.findAll(),
       usersRepository.findAll(),
+      contentMastersRepository.findAll().catch(() => [] as ContentMaster[]),
     ]);
 
     const qMap = new Map<string, Question>(allQuestions.map((q) => [q.id, q]));
@@ -133,6 +138,7 @@ export class DashboardService {
       allAuditLogs,
       allAssignments,
       allUsers,
+      allContentMasters,
       qMap,
     };
   }
@@ -187,6 +193,19 @@ export class DashboardService {
     const pubReady = videos.filter((v) => v.status === VideoProductionStatus.READY_TO_UPLOAD).length;
     const pubNotStarted = allPublishing.filter((p) => p.completedPlatformsCount === 0).length;
 
+    // Content Masters Breakdown
+    let filteredMasters = ctx.allContentMasters || [];
+    if (filters?.categoryId) {
+      filteredMasters = filteredMasters.filter((m) => m.categoryId === filters.categoryId);
+    }
+    if (filters?.topicId) {
+      filteredMasters = filteredMasters.filter((m) => m.topicId === filters.topicId);
+    }
+    const cmDraft = filteredMasters.filter((m) => m.status === ContentMasterStatus.DRAFT).length;
+    const cmActive = filteredMasters.filter((m) => m.status === ContentMasterStatus.ACTIVE).length;
+    const cmCompleted = filteredMasters.filter((m) => m.status === ContentMasterStatus.COMPLETED).length;
+    const cmArchived = filteredMasters.filter((m) => m.status === ContentMasterStatus.ARCHIVED).length;
+
     return {
       questions: {
         generated: qGenerated,
@@ -216,6 +235,13 @@ export class DashboardService {
         published: pubPublished,
         incomplete: pubIncomplete,
         total: allPublishing.length,
+      },
+      contentMasters: {
+        draft: cmDraft,
+        active: cmActive,
+        completed: cmCompleted,
+        archived: cmArchived,
+        total: filteredMasters.length,
       },
       // Backward-compatible fields
       questionsGenerated: qGenerated,

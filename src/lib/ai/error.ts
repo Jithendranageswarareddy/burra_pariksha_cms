@@ -21,13 +21,17 @@ export interface ClassifiedAIError {
 }
 
 /**
- * Sanitizes any potential API key from error messages.
+ * Sanitizes any potential API key or provider credential from error messages.
+ * Matches Google/Gemini (AIza...), Anthropic (sk-ant-...), Groq (gsk_...),
+ * and OpenAI/generic (sk-...) keys.
  */
 export function sanitizeKeyInMessage(message: string): string {
-  if (!message) return '';
+  if (!message || typeof message !== 'string') return '';
   return message
-    .replace(/AIza[0-9A-Za-z-_]{35}/g, '[REDACTED_KEY]')
-    .replace(/sk-[0-9A-Za-z-_]{32,}/g, '[REDACTED_KEY]');
+    .replace(/AIza[0-9A-Za-z\-_]{35}/g, '[REDACTED_KEY]')
+    .replace(/sk-ant-[0-9A-Za-z\-_]{16,}/g, '[REDACTED_KEY]')
+    .replace(/gsk_[0-9A-Za-z\-_]{16,}/g, '[REDACTED_KEY]')
+    .replace(/sk-[0-9A-Za-z\-_]{16,}/g, '[REDACTED_KEY]');
 }
 
 /**
@@ -36,21 +40,24 @@ export function sanitizeKeyInMessage(message: string): string {
  */
 export function classifyAIError(err: any): ClassifiedAIError {
   const rawMsg = err?.message || (typeof err === 'object' ? JSON.stringify(err) : String(err || 'Unknown error'));
+  const causeStr = err?.cause ? (typeof err.cause === 'object' ? (err.cause.message || err.cause.code || JSON.stringify(err.cause)) : String(err.cause)) : '';
   const sanitizedMessage = sanitizeKeyInMessage(rawMsg);
-  const errStr = (sanitizedMessage + ' ' + (err?.status || '') + ' ' + (err?.code || '')).toLowerCase();
+  const errStr = (sanitizedMessage + ' ' + causeStr + ' ' + (err?.status || '') + ' ' + (err?.code || '')).toLowerCase();
 
-  // 1. Quota / Rate Limit
+  // 1. Quota / Rate Limit (strictly non-retryable)
   if (
     errStr.includes('429') ||
     errStr.includes('resource_exhausted') ||
     errStr.includes('quota') ||
     errStr.includes('exceeded your current quota') ||
-    errStr.includes('rate_limit')
+    errStr.includes('rate_limit') ||
+    errStr.includes('rate limit') ||
+    errStr.includes('too many requests')
   ) {
-    if (errStr.includes('rate_limit') && !errStr.includes('quota')) {
+    if ((errStr.includes('rate_limit') || errStr.includes('rate limit') || errStr.includes('too many requests')) && !errStr.includes('quota') && !errStr.includes('resource_exhausted')) {
       return {
         classification: 'RATE_LIMIT',
-        isRetryable: false,
+        isRetryable: false, // strictly non-retryable
         statusCode: 429,
         sanitizedMessage,
         originalError: err,
@@ -102,29 +109,42 @@ export function classifyAIError(err: any): ClassifiedAIError {
     };
   }
 
-  // 4. Timeout
-  if (errStr.includes('timeout') || errStr.includes('timed out') || errStr.includes('deadline_exceeded')) {
-    return {
-      classification: 'TIMEOUT',
-      isRetryable: true,
-      statusCode: 504,
-      sanitizedMessage,
-      originalError: err,
-    };
-  }
-
-  // 5. Transient Provider Errors
+  // 4. Common Network / Connection Failures (ECONNRESET, ETIMEDOUT, socket timeout, etc.) & Transient Provider Errors
   if (
+    errStr.includes('econnreset') ||
+    errStr.includes('etimedout') ||
+    errStr.includes('connection reset') ||
+    errStr.includes('socket timeout') ||
+    errStr.includes('socket hung up') ||
+    errStr.includes('econnrefused') ||
+    errStr.includes('ehostunreach') ||
+    errStr.includes('enetunreach') ||
+    errStr.includes('wsarecv') ||
+    errStr.includes('wsasend') ||
+    errStr.includes('network error') ||
+    errStr.includes('fetch failed') ||
     errStr.includes('500') ||
     errStr.includes('503') ||
     errStr.includes('unavailable') ||
     errStr.includes('high demand') ||
     errStr.includes('internal')
   ) {
+    const isTimeout = errStr.includes('etimedout') || errStr.includes('socket timeout');
     return {
       classification: 'TRANSIENT_ERROR',
       isRetryable: true,
-      statusCode: errStr.includes('503') ? 503 : 500,
+      statusCode: errStr.includes('503') ? 503 : (isTimeout ? 504 : 500),
+      sanitizedMessage,
+      originalError: err,
+    };
+  }
+
+  // 5. Generic Timeout
+  if (errStr.includes('timeout') || errStr.includes('timed out') || errStr.includes('deadline_exceeded')) {
+    return {
+      classification: 'TIMEOUT',
+      isRetryable: true,
+      statusCode: 504,
       sanitizedMessage,
       originalError: err,
     };

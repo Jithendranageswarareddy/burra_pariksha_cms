@@ -10,6 +10,7 @@ import { geminiClient } from './gemini.client';
 import { DEFAULT_AI_CONFIG } from './config';
 import { classifyAIError, sanitizeKeyInMessage, AIProviderError, AIErrorClassification } from './error';
 import { aiProviderRegistry } from './registry';
+import { recordUsageAttempt } from './observability';
 import { GenAiQuestionCandidateResponseSchema, QuestionCandidateZodSchema } from './schemas/question-candidate.schema';
 import { GenAiTeluguScriptResponseSchema, TeluguScriptZodSchema } from './schemas/script-generation.schema';
 import { GenAiSocialHookResponseSchema, SocialHookAndStrategyZodSchema } from './schemas/social-hook.schema';
@@ -159,6 +160,7 @@ export class GeminiService implements AIProvider {
         if (totalAttempts >= maxTotalAttempts) break;
         totalAttempts++;
 
+        const attemptStartTime = Date.now();
         try {
           if (attempt > 0) {
             await new Promise((res) => setTimeout(res, DEFAULT_AI_CONFIG.backoffMs * attempt));
@@ -173,15 +175,57 @@ export class GeminiService implements AIProvider {
             params.timeoutMs || params.options?.timeoutMs || DEFAULT_AI_CONFIG.timeoutMs,
             params.timeoutMsg || `Gemini generation timed out for model ${model}`
           );
+          const latencyMs = Date.now() - attemptStartTime;
 
           const text = response.text || '';
           if (text) {
+            try {
+              const usage = response.usageMetadata;
+              recordUsageAttempt({
+                operation: 'GENERATION',
+                providerId: this.providerId,
+                modelId: model,
+                attemptNumber: totalAttempts,
+                fallbackUsed: !!params.options?.fallbackUsed,
+                success: true,
+                httpStatus: 200,
+                latencyMs,
+                inputTokens: typeof usage?.promptTokenCount === 'number' ? usage.promptTokenCount : null,
+                outputTokens: typeof usage?.candidatesTokenCount === 'number' ? usage.candidatesTokenCount : null,
+                totalTokens: typeof usage?.totalTokenCount === 'number' ? usage.totalTokenCount : null,
+                requestId: params.options?.requestId ?? null,
+              });
+            } catch {
+              // Telemetry failure must never disrupt business operations
+            }
+
             return { text, modelUsed: model, totalAttempts };
           }
         } catch (err: any) {
+          const latencyMs = Date.now() - attemptStartTime;
           lastError = err;
           const classified = classifyAIError(err);
           lastClassification = classified.classification;
+
+          try {
+            recordUsageAttempt({
+              operation: 'GENERATION',
+              providerId: this.providerId,
+              modelId: model,
+              attemptNumber: totalAttempts,
+              fallbackUsed: !!params.options?.fallbackUsed,
+              success: false,
+              httpStatus: classified.statusCode ?? (classified.classification === 'QUOTA_EXHAUSTED' ? 429 : (classified.classification === 'AUTH_ERROR' ? 401 : 500)),
+              errorCategory: classified.classification,
+              latencyMs,
+              inputTokens: null,
+              outputTokens: null,
+              totalTokens: null,
+              requestId: params.options?.requestId ?? null,
+            });
+          } catch {
+            // Telemetry failure must never disrupt business operations
+          }
 
           // CRITICAL COST & QUOTA SAFETY MANDATE:
           // Non-retryable errors (QUOTA_EXHAUSTED, AUTH_ERROR, INVALID_REQUEST) break immediately!
@@ -255,6 +299,17 @@ export class GeminiService implements AIProvider {
         errorClassification = classified.classification;
         const sanitizedMsg = classified.sanitizedMessage;
 
+        if (options?.propagateProviderErrors) {
+          throw new AIProviderError(
+            sanitizedMsg,
+            this.providerId,
+            model,
+            classified.classification,
+            classified.isRetryable,
+            classified.statusCode
+          );
+        }
+
         console.warn('[GeminiService] Live generation failed, falling back to pedagogical engine:', sanitizedMsg);
         rawCandidate = this.createFallbackCandidate(input);
         isMockFallback = true;
@@ -263,6 +318,17 @@ export class GeminiService implements AIProvider {
           : sanitizedMsg.slice(0, 120);
       }
     } else {
+      if (options?.propagateProviderErrors) {
+        throw new AIProviderError(
+          'Gemini API is not configured or missing API key',
+          this.providerId,
+          model,
+          'AUTH_ERROR',
+          false,
+          401
+        );
+      }
+
       rawCandidate = this.createFallbackCandidate(input);
       isMockFallback = true;
       fallbackReason = 'Gemini API is not configured or missing API key';

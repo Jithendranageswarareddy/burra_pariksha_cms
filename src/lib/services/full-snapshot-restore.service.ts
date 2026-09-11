@@ -188,11 +188,11 @@ export class FullSnapshotRestoreService {
       };
     }
 
-    // Fetch current production entities for all 19 entities
+    // Fetch current production entities for all restore entities
     const prodData: Record<string, Map<string, any>> = {};
     try {
       const [
-        cats, tops, subs, usrs, plans, batches, qs, vids, scrs, scvers, thumbs, thvers, pcs, pcvers, assigns, pubs, wfs, audits, seqs
+        cats, tops, subs, usrs, plans, batches, cms, qs, vids, scrs, scvers, thumbs, thvers, pcs, pcvers, assigns, pubs, wfs, audits, seqs
       ] = await Promise.all([
         categoriesRepository.findAll().catch(() => []),
         topicsRepository.findAll().catch(() => []),
@@ -200,6 +200,7 @@ export class FullSnapshotRestoreService {
         usersRepository.findAll().catch(() => []),
         contentPlansRepository.findAll().catch(() => []),
         contentBatchesRepository.findAll().catch(() => []),
+        contentMastersRepository.findAll().catch(() => []),
         questionsRepository.findAll().catch(() => []),
         videosRepository.findAll().catch(() => []),
         scriptsRepository.findAll().catch(() => []),
@@ -231,6 +232,8 @@ export class FullSnapshotRestoreService {
           if (x.thumbnailId && !versionType) map.set(x.thumbnailId, x);
           if (x.pinnedCommentId && !versionType) map.set(x.pinnedCommentId, x);
           if (x.entityName) map.set(x.entityName, x);
+          if (x.entityType) map.set(x.entityType, x);
+          if (x.entity_type) map.set(x.entity_type, x);
 
           if (versionType === 'SCRIPT' && x.scriptId && x.versionNumber !== undefined) {
             map.set(`${x.scriptId}_${x.versionNumber}`, x);
@@ -249,6 +252,7 @@ export class FullSnapshotRestoreService {
       prodData['USERS'] = createMap(usrs);
       prodData['CONTENT_PLANS'] = createMap(plans);
       prodData['CONTENT_BATCHES'] = createMap(batches);
+      prodData['CONTENT_MASTERS'] = createMap(cms);
       prodData['QUESTIONS'] = createMap(qs);
       prodData['VIDEOS'] = createMap(vids);
       prodData['SCRIPT'] = createMap(scrs);
@@ -356,12 +360,29 @@ export class FullSnapshotRestoreService {
           }
         }
 
+        // Validate Content Master primaryQuestionId against snapshot Questions (warn only, do not block)
+        if (entityType === 'CONTENT_MASTERS' && obj.primaryQuestionId) {
+          const qWs = snapshot.worksheets?.['QUESTIONS'];
+          let qFound = false;
+          if (qWs && Array.isArray(qWs.rows) && Array.isArray(qWs.headers)) {
+            const qIdIdx = qWs.headers.findIndex(h => String(h).toLowerCase() === 'id');
+            if (qIdIdx >= 0) {
+              qFound = qWs.rows.some(r => String(r[qIdIdx]) === String(obj.primaryQuestionId));
+            }
+          }
+          if (!qFound) {
+            validationWarnings.push(
+              `Content Master ${recordId} references primaryQuestionId "${obj.primaryQuestionId}" which is not present in snapshot QUESTIONS.`
+            );
+          }
+        }
+
         // Sequence rollback checks
         if (entityType === 'SEQUENCES') {
-          const snapSeq = Number(obj.currentValue || obj.value || obj.nextNumber || 0);
-          const prodSeq = existing ? Number(existing.nextNumber || existing.currentValue || existing.value || 0) : 0;
+          const snapSeq = Number(obj.nextNumber || obj.next_number || obj.currentValue || obj.value || 0);
+          const prodSeq = existing ? Number(existing.nextNumber || existing.next_number || existing.currentValue || existing.value || 0) : 0;
           if (snapSeq > 0 && prodSeq > 0 && snapSeq < prodSeq) {
-            const warning = `Sequence rollback risk for ${obj.entityName || recordId} (Snapshot: ${snapSeq}, Prod: ${prodSeq}).`;
+            const warning = `Sequence rollback risk for ${obj.entityType || obj.entity_type || obj.entityName || recordId} (Snapshot: ${snapSeq}, Prod: ${prodSeq}).`;
             tabSeqWarnings.push(warning);
             sequenceWarnings.push(warning);
             globalConflicts.push({
