@@ -138,16 +138,14 @@ export class ContentMasterService {
 
     const saved = await contentMastersRepository.create(master);
 
-    await auditLogRepository.create({
-      id: `AUD-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-      timestamp: now,
+    await auditLogRepository.logAction(
       actorId,
       actorName,
-      action: 'CREATE_CONTENT_MASTER',
-      entityType: 'CONTENT_MASTER',
-      entityId: saved.id,
-      details: JSON.stringify({ title: saved.title }),
-    });
+      'CREATE_CONTENT_MASTER',
+      'CONTENT_MASTER',
+      saved.id,
+      { title: saved.title }
+    );
 
     return saved;
   }
@@ -174,16 +172,14 @@ export class ContentMasterService {
 
     const saved = await contentMastersRepository.update(updated);
 
-    await auditLogRepository.create({
-      id: `AUD-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-      timestamp: now,
+    await auditLogRepository.logAction(
       actorId,
       actorName,
-      action: 'UPDATE_CONTENT_MASTER',
-      entityType: 'CONTENT_MASTER',
-      entityId: saved.id,
-      details: JSON.stringify(input),
-    });
+      'UPDATE_CONTENT_MASTER',
+      'CONTENT_MASTER',
+      saved.id,
+      input as unknown as Record<string, unknown>
+    );
 
     return saved;
   }

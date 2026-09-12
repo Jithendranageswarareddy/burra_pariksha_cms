@@ -76,9 +76,23 @@ export class OperationalHealthService {
       let connectivityStatus: ConnectivityStatus = 'CONNECTED';
       let message = `Successfully connected to Google Spreadsheet "${metadata.title}" (${metadata.sheetNames.length} tabs found). Latency: ${latencyMs}ms.`;
 
-      if (telemetry.lastFailedOperation && telemetry.totalRetries > 0) {
+      // 5-minute recency window for assessing active vs. historical operational failures
+      const RECENT_FAILURE_WINDOW_MS = 5 * 60 * 1000;
+      const now = Date.now();
+      const parsedFailureTime = telemetry.lastFailureTimestamp ? new Date(telemetry.lastFailureTimestamp).getTime() : 0;
+      const failureTime = Number.isFinite(parsedFailureTime) ? parsedFailureTime : 0;
+      const parsedSuccessTime = telemetry.lastSuccessTimestamp ? new Date(telemetry.lastSuccessTimestamp).getTime() : 0;
+      const successTime = Number.isFinite(parsedSuccessTime) ? parsedSuccessTime : 0;
+
+      // A transient failure degrades connectivity only if:
+      // 1. It occurred within the recent time threshold, AND
+      // 2. The failure is newer than the most recent successful operation (unresolved/unrecovered)
+      const isRecentFailure = failureTime > 0 && (now - failureTime) < RECENT_FAILURE_WINDOW_MS;
+      const isUnresolvedFailure = failureTime > successTime;
+
+      if (telemetry.lastFailedOperation && isRecentFailure && isUnresolvedFailure) {
         connectivityStatus = 'DEGRADED';
-        message += ` Note: ${telemetry.totalRetries} retries were recorded recently.`;
+        message += ` Note: Active transient issue detected in ${telemetry.lastFailedOperation}. Cumulative retries: ${telemetry.totalRetries}.`;
       }
 
       return {

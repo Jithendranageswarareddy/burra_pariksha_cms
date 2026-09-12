@@ -176,11 +176,15 @@ export class AuthService {
         return { success: false, error: 'Invalid user credentials.' };
       }
 
-      const user = await usersRepository.findById(userId.trim());
+      const trimmedIdentifier = userId.trim();
+      let user = await usersRepository.findById(trimmedIdentifier);
+      if (!user) {
+        user = await usersRepository.findByEmail(trimmedIdentifier);
+      }
 
       if (!user) {
         await auditService.log(
-          userId,
+          trimmedIdentifier,
           'Unknown User',
           'LOGIN_FAILURE',
           'SYSTEM',

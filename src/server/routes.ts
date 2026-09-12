@@ -127,13 +127,14 @@ export function getRequestActor(req: Request): ActorContext & { name: string; ro
 
 apiRouter.post('/auth/login', async (req: Request, res: Response) => {
   try {
-    const { userId, password } = req.body || {};
-    if (!userId || !password) {
-      res.status(400).json({ success: false, error: 'User ID and password are required.' });
+    const { userId, email, identifier, password } = req.body || {};
+    const credentialIdentifier = userId || email || identifier;
+    if (!credentialIdentifier || !password) {
+      res.status(400).json({ success: false, error: 'User ID or Email and password are required.' });
       return;
     }
 
-    const result = await authService.login(userId, password);
+    const result = await authService.login(credentialIdentifier, password);
     if (!result.success || !result.token || !result.user) {
       res.status(401).json({ success: false, error: result.error || 'Invalid credentials.' });
       return;

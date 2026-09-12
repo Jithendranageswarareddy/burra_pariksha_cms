@@ -176,7 +176,8 @@ export class DataIntegrityService {
       sheetName: string,
       items: any[],
       idField: string = 'id',
-      expectedPrefix?: string
+      expectedPrefix?: string,
+      allowedLegacyPrefixes?: string[]
     ) => {
       const seenIds = new Set<string>();
 
@@ -218,6 +219,11 @@ export class DataIntegrityService {
 
         // Prefix validation
         if (expectedPrefix && !idStr.startsWith(expectedPrefix)) {
+          // Check if this is a recognized legacy historical prefix
+          if (allowedLegacyPrefixes && allowedLegacyPrefixes.some((p) => idStr.startsWith(p))) {
+            return; // Preserved immutable historical ID; valid legacy format
+          }
+
           addIssue(
             'WARNING',
             'ID_INTEGRITY',
@@ -248,7 +254,7 @@ export class DataIntegrityService {
     checkWorksheetIds(SHEET_TABS.WORKFLOW, workflows, 'id', 'WF-');
     checkWorksheetIds(SHEET_TABS.ASSIGNMENTS, assignments, 'id', 'ASG-');
     checkWorksheetIds(SHEET_TABS.PUBLISHING, publishingRecords, 'id', 'PUB-');
-    checkWorksheetIds(SHEET_TABS.AUDIT_LOG, auditLogs, 'id', 'LOG-');
+    checkWorksheetIds(SHEET_TABS.AUDIT_LOG, auditLogs, 'id', 'LOG-', ['AUD-']);
 
     // =========================================================================
     // B. QUESTION INTEGRITY CHECKS
@@ -1152,7 +1158,8 @@ export class DataIntegrityService {
       [SEQUENCE_ENTITIES.CATEGORY]: Math.max(0, ...categories.map((c) => this.extractNumericId(c.id) || 0)),
       [SEQUENCE_ENTITIES.TOPIC]: Math.max(0, ...topics.map((t) => this.extractNumericId(t.id) || 0)),
       [SEQUENCE_ENTITIES.SUBTOPIC]: Math.max(0, ...subtopics.map((s) => this.extractNumericId(s.id) || 0)),
-      [SEQUENCE_ENTITIES.USER]: Math.max(0, ...users.map((u) => this.extractNumericId(u.id) || 0)),
+      // Note: USER IDs use timestamp-based allocation (allocateUserId: USR-#### via Date.now()),
+      // not monotonic counter allocation from SEQUENCES table.
       [SEQUENCE_ENTITIES.CONTENT_PLAN]: 0,
       [SEQUENCE_ENTITIES.CONTENT_BATCH]: 0,
       [SEQUENCE_ENTITIES.ASSIGNMENT]: Math.max(0, ...assignments.map((a) => this.extractNumericId(a.id) || 0)),
@@ -1445,7 +1452,7 @@ export class DataIntegrityService {
         totalRecords: totalRecs,
         validRecords: Math.max(0, totalRecs - criticalOrErrors),
         issuesCount: sheetIssues.length,
-        status: criticalOrErrors > 0 ? 'ERROR' : sheetIssues.length > 0 ? 'WARNING' : 'PASS',
+        status: criticalOrErrors > 0 ? 'ERROR' : sheetIssues.some((i) => i.severity === 'WARNING') ? 'WARNING' : 'PASS',
       };
     });
 
