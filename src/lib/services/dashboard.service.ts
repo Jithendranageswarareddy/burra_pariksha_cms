@@ -243,11 +243,14 @@ export class DashboardService {
     const filteredVideos = this.applyVideoFilters(ctx.allVideos, filters, qMap);
     const publishingList = ctx.allPublishing;
     const items: TodaysWorkItem[] = [];
+    const seenIds = new Set<string>();
 
     const now = Date.now();
 
     // 1. Ready to upload videos (Highest priority for publishing)
     for (const v of filteredVideos.filter((vid) => vid.status === VideoProductionStatus.READY_TO_UPLOAD)) {
+      if (!v.id || seenIds.has(v.id)) continue;
+      seenIds.add(v.id);
       const q = qMap.get(v.questionId);
       const days = this.calculateDays(v.updatedAt || v.createdAt, now);
       items.push({
@@ -267,6 +270,8 @@ export class DashboardService {
 
     // 2. Final Review videos
     for (const v of filteredVideos.filter((vid) => vid.status === VideoProductionStatus.FINAL_REVIEW)) {
+      if (!v.id || seenIds.has(v.id)) continue;
+      seenIds.add(v.id);
       const q = qMap.get(v.questionId);
       const days = this.calculateDays(v.updatedAt || v.createdAt, now);
       items.push({
@@ -286,6 +291,8 @@ export class DashboardService {
 
     // 3. Script Required / Queued videos without script
     for (const v of filteredVideos.filter((vid) => vid.status === VideoProductionStatus.SCRIPT_REQUIRED || vid.status === VideoProductionStatus.QUEUED)) {
+      if (!v.id || seenIds.has(v.id)) continue;
+      seenIds.add(v.id);
       const q = qMap.get(v.questionId);
       const days = this.calculateDays(v.updatedAt || v.createdAt, now);
       items.push({
@@ -305,6 +312,8 @@ export class DashboardService {
 
     // 4. Script Ready videos waiting for recording
     for (const v of filteredVideos.filter((vid) => vid.status === VideoProductionStatus.SCRIPT_READY)) {
+      if (!v.id || seenIds.has(v.id)) continue;
+      seenIds.add(v.id);
       const q = qMap.get(v.questionId);
       const days = this.calculateDays(v.updatedAt || v.createdAt, now);
       items.push({
@@ -324,6 +333,8 @@ export class DashboardService {
 
     // 5. Recorded videos waiting for editing
     for (const v of filteredVideos.filter((vid) => vid.status === VideoProductionStatus.RECORDED)) {
+      if (!v.id || seenIds.has(v.id)) continue;
+      seenIds.add(v.id);
       const q = qMap.get(v.questionId);
       const days = this.calculateDays(v.updatedAt || v.createdAt, now);
       items.push({
@@ -343,6 +354,8 @@ export class DashboardService {
 
     // 6. Editing in progress
     for (const v of filteredVideos.filter((vid) => vid.status === VideoProductionStatus.EDITING)) {
+      if (!v.id || seenIds.has(v.id)) continue;
+      seenIds.add(v.id);
       const q = qMap.get(v.questionId);
       const days = this.calculateDays(v.updatedAt || v.createdAt, now);
       items.push({
@@ -363,6 +376,8 @@ export class DashboardService {
     // 7. Approved questions not yet queued
     const queuedQuestionIds = new Set(ctx.allVideos.map((v) => v.questionId));
     for (const q of filteredQuestions.filter((item) => item.status === QuestionStatus.APPROVED && !queuedQuestionIds.has(item.id))) {
+      if (!q.id || seenIds.has(q.id)) continue;
+      seenIds.add(q.id);
       const days = this.calculateDays(q.updatedAt || q.createdAt, now);
       items.push({
         id: q.id,
@@ -381,6 +396,8 @@ export class DashboardService {
 
     // 8. Incomplete publishing records
     for (const pub of publishingList.filter((p: any) => p.completedPlatformsCount > 0 && p.completedPlatformsCount < p.totalPlatformsCount)) {
+      if (!pub.videoId || seenIds.has(pub.videoId)) continue;
+      seenIds.add(pub.videoId);
       const days = this.calculateDays(pub.updatedAt || pub.createdAt, now);
       const vid = ctx.allVideos.find((v) => v.id === pub.videoId);
       const q = vid ? qMap.get(vid.questionId) : undefined;
@@ -401,6 +418,8 @@ export class DashboardService {
 
     // 9. Generated questions awaiting review
     for (const q of filteredQuestions.filter((item) => item.status === QuestionStatus.GENERATED).slice(0, 5)) {
+      if (!q.id || seenIds.has(q.id)) continue;
+      seenIds.add(q.id);
       const days = this.calculateDays(q.updatedAt || q.createdAt, now);
       items.push({
         id: q.id,
@@ -543,12 +562,15 @@ export class DashboardService {
     const questions = this.applyQuestionFilters(ctx.allQuestions, filters);
     const now = Date.now();
     const staleItems: StaleContentItem[] = [];
+    const seenIds = new Set<string>();
 
     // Analyze Active Videos
     for (const v of videos) {
       if (v.status === VideoProductionStatus.UPLOADED || v.status === VideoProductionStatus.CANCELLED) {
         continue;
       }
+      if (!v.id || seenIds.has(v.id)) continue;
+      seenIds.add(v.id);
       const q = ctx.qMap.get(v.questionId);
       const days = this.calculateDays(v.updatedAt || v.createdAt, now);
       let statusCategory: 'FRESH' | 'WAITING' | 'STALE' = 'FRESH';
@@ -577,6 +599,8 @@ export class DashboardService {
       if (q.status === QuestionStatus.APPROVED || q.status === QuestionStatus.REJECTED) {
         continue;
       }
+      if (!q.id || seenIds.has(q.id)) continue;
+      seenIds.add(q.id);
       const days = this.calculateDays(q.updatedAt || q.createdAt, now);
       let statusCategory: 'FRESH' | 'WAITING' | 'STALE' = 'FRESH';
       if (days >= AGING_THRESHOLDS.STALE_MIN_DAYS) {
@@ -621,8 +645,11 @@ export class DashboardService {
     );
 
     const results: PublishingReadinessItem[] = [];
+    const seenVideoIds = new Set<string>();
 
     for (const v of targetVideos) {
+      if (!v.id || seenVideoIds.has(v.id)) continue;
+      seenVideoIds.add(v.id);
       const q = ctx.qMap.get(v.questionId);
       const pub = ctx.allPublishing.find((p: any) => p.videoId === v.id);
       const thumb = ctx.allThumbnails.find((t: any) => t.videoId === v.id);

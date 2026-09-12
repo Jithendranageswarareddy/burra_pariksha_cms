@@ -371,7 +371,11 @@ export const MyWorkPage: React.FC = () => {
               <span>Priority Attention: {myWork?.overdueCount || 0} Overdue • {myWork?.dueTodayCount || 0} Due Today</span>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {[...(myWork?.overdueAssignments || []), ...(myWork?.dueTodayAssignments || [])].map((item) => (
+              {Array.from(
+                new Map(
+                  [...(myWork?.overdueAssignments || []), ...(myWork?.dueTodayAssignments || [])].map((item) => [item.id, item])
+                ).values()
+              ).map((item) => (
                 <div
                   key={item.id}
                   onClick={() => {

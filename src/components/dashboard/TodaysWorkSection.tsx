@@ -18,7 +18,15 @@ interface TodaysWorkSectionProps {
 }
 
 export const TodaysWorkSection: React.FC<TodaysWorkSectionProps> = ({ items }) => {
-  const safeItems = Array.isArray(items) ? items : [];
+  const safeItems = React.useMemo(() => {
+    if (!Array.isArray(items)) return [];
+    const seen = new Set<string>();
+    return items.filter((item) => {
+      if (!item?.id || seen.has(item.id)) return false;
+      seen.add(item.id);
+      return true;
+    });
+  }, [items]);
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
   const [selectedType, setSelectedType] = useState<'ALL' | 'VIDEO' | 'QUESTION'>('ALL');
 

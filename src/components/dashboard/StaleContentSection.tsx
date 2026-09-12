@@ -8,7 +8,15 @@ interface StaleContentSectionProps {
 }
 
 export const StaleContentSection: React.FC<StaleContentSectionProps> = ({ items }) => {
-  const safeItems = Array.isArray(items) ? items : [];
+  const safeItems = React.useMemo(() => {
+    if (!Array.isArray(items)) return [];
+    const seen = new Set<string>();
+    return items.filter((item) => {
+      if (!item?.id || seen.has(item.id)) return false;
+      seen.add(item.id);
+      return true;
+    });
+  }, [items]);
   const [filterCategory, setFilterCategory] = useState<'ALL' | 'STALE' | 'WAITING'>('ALL');
 
   const filteredItems = safeItems.filter((item) => {

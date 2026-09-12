@@ -47,6 +47,9 @@ import {
 export class AssignmentService {
   private static instance: AssignmentService | null = null;
 
+  // In-memory Promise-chained mutex keyed by logical assignment target: `${entityType}:${entityId}:${taskType}`
+  private creationLockMap = new Map<string, Promise<void>>();
+
   private constructor() {}
 
   public static getInstance(): AssignmentService {
@@ -54,6 +57,35 @@ export class AssignmentService {
       AssignmentService.instance = new AssignmentService();
     }
     return AssignmentService.instance;
+  }
+
+  /**
+   * Executes an asynchronous assignment operation within an isolated critical section
+   * serialized per logical assignment key (entityType + entityId + taskType).
+   * Concurrent creations for different keys run completely in parallel.
+   */
+  private async runWithCreationLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
+    const currentLock = this.creationLockMap.get(key) || Promise.resolve();
+    let release: () => void = () => {};
+    const nextLock = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+
+    const executionPromise = currentLock
+      .catch(() => {}) // Absorb any errors from preceding operations on this key
+      .then(async () => {
+        try {
+          return await fn();
+        } finally {
+          release();
+          if (this.creationLockMap.get(key) === nextLock) {
+            this.creationLockMap.delete(key);
+          }
+        }
+      });
+
+    this.creationLockMap.set(key, nextLock);
+    return executionPromise;
   }
 
   // ============================================================================
@@ -232,87 +264,91 @@ export class AssignmentService {
     const { id: actorId, name: actorName, role: actorRole } = this.parseActor(actor, actorNameParam);
     await this.authorizeAction(actorId, actorRole, 'CREATE');
     const entityType = input.entityType as AssignmentEntityType;
-    // 1. Validate entity existence
-    await this.validateTargetEntity(entityType, input.entityId);
+    const lockKey = `${entityType}:${input.entityId}:${input.taskType}`;
 
-    // 2. Validate Assignee User existence and active status
-    const user = await usersRepository.findById(input.assigneeId);
-    if (!user) {
-      throw new Error(`Assignee user "${input.assigneeId}" not found in USERS directory.`);
-    }
-    if (!user.isActive) {
-      throw new Error(`Cannot assign work to inactive user "${user.name}" (${user.id}).`);
-    }
+    return this.runWithCreationLock(lockKey, async () => {
+      // 1. Validate entity existence
+      await this.validateTargetEntity(entityType, input.entityId);
 
-    const assignmentRole = (input as any).assignmentRole || input.taskType;
-    if (assignmentRole === 'EDITOR' || assignmentRole === 'CREATOR') {
-      throw new Error(`Cannot assign legacy role "${assignmentRole}" to newly created assignment.`);
-    }
+      // 2. Validate Assignee User existence and active status
+      const user = await usersRepository.findById(input.assigneeId);
+      if (!user) {
+        throw new Error(`Assignee user "${input.assigneeId}" not found in USERS directory.`);
+      }
+      if (!user.isActive) {
+        throw new Error(`Cannot assign work to inactive user "${user.name}" (${user.id}).`);
+      }
 
-    // 3. Prevent duplicate active assignment for same entity and taskType
-    const existingActive = await assignmentsRepository.findActiveByEntity(entityType, input.entityId);
-    const duplicate = existingActive.find((a) => a.taskType === input.taskType);
-    if (duplicate) {
-      throw new Error(
-        `An active assignment already exists for ${input.entityType} ${input.entityId} with task "${input.taskType}" (Assignment ID: ${duplicate.id}, Assignee: ${duplicate.assigneeName}).`
-      );
-    }
+      const assignmentRole = (input as any).assignmentRole || input.taskType;
+      if (assignmentRole === 'EDITOR' || assignmentRole === 'CREATOR') {
+        throw new Error(`Cannot assign legacy role "${assignmentRole}" to newly created assignment.`);
+      }
 
-    // 4. Allocate permanent sequence-backed ID
-    const id = await idService.allocateAssignmentId();
-    const now = new Date().toISOString();
-    const dueDate = input.dueDate || input.dueAt || undefined;
+      // 3. Prevent duplicate active assignment for same entity and taskType
+      const existingActive = await assignmentsRepository.findActiveByEntity(entityType, input.entityId);
+      const duplicate = existingActive.find((a) => a.taskType === input.taskType);
+      if (duplicate) {
+        throw new Error(
+          `An active assignment already exists for ${input.entityType} ${input.entityId} with task "${input.taskType}" (Assignment ID: ${duplicate.id}, Assignee: ${duplicate.assigneeName}).`
+        );
+      }
 
-    const assignment: Assignment = {
-      id,
-      entityType,
-      entityId: input.entityId,
-      videoId: entityType === 'VIDEO' ? input.entityId : undefined,
-      taskType: input.taskType,
-      assignmentRole: (input as any).assignmentRole || input.taskType,
-      assigneeId: user.id,
-      assigneeName: user.name,
-      status: AssignmentStatus.ASSIGNED,
-      priority: input.priority || PriorityLevel.NORMAL,
-      assignedAt: now,
-      dueDate,
-      dueAt: dueDate,
-      notes: input.notes?.trim() || undefined,
-      createdAt: now,
-      updatedAt: now,
-    };
+      // 4. Allocate permanent sequence-backed ID
+      const id = await idService.allocateAssignmentId();
+      const now = new Date().toISOString();
+      const dueDate = input.dueDate || input.dueAt || undefined;
 
-    const created = await assignmentsRepository.appendRecord(assignment);
-
-    // 5. Audit Logging
-    await auditLogRepository.logAction(
-      actorId,
-      actorName,
-      'ASSIGNMENT_CREATED',
-      'ASSIGNMENT',
-      id,
-      {
-        entityType: input.entityType,
+      const assignment: Assignment = {
+        id,
+        entityType,
         entityId: input.entityId,
+        videoId: entityType === 'VIDEO' ? input.entityId : undefined,
         taskType: input.taskType,
+        assignmentRole: (input as any).assignmentRole || input.taskType,
         assigneeId: user.id,
         assigneeName: user.name,
-        priority: assignment.priority,
+        status: AssignmentStatus.ASSIGNED,
+        priority: input.priority || PriorityLevel.NORMAL,
+        assignedAt: now,
         dueDate,
-      }
-    );
+        dueAt: dueDate,
+        notes: input.notes?.trim() || undefined,
+        createdAt: now,
+        updatedAt: now,
+      };
 
-    await workflowService.recordTransition(
-      'ASSIGNMENT' as any,
-      id,
-      'NONE',
-      AssignmentStatus.ASSIGNED,
-      actorId,
-      actorName,
-      `Assigned "${input.taskType}" on ${input.entityType} ${input.entityId} to ${user.name}`
-    );
+      const created = await assignmentsRepository.appendRecord(assignment);
 
-    return created;
+      // 5. Audit Logging
+      await auditLogRepository.logAction(
+        actorId,
+        actorName,
+        'ASSIGNMENT_CREATED',
+        'ASSIGNMENT',
+        id,
+        {
+          entityType: input.entityType,
+          entityId: input.entityId,
+          taskType: input.taskType,
+          assigneeId: user.id,
+          assigneeName: user.name,
+          priority: assignment.priority,
+          dueDate,
+        }
+      );
+
+      await workflowService.recordTransition(
+        'ASSIGNMENT' as any,
+        id,
+        'NONE',
+        AssignmentStatus.ASSIGNED,
+        actorId,
+        actorName,
+        `Assigned "${input.taskType}" on ${input.entityType} ${input.entityId} to ${user.name}`
+      );
+
+      return created;
+    });
   }
 
   /**

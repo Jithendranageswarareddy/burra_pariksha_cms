@@ -336,101 +336,111 @@ export class ThumbnailService {
       description: `Uploaded thumbnail asset for Content ID: ${targetContentId}`,
     });
 
-    const now = new Date().toISOString();
-    const existing = await thumbnailsRepository.findByVideoId(params.videoId);
+    try {
+      const now = new Date().toISOString();
+      const existing = await thumbnailsRepository.findByVideoId(params.videoId);
 
-    let savedThumbnail: Thumbnail;
-    let newVersion: ThumbnailVersion;
+      let savedThumbnail: Thumbnail;
+      let newVersion: ThumbnailVersion;
 
-    if (!existing) {
-      // Create initial thumbnail record
-      const thumbnailId = await idService.allocateThumbnailId();
-      const newThumbnail: Thumbnail = {
-        id: thumbnailId,
-        contentId: targetContentId,
-        contentMasterId: video.contentMasterId,
-        videoId: params.videoId,
-        hookHeadline: video.title || 'Initial Hook Headline',
-        driveAssetUrl: driveFile.webViewLink || `https://drive.google.com/drive/folders/${hierarchy.thumbnailsFolderId}`,
-        previewUrl: driveFile.webViewLink || '',
-        status: 'DESIGNED',
-        currentVersion: 1,
-        createdAt: now,
-        updatedAt: now,
-        // Drive metadata
-        driveFileId: driveFile.fileId,
-        driveFolderId: hierarchy.thumbnailsFolderId,
-        driveFolderUrl: driveFile.webViewLink || `https://drive.google.com/drive/folders/${hierarchy.thumbnailsFolderId}`,
-        fileName: sanitizedFileName,
-        mimeType: params.mimeType,
-        fileSize: driveFile.size || params.size || 0,
-      };
+      if (!existing) {
+        // Create initial thumbnail record
+        const thumbnailId = await idService.allocateThumbnailId();
+        const newThumbnail: Thumbnail = {
+          id: thumbnailId,
+          contentId: targetContentId,
+          contentMasterId: video.contentMasterId,
+          videoId: params.videoId,
+          hookHeadline: video.title || 'Initial Hook Headline',
+          driveAssetUrl: driveFile.webViewLink || `https://drive.google.com/drive/folders/${hierarchy.thumbnailsFolderId}`,
+          previewUrl: driveFile.webViewLink || '',
+          status: 'DESIGNED',
+          currentVersion: 1,
+          createdAt: now,
+          updatedAt: now,
+          // Drive metadata
+          driveFileId: driveFile.fileId,
+          driveFolderId: hierarchy.thumbnailsFolderId,
+          driveFolderUrl: driveFile.webViewLink || `https://drive.google.com/drive/folders/${hierarchy.thumbnailsFolderId}`,
+          fileName: sanitizedFileName,
+          mimeType: params.mimeType,
+          fileSize: driveFile.size || params.size || 0,
+        };
 
-      savedThumbnail = await thumbnailsRepository.appendRecord(newThumbnail);
+        savedThumbnail = await thumbnailsRepository.appendRecord(newThumbnail);
 
-      const initialVersion: ThumbnailVersion = {
-        id: `${thumbnailId}-V1`,
-        thumbnailId,
-        versionNumber: 1,
-        driveAssetUrl: driveFile.webViewLink || '',
-        designerNotes: params.designerNotes || 'Initial thumbnail mockup uploaded',
-        createdAt: now,
-        // Keep version tracking robust
-        driveFileId: driveFile.fileId,
-      } as any;
+        const initialVersion: ThumbnailVersion = {
+          id: `${thumbnailId}-V1`,
+          thumbnailId,
+          versionNumber: 1,
+          driveAssetUrl: driveFile.webViewLink || '',
+          designerNotes: params.designerNotes || 'Initial thumbnail mockup uploaded',
+          createdAt: now,
+          // Keep version tracking robust
+          driveFileId: driveFile.fileId,
+        } as any;
 
-      await thumbnailVersionsRepository.appendRecord(initialVersion);
-      newVersion = initialVersion;
+        await thumbnailVersionsRepository.appendRecord(initialVersion);
+        newVersion = initialVersion;
 
-      await auditService.log(actor.id, actor.name, 'CREATE_THUMBNAIL_ASSET', 'THUMBNAIL', thumbnailId, {
-        videoId: params.videoId,
-        driveFileId: driveFile.fileId,
-      });
-    } else {
-      // Update existing thumbnail and increment version
-      const nextVersionNumber = (existing.currentVersion || 1) + 1;
-      const updated = await thumbnailsRepository.updateRecord(existing.id, {
-        driveAssetUrl: driveFile.webViewLink || `https://drive.google.com/drive/folders/${hierarchy.thumbnailsFolderId}`,
-        previewUrl: driveFile.webViewLink || '',
-        status: 'DESIGNED',
-        currentVersion: nextVersionNumber,
-        updatedAt: now,
-        // Drive metadata
-        driveFileId: driveFile.fileId,
-        driveFolderId: hierarchy.thumbnailsFolderId,
-        driveFolderUrl: driveFile.webViewLink || `https://drive.google.com/drive/folders/${hierarchy.thumbnailsFolderId}`,
-        fileName: sanitizedFileName,
-        mimeType: params.mimeType,
-        fileSize: driveFile.size || params.size || 0,
-      });
+        await auditService.log(actor.id, actor.name, 'CREATE_THUMBNAIL_ASSET', 'THUMBNAIL', thumbnailId, {
+          videoId: params.videoId,
+          driveFileId: driveFile.fileId,
+        });
+      } else {
+        // Update existing thumbnail and increment version
+        const nextVersionNumber = (existing.currentVersion || 1) + 1;
+        const updated = await thumbnailsRepository.updateRecord(existing.id, {
+          driveAssetUrl: driveFile.webViewLink || `https://drive.google.com/drive/folders/${hierarchy.thumbnailsFolderId}`,
+          previewUrl: driveFile.webViewLink || '',
+          status: 'DESIGNED',
+          currentVersion: nextVersionNumber,
+          updatedAt: now,
+          // Drive metadata
+          driveFileId: driveFile.fileId,
+          driveFolderId: hierarchy.thumbnailsFolderId,
+          driveFolderUrl: driveFile.webViewLink || `https://drive.google.com/drive/folders/${hierarchy.thumbnailsFolderId}`,
+          fileName: sanitizedFileName,
+          mimeType: params.mimeType,
+          fileSize: driveFile.size || params.size || 0,
+        });
 
-      if (!updated) {
-        throw new Error(`Failed to update thumbnail "${existing.id}" metadata.`);
+        if (!updated) {
+          throw new Error(`Failed to update thumbnail "${existing.id}" metadata.`);
+        }
+        savedThumbnail = updated;
+
+        const versionId = `${existing.id}-V${nextVersionNumber}`;
+        const versionRecord: ThumbnailVersion = {
+          id: versionId,
+          thumbnailId: existing.id,
+          versionNumber: nextVersionNumber,
+          driveAssetUrl: driveFile.webViewLink || '',
+          designerNotes: params.designerNotes || `Version ${nextVersionNumber} Revision mockup uploaded`,
+          createdAt: now,
+          driveFileId: driveFile.fileId,
+        } as any;
+
+        await thumbnailVersionsRepository.appendRecord(versionRecord);
+        newVersion = versionRecord;
+
+        await auditService.log(actor.id, actor.name, 'SAVE_NEW_THUMBNAIL_ASSET_VERSION', 'THUMBNAIL', existing.id, {
+          videoId: params.videoId,
+          versionNumber: nextVersionNumber,
+          driveFileId: driveFile.fileId,
+        });
       }
-      savedThumbnail = updated;
 
-      const versionId = `${existing.id}-V${nextVersionNumber}`;
-      const versionRecord: ThumbnailVersion = {
-        id: versionId,
-        thumbnailId: existing.id,
-        versionNumber: nextVersionNumber,
-        driveAssetUrl: driveFile.webViewLink || '',
-        designerNotes: params.designerNotes || `Version ${nextVersionNumber} Revision mockup uploaded`,
-        createdAt: now,
-        driveFileId: driveFile.fileId,
-      } as any;
-
-      await thumbnailVersionsRepository.appendRecord(versionRecord);
-      newVersion = versionRecord;
-
-      await auditService.log(actor.id, actor.name, 'SAVE_NEW_THUMBNAIL_ASSET_VERSION', 'THUMBNAIL', existing.id, {
-        videoId: params.videoId,
-        versionNumber: nextVersionNumber,
-        driveFileId: driveFile.fileId,
-      });
+      return { thumbnail: savedThumbnail, version: newVersion };
+    } catch (err: any) {
+      // Compensation: Rollback Drive file if Sheets metadata persistence fails
+      try {
+        await googleDriveService.deleteFile(driveFile.fileId);
+      } catch (deleteErr) {
+        console.error(`[ThumbnailService] Failed to cleanup orphaned Drive file "${driveFile.fileId}":`, deleteErr);
+      }
+      throw new Error(`Failed to persist thumbnail metadata after Drive upload: ${err?.message || 'Unknown error'}`);
     }
-
-    return { thumbnail: savedThumbnail, version: newVersion };
   }
 }
 

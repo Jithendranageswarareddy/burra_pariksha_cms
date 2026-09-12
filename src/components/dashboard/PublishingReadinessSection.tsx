@@ -18,7 +18,15 @@ interface PublishingReadinessSectionProps {
 }
 
 export const PublishingReadinessSection: React.FC<PublishingReadinessSectionProps> = ({ items }) => {
-  const safeItems = Array.isArray(items) ? items : [];
+  const safeItems = React.useMemo(() => {
+    if (!Array.isArray(items)) return [];
+    const seen = new Set<string>();
+    return items.filter((item) => {
+      if (!item?.videoId || seen.has(item.videoId)) return false;
+      seen.add(item.videoId);
+      return true;
+    });
+  }, [items]);
   const getStatusBadge = (status: 'READY' | 'BLOCKED' | 'INCOMPLETE') => {
     switch (status) {
       case 'READY':
@@ -55,7 +63,7 @@ export const PublishingReadinessSection: React.FC<PublishingReadinessSectionProp
             <h3 className="text-sm font-bold text-slate-900 tracking-tight flex items-center gap-2">
               <span>Publishing Readiness & Multi-Platform Matrix</span>
               <span className="text-xs px-2 py-0.5 rounded-full bg-teal-50 text-teal-800 font-semibold border border-teal-100">
-                {items.filter((i) => i.status === 'READY').length} Ready for Upload
+                {safeItems.filter((i) => i.status === 'READY').length} Ready for Upload
               </span>
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
@@ -73,13 +81,13 @@ export const PublishingReadinessSection: React.FC<PublishingReadinessSectionProp
         </Link>
       </div>
 
-      {items.length === 0 ? (
+      {safeItems.length === 0 ? (
         <div className="p-8 text-center bg-slate-50 rounded-lg border border-dashed border-slate-200 text-slate-500 text-xs">
           No videos currently in final review or ready-to-upload state.
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-          {items.map((item) => (
+          {safeItems.map((item) => (
             <div
               key={item.videoId}
               className={`p-4 rounded-xl border transition-all flex flex-col justify-between space-y-3 ${
