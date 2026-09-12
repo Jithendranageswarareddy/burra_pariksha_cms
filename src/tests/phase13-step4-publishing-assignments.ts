@@ -113,6 +113,7 @@ export async function runPhase13Step4Tests() {
     nextAssignmentSeq = 1;
 
     videosRepository.findById = async (id: string) => mockVideos[id] || null;
+    videosRepository.findByQuestionId = async (qId: string) => Object.values(mockVideos).filter((v: any) => v.questionId === qId);
     videosRepository.update = async (id: string, updates: any) => {
       if (mockVideos[id]) {
         mockVideos[id] = { ...mockVideos[id], ...updates };
@@ -267,6 +268,7 @@ export async function runPhase13Step4Tests() {
       questionId,
       title: 'Quick Math: 15% of 300',
       status: VideoProductionStatus.READY_TO_UPLOAD,
+      driveFileId: 'drive-file-001',
       priority: PriorityLevel.HIGH,
       finalRenderPath: 'https://storage.googleapis.com/videos/v-999001.mp4',
       createdAt: '2026-01-01T00:00:00Z',
@@ -301,6 +303,9 @@ export async function runPhase13Step4Tests() {
       id: `SCR-${videoId}`,
       questionId,
       videoId,
+      hookText: 'Watch this 5-second trick!',
+      problemStatement: 'What is 15% of 300?',
+      stepByStepSolution: '10% is 30, 5% is 15, so 30 + 15 = 45.',
       selectedHookId: 'H1',
       spokenLanguage: 'TELUGU',
       status: 'APPROVED',
@@ -347,6 +352,8 @@ export async function runPhase13Step4Tests() {
       updatedAt: '2026-01-01T00:00:00Z',
     };
 
+    const bundle = await SocialReviewService.getReviewPackageBundle(questionId, question);
+
     mockSocialReviews[questionId] = [{
       id: `REV-${questionId}`,
       entityType: 'QUESTION',
@@ -354,7 +361,7 @@ export async function runPhase13Step4Tests() {
       questionId,
       decision: SocialReviewStatus.APPROVED,
       reviewStatus: SocialReviewStatus.APPROVED,
-      reviewedVersionHash: 'TEMP_HASH',
+      reviewedVersionHash: bundle.currentVersionHash,
       reviewerId: 'USR-PUBMGR',
       reviewerName: 'Publishing Manager',
       reviewerRole: UserRole.PUBLISHING_MANAGER,
@@ -371,9 +378,6 @@ export async function runPhase13Step4Tests() {
       createdAt: '2026-01-02T00:00:00Z',
       updatedAt: '2026-01-02T00:00:00Z',
     }];
-
-    const bundle = await SocialReviewService.getReviewPackageBundle(questionId);
-    mockSocialReviews[questionId][0].reviewedVersionHash = bundle.currentVersionHash;
 
     const publishing: Publishing = {
       id: `PUB-${videoId}`,

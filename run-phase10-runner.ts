@@ -1,8 +1,8 @@
-import { runPhase10Verification } from './src/tests/phase10-verification';
+import { runPhase10PublishingVerification } from './src/tests/phase10-publishing-verification';
 
 async function main() {
   try {
-    const result = await runPhase10Verification();
+    const result = await runPhase10PublishingVerification();
     console.log('Runner finished successfully:', result);
     process.exit(0);
   } catch (err: any) {

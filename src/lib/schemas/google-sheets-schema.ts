@@ -417,6 +417,13 @@ export const SHEET_SCHEMAS: Record<SheetTabName, SheetSchemaContract> = {
       { name: 'current_version', propertyKey: 'currentVersion', type: 'number', required: true },
       { name: 'created_at', propertyKey: 'createdAt', type: 'date', required: true },
       { name: 'updated_at', propertyKey: 'updatedAt', type: 'date', required: true },
+      // Drive binary metadata columns
+      { name: 'drive_file_id', propertyKey: 'driveFileId', type: 'string', required: false },
+      { name: 'drive_folder_id', propertyKey: 'driveFolderId', type: 'string', required: false },
+      { name: 'drive_folder_url', propertyKey: 'driveFolderUrl', type: 'string', required: false },
+      { name: 'file_name', propertyKey: 'fileName', type: 'string', required: false },
+      { name: 'mime_type', propertyKey: 'mimeType', type: 'string', required: false },
+      { name: 'file_size', propertyKey: 'fileSize', type: 'number', required: false },
     ],
   },
 
@@ -432,6 +439,8 @@ export const SHEET_SCHEMAS: Record<SheetTabName, SheetSchemaContract> = {
       { name: 'drive_asset_url', propertyKey: 'driveAssetUrl', type: 'string', required: true },
       { name: 'designer_notes', propertyKey: 'designerNotes', type: 'string', required: false },
       { name: 'created_at', propertyKey: 'createdAt', type: 'date', required: true },
+      // Drive binary metadata columns
+      { name: 'drive_file_id', propertyKey: 'driveFileId', type: 'string', required: false },
     ],
   },
 

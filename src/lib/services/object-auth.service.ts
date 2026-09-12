@@ -320,7 +320,7 @@ export class ObjectAuthorizationService {
     if (this.isManagerOrAdmin(actor)) return true;
     if (!target) return false;
 
-    const allowedRoles = [UserRole.DESIGNER, UserRole.THUMBNAIL_DESIGNER, UserRole.CREATOR];
+    const allowedRoles = [UserRole.THUMBNAIL_DESIGNER, UserRole.CREATOR];
     if (!this.hasAnyRole(actor, allowedRoles)) return false;
 
     if (typeof target === 'string') {

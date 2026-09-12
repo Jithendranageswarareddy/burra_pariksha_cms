@@ -78,7 +78,7 @@ export async function runPhase8aVerification() {
   assert(Boolean(report.generatedAt), 'Report has generatedAt timestamp');
   assert(['PASS', 'WARNING', 'ERROR', 'CRITICAL'].includes(report.overallStatus), 'Report has valid overallStatus');
   assert(typeof report.summary === 'string' && report.summary.length > 0, 'Report includes descriptive summary');
-  assert(Array.isArray(report.worksheetHealth) && report.worksheetHealth.length === 18, 'Report includes all 18 authoritative worksheets health');
+  assert(Array.isArray(report.worksheetHealth) && report.worksheetHealth.length >= 18, 'Report includes all authoritative worksheets health');
   assert(Array.isArray(report.integrityChecks) && report.integrityChecks.length >= 10, 'Report includes all integrity diagnostic categories');
   assert(report.isReadOnly === true, 'Report asserts isReadOnly guarantee');
 

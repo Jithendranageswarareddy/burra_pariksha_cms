@@ -299,11 +299,12 @@ export class SocialReviewService {
     let currentReviewStatus = SocialReviewStatus.PENDING_REVIEW;
 
     if (latestReviewRecord) {
+      console.log('VALIDATION HASH CHECK:', { currentVersionHash, reviewedHash: latestReviewRecord?.reviewedVersionHash, match: latestReviewRecord?.reviewedVersionHash === currentVersionHash });
       if (latestReviewRecord.decision === SocialReviewStatus.APPROVED) {
         if (latestReviewRecord.reviewedVersionHash === currentVersionHash) {
           currentReviewStatus = SocialReviewStatus.APPROVED;
         } else {
-          currentReviewStatus = SocialReviewStatus.STALE_REVISION_REQUIRED;
+          currentReviewStatus = SocialReviewStatus.PENDING_REVIEW;
         }
       } else if (latestReviewRecord.decision === SocialReviewStatus.CHANGES_REQUESTED) {
         if (latestReviewRecord.reviewedVersionHash === currentVersionHash) {

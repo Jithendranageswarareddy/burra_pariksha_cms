@@ -23,6 +23,7 @@ import { SocialReviewService } from '../lib/services/social-review.service';
 import { publishingService } from '../lib/services/publishing.service';
 import { ScriptService } from '../lib/services/script.service';
 import { thumbnailsRepository } from '../lib/repositories/thumbnails.repository';
+import { thumbnailService } from '../lib/services/thumbnail.service';
 import { pinnedCommentsRepository } from '../lib/repositories/pinned-comments.repository';
 import { workflowRepository } from '../lib/repositories/workflow.repository';
 import { auditLogRepository } from '../lib/repositories/audit-log.repository';
@@ -2798,6 +2799,172 @@ export async function runPhase9WorkflowVerification(): Promise<{
     const finalVideo = await videosRepository.findById(vId);
     if (finalVideo?.status !== VideoProductionStatus.SCRIPT_READY) {
       throw new Error(`Expected video status to advance to SCRIPT_READY, got: ${finalVideo?.status}`);
+    }
+  });
+
+  await runTest('63. Thumbnail Binary Upload & Drive Metadata', async () => {
+    const videoId = `V-P9-T-${Date.now()}`;
+    const contentId = `BP-CNT-${Math.floor(100000 + Math.random() * 900000)}`;
+    
+    // Seed parent video record
+    await videosRepository.appendRecord({
+      id: videoId,
+      contentId,
+      contentMasterId: contentId,
+      questionId: 'Q-P9-T-1',
+      title: 'Drive Metadata Test Video',
+      status: VideoProductionStatus.EDITED,
+      priority: PriorityLevel.NORMAL,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    const mockBuffer = Buffer.from('fake-image-binary-bytes');
+    
+    // First upload
+    const result1 = await thumbnailService.uploadThumbnailAsset({
+      videoId,
+      fileName: 'cool_thumbnail_v1.png',
+      mimeType: 'image/png',
+      fileStreamOrBuffer: mockBuffer,
+      size: mockBuffer.length,
+      designerNotes: 'Initial design mock',
+      actor: { id: 'ADM-001', name: 'Test Admin', role: UserRole.ADMIN },
+    });
+
+    if (!result1.thumbnail || !result1.version) {
+      throw new Error('Expected both thumbnail and version to be returned on upload.');
+    }
+
+    if (result1.thumbnail.currentVersion !== 1) {
+      throw new Error(`Expected currentVersion to be 1, got ${result1.thumbnail.currentVersion}`);
+    }
+
+    if (result1.thumbnail.status !== 'DESIGNED') {
+      throw new Error(`Expected status to be DESIGNED, got ${result1.thumbnail.status}`);
+    }
+
+    // Verify Drive metadata is present on Thumbnail
+    if (!result1.thumbnail.driveFileId) {
+      throw new Error('Expected driveFileId to be present on Thumbnail.');
+    }
+    if (result1.thumbnail.fileName !== 'cool_thumbnail_v1.png') {
+      throw new Error(`Expected fileName to be cool_thumbnail_v1.png, got ${result1.thumbnail.fileName}`);
+    }
+    if (result1.thumbnail.fileSize !== mockBuffer.length) {
+      throw new Error(`Expected fileSize to be ${mockBuffer.length}, got ${result1.thumbnail.fileSize}`);
+    }
+
+    // Verify versioning
+    if (result1.version.versionNumber !== 1) {
+      throw new Error(`Expected versionNumber 1, got ${result1.version.versionNumber}`);
+    }
+    if (result1.version.driveFileId !== result1.thumbnail.driveFileId) {
+      throw new Error('Expected version driveFileId to match thumbnail.');
+    }
+
+    // Second upload (revision)
+    const result2 = await thumbnailService.uploadThumbnailAsset({
+      videoId,
+      fileName: 'cool_thumbnail_v2.png',
+      mimeType: 'image/png',
+      fileStreamOrBuffer: mockBuffer,
+      size: mockBuffer.length,
+      designerNotes: 'Revised design mock with fixed typography',
+      actor: { id: 'ADM-001', name: 'Test Admin', role: UserRole.ADMIN },
+    });
+
+    if (result2.thumbnail.currentVersion !== 2) {
+      throw new Error(`Expected currentVersion to increment to 2, got ${result2.thumbnail.currentVersion}`);
+    }
+    if (result2.version.versionNumber !== 2) {
+      throw new Error(`Expected version number 2, got ${result2.version.versionNumber}`);
+    }
+    if (result2.thumbnail.fileName !== 'cool_thumbnail_v2.png') {
+      throw new Error(`Expected updated fileName cool_thumbnail_v2.png, got ${result2.thumbnail.fileName}`);
+    }
+  });
+
+  await runTest('64. Thumbnail Upload RBAC Authorization', async () => {
+    const videoId = `V-P9-T-RBAC-${Date.now()}`;
+    const contentId = `BP-CNT-RBAC-${Math.floor(100000 + Math.random() * 900000)}`;
+
+    await videosRepository.appendRecord({
+      id: videoId,
+      contentId,
+      contentMasterId: contentId,
+      questionId: 'Q-P9-T-2',
+      title: 'RBAC Test Video',
+      status: VideoProductionStatus.EDITED,
+      priority: PriorityLevel.NORMAL,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    const mockBuffer = Buffer.from('fake-image-binary-bytes');
+
+    // 1. Test active production role: THUMBNAIL_DESIGNER (Should succeed)
+    const resultThmDesigner = await thumbnailService.uploadThumbnailAsset({
+      videoId,
+      fileName: 'designer_mock.png',
+      mimeType: 'image/png',
+      fileStreamOrBuffer: mockBuffer,
+      size: mockBuffer.length,
+      designerNotes: 'Thumbnail Designer upload',
+      actor: { id: 'DES-001', name: 'Test Thumbnail Designer', role: UserRole.THUMBNAIL_DESIGNER },
+    });
+
+    if (!resultThmDesigner.thumbnail) {
+      throw new Error('Expected THUMBNAIL_DESIGNER to succeed in uploading thumbnail.');
+    }
+
+    // 2. Test legacy role: DESIGNER (Should fail / be rejected)
+    try {
+      await thumbnailService.uploadThumbnailAsset({
+        videoId,
+        fileName: 'legacy_mock.png',
+        mimeType: 'image/png',
+        fileStreamOrBuffer: mockBuffer,
+        size: mockBuffer.length,
+        actor: { id: 'DES-002', name: 'Legacy Designer', role: UserRole.DESIGNER },
+      });
+      throw new Error('Expected legacy DESIGNER role to be rejected from active thumbnail operations.');
+    } catch (err: any) {
+      if (!err.message.includes('Unauthorized') && !err.message.includes('not allowed to modify')) {
+        throw new Error(`Expected Unauthorized error for legacy DESIGNER, got: ${err.message}`);
+      }
+    }
+
+    // 3. Test active production role: VIDEO_EDITOR (Should succeed)
+    const resultVideoEditor = await thumbnailService.uploadThumbnailAsset({
+      videoId,
+      fileName: 'video_editor_mock.png',
+      mimeType: 'image/png',
+      fileStreamOrBuffer: mockBuffer,
+      size: mockBuffer.length,
+      designerNotes: 'Video editor upload',
+      actor: { id: 'EDT-001', name: 'Test Video Editor', role: UserRole.VIDEO_EDITOR },
+    });
+
+    if (!resultVideoEditor.thumbnail) {
+      throw new Error('Expected VIDEO_EDITOR to succeed in uploading thumbnail.');
+    }
+
+    // 4. Test unauthorized role: SPEAKER (Should fail)
+    try {
+      await thumbnailService.uploadThumbnailAsset({
+        videoId,
+        fileName: 'speaker_mock.png',
+        mimeType: 'image/png',
+        fileStreamOrBuffer: mockBuffer,
+        size: mockBuffer.length,
+        actor: { id: 'SPK-001', name: 'Test Speaker', role: UserRole.SPEAKER },
+      });
+      throw new Error('Expected SPEAKER upload to be rejected with unauthorized role error.');
+    } catch (err: any) {
+      if (!err.message.includes('Unauthorized') && !err.message.includes('not allowed to modify')) {
+        throw new Error(`Expected Unauthorized error for SPEAKER, got: ${err.message}`);
+      }
     }
   });
 

@@ -10,6 +10,7 @@ import { questionsRepository } from '../lib/repositories/questions.repository';
 import { thumbnailsRepository } from '../lib/repositories/thumbnails.repository';
 import { pinnedCommentsRepository } from '../lib/repositories/pinned-comments.repository';
 import { socialReviewsRepository } from '../lib/repositories/social-reviews.repository';
+import { scriptsRepository } from '../lib/repositories/scripts.repository';
 import { SocialReviewService } from '../lib/services/social-review.service';
 import { SHEET_SCHEMAS, SHEET_TABS } from '../lib/schemas/google-sheets-schema';
 import {
@@ -98,6 +99,7 @@ async function runPhase13Step2Tests() {
     questionId: testQuestionId,
     title: 'Phase 13.2 Test Video',
     status: VideoProductionStatus.READY_TO_UPLOAD,
+    driveFileId: 'drive-file-123',
     priority: 'HIGH' as any,
     targetDurationSeconds: 45,
     actualDurationSeconds: 42,
@@ -180,6 +182,17 @@ async function runPhase13Step2Tests() {
     await pinnedCommentsRepository.create(mockPinnedComment);
     await videosRepository.create(mockVideo);
     await publishingRepository.create(mockPublishing);
+    await scriptsRepository.create({
+      id: `SCR-${testVideoId}`,
+      videoId: testVideoId,
+      questionId: testQuestionId,
+      hookText: 'Test hook text',
+      problemStatement: 'Test problem',
+      stepByStepSolution: 'Test solution',
+      currentVersion: 1,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    } as any);
 
     console.log('--- 1. MARK PLATFORM FAILED TESTS ---');
 

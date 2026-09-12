@@ -100,6 +100,7 @@ export async function runPhase13Step5Tests() {
   let mockWorkflowLogs: any[] = [];
 
   videosRepository.findById = async (id: string) => mockVideos[id] || null;
+  videosRepository.findByQuestionId = async (qId: string) => Object.values(mockVideos).filter((v: any) => v.questionId === qId);
   videosRepository.findAll = async () => Object.values(mockVideos);
   videosRepository.updateRecord = async (id: string, updates: any) => {
     if (mockVideos[id]) {
@@ -214,6 +215,7 @@ export async function runPhase13Step5Tests() {
     questionId: testQuestionId,
     title: 'Burra Speed Trick | 25% Shortcut',
     status: VideoProductionStatus.READY_TO_UPLOAD,
+    driveFileId: 'drive-file-135',
     priority: PriorityLevel.HIGH,
     finalRenderPath: 'gs://renders/vid-phase13-5-test.mp4',
     finalRenderWidth: 1080,
@@ -255,6 +257,9 @@ export async function runPhase13Step5Tests() {
     id: 'SCR-135',
     questionId: testQuestionId,
     videoId: testVideoId,
+    hookText: 'Watch this 5-second trick!',
+    problemStatement: 'What is 25% of 400?',
+    stepByStepSolution: '25% = 1/4th. 400 / 4 = 100.',
     selectedHookId: 'H1',
     spokenLanguage: 'TELUGU',
     status: 'APPROVED',
@@ -300,12 +305,15 @@ export async function runPhase13Step5Tests() {
     updatedAt: new Date().toISOString(),
   };
 
+  const question = mockQuestions[testQuestionId];
+  const bundle = await SocialReviewService.getReviewPackageBundle(testQuestionId, question);
+
   // Seed social review record
   mockSocialReviews[testQuestionId] = [{
     id: 'REV-135',
     questionId: testQuestionId,
     decision: SocialReviewStatus.APPROVED,
-    reviewedVersionHash: 'TEMP_HASH',
+    reviewedVersionHash: bundle.currentVersionHash,
     reviewerId: adminActor.id,
     reviewerName: adminActor.name,
     reviewerRole: adminActor.role,
@@ -313,10 +321,6 @@ export async function runPhase13Step5Tests() {
     qualityStatusAtReview: SocialQualityStatus.EXCELLENT,
     reviewedAt: new Date().toISOString(),
   }];
-
-  // Calculate actual version hash from authoritative SocialReviewService
-  const bundle = await SocialReviewService.getReviewPackageBundle(testQuestionId);
-  mockSocialReviews[testQuestionId][0].reviewedVersionHash = bundle.currentVersionHash;
 
   // Seed publishing record
   mockPublishings[testPubId] = {

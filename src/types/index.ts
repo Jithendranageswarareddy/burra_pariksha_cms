@@ -637,7 +637,13 @@ export interface Thumbnail {
   currentVersion: number;
   createdAt: string;
   updatedAt: string;
-  // TODO: Link with Google Drive folder in Phase 3
+  // Drive binary metadata fields
+  driveFileId?: string;
+  driveFolderId?: string;
+  driveFolderUrl?: string;
+  fileName?: string;
+  mimeType?: string;
+  fileSize?: number;
 }
 
 /**
@@ -651,6 +657,8 @@ export interface ThumbnailVersion {
   driveAssetUrl: string;
   designerNotes?: string;
   createdAt: string;
+  // Drive binary metadata
+  driveFileId?: string;
 }
 
 /**

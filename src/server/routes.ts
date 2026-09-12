@@ -45,6 +45,7 @@ import { ActorContext } from '../lib/services/object-auth.service';
 import { usersRepository } from '../lib/repositories/users.repository';
 import { questionsRepository } from '../lib/repositories/questions.repository';
 import { socialReviewsRepository } from '../lib/repositories/social-reviews.repository';
+import { thumbnailsRepository } from '../lib/repositories/thumbnails.repository';
 import { SocialEnhancementService } from '../lib/services/social-enhancement.service';
 import { SocialReviewService } from '../lib/services/social-review.service';
 import {
@@ -2369,7 +2370,7 @@ apiRouter.get('/thumbnails/:thumbnailId/versions', async (req: Request, res: Res
   }
 });
 
-apiRouter.post('/videos/:videoId/thumbnail', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.DESIGNER]), async (req: Request, res: Response) => {
+apiRouter.post('/videos/:videoId/thumbnail', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.THUMBNAIL_DESIGNER]), async (req: Request, res: Response) => {
   try {
     const { videoId } = req.params;
     const actor = getRequestActor(req);
@@ -2396,6 +2397,117 @@ apiRouter.patch('/thumbnails/:thumbnailId/status', requireRole([UserRole.ADMIN, 
     res.json(updated);
   } catch (err: any) {
     res.status(400).json({ error: err?.message || 'Failed to update thumbnail status' });
+  }
+});
+
+// Phase 9: Thumbnail Binary Upload and Download Routes
+const handleThumbnailUploadRoute = async (req: Request, res: Response) => {
+  try {
+    const actor = getRequestActor(req);
+    const videoIdParam = req.params.videoId;
+
+    const bb = busboy({ headers: req.headers });
+    let videoId = videoIdParam || (req.query.videoId as string | undefined);
+    let designerNotes = req.query.designerNotes as string | undefined;
+    let uploadedFile: { stream: any; filename: string; mimeType: string } | null = null;
+    let fileSize = 0;
+
+    bb.on('field', (name, val) => {
+      if (name === 'videoId') videoId = val;
+      if (name === 'designerNotes') designerNotes = val;
+    });
+
+    bb.on('file', (name, fileStream, info) => {
+      const chunks: Buffer[] = [];
+      fileStream.on('data', (chunk) => {
+        chunks.push(chunk);
+        fileSize += chunk.length;
+      });
+      fileStream.on('end', () => {
+        const buffer = Buffer.concat(chunks);
+        uploadedFile = {
+          stream: buffer,
+          filename: info.filename,
+          mimeType: info.mimeType,
+        };
+      });
+    });
+
+    bb.on('finish', async () => {
+      try {
+        if (!uploadedFile) {
+          return res.status(400).json({ error: 'Bad Request', message: 'No thumbnail file provided in multipart upload body.' });
+        }
+        if (!videoId) {
+          return res.status(400).json({ error: 'Bad Request', message: 'videoId is required for thumbnail upload.' });
+        }
+
+        const video = await videoService.getVideoById(videoId);
+        if (!video) {
+          return res.status(404).json({ error: 'Video Not Found', message: `Video "${videoId}" not found.` });
+        }
+
+        const canAccess = await objectAuthService.canAccessThumbnail(actor, video);
+        if (!canAccess) {
+          return res.status(403).json({ error: 'Forbidden: You do not have permission to upload thumbnail for this video.' });
+        }
+
+        const result = await thumbnailService.uploadThumbnailAsset({
+          videoId,
+          fileName: uploadedFile.filename,
+          mimeType: uploadedFile.mimeType,
+          size: fileSize,
+          fileStreamOrBuffer: uploadedFile.stream,
+          designerNotes,
+          actor,
+        });
+
+        res.status(201).json(result);
+      } catch (err: any) {
+        res.status(err?.statusCode || 400).json({
+          error: err?.name || 'Upload Failed',
+          message: err?.message || 'Failed to upload thumbnail asset.',
+        });
+      }
+    });
+
+    bb.on('error', (err: any) => {
+      res.status(400).json({ error: 'Multipart Error', message: err?.message || 'Error parsing file upload stream.' });
+    });
+
+    req.pipe(bb);
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || 'Failed to initialize upload handler' });
+  }
+};
+
+apiRouter.post('/videos/:videoId/thumbnail/upload', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.VIDEO_EDITOR, UserRole.THUMBNAIL_DESIGNER]), handleThumbnailUploadRoute);
+
+apiRouter.get('/thumbnails/:id/download', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const actor = getRequestActor(req);
+    const thumbnail = await thumbnailsRepository.findById(id);
+    if (!thumbnail) {
+      return res.status(404).json({ error: 'Thumbnail Not Found', message: `Thumbnail with ID "${id}" was not found.` });
+    }
+    const canAccess = await objectAuthService.canAccessThumbnail(actor, thumbnail);
+    if (!canAccess) {
+      return res.status(403).json({ error: 'Forbidden: You do not have permission to download this thumbnail.' });
+    }
+    if (!thumbnail.driveFileId) {
+      return res.status(404).json({ error: 'No Drive Asset', message: `Thumbnail "${id}" does not have an attached Google Drive asset.` });
+    }
+    const download = await googleDriveService.downloadFile(thumbnail.driveFileId);
+    res.setHeader('Content-Type', download.contentType || thumbnail.mimeType || 'image/png');
+    if (download.contentLength) {
+      res.setHeader('Content-Length', download.contentLength);
+    }
+    const safeName = (thumbnail.fileName || `thumbnail-${thumbnail.id}.png`).replace(/["\r\n]/g, '_');
+    res.setHeader('Content-Disposition', `attachment; filename="${safeName}"`);
+    download.stream.pipe(res);
+  } catch (err: any) {
+    res.status(err?.statusCode || 500).json({ error: err?.name || 'Download Error', message: err?.message || 'Failed to download thumbnail stream.' });
   }
 });
 

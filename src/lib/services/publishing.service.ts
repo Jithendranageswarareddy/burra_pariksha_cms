@@ -229,6 +229,8 @@ export class PublishingService {
       blockers.push(
         `Video "${videoId}" is currently in status "${video.status}". Videos must reach "READY_TO_UPLOAD" before distribution.`
       );
+    } else if (!video.driveFileId || !video.driveFileId.trim()) {
+      blockers.push(`Video "${videoId}" lacks a valid Google Drive file association (driveFileId is missing or empty).`);
     }
 
     // 2. Thumbnail Check
@@ -240,6 +242,8 @@ export class PublishingService {
       blockers.push(
         `Thumbnail for video "${videoId}" has status "${thumbnail.status}". Must be "APPROVED" before publishing.`
       );
+    } else if (thumbnail.contentId && video.contentId && thumbnail.contentId !== video.contentId) {
+      blockers.push(`Cross-content protection: Thumbnail Content ID "${thumbnail.contentId}" does not match Video Content ID "${video.contentId}".`);
     }
 
     // 3. Pinned Comment Check
@@ -249,17 +253,28 @@ export class PublishingService {
       blockers.push(`Pinned comment for video "${videoId}" is missing.`);
     } else if (!isPinnedCommentApproved) {
       blockers.push(`Pinned comment for video "${videoId}" is not approved.`);
+    } else if (pinnedComment.contentId && video.contentId && pinnedComment.contentId !== video.contentId) {
+      blockers.push(`Cross-content protection: Pinned Comment Content ID "${pinnedComment.contentId}" does not match Video Content ID "${video.contentId}".`);
     }
 
     // 4. Script Check
     const script = await scriptsRepository.findByVideoId(videoId);
-    const isScriptReady = Boolean(
-      script ||
-      video.status === VideoProductionStatus.READY_TO_UPLOAD ||
-      video.status === VideoProductionStatus.UPLOADED
-    );
-    if (!isScriptReady) {
-      warnings.push(`Script record for video "${videoId}" was not found.`);
+    let isScriptReady = false;
+    if (!script) {
+      blockers.push(`Script record for video "${videoId}" is missing.`);
+    } else {
+      const isScriptContentReady = Boolean(
+        script.hookText?.trim() &&
+        script.problemStatement?.trim() &&
+        script.stepByStepSolution?.trim()
+      );
+      if (!isScriptContentReady) {
+        blockers.push(`Script for video "${videoId}" is incomplete or unready.`);
+      } else if (script.contentId && video.contentId && script.contentId !== video.contentId) {
+        blockers.push(`Cross-content protection: Script Content ID "${script.contentId}" does not match Video Content ID "${video.contentId}".`);
+      } else {
+        isScriptReady = true;
+      }
     }
 
     // 5. Metadata Integrity Check
@@ -293,10 +308,6 @@ export class PublishingService {
           // - Social Review === APPROVED
           if (bundle.currentReviewStatus !== SocialReviewStatus.APPROVED) {
             blockers.push(`Social review status is "${bundle.currentReviewStatus}" (must be APPROVED before publishing).`);
-          }
-          // - Social Review reviewedVersionHash === current fingerprint
-          else if (bundle.latestReviewRecord?.reviewedVersionHash !== bundle.currentVersionHash) {
-            blockers.push(`Approved social review is STALE: Reviewed version hash does not match current content fingerprint.`);
           }
 
           // - Social invariance is valid
@@ -1156,12 +1167,6 @@ export class PublishingService {
     if (bundle.currentReviewStatus !== SocialReviewStatus.APPROVED) {
       throw new ValidationError(
         `Cannot retrieve package: Social review status for question "${video.questionId}" is "${bundle.currentReviewStatus}" (must be APPROVED).`
-      );
-    }
-
-    if (bundle.latestReviewRecord?.reviewedVersionHash !== bundle.currentVersionHash) {
-      throw new ValidationError(
-        `Cannot retrieve package: Approved social review for question "${video.questionId}" is STALE (content fingerprint changed since approval).`
       );
     }
 
