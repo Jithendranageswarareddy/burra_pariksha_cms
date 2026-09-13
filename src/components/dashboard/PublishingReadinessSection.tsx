@@ -53,7 +53,7 @@ export const PublishingReadinessSection: React.FC<PublishingReadinessSectionProp
   };
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-4">
+    <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 shadow-xs space-y-3">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
         <div className="flex items-center gap-2.5">
           <div className="p-2 bg-teal-50 text-teal-700 rounded-lg border border-teal-100">
@@ -82,8 +82,9 @@ export const PublishingReadinessSection: React.FC<PublishingReadinessSectionProp
       </div>
 
       {safeItems.length === 0 ? (
-        <div className="p-8 text-center bg-slate-50 rounded-lg border border-dashed border-slate-200 text-slate-500 text-xs">
-          No videos currently in final review or ready-to-upload state.
+        <div className="flex items-center gap-2 p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-600 text-xs font-medium">
+          <CheckCircle2 className="w-4 h-4 text-slate-400 shrink-0" />
+          <span>No videos currently in final review or ready-to-upload state.</span>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">

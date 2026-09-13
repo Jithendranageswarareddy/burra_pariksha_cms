@@ -16,6 +16,11 @@ import { QuestionCandidateZodSchema } from '../schemas/question-candidate.schema
 import { QuestionCandidate } from '../types';
 import { QuestionLanguage, QuestionStyle } from '../../../types';
 import { MathematicalValidator, MathVerificationResult } from './mathematical.validator';
+import {
+  BlindVerifierProvider,
+  evaluateBlindDerivedResult,
+  GeminiBlindVerifierProvider,
+} from './blind-verifier';
 
 export interface CandidateValidationReport {
   isValid: boolean;
@@ -68,7 +73,7 @@ export class CandidateValidator {
       option_d = '',
       correct_answer,
       explanation = '',
-      language = QuestionLanguage.ENGLISH,
+      language = QuestionLanguage.TELUGU,
       question_style = '',
       real_world_context = '',
     } = candidate;
@@ -226,12 +231,39 @@ export class CandidateValidator {
       });
     }
 
-    // 11. Independent Deterministic Mathematical Validation
-    const mathVerification = MathematicalValidator.verify(candidate);
+    // 11. Independent Mathematical Validation (Deterministic first with authoritative preservation)
+    const existingMath = (candidate as any).mathematicalVerification as MathVerificationResult | undefined;
+    const deterministicMath = MathematicalValidator.verify(candidate);
+
+    let mathVerification: MathVerificationResult;
+
+    if (deterministicMath.status === 'VERIFIED') {
+      mathVerification = deterministicMath;
+    } else if (deterministicMath.status === 'FAILED') {
+      mathVerification = deterministicMath;
+    } else if (existingMath && existingMath.status === 'FAILED') {
+      // Authoritative FAILED result (e.g. from blind verifier) must never be downgraded by weaker deterministic UNVERIFIED
+      mathVerification = existingMath;
+    } else if (existingMath && existingMath.status === 'VERIFIED') {
+      // Authoritative VERIFIED result preserved when deterministic check is UNVERIFIED
+      mathVerification = existingMath;
+    } else if (deterministicMath.status === 'NOT_APPLICABLE') {
+      mathVerification = existingMath || deterministicMath;
+    } else {
+      // Deterministic is UNVERIFIED
+      mathVerification = existingMath || deterministicMath;
+    }
+
     if (mathVerification.status === 'FAILED') {
       errors.push(mathVerification.reason || 'Independent mathematical verification failed.');
     } else if (mathVerification.status === 'UNVERIFIED') {
       warnings.push(`Mathematical verification: UNVERIFIED (${mathVerification.reason}). Human review is authoritative.`);
+    }
+
+    // 12. Real-World Context Validation
+    const cleanContext = (real_world_context || '').trim();
+    if (cleanContext.toUpperCase() === 'RANDOM' || cleanContext.toUpperCase() === 'SMART_RANDOM') {
+      errors.push('Literal "RANDOM" cannot be used as candidate real_world_context. A concrete context must be resolved.');
     }
 
     return {
@@ -247,6 +279,63 @@ export class CandidateValidator {
       },
       mathematicalVerification: mathVerification,
     };
+  }
+
+  /**
+   * Asynchronously validates candidate, invoking blind mathematical verification if deterministic check is UNVERIFIED.
+   */
+  public static async validateAsync(
+    candidate: Partial<QuestionCandidate>,
+    blindVerifier?: BlindVerifierProvider
+  ): Promise<CandidateValidationReport> {
+    const syncReport = CandidateValidator.validate(candidate);
+
+    // If deterministic check is already VERIFIED or FAILED, return immediately
+    if (
+      !syncReport.mathematicalVerification ||
+      syncReport.mathematicalVerification.status !== 'UNVERIFIED'
+    ) {
+      return syncReport;
+    }
+
+    // If no blind verifier available, return sync report (remains UNVERIFIED)
+    const verifier = blindVerifier || new GeminiBlindVerifierProvider();
+
+    try {
+      const derived = await verifier.verifyBlindly({
+        problemText: candidate.content || '',
+        language: candidate.language,
+        topicName: candidate.taxonomy?.topicName,
+        subtopicName: candidate.taxonomy?.subtopicName,
+      });
+
+      const blindMathResult = evaluateBlindDerivedResult(derived, candidate);
+
+      // Clean out previous UNVERIFIED warnings
+      const updatedWarnings = syncReport.warnings.filter(
+        (w) => !w.startsWith('Mathematical verification: UNVERIFIED')
+      );
+      const updatedErrors = [...syncReport.errors];
+
+      if (blindMathResult.status === 'FAILED') {
+        updatedErrors.push(blindMathResult.reason || 'Independent blind mathematical verification failed.');
+      } else if (blindMathResult.status === 'UNVERIFIED') {
+        updatedWarnings.push(
+          `Mathematical verification: UNVERIFIED (${blindMathResult.reason}). Human review is authoritative.`
+        );
+      }
+
+      return {
+        ...syncReport,
+        isValid: updatedErrors.length === 0,
+        errors: updatedErrors,
+        warnings: updatedWarnings,
+        mathematicalVerification: blindMathResult,
+      };
+    } catch (err: any) {
+      // If blind verifier crashes, remain gracefully UNVERIFIED
+      return syncReport;
+    }
   }
 }
 

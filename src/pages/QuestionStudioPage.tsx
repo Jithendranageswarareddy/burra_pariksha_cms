@@ -8,7 +8,7 @@
  * and stale validation state tracking on material candidate edits.
  */
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Sparkles,
@@ -34,7 +34,7 @@ import {
   Category,
   DifficultyLevel,
   QuestionLanguage,
-  QuestionStyle,
+  QuestionConfigEntry,
   ValidationResult,
   QuestionValidationStatus,
 } from '../types';
@@ -45,6 +45,7 @@ import {
   RefineCandidateInput,
 } from '../lib/ai/types';
 import { CandidateValidator, CandidateValidationReport } from '../lib/ai/validators/candidate.validator';
+import { MathVerificationResult } from '../lib/ai/validators/mathematical.validator';
 import { QUESTION_CREATION_CONFIG } from '../config/question-creation.config';
 
 type StudioMode = 'ai' | 'manual';
@@ -75,11 +76,14 @@ export interface StudioCandidate {
   presentationType: string;
   language: QuestionLanguage;
   realLifeContext: string;
+  questionStyle?: string;
+  generationMode?: string;
   tags: string[];
   // AI Metadata
   sourceModel?: string;
   generationLatencyMs?: number;
   isFallback?: boolean;
+  mathematicalVerification?: MathVerificationResult;
 }
 
 export const QuestionStudioPage: React.FC = () => {
@@ -116,15 +120,21 @@ export const QuestionStudioPage: React.FC = () => {
   const [challengeType, setChallengeType] = useState<string>('ABCD');
   const [presentationType, setPresentationType] = useState<string>('Text');
   const [language, setLanguage] = useState<QuestionLanguage>(
-    (queryLanguage as QuestionLanguage) || QuestionLanguage.ENGLISH
+    (queryLanguage as QuestionLanguage) || QuestionLanguage.TELUGU
   );
   const [questionStyle, setQuestionStyle] = useState<string>(
-    queryQuestionStyle || QuestionStyle.REAL_WORLD_SCENARIO
+    queryQuestionStyle || 'STORY_BASED'
   );
   const [realLifeContext, setRealLifeContext] = useState<string>(
-    queryContext || 'Metro escalator commuter rush hour'
+    queryContext || ''
   );
   const [customInstructions, setCustomInstructions] = useState<string>('');
+
+  // Real-Time QUESTION_CONFIG State (Creator-Managed Studio Configuration)
+  const [realLifeContexts, setRealLifeContexts] = useState<QuestionConfigEntry[]>([]);
+  const [questionStyles, setQuestionStyles] = useState<QuestionConfigEntry[]>([]);
+  const [loadingConfig, setLoadingConfig] = useState<boolean>(true);
+  const [configError, setConfigError] = useState<string | null>(null);
 
   // 2. Candidate Editor State
   const [candidate, setCandidate] = useState<StudioCandidate>({
@@ -138,11 +148,12 @@ export const QuestionStudioPage: React.FC = () => {
     categoryId: selectedCategory,
     topicId: selectedTopic,
     subtopicId: selectedSubtopic,
-    difficulty: difficulty,
+    difficulty: difficulty || 'Intermediate',
     challengeType: challengeType,
     presentationType: presentationType,
     language: language,
-    realLifeContext: realLifeContext,
+    realLifeContext: realLifeContext && realLifeContext !== 'RANDOM' ? realLifeContext : '',
+    generationMode: (selectedSubtopic === 'RANDOM' || realLifeContext === 'RANDOM') ? 'RANDOM' : 'SUBTOPIC',
     tags: ['Aptitude', 'SpeedMath'],
   });
   const [hasCandidate, setHasCandidate] = useState<boolean>(false);
@@ -185,7 +196,74 @@ export const QuestionStudioPage: React.FC = () => {
     setSearchParams(newParams, { replace: true });
   };
 
-  // 3. Initial Load: Taxonomy & AI Status
+  // 3. Initial Load: Configuration, Taxonomy & AI Status
+  const loadStudioConfig = useCallback(async (isRefresh = false) => {
+    try {
+      setLoadingConfig(true);
+      setConfigError(null);
+      const res = await apiClient.getQuestionStudioConfig(isRefresh);
+
+      if (!res || !Array.isArray(res.realLifeContexts) || !Array.isArray(res.questionStyles)) {
+        throw new Error('Malformed configuration response received from server.');
+      }
+      if (res.realLifeContexts.length === 0 || res.questionStyles.length === 0) {
+        throw new Error('QUESTION_CONFIG contains no active records.');
+      }
+
+      setRealLifeContexts(res.realLifeContexts);
+      setQuestionStyles(res.questionStyles);
+
+      // Resolve configured defaults (Story-Based Scenario is default question style)
+      const defaultStyleCode =
+        res.defaults?.questionStyle ||
+        res.defaultQuestionStyle?.code ||
+        res.questionStyles.find((s) => s.isDefault)?.code ||
+        res.questionStyles[0]?.code ||
+        'STORY_BASED';
+
+      const defaultContextLabel =
+        res.defaults?.realLifeContext ||
+        res.defaultRealLifeContext?.displayLabel ||
+        res.defaultRealLifeContext?.code ||
+        res.realLifeContexts.find((c) => c.isDefault)?.displayLabel ||
+        res.realLifeContexts[0]?.displayLabel ||
+        '';
+
+      const defaultDifficulty = res.defaults?.difficulty || 'Intermediate';
+
+      const activeStyle = queryQuestionStyle || defaultStyleCode;
+      const activeContext = queryContext || defaultContextLabel;
+      const activeDifficulty = queryDifficulty || defaultDifficulty;
+
+      setQuestionStyle(activeStyle);
+      setRealLifeContext(activeContext);
+      setDifficulty(activeDifficulty);
+
+      setCandidate((prev) => ({
+        ...prev,
+        questionStyle: activeStyle,
+        difficulty: prev.difficulty || activeDifficulty,
+        realLifeContext:
+          prev.realLifeContext && prev.realLifeContext !== 'RANDOM'
+            ? prev.realLifeContext
+            : (activeContext !== 'RANDOM' ? activeContext : ''),
+      }));
+    } catch (err: any) {
+      console.error('[QuestionStudio] Failed to load QUESTION_CONFIG:', err);
+      const errMsg = err?.message || 'Production question configuration is unavailable.';
+      setConfigError(errMsg);
+      // Strictly do NOT fall back to old hardcoded arrays
+      setRealLifeContexts([]);
+      setQuestionStyles([]);
+    } finally {
+      setLoadingConfig(false);
+    }
+  }, [queryQuestionStyle, queryContext, queryDifficulty]);
+
+  useEffect(() => {
+    loadStudioConfig();
+  }, [loadStudioConfig]);
+
   useEffect(() => {
     async function initStudio() {
       try {
@@ -200,15 +278,23 @@ export const QuestionStudioPage: React.FC = () => {
         setCategories(cats);
         setAiStatus(aiInfo);
 
-        if (queryCategory) {
-          setSelectedCategory(queryCategory);
-          if (queryTopic) setSelectedTopic(queryTopic);
+        if (queryTopic) {
+          setSelectedTopic(queryTopic);
           if (querySubtopic) setSelectedSubtopic(querySubtopic);
-        } else if (cats.length > 0) {
-          const firstCat = cats[0];
-          setSelectedCategory(firstCat.id);
-          const firstTopic = (tree.find((c: any) => c.id === firstCat.id)?.topics || [])[0];
+          const parentCat = tree.find((c: any) => c.topics?.some((t: any) => t.id === queryTopic));
+          if (parentCat) setSelectedCategory(parentCat.id);
+        } else {
+          let firstTopic: any = null;
+          let firstCatId = 'CAT-QA';
+          for (const cat of tree) {
+            if (cat.topics && cat.topics.length > 0) {
+              firstTopic = cat.topics[0];
+              firstCatId = cat.id;
+              break;
+            }
+          }
           if (firstTopic) {
+            setSelectedCategory(firstCatId);
             setSelectedTopic(firstTopic.id);
             const firstSub = (firstTopic.subtopics || [])[0];
             if (firstSub) {
@@ -225,35 +311,32 @@ export const QuestionStudioPage: React.FC = () => {
     initStudio();
   }, [queryCategory, queryTopic, querySubtopic]);
 
-  // Derived taxonomy helpers
-  const currentCategoryData = taxonomyTree.find((c: any) => c.id === selectedCategory);
-  const currentTopics = currentCategoryData?.topics || [];
-  const currentTopicData = currentTopics.find((t: any) => t.id === selectedTopic);
-  const currentSubtopics = currentTopicData?.subtopics || [];
-
-  const handleCategoryChange = (catId: string) => {
-    setSelectedCategory(catId);
-    setCandidate((prev) => ({ ...prev, categoryId: catId }));
-    const cat = taxonomyTree.find((c: any) => c.id === catId);
-    if (cat && cat.topics && cat.topics.length > 0) {
-      const newTopic = cat.topics[0];
-      setSelectedTopic(newTopic.id);
-      setCandidate((prev) => ({ ...prev, topicId: newTopic.id }));
-      if (newTopic.subtopics && newTopic.subtopics.length > 0) {
-        const newSub = newTopic.subtopics[0].id;
-        setSelectedSubtopic(newSub);
-        setCandidate((prev) => ({ ...prev, subtopicId: newSub }));
-      } else {
-        setSelectedSubtopic('SUB-GEN');
-        setCandidate((prev) => ({ ...prev, subtopicId: 'SUB-GEN' }));
+  // Derived taxonomy helpers (Topic -> Subtopic direct mapping)
+  const allTopics = useMemo(() => {
+    const list: any[] = [];
+    taxonomyTree.forEach((cat: any) => {
+      if (cat.topics) {
+        cat.topics.forEach((top: any) => {
+          list.push({ ...top, categoryId: cat.id, categoryName: cat.name });
+        });
       }
-    }
-  };
+    });
+    return list;
+  }, [taxonomyTree]);
+
+  const currentTopicData = useMemo(() => {
+    return allTopics.find((t: any) => t.id === selectedTopic);
+  }, [allTopics, selectedTopic]);
+
+  const currentSubtopics = currentTopicData?.subtopics || [];
 
   const handleTopicChange = (topId: string) => {
     setSelectedTopic(topId);
-    setCandidate((prev) => ({ ...prev, topicId: topId }));
-    const top = currentTopics.find((t: any) => t.id === topId);
+    const top = allTopics.find((t: any) => t.id === topId);
+    const parentCatId = top?.categoryId || selectedCategory || 'CAT-QA';
+    setSelectedCategory(parentCatId);
+    setCandidate((prev) => ({ ...prev, topicId: topId, categoryId: parentCatId }));
+
     if (top && top.subtopics && top.subtopics.length > 0) {
       const newSub = top.subtopics[0].id;
       setSelectedSubtopic(newSub);
@@ -267,6 +350,11 @@ export const QuestionStudioPage: React.FC = () => {
   const handleSubtopicChange = (subId: string) => {
     setSelectedSubtopic(subId);
     setCandidate((prev) => ({ ...prev, subtopicId: subId }));
+  };
+
+  const handleQuestionStyleChange = (style: string) => {
+    setQuestionStyle(style);
+    updateCandidateField('questionStyle', style);
   };
 
   const handleChallengeTypeChange = (typeId: string) => {
@@ -323,7 +411,7 @@ export const QuestionStudioPage: React.FC = () => {
     setCandidate((prev) => {
       const updated = { ...prev, [field]: value };
 
-      const candidateForVal: Partial<QuestionCandidate> = {
+      const candidateForVal: Partial<QuestionCandidate> & { mathematicalVerification?: MathVerificationResult } = {
         content: updated.questionText,
         option_a: updated.optionA,
         option_b: updated.optionB,
@@ -334,6 +422,7 @@ export const QuestionStudioPage: React.FC = () => {
         language: updated.language,
         question_style: questionStyle,
         real_world_context: updated.realLifeContext,
+        mathematicalVerification: updated.mathematicalVerification,
       };
       setClientReport(CandidateValidator.validate(candidateForVal));
 
@@ -352,6 +441,10 @@ export const QuestionStudioPage: React.FC = () => {
 
   // 5. AI Candidate Generation
   const handleGenerate = async () => {
+    if (configError) {
+      setErrorMessage(`Cannot generate question: Production configuration is unavailable (${configError}).`);
+      return;
+    }
     setErrorMessage(null);
     setSavedSuccessInfo(null);
     setIsGenerating(true);
@@ -373,6 +466,7 @@ export const QuestionStudioPage: React.FC = () => {
 
       const res = await apiClient.generateAiQuestion(payload);
       const generated = res.candidate;
+      const mathVerification = res.validation?.mathematicalVerification || (generated as any).mathematicalVerification;
 
       isInternalUpdateRef.current = true;
       const newStudioCandidate: StudioCandidate = {
@@ -390,11 +484,17 @@ export const QuestionStudioPage: React.FC = () => {
         challengeType,
         presentationType,
         language: generated.language || language,
-        realLifeContext: generated.real_world_context || realLifeContext,
+        realLifeContext:
+          (generated.real_world_context && generated.real_world_context.toUpperCase() !== 'RANDOM')
+            ? generated.real_world_context
+            : (realLifeContext === 'RANDOM' ? '' : realLifeContext),
+        questionStyle: candidate.questionStyle || questionStyle || 'STORY_BASED',
+        generationMode: (selectedSubtopic === 'RANDOM' || realLifeContext === 'RANDOM') ? 'RANDOM' : 'SUBTOPIC',
         tags: ['AI-Generated', 'Aptitude'],
         sourceModel: res.metadata?.modelUsed || aiStatus.model,
         generationLatencyMs: res.metadata?.generationDurationMs || res.metadata?.latencyMs || Date.now() - startTime,
         isFallback: Boolean(res.metadata?.fallbackUsed || res.metadata?.isMockFallback),
+        mathematicalVerification: mathVerification,
       };
 
       setCandidate(newStudioCandidate);
@@ -402,7 +502,29 @@ export const QuestionStudioPage: React.FC = () => {
       setGenerationDuration(res.metadata?.generationDurationMs || res.metadata?.latencyMs || Date.now() - startTime);
       setIsFallbackMode(Boolean(res.metadata?.fallbackUsed || res.metadata?.isMockFallback));
 
-      setClientReport(CandidateValidator.validate(generated));
+      const clientValidation = CandidateValidator.validate({
+        ...generated,
+        mathematicalVerification: mathVerification,
+      });
+
+      if (res.validation?.mathematicalVerification?.status === 'FAILED') {
+        const mergedErrors = Array.from(new Set([...clientValidation.errors, ...(res.validation.errors || [])]));
+        setClientReport({
+          ...clientValidation,
+          isValid: false,
+          errors: mergedErrors,
+          mathematicalVerification: res.validation.mathematicalVerification,
+        });
+      } else if (res.validation) {
+        setClientReport({
+          ...clientValidation,
+          mathematicalVerification: res.validation.mathematicalVerification || clientValidation.mathematicalVerification,
+          isValid: clientValidation.isValid,
+        });
+      } else {
+        setClientReport(clientValidation);
+      }
+
       triggerDuplicateCheck(generated.content);
       isInternalUpdateRef.current = false;
     } catch (err: any) {
@@ -432,6 +554,7 @@ export const QuestionStudioPage: React.FC = () => {
         language: candidate.language,
         question_style: questionStyle,
         real_world_context: candidate.realLifeContext,
+        mathematicalVerification: candidate.mathematicalVerification,
       };
 
       const payload: RefineCandidateInput = {
@@ -443,6 +566,7 @@ export const QuestionStudioPage: React.FC = () => {
 
       const res = await apiClient.refineAiQuestion(payload);
       const refined = res.candidate;
+      const mathVerification = res.validation?.mathematicalVerification || (refined as any).mathematicalVerification || candidate.mathematicalVerification;
 
       isInternalUpdateRef.current = true;
       setCandidate((prev) => ({
@@ -456,9 +580,32 @@ export const QuestionStudioPage: React.FC = () => {
         explanation: refined.explanation,
         language: refined.language || prev.language,
         realLifeContext: refined.real_world_context || prev.realLifeContext,
+        mathematicalVerification: mathVerification,
       }));
 
-      setClientReport(CandidateValidator.validate(refined));
+      const clientValidation = CandidateValidator.validate({
+        ...refined,
+        mathematicalVerification: mathVerification,
+      });
+
+      if (res.validation?.mathematicalVerification?.status === 'FAILED') {
+        const mergedErrors = Array.from(new Set([...clientValidation.errors, ...(res.validation.errors || [])]));
+        setClientReport({
+          ...clientValidation,
+          isValid: false,
+          errors: mergedErrors,
+          mathematicalVerification: res.validation.mathematicalVerification,
+        });
+      } else if (res.validation) {
+        setClientReport({
+          ...clientValidation,
+          mathematicalVerification: res.validation.mathematicalVerification || clientValidation.mathematicalVerification,
+          isValid: clientValidation.isValid,
+        });
+      } else {
+        setClientReport(clientValidation);
+      }
+
       triggerDuplicateCheck(refined.content);
 
       if (serverValidationResult) {
@@ -501,6 +648,8 @@ export const QuestionStudioPage: React.FC = () => {
         presentationType: candidate.presentationType,
         language: candidate.language,
         realLifeContext: candidate.realLifeContext,
+        questionStyle: candidate.questionStyle || questionStyle || 'STORY_BASED',
+        mathematicalVerification: candidate.mathematicalVerification || clientReport?.mathematicalVerification,
       };
 
       const res = await apiClient.validateCandidate(payloadToValidate);
@@ -530,6 +679,16 @@ export const QuestionStudioPage: React.FC = () => {
     try {
       const idempotencyKey = `studio-${mode}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
+      const isRandomMode =
+        selectedSubtopic === 'RANDOM' ||
+        realLifeContext === 'RANDOM' ||
+        candidate.generationMode === 'RANDOM';
+
+      const resolvedContextForSave =
+        candidate.realLifeContext && candidate.realLifeContext !== 'RANDOM'
+          ? candidate.realLifeContext
+          : (realLifeContext && realLifeContext !== 'RANDOM' ? realLifeContext : undefined);
+
       const created = await apiClient.createQuestionCanonical({
         creationMode: mode === 'ai' ? 'ai' : 'manual',
         categoryId: selectedCategory,
@@ -539,7 +698,9 @@ export const QuestionStudioPage: React.FC = () => {
         challengeType: candidate.challengeType,
         presentationType: candidate.presentationType,
         language: candidate.language,
-        realLifeContext: candidate.realLifeContext,
+        realLifeContext: resolvedContextForSave,
+        generationMode: isRandomMode ? 'RANDOM' : 'SUBTOPIC',
+        questionStyle: candidate.questionStyle || questionStyle || 'STORY_BASED',
         questionText: candidate.questionText.trim(),
         options: {
           a: candidate.optionA.trim(),
@@ -551,6 +712,7 @@ export const QuestionStudioPage: React.FC = () => {
         explanation: candidate.explanation.trim(),
         tags: candidate.tags,
         idempotencyKey,
+        mathematicalVerification: candidate.mathematicalVerification || clientReport?.mathematicalVerification,
       });
 
       setSavedSuccessInfo({ id: created.id, status: created.status });
@@ -598,7 +760,11 @@ export const QuestionStudioPage: React.FC = () => {
   };
 
   const getSaveGateReason = (): string | null => {
+    if (configError) return 'Configuration unavailable. Please resolve QUESTION_CONFIG errors.';
     if (!candidate.questionText.trim()) return 'Question problem statement is required.';
+    if (clientReport?.mathematicalVerification?.status === 'FAILED') {
+      return `Mathematical verification failed: ${clientReport.mathematicalVerification.reason || 'Calculated answer does not match declared options.'}`;
+    }
     if (clientReport && !clientReport.isValid) return 'Fix blocking client validation errors before saving.';
     if (isSaving) return 'Save operation in progress...';
     if (isGenerating || isRefining) return 'AI operation in progress...';
@@ -611,9 +777,44 @@ export const QuestionStudioPage: React.FC = () => {
     <div className="space-y-6 pb-12 animate-in fade-in duration-200">
       <PageHeader
         title="Unified Question Studio"
-        description="Single coherent workspace for manual authoring, AI generation, pre-save multi-model validation, and canonical publishing."
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Mode Switcher */}
+            <div className="bg-slate-100 p-1 rounded-xl flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => handleModeSwitch('ai')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  mode === 'ai'
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:bg-slate-200/60 hover:text-slate-900'
+                }`}
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>AI Mode</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleModeSwitch('manual')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  mode === 'manual'
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:bg-slate-200/60 hover:text-slate-900'
+                }`}
+              >
+                <PenTool className="w-3.5 h-3.5" />
+                <span>Manual Authoring</span>
+              </button>
+            </div>
+
+            {/* AI Model Indicator Pill */}
+            {mode === 'ai' && (
+              <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 border border-slate-200 rounded-lg text-[11px] font-mono text-slate-700">
+                <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
+                <span>Engine: {aiStatus.model}</span>
+              </div>
+            )}
+
             <Button
               variant="outline"
               size="sm"
@@ -689,47 +890,9 @@ export const QuestionStudioPage: React.FC = () => {
         </div>
       )}
 
-      {/* Mode Switcher Tabs */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-2 flex items-center justify-between shadow-xs">
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => handleModeSwitch('ai')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              mode === 'ai'
-                ? 'bg-indigo-600 text-white shadow-sm'
-                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-            }`}
-          >
-            <Sparkles className="w-4 h-4" />
-            <span>AI Generation & Studio Mode</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => handleModeSwitch('manual')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              mode === 'manual'
-                ? 'bg-indigo-600 text-white shadow-sm'
-                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-            }`}
-          >
-            <PenTool className="w-4 h-4" />
-            <span>Manual Authoring Mode</span>
-          </button>
-        </div>
-
-        {/* AI Model Indicator Pill */}
-        {mode === 'ai' && (
-          <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-slate-100 border border-slate-200 rounded-lg text-[11px] font-mono text-slate-700">
-            <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
-            <span>Engine: {aiStatus.model}</span>
-          </div>
-        )}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
         {/* LEFT COLUMN: SHARED PEDAGOGICAL CONFIGURATION */}
-        <div className="lg:col-span-5 space-y-5 bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
+        <div className="lg:col-span-5 h-full flex flex-col space-y-5 bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
           <div className="flex items-center justify-between pb-3 border-b border-slate-100">
             <div className="flex items-center gap-2 text-slate-900">
               <Sliders className="w-4 h-4 text-indigo-600" />
@@ -740,35 +903,21 @@ export const QuestionStudioPage: React.FC = () => {
             </span>
           </div>
 
-          {/* Taxonomy Selection */}
+          {/* Taxonomy Selection (Topic -> Subtopic Only) */}
           <div className="space-y-3">
-            <label className="text-xs font-semibold text-slate-700 flex items-center justify-between">
-              <span>Subject Category</span>
-              {loadingTaxonomy && <span className="text-[10px] text-slate-400 animate-pulse">Loading taxonomy...</span>}
-            </label>
-            <select
-              value={selectedCategory}
-              onChange={(e) => handleCategoryChange(e.target.value)}
-              disabled={loadingTaxonomy}
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:bg-white focus:border-indigo-500 focus:outline-hidden"
-            >
-              {categories.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.name} ({cat.id})
-                </option>
-              ))}
-            </select>
-
             <div className="grid grid-cols-2 gap-2.5">
               <div>
-                <label className="text-[11px] font-semibold text-slate-600">Topic</label>
+                <label className="text-xs font-semibold text-slate-700 flex items-center justify-between">
+                  <span>Topic</span>
+                  {loadingTaxonomy && <span className="text-[10px] text-slate-400 animate-pulse">Loading...</span>}
+                </label>
                 <select
                   value={selectedTopic}
                   onChange={(e) => handleTopicChange(e.target.value)}
-                  disabled={loadingTaxonomy || currentTopics.length === 0}
+                  disabled={loadingTaxonomy || allTopics.length === 0}
                   className="w-full mt-1 px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:bg-white focus:border-indigo-500 focus:outline-hidden"
                 >
-                  {currentTopics.map((top: any) => (
+                  {allTopics.map((top: any) => (
                     <option key={top.id} value={top.id}>
                       {top.name}
                     </option>
@@ -777,14 +926,14 @@ export const QuestionStudioPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="text-[11px] font-semibold text-slate-600">Subtopic</label>
+                <label className="text-xs font-semibold text-slate-700">Subtopic</label>
                 <select
                   value={selectedSubtopic}
                   onChange={(e) => handleSubtopicChange(e.target.value)}
                   disabled={loadingTaxonomy || currentSubtopics.length === 0}
                   className="w-full mt-1 px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:bg-white focus:border-indigo-500 focus:outline-hidden"
                 >
-                  <option value="RANDOM">🎲 RANDOM (Random Subtopic from Topic)</option>
+                  <option value="RANDOM">🎲 RANDOM (Subtopic from Topic)</option>
                   {currentSubtopics.map((sub: any) => (
                     <option key={sub.id} value={sub.id}>
                       {sub.name}
@@ -798,9 +947,28 @@ export const QuestionStudioPage: React.FC = () => {
           {/* Core Dimensions */}
           <div className="grid grid-cols-2 gap-3 pt-2">
             <div>
+              <label className="text-xs font-semibold text-slate-700">Language</label>
+              <select
+                value={candidate.language}
+                onChange={(e) => {
+                  const lang = e.target.value as QuestionLanguage;
+                  setLanguage(lang);
+                  updateCandidateField('language', lang);
+                }}
+                className="w-full mt-1 px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:bg-white focus:border-indigo-500 focus:outline-hidden font-semibold text-indigo-950"
+              >
+                {QUESTION_CREATION_CONFIG.languages.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.nativeName} ({l.name})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
               <label className="text-xs font-semibold text-slate-700">Target Difficulty</label>
               <select
-                value={candidate.difficulty}
+                value={candidate.difficulty || difficulty || 'Intermediate'}
                 onChange={(e) => {
                   setDifficulty(e.target.value);
                   updateCandidateField('difficulty', e.target.value);
@@ -848,50 +1016,129 @@ export const QuestionStudioPage: React.FC = () => {
               </select>
             </div>
 
-            <div>
-              <label className="text-xs font-semibold text-slate-700">Language</label>
-              <select
-                value={candidate.language}
-                onChange={(e) => {
-                  const lang = e.target.value as QuestionLanguage;
-                  setLanguage(lang);
-                  updateCandidateField('language', lang);
-                }}
-                className="w-full mt-1 px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:bg-white focus:border-indigo-500 focus:outline-hidden"
-              >
-                {QUESTION_CREATION_CONFIG.languages.map((l) => (
-                  <option key={l.id} value={l.id}>
-                    {l.name} ({l.nativeName})
-                  </option>
-                ))}
-              </select>
+            <div className="col-span-2">
+              <label className="text-xs font-semibold text-slate-700 flex items-center justify-between">
+                <span>Question Style</span>
+                {loadingConfig && <span className="text-[10px] text-slate-400 animate-pulse">Loading styles...</span>}
+              </label>
+              {configError ? (
+                <div className="mt-1 p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-[11px] text-rose-700 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                    <span>Configuration unavailable: {configError}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => loadStudioConfig(true)}
+                    className="text-[10px] font-semibold text-rose-800 underline hover:text-rose-950 shrink-0 cursor-pointer"
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : (
+                <select
+                  value={questionStyle}
+                  onChange={(e) => handleQuestionStyleChange(e.target.value)}
+                  disabled={loadingConfig || questionStyles.length === 0}
+                  className="w-full mt-1 px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:bg-white focus:border-indigo-500 focus:outline-hidden disabled:opacity-50"
+                >
+                  {loadingConfig && <option value="">Loading styles from QUESTION_CONFIG...</option>}
+                  {!loadingConfig && questionStyles.length === 0 && <option value="">No active question styles configured</option>}
+                  {questionStyles.map((style) => (
+                    <option key={style.id} value={style.code}>
+                      {style.displayLabel} {style.isDefault ? '(Default)' : ''}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
           </div>
 
-          {/* Context Hooks */}
-          <div className="space-y-2 pt-2">
+          {/* Real-Life Context Selection */}
+          <div className="space-y-2 pt-2 border-t border-slate-100">
             <label className="text-xs font-semibold text-slate-700 flex items-center justify-between">
               <span>Real-Life Context Category</span>
-              <span className="text-[10px] text-slate-400">12 Catalog Categories</span>
+              {loadingConfig ? (
+                <span className="text-[10px] text-slate-400 animate-pulse">Loading contexts...</span>
+              ) : configError ? (
+                <span className="text-[10px] text-rose-500 font-medium">Unavailable</span>
+              ) : (
+                <span className="text-[10px] text-slate-400">
+                  {realLifeContexts.length} Active {realLifeContexts.length === 1 ? 'Category' : 'Categories'} (QUESTION_CONFIG)
+                </span>
+              )}
             </label>
-            <select
-              value={realLifeContext}
-              onChange={(e) => {
-                setRealLifeContext(e.target.value);
-                updateCandidateField('realLifeContext', e.target.value);
-              }}
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:bg-white focus:border-indigo-500 focus:outline-hidden"
-            >
-              {QUESTION_CREATION_CONFIG.realLifeContexts.map((ctx) => (
-                <option key={ctx.id} value={ctx.name}>
-                  {ctx.name}
-                </option>
-              ))}
-            </select>
+            {configError ? (
+              <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-[11px] text-rose-700 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <div>
+                    <div className="font-semibold">Configuration Unavailable</div>
+                    <div className="text-[10px]">{configError}</div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => loadStudioConfig(true)}
+                  className="px-2 py-1 bg-rose-100 hover:bg-rose-200 text-rose-800 rounded text-xs font-semibold shrink-0 cursor-pointer"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : (
+              <select
+                value={realLifeContext}
+                onChange={(e) => {
+                  const newCtx = e.target.value;
+                  setRealLifeContext(newCtx);
+                  if (newCtx !== 'RANDOM') {
+                    updateCandidateField('realLifeContext', newCtx);
+                  } else {
+                    setCandidate((prev) => {
+                      const updated = {
+                        ...prev,
+                        realLifeContext: '',
+                        generationMode: 'RANDOM' as const,
+                      };
+                      if (hasCandidate && updated.questionText.trim()) {
+                        const candidateForVal: Partial<QuestionCandidate> & { mathematicalVerification?: MathVerificationResult } = {
+                          content: updated.questionText,
+                          option_a: updated.optionA,
+                          option_b: updated.optionB,
+                          option_c: updated.optionC,
+                          option_d: updated.optionD,
+                          correct_answer: updated.correctAnswer,
+                          explanation: updated.explanation,
+                          language: updated.language,
+                          question_style: questionStyle,
+                          real_world_context: updated.realLifeContext,
+                          mathematicalVerification: updated.mathematicalVerification,
+                        };
+                        setClientReport(CandidateValidator.validate(candidateForVal));
+                      }
+                      return updated;
+                    });
+                  }
+                }}
+                disabled={loadingConfig || realLifeContexts.length === 0}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:bg-white focus:border-indigo-500 focus:outline-hidden disabled:opacity-50"
+              >
+                {loadingConfig && <option value="">Loading contexts from QUESTION_CONFIG...</option>}
+                {!loadingConfig && realLifeContexts.length === 0 && <option value="">No active contexts configured</option>}
+                {!loadingConfig && realLifeContexts.length > 0 && (
+                  <option value="RANDOM">🎲 RANDOM (Any Configured Real-Life Context)</option>
+                )}
+                {realLifeContexts.map((ctx) => (
+                  <option key={ctx.id} value={ctx.displayLabel}>
+                    {ctx.displayLabel} {ctx.isDefault ? '(Default)' : ''}
+                  </option>
+                ))}
+              </select>
+            )}
 
             <div className="pt-1">
               <label className="text-[11px] font-semibold text-slate-600">Quick Scenario Hooks</label>
-              <div className="flex flex-wrap gap-1.5 mt-1.5">
+              <div className="flex flex-nowrap overflow-x-auto gap-2 py-1 scrollbar-none mt-1">
                 {REAL_WORLD_HOOK_SUGGESTIONS.map((hook) => (
                   <button
                     key={hook}
@@ -900,7 +1147,7 @@ export const QuestionStudioPage: React.FC = () => {
                       setRealLifeContext(hook);
                       updateCandidateField('realLifeContext', hook);
                     }}
-                    className={`text-[10px] px-2 py-1 rounded-md border transition-colors cursor-pointer ${
+                    className={`shrink-0 py-1 px-2.5 text-xs rounded-md border transition-colors cursor-pointer ${
                       realLifeContext === hook
                         ? 'bg-indigo-50 text-indigo-700 border-indigo-200 font-semibold'
                         : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
@@ -916,20 +1163,6 @@ export const QuestionStudioPage: React.FC = () => {
           {/* AI-Mode Specific Controls */}
           {mode === 'ai' && (
             <div className="space-y-3 pt-3 border-t border-slate-100 animate-in fade-in">
-              <div>
-                <label className="text-xs font-semibold text-slate-700">Question Style</label>
-                <select
-                  value={questionStyle}
-                  onChange={(e) => setQuestionStyle(e.target.value)}
-                  className="w-full mt-1 px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:bg-white focus:border-indigo-500 focus:outline-hidden"
-                >
-                  <option value={QuestionStyle.REAL_WORLD_SCENARIO}>Real-World Practical Scenario</option>
-                  <option value={QuestionStyle.SPEED_MATH_TRICK}>Speed Math / Burra Trick Probe</option>
-                  <option value={QuestionStyle.TRICK_QUESTION}>Misdirection Trap / High-Distractor</option>
-                  <option value={QuestionStyle.DATA_INTERPRETATION}>Data Interpretation & Chart Analysis</option>
-                </select>
-              </div>
-
               <div>
                 <label className="text-xs font-semibold text-slate-700">Custom AI Generation Guidance</label>
                 <textarea
@@ -953,15 +1186,47 @@ export const QuestionStudioPage: React.FC = () => {
               </Button>
             </div>
           )}
+
+          {/* Manual-Mode Specific Actions */}
+          {mode === 'manual' && (
+            <div className="pt-3 border-t border-slate-100 space-y-2 animate-in fade-in">
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 text-xs text-slate-600">
+                <span className="font-semibold text-slate-900 block mb-0.5">Manual Authoring Active</span>
+                Type your problem statement, options, and solution directly in the candidate workspace.
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setCandidate((prev) => ({
+                    ...prev,
+                    questionText: '',
+                    optionA: '',
+                    optionB: '',
+                    optionC: '',
+                    optionD: '',
+                    correctAnswer: 'A',
+                    explanation: '',
+                  }));
+                  setHasCandidate(false);
+                  setIsDirty(false);
+                }}
+                icon={RotateCcw}
+                className="w-full text-slate-700 border-slate-200 hover:bg-slate-100"
+              >
+                Clear Canvas & Start Fresh
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* RIGHT COLUMN: CANDIDATE EDITOR WORKSPACE */}
-        <div className="lg:col-span-7 space-y-5">
-          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-5">
+        <div className="lg:col-span-7 h-full">
+          <div className="h-full flex flex-col bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-5">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2 text-slate-900">
                 <FileCheck className="w-4 h-4 text-indigo-600" />
-                <h3 className="text-sm font-bold">Candidate Editor Workspace</h3>
+                <h3 className="text-sm font-bold">Question Editor Workspace</h3>
               </div>
 
               <div className="flex items-center gap-2">
@@ -969,19 +1234,6 @@ export const QuestionStudioPage: React.FC = () => {
                   <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
                     Unsaved Edits
-                  </span>
-                )}
-
-                {generationDuration && (
-                  <span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full flex items-center gap-1">
-                    <Clock className="w-3 h-3 text-slate-400" />
-                    {generationDuration}ms
-                  </span>
-                )}
-
-                {isFallbackMode && (
-                  <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
-                    Pedagogical Fallback
                   </span>
                 )}
 
@@ -1092,7 +1344,7 @@ export const QuestionStudioPage: React.FC = () => {
                   <span className="text-[10px] text-slate-500">Select radio button for correct answer</span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div
                     className={`flex items-center gap-2 p-2 rounded-xl border transition-all ${
                       candidate.correctAnswer === 'A'
@@ -1244,12 +1496,73 @@ export const QuestionStudioPage: React.FC = () => {
               </div>
             )}
 
-            {/* VALIDATION PANEL */}
-            <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-indigo-600" />
-                  <h4 className="text-xs font-bold text-slate-900">Validation Engine</h4>
+            {/* UNIFIED VALIDATION STATUS STRIP */}
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <ShieldCheck className="w-4 h-4 text-indigo-600 shrink-0" />
+                  <span className="font-bold text-slate-900">Validation:</span>
+
+                  {/* Client Sanity Badge */}
+                  {clientReport && (
+                    <span
+                      className={`font-bold text-[11px] px-2 py-0.5 rounded-full ${
+                        clientReport.isValid
+                          ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                          : 'bg-rose-100 text-rose-800 border border-rose-200'
+                      }`}
+                    >
+                      Client: {clientReport.isValid ? 'PASS' : 'FAIL'}
+                    </span>
+                  )}
+
+                  {/* Mathematical Verification Status Badge */}
+                  {clientReport?.mathematicalVerification && (
+                    <span
+                      className={`font-bold text-[11px] px-2 py-0.5 rounded-full flex items-center gap-1 ${
+                        clientReport.mathematicalVerification.status === 'VERIFIED'
+                          ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                          : clientReport.mathematicalVerification.status === 'FAILED'
+                          ? 'bg-rose-100 text-rose-900 border border-rose-300'
+                          : clientReport.mathematicalVerification.status === 'UNVERIFIED'
+                          ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                          : 'bg-slate-100 text-slate-700 border border-slate-300'
+                      }`}
+                      title={clientReport.mathematicalVerification.details || clientReport.mathematicalVerification.reason}
+                    >
+                      {clientReport.mathematicalVerification.status === 'VERIFIED' && 'Math: VERIFIED'}
+                      {clientReport.mathematicalVerification.status === 'FAILED' && 'Math: FAILED'}
+                      {clientReport.mathematicalVerification.status === 'UNVERIFIED' && (
+                        <>
+                          <AlertTriangle className="w-3 h-3 text-amber-700 shrink-0" />
+                          Math: UNVERIFIED (Review Required)
+                        </>
+                      )}
+                      {clientReport.mathematicalVerification.status === 'NOT_APPLICABLE' && 'Math: N/A'}
+                    </span>
+                  )}
+
+                  {/* Server Validation Badge */}
+                  {serverValidationResult && !isValidationStale ? (
+                    <span
+                      className={`font-bold text-[11px] px-2 py-0.5 rounded-full ${
+                        serverValidationResult.status === QuestionValidationStatus.VALID
+                          ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                          : serverValidationResult.status === QuestionValidationStatus.NEEDS_REVIEW
+                          ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                          : 'bg-rose-100 text-rose-900 border border-rose-300'
+                      }`}
+                    >
+                      Server: {serverValidationResult.status} ({Math.round((serverValidationResult.confidenceScore || 0) * 100)}%)
+                    </span>
+                  ) : isValidationStale ? (
+                    <span className="font-semibold text-[11px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1">
+                      <AlertTriangle className="w-3 h-3 text-amber-600 shrink-0" />
+                      Re-Validation Required
+                    </span>
+                  ) : (
+                    <span className="text-[11px] text-slate-500 font-medium">Pending Server Check</span>
+                  )}
                 </div>
 
                 <Button
@@ -1258,131 +1571,27 @@ export const QuestionStudioPage: React.FC = () => {
                   onClick={handleServerValidate}
                   isLoading={isValidatingServer}
                   icon={FileCheck}
-                  className="bg-white border-indigo-200 text-indigo-900 hover:bg-indigo-50"
+                  className="bg-white border-indigo-200 text-indigo-900 hover:bg-indigo-50 text-xs py-1 px-2.5"
                 >
-                  Run Multi-Model Validation
+                  {isValidationStale ? 'Re-Validate' : 'Run Validation'}
                 </Button>
               </div>
 
-              {/* Client-Side Real-Time Report Pills */}
-              {clientReport && (
-                <div className="flex flex-wrap items-center gap-2 text-[11px]">
-                  <span
-                    className={`font-bold px-2 py-0.5 rounded-full ${
-                      clientReport.isValid
-                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                        : 'bg-rose-100 text-rose-800 border border-rose-200'
-                    }`}
-                  >
-                    Client Sanity: {clientReport.isValid ? 'PASS' : 'FAIL'}
-                  </span>
-
-                  {clientReport.mathematicalVerification && (
-                    <span
-                      className={`font-semibold px-2 py-0.5 rounded-full ${
-                        clientReport.mathematicalVerification.status === 'VERIFIED'
-                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                          : 'bg-amber-50 text-amber-700 border border-amber-200'
-                      }`}
-                    >
-                      Math: {clientReport.mathematicalVerification.status}
-                    </span>
-                  )}
-
-                  {clientReport.errors.length > 0 && (
-                    <span className="text-rose-700 font-medium">
-                      {clientReport.errors.length} error(s)
-                    </span>
-                  )}
-                  {clientReport.warnings.length > 0 && (
-                    <span className="text-amber-700 font-medium">
-                      {clientReport.warnings.length} warning(s)
-                    </span>
-                  )}
-                </div>
-              )}
-
-              {/* Client Error Messages */}
+              {/* Client Errors List if any */}
               {clientReport && clientReport.errors.length > 0 && (
-                <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-lg space-y-1">
+                <div className="pt-1 text-[11px] text-rose-800 font-medium space-y-0.5">
                   {clientReport.errors.map((err, idx) => (
-                    <p key={idx} className="text-[11px] text-rose-800 font-medium flex items-center gap-1.5">
+                    <p key={idx} className="flex items-center gap-1.5">
                       <AlertCircle className="w-3 h-3 text-rose-600 shrink-0" />
                       {err}
                     </p>
                   ))}
                 </div>
               )}
-
-              {/* STALE VALIDATION BANNER */}
-              {isValidationStale && (
-                <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-lg flex items-center justify-between text-xs text-amber-900 font-semibold animate-in fade-in">
-                  <span className="flex items-center gap-1.5">
-                    <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                    Changes detected — server validation required again.
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleServerValidate}
-                    className="text-[11px] text-amber-900 underline hover:text-amber-950 font-bold cursor-pointer"
-                  >
-                    Re-Validate
-                  </button>
-                </div>
-              )}
-
-              {/* Server Validation Results */}
-              {serverValidationResult && !isValidationStale && (
-                <div className="p-3 bg-white border border-slate-200 rounded-lg space-y-2 animate-in fade-in">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
-                          serverValidationResult.status === QuestionValidationStatus.VALID
-                            ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
-                            : serverValidationResult.status === QuestionValidationStatus.NEEDS_REVIEW
-                            ? 'bg-amber-100 text-amber-900 border border-amber-300'
-                            : 'bg-rose-100 text-rose-900 border border-rose-300'
-                        }`}
-                      >
-                        Server Validation: {serverValidationResult.status}
-                      </span>
-                      <span className="text-[11px] font-mono text-slate-500">
-                        Score: {Math.round((serverValidationResult.confidenceScore || 0) * 100)}%
-                      </span>
-                    </div>
-                    <span className="text-[10px] font-mono text-slate-400">
-                      ID: {serverValidationResult.id}
-                    </span>
-                  </div>
-
-                  {serverValidationResult.errors && serverValidationResult.errors.length > 0 && (
-                    <div className="space-y-1">
-                      <span className="text-[11px] font-bold text-rose-800">Errors:</span>
-                      {serverValidationResult.errors.map((e, idx) => (
-                        <p key={idx} className="text-[11px] text-rose-700 pl-2">
-                          • {e}
-                        </p>
-                      ))}
-                    </div>
-                  )}
-
-                  {serverValidationResult.warnings && serverValidationResult.warnings.length > 0 && (
-                    <div className="space-y-1">
-                      <span className="text-[11px] font-bold text-amber-800">Warnings:</span>
-                      {serverValidationResult.warnings.map((w, idx) => (
-                        <p key={idx} className="text-[11px] text-amber-700 pl-2">
-                          • {w}
-                        </p>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
 
             {/* Footer Action Buttons */}
-            <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border-t border-slate-100">
+            <div className="mt-auto flex items-center justify-between gap-3 pt-3 border-t border-slate-200">
               <div className="flex items-center gap-2">
                 <Button
                   variant="outline"

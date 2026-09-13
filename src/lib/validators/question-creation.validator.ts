@@ -10,7 +10,7 @@ import {
   PRESENTATION_TYPES,
   LANGUAGES,
 } from '../../config/question-creation.config';
-import { QuestionLanguage } from '../../types';
+import { QuestionLanguage, QuestionStyle } from '../../types';
 
 export interface QuestionCreationRequestPayload {
   creationMode: 'manual' | 'ai';
@@ -22,6 +22,7 @@ export interface QuestionCreationRequestPayload {
   challengeType?: string;
   presentationType?: string;
   language?: QuestionLanguage | string;
+  questionStyle?: string;
   questionText: string;
   options: {
     a: string;
@@ -39,6 +40,8 @@ export interface QuestionCreationRequestPayload {
   aiPrompt?: string;
   originalityScore?: number;
   idempotencyKey?: string;
+  generationMode?: 'SUBTOPIC' | 'RANDOM' | string;
+  mathematicalVerification?: any;
 }
 
 export class QuestionCreationValidator {
@@ -53,6 +56,33 @@ export class QuestionCreationValidator {
     if (trimmed === 'HARD') return 'Hard';
     const match = DIFFICULTY_LEVELS.find((d) => d.id.toLowerCase() === trimmed.toLowerCase());
     return match ? match.id : trimmed;
+  }
+
+  /**
+   * Normalizes question style string to canonical QuestionStyle code.
+   * Resolves enum key (e.g. STORY_BASED), display label (e.g. "Story-Based Scenario"),
+   * or defaults to 'STORY_BASED'.
+   */
+  public static normalizeQuestionStyle(style?: string): string {
+    if (!style || !style.trim()) return 'STORY_BASED';
+    const trimmed = style.trim();
+
+    // Check if trimmed directly matches a key in QuestionStyle (case-insensitive)
+    const keys = Object.keys(QuestionStyle) as (keyof typeof QuestionStyle)[];
+    const matchedKey = keys.find((k) => k.toUpperCase() === trimmed.toUpperCase());
+    if (matchedKey) {
+      return matchedKey;
+    }
+
+    // Check if trimmed matches an enum value (e.g. 'Story-Based Scenario' or case-insensitive)
+    const matchedVal = keys.find(
+      (k) => QuestionStyle[k].toLowerCase() === trimmed.toLowerCase()
+    );
+    if (matchedVal) {
+      return matchedVal;
+    }
+
+    return trimmed;
   }
 
   /**
@@ -159,6 +189,41 @@ export class QuestionCreationValidator {
       const selectedOptionText = options[payload.correctAnswer.toLowerCase() as keyof typeof options];
       if (!selectedOptionText || selectedOptionText.trim().length === 0) {
         throw new ValidationError(`Option ${payload.correctAnswer} is designated as the correct answer but is empty.`);
+      }
+    }
+
+    // 9. Question Style Validation
+    if (payload.questionStyle && payload.questionStyle.trim()) {
+      const normalizedStyle = this.normalizeQuestionStyle(payload.questionStyle);
+      const allowedStyleKeys = Object.keys(QuestionStyle);
+      if (!allowedStyleKeys.includes(normalizedStyle)) {
+        throw new ValidationError(
+          `Invalid question style "${payload.questionStyle}". Allowed: ${allowedStyleKeys.join(', ')}.`
+        );
+      }
+      payload.questionStyle = normalizedStyle;
+    } else {
+      payload.questionStyle = 'STORY_BASED';
+    }
+
+    // 10. Real-Life Context Mode Validation
+    if (payload.realLifeContext && payload.realLifeContext.trim()) {
+      const trimmedContext = payload.realLifeContext.trim();
+      // RANDOM is accepted as a selection behavior mode during request validation,
+      // and will be resolved to a concrete configured context by the creation pipeline.
+      if (trimmedContext.toUpperCase() === 'RANDOM') {
+        payload.generationMode = 'RANDOM';
+      }
+    }
+
+    // 11. Authoritative Mathematical Verification Safety Guard
+    if (payload.mathematicalVerification) {
+      const mathStatus = typeof payload.mathematicalVerification === 'string'
+        ? payload.mathematicalVerification.toUpperCase()
+        : payload.mathematicalVerification.status;
+      if (mathStatus === 'FAILED') {
+        const reason = payload.mathematicalVerification.reason || 'Independent mathematical verification failed.';
+        throw new ValidationError(`Cannot create question: Mathematical verification has FAILED (${reason}).`);
       }
     }
   }

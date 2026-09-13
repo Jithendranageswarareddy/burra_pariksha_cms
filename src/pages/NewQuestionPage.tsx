@@ -21,7 +21,7 @@ export const NewQuestionPage: React.FC = () => {
   const [difficulty, setDifficulty] = useState<string>('Intermediate');
   const [challengeType, setChallengeType] = useState<string>('ABCD');
   const [presentationType, setPresentationType] = useState<string>('Text');
-  const [language, setLanguage] = useState<string>('ENGLISH');
+  const [language, setLanguage] = useState<string>('TELUGU');
   const [realLifeContext, setRealLifeContext] = useState<string>('Shopping & E-commerce');
   const [questionText, setQuestionText] = useState('');
   const [optA, setOptA] = useState('');

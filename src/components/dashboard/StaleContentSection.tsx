@@ -39,7 +39,7 @@ export const StaleContentSection: React.FC<StaleContentSectionProps> = ({ items 
   };
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs flex flex-col justify-between space-y-4">
+    <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs h-full flex flex-col justify-between space-y-4">
       <div className="space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
           <div className="flex items-center gap-2">
@@ -59,21 +59,21 @@ export const StaleContentSection: React.FC<StaleContentSectionProps> = ({ items 
             <button
               type="button"
               onClick={() => setFilterCategory('ALL')}
-              className={`px-2 py-0.5 rounded font-semibold ${
+              className={`px-2 py-0.5 rounded font-semibold transition-colors ${
                 filterCategory === 'ALL'
                   ? 'bg-white text-slate-900 shadow-2xs border border-slate-200'
-                  : 'text-slate-500'
+                  : 'text-slate-500 hover:text-slate-700'
               }`}
             >
-              All ({items.length})
+              All ({safeItems.length})
             </button>
             <button
               type="button"
               onClick={() => setFilterCategory('STALE')}
-              className={`px-2 py-0.5 rounded font-semibold ${
+              className={`px-2 py-0.5 rounded font-semibold transition-colors ${
                 filterCategory === 'STALE'
                   ? 'bg-rose-50 text-rose-800 border border-rose-200'
-                  : 'text-slate-500'
+                  : 'text-slate-500 hover:text-slate-700'
               }`}
             >
               Stale ({staleCount})
@@ -81,10 +81,10 @@ export const StaleContentSection: React.FC<StaleContentSectionProps> = ({ items 
             <button
               type="button"
               onClick={() => setFilterCategory('WAITING')}
-              className={`px-2 py-0.5 rounded font-semibold ${
+              className={`px-2 py-0.5 rounded font-semibold transition-colors ${
                 filterCategory === 'WAITING'
                   ? 'bg-amber-50 text-amber-800 border border-amber-200'
-                  : 'text-slate-500'
+                  : 'text-slate-500 hover:text-slate-700'
               }`}
             >
               Waiting ({waitingCount})
@@ -92,9 +92,15 @@ export const StaleContentSection: React.FC<StaleContentSectionProps> = ({ items 
           </div>
         </div>
 
-        {filteredItems.length === 0 ? (
-          <div className="p-6 text-center bg-slate-50 rounded-lg border border-dashed border-slate-200 text-slate-500 text-xs">
-            No stale content detected. All active pipeline items are moving swiftly.
+        {safeItems.length === 0 ? (
+          <div className="flex items-center gap-2 p-3 bg-emerald-50/70 border border-emerald-200/80 rounded-lg text-emerald-800 text-xs font-medium">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span>All pipeline items active &amp; healthy</span>
+          </div>
+        ) : filteredItems.length === 0 ? (
+          <div className="flex items-center gap-2 p-3 bg-slate-50 border border-slate-200 rounded-lg text-slate-500 text-xs font-medium">
+            <CheckCircle2 className="w-4 h-4 text-slate-400 shrink-0" />
+            <span>No {filterCategory.toLowerCase()} content items detected.</span>
           </div>
         ) : (
           <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">

@@ -18,6 +18,7 @@ import { SocialMetadataGenAISchema, SocialMetadataZodSchema, SocialMetadataAIRes
 import { PlatformAdaptedVariantGenAISchema, PlatformAdaptedVariantZodSchema } from './schemas/platform-adaptation.schema';
 import { SocialQualityAssessmentGenAISchema, SocialQualityAssessmentZodSchema, SocialQualityAssessmentAIOutput } from './schemas/social-quality.schema';
 import { CandidateValidator } from './validators/candidate.validator';
+import { GeminiBlindVerifierProvider } from './validators/blind-verifier';
 import { ScriptValidator, ScriptValidationReport } from './validators/script.validator';
 import {
   BURRA_PARIKSHA_SYSTEM_INSTRUCTION,
@@ -280,8 +281,13 @@ export class GeminiService implements AIProvider {
       correct_answer: rawCandidate.correct_answer || 'A',
       explanation: rawCandidate.explanation || '',
       difficulty: rawCandidate.difficulty || input.difficulty || DifficultyLevel.MEDIUM,
-      language: rawCandidate.language || input.language || QuestionLanguage.ENGLISH,
-      real_world_context: rawCandidate.real_world_context || input.realWorldContext || '',
+      language: rawCandidate.language || input.language || QuestionLanguage.TELUGU,
+      real_world_context:
+        (rawCandidate.real_world_context && rawCandidate.real_world_context.toUpperCase() !== 'RANDOM')
+          ? rawCandidate.real_world_context
+          : (input.realWorldContext && input.realWorldContext.toUpperCase() !== 'RANDOM'
+              ? input.realWorldContext
+              : (input.language === QuestionLanguage.TELUGU ? 'హైదరాబాద్ మెట్రో ప్రయాణం' : 'Daily Commute & Public Transit')),
       question_style: rawCandidate.question_style || input.questionStyle || 'Real-World Scenario',
       taxonomy: {
         categoryId: input.categoryId,
@@ -293,7 +299,14 @@ export class GeminiService implements AIProvider {
       },
     };
 
-    const validation = CandidateValidator.validate(candidate);
+    let validation = CandidateValidator.validate(candidate);
+    if (!isMockFallback && geminiClient.isConfigured() && validation.mathematicalVerification?.status === 'UNVERIFIED') {
+      try {
+        validation = await CandidateValidator.validateAsync(candidate, new GeminiBlindVerifierProvider(model));
+      } catch (err) {
+        console.warn('[GeminiService] Blind verification failed, keeping sync report:', err);
+      }
+    }
     const durationMs = Date.now() - startTime;
 
     return {
@@ -385,7 +398,14 @@ export class GeminiService implements AIProvider {
       taxonomy: input.currentCandidate.taxonomy,
     };
 
-    const validation = CandidateValidator.validate(candidate);
+    let validation = CandidateValidator.validate(candidate);
+    if (!isMockFallback && geminiClient.isConfigured() && validation.mathematicalVerification?.status === 'UNVERIFIED') {
+      try {
+        validation = await CandidateValidator.validateAsync(candidate, new GeminiBlindVerifierProvider(model));
+      } catch (err) {
+        console.warn('[GeminiService] Blind verification in refinement failed, keeping sync report:', err);
+      }
+    }
     const durationMs = Date.now() - startTime;
 
     return {

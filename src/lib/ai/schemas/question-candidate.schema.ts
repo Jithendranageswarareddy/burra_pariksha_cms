@@ -35,7 +35,7 @@ export const QuestionCandidateZodSchema = z.object({
     .min(20, 'Pedagogical explanation must be at least 20 characters long')
     .max(2500, 'Explanation exceeds maximum 2500 characters limit'),
   difficulty: z.nativeEnum(DifficultyLevel).default(DifficultyLevel.MEDIUM),
-  language: z.nativeEnum(QuestionLanguage).default(QuestionLanguage.ENGLISH),
+  language: z.nativeEnum(QuestionLanguage).default(QuestionLanguage.TELUGU),
   real_world_context: z.string().optional().default(''),
   question_style: z.string().optional().default(''),
 });

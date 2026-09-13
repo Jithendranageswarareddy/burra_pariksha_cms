@@ -16,8 +16,12 @@ import {
 } from 'lucide-react';
 import { DAILY_WORKFLOW_STEPS } from '../../config/constants';
 
-export const DailyWorkflowGuide: React.FC = () => {
-  const [isExpanded, setIsExpanded] = useState(false);
+interface DailyWorkflowGuideProps {
+  defaultExpanded?: boolean;
+}
+
+export const DailyWorkflowGuide: React.FC<DailyWorkflowGuideProps> = ({ defaultExpanded = false }) => {
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
   const getStepIcon = (step: number) => {
     switch (step) {

@@ -1548,10 +1548,38 @@ apiRouter.post('/taxonomy/import/execute', requireRole([UserRole.ADMIN]), async 
 
 apiRouter.get('/questions/config', async (req: Request, res: Response) => {
   try {
+    const { questionConfigService } = await import('../lib/services/question-config.service');
     const { QUESTION_CREATION_CONFIG } = await import('../config/question-creation.config');
-    res.json(QUESTION_CREATION_CONFIG);
+    const forceRefresh = req.query.forceRefresh === 'true';
+
+    const grouped = await questionConfigService.getGroupedActiveConfig(forceRefresh);
+
+    res.json({
+      realLifeContexts: grouped.realLifeContexts,
+      questionStyles: grouped.questionStyles,
+      defaults: {
+        realLifeContext: grouped.defaultRealLifeContext?.displayLabel || grouped.defaultRealLifeContext?.code || '',
+        questionStyle: grouped.defaultQuestionStyle?.code || 'STORY_BASED',
+        difficulty: 'Intermediate',
+        language: 'TELUGU',
+        defaultRealLifeContext: grouped.defaultRealLifeContext,
+        defaultQuestionStyle: grouped.defaultQuestionStyle,
+      },
+      defaultRealLifeContext: grouped.defaultRealLifeContext,
+      defaultQuestionStyle: grouped.defaultQuestionStyle,
+      // Backward-compatible properties for existing consumers (e.g. NewQuestionPage)
+      difficulties: QUESTION_CREATION_CONFIG.difficulties,
+      challengeTypes: QUESTION_CREATION_CONFIG.challengeTypes,
+      presentationTypes: QUESTION_CREATION_CONFIG.presentationTypes,
+      languages: QUESTION_CREATION_CONFIG.languages,
+    });
   } catch (err: any) {
-    res.status(500).json({ error: 'Failed to fetch question creation configuration' });
+    const statusCode = err?.statusCode || (err?.name === 'QuestionConfigError' ? 503 : 500);
+    res.status(statusCode).json({
+      error: err?.name || 'QuestionConfigError',
+      message: err?.message || 'Failed to fetch question creation configuration',
+      code: err?.code || 'CONFIG_FETCH_FAILED',
+    });
   }
 });
 

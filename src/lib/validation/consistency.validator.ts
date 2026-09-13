@@ -27,7 +27,7 @@ export class ConsistencyValidator {
     const warnings: string[] = [];
 
     const fullContent = `${questionText} ${options.a || ''} ${options.b || ''} ${options.c || ''} ${options.d || ''} ${explanation}`;
-    const normLang = (language || QuestionLanguage.ENGLISH).toString().toUpperCase();
+    const normLang = (language || QuestionLanguage.TELUGU).toString().toUpperCase();
 
     // 1. Language Script Validation
     const teluguRegex = /[\u0C00-\u0C7F]/;

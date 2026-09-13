@@ -11,6 +11,7 @@ import {
   TrendingUp,
   UserCheck,
   Users,
+  FileText,
 } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { Button } from '../components/common/Button';
@@ -33,6 +34,7 @@ import { ShieldCheck, AlertCircle, CheckCircle2, Play, AlertTriangle, CheckSquar
 import { useAuth } from '../contexts/AuthContext';
 import { AssignmentStatusBadge, AssignmentPriorityBadge } from '../components/assignments/AssignmentBadge';
 
+import { DAILY_WORKFLOW_STEPS } from '../config/constants';
 import { DailyWorkflowGuide } from '../components/dashboard/DailyWorkflowGuide';
 import { PipelineVisualizer } from '../components/dashboard/PipelineVisualizer';
 import { TodaysWorkSection } from '../components/dashboard/TodaysWorkSection';
@@ -40,7 +42,6 @@ import { BottleneckSection } from '../components/dashboard/BottleneckSection';
 import { StaleContentSection } from '../components/dashboard/StaleContentSection';
 import { PublishingReadinessSection } from '../components/dashboard/PublishingReadinessSection';
 import { DashboardFilterBar } from '../components/dashboard/DashboardFilterBar';
-import { GlobalSearchBar } from '../components/dashboard/GlobalSearchBar';
 
 interface SpecialistRoleMetadata {
   title: string;
@@ -119,6 +120,7 @@ export const DashboardPage: React.FC = () => {
   const [selectedTopic, setSelectedTopic] = useState('');
   const [selectedDifficulty, setSelectedDifficulty] = useState('');
   const [selectedPriority, setSelectedPriority] = useState('');
+  const [showProtocolModal, setShowProtocolModal] = useState(false);
 
   const isManagerOrAdmin = user && [UserRole.ADMIN, UserRole.CONTENT_MANAGER].includes(user.role as UserRole);
   const isSpecialist = user && [
@@ -931,141 +933,54 @@ export const DashboardPage: React.FC = () => {
 
   return (
     <div className="space-y-6 pb-12 animate-in fade-in duration-200">
-      {/* Top Page Header */}
-      <PageHeader
-        title="Content Operations Dashboard"
-        description="Operations intelligence, workflow control, and multi-stage lifecycle monitoring — backed by Google Sheets database."
-        actions={
-          <div className="flex items-center gap-2">
-            <Link to="/generate">
-              <Button variant="primary" size="sm" icon={Sparkles}>
-                AI Question Studio
-              </Button>
-            </Link>
-            <Link to="/queue">
-              <Button variant="outline" size="sm" icon={ListOrdered}>
-                Video Queue
-              </Button>
-            </Link>
-          </div>
-        }
-      />
-
-      {/* Global Search & Google Sheets Persistence Banner */}
-      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
-        {/* Global Search Bar */}
-        <GlobalSearchBar />
-
-        {/* Persistence & Integrity Status Chips */}
+      {/* 1. Dashboard Heading + Primary Action Buttons (Studio / Queue) + Protocol link */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <h1 className="text-xl font-bold text-slate-900 tracking-tight">Content Operations Dashboard</h1>
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Persistence Status Chip */}
-          <div className="flex items-center gap-2 px-3 py-2 bg-slate-900 text-white rounded-xl border border-slate-800 text-xs shrink-0 shadow-xs">
-            <Database className="w-4 h-4 text-indigo-400" />
-            <div>
-              <span className="font-bold">Sheets DB: </span>
-              <span
-                className={`font-mono font-semibold ${
-                  quickHealth === null && healthReport === null
-                    ? 'text-slate-400 font-normal'
-                    : (quickHealth?.isConfigured ?? healthReport?.isConfigured)
-                    ? 'text-emerald-400'
-                    : 'text-amber-400'
-                }`}
-              >
-                {quickHealth === null && healthReport === null
-                  ? 'CHECKING...'
-                  : (quickHealth?.isConfigured ?? healthReport?.isConfigured)
-                  ? 'CONNECTED'
-                  : 'LOCAL FALLBACK'}
-              </span>
-            </div>
-          </div>
-
-          {/* Operational Resilience / Recovery Chip & System Integrity Health Chip for ADMIN only */}
-          {user?.role === UserRole.ADMIN && (
-            <>
-              {/* Operational Resilience / Recovery Chip */}
-              <Link
-                to="/settings?tab=recovery"
-                className="flex items-center gap-2 px-3 py-2 bg-white hover:bg-slate-50 text-slate-900 rounded-xl border border-slate-200 text-xs shrink-0 shadow-xs transition-colors group"
-                title="Click to open Operational Reliability & Recovery Center"
-              >
-                <Activity
-                  className={`w-4 h-4 ${
-                    opHealthReport === null
-                      ? 'text-slate-400'
-                      : opHealthReport?.connectivityStatus === 'CONNECTED'
-                      ? 'text-emerald-600'
-                      : opHealthReport?.connectivityStatus === 'DEGRADED'
-                      ? 'text-amber-600'
-                      : 'text-indigo-600'
-                  }`}
-                />
-                <div className="flex items-center gap-1.5">
-                  <span className="font-bold text-slate-700">Resilience:</span>
-                  <span
-                    className={`font-mono font-bold text-[11px] px-1.5 py-0.2 rounded ${
-                      opHealthReport === null
-                        ? 'bg-slate-100 text-slate-600'
-                        : opHealthReport?.connectivityStatus === 'CONNECTED'
-                        ? 'bg-emerald-100 text-emerald-800'
-                        : opHealthReport?.connectivityStatus === 'DEGRADED'
-                        ? 'bg-amber-100 text-amber-800'
-                        : 'bg-indigo-100 text-indigo-800'
-                    }`}
-                  >
-                    {opHealthReport === null ? 'CHECKING...' : opHealthReport?.connectivityStatus || 'ACTIVE'}
-                  </span>
-                </div>
-                <ArrowRight className="w-3 h-3 text-slate-400 group-hover:text-indigo-600 group-hover:translate-x-0.5 transition-all" />
-              </Link>
-
-              {/* System Integrity Health Chip */}
-              <Link
-                to="/settings?tab=integrity"
-                className="flex items-center gap-2 px-3 py-2 bg-white hover:bg-slate-50 text-slate-900 rounded-xl border border-slate-200 text-xs shrink-0 shadow-xs transition-colors group"
-                title="Click to open Data Integrity & Diagnostics center"
-              >
-                <ShieldCheck
-                  className={`w-4 h-4 ${
-                    integrityReport === null
-                      ? 'text-slate-400'
-                      : integrityReport?.overallStatus === 'PASS'
-                      ? 'text-emerald-600'
-                      : integrityReport?.overallStatus === 'WARNING'
-                      ? 'text-amber-600'
-                      : 'text-rose-600'
-                  }`}
-                />
-                <div className="flex items-center gap-1.5">
-                  <span className="font-bold text-slate-700">Integrity:</span>
-                  <span
-                    className={`font-mono font-bold text-[11px] px-1.5 py-0.2 rounded ${
-                      integrityReport === null
-                        ? 'bg-slate-100 text-slate-600'
-                        : integrityReport?.overallStatus === 'PASS'
-                        ? 'bg-emerald-100 text-emerald-800'
-                        : integrityReport?.overallStatus === 'WARNING'
-                        ? 'bg-amber-100 text-amber-800'
-                        : 'bg-rose-100 text-rose-800'
-                    }`}
-                  >
-                    {integrityReport === null ? 'CHECKING...' : integrityReport?.overallStatus || 'PASS'}
-                  </span>
-                  {integrityReport && integrityReport.issueCounts.total > 0 && (
-                    <span className="text-[10px] text-slate-500 font-mono">
-                      ({integrityReport.issueCounts.total} issues)
-                    </span>
-                  )}
-                </div>
-                <ArrowRight className="w-3 h-3 text-slate-400 group-hover:text-indigo-600 group-hover:translate-x-0.5 transition-all" />
-              </Link>
-            </>
-          )}
+          <button
+            type="button"
+            onClick={() => setShowProtocolModal(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 rounded-lg border border-slate-200 transition-colors shadow-2xs cursor-pointer"
+          >
+            <FileText className="w-3.5 h-3.5 text-indigo-600" />
+            <span>Production Protocol</span>
+          </button>
+          <Link to="/generate">
+            <Button variant="primary" size="sm" icon={Sparkles}>
+              AI Question Studio
+            </Button>
+          </Link>
+          <Link to="/queue">
+            <Button variant="outline" size="sm" icon={ListOrdered}>
+              Video Queue
+            </Button>
+          </Link>
         </div>
       </div>
 
-      {/* Dashboard Filter Bar */}
+      {/* Production Protocol Modal (Requirement 3) */}
+      {showProtocolModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-4xl w-full max-h-[85vh] flex flex-col overflow-hidden">
+            <div className="p-3.5 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-700">Burra Pariksha Daily Production Protocol</span>
+              <button
+                type="button"
+                onClick={() => setShowProtocolModal(false)}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"
+                aria-label="Close protocol modal"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-4 overflow-y-auto">
+              <DailyWorkflowGuide defaultExpanded={true} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2. Filter Bar */}
       <DashboardFilterBar
         categories={categories}
         topics={topics}
@@ -1081,9 +996,6 @@ export const DashboardPage: React.FC = () => {
         onRefresh={() => loadOverview(true)}
         isRefreshing={isRefreshing}
       />
-
-      {/* 10-Step Daily Protocol Accordion Guide */}
-      <DailyWorkflowGuide />
 
       {/* Loading State, Error State, or Render Dashboard Sections */}
       {isLoading && !overview ? (
@@ -1108,20 +1020,20 @@ export const DashboardPage: React.FC = () => {
           </Button>
         </div>
       ) : overview ? (
-        <div className="space-y-6">
-          {/* 1. Production Lifecycle & Question Funnel Visualizer */}
+        <div className="space-y-5">
+          {/* 3. Production Lifecycle & Question Funnel Visualizer (Consolidated Toggle) */}
           <PipelineVisualizer metrics={overview.metrics} />
 
-          {/* 2. Today's Priority Work Section */}
+          {/* 4. Today's Priority Work Section */}
           <TodaysWorkSection items={overview.todaysWork} />
 
-          {/* 3. Operational Split: Bottleneck Diagnostics & Stale Content Tracking */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* 5. Operational Split: Bottleneck Diagnostics & Stale Content Tracking */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <BottleneckSection bottlenecks={overview.bottlenecks} />
             <StaleContentSection items={overview.staleContent} />
           </div>
 
-          {/* 4. Phase 10: Team Operations & Workload Intelligence */}
+          {/* 6. Team Operations & Workload Intelligence */}
           {overview.teamOperations && (
             <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-xs space-y-5">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
@@ -1235,9 +1147,9 @@ export const DashboardPage: React.FC = () => {
           <PublishingReadinessSection items={overview.publishingReadiness} />
 
           {/* 6. Recent Questions and Audit Stream */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Recent Questions Table (2 cols) */}
-            <div className="lg:col-span-2 space-y-3">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {/* Recent Questions Table (2 cols on lg, 1 on mobile) */}
+            <div className="lg:col-span-2 space-y-2.5 flex flex-col">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <FileQuestion className="w-4 h-4 text-indigo-600" />
@@ -1255,47 +1167,57 @@ export const DashboardPage: React.FC = () => {
               <QuestionTable questions={overview.recentQuestions} />
             </div>
 
-            {/* Audit Log Stream (1 col) */}
-            <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            {/* Audit Log Stream (1 col on lg) */}
+            <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs space-y-3 flex flex-col h-full">
+              <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
                 <div className="flex items-center gap-2">
                   <Activity className="w-4 h-4 text-indigo-600" />
                   <h3 className="text-sm font-bold text-slate-900">Audit Stream</h3>
                 </div>
-                <span className="text-[11px] text-slate-400 font-mono">AUDIT_LOG</span>
+                <span className="text-[10px] text-slate-500 font-mono bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                  {overview.recentAuditLogs.length} events
+                </span>
               </div>
 
-              <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+              <div className="space-y-2.5 max-h-[460px] overflow-y-auto pr-1 text-xs divide-y divide-slate-100">
                 {overview.recentAuditLogs.length > 0 ? (
                   overview.recentAuditLogs.map((act) => (
-                    <div key={act.id} className="flex items-start gap-2.5 text-xs">
-                      <div className="w-2 h-2 rounded-full bg-indigo-500 mt-1.5 shrink-0" />
+                    <div key={act.id} className="pt-2 first:pt-0 flex items-start gap-2.5">
+                      <div className="w-2 h-2 rounded-full bg-indigo-500 mt-1 shrink-0" />
                       <div className="space-y-0.5 min-w-0 flex-1">
-                        <p className="text-slate-800 font-medium truncate">
-                          <span className="font-semibold text-slate-900">{act.actorName}</span>{' '}
-                          {(act.action || '').toLowerCase()}
+                        <div className="flex items-baseline justify-between gap-1">
+                          <span className="font-semibold text-slate-900 truncate">
+                            {act.actorName}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-mono shrink-0">
+                            {new Date(act.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                        <p className="text-slate-600 text-[11px] leading-tight">
+                          <span className="capitalize font-medium">{act.action?.toLowerCase()}</span>{' '}
+                          <span className="font-mono text-slate-700 font-medium">{act.entityType}</span>{' '}
+                          <span className="font-mono text-slate-500 text-[10px]">({act.entityId})</span>
                         </p>
-                        <p className="text-slate-600 font-mono text-[11px] truncate">
-                          {act.entityType} ({act.entityId})
-                        </p>
-                        <p className="text-[10px] text-slate-400">
-                          {new Date(act.timestamp).toLocaleTimeString()}
-                        </p>
+                        {act.details && (
+                          <p className="text-[10px] text-slate-400 truncate font-mono">
+                            {act.details}
+                          </p>
+                        )}
                       </div>
                     </div>
                   ))
                 ) : (
-                  <div className="text-xs text-slate-400 py-4 text-center">
+                  <div className="text-xs text-slate-400 py-6 text-center">
                     No recent audit log entries.
                   </div>
                 )}
               </div>
 
               {user?.role === UserRole.ADMIN && (
-                <div className="pt-3 border-t border-slate-100 text-center">
+                <div className="pt-2.5 border-t border-slate-100 text-center mt-auto">
                   <Link
                     to="/settings"
-                    className="text-xs text-slate-500 hover:text-slate-900 font-medium"
+                    className="text-xs text-slate-500 hover:text-indigo-600 font-medium transition-colors"
                   >
                     View Full Database Settings & Diagnostics &rarr;
                   </Link>

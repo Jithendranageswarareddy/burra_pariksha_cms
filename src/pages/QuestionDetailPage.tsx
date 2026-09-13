@@ -49,7 +49,7 @@ export const QuestionDetailPage: React.FC = () => {
   const [editTopicId, setEditTopicId] = useState('');
   const [editSubtopicId, setEditSubtopicId] = useState('');
   const [editDifficulty, setEditDifficulty] = useState<DifficultyLevel>(DifficultyLevel.MEDIUM);
-  const [editQuestionStyle, setEditQuestionStyle] = useState<QuestionStyle>(QuestionStyle.SPEED_MATH_TRICK);
+  const [editQuestionStyle, setEditQuestionStyle] = useState<QuestionStyle | string>(QuestionStyle.SPEED_MATH_TRICK);
   const [editQuestionText, setEditQuestionText] = useState('');
   const [editOptA, setEditOptA] = useState('');
   const [editOptB, setEditOptB] = useState('');

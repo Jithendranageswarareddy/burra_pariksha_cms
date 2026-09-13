@@ -67,7 +67,7 @@ export class QuestionValidationEngine {
         realLifeContext: question.realLifeContext || question.realWorldContext,
         challengeType,
         presentationType: question.presentationType,
-        language: question.language || 'ENGLISH',
+        language: question.language || 'TELUGU',
         questionText: question.questionText,
         options: opts,
         correctAnswer: declaredAnswer as any,
@@ -177,6 +177,7 @@ export class QuestionValidationEngine {
     // STAGE 4: Mathematical & Logical Validation
     // =========================================================================
     const mathLogical = MathematicalLogicalEngine.verify(question.questionText, opts, declaredAnswer);
+    const authoritativeMath = (question as any).mathematicalVerification;
 
     let answerVerified = false;
     let mathematicalContradiction = false;
@@ -202,17 +203,41 @@ export class QuestionValidationEngine {
         message: mathLogical.details,
         details: mathLogical.reason,
       });
-    } else if (mathLogical.status === 'NOT_DETERMINISTICALLY_VERIFIED') {
-      warnings.push('Problem structure contains numerical or specialized logic requiring human subject-matter review.');
-      recommendations.push('Assign to subject matter expert for manual proof step verification.');
+    } else if (authoritativeMath?.status === 'FAILED') {
+      mathematicalContradiction = true;
+      const failReason = authoritativeMath.reason || 'Authoritative mathematical verification failed.';
+      errors.push(`Authoritative Mathematical Verification Failed: ${failReason}`);
       checks.push({
         id: 'CHK_STAGE_4_MATH_LOGIC',
-        name: 'Deterministic Mathematical & Logical Truth Verification',
+        name: 'Authoritative Mathematical & Logical Truth Verification',
         category: 'MATHEMATICAL',
-        status: 'NEEDS_REVIEW',
-        message: 'Problem could not be solved by deterministic engines; human review recommended.',
-        details: mathLogical.details,
+        status: 'FAIL',
+        message: failReason,
+        details: authoritativeMath.solutionDerivation || authoritativeMath.details,
       });
+    } else if (mathLogical.status === 'NOT_DETERMINISTICALLY_VERIFIED') {
+      if (authoritativeMath?.status === 'VERIFIED') {
+        answerVerified = true;
+        checks.push({
+          id: 'CHK_STAGE_4_MATH_LOGIC',
+          name: 'Authoritative Mathematical & Logical Truth Verification',
+          category: 'MATHEMATICAL',
+          status: 'PASS',
+          message: `Provably Valid (Verified via Blind Verifier): matching declared answer ${declaredAnswer}.`,
+          details: authoritativeMath.solutionDerivation || authoritativeMath.details,
+        });
+      } else {
+        warnings.push('Problem structure contains numerical or specialized logic requiring human subject-matter review.');
+        recommendations.push('Assign to subject matter expert for manual proof step verification.');
+        checks.push({
+          id: 'CHK_STAGE_4_MATH_LOGIC',
+          name: 'Deterministic Mathematical & Logical Truth Verification',
+          category: 'MATHEMATICAL',
+          status: 'NEEDS_REVIEW',
+          message: 'Problem could not be solved by deterministic engines; human review recommended.',
+          details: mathLogical.details,
+        });
+      }
     } else {
       // NOT_APPLICABLE
       checks.push({

@@ -370,7 +370,7 @@ export interface Question {
   realLifeContext?: string;
   challengeType?: string;
   presentationType?: string;
-  questionStyle?: QuestionStyle;
+  questionStyle?: QuestionStyle | string;
   status: QuestionStatus;
   videoStatus: VideoProductionStatus;
   tags?: string[];
@@ -386,6 +386,51 @@ export interface Question {
   generationMode?: 'SUBTOPIC' | 'RANDOM' | string;
   createdAt: string;
   updatedAt: string;
+}
+
+// ============================================================================
+// QUESTION_CONFIG Worksheet Data Models (Creator-Managed Studio Configuration)
+// ============================================================================
+
+export type QuestionConfigDimension = 'REAL_LIFE_CONTEXT' | 'QUESTION_STYLE';
+
+export interface QuestionConfigEntry {
+  id: string;
+  dimension: QuestionConfigDimension | string;
+  code: string;
+  displayLabel: string;
+  description?: string;
+  aiPromptGuidance?: string;
+  sortOrder: number;
+  isActive: boolean;
+  isDefault: boolean;
+  updatedAt: string;
+}
+
+export interface GroupedQuestionConfig {
+  realLifeContexts: QuestionConfigEntry[];
+  questionStyles: QuestionConfigEntry[];
+  defaultRealLifeContext: QuestionConfigEntry | null;
+  defaultQuestionStyle: QuestionConfigEntry | null;
+}
+
+export interface QuestionStudioConfigResponse {
+  realLifeContexts: QuestionConfigEntry[];
+  questionStyles: QuestionConfigEntry[];
+  defaults: {
+    realLifeContext: string;
+    questionStyle: string;
+    difficulty?: string;
+    language?: string;
+    defaultRealLifeContext: QuestionConfigEntry | null;
+    defaultQuestionStyle: QuestionConfigEntry | null;
+  };
+  defaultRealLifeContext: QuestionConfigEntry | null;
+  defaultQuestionStyle: QuestionConfigEntry | null;
+  difficulties?: Array<{ id: string; name: string; description?: string }>;
+  challengeTypes?: Array<{ id: string; name: string; description?: string }>;
+  presentationTypes?: Array<{ id: string; name: string; description?: string }>;
+  languages?: Array<{ id: string; name: string; code: string }>;
 }
 
 // ============================================================================

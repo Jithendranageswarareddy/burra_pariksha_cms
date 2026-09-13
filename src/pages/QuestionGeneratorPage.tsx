@@ -93,7 +93,7 @@ export const QuestionGeneratorPage: React.FC = () => {
     (queryDifficulty as DifficultyLevel) || DifficultyLevel.MEDIUM
   );
   const [language, setLanguage] = useState<QuestionLanguage>(
-    (queryLanguage as QuestionLanguage) || QuestionLanguage.ENGLISH
+    (queryLanguage as QuestionLanguage) || QuestionLanguage.TELUGU
   );
   const [questionStyle, setQuestionStyle] = useState<string>(
     queryQuestionStyle || QuestionStyle.REAL_WORLD_SCENARIO

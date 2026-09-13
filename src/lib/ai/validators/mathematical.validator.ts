@@ -283,12 +283,43 @@ export class MathematicalValidator {
   }
 
   // =========================================================================
-  // SOLVER 3: Average Speed Harmonic Mean across Equal Distances
+  // SOLVER 3: Average Speed (Multi-Segment Journey & Harmonic Mean across Equal Distances)
   // =========================================================================
   private static solveAverageSpeedHarmonicMean(content: string) {
     // English: "from [A] to [B] at [S1] km/h and returns ... at [S2] km/h ... average speed"
     // Telugu: "[S1] కి.మీ/గం వేగంతో వెళ్లి ... [S2] కి.మీ/గం వేగంతో ... సగటు వేగం"
     const hasAvgKeywords = /average\s+speed|సగటు\s+వేగం/i.test(content);
+
+    // 1. Multi-segment distance check (e.g. 5 km at 10 km/h and 15 km at 45 km/h)
+    const segmentMatch = content.match(
+      /(\d+(?:\.\d+)?)\s*(?:km|కి\.మీ)(?:(?!\/h|ph|గం)).*?(\d+(?:\.\d+)?)\s*(?:km\/h|kmph|కి\.మీ\/గం).*?(\d+(?:\.\d+)?)\s*(?:km|కి\.మీ)(?:(?!\/h|ph|గం)).*?(\d+(?:\.\d+)?)\s*(?:km\/h|kmph|కి\.మీ\/గం)/i
+    );
+    if (hasAvgKeywords && segmentMatch) {
+      const d1 = parseFloat(segmentMatch[1]);
+      const s1 = parseFloat(segmentMatch[2]);
+      const d2 = parseFloat(segmentMatch[3]);
+      const s2 = parseFloat(segmentMatch[4]);
+
+      if (d1 > 0 && s1 > 0 && d2 > 0 && s2 > 0) {
+        const totalDistance = d1 + d2;
+        const totalTime = d1 / s1 + d2 / s2;
+        const avgSpeed = totalDistance / totalTime;
+        const rounded = Math.round(avgSpeed * 100) / 100;
+        return {
+          problemType: 'Average Speed across Multi-Segment Journey (Total Distance / Total Time)',
+          expectedValue: rounded,
+          expectedUnit: 'km/h',
+          details: `Average Speed = Total Distance / Total Time = (${d1} + ${d2}) / (${d1}/${s1} + ${d2}/${s2}) = ${totalDistance} / ${totalTime} = ${rounded} km/h`,
+          steps: [
+            `Segment 1: Distance = ${d1} km, Speed = ${s1} km/h => Time = ${d1}/${s1} = ${d1 / s1} hr`,
+            `Segment 2: Distance = ${d2} km, Speed = ${s2} km/h => Time = ${d2}/${s2} = ${d2 / s2} hr`,
+            `Total Distance = ${totalDistance} km, Total Time = ${totalTime} hr`,
+            `Average Speed = ${totalDistance} / ${totalTime} = ${rounded} km/h`,
+          ],
+        };
+      }
+    }
+
     const match = content.match(/(\d+)\s*(?:km\/h|kmph|కి\.మీ\/గం).*?(\d+)\s*(?:km\/h|kmph|కి\.మీ\/గం)/i);
 
     if (hasAvgKeywords && match) {

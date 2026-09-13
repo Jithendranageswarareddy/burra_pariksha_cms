@@ -32,9 +32,10 @@ import { usersRepository } from '../repositories/users.repository';
 import { categoriesRepository } from '../repositories/categories.repository';
 import { topicsRepository } from '../repositories/topics.repository';
 import { subtopicsRepository } from '../repositories/subtopics.repository';
+import { questionConfigRepository } from '../repositories/question-config.repository';
 import { MOCK_CATEGORIES, MOCK_TOPICS, MOCK_SUBTOPICS } from '../mock-data/taxonomy';
 import { authService } from './auth.service';
-import { User, UserRole } from '../../types';
+import { User, UserRole, QuestionConfigEntry } from '../../types';
 
 export interface SheetInitializationReport {
   isConfigured: boolean;
@@ -53,6 +54,7 @@ export interface SheetInitializationReport {
     topics: number;
     subtopics: number;
   };
+  questionConfigSeeded?: number;
   summary: string;
   success: boolean;
 }
@@ -239,6 +241,48 @@ export class ProductionSheetInitializer {
         console.error(`[ProductionSheetInitializer] Note during taxonomy check: ${err?.message || 'Error'}`);
       }
 
+      // 6. Seed minimal canonical QUESTION_CONFIG only if worksheet is completely empty
+      let questionConfigSeeded = 0;
+      try {
+        const existingConfig = await questionConfigRepository.findAll();
+        if (existingConfig.length === 0) {
+          const nowIso = new Date().toISOString();
+          const minimalCanonicalSeed: QuestionConfigEntry[] = [
+            {
+              id: 'CFG-STY-001',
+              dimension: 'QUESTION_STYLE',
+              code: 'STORY_BASED',
+              displayLabel: 'Story-Based Scenario',
+              description: 'Narrative problem set in everyday situations with relatable characters',
+              aiPromptGuidance: 'Frame the mathematical problem inside an authentic narrative arc with clear setup, tension, and resolution.',
+              sortOrder: 10,
+              isActive: true,
+              isDefault: true,
+              updatedAt: nowIso,
+            },
+            {
+              id: 'CFG-CTX-001',
+              dimension: 'REAL_LIFE_CONTEXT',
+              code: 'DAILY_COMMUTE',
+              displayLabel: 'Daily Commute & Public Transit',
+              description: 'Scenarios involving bus, metro, train, auto-rickshaw travel and schedules',
+              aiPromptGuidance: 'Ground the problem in commuter travel, train/bus arrival offsets, ticketing queues, and transit speed.',
+              sortOrder: 10,
+              isActive: true,
+              isDefault: true,
+              updatedAt: nowIso,
+            },
+          ];
+
+          for (const entry of minimalCanonicalSeed) {
+            await questionConfigRepository.appendRecord(entry);
+            questionConfigSeeded++;
+          }
+        }
+      } catch (err: any) {
+        console.error(`[ProductionSheetInitializer] Note during QUESTION_CONFIG check: ${err?.message || 'Error'}`);
+      }
+
       return {
         isConfigured: true,
         isLiveAccess: true,
@@ -256,6 +300,7 @@ export class ProductionSheetInitializer {
           topics: topicsSeeded,
           subtopics: subtopicsSeeded,
         },
+        questionConfigSeeded,
         summary: `Spreadsheet initialization complete. Created ${createdTabs.length} tabs, skipped ${skippedTabs.length} existing tabs, initialized ${sequencesInitialized.length} sequences.`,
         success: true,
       };

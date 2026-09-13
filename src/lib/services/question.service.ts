@@ -89,6 +89,7 @@ const VALID_QUESTION_TRANSITIONS: Record<QuestionStatus, QuestionStatus[]> = {
 import { videoService } from './video.service';
 import { QuestionCreationRequestPayload, QuestionCreationValidator } from '../validators/question-creation.validator';
 import { smartRandomService } from './smart-random.service';
+import { questionConfigService } from './question-config.service';
 
 export class QuestionService {
   private static instance: QuestionService | null = null;
@@ -207,11 +208,15 @@ export class QuestionService {
       throw new ValidationError(`Selected correct answer (${validatedInput.correctAnswer}) corresponds to an empty option choice.`);
     }
 
-    // Handle RANDOM mode or subtopicId = 'RANDOM'
+    // Handle RANDOM mode, subtopicId = 'RANDOM', or realLifeContext = 'RANDOM'
     let resolvedSubtopicId = validatedInput.subtopicId;
+    const inputContext = ((validatedInput as any).realLifeContext || validatedInput.realWorldContext || '').trim();
+    const isRandomContext = inputContext.toUpperCase() === 'RANDOM' || inputContext.toUpperCase() === 'SMART_RANDOM';
+
     let resolvedGenerationMode: 'SUBTOPIC' | 'RANDOM' =
       validatedInput.generationMode?.toUpperCase() === 'RANDOM' ||
-      validatedInput.subtopicId?.toUpperCase() === 'RANDOM'
+      validatedInput.subtopicId?.toUpperCase() === 'RANDOM' ||
+      isRandomContext
         ? 'RANDOM'
         : 'SUBTOPIC';
 
@@ -219,6 +224,21 @@ export class QuestionService {
       const resolved = await taxonomyService.resolveSubtopicSelection(validatedInput.topicId, 'RANDOM');
       resolvedSubtopicId = resolved.subtopicId;
       resolvedGenerationMode = 'RANDOM';
+    }
+
+    // Resolve context if RANDOM so literal "RANDOM" is never persisted
+    let resolvedRealLifeContext = inputContext;
+    if (isRandomContext) {
+      const resolvedContextParams = await smartRandomService.resolveParameters({
+        topicId: validatedInput.topicId,
+        subtopicId: resolvedSubtopicId,
+        realLifeContext: 'RANDOM',
+      });
+      resolvedRealLifeContext = resolvedContextParams.realLifeContext;
+      resolvedGenerationMode = 'RANDOM';
+    }
+    if (resolvedRealLifeContext.toUpperCase() === 'RANDOM') {
+      throw new ValidationError('Real-life context cannot be persisted as literal "RANDOM". A concrete context must be resolved.');
     }
 
     // 2. Validate Taxonomy Integrity (Topic -> Subtopic primary, optional legacy category)
@@ -267,19 +287,19 @@ export class QuestionService {
       subtopicId: subtopic.id,
       subtopicName: subtopic.name,
       difficulty: validatedInput.difficulty,
-      language: (validatedInput as any).language || 'ENGLISH',
+      language: (validatedInput as any).language || 'TELUGU',
       questionText: validatedInput.questionText,
       options: validatedInput.options,
       correctAnswer: validatedInput.correctAnswer,
       explanation: validatedInput.explanation,
-      realWorldContext: validatedInput.realWorldContext || (validatedInput as any).realLifeContext || '',
-      realLifeContext: (validatedInput as any).realLifeContext || validatedInput.realWorldContext || '',
+      realWorldContext: resolvedRealLifeContext,
+      realLifeContext: resolvedRealLifeContext,
       challengeType: (validatedInput as any).challengeType || '',
       presentationType: (validatedInput as any).presentationType || '',
       originalityScore: (validatedInput as any).originalityScore || 0,
       aiModel: (validatedInput as any).aiModel || '',
       aiPrompt: (validatedInput as any).aiPrompt || '',
-      questionStyle: validatedInput.questionStyle as any,
+      questionStyle: QuestionCreationValidator.normalizeQuestionStyle(validatedInput.questionStyle),
       status,
       videoStatus,
       tags: validatedInput.tags || [],
@@ -344,6 +364,29 @@ export class QuestionService {
     }
 
     // 1. Resolve RANDOM / SMART_RANDOM parameters if needed
+    const isRandomContext = requestPayload.realLifeContext?.toUpperCase() === 'RANDOM' || requestPayload.realLifeContext?.toUpperCase() === 'SMART_RANDOM';
+    const isRandomSubtopic = requestPayload.subtopicId?.toUpperCase() === 'RANDOM';
+    const isRandomMode = requestPayload.generationMode?.toUpperCase() === 'RANDOM';
+    const resolvedGenerationMode: 'SUBTOPIC' | 'RANDOM' =
+      isRandomContext || isRandomSubtopic || isRandomMode ? 'RANDOM' : 'SUBTOPIC';
+
+    // Validate explicit non-random realLifeContext against inactive entries in QUESTION_CONFIG
+    if (requestPayload.realLifeContext && !isRandomContext) {
+      try {
+        const allContexts = await questionConfigService.getRealLifeContexts(false);
+        const match = allContexts.find(
+          (c) =>
+            c.code.toUpperCase() === requestPayload.realLifeContext!.toUpperCase() ||
+            c.displayLabel.toLowerCase() === requestPayload.realLifeContext!.toLowerCase()
+        );
+        if (match && !match.isActive) {
+          throw new ValidationError(`Selected Real-Life Context "${requestPayload.realLifeContext}" is inactive in QUESTION_CONFIG.`);
+        }
+      } catch (err: any) {
+        if (err instanceof ValidationError) throw err;
+      }
+    }
+
     const resolvedParams = await smartRandomService.resolveParameters({
       categoryId: requestPayload.categoryId,
       topicId: requestPayload.topicId,
@@ -364,8 +407,12 @@ export class QuestionService {
     const presentationType = resolvedParams.presentationType;
     const language = resolvedParams.language;
 
+    if (realLifeContext && realLifeContext.toUpperCase() === 'RANDOM') {
+      throw new ValidationError('Real-life context cannot be persisted as literal "RANDOM". A concrete context must be resolved.');
+    }
+
     // 2. Perform Structural Validation
-    QuestionCreationValidator.validateStructure({
+    const validationPayload: QuestionCreationRequestPayload = {
       ...requestPayload,
       topicId,
       subtopicId,
@@ -373,7 +420,11 @@ export class QuestionService {
       language,
       presentationType,
       challengeType,
-    });
+      realLifeContext,
+      generationMode: resolvedGenerationMode,
+    };
+    QuestionCreationValidator.validateStructure(validationPayload);
+    const questionStyle = validationPayload.questionStyle || 'STORY_BASED';
 
     // 3. Validate Taxonomy Integrity
     const { category, topic, subtopic } = await taxonomyService.validateTaxonomy(
@@ -433,6 +484,7 @@ export class QuestionService {
       realLifeContext: realLifeContext,
       challengeType: challengeType,
       presentationType: presentationType,
+      questionStyle: questionStyle,
       status,
       videoStatus,
       tags: requestPayload.tags || [],
@@ -442,6 +494,7 @@ export class QuestionService {
       aiPrompt: requestPayload.aiPrompt || '',
       originalityScore: requestPayload.originalityScore || 0,
       authorId: actor.id,
+      generationMode: resolvedGenerationMode,
       createdAt: now,
       updatedAt: now,
     };
@@ -477,6 +530,7 @@ export class QuestionService {
         challengeType,
         presentationType,
         language,
+        questionStyle,
         idempotencyKey: requestPayload.idempotencyKey,
       }
     );

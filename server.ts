@@ -21,10 +21,10 @@ async function startServer() {
   // Mount API routes FIRST
   app.use('/api', apiRouter);
 
-  // Mount Vite middleware when in dev or when dist bundle has not been built
+  // Mount static bundle when dist bundle exists, or fallback to Vite dev middleware
   const distPath = path.join(process.cwd(), 'dist');
   const indexHtmlPath = path.join(distPath, 'index.html');
-  const isProductionBundleReady = process.env.NODE_ENV === 'production' && fs.existsSync(indexHtmlPath);
+  const isProductionBundleReady = fs.existsSync(indexHtmlPath);
 
   if (!isProductionBundleReady) {
     const vite = await createViteServer({

@@ -48,6 +48,7 @@ export const SHEET_TABS = {
   CONTENT_MASTERS: 'CONTENT_MASTERS',
   QUESTION_VALIDATIONS: 'QUESTION_VALIDATIONS',
   SOCIAL_REVIEWS: 'SOCIAL_REVIEWS',
+  QUESTION_CONFIG: 'QUESTION_CONFIG',
 } as const;
 
 // Phase 9 Extended Planning Worksheet Names
@@ -81,6 +82,7 @@ export const ALL_SHEET_TABS: SheetTabName[] = [
   SHEET_TABS.CONTENT_MASTERS,
   SHEET_TABS.SOCIAL_REVIEWS,
   SHEET_TABS.QUESTION_VALIDATIONS,
+  SHEET_TABS.QUESTION_CONFIG,
   PLANNING_SHEET_TABS.CONTENT_PLANS,
   PLANNING_SHEET_TABS.CONTENT_BATCHES,
 ];
@@ -292,7 +294,7 @@ export const SHEET_SCHEMAS: Record<SheetTabName, SheetSchemaContract> = {
       { name: 'originality_score', propertyKey: 'originalityScore', type: 'number', required: false },
       { name: 'ai_model', propertyKey: 'aiModel', type: 'string', required: false },
       { name: 'ai_prompt', propertyKey: 'aiPrompt', type: 'string', required: false },
-      { name: 'question_style', propertyKey: 'questionStyle', type: 'string', required: false, allowedValues: Object.values(QuestionStyle) },
+      { name: 'question_style', propertyKey: 'questionStyle', type: 'string', required: false, allowedValues: [...Object.values(QuestionStyle), ...Object.keys(QuestionStyle)] },
       { name: 'status', propertyKey: 'status', type: 'string', required: true, allowedValues: Object.values(QuestionStatus) },
       { name: 'video_status', propertyKey: 'videoStatus', type: 'string', required: true, allowedValues: Object.values(VideoProductionStatus) },
       { name: 'tags', propertyKey: 'tags', type: 'string', required: false }, // stored as comma-separated or JSON string
@@ -687,11 +689,45 @@ export const SHEET_SCHEMAS: Record<SheetTabName, SheetSchemaContract> = {
       { name: 'updated_at', propertyKey: 'updatedAt', type: 'date', required: true },
     ],
   },
+
+  // 22. QUESTION_CONFIG (Question Studio Creator-Managed Configuration)
+  [SHEET_TABS.QUESTION_CONFIG]: {
+    sheetName: SHEET_TABS.QUESTION_CONFIG,
+    purpose: 'Creator-managed configuration catalogue and prompt guidance metadata',
+    primaryKey: 'id',
+    columns: [
+      { name: 'id', propertyKey: 'id', type: 'string', required: true, isPrimaryKey: true },
+      { name: 'dimension', propertyKey: 'dimension', type: 'string', required: true },
+      { name: 'code', propertyKey: 'code', type: 'string', required: true },
+      { name: 'display_label', propertyKey: 'displayLabel', type: 'string', required: true },
+      { name: 'description', propertyKey: 'description', type: 'string', required: false },
+      { name: 'ai_prompt_guidance', propertyKey: 'aiPromptGuidance', type: 'string', required: false },
+      { name: 'sort_order', propertyKey: 'sortOrder', type: 'number', required: true },
+      { name: 'is_active', propertyKey: 'isActive', type: 'boolean', required: true },
+      { name: 'is_default', propertyKey: 'isDefault', type: 'boolean', required: true },
+      { name: 'updated_at', propertyKey: 'updatedAt', type: 'date', required: true },
+    ],
+  },
 };
 
 // ============================================================================
 // 4. ZOD RUNTIME VALIDATION SCHEMAS
 // ============================================================================
+
+export const QuestionConfigEntryZodSchema = z.object({
+  id: z.string().min(1, 'ID is required'),
+  dimension: z.enum(['REAL_LIFE_CONTEXT', 'QUESTION_STYLE']),
+  code: z.string().min(1, 'Code is required'),
+  displayLabel: z.string().min(1, 'Display label is required'),
+  description: z.string().optional(),
+  aiPromptGuidance: z.string().optional(),
+  sortOrder: z.number().int().default(0),
+  isActive: z.boolean().default(true),
+  isDefault: z.boolean().default(false),
+  updatedAt: z.string().optional(),
+});
+
+export type QuestionConfigEntryZodInput = z.infer<typeof QuestionConfigEntryZodSchema>;
 
 export const CreateQuestionInputSchema = z.object({
   contentId: z.string().optional(),
@@ -703,7 +739,7 @@ export const CreateQuestionInputSchema = z.object({
   subtopicId: z.string().min(1, 'Subtopic ID is required'),
   subtopicName: z.string().optional(),
   difficulty: z.union([z.nativeEnum(DifficultyLevel), z.string()]),
-  language: z.string().optional().default('ENGLISH'),
+  language: z.string().optional().default('TELUGU'),
   questionText: z.string().min(5, 'Question text must be at least 5 characters'),
   options: z.object({
     a: z.string().min(1, 'Option A is required'),
@@ -899,7 +935,7 @@ export const CreateContentPlanInputSchema = z.object({
   subtopicId: z.string().min(1, 'Subtopic ID is required'),
   subtopicName: z.string().optional(),
   difficulty: z.nativeEnum(DifficultyLevel),
-  language: z.nativeEnum(QuestionLanguage).optional().default(QuestionLanguage.ENGLISH),
+  language: z.nativeEnum(QuestionLanguage).optional().default(QuestionLanguage.TELUGU),
   targetQuestionCount: z.number().int().min(1, 'Target question count must be at least 1').max(500, 'Target question count cannot exceed 500'),
   realWorldContext: z.string().optional(),
   questionStyle: z.nativeEnum(QuestionStyle).optional(),
@@ -959,7 +995,7 @@ export const AiContentPlanRequestSchema = z.object({
   categoryId: z.string().min(1, 'Category ID is required'),
   topicId: z.string().optional(),
   targetTotalCount: z.number().int().min(5, 'Target total count must be at least 5').max(100, 'Target count capped at 100 per recommendation').default(20),
-  language: z.nativeEnum(QuestionLanguage).optional().default(QuestionLanguage.ENGLISH),
+  language: z.nativeEnum(QuestionLanguage).optional().default(QuestionLanguage.TELUGU),
   preferredDifficulties: z.array(z.nativeEnum(DifficultyLevel)).optional(),
   focusContext: z.string().optional(),
 });

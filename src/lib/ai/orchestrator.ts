@@ -7,6 +7,8 @@ import { AIProviderRegistry, aiProviderRegistry as defaultRegistry } from './reg
 import { GenerateCandidateInput, GenerationResult, AIProviderOptions } from './types';
 import { DEFAULT_AI_CONFIG } from './config';
 import { classifyAIError, AIProviderError, AIErrorClassification } from './error';
+import { questionConfigService } from '../services/question-config.service';
+import { REAL_LIFE_CONTEXTS } from '../../config/question-creation.config';
 
 export interface OrchestratorOptions extends AIProviderOptions {
   primaryProviderId?: string;
@@ -39,6 +41,26 @@ export class AIOrchestrator {
     const attemptedProviders: string[] = [];
     const errorsEncountered: Array<{ providerId: string; classification: AIErrorClassification; message: string }> = [];
 
+    // Resolve RANDOM / SMART_RANDOM realWorldContext using configured QUESTION_CONFIG catalogue
+    const resolvedInput: GenerateCandidateInput = { ...input };
+    if (resolvedInput.realWorldContext?.toUpperCase() === 'RANDOM' || resolvedInput.realWorldContext?.toUpperCase() === 'SMART_RANDOM') {
+      try {
+        const activeContexts = await questionConfigService.getRealLifeContexts(true);
+        if (activeContexts && activeContexts.length > 0) {
+          const randIdx = Math.floor(Math.random() * activeContexts.length);
+          resolvedInput.realWorldContext = activeContexts[randIdx].displayLabel || activeContexts[randIdx].code;
+        } else {
+          const allExamples = REAL_LIFE_CONTEXTS.flatMap((c) => c.examples);
+          const randIdx = Math.floor(Math.random() * allExamples.length);
+          resolvedInput.realWorldContext = allExamples[randIdx];
+        }
+      } catch {
+        const allExamples = REAL_LIFE_CONTEXTS.flatMap((c) => c.examples);
+        const randIdx = Math.floor(Math.random() * allExamples.length);
+        resolvedInput.realWorldContext = allExamples[randIdx];
+      }
+    }
+
     for (const providerId of providerChain) {
       const provider = this.registry.getProvider(providerId);
 
@@ -64,7 +86,7 @@ export class AIOrchestrator {
       const startTime = Date.now();
 
       try {
-        const result = await provider.generateCandidate(input, options);
+        const result = await provider.generateCandidate(resolvedInput, options);
         const duration = Date.now() - startTime;
 
         // 1. Enforce EXACTLY ONE question candidate rule
@@ -75,6 +97,11 @@ export class AIOrchestrator {
         // Reject if provider returned multiple candidates (e.g., array payload)
         if (Array.isArray(result.candidate) || Array.isArray((result.candidate as any).candidates) || Array.isArray((result.candidate as any).items)) {
           throw new Error(`Provider '${providerId}' returned multiple question candidates. Exactly ONE candidate is allowed.`);
+        }
+
+        // Never allow literal "RANDOM" as candidate real_world_context
+        if (result.candidate.real_world_context?.toUpperCase() === 'RANDOM' || !result.candidate.real_world_context) {
+          result.candidate.real_world_context = resolvedInput.realWorldContext || '';
         }
 
         const candidateContent = result.candidate.content;

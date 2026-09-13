@@ -17,6 +17,8 @@ import {
 } from '../../config/question-creation.config';
 import { taxonomyService } from './taxonomy.service';
 import { questionsRepository } from '../repositories/questions.repository';
+import { questionConfigService } from './question-config.service';
+import { ValidationError } from '../google-sheets/errors';
 import { QuestionLanguage } from '../../types';
 
 export interface ResolvedCreationParameters {
@@ -31,6 +33,7 @@ export interface ResolvedCreationParameters {
   challengeType: string;
   presentationType: string;
   language: QuestionLanguage;
+  generationMode: 'RANDOM' | 'SUBTOPIC';
 }
 
 export interface SmartRandomInput {
@@ -154,10 +157,42 @@ export class SmartRandomService {
 
     // 3. Resolve Real-Life Context
     let realLifeContext = input.realLifeContext;
-    if (!realLifeContext || realLifeContext === 'RANDOM' || realLifeContext === 'SMART_RANDOM') {
-      const allExamples = REAL_LIFE_CONTEXTS.flatMap((c) => c.examples);
-      const randomIndex = Math.floor(Math.random() * allExamples.length);
-      realLifeContext = allExamples[randomIndex];
+    const isRandomContext = !realLifeContext || realLifeContext.toUpperCase() === 'RANDOM' || realLifeContext.toUpperCase() === 'SMART_RANDOM';
+
+    if (isRandomContext) {
+      try {
+        const configuredContexts = await questionConfigService.getRealLifeContexts(true);
+        if (configuredContexts && configuredContexts.length > 0) {
+          const randomIndex = Math.floor(Math.random() * configuredContexts.length);
+          realLifeContext = configuredContexts[randomIndex].displayLabel || configuredContexts[randomIndex].code;
+        } else {
+          const allExamples = REAL_LIFE_CONTEXTS.flatMap((c) => c.examples);
+          const randomIndex = Math.floor(Math.random() * allExamples.length);
+          realLifeContext = allExamples[randomIndex];
+        }
+      } catch {
+        const allExamples = REAL_LIFE_CONTEXTS.flatMap((c) => c.examples);
+        const randomIndex = Math.floor(Math.random() * allExamples.length);
+        realLifeContext = allExamples[randomIndex];
+      }
+    } else {
+      // Explicit context was passed; check for inactive status in QUESTION_CONFIG
+      try {
+        const allConfigContexts = await questionConfigService.getRealLifeContexts(false);
+        const matched = allConfigContexts.find(
+          (c) =>
+            c.code.toUpperCase() === realLifeContext!.toUpperCase() ||
+            c.displayLabel.toLowerCase() === realLifeContext!.toLowerCase()
+        );
+        if (matched) {
+          if (!matched.isActive) {
+            throw new ValidationError(`Selected Real-Life Context "${realLifeContext}" is inactive in QUESTION_CONFIG.`);
+          }
+          realLifeContext = matched.displayLabel;
+        }
+      } catch (err: any) {
+        if (err instanceof ValidationError) throw err;
+      }
     }
 
     // 4. Resolve Challenge Type
@@ -183,10 +218,21 @@ export class SmartRandomService {
     }
 
     // 6. Resolve Language
-    let language: QuestionLanguage = (input.language as QuestionLanguage) || QuestionLanguage.ENGLISH;
+    let language: QuestionLanguage = (input.language as QuestionLanguage) || QuestionLanguage.TELUGU;
     if ((input.language as string) === 'RANDOM' || (input.language as string) === 'SMART_RANDOM') {
-      language = QuestionLanguage.ENGLISH;
+      language = QuestionLanguage.TELUGU;
     }
+
+    // 7. Resolve Generation Mode
+    const isRandomMode =
+      input.subtopicId === 'RANDOM' ||
+      input.subtopicId === 'SMART_RANDOM' ||
+      input.topicId === 'RANDOM' ||
+      input.topicId === 'SMART_RANDOM' ||
+      input.realLifeContext === 'RANDOM' ||
+      input.realLifeContext === 'SMART_RANDOM' ||
+      input.difficulty === 'RANDOM' ||
+      input.difficulty === 'SMART_RANDOM';
 
     return {
       categoryId: selectedCat.id,
@@ -200,6 +246,7 @@ export class SmartRandomService {
       challengeType,
       presentationType,
       language,
+      generationMode: isRandomMode ? 'RANDOM' : 'SUBTOPIC',
     };
   }
 }

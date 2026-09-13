@@ -27,4 +27,5 @@ export * from './content-batches.repository';
 export * from './content-masters.repository';
 export * from './validations.repository';
 export * from './social-reviews.repository';
+export * from './question-config.repository';
 

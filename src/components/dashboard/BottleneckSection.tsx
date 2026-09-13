@@ -23,7 +23,7 @@ export const BottleneckSection: React.FC<BottleneckSectionProps> = ({ bottleneck
   };
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs flex flex-col justify-between space-y-4">
+    <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs h-full flex flex-col justify-between space-y-4">
       <div className="space-y-3">
         <div className="flex items-center justify-between pb-3 border-b border-slate-100">
           <div className="flex items-center gap-2">

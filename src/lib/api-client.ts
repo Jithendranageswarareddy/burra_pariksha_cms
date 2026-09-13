@@ -24,6 +24,7 @@ import {
   Publishing,
   Question,
   QuestionStatus,
+  QuestionStudioConfigResponse,
   SpreadsheetHealthReport,
   Subtopic,
   TeamWorkloadSummary,
@@ -229,6 +230,11 @@ class ApiClient {
 
   public async getQuestionCreationConfig(): Promise<any> {
     return this.request('/questions/config');
+  }
+
+  public async getQuestionStudioConfig(forceRefresh?: boolean): Promise<QuestionStudioConfigResponse> {
+    const qs = forceRefresh ? '?forceRefresh=true' : '';
+    return this.request(`/questions/config${qs}`);
   }
 
   public async resolveSmartRandom(input: any): Promise<any> {

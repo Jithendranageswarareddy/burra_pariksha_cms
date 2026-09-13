@@ -61,7 +61,7 @@ export const TodaysWorkSection: React.FC<TodaysWorkSectionProps> = ({ items }) =
   };
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-4">
+    <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 shadow-xs space-y-3">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
         <div className="flex items-center gap-2.5">
           <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg border border-indigo-100">
@@ -120,8 +120,9 @@ export const TodaysWorkSection: React.FC<TodaysWorkSectionProps> = ({ items }) =
 
       {/* Item List */}
       {filteredItems.length === 0 ? (
-        <div className="p-8 text-center bg-slate-50 rounded-lg border border-dashed border-slate-200 text-slate-500 text-xs">
-          No immediate priority actions pending. All active content is on track.
+        <div className="flex items-center gap-2 p-2.5 bg-emerald-50/70 border border-emerald-200/80 rounded-lg text-emerald-800 text-xs font-medium">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+          <span>No immediate priority actions pending.</span>
         </div>
       ) : (
         <div className="space-y-2.5 max-h-[460px] overflow-y-auto pr-1">

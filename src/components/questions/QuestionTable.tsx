@@ -11,25 +11,33 @@ interface QuestionTableProps {
 }
 
 export const QuestionTable: React.FC<QuestionTableProps> = ({ questions, onSelectQuestion }) => {
+  const hasQuestions = Array.isArray(questions) && questions.length > 0;
+
   return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse text-xs">
+    <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden flex flex-col w-full">
+      <div className="overflow-x-auto max-h-[460px] overflow-y-auto w-full">
+        <table className={`w-full text-left border-collapse text-xs ${!hasQuestions ? 'table-fixed' : ''}`}>
           <thead>
-            <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold uppercase tracking-wider">
-              <th className="py-3.5 px-4 font-semibold">ID</th>
-              <th className="py-3.5 px-4 font-semibold">Taxonomy (Cat &bull; Topic &bull; Subtopic)</th>
-              <th className="py-3.5 px-4 font-semibold">Difficulty</th>
-              <th className="py-3.5 px-4 font-semibold min-w-[260px]">Question Text</th>
-              <th className="py-3.5 px-4 font-semibold">Question Status</th>
-              <th className="py-3.5 px-4 font-semibold">Video Status</th>
-              <th className="py-3.5 px-4 font-semibold">Created</th>
-              <th className="py-3.5 px-4 font-semibold">Updated</th>
-              <th className="py-3.5 px-4 font-semibold text-right">Actions</th>
+            <tr className="sticky top-0 bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold uppercase tracking-wider z-10">
+              <th className={`py-3 px-4 font-semibold ${hasQuestions ? 'whitespace-nowrap' : ''}`}>ID</th>
+              <th className={`py-3 px-4 font-semibold ${hasQuestions ? 'whitespace-nowrap' : ''}`}>Taxonomy (Topic &bull; Subtopic)</th>
+              <th className={`py-3 px-4 font-semibold ${hasQuestions ? 'whitespace-nowrap' : ''}`}>Difficulty</th>
+              <th className={`py-3 px-4 font-semibold ${hasQuestions ? 'min-w-[240px]' : ''}`}>Question Text</th>
+              <th className={`py-3 px-4 font-semibold ${hasQuestions ? 'whitespace-nowrap' : ''}`}>Question Status</th>
+              <th className={`py-3 px-4 font-semibold ${hasQuestions ? 'whitespace-nowrap' : ''}`}>Video Status</th>
+              <th className={`py-3 px-4 font-semibold ${hasQuestions ? 'whitespace-nowrap' : ''}`}>Created</th>
+              <th className={`py-3 px-4 font-semibold ${hasQuestions ? 'whitespace-nowrap' : ''}`}>Updated</th>
+              <th className={`py-3 px-4 font-semibold text-right ${hasQuestions ? 'whitespace-nowrap' : ''}`}>Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 text-slate-700">
-            {questions.map((q) => (
+            {!hasQuestions ? (
+              <tr>
+                <td colSpan={9} className="py-8 px-4 text-center text-slate-500 text-xs">
+                  No questions recorded in repository yet.
+                </td>
+              </tr>
+            ) : questions.map((q) => (
               <tr
                 key={q.id}
                 id={`row-question-${(q.id || '').toLowerCase()}`}

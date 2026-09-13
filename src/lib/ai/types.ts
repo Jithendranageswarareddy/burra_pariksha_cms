@@ -6,6 +6,7 @@
 import { DifficultyLevel, QuestionLanguage, QuestionStyle } from '../../types';
 import { CandidateValidationReport } from './validators/candidate.validator';
 import { AIErrorClassification } from './error';
+import { MathVerificationResult } from './validators/mathematical.validator';
 
 export enum AiRefinementAction {
   REGENERATE = 'REGENERATE',
@@ -52,6 +53,7 @@ export interface QuestionCandidate {
     subtopicId: string;
     subtopicName?: string;
   };
+  mathematicalVerification?: MathVerificationResult;
 }
 
 export interface RefineCandidateInput {

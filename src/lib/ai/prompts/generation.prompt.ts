@@ -71,7 +71,7 @@ export function buildGenerationPrompt(input: GenerateCandidateInput): string {
   const topic = sanitizePromptInput(input.topicName || input.topicId);
   const subtopic = sanitizePromptInput(input.subtopicName || input.subtopicId);
   const difficulty = input.difficulty || DifficultyLevel.MEDIUM;
-  const language = input.language || QuestionLanguage.ENGLISH;
+  const language = input.language || QuestionLanguage.TELUGU;
   const style = sanitizePromptInput(input.questionStyle || 'Real-World Scenario');
   const context = sanitizePromptInput(input.realWorldContext || '');
   const custom = sanitizePromptInput(input.customInstructions || '');

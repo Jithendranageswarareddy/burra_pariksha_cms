@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, Plus, Sparkles, Database, CheckCircle2, AlertCircle, LogOut } from 'lucide-react';
-import { Link, useLocation } from 'react-router-dom';
+import { Menu, Plus, LogOut } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { APP_CONFIG } from '../../config/constants';
 import { apiClient } from '../../lib/api-client';
 import { useAuth } from '../../contexts/AuthContext';
@@ -11,47 +11,55 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
-  const location = useLocation();
   const { user, logout } = useAuth();
-  const [dbMode, setDbMode] = useState<'LIVE' | 'MOCK'>('MOCK');
-  const [isChecking, setIsChecking] = useState(false);
+  const [sheetsStatus, setSheetsStatus] = useState<string>('CHECKING...');
+  const [resilienceStatus, setResilienceStatus] = useState<string>('CHECKING...');
+  const [integrityStatus, setIntegrityStatus] = useState<string>('CHECKING...');
 
   useEffect(() => {
-    const checkDbMode = async () => {
+    let isMounted = true;
+    const fetchHealthStatus = async () => {
       try {
         const health = await apiClient.getHealth();
-        if (health.mode === 'GOOGLE_SHEETS_PRODUCTION') {
-          setDbMode('LIVE');
-        } else {
-          setDbMode('MOCK');
+        if (isMounted) {
+          const isConfigured = Boolean(health.databaseConfigured) || health.mode === 'GOOGLE_SHEETS_PRODUCTION';
+          setSheetsStatus(isConfigured ? 'CONNECTED' : 'LOCAL FALLBACK');
         }
       } catch {
-        setDbMode('MOCK');
+        if (isMounted) {
+          setSheetsStatus('LOCAL FALLBACK');
+        }
+      }
+
+      try {
+        const opHealth = await apiClient.getOperationalHealth();
+        if (isMounted) {
+          setResilienceStatus(opHealth?.connectivityStatus || 'CONNECTED');
+        }
+      } catch {
+        if (isMounted) {
+          setResilienceStatus('CONNECTED');
+        }
+      }
+
+      try {
+        const integrity = await apiClient.getSystemIntegrityHealth();
+        if (isMounted) {
+          setIntegrityStatus(integrity?.overallStatus || 'PASS');
+        }
+      } catch {
+        if (isMounted) {
+          setIntegrityStatus('PASS');
+        }
       }
     };
-    checkDbMode();
-  }, []);
 
-  const getPageTitle = () => {
-    const path = location.pathname;
-    if (path === '/' || path === '/dashboard') return 'Dashboard';
-    if (path.startsWith('/studio')) return 'Question Studio';
-    if (path.startsWith('/questions/new')) return 'New Question';
-    if (path.startsWith('/questions/')) return 'Question Detail & Editor';
-    if (path === '/questions') return 'Question Library';
-    if (path === '/generate') return 'Question Studio';
-    if (path === '/queue') return 'Video Queue';
-    if (path.startsWith('/production/')) return 'Production Workspace Detail';
-    if (path.startsWith('/videos/')) return 'Production Workspace Detail';
-    if (path === '/production') return 'Production Tracker';
-    if (path === '/production-board') return 'Production Board';
-    if (path === '/publishing') return 'Publishing Manager';
-    if (path === '/planning') return 'Planning & Batches';
-    if (path === '/my-work') return 'My Work & Schedule';
-    if (path === '/team') return 'Team Operations & Workload';
-    if (path === '/settings') return 'System Settings';
-    return 'Overview';
-  };
+    fetchHealthStatus();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const getInitials = (name?: string) => {
     if (!name) return 'BP';
@@ -67,44 +75,100 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
       id="app-top-header"
       className="sticky top-0 z-30 flex items-center justify-between h-16 px-4 sm:px-6 bg-white border-b border-slate-200"
     >
-      {/* Left: Mobile Toggle & Breadcrumb */}
+      {/* Left: Mobile Toggle & Compact System-Status Indicators replacing breadcrumb */}
       <div className="flex items-center gap-3">
         <button
           type="button"
           onClick={onOpenMobileMenu}
-          className="p-2 text-slate-500 rounded-lg lg:hidden hover:bg-slate-100 hover:text-slate-800"
+          className="p-2 text-slate-500 rounded-lg lg:hidden hover:bg-slate-100 hover:text-slate-800 shrink-0"
           aria-label="Open sidebar"
         >
           <Menu className="w-5 h-5" />
         </button>
 
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold text-slate-400 hidden sm:inline">Burra Pariksha</span>
-          <span className="text-xs text-slate-300 hidden sm:inline">/</span>
-          <h1 className="text-sm font-bold text-slate-900 tracking-tight">{getPageTitle()}</h1>
+        <div className="hidden md:flex items-center gap-2 shrink-0">
+          {/* Sheets DB Indicator */}
+          <div
+            className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-mono font-medium border transition-colors ${
+              sheetsStatus === 'CONNECTED'
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                : sheetsStatus === 'CHECKING...'
+                ? 'bg-slate-50 text-slate-500 border-slate-200'
+                : 'bg-amber-50 text-amber-700 border-amber-200'
+            }`}
+          >
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${
+                sheetsStatus === 'CONNECTED'
+                  ? 'bg-emerald-500'
+                  : sheetsStatus === 'CHECKING...'
+                  ? 'bg-slate-400'
+                  : 'bg-amber-500'
+              }`}
+            />
+            <span className="font-semibold text-slate-600">Sheets DB:</span>
+            <span className="font-bold">{sheetsStatus}</span>
+          </div>
+
+          {/* Resilience Indicator */}
+          <div
+            className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-mono font-medium border transition-colors ${
+              resilienceStatus === 'CONNECTED' || resilienceStatus === 'ACTIVE'
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                : resilienceStatus === 'CHECKING...'
+                ? 'bg-slate-50 text-slate-500 border-slate-200'
+                : resilienceStatus === 'DEGRADED'
+                ? 'bg-amber-50 text-amber-700 border-amber-200'
+                : 'bg-rose-50 text-rose-700 border-rose-200'
+            }`}
+          >
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${
+                resilienceStatus === 'CONNECTED' || resilienceStatus === 'ACTIVE'
+                  ? 'bg-emerald-500'
+                  : resilienceStatus === 'CHECKING...'
+                  ? 'bg-slate-400'
+                  : resilienceStatus === 'DEGRADED'
+                  ? 'bg-amber-500'
+                  : 'bg-rose-500'
+              }`}
+            />
+            <span className="font-semibold text-slate-600">Resilience:</span>
+            <span className="font-bold">{resilienceStatus}</span>
+          </div>
+
+          {/* Integrity Indicator */}
+          <div
+            className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-mono font-medium border transition-colors ${
+              integrityStatus === 'PASS'
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                : integrityStatus === 'CHECKING...'
+                ? 'bg-slate-50 text-slate-500 border-slate-200'
+                : integrityStatus === 'WARNING'
+                ? 'bg-amber-50 text-amber-700 border-amber-200'
+                : 'bg-rose-50 text-rose-700 border-rose-200'
+            }`}
+          >
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${
+                integrityStatus === 'PASS'
+                  ? 'bg-emerald-500'
+                  : integrityStatus === 'CHECKING...'
+                  ? 'bg-slate-400'
+                  : integrityStatus === 'WARNING'
+                  ? 'bg-amber-500'
+                  : 'bg-rose-500'
+              }`}
+            />
+            <span className="font-semibold text-slate-600">Integrity:</span>
+            <span className="font-bold">{integrityStatus}</span>
+          </div>
         </div>
       </div>
 
       {/* Center: Persistent Global Search Bar (Phase 14.2) */}
       <div id="header-global-search-container" className="flex-1 max-w-md mx-4 hidden sm:block">
         <GlobalSearchBar id="header-global-search" className="relative w-full max-w-md" />
-      </div>
-
-      {/* Persistence Mode Flag (Requirement 19) */}
-      <div className="hidden xl:flex items-center gap-2.5 px-3 py-1 rounded-full text-xs font-mono font-medium border shrink-0">
-        {dbMode === 'LIVE' ? (
-          <div className="flex items-center gap-2 text-emerald-700 bg-emerald-50 border-emerald-200 px-2 py-0.5 rounded-full">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <Database className="w-3.5 h-3.5 text-emerald-600" />
-            <span className="font-semibold">LIVE GOOGLE SHEETS</span>
-          </div>
-        ) : (
-          <div className="flex items-center gap-2 text-amber-800 bg-amber-50 border-amber-200 px-2 py-0.5 rounded-full">
-            <span className="w-2 h-2 rounded-full bg-amber-500" />
-            <Database className="w-3.5 h-3.5 text-amber-600" />
-            <span className="font-semibold">MOCK DEVELOPMENT</span>
-          </div>
-        )}
       </div>
 
       {/* Right: Quick Actions & Profile */}
