@@ -34,6 +34,7 @@ import {
   videoService,
   workflowService,
   workflowOrchestrationService,
+  analyticsService,
 } from '../lib/services';
 import { geminiService } from '../lib/ai/gemini.service';
 import { geminiClient } from '../lib/ai/gemini.client';
@@ -62,6 +63,8 @@ import {
   UpdateContentBatchInputSchema,
   UpdateContentPlanInputSchema,
   UpdateUserInputSchema,
+  CreateSocialAnalyticsInputSchema,
+  ImportSocialAnalyticsInputSchema,
 } from '../lib/schemas/google-sheets-schema';
 import helmet from 'helmet';
 import busboy from 'busboy';
@@ -5259,6 +5262,325 @@ apiRouter.get('/my-work', async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Failed to fetch my work summary', message: err?.message });
   }
 });
+
+// ==========================================
+// Phase 27: Social Analytics Data Layer Endpoints
+// ==========================================
+
+/**
+ * Record a single social analytics snapshot.
+ */
+apiRouter.post(
+  '/analytics',
+  requireAuth,
+  requireRole([
+    UserRole.ADMIN,
+    UserRole.CONTENT_MANAGER,
+    UserRole.ANALYTICS_VIEWER,
+    UserRole.CREATOR,
+    UserRole.PUBLISHING_MANAGER,
+  ]),
+  async (req: Request, res: Response) => {
+    try {
+      const parsed = CreateSocialAnalyticsInputSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
+          success: false,
+          error: 'Validation failed for analytics record input',
+          details: parsed.error.format(),
+        });
+      }
+
+      const authReq = req as AuthenticatedRequest;
+      const actorId = authReq.user?.id || 'USR-ANL';
+      const actorName = authReq.user?.name || 'Analytics User';
+
+      const result = await analyticsService.recordAnalyticsSnapshot(parsed.data, actorId, actorName);
+      if (!result.success) {
+        return res.status(400).json(result);
+      }
+
+      res.status(201).json(result);
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: 'Failed to record analytics snapshot', message: err?.message });
+    }
+  }
+);
+
+/**
+ * Bulk import social analytics records (manual CSV/JSON import).
+ */
+apiRouter.post(
+  '/analytics/import',
+  requireAuth,
+  requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.ANALYTICS_VIEWER]),
+  async (req: Request, res: Response) => {
+    try {
+      const parsed = ImportSocialAnalyticsInputSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
+          success: false,
+          error: 'Validation failed for bulk analytics import input',
+          details: parsed.error.format(),
+        });
+      }
+
+      const authReq = req as AuthenticatedRequest;
+      const actorId = authReq.user?.id || 'USR-ANL';
+      const actorName = authReq.user?.name || 'Analytics User';
+
+      const result = await analyticsService.bulkImportAnalytics(parsed.data, actorId, actorName);
+      res.status(200).json({ success: true, ...result });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: 'Failed to bulk import analytics', message: err?.message });
+    }
+  }
+);
+
+/**
+ * Query social analytics records with filters.
+ */
+apiRouter.get(
+  '/analytics',
+  requireAuth,
+  requireRole([
+    UserRole.ADMIN,
+    UserRole.CONTENT_MANAGER,
+    UserRole.ANALYTICS_VIEWER,
+    UserRole.CREATOR,
+    UserRole.PUBLISHING_MANAGER,
+  ]),
+  async (req: Request, res: Response) => {
+    try {
+      const filters = {
+        contentId: req.query.contentId as string | undefined,
+        platform: req.query.platform as string | undefined,
+        topicId: req.query.topicId as string | undefined,
+        subtopicId: req.query.subtopicId as string | undefined,
+        startDate: req.query.startDate as string | undefined,
+        endDate: req.query.endDate as string | undefined,
+      };
+
+      const records = await analyticsService.queryAnalytics(filters);
+      res.json({ success: true, count: records.length, records });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: 'Failed to query analytics records', message: err?.message });
+    }
+  }
+);
+
+/**
+ * Get analytics snapshots for a specific canonical Content ID.
+ */
+apiRouter.get('/analytics/content/:contentId', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { contentId } = req.params;
+    const records = await analyticsService.queryAnalytics({ contentId });
+    res.json({ success: true, count: records.length, contentId, records });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: 'Failed to fetch content analytics', message: err?.message });
+  }
+});
+
+/**
+ * Get aggregated social analytics summary.
+ */
+apiRouter.get('/analytics/summary', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const filters = {
+      contentId: req.query.contentId as string | undefined,
+      platform: req.query.platform as string | undefined,
+      topicId: req.query.topicId as string | undefined,
+      subtopicId: req.query.subtopicId as string | undefined,
+      startDate: req.query.startDate as string | undefined,
+      endDate: req.query.endDate as string | undefined,
+    };
+
+    const summary = await analyticsService.getAnalyticsSummary(filters);
+    res.json({ success: true, summary });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: 'Failed to compute analytics summary', message: err?.message });
+  }
+});
+
+/**
+ * Phase 28: Generate AI Social Performance Intelligence Report.
+ */
+apiRouter.post(
+  '/analytics/intelligence',
+  requireAuth,
+  requireRole([
+    UserRole.ADMIN,
+    UserRole.CONTENT_MANAGER,
+    UserRole.ANALYTICS_VIEWER,
+    UserRole.CREATOR,
+    UserRole.PUBLISHING_MANAGER,
+  ]),
+  async (req: Request, res: Response) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const actorId = authReq.user?.id || 'USR-ANL';
+      const actorName = authReq.user?.name || 'Analytics User';
+
+      const { socialPerformanceIntelligenceService } = await import('../lib/services/social-performance-intelligence.service');
+      const result = await socialPerformanceIntelligenceService.generateIntelligence(req.body || {}, actorId, actorName);
+
+      if (!result.success) {
+        return res.status(400).json(result);
+      }
+
+      res.status(201).json(result);
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: 'Failed to generate performance intelligence', message: err?.message });
+    }
+  }
+);
+
+/**
+ * Phase 28: Get list of past AI Social Performance Intelligence Reports.
+ */
+apiRouter.get(
+  '/analytics/intelligence',
+  requireAuth,
+  requireRole([
+    UserRole.ADMIN,
+    UserRole.CONTENT_MANAGER,
+    UserRole.ANALYTICS_VIEWER,
+    UserRole.CREATOR,
+    UserRole.PUBLISHING_MANAGER,
+  ]),
+  async (req: Request, res: Response) => {
+    try {
+      const limit = Number(req.query.limit) || 20;
+      const { socialPerformanceIntelligenceService } = await import('../lib/services/social-performance-intelligence.service');
+      const reports = await socialPerformanceIntelligenceService.getIntelligenceReports(limit);
+
+      res.json({ success: true, count: reports.length, reports });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: 'Failed to fetch performance intelligence reports', message: err?.message });
+    }
+  }
+);
+
+/**
+ * Phase 28: Get specific AI Social Performance Intelligence Report by ID (BP-SPI-######).
+ */
+apiRouter.get('/analytics/intelligence/:id', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { socialPerformanceIntelligenceService } = await import('../lib/services/social-performance-intelligence.service');
+    const report = await socialPerformanceIntelligenceService.getIntelligenceReportById(id);
+
+    if (!report) {
+      return res.status(404).json({ success: false, error: `Intelligence report with ID "${id}" not found` });
+    }
+
+    res.json({ success: true, report });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: 'Failed to fetch performance intelligence report', message: err?.message });
+  }
+});
+
+// Phase 27: Social Analytics Data Layer Verification Endpoint
+apiRouter.get('/tests/phase27', async (req: Request, res: Response) => {
+  try {
+    const { runPhase27AnalyticsVerification } = await import('../tests/phase27-social-analytics-verification');
+    const result = await runPhase27AnalyticsVerification();
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message });
+  }
+});
+
+// Phase 28: AI Social Performance Intelligence Verification Endpoint
+apiRouter.get('/tests/phase28', async (req: Request, res: Response) => {
+  try {
+    const { runPhase28Verification } = await import('../tests/phase28-social-performance-intelligence-verification');
+    const result = await runPhase28Verification();
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message });
+  }
+});
+
+// ==========================================
+// Phase 29A: Controlled Strategy Integration Endpoints
+// ==========================================
+
+/**
+ * Phase 29A: Get Question Studio Strategy Recommendations.
+ */
+apiRouter.get(
+  '/ai/strategy-recommendations',
+  requireAuth,
+  requireRole([
+    UserRole.ADMIN,
+    UserRole.CONTENT_MANAGER,
+    UserRole.ANALYTICS_VIEWER,
+    UserRole.CREATOR,
+    UserRole.PUBLISHING_MANAGER,
+  ]),
+  async (req: Request, res: Response) => {
+    try {
+      const reportId = req.query.reportId as string | undefined;
+      const topicId = req.query.topicId as string | undefined;
+      const { socialPerformanceIntelligenceService } = await import('../lib/services/social-performance-intelligence.service');
+      const recommendations = await socialPerformanceIntelligenceService.getQuestionStudioRecommendations(reportId, topicId);
+      res.json({ success: true, count: recommendations.length, recommendations });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: 'Failed to fetch strategy recommendations', message: err?.message });
+    }
+  }
+);
+
+/**
+ * Phase 29A: Explicitly apply a strategy recommendation to populate Question Studio parameters.
+ * Does NOT mutate questions or create production data.
+ */
+apiRouter.post(
+  '/ai/strategy-recommendations/apply',
+  requireAuth,
+  requireRole([
+    UserRole.ADMIN,
+    UserRole.CONTENT_MANAGER,
+    UserRole.ANALYTICS_VIEWER,
+    UserRole.CREATOR,
+    UserRole.PUBLISHING_MANAGER,
+  ]),
+  async (req: Request, res: Response) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const actorId = authReq.user?.id || 'USR-APP';
+      const actorName = authReq.user?.name || 'User';
+
+      const { socialPerformanceIntelligenceService } = await import('../lib/services/social-performance-intelligence.service');
+      const result = await socialPerformanceIntelligenceService.applyStrategyRecommendation(req.body, actorId, actorName);
+
+      if (!result.success) {
+        return res.status(400).json(result);
+      }
+
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: 'Failed to apply strategy recommendation', message: err?.message });
+    }
+  }
+);
+
+// Phase 29A: Strategy Integration Verification Endpoint
+apiRouter.get('/tests/phase29', async (req: Request, res: Response) => {
+  try {
+    const { runPhase29Verification } = await import('../tests/phase29-controlled-strategy-integration-verification');
+    const result = await runPhase29Verification();
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message });
+  }
+});
+
+
+
+
 
 
 

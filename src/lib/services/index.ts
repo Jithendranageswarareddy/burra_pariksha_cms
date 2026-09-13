@@ -45,4 +45,6 @@ export * from './question-validation.service';
 export * from './object-auth.service';
 export * from './workflow-orchestration.service';
 export * from './question-config.service';
+export * from './analytics.service';
+export * from './social-performance-intelligence.service';
 

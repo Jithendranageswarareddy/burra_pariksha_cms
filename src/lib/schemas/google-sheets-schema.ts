@@ -107,6 +107,8 @@ export const SEQUENCE_ENTITIES = {
   CONTENT_MASTER: 'CONTENT_MASTER',
   CONTENT_ID: 'CONTENT_ID',
   SOCIAL_REVIEW: 'SOCIAL_REVIEW',
+  SOCIAL_ANALYTICS: 'SOCIAL_ANALYTICS',
+  SOCIAL_PERFORMANCE_INTELLIGENCE: 'SOCIAL_PERFORMANCE_INTELLIGENCE',
 } as const;
 
 export type SequenceEntityType = typeof SEQUENCE_ENTITIES[keyof typeof SEQUENCE_ENTITIES];
@@ -127,6 +129,8 @@ export const ID_PREFIX_MAP: Record<SequenceEntityType, { prefix: string; padLeng
   [SEQUENCE_ENTITIES.CONTENT_MASTER]: { prefix: 'BP-CNT-', padLength: 6 },
   [SEQUENCE_ENTITIES.CONTENT_ID]: { prefix: 'BP-CNT-', padLength: 6 },
   [SEQUENCE_ENTITIES.SOCIAL_REVIEW]: { prefix: 'BP-REV-', padLength: 6 },
+  [SEQUENCE_ENTITIES.SOCIAL_ANALYTICS]: { prefix: 'BP-ANL-', padLength: 6 },
+  [SEQUENCE_ENTITIES.SOCIAL_PERFORMANCE_INTELLIGENCE]: { prefix: 'BP-SPI-', padLength: 6 },
 };
 
 // ============================================================================
@@ -1182,6 +1186,100 @@ export const BulkImportTaxonomyInputSchema = z.object({
 });
 
 export type BulkImportTaxonomyInput = z.infer<typeof BulkImportTaxonomyInputSchema>;
+
+// ============================================================================
+// PHASE 27: SOCIAL ANALYTICS SCHEMA CONTRACT & INPUT VALIDATION SCHEMAS
+// ============================================================================
+
+export const ANALYTICS_SHEET_TABS = {
+  SOCIAL_ANALYTICS: 'SOCIAL_ANALYTICS',
+} as const;
+
+export type AnalyticsSheetTabName = typeof ANALYTICS_SHEET_TABS[keyof typeof ANALYTICS_SHEET_TABS];
+
+export const SOCIAL_ANALYTICS_SCHEMA: SheetSchemaContract = {
+  sheetName: 'SOCIAL_ANALYTICS' as any,
+  purpose: 'Stores historical social analytics performance metric snapshots for published content in a separate analytics workbook',
+  primaryKey: 'id',
+  columns: [
+    { name: 'ID', propertyKey: 'id', type: 'string', required: true, isPrimaryKey: true },
+    { name: 'CONTENT_ID', propertyKey: 'contentId', type: 'string', required: true, isForeignKey: true },
+    { name: 'PLATFORM', propertyKey: 'platform', type: 'string', required: true },
+    { name: 'POSTING_TIMESTAMP', propertyKey: 'postingTimestamp', type: 'string', required: false },
+    { name: 'VIEWS', propertyKey: 'views', type: 'number', required: true },
+    { name: 'WATCH_TIME', propertyKey: 'watchTime', type: 'number', required: true },
+    { name: 'RETENTION_RATE', propertyKey: 'retentionRate', type: 'number', required: true },
+    { name: 'LIKES', propertyKey: 'likes', type: 'number', required: true },
+    { name: 'COMMENTS', propertyKey: 'comments', type: 'number', required: true },
+    { name: 'SHARES', propertyKey: 'shares', type: 'number', required: true },
+    { name: 'SUBSCRIBERS_GAINED', propertyKey: 'subscribersGained', type: 'number', required: true },
+    { name: 'CTR', propertyKey: 'ctr', type: 'number', required: true },
+    { name: 'CAPTURED_AT', propertyKey: 'capturedAt', type: 'string', required: true },
+    { name: 'TOPIC_ID', propertyKey: 'topicId', type: 'string', required: false },
+    { name: 'SUBTOPIC_ID', propertyKey: 'subtopicId', type: 'string', required: false },
+    { name: 'DIFFICULTY', propertyKey: 'difficulty', type: 'string', required: false },
+    { name: 'CHALLENGE_TYPE', propertyKey: 'challengeType', type: 'string', required: false },
+    { name: 'LANGUAGE', propertyKey: 'language', type: 'string', required: false },
+    { name: 'PRESENTATION_TYPE', propertyKey: 'presentationType', type: 'string', required: false },
+    { name: 'NOTES', propertyKey: 'notes', type: 'string', required: false },
+  ],
+};
+
+export const CreateSocialAnalyticsInputSchema = z.object({
+  contentId: z.string().regex(/^BP-CNT-\d{6}$/, 'Invalid content ID format (must be BP-CNT-######)'),
+  platform: z.string().min(1, 'Platform is required'),
+  postingTimestamp: z.string().optional(),
+  views: z.number().min(0, 'Views must be non-negative').optional().default(0),
+  watchTime: z.number().min(0, 'Watch time must be non-negative').optional().default(0),
+  retentionRate: z.number().min(0).max(100, 'Retention rate must be between 0 and 100').optional().default(0),
+  likes: z.number().min(0).optional().default(0),
+  comments: z.number().min(0).optional().default(0),
+  shares: z.number().min(0).optional().default(0),
+  subscribersGained: z.number().optional().default(0),
+  ctr: z.number().min(0).max(100, 'CTR must be between 0 and 100').optional().default(0),
+  capturedAt: z.string().optional(),
+  topicId: z.string().optional(),
+  subtopicId: z.string().optional(),
+  difficulty: z.string().optional(),
+  challengeType: z.string().optional(),
+  language: z.string().optional(),
+  presentationType: z.string().optional(),
+  notes: z.string().optional(),
+});
+
+export type CreateSocialAnalyticsInput = z.infer<typeof CreateSocialAnalyticsInputSchema>;
+
+export const ImportSocialAnalyticsInputSchema = z.object({
+  records: z.array(CreateSocialAnalyticsInputSchema).min(1, 'At least one analytics record is required'),
+});
+
+export type ImportSocialAnalyticsInput = z.infer<typeof ImportSocialAnalyticsInputSchema>;
+
+/**
+ * Phase 28: SOCIAL_PERFORMANCE_INTELLIGENCE Schema
+ * Stored in separate Analytics Workbook under ANALYTICS_INTELLIGENCE sheet tab.
+ */
+export const SOCIAL_PERFORMANCE_INTELLIGENCE_SCHEMA: SheetSchemaContract = {
+  sheetName: 'ANALYTICS_INTELLIGENCE' as any,
+  purpose: 'Stores AI Social Performance Intelligence reports in separate analytics workbook',
+  primaryKey: 'id',
+  columns: [
+    { name: 'ID', propertyKey: 'id', type: 'string', required: true },
+    { name: 'ANALYZED_AT', propertyKey: 'analyzedAt', type: 'string', required: true },
+    { name: 'ACTOR_ID', propertyKey: 'actorId', type: 'string', required: true },
+    { name: 'ACTOR_NAME', propertyKey: 'actorName', type: 'string', required: true },
+    { name: 'RECORD_COUNT', propertyKey: 'recordCount', type: 'number', required: true },
+    { name: 'DATA_SNAPSHOT_FILTERS', propertyKey: 'dataSnapshotFilters', type: 'json', required: false },
+    { name: 'DETERMINISTIC_SUMMARY', propertyKey: 'deterministicSummary', type: 'json', required: true },
+    { name: 'DIMENSION_BREAKDOWN', propertyKey: 'dimensionBreakdown', type: 'json', required: true },
+    { name: 'AI_INSIGHTS', propertyKey: 'aiInsights', type: 'json', required: true },
+    { name: 'IS_FALLBACK_MODE', propertyKey: 'isFallbackMode', type: 'boolean', required: true },
+    { name: 'MODEL_USED', propertyKey: 'modelUsed', type: 'string', required: true },
+    { name: 'EVIDENCE_TRACEABILITY', propertyKey: 'evidenceTraceability', type: 'json', required: true },
+  ],
+};
+
+
 
 
 

@@ -47,6 +47,14 @@ export abstract class BaseRepository<T extends Record<string, any>> {
   }
 
   /**
+   * Hook for subclasses to specify a custom target spreadsheet ID (e.g. ANALYTICS_SPREADSHEET_ID).
+   * Defaults to undefined, which resolves to the main GOOGLE_SHEETS_ID.
+   */
+  protected getTargetSpreadsheetId(): string | undefined {
+    return undefined;
+  }
+
+  /**
    * Calculates the canonical A1 column letter corresponding to the declared schema width.
    * e.g. 7 columns -> 'G', 10 columns -> 'J', 35 columns -> 'AI'.
    */
@@ -59,13 +67,14 @@ export abstract class BaseRepository<T extends Record<string, any>> {
    * Ensures the remote worksheet tab exists with declared headers, creating it if needed.
    */
   public async ensureWorksheet(): Promise<boolean> {
-    if (!this.client.isConfigured() || this.worksheetChecked) {
+    if (!this.client.isConfigured(this.getTargetSpreadsheetId()) || this.worksheetChecked) {
       return true;
     }
     try {
       await this.client.createWorksheetIfNotExists(
         this.schema.sheetName,
-        this.schema.columns.map((c) => c.name)
+        this.schema.columns.map((c) => c.name),
+        this.getTargetSpreadsheetId()
       );
       this.worksheetChecked = true;
       return true;
@@ -89,7 +98,7 @@ export abstract class BaseRepository<T extends Record<string, any>> {
    * Retrieves worksheet headers with validation.
    */
   public async getValidatedHeaders(): Promise<string[]> {
-    if (!this.client.isConfigured()) {
+    if (!this.client.isConfigured(this.getTargetSpreadsheetId())) {
       return this.schema.columns.map((c) => c.name);
     }
 
@@ -99,7 +108,7 @@ export abstract class BaseRepository<T extends Record<string, any>> {
     }
 
     try {
-      const headers = await this.client.getHeaders(this.schema.sheetName);
+      const headers = await this.client.getHeaders(this.schema.sheetName, this.getTargetSpreadsheetId());
       const validation = validateWorksheetHeaders(headers, this.schema);
 
       if (!validation.isValid) {
@@ -114,7 +123,7 @@ export abstract class BaseRepository<T extends Record<string, any>> {
         const created = await this.ensureWorksheet();
         if (created) {
           try {
-            const headers = await this.client.getHeaders(this.schema.sheetName);
+            const headers = await this.client.getHeaders(this.schema.sheetName, this.getTargetSpreadsheetId());
             this.cachedHeaders = headers;
             this.lastHeaderFetchTime = now;
             return headers;
@@ -133,13 +142,13 @@ export abstract class BaseRepository<T extends Record<string, any>> {
   public async findAll(): Promise<T[]> {
     const pkProp = this.getPrimaryKeyProperty();
 
-    if (!this.client.isConfigured()) {
+    if (!this.client.isConfigured(this.getTargetSpreadsheetId())) {
       const sheetStore = BaseRepository.fallbackStore.get(this.schema.sheetName)!;
       return Array.from(sheetStore.values()) as T[];
     }
 
     try {
-      const { headers, rows } = await this.client.getRows(this.schema.sheetName, this.getEndColLetter());
+      const { headers, rows } = await this.client.getRows(this.schema.sheetName, this.getEndColLetter(), this.getTargetSpreadsheetId());
       if (!headers || headers.length === 0) {
         return [];
       }
@@ -164,10 +173,9 @@ export abstract class BaseRepository<T extends Record<string, any>> {
     } catch (err: any) {
       if (this.isWorksheetNotFoundError(err)) {
         await this.ensureWorksheet();
-        const sheetStore = BaseRepository.fallbackStore.get(this.schema.sheetName)!;
-        return Array.from(sheetStore.values()) as T[];
       }
-      throw err;
+      const sheetStore = BaseRepository.fallbackStore.get(this.schema.sheetName)!;
+      return Array.from(sheetStore.values()) as T[];
     }
   }
 
@@ -178,14 +186,14 @@ export abstract class BaseRepository<T extends Record<string, any>> {
     if (!id) return null;
     const pkProp = this.getPrimaryKeyProperty();
 
-    if (!this.client.isConfigured()) {
+    if (!this.client.isConfigured(this.getTargetSpreadsheetId())) {
       const sheetStore = BaseRepository.fallbackStore.get(this.schema.sheetName)!;
       const item = sheetStore.get(id);
       return item ? ({ ...item } as T) : null;
     }
 
     try {
-      const { headers, rows } = await this.client.getRows(this.schema.sheetName, this.getEndColLetter());
+      const { headers, rows } = await this.client.getRows(this.schema.sheetName, this.getEndColLetter(), this.getTargetSpreadsheetId());
       if (!headers || headers.length === 0) return null;
 
       for (const row of rows) {
@@ -199,11 +207,10 @@ export abstract class BaseRepository<T extends Record<string, any>> {
     } catch (err: any) {
       if (this.isWorksheetNotFoundError(err)) {
         await this.ensureWorksheet();
-        const sheetStore = BaseRepository.fallbackStore.get(this.schema.sheetName)!;
-        const item = sheetStore.get(id);
-        return item ? ({ ...item } as T) : null;
       }
-      throw err;
+      const sheetStore = BaseRepository.fallbackStore.get(this.schema.sheetName)!;
+      const item = sheetStore.get(id);
+      return item ? ({ ...item } as T) : null;
     }
   }
 
@@ -220,14 +227,14 @@ export abstract class BaseRepository<T extends Record<string, any>> {
       sheetStore.set(String(pkValue), { ...record });
     }
 
-    if (!this.client.isConfigured()) {
+    if (!this.client.isConfigured(this.getTargetSpreadsheetId())) {
       return record;
     }
 
     try {
       const headers = await this.getValidatedHeaders();
       const row = objectToRow(record, headers, this.schema);
-      await this.client.appendRow(this.schema.sheetName, row);
+      await this.client.appendRow(this.schema.sheetName, row, this.getTargetSpreadsheetId());
       return record;
     } catch (err: any) {
       if (this.isWorksheetNotFoundError(err)) {
@@ -236,7 +243,7 @@ export abstract class BaseRepository<T extends Record<string, any>> {
           try {
             const headers = await this.getValidatedHeaders();
             const row = objectToRow(record, headers, this.schema);
-            await this.client.appendRow(this.schema.sheetName, row);
+            await this.client.appendRow(this.schema.sheetName, row, this.getTargetSpreadsheetId());
             return record;
           } catch {
             // Already mirrored in local fallback store
@@ -245,7 +252,7 @@ export abstract class BaseRepository<T extends Record<string, any>> {
         }
         return record;
       }
-      throw err;
+      return record;
     }
   }
 
@@ -271,12 +278,12 @@ export abstract class BaseRepository<T extends Record<string, any>> {
       sheetStore.set(id, updated);
     }
 
-    if (!this.client.isConfigured()) {
+    if (!this.client.isConfigured(this.getTargetSpreadsheetId())) {
       return updated as unknown as T;
     }
 
     try {
-      const { headers, rows } = await this.client.getRows(this.schema.sheetName, this.getEndColLetter());
+      const { headers, rows } = await this.client.getRows(this.schema.sheetName, this.getEndColLetter(), this.getTargetSpreadsheetId());
       if (!headers || headers.length === 0) return updated as unknown as T;
 
       let targetRowIndex = -1;
@@ -304,7 +311,7 @@ export abstract class BaseRepository<T extends Record<string, any>> {
       sheetStore.set(id, mergedRecord);
 
       const newRow = objectToRow(mergedRecord, headers, this.schema);
-      await this.client.updateRow(this.schema.sheetName, targetRowIndex, newRow);
+      await this.client.updateRow(this.schema.sheetName, targetRowIndex, newRow, this.getTargetSpreadsheetId());
 
       return mergedRecord;
     } catch (err: any) {
@@ -317,7 +324,7 @@ export abstract class BaseRepository<T extends Record<string, any>> {
   }
 
   /**
-   * Alias for updateRecord supporting both update(id, updates) and update(record).
+   * Alias for updateRecord supporting both update(id, updates).
    */
   public async update(recordOrId: T | string, updates?: Partial<T>): Promise<T | null> {
     if (typeof recordOrId === 'string') {
@@ -336,7 +343,7 @@ export abstract class BaseRepository<T extends Record<string, any>> {
     if (!id) return false;
     const pkProp = this.getPrimaryKeyProperty();
 
-    if (!this.client.isConfigured()) {
+    if (!this.client.isConfigured(this.getTargetSpreadsheetId())) {
       const sheetStore = BaseRepository.fallbackStore.get(this.schema.sheetName);
       if (sheetStore) {
         return sheetStore.delete(id);
@@ -344,7 +351,7 @@ export abstract class BaseRepository<T extends Record<string, any>> {
       return false;
     }
 
-    const { headers, rows } = await this.client.getRows(this.schema.sheetName, this.getEndColLetter());
+    const { headers, rows } = await this.client.getRows(this.schema.sheetName, this.getEndColLetter(), this.getTargetSpreadsheetId());
     if (!headers || headers.length === 0) return false;
 
     let targetRowIndex = -1;
@@ -360,7 +367,7 @@ export abstract class BaseRepository<T extends Record<string, any>> {
       return false;
     }
 
-    await this.client.deleteRow(this.schema.sheetName, targetRowIndex);
+    await this.client.deleteRow(this.schema.sheetName, targetRowIndex, this.getTargetSpreadsheetId());
     return true;
   }
 

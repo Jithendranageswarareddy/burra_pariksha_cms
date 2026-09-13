@@ -94,6 +94,14 @@ export class IdService {
     return this.generateId(SEQUENCE_ENTITIES.CONTENT_ID);
   }
 
+  public async allocateSocialAnalyticsId(): Promise<string> {
+    return this.generateId(SEQUENCE_ENTITIES.SOCIAL_ANALYTICS);
+  }
+
+  public async allocateIntelligenceId(): Promise<string> {
+    return this.generateId(SEQUENCE_ENTITIES.SOCIAL_PERFORMANCE_INTELLIGENCE);
+  }
+
   public async allocateUserId(): Promise<string> {
     const timestamp = Date.now();
     return `USR-${timestamp.toString().slice(-4)}`;

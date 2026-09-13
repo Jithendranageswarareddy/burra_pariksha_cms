@@ -7,6 +7,7 @@ import { BaseRepository } from './base.repository';
 import { QuestionFilterInput, SHEET_SCHEMAS, SHEET_TABS } from '../schemas/google-sheets-schema';
 import { Question } from '../../types';
 import { MOCK_QUESTIONS } from '../mock-data/questions';
+import { ValidationError } from '../google-sheets/errors';
 
 export class QuestionsRepository extends BaseRepository<Question> {
   private static instance: QuestionsRepository | null = null;
@@ -21,6 +22,21 @@ export class QuestionsRepository extends BaseRepository<Question> {
       QuestionsRepository.instance = new QuestionsRepository();
     }
     return QuestionsRepository.instance;
+  }
+
+  /**
+   * Primary key uniqueness guard before appending a new question.
+   */
+  public override async appendRecord(record: Question): Promise<Question> {
+    if (record.id) {
+      const existing = await this.findById(record.id);
+      if (existing) {
+        throw new ValidationError(
+          `Primary Key Uniqueness Guard Rejected Append: Question with ID "${record.id}" already exists.`
+        );
+      }
+    }
+    return super.appendRecord(record);
   }
 
   /**

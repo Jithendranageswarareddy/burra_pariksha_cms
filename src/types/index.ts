@@ -148,6 +148,7 @@ export enum UserRole {
   COMMUNITY_MANAGER = 'COMMUNITY_MANAGER',
   CREATOR = 'CREATOR',
   EDITOR = 'EDITOR',
+  ANALYTICS_VIEWER = 'ANALYTICS_VIEWER',
   REVIEWER = 'REVIEWER',
   SPEAKER = 'SPEAKER',
   CONTENT_WRITER = 'CONTENT_WRITER',
@@ -1854,6 +1855,262 @@ export interface SubmitSocialReviewInput {
   reason?: string;
   feedbackCategories?: string[];
 }
+
+// ============================================================================
+// PHASE 27: SOCIAL ANALYTICS DATA LAYER CONTRACTS
+// ============================================================================
+
+export interface SocialAnalyticsRecord {
+  id: string; // e.g. BP-ANL-000001
+  contentId: string; // Canonical BP-CNT-######
+  platform: 'youtube' | 'instagram' | 'facebook' | string;
+  postingTimestamp?: string;
+  views: number;
+  watchTime: number; // in seconds
+  retentionRate: number; // percentage (e.g., 68.5)
+  likes: number;
+  comments: number;
+  shares: number;
+  subscribersGained: number;
+  ctr: number; // percentage (e.g., 5.2)
+  capturedAt: string; // ISO timestamp when metric snapshot was taken
+  topicId?: string;
+  subtopicId?: string;
+  difficulty?: string;
+  challengeType?: string;
+  language?: string;
+  presentationType?: string;
+  notes?: string;
+}
+
+export interface CreateSocialAnalyticsInput {
+  contentId: string;
+  platform: 'youtube' | 'instagram' | 'facebook' | string;
+  postingTimestamp?: string;
+  views?: number;
+  watchTime?: number;
+  retentionRate?: number;
+  likes?: number;
+  comments?: number;
+  shares?: number;
+  subscribersGained?: number;
+  ctr?: number;
+  capturedAt?: string;
+  topicId?: string;
+  subtopicId?: string;
+  difficulty?: string;
+  challengeType?: string;
+  language?: string;
+  presentationType?: string;
+  notes?: string;
+}
+
+export interface ImportSocialAnalyticsInput {
+  records: CreateSocialAnalyticsInput[];
+}
+
+export interface SocialAnalyticsQueryFilters {
+  contentId?: string;
+  platform?: string;
+  startDate?: string;
+  endDate?: string;
+  topicId?: string;
+  subtopicId?: string;
+}
+
+export interface SocialAnalyticsSummary {
+  totalRecords: number;
+  totalViews: number;
+  totalWatchTime: number;
+  averageRetentionRate: number;
+  totalLikes: number;
+  totalComments: number;
+  totalShares: number;
+  totalSubscribersGained: number;
+  averageCtr: number;
+  platformBreakdown: Record<string, {
+    views: number;
+    watchTime: number;
+    likes: number;
+    comments: number;
+    shares: number;
+    count: number;
+  }>;
+}
+
+/**
+ * PHASE 28: AI Social Performance Intelligence Types
+ */
+
+export interface DimensionMetricAggregate {
+  dimension: string;
+  value: string;
+  sampleSize: number;
+  avgViews: number;
+  avgWatchTime: number;
+  avgRetentionRate: number;
+  avgLikes: number;
+  avgComments: number;
+  avgShares: number;
+  avgSubscribersGained: number;
+  avgCtr: number;
+  insufficientData: boolean;
+}
+
+export interface PostingTimeMetricAggregate {
+  timeWindow: string; // e.g. "18:00 - 21:00 UTC" or "SUNDAY 18:00 - 21:00 UTC"
+  dayOfWeek?: string; // e.g. "SUNDAY", "MONDAY"
+  hourOfDay?: number; // 0-23
+  platform: string; // e.g. "youtube_shorts", "ALL"
+  sampleSize: number;
+  avgViews: number;
+  avgWatchTime: number;
+  avgRetentionRate: number;
+  avgLikes: number;
+  avgComments: number;
+  avgShares: number;
+  avgSubscribersGained: number;
+  avgCtr: number;
+  insufficientData: boolean;
+}
+
+export interface PostingTimeRecommendation {
+  recommendedWindow: string; // e.g., "18:00 - 21:00 UTC" or "SUNDAY 18:00 - 21:00 UTC"
+  platform: string; // e.g., "youtube_shorts"
+  sampleSize: number;
+  supportingEvidence: string;
+  confidenceLevel: 'HIGH' | 'MEDIUM' | 'LOW';
+  dayOfWeek?: string;
+  bestHourWindow?: string;
+}
+
+export interface SocialPerformanceIntelligenceRecord {
+  id: string; // BP-SPI-######
+  analyzedAt: string; // ISO string
+  actorId: string;
+  actorName: string;
+  recordCount: number;
+  dataSnapshotFilters?: SocialAnalyticsQueryFilters;
+  deterministicSummary: SocialAnalyticsSummary;
+  dimensionBreakdown: {
+    byPlatform: DimensionMetricAggregate[];
+    byTopic: DimensionMetricAggregate[];
+    bySubtopic: DimensionMetricAggregate[];
+    byDifficulty: DimensionMetricAggregate[];
+    byChallengeType: DimensionMetricAggregate[];
+    byLanguage: DimensionMetricAggregate[];
+    byPresentationType: DimensionMetricAggregate[];
+    postingTimeAnalysis?: {
+      byHourOfDay: PostingTimeMetricAggregate[];
+      byDayOfWeek: PostingTimeMetricAggregate[];
+      byPlatformTimeWindow: PostingTimeMetricAggregate[];
+    };
+  };
+  aiInsights: {
+    overallVerdict: string;
+    topPerformingDimensions: {
+      dimension: string;
+      value: string;
+      sampleSize: number;
+      avgViews: number;
+      avgRetention: number;
+      avgCtr: number;
+      reason: string;
+    }[];
+    underperformingDimensions: {
+      dimension: string;
+      value: string;
+      sampleSize: number;
+      avgViews: number;
+      avgRetention: number;
+      avgCtr: number;
+      reason: string;
+    }[];
+    platformSpecificRecommendations: {
+      platform: string;
+      sampleSize: number;
+      keyTakeaways: string[];
+      recommendedActions: string[];
+    }[];
+    contentStrategyRecommendations: {
+      area: string;
+      recommendation: string;
+      supportingEvidence: string;
+      sampleSize: number;
+      confidenceLevel: 'HIGH' | 'MEDIUM' | 'LOW';
+    }[];
+    postingTimeRecommendations?: PostingTimeRecommendation[];
+    dataConfidenceNotes: string[];
+  };
+  isFallbackMode: boolean;
+  modelUsed: string;
+  evidenceTraceability: {
+    recordIdsUsed: string[];
+    totalSamples: number;
+    insufficientDataFlag: boolean;
+    insufficientDimensions: string[];
+  };
+}
+
+export interface GeneratePerformanceIntelligenceInput {
+  contentId?: string;
+  platform?: string;
+  startDate?: string;
+  endDate?: string;
+  topicId?: string;
+  subtopicId?: string;
+  forceFallback?: boolean;
+}
+
+
+/**
+ * PHASE 29A & 29B: Controlled AI Strategy & Posting-Time Integration into Question Studio Types
+ */
+
+export interface QuestionStudioStrategyRecommendation {
+  id: string; // e.g. REC-SPI-000001-01
+  reportId: string; // BP-SPI-######
+  type: 'TOPIC_OPPORTUNITY' | 'SUBTOPIC_OPPORTUNITY' | 'DIFFICULTY_ADJUSTMENT' | 'CHALLENGE_TYPE_RECOMMENDATION' | 'FORMAT_OPTIMIZATION' | 'POSTING_TIME_OPTIMIZATION';
+  title: string;
+  description: string;
+  suggestedParameters: {
+    topicId?: string;
+    subtopicId?: string;
+    difficulty?: 'EASY' | 'MEDIUM' | 'HARD';
+    challengeType?: string;
+    presentationType?: string;
+    targetPlatform?: string;
+    suggestedFormat?: string;
+    recommendedPostingWindow?: string;
+  };
+  supportingEvidence: string;
+  sampleSize: number;
+  confidenceLevel: 'HIGH' | 'MEDIUM' | 'LOW';
+  isValidTaxonomy: boolean;
+  taxonomyValidationMessage?: string;
+}
+
+export interface ApplyStrategyRecommendationInput {
+  reportId: string;
+  recommendationId: string;
+  customOverrides?: {
+    topicId?: string;
+    subtopicId?: string;
+    difficulty?: 'EASY' | 'MEDIUM' | 'HARD';
+    challengeType?: string;
+  };
+}
+
+export interface ApplyStrategyRecommendationResult {
+  success: boolean;
+  appliedParameters?: QuestionStudioStrategyRecommendation['suggestedParameters'];
+  recommendation?: QuestionStudioStrategyRecommendation;
+  auditLogged: boolean;
+  error?: string;
+}
+
+
+
 
 
 

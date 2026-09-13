@@ -96,7 +96,15 @@ export class GoogleSheetsClient {
 
   public invalidateRowCache(sheetName?: string): void {
     if (sheetName) {
-      this.rowCache.delete(sheetName);
+      if (sheetName.includes(':')) {
+        this.rowCache.delete(sheetName);
+      } else {
+        for (const key of this.rowCache.keys()) {
+          if (key === sheetName || key.endsWith(`:${sheetName}`)) {
+            this.rowCache.delete(key);
+          }
+        }
+      }
     } else {
       this.rowCache.clear();
     }
@@ -136,13 +144,16 @@ export class GoogleSheetsClient {
   /**
    * Checks if Google Service Account credentials and Spreadsheet ID are configured.
    */
-  public isConfigured(): boolean {
+  public isConfigured(overrideSpreadsheetId?: string): boolean {
     if (process.env.SKIP_SHEETS_SYNC === 'true') {
+      return false;
+    }
+    if (overrideSpreadsheetId === 'UNCONFIGURED_ANALYTICS_SPREADSHEET') {
       return false;
     }
     const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
     const key = process.env.GOOGLE_PRIVATE_KEY;
-    const sheetId = process.env.GOOGLE_SHEETS_ID;
+    const sheetId = overrideSpreadsheetId !== undefined ? overrideSpreadsheetId : process.env.GOOGLE_SHEETS_ID;
     return Boolean(email && key && sheetId);
   }
 
@@ -156,10 +167,9 @@ export class GoogleSheetsClient {
 
     const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
     let privateKey = process.env.GOOGLE_PRIVATE_KEY;
-    const sheetId = process.env.GOOGLE_SHEETS_ID;
 
-    if (!email || !privateKey || !sheetId) {
-      throw new GoogleAuthError('GOOGLE_SERVICE_ACCOUNT_EMAIL, GOOGLE_PRIVATE_KEY, and GOOGLE_SHEETS_ID must be set in server environment.');
+    if (!email || !privateKey) {
+      throw new GoogleAuthError('GOOGLE_SERVICE_ACCOUNT_EMAIL and GOOGLE_PRIVATE_KEY must be set in server environment.');
     }
 
     // Fix escaped line breaks in private key
@@ -175,7 +185,7 @@ export class GoogleSheetsClient {
       });
 
       this.sheetsApi = google.sheets({ version: 'v4', auth });
-      this.spreadsheetId = sheetId;
+      this.spreadsheetId = process.env.GOOGLE_SHEETS_ID || '';
       this.isAuthInitialized = true;
       return this.sheetsApi;
     } catch (err: any) {
@@ -183,7 +193,10 @@ export class GoogleSheetsClient {
     }
   }
 
-  public getSpreadsheetId(): string {
+  public getSpreadsheetId(overrideSpreadsheetId?: string): string {
+    if (overrideSpreadsheetId) {
+      return overrideSpreadsheetId;
+    }
     return process.env.GOOGLE_SHEETS_ID || this.spreadsheetId;
   }
 
@@ -247,10 +260,10 @@ export class GoogleSheetsClient {
   /**
    * Inspects spreadsheet to fetch title and list of existing worksheet tab names.
    */
-  public async getSpreadsheetMetadata(): Promise<{ title: string; sheetNames: string[] }> {
+  public async getSpreadsheetMetadata(overrideSpreadsheetId?: string): Promise<{ title: string; sheetNames: string[] }> {
     return this.executeWithRetry(async () => {
       const sheets = this.getSheetsApi();
-      const spreadsheetId = this.getSpreadsheetId();
+      const spreadsheetId = this.getSpreadsheetId(overrideSpreadsheetId);
 
       try {
         const res = await sheets.spreadsheets.get({
@@ -273,10 +286,10 @@ export class GoogleSheetsClient {
   /**
    * Retrieves row 1 (headers) of the specified worksheet.
    */
-  public async getHeaders(sheetName: string): Promise<string[]> {
+  public async getHeaders(sheetName: string, overrideSpreadsheetId?: string): Promise<string[]> {
     return this.executeWithRetry(async () => {
       const sheets = this.getSheetsApi();
-      const spreadsheetId = this.getSpreadsheetId();
+      const spreadsheetId = this.getSpreadsheetId(overrideSpreadsheetId);
 
       try {
         const res = await sheets.spreadsheets.values.get({
@@ -303,16 +316,19 @@ export class GoogleSheetsClient {
    */
   public async getRows(
     sheetName: string,
-    endColLetter?: string
+    endColLetter?: string,
+    overrideSpreadsheetId?: string
   ): Promise<{ headers: string[]; rows: (string | number | boolean)[][] }> {
+    const targetSpreadsheetId = this.getSpreadsheetId(overrideSpreadsheetId);
+    const cacheKey = `${targetSpreadsheetId}:${sheetName}`;
     const now = Date.now();
-    const cached = this.rowCache.get(sheetName);
+    const cached = this.rowCache.get(cacheKey);
     if (cached && now - cached.timestamp < this.ROW_CACHE_TTL_MS) {
       return { headers: [...cached.data.headers], rows: cached.data.rows.map((r) => [...r]) };
     }
 
     // Check if an in-flight read for this sheet already exists
-    const existingInFlight = this.inFlightReads.get(sheetName);
+    const existingInFlight = this.inFlightReads.get(cacheKey);
     if (existingInFlight) {
       const sharedResult = await existingInFlight;
       return { headers: [...sharedResult.headers], rows: sharedResult.rows.map((r) => [...r]) };
@@ -324,7 +340,7 @@ export class GoogleSheetsClient {
     const readPromise = (async () => {
       return this.executeWithRetry(async () => {
         const sheets = this.getSheetsApi();
-        const spreadsheetId = this.getSpreadsheetId();
+        const spreadsheetId = targetSpreadsheetId;
 
         try {
           const res = await sheets.spreadsheets.values.get({
@@ -336,7 +352,7 @@ export class GoogleSheetsClient {
           const values = res.data.values || [];
           if (values.length === 0) {
             const emptyResult = { headers: [], rows: [] };
-            this.rowCache.set(sheetName, { data: emptyResult, timestamp: Date.now() });
+            this.rowCache.set(cacheKey, { data: emptyResult, timestamp: Date.now() });
             return emptyResult;
           }
 
@@ -344,7 +360,7 @@ export class GoogleSheetsClient {
           const rows = values.slice(1);
           const result = { headers, rows };
 
-          this.rowCache.set(sheetName, { data: result, timestamp: Date.now() });
+          this.rowCache.set(cacheKey, { data: result, timestamp: Date.now() });
           return result;
         } catch (err: any) {
           this.handleApiError(err, `getRows(${sheetName})`, sheetName);
@@ -353,24 +369,24 @@ export class GoogleSheetsClient {
       }, `getRows(${sheetName})`);
     })();
 
-    this.inFlightReads.set(sheetName, readPromise);
+    this.inFlightReads.set(cacheKey, readPromise);
 
     try {
       const freshResult = await readPromise;
       return { headers: [...freshResult.headers], rows: freshResult.rows.map((r) => [...r]) };
     } finally {
-      this.inFlightReads.delete(sheetName);
+      this.inFlightReads.delete(cacheKey);
     }
   }
 
   /**
    * Appends a new record row to the worksheet.
    */
-  public async appendRow(sheetName: string, rowValues: (string | number | boolean)[]): Promise<void> {
-    this.invalidateRowCache(sheetName);
+  public async appendRow(sheetName: string, rowValues: (string | number | boolean)[], overrideSpreadsheetId?: string): Promise<void> {
+    const spreadsheetId = this.getSpreadsheetId(overrideSpreadsheetId);
+    this.invalidateRowCache(`${spreadsheetId}:${sheetName}`);
     return this.executeWithRetry(async () => {
       const sheets = this.getSheetsApi();
-      const spreadsheetId = this.getSpreadsheetId();
 
       try {
         await sheets.spreadsheets.values.append({
@@ -382,7 +398,7 @@ export class GoogleSheetsClient {
             values: [rowValues],
           },
         });
-        this.invalidateRowCache(sheetName);
+        this.invalidateRowCache(`${spreadsheetId}:${sheetName}`);
       } catch (err: any) {
         this.handleApiError(err, `appendRow(${sheetName})`, sheetName);
         throw err;
@@ -396,12 +412,13 @@ export class GoogleSheetsClient {
   public async updateRow(
     sheetName: string,
     sheetRowIndex: number,
-    rowValues: (string | number | boolean)[]
+    rowValues: (string | number | boolean)[],
+    overrideSpreadsheetId?: string
   ): Promise<void> {
-    this.invalidateRowCache(sheetName);
+    const spreadsheetId = this.getSpreadsheetId(overrideSpreadsheetId);
+    this.invalidateRowCache(`${spreadsheetId}:${sheetName}`);
     return this.executeWithRetry(async () => {
       const sheets = this.getSheetsApi();
-      const spreadsheetId = this.getSpreadsheetId();
       const endColLetter = colIndexToA1Letter(rowValues.length - 1);
       const range = `'${sheetName}'!A${sheetRowIndex}:${endColLetter}${sheetRowIndex}`;
 
@@ -414,7 +431,7 @@ export class GoogleSheetsClient {
             values: [rowValues],
           },
         });
-        this.invalidateRowCache(sheetName);
+        this.invalidateRowCache(`${spreadsheetId}:${sheetName}`);
       } catch (err: any) {
         this.handleApiError(err, `updateRow(${sheetName}, row ${sheetRowIndex})`, sheetName);
         throw err;
@@ -425,11 +442,11 @@ export class GoogleSheetsClient {
   /**
    * Deletes a specific row by 1-based sheet row index.
    */
-  public async deleteRow(sheetName: string, sheetRowIndex: number): Promise<void> {
-    this.invalidateRowCache(sheetName);
+  public async deleteRow(sheetName: string, sheetRowIndex: number, overrideSpreadsheetId?: string): Promise<void> {
+    const spreadsheetId = this.getSpreadsheetId(overrideSpreadsheetId);
+    this.invalidateRowCache(`${spreadsheetId}:${sheetName}`);
     return this.executeWithRetry(async () => {
       const sheets = this.getSheetsApi();
-      const spreadsheetId = this.getSpreadsheetId();
 
       try {
         const metadataRes = await sheets.spreadsheets.get({ spreadsheetId });
@@ -459,7 +476,7 @@ export class GoogleSheetsClient {
             ],
           },
         });
-        this.invalidateRowCache(sheetName);
+        this.invalidateRowCache(`${spreadsheetId}:${sheetName}`);
       } catch (err: any) {
         this.handleApiError(err, `deleteRow(${sheetName}, row ${sheetRowIndex})`, sheetName);
         throw err;
@@ -470,11 +487,11 @@ export class GoogleSheetsClient {
   /**
    * Helper to ensure required worksheets exist with initial headers if authorized.
    */
-  public async createWorksheetIfNotExists(sheetName: string, headers: string[]): Promise<boolean> {
+  public async createWorksheetIfNotExists(sheetName: string, headers: string[], overrideSpreadsheetId?: string): Promise<boolean> {
     return this.executeWithRetry(async () => {
       const sheets = this.getSheetsApi();
-      const spreadsheetId = this.getSpreadsheetId();
-      const metadata = await this.getSpreadsheetMetadata();
+      const spreadsheetId = this.getSpreadsheetId(overrideSpreadsheetId);
+      const metadata = await this.getSpreadsheetMetadata(overrideSpreadsheetId);
 
       if (!metadata.sheetNames.includes(sheetName)) {
         await sheets.spreadsheets.batchUpdate({
