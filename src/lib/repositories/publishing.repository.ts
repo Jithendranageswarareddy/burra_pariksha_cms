@@ -13,7 +13,9 @@ export class PublishingRepository extends BaseRepository<Publishing> {
 
   private constructor() {
     super(SHEET_SCHEMAS[SHEET_TABS.PUBLISHING]);
-    this.seedFallbackData(MOCK_PUBLISHING_RECORDS);
+    if (!this.client.isConfigured(this.getTargetSpreadsheetId())) {
+      this.seedFallbackData(MOCK_PUBLISHING_RECORDS);
+    }
   }
 
   public static getInstance(): PublishingRepository {

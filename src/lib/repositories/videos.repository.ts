@@ -38,21 +38,23 @@ export class VideosRepository extends BaseRepository<Video> {
 
   private constructor() {
     super(SHEET_SCHEMAS[SHEET_TABS.VIDEOS]);
-    // Seed initial mock queue items with canonical BP-V-00000X format
-    const videos: Video[] = MOCK_QUEUE.map((item, idx) => ({
-      id: `BP-V-${String(idx + 1).padStart(6, '0')}`,
-      questionId: item.questionId,
-      title: item.title,
-      status: item.productionStatus,
-      priority: item.priority,
-      queuePosition: item.queuePosition,
-      targetDurationSeconds: 45,
-      actualDurationSeconds: item.productionStatus === 'UPLOADED' ? 42 : undefined,
-      notes: item.notes,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }));
-    this.seedFallbackData(videos);
+    if (!this.client.isConfigured(this.getTargetSpreadsheetId())) {
+      // Seed initial mock queue items with canonical BP-V-00000X format
+      const videos: Video[] = MOCK_QUEUE.map((item, idx) => ({
+        id: `BP-V-${String(idx + 1).padStart(6, '0')}`,
+        questionId: item.questionId,
+        title: item.title,
+        status: item.productionStatus,
+        priority: item.priority,
+        queuePosition: item.queuePosition,
+        targetDurationSeconds: 45,
+        actualDurationSeconds: item.productionStatus === 'UPLOADED' ? 42 : undefined,
+        notes: item.notes,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }));
+      this.seedFallbackData(videos);
+    }
   }
 
   public static getInstance(): VideosRepository {

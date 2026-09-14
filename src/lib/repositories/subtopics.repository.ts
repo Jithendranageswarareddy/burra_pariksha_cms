@@ -13,7 +13,9 @@ export class SubtopicsRepository extends BaseRepository<Subtopic> {
 
   private constructor() {
     super(SHEET_SCHEMAS[SHEET_TABS.SUBTOPICS]);
-    this.seedFallbackData(MOCK_SUBTOPICS);
+    if (!this.client.isConfigured(this.getTargetSpreadsheetId())) {
+      this.seedFallbackData(MOCK_SUBTOPICS);
+    }
   }
 
   public static getInstance(): SubtopicsRepository {

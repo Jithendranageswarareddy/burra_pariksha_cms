@@ -39,7 +39,9 @@ export class SequencesRepository extends BaseRepository<SequenceRecord> {
 
   private constructor() {
     super(SHEET_SCHEMAS[SHEET_TABS.SEQUENCES]);
-    this.seedDefaultSequences();
+    if (!this.client.isConfigured(this.getTargetSpreadsheetId())) {
+      this.seedDefaultSequences();
+    }
   }
 
   public static getInstance(): SequencesRepository {

@@ -79,30 +79,32 @@ export class UsersRepository extends BaseRepository<User> {
 
   private constructor() {
     super(SHEET_SCHEMAS[SHEET_TABS.USERS]);
-    const now = new Date().toISOString();
-    const defaultUsers: User[] = [
-      {
-        id: 'USR-001',
-        name: 'Jithendra',
-        email: 'jithendrareddy629@gmail.com',
-        role: UserRole.ADMIN,
-        roles: [UserRole.ADMIN],
-        isActive: true,
-        createdAt: now,
-        updatedAt: now,
-      },
-      {
-        id: 'USR-002',
-        name: 'Surendra Reddy',
-        email: 'seelamsurendrareddy999@gmail.com',
-        role: UserRole.VIDEO_EDITOR,
-        roles: [UserRole.VIDEO_EDITOR],
-        isActive: true,
-        createdAt: now,
-        updatedAt: now,
-      },
-    ];
-    this.seedFallbackData(defaultUsers);
+    if (!this.client.isConfigured(this.getTargetSpreadsheetId())) {
+      const now = new Date().toISOString();
+      const defaultUsers: User[] = [
+        {
+          id: 'USR-001',
+          name: 'Jithendra',
+          email: 'jithendrareddy629@gmail.com',
+          role: UserRole.ADMIN,
+          roles: [UserRole.ADMIN],
+          isActive: true,
+          createdAt: now,
+          updatedAt: now,
+        },
+        {
+          id: 'USR-002',
+          name: 'Surendra Reddy',
+          email: 'seelamsurendrareddy999@gmail.com',
+          role: UserRole.VIDEO_EDITOR,
+          roles: [UserRole.VIDEO_EDITOR],
+          isActive: true,
+          createdAt: now,
+          updatedAt: now,
+        },
+      ];
+      this.seedFallbackData(defaultUsers);
+    }
   }
 
   public static getInstance(): UsersRepository {

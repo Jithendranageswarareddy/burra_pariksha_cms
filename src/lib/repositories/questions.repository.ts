@@ -14,7 +14,9 @@ export class QuestionsRepository extends BaseRepository<Question> {
 
   private constructor() {
     super(SHEET_SCHEMAS[SHEET_TABS.QUESTIONS]);
-    this.seedFallbackData(MOCK_QUESTIONS);
+    if (!this.client.isConfigured(this.getTargetSpreadsheetId())) {
+      this.seedFallbackData(MOCK_QUESTIONS);
+    }
   }
 
   public static getInstance(): QuestionsRepository {

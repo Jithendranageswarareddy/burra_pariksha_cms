@@ -263,31 +263,6 @@ export class DataIntegrityService {
     const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
     questions.forEach((q) => {
-      // 1. Missing Taxonomy References
-      if (!q.categoryId) {
-        addIssue(
-          'ERROR',
-          'QUESTION_INTEGRITY',
-          SHEET_TABS.QUESTIONS,
-          `Question "${q.id}" is missing required category_id.`,
-          `Set a valid Category ID for question "${q.id}" in the QUESTIONS worksheet.`,
-          'QUESTION',
-          q.id,
-          'categoryId'
-        );
-      } else if (!categoryMap.has(q.categoryId)) {
-        addIssue(
-          'ERROR',
-          'QUESTION_INTEGRITY',
-          SHEET_TABS.QUESTIONS,
-          `Question "${q.id}" references non-existent category_id "${q.categoryId}".`,
-          `Update category_id for question "${q.id}" to an existing category in the CATEGORIES tab.`,
-          'QUESTION',
-          q.id,
-          'categoryId'
-        );
-      }
-
       if (!q.topicId) {
         addIssue(
           'ERROR',
@@ -308,18 +283,6 @@ export class DataIntegrityService {
             SHEET_TABS.QUESTIONS,
             `Question "${q.id}" references non-existent topic_id "${q.topicId}".`,
             `Update topic_id for question "${q.id}" to an existing topic in the TOPICS tab.`,
-            'QUESTION',
-            q.id,
-            'topicId'
-          );
-        } else if (q.categoryId && topic.categoryId !== q.categoryId) {
-          // Hierarchy violation: Topic belongs to different Category
-          addIssue(
-            'ERROR',
-            'QUESTION_INTEGRITY',
-            SHEET_TABS.QUESTIONS,
-            `Hierarchy mismatch: Topic "${q.topicId}" belongs to Category "${topic.categoryId}", but question "${q.id}" is assigned to Category "${q.categoryId}".`,
-            `Align category_id and topic_id for question "${q.id}" in the QUESTIONS worksheet.`,
             'QUESTION',
             q.id,
             'topicId'

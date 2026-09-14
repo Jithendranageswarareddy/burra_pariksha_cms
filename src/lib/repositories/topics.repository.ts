@@ -13,7 +13,9 @@ export class TopicsRepository extends BaseRepository<Topic> {
 
   private constructor() {
     super(SHEET_SCHEMAS[SHEET_TABS.TOPICS]);
-    this.seedFallbackData(MOCK_TOPICS);
+    if (!this.client.isConfigured(this.getTargetSpreadsheetId())) {
+      this.seedFallbackData(MOCK_TOPICS);
+    }
   }
 
   public static getInstance(): TopicsRepository {

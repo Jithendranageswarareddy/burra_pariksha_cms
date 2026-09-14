@@ -127,10 +127,15 @@ export abstract class BaseRepository<T extends Record<string, any>> {
             this.cachedHeaders = headers;
             this.lastHeaderFetchTime = now;
             return headers;
-          } catch {
-            // fallback
+          } catch (headerErr: any) {
+            if (this.client.isConfigured(this.getTargetSpreadsheetId())) {
+              throw headerErr;
+            }
           }
         }
+      }
+      if (this.client.isConfigured(this.getTargetSpreadsheetId())) {
+        throw err;
       }
       return this.schema.columns.map((c) => c.name);
     }
@@ -174,6 +179,9 @@ export abstract class BaseRepository<T extends Record<string, any>> {
       if (this.isWorksheetNotFoundError(err)) {
         await this.ensureWorksheet();
       }
+      if (this.client.isConfigured(this.getTargetSpreadsheetId())) {
+        throw err;
+      }
       const sheetStore = BaseRepository.fallbackStore.get(this.schema.sheetName)!;
       return Array.from(sheetStore.values()) as T[];
     }
@@ -207,6 +215,9 @@ export abstract class BaseRepository<T extends Record<string, any>> {
     } catch (err: any) {
       if (this.isWorksheetNotFoundError(err)) {
         await this.ensureWorksheet();
+      }
+      if (this.client.isConfigured(this.getTargetSpreadsheetId())) {
+        throw err;
       }
       const sheetStore = BaseRepository.fallbackStore.get(this.schema.sheetName)!;
       const item = sheetStore.get(id);
@@ -245,12 +256,16 @@ export abstract class BaseRepository<T extends Record<string, any>> {
             const row = objectToRow(record, headers, this.schema);
             await this.client.appendRow(this.schema.sheetName, row, this.getTargetSpreadsheetId());
             return record;
-          } catch {
-            // Already mirrored in local fallback store
+          } catch (retryErr: any) {
+            if (this.client.isConfigured(this.getTargetSpreadsheetId())) {
+              throw retryErr;
+            }
             return record;
           }
         }
-        return record;
+      }
+      if (this.client.isConfigured(this.getTargetSpreadsheetId())) {
+        throw err;
       }
       return record;
     }

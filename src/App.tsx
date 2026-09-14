@@ -11,8 +11,7 @@ import { Layout } from './components/layout/Layout';
 import { DashboardPage } from './pages/DashboardPage';
 import { QuestionLibraryPage } from './pages/QuestionLibraryPage';
 import { QuestionDetailPage } from './pages/QuestionDetailPage';
-import { NewQuestionPage } from './pages/NewQuestionPage';
-import { QuestionGeneratorPage } from './pages/QuestionGeneratorPage';
+
 import { QuestionStudioPage } from './pages/QuestionStudioPage';
 import { QueuePage } from './pages/QueuePage';
 import { ProductionTrackerPage } from './pages/ProductionTrackerPage';

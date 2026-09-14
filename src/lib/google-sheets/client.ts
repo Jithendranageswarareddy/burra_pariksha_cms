@@ -380,11 +380,25 @@ export class GoogleSheetsClient {
   }
 
   /**
+   * Protects string values matching fractional patterns (e.g. "6/8", "12/15")
+   * from automatic date interpretation under USER_ENTERED mode by prefixing them with a single quote (').
+   */
+  private protectFractionalValues(rowValues: (string | number | boolean)[]): (string | number | boolean)[] {
+    return rowValues.map((val) => {
+      if (typeof val === 'string' && /^\d+\/\d+$/.test(val)) {
+        return `'${val}`;
+      }
+      return val;
+    });
+  }
+
+  /**
    * Appends a new record row to the worksheet.
    */
   public async appendRow(sheetName: string, rowValues: (string | number | boolean)[], overrideSpreadsheetId?: string): Promise<void> {
     const spreadsheetId = this.getSpreadsheetId(overrideSpreadsheetId);
     this.invalidateRowCache(`${spreadsheetId}:${sheetName}`);
+    const protectedValues = this.protectFractionalValues(rowValues);
     return this.executeWithRetry(async () => {
       const sheets = this.getSheetsApi();
 
@@ -395,7 +409,7 @@ export class GoogleSheetsClient {
           valueInputOption: 'USER_ENTERED',
           insertDataOption: 'INSERT_ROWS',
           requestBody: {
-            values: [rowValues],
+            values: [protectedValues],
           },
         });
         this.invalidateRowCache(`${spreadsheetId}:${sheetName}`);
@@ -417,6 +431,7 @@ export class GoogleSheetsClient {
   ): Promise<void> {
     const spreadsheetId = this.getSpreadsheetId(overrideSpreadsheetId);
     this.invalidateRowCache(`${spreadsheetId}:${sheetName}`);
+    const protectedValues = this.protectFractionalValues(rowValues);
     return this.executeWithRetry(async () => {
       const sheets = this.getSheetsApi();
       const endColLetter = colIndexToA1Letter(rowValues.length - 1);
@@ -428,7 +443,7 @@ export class GoogleSheetsClient {
           range,
           valueInputOption: 'USER_ENTERED',
           requestBody: {
-            values: [rowValues],
+            values: [protectedValues],
           },
         });
         this.invalidateRowCache(`${spreadsheetId}:${sheetName}`);

@@ -13,7 +13,9 @@ export class CategoriesRepository extends BaseRepository<Category> {
 
   private constructor() {
     super(SHEET_SCHEMAS[SHEET_TABS.CATEGORIES]);
-    this.seedFallbackData(MOCK_CATEGORIES);
+    if (!this.client.isConfigured(this.getTargetSpreadsheetId())) {
+      this.seedFallbackData(MOCK_CATEGORIES);
+    }
   }
 
   public static getInstance(): CategoriesRepository {
