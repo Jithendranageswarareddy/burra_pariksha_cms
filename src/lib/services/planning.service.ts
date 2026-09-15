@@ -61,11 +61,11 @@ export class PlanningService {
     input: CreateContentPlanInput,
     actor: { id: string; name: string } = { id: 'USR-001', name: 'Admin / Content Lead' }
   ): Promise<ContentPlan> {
-    // 1. Validate taxonomy hierarchy
-    const { category, topic, subtopic } = await taxonomyService.validateTaxonomy(
-      input.categoryId,
+    // 1. Validate taxonomy hierarchy (Topic -> Subtopic primary, optional legacy category)
+    const { category, topic, subtopic } = await taxonomyService.validateQuestionTaxonomy(
       input.topicId,
-      input.subtopicId
+      input.subtopicId,
+      input.categoryId
     );
 
     // 2. Allocate permanent canonical ID
@@ -74,12 +74,12 @@ export class PlanningService {
 
     const plan: ContentPlan = {
       id: planId,
-      categoryId: input.categoryId,
-      categoryName: category ? category.name : input.categoryName || input.categoryId,
-      topicId: input.topicId,
-      topicName: topic ? topic.name : input.topicName || input.topicId,
-      subtopicId: input.subtopicId,
-      subtopicName: subtopic ? subtopic.name : input.subtopicName || input.subtopicId,
+      categoryId: category?.id || input.categoryId || '',
+      categoryName: category?.name || input.categoryName || '',
+      topicId: topic.id,
+      topicName: topic.name,
+      subtopicId: subtopic.id,
+      subtopicName: subtopic.name,
       difficulty: input.difficulty,
       language: input.language || QuestionLanguage.ENGLISH,
       targetQuestionCount: input.targetQuestionCount,

@@ -1,15 +1,12 @@
 import React from 'react';
 import { Filter, X, RefreshCw } from 'lucide-react';
-import { Category, Topic } from '../../types';
+import { Topic } from '../../types';
 
 interface DashboardFilterBarProps {
-  categories?: Category[];
   topics: Topic[];
-  selectedCategory?: string;
   selectedTopic: string;
   selectedDifficulty: string;
   selectedPriority: string;
-  onCategoryChange?: (val: string) => void;
   onTopicChange: (val: string) => void;
   onDifficultyChange: (val: string) => void;
   onPriorityChange: (val: string) => void;

@@ -73,7 +73,9 @@ export function buildGenerationPrompt(input: GenerateCandidateInput): string {
   const difficulty = input.difficulty || DifficultyLevel.MEDIUM;
   const language = input.language || QuestionLanguage.TELUGU;
   const style = sanitizePromptInput(input.questionStyle || 'Real-World Scenario');
-  const context = sanitizePromptInput(input.realWorldContext || '');
+  const context = sanitizePromptInput(input.realLifeContext || input.realWorldContext || '');
+  const challengeType = sanitizePromptInput(input.challengeType || '');
+  const presentationType = sanitizePromptInput(input.presentationType || '');
   const custom = sanitizePromptInput(input.customInstructions || '');
 
   let difficultyGuidelines = '';
@@ -136,6 +138,8 @@ SPECIFICATIONS:
 - ${difficultyGuidelines}
 - ${languageGuidelines}
 - ${styleGuidelines || `Pedagogical Style: ${style}`}
+${challengeType ? `- Challenge Type: ${challengeType}` : ''}
+${presentationType ? `- Presentation Type: ${presentationType}` : ''}
 ${context ? `- Real-World Context / Hook: ${context}` : ''}
 ${custom ? `- Additional Content Guidance: ${custom}` : ''}
 

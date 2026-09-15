@@ -424,6 +424,8 @@ export async function runPhase10PublishingVerification() {
     completedPlatformsCount: 0,
   } as any);
 
+  const testWatchUrl = `https://youtube.com/watch?v=mars_${Math.random().toString(36).substring(2, 10)}`;
+
   // Transition from NOT_STARTED to SCHEDULED
   const scheduledResult = await publishingService.schedulePublishing(
     videoId,
@@ -437,7 +439,7 @@ export async function runPhase10PublishingVerification() {
   const publishedResult = await publishingService.markPlatformPublished(
     videoId,
     'youtube',
-    'https://youtube.com/watch?v=mars123',
+    testWatchUrl,
     pubMgrActor
   );
   assert(publishedResult.youtube.status === SocialPublishStatus.PUBLISHED, 'Transition from SCHEDULED to PUBLISHED is valid');
@@ -469,7 +471,7 @@ export async function runPhase10PublishingVerification() {
   const idempotentResult = await publishingService.markPlatformPublished(
     videoId,
     'youtube',
-    'https://youtube.com/watch?v=mars123',
+    testWatchUrl,
     pubMgrActor
   );
   assert(idempotentResult.youtube.status === SocialPublishStatus.PUBLISHED, 'Subsequent identical published actions are handled safely and idempotently');

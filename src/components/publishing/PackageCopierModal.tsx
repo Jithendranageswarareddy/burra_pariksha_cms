@@ -40,7 +40,7 @@ export const PackageCopierModal: React.FC<PackageCopierModalProps> = ({
     try {
       setIsLoading(true);
       setError(null);
-      const data = await apiClient.getPlatformPackage(videoId, targetPlatform);
+      const data = await apiClient.getPlatformPackage(videoId, targetPlatform.toLowerCase() as any);
       setPkg(data);
     } catch (err: any) {
       setPkg(null);

@@ -55,7 +55,6 @@ export const ProductionBoardPage: React.FC = () => {
   const selectedStatus = searchParams.get('status') || 'ALL';
   const selectedPriority = searchParams.get('priority') || 'ALL';
   const selectedAssignee = searchParams.get('assignee') || 'ALL';
-  const selectedCategory = searchParams.get('category') || 'ALL';
   const selectedDifficulty = searchParams.get('difficulty') || 'ALL';
   const selectedDueDateFilter = searchParams.get('dueDate') || 'ALL'; // ALL, OVERDUE, TODAY, UPCOMING
 
@@ -186,7 +185,6 @@ export const ProductionBoardPage: React.FC = () => {
   const uniqueStatuses = Array.from(new Set(boardItems.map(i => i.videoStatus))).filter(Boolean);
   const uniquePriorities = Array.from(new Set(boardItems.map(i => i.priority))).filter(Boolean);
   const uniqueAssignees = Array.from(new Set(boardItems.map(i => i.assignee?.name))).filter(Boolean);
-  const uniqueCategories = Array.from(new Set(boardItems.map(i => i.category))).filter(Boolean);
   const uniqueDifficulties = Array.from(new Set(boardItems.map(i => i.difficulty))).filter(Boolean);
 
   // Active filter count
@@ -194,7 +192,6 @@ export const ProductionBoardPage: React.FC = () => {
   if (selectedStatus !== 'ALL') activeFilterCount++;
   if (selectedPriority !== 'ALL') activeFilterCount++;
   if (selectedAssignee !== 'ALL') activeFilterCount++;
-  if (selectedCategory !== 'ALL') activeFilterCount++;
   if (selectedDifficulty !== 'ALL') activeFilterCount++;
   if (selectedDueDateFilter !== 'ALL') activeFilterCount++;
   if ((searchInput || urlSearchQuery).trim()) activeFilterCount++;
@@ -209,8 +206,8 @@ export const ProductionBoardPage: React.FC = () => {
         (item.questionId || '').toLowerCase().includes(q) ||
         (item.title || '').toLowerCase().includes(q) ||
         (item.questionText && item.questionText.toLowerCase().includes(q)) ||
-        (item.category || '').toLowerCase().includes(q) ||
         (item.topic || '').toLowerCase().includes(q) ||
+        (item.subtopic || '').toLowerCase().includes(q) ||
         (item.assignee?.name && item.assignee.name.toLowerCase().includes(q));
       if (!matchSearch) return false;
     }
@@ -234,12 +231,7 @@ export const ProductionBoardPage: React.FC = () => {
       }
     }
 
-    // 5. Category filter
-    if (selectedCategory !== 'ALL' && item.category !== selectedCategory) {
-      return false;
-    }
-
-    // 6. Difficulty filter
+    // 5. Difficulty filter
     if (selectedDifficulty !== 'ALL' && item.difficulty !== selectedDifficulty) {
       return false;
     }
@@ -381,23 +373,6 @@ export const ProductionBoardPage: React.FC = () => {
             </select>
           </div>
 
-          {/* Category Filter */}
-          <div className="space-y-1">
-            <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Category</label>
-            <select
-              value={selectedCategory}
-              onChange={(e) => updateFilter('category', e.target.value)}
-              className="w-full py-1.5 px-2.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-300 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-            >
-              <option value="ALL">All Categories</option>
-              {uniqueCategories.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          </div>
-
           {/* Difficulty Filter */}
           <div className="space-y-1">
             <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Difficulty</label>
@@ -468,7 +443,7 @@ export const ProductionBoardPage: React.FC = () => {
               <thead>
                 <tr className="bg-slate-50 dark:bg-slate-950/60 border-b border-slate-200 dark:border-slate-800 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
                   <th className="py-3 px-4">Video & Question</th>
-                  <th className="py-3 px-4">Category / Topic</th>
+                  <th className="py-3 px-4">Topic / Subtopic</th>
                   <th className="py-3 px-4">Status & Assignee</th>
                   <th className="py-3 px-4">Script</th>
                   <th className="py-3 px-4">Thumbnail</th>
@@ -550,12 +525,12 @@ export const ProductionBoardPage: React.FC = () => {
                         </div>
                       </td>
 
-                      {/* Category / Topic */}
+                      {/* Topic / Subtopic */}
                       <td className="py-3 px-4">
                         <div className="space-y-0.5">
-                          <span className="font-medium text-slate-800 dark:text-slate-200">{item.category}</span>
+                          <span className="font-medium text-slate-800 dark:text-slate-200">{item.topic || 'General'}</span>
                           <div className="text-[11px] text-slate-500 truncate max-w-[180px]">
-                            {item.topic} {item.subtopic ? `> ${item.subtopic}` : ''}
+                            {item.subtopic || '—'}
                           </div>
                         </div>
                       </td>

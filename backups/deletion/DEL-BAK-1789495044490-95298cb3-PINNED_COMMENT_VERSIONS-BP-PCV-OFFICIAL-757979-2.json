@@ -1,0 +1,34 @@
+{
+  "id": "DEL-BAK-1789495044490-95298cb3",
+  "backupTimestamp": "2026-09-15T17:57:24.490Z",
+  "sheetName": "PINNED_COMMENT_VERSIONS",
+  "entityId": "BP-PCV-OFFICIAL-757979-2",
+  "physicalRowIndex": 2,
+  "headers": [
+    "id",
+    "pinned_comment_id",
+    "version_number",
+    "comment_text",
+    "created_at"
+  ],
+  "rawRow": [
+    "BP-PCV-OFFICIAL-757979-2",
+    "BP-PIN-757979",
+    2,
+    "Updated high-quality pinned comment with Telugu problem recap and step-by-step hint.",
+    "2026-09-15T10:13:55.373Z"
+  ],
+  "record": {
+    "id": "BP-PCV-OFFICIAL-757979-2",
+    "pinnedCommentId": "BP-PIN-757979",
+    "versionNumber": 2,
+    "commentText": "Updated high-quality pinned comment with Telugu problem recap and step-by-step hint.",
+    "createdAt": "2026-09-15T10:13:55.373Z"
+  },
+  "checksum": "b033407b2af9a4c6109a179ffef5c23dadc56fe1809bce95ef3c02a7a281b4db",
+  "actor": {
+    "id": "SYSTEM_CLEANUP",
+    "name": "Production Test-Data Sanitizer"
+  },
+  "reason": "Phase 30 Pre-Acceptance Production Cleanup"
+}

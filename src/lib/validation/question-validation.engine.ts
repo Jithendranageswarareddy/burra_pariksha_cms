@@ -24,6 +24,7 @@ import { AmbiguityDetector } from './ambiguity.detector';
 import { ConsistencyValidator } from './consistency.validator';
 import { FairnessValidator } from './fairness.validator';
 import { ConsensusEngine } from './consensus.engine';
+import { MultiLayerVerificationEngine } from './multi-layer-verification.engine';
 
 export interface ValidationPipelineOptions {
   providers?: QuestionValidatorProvider[];
@@ -347,11 +348,18 @@ export class QuestionValidationEngine {
     }
 
     // Determine Final Status
+    // Run Multi-Layer Verification Engine for full 9-layer report & strict precedence rules
+    const multiLayerReport = await MultiLayerVerificationEngine.verify(question, {
+      actor: options.actor,
+      skipTaxonomyLookup: options.skipTaxonomyLookup,
+    });
+
     let finalStatus: QuestionValidationStatus;
 
-    if (hasFatalFailure) {
+    if (hasFatalFailure || multiLayerReport.aggregatedStatus === 'FAILED') {
       finalStatus = QuestionValidationStatus.INVALID;
     } else if (
+      multiLayerReport.aggregatedStatus === 'UNVERIFIED' ||
       ambiguityVal.result.isAmbiguous ||
       mathLogical.status === 'NOT_DETERMINISTICALLY_VERIFIED' ||
       consensusResult.hasConflict ||
@@ -363,12 +371,20 @@ export class QuestionValidationEngine {
       finalStatus = QuestionValidationStatus.VALID;
     }
 
+    // Combine any multi-layer errors
+    for (const err of multiLayerReport.overallErrors) {
+      if (!errors.includes(err)) errors.push(err);
+    }
+    for (const warn of multiLayerReport.overallWarnings) {
+      if (!warnings.includes(warn)) warnings.push(warn);
+    }
+
     // Summary narrative
     let summary: string;
     if (finalStatus === QuestionValidationStatus.VALID) {
-      summary = `Question successfully validated as VALID (Confidence: ${(confidenceScore * 100).toFixed(0)}%). All 10 verification stages passed without errors.`;
+      summary = `Question successfully validated as VALID (Confidence: ${(confidenceScore * 100).toFixed(0)}%). All verification stages passed.`;
     } else if (finalStatus === QuestionValidationStatus.INVALID) {
-      summary = `Question rejected as INVALID due to ${errors.length} fatal error(s): ${errors[0] || 'Verification failed.'}`;
+      summary = `Question rejected as INVALID due to ${errors.length} error(s): ${errors[0] || 'Verification failed.'}`;
     } else {
       summary = `Question flagged as NEEDS_REVIEW (Confidence: ${(confidenceScore * 100).toFixed(0)}%). Requires human editorial review.`;
     }
@@ -398,7 +414,7 @@ export class QuestionValidationEngine {
       id: validationId,
       questionId,
       status: finalStatus,
-      confidenceScore,
+      confidenceScore: finalStatus === QuestionValidationStatus.INVALID ? 0 : confidenceScore,
       validatorVersion: QuestionValidationEngine.VALIDATOR_VERSION,
       validationRuleVersion: QuestionValidationEngine.VALIDATION_RULE_VERSION,
       timestamp: new Date().toISOString(),
@@ -413,10 +429,15 @@ export class QuestionValidationEngine {
       ambiguityResult: ambiguityVal.result,
       mathematicalLogicalResult: mathLogical,
       modelEvidence: consensusResult.evidence,
+      layers: multiLayerReport.layers,
+      layerList: multiLayerReport.layerList,
+      aggregatedLayerStatus: multiLayerReport.aggregatedStatus,
+      humanReviewState: multiLayerReport.humanReviewState,
       isStale: false,
       validatedBy: options.actor || 'SYSTEM_VALIDATOR',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-    };
+    } as any;
+
   }
 }

@@ -87,6 +87,13 @@ export class ValidationError extends GoogleSheetsError {
   }
 }
 
+export class NotFoundError extends GoogleSheetsError {
+  constructor(message: string = 'Resource not found', details?: Record<string, unknown>) {
+    super(message, 'NOT_FOUND_ERROR', 404, details);
+    this.name = 'NotFoundError';
+  }
+}
+
 export class SequenceAllocationError extends GoogleSheetsError {
   constructor(entityType: string, reason: string) {
     super(

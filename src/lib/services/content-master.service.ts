@@ -14,6 +14,7 @@ import {
   assignmentsRepository,
   auditLogRepository,
   socialReviewsRepository,
+  workflowRepository,
 } from '../repositories';
 import { IdService } from './id.service';
 import {
@@ -35,6 +36,7 @@ import {
   VideoProductionStatus,
   SocialReviewStatus,
   SocialPublishStatus,
+  Workflow,
 } from '../../types';
 import {
   CreateContentMasterInput,
@@ -59,6 +61,7 @@ export interface ContentMasterDetails {
   socialReviews?: SocialReviewRecord[];
   assignments: Assignment[];
   auditLogs: AuditLog[];
+  workflows: Workflow[];
 }
 
 export interface MigrationDryRunReport {
@@ -252,6 +255,7 @@ export class ContentMasterService {
       allSocialReviews,
       allAssignments,
       allLogs,
+      allWorkflows,
     ] = await Promise.all([
       questionsRepository.findAll(),
       videosRepository.findAll(),
@@ -262,6 +266,7 @@ export class ContentMasterService {
       socialReviewsRepository.findAll().catch(() => []),
       assignmentsRepository.findAll(),
       auditLogRepository.findAll(),
+      workflowRepository.findAll(),
     ]);
 
     const questions = allQuestions.filter(
@@ -315,14 +320,29 @@ export class ContentMasterService {
     const socialReviews = allSocialReviews.filter(
       (sr) =>
         (sr.contentMasterId && candidateIds.has(sr.contentMasterId)) ||
+        (sr.contentId && candidateIds.has(sr.contentId)) ||
         (sr.questionId && questionIds.has(sr.questionId))
     );
 
     const targetEntityIds = new Set([id, canonicalId, ...candidateIds, ...questionIds, ...videoIds]);
     const assignments = allAssignments.filter(
-      (a) => targetEntityIds.has(a.entityId || '') || targetEntityIds.has(a.videoId || '')
+      (a) =>
+        targetEntityIds.has(a.entityId || '') ||
+        targetEntityIds.has(a.videoId || '') ||
+        (a.contentId && candidateIds.has(a.contentId)) ||
+        (a.contentMasterId && candidateIds.has(a.contentMasterId))
     );
-    const auditLogs = allLogs.filter((log) => targetEntityIds.has(log.entityId));
+    const auditLogs = allLogs.filter(
+      (log) =>
+        targetEntityIds.has(log.entityId) ||
+        (log.details && (log.details.includes(canonicalId) || log.details.includes(id)))
+    );
+    const workflows = allWorkflows.filter(
+      (wf) =>
+        targetEntityIds.has(wf.entityId) ||
+        (wf.contentId && candidateIds.has(wf.contentId)) ||
+        (wf.contentMasterId && candidateIds.has(wf.contentMasterId))
+    );
 
     return {
       contentMaster: master,
@@ -336,6 +356,7 @@ export class ContentMasterService {
       socialReviews,
       assignments,
       auditLogs,
+      workflows,
     };
   }
 

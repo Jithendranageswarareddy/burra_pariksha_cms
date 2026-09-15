@@ -69,6 +69,11 @@ export class VideosRepository extends BaseRepository<Video> {
     return all.filter((v) => v.questionId === questionId);
   }
 
+  public async findByContentId(contentId: string): Promise<Video | null> {
+    const all = await this.findAll();
+    return all.find((v) => (v as any).contentId === contentId) || null;
+  }
+
   public async findByStatus(status: string): Promise<Video[]> {
     const all = await this.findAll();
     return all.filter((v) => v.status === status);

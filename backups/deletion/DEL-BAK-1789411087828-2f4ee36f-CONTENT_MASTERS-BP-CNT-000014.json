@@ -1,0 +1,54 @@
+{
+  "id": "DEL-BAK-1789411087828-2f4ee36f",
+  "backupTimestamp": "2026-09-14T18:38:07.828Z",
+  "sheetName": "CONTENT_MASTERS",
+  "entityId": "BP-CNT-000014",
+  "physicalRowIndex": -1,
+  "headers": [
+    "id",
+    "content_id",
+    "title",
+    "status",
+    "primary_question_id",
+    "category_id",
+    "topic_id",
+    "subtopic_id",
+    "created_by",
+    "created_at",
+    "updated_at",
+    "archived_at"
+  ],
+  "rawRow": [
+    "BP-CNT-000014",
+    "",
+    "P08-20 Manual Candidate Convergence Test",
+    "DRAFT",
+    "BP-Q-000014",
+    "CAT-QA",
+    "BP-TOP-001",
+    "BP-SUB-0001",
+    "USR-ADMIN-P08",
+    "2026-09-14T18:38:07.814Z",
+    "2026-09-14T18:38:07.814Z",
+    ""
+  ],
+  "record": {
+    "id": "BP-CNT-000014",
+    "title": "P08-20 Manual Candidate Convergence Test",
+    "status": "DRAFT",
+    "primaryQuestionId": "BP-Q-000014",
+    "categoryId": "CAT-QA",
+    "topicId": "BP-TOP-001",
+    "subtopicId": "BP-SUB-0001",
+    "createdBy": "USR-ADMIN-P08",
+    "createdAt": "2026-09-14T18:38:07.814Z",
+    "updatedAt": "2026-09-14T18:38:07.814Z"
+  },
+  "checksum": "ba86b6e51a8d07ab419543aabc12d1cf69f0deb8a96011b107445b4ff028d9e6",
+  "actor": {
+    "id": "USR-ADMIN-P08",
+    "name": "Phase 08 Test Admin",
+    "role": "ADMIN"
+  },
+  "reason": "Phase 08 test-artifact safe cleanup"
+}

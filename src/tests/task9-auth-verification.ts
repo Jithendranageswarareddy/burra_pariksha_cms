@@ -259,18 +259,26 @@ export async function runTask9AuthVerification() {
   assert(unknownUserLogin.success === false, 'Login strictly fails for non-existent user ID');
   assert(unknownUserLogin.token === undefined, 'No token returned for non-existent user');
 
-  // Test Inactive user rejection
-  const inactiveUser = await usersRepository.appendRecord({
-    id: 'USR-INACTIVE-T9',
-    name: 'Suspended Contributor',
-    email: 'suspended@burrapariksha.local',
-    role: UserRole.REVIEWER,
-    isActive: false,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  });
+  // Test Inactive user rejection without polluting live production workbook
+  const originalFindById = usersRepository.findById.bind(usersRepository);
+  usersRepository.findById = async (id: string) => {
+    if (id === 'USR-INACTIVE-T9') {
+      return {
+        id: 'USR-INACTIVE-T9',
+        name: 'Suspended Contributor',
+        email: 'suspended@burrapariksha.local',
+        role: UserRole.REVIEWER,
+        roles: [UserRole.REVIEWER],
+        isActive: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+    }
+    return originalFindById(id);
+  };
 
-  const inactiveLogin = await authService.login(inactiveUser.id, 'password123');
+  const inactiveLogin = await authService.login('USR-INACTIVE-T9', 'password123');
+  usersRepository.findById = originalFindById;
   assert(inactiveLogin.success === false, 'Inactive user account is strictly blocked from logging in');
   assert(inactiveLogin.error?.toLowerCase().includes('inactive'), 'Error message identifies account as inactive');
 
@@ -287,8 +295,10 @@ export async function runTask9AuthVerification() {
   assert(unauthCtx.getStatus() === 401, 'Unauthenticated request receives HTTP 401 Unauthorized');
   assert(unauthCtx.getJson()?.error?.includes('session') || unauthCtx.getJson()?.error?.includes('Authentication'), 'Unauthenticated error message identifies missing session');
 
-  // 2. Authenticated request with valid session
-  const authCtx = createMockContext({ cookie: `bp_session=${adminToken}` });
+  // 2. Authenticated request with valid session (re-authenticated after logout)
+  const freshAdminLogin = await authService.login('USR-001', 'password123');
+  const activeAdminToken = freshAdminLogin.token || adminToken;
+  const authCtx = createMockContext({ cookie: `bp_session=${activeAdminToken}` });
   const authTracker = { nextCalled: false };
   requireAuth(authCtx.req, authCtx.res, () => { authTracker.nextCalled = true; });
   assert(authTracker.nextCalled, 'Authenticated request with valid bp_session passes requireAuth to next()');

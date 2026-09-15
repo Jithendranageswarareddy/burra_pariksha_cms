@@ -65,6 +65,13 @@ export const QUESTION_STATUS_CONFIG: Record<
     border: 'border-rose-200 dark:border-rose-800',
     description: 'Does not meet channel quality standards',
   },
+  [QuestionStatus.ARCHIVED]: {
+    label: 'Archived',
+    bg: 'bg-gray-100 dark:bg-gray-800',
+    text: 'text-gray-700 dark:text-gray-300',
+    border: 'border-gray-300 dark:border-gray-700',
+    description: 'Archived and removed from active rotation',
+  },
 };
 
 export const VIDEO_STATUS_CONFIG: Record<

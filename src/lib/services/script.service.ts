@@ -17,7 +17,7 @@ import { questionsRepository } from '../repositories/questions.repository';
 import { idService } from './id.service';
 import { auditService } from './audit.service';
 import { videoService } from './video.service';
-import { geminiService } from '../ai/gemini.service';
+import { phase24AIOrchestrator } from '../ai/phase24-orchestrator.service';
 import { Question, Script, ScriptVersion, VideoProductionStatus, UserRole } from '../../types';
 import { ValidationError } from '../google-sheets/errors';
 
@@ -70,7 +70,7 @@ export class ScriptService {
     };
     validation: any;
   }> {
-    return geminiService.generateTeluguScript(question);
+    return phase24AIOrchestrator.generateTeluguScript(question);
   }
 
   /**
@@ -95,7 +95,7 @@ export class ScriptService {
       throw new Error(`Linked question "${video.questionId}" not found for video "${videoId}".`);
     }
 
-    return geminiService.generateTeluguScript(question);
+    return phase24AIOrchestrator.generateTeluguScript(question);
   }
 
   /**
@@ -133,7 +133,7 @@ export class ScriptService {
       };
     }
 
-    const generation = await geminiService.generateTeluguScript(question);
+    const generation = await phase24AIOrchestrator.generateTeluguScript(question);
 
     return {
       script: null,

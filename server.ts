@@ -9,6 +9,7 @@ import fs from 'fs';
 import { createServer as createViteServer } from 'vite';
 import { apiRouter } from './src/server/routes';
 import { snapshotSchedulerService } from './src/lib/services/snapshot-scheduler.service';
+import { usersRepository } from './src/lib/repositories/users.repository';
 
 async function startServer() {
   const app = express();
@@ -17,6 +18,11 @@ async function startServer() {
 
   // Initialize server-side snapshot scheduler (starts if GCS_SNAPSHOT_SCHEDULE_ENABLED=true)
   snapshotSchedulerService.startScheduler();
+
+  // Preload authoritative users and persistent session versions from Google Sheets
+  usersRepository.findAll().catch((err) => {
+    console.warn('Initial users preload warning:', err?.message);
+  });
 
   // Mount API routes FIRST
   app.use('/api', apiRouter);

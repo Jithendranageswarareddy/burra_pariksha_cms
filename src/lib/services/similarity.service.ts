@@ -56,7 +56,7 @@ export class SimilarityService {
   public normalizeText(text: string): string {
     return (text || '')
       .toLowerCase()
-      .replace(/[^\w\s]/g, ' ')
+      .replace(/[^\p{L}\p{M}\p{N}\s]/gu, ' ')
       .replace(/\s+/g, ' ')
       .trim();
   }

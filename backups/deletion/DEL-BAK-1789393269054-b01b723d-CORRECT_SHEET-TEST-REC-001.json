@@ -1,0 +1,17 @@
+{
+  "id": "DEL-BAK-1789393269054-b01b723d",
+  "backupTimestamp": "2026-09-14T13:41:09.054Z",
+  "sheetName": "CORRECT_SHEET",
+  "entityId": "TEST-REC-001",
+  "physicalRowIndex": 5,
+  "headers": [
+    "id"
+  ],
+  "rawRow": [
+    "TEST-REC-001"
+  ],
+  "record": {
+    "id": "TEST-REC-001"
+  },
+  "checksum": "4f7dc3ac3478c00c39a516eb6f7fbb532f3b673579042d51c8a2b1be11ddb841"
+}

@@ -219,7 +219,7 @@ export const QuestionStudioPage: React.FC = () => {
         res.defaultQuestionStyle?.code ||
         res.questionStyles.find((s) => s.isDefault)?.code ||
         res.questionStyles[0]?.code ||
-        'STORY_BASED';
+        '';
 
       const defaultContextLabel =
         res.defaults?.realLifeContext ||

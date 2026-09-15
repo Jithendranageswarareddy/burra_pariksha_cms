@@ -1,0 +1,49 @@
+{
+  "id": "DEL-BAK-1789403359748-1daae6b6",
+  "backupTimestamp": "2026-09-14T16:29:19.748Z",
+  "sheetName": "USERS",
+  "entityId": "USR-INACTIVE-TEST",
+  "physicalRowIndex": 7,
+  "headers": [
+    "id",
+    "name",
+    "email",
+    "role",
+    "avatar_url",
+    "is_active",
+    "password_hash",
+    "last_login_at",
+    "created_at",
+    "updated_at"
+  ],
+  "rawRow": [
+    "USR-INACTIVE-TEST",
+    "Temporary Inactive User",
+    "temp.inactive@burrapariksha.local",
+    "REVIEWER",
+    "",
+    false,
+    "",
+    "",
+    "2026-09-14T16:19:14.587Z",
+    "2026-09-14T16:19:14.587Z"
+  ],
+  "record": {
+    "id": "USR-INACTIVE-TEST",
+    "name": "Temporary Inactive User",
+    "email": "temp.inactive@burrapariksha.local",
+    "role": "REVIEWER",
+    "avatarUrl": "",
+    "isActive": false,
+    "password_hash": "",
+    "last_login_at": "",
+    "createdAt": "2026-09-14T16:19:14.587Z",
+    "updatedAt": "2026-09-14T16:19:14.587Z"
+  },
+  "checksum": "bf9ed89526677104c81adb719feb8ed4dbe2de738a4e97f81b716ff04c9e4f1e",
+  "actor": {
+    "id": "USR-001",
+    "name": "Jithendra"
+  },
+  "reason": "Phase 03 Synthetic test fixture cleanup"
+}

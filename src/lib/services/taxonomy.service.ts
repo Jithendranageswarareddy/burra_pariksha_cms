@@ -44,6 +44,28 @@ export interface TaxonomyTreeItem {
   topics: Array<Topic & { subtopics: Subtopic[] }>;
 }
 
+export interface PureTaxonomyTopic extends Topic {
+  subtopics: Subtopic[];
+}
+
+export interface TaxonomyMetrics {
+  totalTopics: number;
+  totalSubtopics: number;
+  activeTopics: number;
+  activeSubtopics: number;
+  targetTopics: number;
+  targetSubtopicsPerTopic: number;
+  targetTotalSubtopics: number;
+  missingSubtopics: number;
+  completeTopicsCount: number;
+  incompleteTopicsCount: number;
+  completeTopicIds: string[];
+  incompleteTopicIds: string[];
+  subtopicsByTopic: Record<string, number>;
+  hasDataGap: boolean;
+  dataGapMessage: string;
+}
+
 export interface BulkImportDryRunReport {
   valid: boolean;
   summary: {
@@ -716,6 +738,87 @@ export class TaxonomyService {
     return result;
   }
 
+  /**
+   * Pure Topic -> Subtopic 2-tier tree (No Category layer).
+   * Fully compliant with Phase 04 Pure Taxonomy architecture.
+   */
+  public async getPureTopicTree(options: { includeInactive?: boolean } = {}): Promise<PureTaxonomyTopic[]> {
+    const [topics, subtopics] = await Promise.all([
+      this.getTopics(undefined, options),
+      this.getSubtopics(undefined, options),
+    ]);
+
+    return topics.map((topic) => ({
+      ...topic,
+      subtopics: subtopics.filter((s) => s.topicId === topic.id),
+    }));
+  }
+
+  /**
+   * Authoritative taxonomy metrics and data gap diagnostics.
+   * Reports exact topic counts, subtopic counts per topic, and identifies missing authoritative items.
+   */
+  public async getTaxonomyMetrics(): Promise<TaxonomyMetrics> {
+    const [allTopics, allSubtopics] = await Promise.all([
+      this.getTopics(undefined, { includeInactive: true }),
+      this.getSubtopics(undefined, { includeInactive: true }),
+    ]);
+
+    const activeTopics = allTopics.filter((t) => t.isActive !== false);
+    const activeSubtopics = allSubtopics.filter((s) => s.isActive !== false);
+
+    const subtopicsByTopic: Record<string, number> = {};
+    for (const t of allTopics) {
+      subtopicsByTopic[t.id] = 0;
+    }
+    for (const s of allSubtopics) {
+      if (subtopicsByTopic[s.topicId] !== undefined) {
+        subtopicsByTopic[s.topicId]++;
+      }
+    }
+
+    const completeTopicIds: string[] = [];
+    const incompleteTopicIds: string[] = [];
+
+    for (const t of allTopics) {
+      if (subtopicsByTopic[t.id] === 100) {
+        completeTopicIds.push(t.id);
+      } else {
+        incompleteTopicIds.push(t.id);
+      }
+    }
+
+    const totalTopics = allTopics.length;
+    const totalSubtopics = allSubtopics.length;
+    const targetTopics = 100;
+    const targetSubtopicsPerTopic = 100;
+    const targetTotalSubtopics = 10000;
+    const missingSubtopics = Math.max(0, targetTotalSubtopics - totalSubtopics);
+    const hasDataGap = totalTopics < targetTopics || totalSubtopics < targetTotalSubtopics;
+
+    const dataGapMessage = hasDataGap
+      ? `Authoritative data gap: ${totalTopics}/${targetTopics} Topics present. ${totalSubtopics}/${targetTotalSubtopics} Subtopics present (${missingSubtopics} Subtopics missing across ${incompleteTopicIds.length} Topics). Per Phase 04 Rule 3 & 6, missing subtopics must not be synthetically manufactured.`
+      : 'Authoritative taxonomy is 100% complete (100 Topics x 100 Subtopics = 10,000 total).';
+
+    return {
+      totalTopics,
+      totalSubtopics,
+      activeTopics: activeTopics.length,
+      activeSubtopics: activeSubtopics.length,
+      targetTopics,
+      targetSubtopicsPerTopic,
+      targetTotalSubtopics,
+      missingSubtopics,
+      completeTopicsCount: completeTopicIds.length,
+      incompleteTopicsCount: incompleteTopicIds.length,
+      completeTopicIds,
+      incompleteTopicIds,
+      subtopicsByTopic,
+      hasDataGap,
+      dataGapMessage,
+    };
+  }
+
   // ----------------------------------------------------
   // Taxonomy Validation Engine (Question Integration)
   // ----------------------------------------------------
@@ -759,7 +862,7 @@ export class TaxonomyService {
 
     // STRICT INTEGRITY CHECK: Subtopic MUST belong to the specified Topic
     if (subtopic.topicId !== topicId) {
-      throw new ValidationError(
+      throw new ReferenceIntegrityError(
         `Taxonomy integrity violation: Subtopic "${subtopic.name}" (${subtopic.id}) belongs to Topic "${subtopic.topicId}", not "${topic.name}" (${topicId}).`
       );
     }
@@ -771,7 +874,7 @@ export class TaxonomyService {
         throw new ReferenceIntegrityError(`Referenced Category with ID "${categoryId}" does not exist.`);
       }
       if (topic.categoryId && topic.categoryId !== categoryId) {
-        throw new ValidationError(
+        throw new ReferenceIntegrityError(
           `Taxonomy integrity violation: Topic "${topic.name}" (${topic.id}) belongs to Category "${topic.categoryId}", not "${categoryId}".`
         );
       }

@@ -30,7 +30,11 @@ export interface GenerateCandidateInput {
   language: QuestionLanguage;
   questionStyle?: QuestionStyle | string;
   realWorldContext?: string;
+  realLifeContext?: string;
+  challengeType?: string;
+  presentationType?: string;
   customInstructions?: string;
+  generationMode?: 'SUBTOPIC' | 'RANDOM';
 }
 
 export interface QuestionCandidate {
@@ -45,6 +49,8 @@ export interface QuestionCandidate {
   language: QuestionLanguage;
   real_world_context?: string;
   question_style?: string;
+  challenge_type?: string;
+  presentation_type?: string;
   taxonomy?: {
     categoryId: string;
     categoryName?: string;
@@ -95,6 +101,7 @@ export interface AIProviderOptions {
   timeoutMs?: number;
   maxRetries?: number;
   requestId?: string;
+  allowMockFallback?: boolean;
 }
 
 export interface ScriptGenerationResult {

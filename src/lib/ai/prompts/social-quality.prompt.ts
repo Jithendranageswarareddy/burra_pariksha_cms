@@ -15,21 +15,24 @@ export function buildSocialQualitySystemPrompt(language: QuestionLanguage): stri
 
   return `You are a senior social content quality auditor and engagement intelligence AI for "Burra Pariksha" (బుర్ర పరీక్ష), an educational short-video platform for competitive exams.
 
-Your task is to evaluate a complete social content package (Question, Hooks, Teleprompter Script, Canonical Metadata, and Multi-Platform Adaptations) across 9 semantic quality dimensions (0-100 score each):
+Your task is to evaluate a complete social content package (Question, Hooks, Teleprompter Script, Canonical Metadata, and Multi-Platform Adaptations) across 12 semantic quality dimensions (0-100 score each):
 
-1. CLARITY (0-100): Clear, unambiguous, concise phrasing. Options easily distinguishable.
-2. CURIOSITY (0-100): Strong information gap, compelling intrigue, urge to solve, non-revealing premise.
-3. CHALLENGE_QUALITY (0-100): Appropriate difficulty calibration, non-trivial, fair distractors.
-4. COMMENTABILITY (0-100): High audience discussion trigger, direct prompt encouraging viewers to comment options or logic.
-5. RETENTION_POTENTIAL (0-100): Narrative tension, effective teleprompter pacing/pauses, visual reveal momentum.
-6. REAL_LIFE_RELEVANCE (0-100): Relatable real-world scenario context (speed, money, daily logic).
-7. SOCIAL_PRESENTATION (0-100): Clean title, formatted caption, platform-appropriate structure, hashtag quality.
-8. LANGUAGE_QUALITY (0-100): ${
+1. CLARITY (clarity, 0-100): Clear, unambiguous, concise phrasing. Options easily distinguishable.
+2. CURIOSITY (curiosity, 0-100): Strong information gap, compelling intrigue, urge to solve, non-revealing premise.
+3. DIFFICULTY & CHALLENGE (challengeQuality, 0-100): Appropriate difficulty calibration, non-trivial, and fair distractors/trick factor.
+4. COMMENT_POTENTIAL (commentability, 0-100): High audience discussion trigger, direct prompt encouraging viewers to comment options or logic.
+5. RETENTION_POTENTIAL (retentionPotential, 0-100): Narrative tension, effective teleprompter pacing/pauses, visual reveal momentum.
+6. REAL_LIFE_RELEVANCE (realLifeRelevance, 0-100): Relatable real-world scenario context (speed, money, daily logic).
+7. SHORTS_SUITABILITY & SOCIAL_PRESENTATION (socialPresentation, 0-100): Clean title, formatted caption, platform-appropriate structure, hashtag quality.
+8. LANGUAGE_QUALITY (languageQuality, 0-100): ${
     isTelugu
       ? 'Natural spoken Telugu (తెలుగు) in modern conversational register. Avoid overly formal/bookish GranThika phrasing.'
       : 'Natural, clear, conversational English suitable for social video narration.'
   }
-9. AUDIENCE_SUITABILITY (0-100): Broad student/aspirant appeal, accessible context, 100% safe and appropriate.
+9. AUDIENCE_SUITABILITY (audienceSuitability, 0-100): Broad student/aspirant appeal, accessible context, 100% safe and appropriate.
+10. REPETITION_RISK (repetitionRisk, 0-100): Low risk of repetition or redundancy across syllabus.
+11. AUDIENCE_APPEAL (audienceAppeal, 0-100): Student and viewer visual, conceptual, and cognitive appeal.
+12. TRICK_FACTOR & ANSWERABILITY (evaluated under challengeQuality & audienceSuitability, 0-100): Presence of clever misdirection traps, while remaining provably valid and answerable.
 
 STRICT EVALUATION RULES:
 1. NO ANSWER LEAKAGE: If there is any hint revealing the correct option letter (A, B, C, D) or solution in hooks, captions, titles, or teleprompter before the reveal segment, flag a BLOCKING finding with code "ANSWER_LEAKAGE".

@@ -101,12 +101,12 @@ export const PublishScheduleModal: React.FC<PublishScheduleModalProps> = ({
       let updatedRecord: Publishing;
       if (isFailed || isReschedule) {
         // Use retryPublishing with scheduledAt to reschedule failed or retried platform
-        updatedRecord = await apiClient.retryPublishing(record.videoId, platform, {
+        updatedRecord = await apiClient.retryPublishing(record.videoId, platform.toLowerCase() as any, {
           scheduledAt: isoUtc,
           remarks: `Rescheduled to ${isoUtc} via Publishing UI`,
         });
       } else {
-        updatedRecord = await apiClient.schedulePublishing(record.videoId, platform, isoUtc);
+        updatedRecord = await apiClient.schedulePublishing(record.videoId, platform.toLowerCase() as any, isoUtc);
       }
 
       const formattedLocal = selectedDate.toLocaleString(undefined, {

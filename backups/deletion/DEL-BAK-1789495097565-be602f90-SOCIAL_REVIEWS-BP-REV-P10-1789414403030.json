@@ -1,0 +1,62 @@
+{
+  "id": "DEL-BAK-1789495097565-be602f90",
+  "backupTimestamp": "2026-09-15T17:58:17.565Z",
+  "sheetName": "SOCIAL_REVIEWS",
+  "entityId": "BP-REV-P10-1789414403030",
+  "physicalRowIndex": 2,
+  "headers": [
+    "id",
+    "content_id",
+    "question_id",
+    "content_master_id",
+    "reviewed_version_hash",
+    "reviewer_id",
+    "reviewer_name",
+    "reviewer_role",
+    "decision",
+    "reason",
+    "feedback_categories",
+    "overall_quality_score_at_review",
+    "quality_status_at_review",
+    "is_admin_override",
+    "reviewed_at"
+  ],
+  "rawRow": [
+    "BP-REV-P10-1789414403030",
+    "BP-CNT-P10-457992",
+    "Q-P10-1789414352586",
+    "BP-CNT-P10-457992",
+    "mars-fingerprint-v1",
+    "REV-001",
+    "Lead Reviewer",
+    "REVIEWER",
+    "APPROVED",
+    "",
+    "",
+    95,
+    "EXCELLENT",
+    "",
+    "2026-09-14T19:33:23.030Z"
+  ],
+  "record": {
+    "id": "BP-REV-P10-1789414403030",
+    "contentId": "BP-CNT-P10-457992",
+    "questionId": "Q-P10-1789414352586",
+    "contentMasterId": "BP-CNT-P10-457992",
+    "reviewedVersionHash": "mars-fingerprint-v1",
+    "reviewerId": "REV-001",
+    "reviewerName": "Lead Reviewer",
+    "reviewerRole": "REVIEWER",
+    "decision": "APPROVED",
+    "overallQualityScoreAtReview": 95,
+    "qualityStatusAtReview": "EXCELLENT",
+    "isAdminOverride": false,
+    "reviewedAt": "2026-09-14T19:33:23.030Z"
+  },
+  "checksum": "87b2d9bc7cb6da19c6ffe3698524a5ecb132c4f952d654b195384a3f3f933e0f",
+  "actor": {
+    "id": "SYSTEM_CLEANUP",
+    "name": "Production Test-Data Sanitizer"
+  },
+  "reason": "Phase 30 Pre-Acceptance Production Cleanup"
+}

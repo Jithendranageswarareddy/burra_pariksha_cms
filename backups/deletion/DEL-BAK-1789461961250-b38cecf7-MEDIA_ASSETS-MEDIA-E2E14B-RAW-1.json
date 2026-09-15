@@ -1,0 +1,55 @@
+{
+  "id": "DEL-BAK-1789461961250-b38cecf7",
+  "backupTimestamp": "2026-09-15T08:46:01.250Z",
+  "sheetName": "MEDIA_ASSETS",
+  "entityId": "MEDIA-E2E14B-RAW-1",
+  "physicalRowIndex": 2,
+  "headers": [
+    "id",
+    "content_id",
+    "drive_file_id",
+    "folder_id",
+    "file_name",
+    "mime_type",
+    "file_size",
+    "checksum",
+    "created_at",
+    "updated_at",
+    "media_stage",
+    "version"
+  ],
+  "rawRow": [
+    "MEDIA-E2E14B-RAW-1",
+    "BP-CNT-E2E14B",
+    "1YRDFpwfVb8i_k6ScqBWR78_Y0R-XLcXg",
+    "14ifW-OFKKcvMm-Qh4iHXEVEB1DIi8M6G",
+    "e2e_prod_video_1789461954314.mp4",
+    "video/mp4",
+    67,
+    "f578b65a3e807322c3a0557252a50b95",
+    "2026-09-15T08:45:58.374Z",
+    "2026-09-15T08:45:58.374Z",
+    "RAW",
+    1
+  ],
+  "record": {
+    "id": "MEDIA-E2E14B-RAW-1",
+    "contentId": "BP-CNT-E2E14B",
+    "driveFileId": "1YRDFpwfVb8i_k6ScqBWR78_Y0R-XLcXg",
+    "folderId": "14ifW-OFKKcvMm-Qh4iHXEVEB1DIi8M6G",
+    "fileName": "e2e_prod_video_1789461954314.mp4",
+    "mimeType": "video/mp4",
+    "fileSize": 67,
+    "checksum": "f578b65a3e807322c3a0557252a50b95",
+    "createdAt": "2026-09-15T08:45:58.374Z",
+    "updatedAt": "2026-09-15T08:45:58.374Z",
+    "mediaStage": "RAW",
+    "version": 1
+  },
+  "checksum": "821abdfafa637d76f016d540b8653669fac7e4696579cdd2e441a95c12fafcef",
+  "actor": {
+    "id": "USR-E2E",
+    "name": "E2E Runner"
+  },
+  "reason": "Phase 14 Real Drive E2E Cleanup"
+}

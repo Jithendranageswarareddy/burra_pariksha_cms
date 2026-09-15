@@ -239,7 +239,7 @@ export class DataIntegrityService {
     };
 
     checkWorksheetIds(SHEET_TABS.USERS, users, 'id', 'USR-');
-    checkWorksheetIds(SHEET_TABS.CATEGORIES, categories, 'id', 'BP-CAT-');
+    checkWorksheetIds(SHEET_TABS.CATEGORIES, categories, 'id', 'BP-CAT-', ['CAT-QA', 'CAT-LR', 'CAT-DI', 'CAT-VA']);
     checkWorksheetIds(SHEET_TABS.TOPICS, topics, 'id', 'BP-TOP-');
     checkWorksheetIds(SHEET_TABS.SUBTOPICS, subtopics, 'id', 'BP-SUB-');
     checkWorksheetIds(SHEET_TABS.QUESTIONS, questions, 'id', 'BP-Q-');

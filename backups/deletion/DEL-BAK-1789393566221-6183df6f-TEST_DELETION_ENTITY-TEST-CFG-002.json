@@ -1,0 +1,20 @@
+{
+  "id": "DEL-BAK-1789393566221-6183df6f",
+  "backupTimestamp": "2026-09-14T13:46:06.221Z",
+  "sheetName": "TEST_DELETION_ENTITY",
+  "entityId": "TEST-CFG-002",
+  "physicalRowIndex": 3,
+  "headers": [
+    "id",
+    "name"
+  ],
+  "rawRow": [
+    "TEST-CFG-002",
+    "Second Item"
+  ],
+  "record": {
+    "id": "TEST-CFG-002",
+    "name": "Second Item"
+  },
+  "checksum": "fb85705c1fbd4a8132ec611d1712f3f92142c622f64f41c2f70b798c327ad77d"
+}

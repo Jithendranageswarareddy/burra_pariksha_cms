@@ -29,7 +29,7 @@ import {
   SocialInvarianceValidator,
   SourceQuestionContext,
 } from '../validators/social-invariance.validator';
-import { GeminiService } from '../ai/gemini.service';
+import { phase24AIOrchestrator } from '../ai/phase24-orchestrator.service';
 import { AIProviderOptions } from '../ai/types';
 
 /**
@@ -369,7 +369,7 @@ export class PlatformAdaptationService {
       id: `PADAPT-${sourceQuestion.id}-${Date.now().toString(36).toUpperCase()}`,
       questionId: sourceQuestion.id,
       canonicalMetadataId: canonicalMetadata.id,
-      language,
+      language: language as QuestionLanguage,
       variants,
       isAllValid,
       aiCallsCount: 0, // Deterministic path requires 0 AI calls
@@ -429,10 +429,10 @@ export class PlatformAdaptationService {
       validationStatus: (sourceQuestion.validationStatus as QuestionValidationStatus) || QuestionValidationStatus.NOT_VALIDATED,
     };
 
-    const aiResult = await GeminiService.getInstance().generatePlatformAdaptation(
+    const aiResult = await phase24AIOrchestrator.generatePlatformAdaptation(
       sourceQuestion,
       canonicalMetadata,
-      language,
+      language as QuestionLanguage,
       options?.options
     );
 
@@ -565,7 +565,7 @@ export class PlatformAdaptationService {
       id: `PADAPT-${sourceQuestion.id}-${Date.now().toString(36).toUpperCase()}`,
       questionId: sourceQuestion.id,
       canonicalMetadataId: canonicalMetadata.id,
-      language,
+      language: language as QuestionLanguage,
       variants,
       isAllValid,
       aiCallsCount: aiResult.aiCallsCount,

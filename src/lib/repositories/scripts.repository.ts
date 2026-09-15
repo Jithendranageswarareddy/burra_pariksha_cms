@@ -25,6 +25,16 @@ export class ScriptsRepository extends BaseRepository<Script> {
     const all = await this.findAll();
     return all.find((s) => s.videoId === videoId) || null;
   }
+
+  public async findByQuestionId(questionId: string): Promise<Script | null> {
+    const all = await this.findAll();
+    return all.find((s) => s.questionId === questionId) || null;
+  }
+
+  public async findByContentId(contentId: string): Promise<Script | null> {
+    const all = await this.findAll();
+    return all.find((s) => (s as any).contentId === contentId) || null;
+  }
 }
 
 export class ScriptVersionsRepository extends BaseRepository<ScriptVersion> {

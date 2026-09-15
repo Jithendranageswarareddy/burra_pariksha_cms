@@ -585,7 +585,7 @@ export const VideoDetailPage: React.FC = () => {
 
               <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg">
                 <p className="text-xs text-slate-500 font-mono mb-1">
-                  Taxonomy: {video.question.categoryName} &gt; {video.question.topicName} &gt; {video.question.subtopicName}
+                  Taxonomy: {video.question.topicName} &gt; {video.question.subtopicName}
                 </p>
                 <h4 className="text-sm font-semibold text-slate-900 leading-relaxed">
                   {video.question.questionText}

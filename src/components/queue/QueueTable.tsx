@@ -23,7 +23,7 @@ export const QueueTable: React.FC<QueueTableProps> = ({ videos, onSelectVideo })
               <th className="py-3.5 px-4 font-semibold text-center w-16">#</th>
               <th className="py-3.5 px-4 font-semibold">Video ID</th>
               <th className="py-3.5 px-4 font-semibold min-w-[240px]">Title & Question Reference</th>
-              <th className="py-3.5 px-4 font-semibold">Category & Topic</th>
+              <th className="py-3.5 px-4 font-semibold">Topic & Subtopic</th>
               <th className="py-3.5 px-4 font-semibold">Difficulty</th>
               <th className="py-3.5 px-4 font-semibold">Priority</th>
               <th className="py-3.5 px-4 font-semibold">Production Stage</th>
@@ -81,10 +81,10 @@ export const QueueTable: React.FC<QueueTableProps> = ({ videos, onSelectVideo })
                     </div>
                   </td>
 
-                  {/* Category & Topic */}
+                  {/* Topic & Subtopic */}
                   <td className="py-3 px-4 whitespace-nowrap">
-                    <div className="text-slate-900 font-medium">{item.question?.categoryName || 'General Aptitude'}</div>
-                    <div className="text-[11px] text-slate-500">{item.question?.topicName || 'Speed Math'}</div>
+                    <div className="text-slate-900 font-medium">{item.question?.topicName || 'General Topic'}</div>
+                    <div className="text-[11px] text-slate-500">{item.question?.subtopicName || 'Standard Subtopic'}</div>
                   </td>
 
                   {/* Difficulty */}

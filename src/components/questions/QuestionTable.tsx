@@ -64,16 +64,14 @@ export const QuestionTable: React.FC<QuestionTableProps> = ({ questions, onSelec
                   </div>
                 </td>
 
-                {/* Category, Topic & Subtopic */}
+                {/* Topic & Subtopic */}
                 <td className="py-3 px-4 whitespace-nowrap">
-                  <div className="font-semibold text-slate-900">{q.categoryName}</div>
+                  <div className="font-semibold text-slate-900">{q.topicName}</div>
                   <div className="text-[11px] text-slate-500 flex items-center gap-1">
-                    <span>{q.topicName}</span>
-                    {q.subtopicName && (
-                      <>
-                        <span className="text-slate-300">&rsaquo;</span>
-                        <span className="text-slate-600 font-medium">{q.subtopicName}</span>
-                      </>
+                    {q.subtopicName ? (
+                      <span className="text-slate-600 font-medium">{q.subtopicName}</span>
+                    ) : (
+                      <span className="text-slate-400 italic">No subtopic</span>
                     )}
                   </div>
                 </td>

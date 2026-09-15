@@ -34,6 +34,11 @@ export class PublishingRepository extends BaseRepository<Publishing> {
     const all = await this.findAll();
     return all.find((p) => p.questionId === questionId) || null;
   }
+
+  public async findByContentId(contentId: string): Promise<Publishing | null> {
+    const all = await this.findAll();
+    return all.find((p) => (p as any).contentId === contentId) || null;
+  }
 }
 
 export const publishingRepository = PublishingRepository.getInstance();

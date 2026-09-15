@@ -19,7 +19,6 @@ import { QuestionTable } from '../components/questions/QuestionTable';
 import { apiClient } from '../lib/api-client';
 import {
   AuditLog,
-  Category,
   DashboardMetrics,
   DashboardOverviewData,
   Question,
@@ -94,7 +93,6 @@ export const DashboardPage: React.FC = () => {
   
   const [overview, setOverview] = useState<DashboardOverviewData | null>(null);
   const [overviewError, setOverviewError] = useState<string | null>(null);
-  const [categories, setCategories] = useState<Category[]>([]);
   const [topics, setTopics] = useState<Topic[]>([]);
   const [quickHealth, setQuickHealth] = useState<{ isConfigured: boolean } | null>(null);
   const [healthReport, setHealthReport] = useState<SpreadsheetHealthReport | null>(null);
@@ -116,7 +114,6 @@ export const DashboardPage: React.FC = () => {
   const [inlineInputText, setInlineInputText] = useState('');
 
   // Filters
-  const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedTopic, setSelectedTopic] = useState('');
   const [selectedDifficulty, setSelectedDifficulty] = useState('');
   const [selectedPriority, setSelectedPriority] = useState('');
@@ -139,7 +136,6 @@ export const DashboardPage: React.FC = () => {
     setOverviewError(null);
     try {
       const filter = {
-        categoryId: selectedCategory || undefined,
         topicId: selectedTopic || undefined,
         difficulty: selectedDifficulty || undefined,
         priority: selectedPriority || undefined,
@@ -159,7 +155,7 @@ export const DashboardPage: React.FC = () => {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [selectedCategory, selectedTopic, selectedDifficulty, selectedPriority, isManagerOrAdmin]);
+  }, [selectedTopic, selectedDifficulty, selectedPriority, isManagerOrAdmin]);
 
   useEffect(() => {
     if (isManagerOrAdmin) {
@@ -167,13 +163,9 @@ export const DashboardPage: React.FC = () => {
     }
   }, [loadOverview, isManagerOrAdmin]);
 
-  // 2. Filter Metadata (Categories & Topics) — Decoupled & Non-blocking
+  // 2. Filter Metadata (Topics) — Decoupled & Non-blocking
   useEffect(() => {
     if (isManagerOrAdmin) {
-      apiClient.getCategories().then((cats) => {
-        if (Array.isArray(cats) && cats.length > 0) setCategories(cats);
-      }).catch(() => []);
-
       apiClient.getTopics().then((tops) => {
         if (Array.isArray(tops) && tops.length > 0) setTopics(tops);
       }).catch(() => []);
@@ -276,7 +268,6 @@ export const DashboardPage: React.FC = () => {
   };
 
   const handleResetFilters = () => {
-    setSelectedCategory('');
     setSelectedTopic('');
     setSelectedDifficulty('');
     setSelectedPriority('');
@@ -982,13 +973,10 @@ export const DashboardPage: React.FC = () => {
 
       {/* 2. Filter Bar */}
       <DashboardFilterBar
-        categories={categories}
         topics={topics}
-        selectedCategory={selectedCategory}
         selectedTopic={selectedTopic}
         selectedDifficulty={selectedDifficulty}
         selectedPriority={selectedPriority}
-        onCategoryChange={setSelectedCategory}
         onTopicChange={setSelectedTopic}
         onDifficultyChange={setSelectedDifficulty}
         onPriorityChange={setSelectedPriority}

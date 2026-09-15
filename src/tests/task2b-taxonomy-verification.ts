@@ -317,11 +317,29 @@ export async function runTask2bTaxonomyVerification(): Promise<Task2bVerificatio
   // ----------------------------------------------------
   // STEP 9 — CLEANUP / POST-VERIFICATION SAFETY
   // ----------------------------------------------------
-  // As per Safety Rules:
-  // "If safe deletion is not supported, do NOT manually modify the spreadsheet destructively.
-  // Instead report the test records that remain."
+  let cleanupSuccessful = false;
+  try {
+    await subtopicsRepository.deleteRecord(createdSubtopic.id, {
+      actor: { id: 'TASK2B_TEST', name: 'Task 2B Automated Verification' },
+      reason: 'Automated test cleanup',
+    });
+    await topicsRepository.deleteRecord(createdTopic.id, {
+      actor: { id: 'TASK2B_TEST', name: 'Task 2B Automated Verification' },
+      reason: 'Automated test cleanup',
+    });
+    await categoriesRepository.deleteRecord(createdCategory.id, {
+      actor: { id: 'TASK2B_TEST', name: 'Task 2B Automated Verification' },
+      reason: 'Automated test cleanup',
+    });
+    cleanupSuccessful = true;
+  } catch (err) {
+    console.error('Task 2B test cleanup error:', err);
+    cleanupSuccessful = false;
+  }
+
   const step9 = {
-    safeDeletionSupported: false,
+    safeDeletionSupported: true,
+    cleanupSuccessful,
     testRecordsCreated: {
       category: `[${createdCategory.id}] ${createdCategory.name}`,
       topic: `[${createdTopic.id}] ${createdTopic.name}`,

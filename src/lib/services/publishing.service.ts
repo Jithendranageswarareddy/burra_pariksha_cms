@@ -308,6 +308,8 @@ export class PublishingService {
           // - Social Review === APPROVED
           if (bundle.currentReviewStatus !== SocialReviewStatus.APPROVED) {
             blockers.push(`Social review status is "${bundle.currentReviewStatus}" (must be APPROVED before publishing).`);
+          } else if (bundle.latestReviewRecord?.reviewedVersionHash !== bundle.currentVersionHash) {
+            blockers.push(`Approved social review is STALE: Reviewed version hash does not match current content fingerprint.`);
           }
 
           // - Social invariance is valid

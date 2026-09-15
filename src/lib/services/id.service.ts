@@ -23,6 +23,13 @@ export class IdService {
   }
 
   /**
+   * Validates if the given string is in the canonical Content ID format: BP-CNT-######
+   */
+  public validateContentIdFormat(id: string): boolean {
+    return /^BP-CNT-\d{6}$/.test(id);
+  }
+
+  /**
    * Generates a padded, formatted permanent ID for the specified entity type.
    * Example: QUESTION -> BP-Q-000042
    */
@@ -90,16 +97,20 @@ export class IdService {
     return this.generateId(SEQUENCE_ENTITIES.CONTENT_MASTER);
   }
 
-  public async allocateContentId(): Promise<string> {
-    return this.generateId(SEQUENCE_ENTITIES.CONTENT_ID);
-  }
-
   public async allocateSocialAnalyticsId(): Promise<string> {
     return this.generateId(SEQUENCE_ENTITIES.SOCIAL_ANALYTICS);
   }
 
   public async allocateIntelligenceId(): Promise<string> {
     return this.generateId(SEQUENCE_ENTITIES.SOCIAL_PERFORMANCE_INTELLIGENCE);
+  }
+
+  public async allocatePlatformAdaptationId(): Promise<string> {
+    return this.generateId(SEQUENCE_ENTITIES.PLATFORM_ADAPTATION);
+  }
+
+  public async allocateContentStrategyId(): Promise<string> {
+    return this.generateId(SEQUENCE_ENTITIES.CONTENT_STRATEGY);
   }
 
   public async allocateUserId(): Promise<string> {
@@ -110,6 +121,11 @@ export class IdService {
   public async allocateId(entityType: string): Promise<string> {
     if (entityType === 'USERS' || entityType === 'USER') {
       return this.allocateUserId();
+    }
+    if (entityType === 'CONTENT_ID') {
+      throw new Error(
+        "RETIRED_SEQUENCE_ENTITY: 'CONTENT_ID' sequence is obsolete and retired. Use CONTENT_MASTER for canonical BP-CNT-###### ID allocation."
+      );
     }
     return this.generateId(entityType as SequenceEntityType);
   }

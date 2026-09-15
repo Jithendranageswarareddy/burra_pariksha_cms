@@ -49,7 +49,7 @@ export class ThumbnailService {
   private verifyThumbnailRole(actor: { role?: string | UserRole }): void {
     if (actor.role) {
       const r = String(actor.role).toUpperCase();
-      const allowed = [UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.THUMBNAIL_DESIGNER, UserRole.VIDEO_EDITOR];
+      const allowed = [UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.THUMBNAIL_DESIGNER, UserRole.DESIGNER];
       if (!allowed.includes(r as any)) {
         throw new Error(`Unauthorized: Role "${actor.role}" is not allowed to modify thumbnails.`);
       }

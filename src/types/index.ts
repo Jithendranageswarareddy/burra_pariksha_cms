@@ -6,6 +6,8 @@
  * Detailed schema formalization will occur in Phase 2 upon inspecting live sheet structures.
  */
 
+import { AIProvenance } from './phase24-ai';
+
 // ============================================================================
 // 1. WORKFLOW & STATUS CONSTANTS / ENUMS
 // ============================================================================
@@ -16,6 +18,7 @@ export enum QuestionStatus {
   EDITING = 'EDITING',
   APPROVED = 'APPROVED',
   REJECTED = 'REJECTED',
+  ARCHIVED = 'ARCHIVED',
 }
 
 export enum QuestionValidationStatus {
@@ -67,6 +70,8 @@ export enum DifficultyLevel {
 export enum QuestionLanguage {
   ENGLISH = 'ENGLISH',
   TELUGU = 'TELUGU',
+  HINGLISH = 'HINGLISH',
+  TELUGU_ENGLISH = 'TELUGU_ENGLISH',
 }
 
 export enum PublishingPlatform {
@@ -134,6 +139,7 @@ export enum AssignmentStatus {
 
 export enum UserRole {
   ADMIN = 'ADMIN',
+  PUBLISHER = 'PUBLISHER',
   CONTENT_MANAGER = 'CONTENT_MANAGER',
   TOPIC_LEAD = 'TOPIC_LEAD',
   QUESTION_CREATOR = 'QUESTION_CREATOR',
@@ -209,6 +215,7 @@ export interface User {
   isActive: boolean;
   password_hash?: string;
   last_login_at?: string;
+  sessionVersion?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -295,6 +302,13 @@ export interface ContentMaster {
   createdAt: string;
   updatedAt: string;
   archivedAt?: string;
+  ownerId?: string;
+  ownerName?: string;
+  reviewerId?: string;
+  reviewerName?: string;
+  currentVersion?: number;
+  approvedVersion?: number;
+  reviewComments?: string; // Semicolon/JSON/newline separated list of comment records
 }
 
 export interface ContentMasterReadinessResult {
@@ -350,21 +364,26 @@ export interface Question {
   id: string; // e.g. BP-Q-1042
   contentId?: string; // Canonical correlation identity BP-CNT-######
   contentMasterId?: string; // Reference to ContentMaster.id (BP-CNT-****** or legacy BP-MST-******)
-  categoryId: string;
-  categoryName: string;
+  categoryId?: string; // Legacy/compatibility grouping; frozen production taxonomy is Topic -> Subtopic
+  categoryName?: string;
   topicId: string;
   topicName: string;
   subtopicId: string;
   subtopicName: string;
   difficulty: DifficultyLevel | string;
-  language?: QuestionLanguage;
+  language?: QuestionLanguage | string;
   questionText: string;
+  question?: string; // Production question contract alias
   options: {
     a: string;
     b: string;
     c: string;
     d: string;
   } | any;
+  optionA?: string;
+  optionB?: string;
+  optionC?: string;
+  optionD?: string;
   correctAnswer: 'A' | 'B' | 'C' | 'D';
   explanation: string;
   realWorldContext?: string;
@@ -384,6 +403,7 @@ export interface Question {
   lastValidationId?: string;
   validationScore?: number;
   authorId?: string;
+  author?: string; // Production question contract alias
   generationMode?: 'SUBTOPIC' | 'RANDOM' | string;
   createdAt: string;
   updatedAt: string;
@@ -646,6 +666,11 @@ export interface Script {
   speedTrickOrTakeaway: string;
   callToAction: string;
   currentVersion: number;
+  status?: 'DRAFT' | 'IN_REVIEW' | 'APPROVED' | 'REJECTED';
+  assignedReviewerId?: string;
+  approvedBy?: string;
+  approvedVersion?: number;
+  approvedAt?: string;
   notes?: string;
   createdAt: string;
   updatedAt: string;
@@ -692,6 +717,24 @@ export interface Thumbnail {
   fileSize?: number;
 }
 
+export type MediaStage = 'RAW' | 'EDITED' | 'FINAL' | 'THUMBNAIL';
+
+export interface MediaAsset {
+  id: string;
+  contentId: string;
+  driveFileId: string;
+  folderId: string;
+  fileName: string;
+  mimeType: string;
+  fileSize: number;
+  checksum?: string;
+  md5Checksum?: string;
+  createdAt: string;
+  updatedAt: string;
+  mediaStage: MediaStage;
+  version: number;
+}
+
 /**
  * THUMBNAIL_VERSIONS Sheet Tab
  * Revision history for thumbnail designs.
@@ -705,6 +748,101 @@ export interface ThumbnailVersion {
   createdAt: string;
   // Drive binary metadata
   driveFileId?: string;
+}
+
+/**
+ * Phase 18: AI Thumbnail Intelligence Models
+ */
+export interface AiThumbnailCuriosityFraming {
+  curiosityAngle: string; // e.g. "Counter-intuitive logic trap"
+  psychologicalTrigger: string; // e.g. "Ego challenge, urgency, mystery"
+  hypothesis: string; // Conceptual engagement reasoning (no fake CTR claims)
+}
+
+export interface AiThumbnailVisualDirection {
+  composition: string; // e.g. "Split screen with high contrast math statement"
+  colorPalette: string[]; // High contrast palette e.g. ["#0B192C", "#FF6500", "#FFFFFF"]
+  focalPoint: string; // Primary focal visual element
+  emotionOrExpression: string; // Presenter facial cue / challenge pose
+  brandingElements: string; // Signature Burra Pariksha branding placement
+}
+
+export interface AiThumbnailAudienceTargeting {
+  primaryAudience: string; // e.g. "AP/TS Competitive Exam Aspirants"
+  secondaryAudience: string; // e.g. "General Telugu Puzzle & Riddle Enthusiasts"
+  languageStyle: 'TELUGU' | 'ENGLISH' | 'BILINGUAL';
+  difficultyPerception: 'LOOKS_EASY_BUT_HARD' | 'CHALLENGE_FOR_GENIUSES' | 'FAST_TRICK';
+}
+
+export interface AiThumbnailConcept {
+  id: string; // e.g. BP-TC-000001
+  contentId: string; // Canonical Content ID (BP-CNT-######)
+  questionId: string; // BP-Q-######
+  scriptId?: string; // BP-S-######
+  videoId?: string; // BP-V-######
+  conceptName: string;
+  hookHeadline: string; // Punchy mobile text (max 6-8 words)
+  curiosityFraming: AiThumbnailCuriosityFraming;
+  visualDirection: AiThumbnailVisualDirection;
+  audienceTargeting: AiThumbnailAudienceTargeting;
+  abVariant: 'A' | 'B' | 'C' | string;
+  isAiGenerated: boolean;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface ThumbnailCandidate {
+  id: string; // e.g. BP-TC-000001
+  contentId: string; // Canonical Content ID (BP-CNT-######)
+  questionId: string; // BP-Q-######
+  scriptId?: string; // BP-S-######
+  videoId?: string; // BP-V-######
+  conceptName: string;
+  abVariant: string; // e.g. "A" or "B"
+  hookHeadline: string;
+  curiosityFraming: AiThumbnailCuriosityFraming;
+  visualDirection: AiThumbnailVisualDirection;
+  audienceTargeting: AiThumbnailAudienceTargeting;
+  version: number;
+  status: 'DRAFT' | 'IN_REVIEW' | 'APPROVED' | 'REJECTED';
+  assignedReviewerId?: string;
+  approvedBy?: string;
+  approvedVersion?: number;
+  approvedAt?: string;
+  rejectedReason?: string;
+  isAiGenerated: boolean;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ThumbnailCandidateVersion {
+  id: string; // e.g. BP-TCV-000001
+  candidateId: string;
+  versionNumber: number;
+  contentSnapshot: Partial<ThumbnailCandidate>;
+  editedBy: string;
+  changeSummary?: string;
+  createdAt: string;
+}
+
+export interface ThumbnailSafetyReport {
+  isValid: boolean;
+  leaksAnswer: boolean;
+  isConcise: boolean;
+  isRelevant: boolean;
+  issues: string[];
+  suggestions: string[];
+}
+
+export interface ThumbnailProductionHistory {
+  contentId: string;
+  questionId?: string;
+  candidates: ThumbnailCandidate[];
+  candidateVersions: ThumbnailCandidateVersion[];
+  mediaAssets: MediaAsset[];
+  approvedCandidate?: ThumbnailCandidate | null;
+  activeThumbnailRecord?: Thumbnail | null;
 }
 
 /**
@@ -736,12 +874,88 @@ export interface PinnedCommentVersion {
   createdAt: string;
 }
 
+export interface WorkflowActor {
+  id: string;
+  name: string;
+  role?: string | UserRole;
+  roles?: (string | UserRole)[];
+}
+
+/**
+ * PHASE 19 — Pinned Comment & Conversation Intelligence
+ */
+export type PinnedCommentPackageStatus = 'DRAFT' | 'IN_REVIEW' | 'APPROVED' | 'REJECTED';
+
+export interface PinnedCommentPackage {
+  id: string; // Separate technical ID: BP-PCP-######
+  contentId: string; // Canonical correlation identity BP-CNT-######
+  contentMasterId?: string; // Reference to ContentMaster.id
+  questionId: string; // BP-Q-######
+  scriptId?: string; // BP-S-######
+  scriptVersion?: number; // Approved script version if applicable
+  videoId?: string; // BP-V-######
+
+  // The 4 core engagement package components:
+  pinnedComment: string;
+  answerDiscussionPrompt: string;
+  followUpQuestions: string[];
+  audienceParticipationPrompt: string;
+
+  // Lifecycle and editorial status
+  version: number;
+  status: PinnedCommentPackageStatus;
+  assignedReviewerId?: string;
+  approvedBy?: string;
+  approvedVersion?: number;
+  approvedAt?: string;
+  rejectedReason?: string;
+
+  // AI and provenance metadata
+  isAiGenerated: boolean;
+  aiModelUsed?: string; // e.g. 'gemini-2.5-flash', 'deterministic-fallback', 'manual'
+  notes?: string;
+
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PinnedCommentPackageVersion {
+  id: string; // e.g. BP-PCV-######-1
+  packageId: string;
+  versionNumber: number;
+  contentSnapshot: Partial<PinnedCommentPackage>;
+  editedBy: string;
+  changeSummary?: string;
+  createdAt: string;
+}
+
+export interface EngagementQualityReport {
+  isValid: boolean;
+  isMeaningful: boolean;
+  hasBannedPlaceholders: boolean;
+  leaksAnswer: boolean;
+  encouragesDiscussion: boolean;
+  encouragesParticipation: boolean;
+  issues: string[];
+  suggestions: string[];
+}
+
+export interface PinnedCommentPackageHistory {
+  contentId: string;
+  package: PinnedCommentPackage | null;
+  versions: PinnedCommentPackageVersion[];
+  approvedPackage?: PinnedCommentPackage | null;
+  activePinnedCommentRecord?: PinnedComment | null;
+}
+
 /**
  * WORKFLOW Sheet Tab
  * Production state machine transitions log.
  */
 export interface Workflow {
   id: string; // e.g. WF-901
+  contentId?: string; // Canonical correlation identity BP-CNT-######
+  contentMasterId?: string; // Reference to ContentMaster.id (BP-CNT-****** or legacy BP-MST-******)
   entityType: 'QUESTION' | 'VIDEO' | 'SCRIPT' | 'PUBLISHING';
   entityId: string;
   fromStatus: string;
@@ -759,6 +973,8 @@ export interface Workflow {
  */
 export interface Assignment {
   id: string; // e.g. BP-ASN-000001 or ASN-501
+  contentId?: string; // Canonical correlation identity BP-CNT-######
+  contentMasterId?: string; // Reference to ContentMaster.id (BP-CNT-****** or legacy BP-MST-******)
   entityType: AssignmentEntityType;
   entityId: string;
   videoId?: string; // Backwards compatibility for legacy records
@@ -899,7 +1115,13 @@ export interface Publishing {
   // TODO: Verify manual publishing checklist format in Phase 7
 }
 
-export type PlatformType = 'youtube' | 'instagram' | 'facebook';
+export type PlatformType = 'youtube' | 'instagram' | 'facebook' | 'YOUTUBE' | 'INSTAGRAM' | 'FACEBOOK';
+
+export const PlatformType = {
+  YOUTUBE: 'YOUTUBE' as const,
+  INSTAGRAM: 'INSTAGRAM' as const,
+  FACEBOOK: 'FACEBOOK' as const,
+};
 
 /**
  * Phase 13.3: Read-only platform package projection derived from approved Social Review data.
@@ -1198,8 +1420,8 @@ export interface DashboardOverviewData {
  */
 export interface ContentPlan {
   id: string; // e.g. BP-PLN-0001
-  categoryId: string;
-  categoryName: string;
+  categoryId?: string; // Legacy/compatibility grouping; frozen production taxonomy is Topic -> Subtopic
+  categoryName?: string;
   topicId: string;
   topicName: string;
   subtopicId: string;
@@ -1757,6 +1979,8 @@ export enum SocialQualityDimension {
   LANGUAGE_QUALITY = 'LANGUAGE_QUALITY',
   ANSWER_INTEGRITY = 'ANSWER_INTEGRITY',
   AUDIENCE_SUITABILITY = 'AUDIENCE_SUITABILITY',
+  REPETITION_RISK = 'REPETITION_RISK',
+  AUDIENCE_APPEAL = 'AUDIENCE_APPEAL',
 }
 
 export enum SocialQualityStatus {
@@ -2044,6 +2268,7 @@ export interface SocialPerformanceIntelligenceRecord {
   };
   isFallbackMode: boolean;
   modelUsed: string;
+  provenance?: AIProvenance;
   evidenceTraceability: {
     recordIdsUsed: string[];
     totalSamples: number;
@@ -2109,9 +2334,726 @@ export interface ApplyStrategyRecommendationResult {
   error?: string;
 }
 
+// ============================================================================
+// PHASE 17: REAL VIDEO PRODUCTION WORKFLOW TYPES
+// ============================================================================
 
+export type VideoProductionWorkflowState = 'RAW' | 'EDITING' | 'EDITED' | 'FINAL';
 
+export interface InitializeRawVideoInput {
+  scriptId: string;
+  expectedContentId?: string;
+  rawBinaryBuffer: Buffer;
+  fileName: string;
+  mimeType: string;
+}
 
+export interface TransitionToEditingInput {
+  videoId: string;
+  expectedContentId?: string;
+  assignedEditorId?: string;
+}
 
+export interface UploadEditedVideoInput {
+  videoId: string;
+  expectedContentId?: string;
+  editedBinaryBuffer: Buffer;
+  fileName: string;
+  mimeType: string;
+}
+
+export interface ApproveFinalVideoInput {
+  videoId: string;
+  expectedContentId?: string;
+  finalBinaryBuffer?: Buffer;
+  fileName?: string;
+  mimeType?: string;
+}
+
+export interface Phase17VideoWorkflowStateResult {
+  video: Video;
+  currentWorkflowState: VideoProductionWorkflowState;
+  latestMediaAsset?: MediaAsset;
+  scriptId: string;
+  questionId: string;
+  contentId: string;
+}
+
+// ============================================================================
+// PHASE 20: SOCIAL REVIEW & QUALITY GATE TYPES
+// ============================================================================
+
+export type Phase20SocialReviewStatus = 'DRAFT' | 'IN_REVIEW' | 'PASS' | 'CHANGES_REQUIRED' | 'REJECTED';
+export type Phase20ReviewDecision = 'PASS' | 'CHANGES_REQUIRED' | 'REJECTED';
+
+export interface Phase20PackageArtifactHashes {
+  questionHash: string;
+  scriptHash: string;
+  videoHash: string;
+  thumbnailHash: string;
+  pinnedCommentHash: string;
+  metadataHash: string;
+  packageOverallHash: string;
+}
+
+export interface Phase20PackageVersionLock {
+  contentId: string;
+  questionId: string;
+  questionVersion: number;
+  scriptId: string;
+  scriptVersion: number;
+  videoId: string;
+  videoVersion: number;
+  thumbnailId: string;
+  thumbnailVersion: number;
+  pinnedCommentPackageId: string;
+  pinnedCommentVersion: number;
+  hashes: Phase20PackageArtifactHashes;
+}
+
+export interface Phase20CompleteContentPackage {
+  contentId: string;
+  contentMaster: ContentMaster;
+  question: Question;
+  questionVersion: number;
+  script: Script;
+  scriptVersionNumber: number;
+  video: Video;
+  videoVersionNumber: number;
+  videoAsset?: MediaAsset;
+  thumbnail?: Thumbnail | ThumbnailCandidate;
+  thumbnailVersionNumber: number;
+  thumbnailAsset?: MediaAsset;
+  pinnedCommentPackage?: PinnedCommentPackage;
+  pinnedCommentVersionNumber: number;
+  metadata: SocialMetadataPayload | Record<string, any>;
+  platformAdaptations?: MultiPlatformAdaptationPayload;
+  versionLock: Phase20PackageVersionLock;
+}
+
+export interface Phase20SocialReviewRecord {
+  id: string;
+  contentId: string;
+  status: Phase20SocialReviewStatus;
+  assignedReviewerId?: string;
+  reviewedBy?: string;
+  reviewedByName?: string;
+  reviewedByRole?: string;
+  reviewedAt?: string;
+  decision?: Phase20ReviewDecision;
+  decisionReason?: string;
+  feedbackCategories?: string[];
+  versionLock: Phase20PackageVersionLock;
+  validationSummary: {
+    isValid: boolean;
+    issues: string[];
+    warnings: string[];
+    checksPassed: string[];
+  };
+  aiRecommendation?: {
+    recommendedDecision: Phase20ReviewDecision;
+    confidence: number;
+    rationale: string;
+    flaggedIssues: string[];
+    isAiGenerated: boolean;
+    modelUsed: string;
+  };
+  isInvalidated: boolean;
+  invalidatedReason?: string;
+  invalidatedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Phase20ProductionReadinessResult {
+  isProductionReady: boolean;
+  contentId: string;
+  reviewRecord?: Phase20SocialReviewRecord;
+  issues: string[];
+  hashesMatch: boolean;
+}
+
+export interface Phase20SocialQualityGateReport {
+  isValid: boolean;
+  contentId: string;
+  issues: string[];
+  warnings: string[];
+  checksPassed: string[];
+  invarianceValid: boolean;
+  brandQualityValid: boolean;
+  assetsValid: boolean;
+  metadataValid: boolean;
+  versionLockValid: boolean;
+}
+
+// ============================================================================
+// PHASE 21: MULTI-PLATFORM CONTENT ADAPTATION TYPES
+// ============================================================================
+
+export enum PlatformAdaptationStatus {
+  DRAFT = 'DRAFT',
+  IN_REVIEW = 'IN_REVIEW',
+  APPROVED = 'APPROVED',
+  READY_TO_PUBLISH = 'READY_TO_PUBLISH',
+  CHANGES_REQUIRED = 'CHANGES_REQUIRED',
+  REJECTED = 'REJECTED',
+}
+
+export type AdaptationGenerationSource = 'MANUAL' | 'AI_GENERATED' | 'AI_ASSISTED' | 'DETERMINISTIC_FALLBACK';
+
+export interface PlatformThumbnailConsideration {
+  aspectRatioRecommendation?: string; // e.g. '9:16', '1:1', '16:9'
+  safeZoneNotes?: string;
+  cropNotes?: string;
+  reelCoverNotes?: string;
+  hookTextRecommendation?: string;
+  approvedThumbnailRef?: {
+    thumbnailId: string;
+    version: number;
+    driveFileId?: string;
+  };
+}
+
+export interface PlatformSpecificWording {
+  shortsOrReelsNote?: string;
+  toneStyle?: string;
+  audienceHookStyle?: string;
+  platformSpecificKeywords?: string[];
+  additionalPlatformNotes?: string;
+}
+
+export interface PlatformAdaptationVersion {
+  versionNumber: number;
+  adaptationId: string;
+  contentId: string;
+  platform: PlatformType;
+  title: string;
+  description: string;
+  caption: string;
+  hashtags: string[];
+  callToAction: string;
+  platformSpecificWording: PlatformSpecificWording;
+  thumbnailConsiderations: PlatformThumbnailConsideration;
+  status: PlatformAdaptationStatus;
+  canonicalSourceVersionLock: {
+    contentId: string;
+    questionId: string;
+    questionVersion: number;
+    scriptId: string;
+    scriptVersion: number;
+    videoId: string;
+    videoVersion: number;
+    thumbnailId: string;
+    thumbnailVersion: number;
+    pinnedCommentPackageId: string;
+    pinnedCommentVersion: number;
+    packageOverallHash: string;
+  };
+  generationSource: AdaptationGenerationSource;
+  aiProvenance?: {
+    modelUsed?: string;
+    isAiGenerated: boolean;
+    confidence?: number;
+    generatedAt: string;
+    recommendationSnapshot?: Record<string, any>;
+  };
+  createdBy: string;
+  createdByName?: string;
+  createdByRole?: string;
+  createdAt: string;
+  approvalRecord?: {
+    approvedBy: string;
+    approvedByName: string;
+    approvedByRole: string;
+    approvedAt: string;
+    reason?: string;
+  };
+  rejectionRecord?: {
+    rejectedBy: string;
+    rejectedByName: string;
+    rejectedByRole: string;
+    rejectedAt: string;
+    reason: string;
+  };
+  changesRequiredRecord?: {
+    requestedBy: string;
+    requestedByName: string;
+    requestedByRole: string;
+    requestedAt: string;
+    reason: string;
+  };
+}
+
+export interface PlatformAdaptationRecord {
+  id: string; // e.g. BP-ADP-000001
+  contentId: string; // Canonical BP-CNT-######
+  platform: PlatformType;
+  title: string;
+  description: string;
+  caption: string;
+  hashtags: string[];
+  callToAction: string;
+  platformSpecificWording: PlatformSpecificWording;
+  thumbnailConsiderations: PlatformThumbnailConsideration;
+  status: PlatformAdaptationStatus;
+  currentVersion: number;
+  canonicalSourceVersionLock: {
+    contentId: string;
+    questionId: string;
+    questionVersion: number;
+    scriptId: string;
+    scriptVersion: number;
+    videoId: string;
+    videoVersion: number;
+    thumbnailId: string;
+    thumbnailVersion: number;
+    pinnedCommentPackageId: string;
+    pinnedCommentVersion: number;
+    packageOverallHash: string;
+  };
+  generationSource: AdaptationGenerationSource;
+  aiProvenance?: {
+    modelUsed?: string;
+    isAiGenerated: boolean;
+    confidence?: number;
+    generatedAt: string;
+    recommendationSnapshot?: Record<string, any>;
+  };
+  createdBy: string;
+  createdByName?: string;
+  createdByRole?: string;
+  createdAt: string;
+  updatedAt: string;
+  approvalRecord?: {
+    approvedBy: string;
+    approvedByName: string;
+    approvedByRole: string;
+    approvedAt: string;
+    reason?: string;
+  };
+  rejectionRecord?: {
+    rejectedBy: string;
+    rejectedByName: string;
+    rejectedByRole: string;
+    rejectedAt: string;
+    reason: string;
+  };
+  changesRequiredRecord?: {
+    requestedBy: string;
+    requestedByName: string;
+    requestedByRole: string;
+    requestedAt: string;
+    reason: string;
+  };
+  isStaleSource?: boolean;
+  staleReason?: string;
+}
+
+export interface PlatformAdaptationAuditEntry {
+  id: string;
+  adaptationId: string;
+  contentId: string;
+  platform: PlatformType;
+  action: 'CREATE' | 'UPDATE' | 'SUBMIT_REVIEW' | 'APPROVE' | 'REJECT' | 'REQUEST_CHANGES' | 'STALE_DETECTED' | 'INVALIDATE_APPROVAL';
+  actorId: string;
+  actorName: string;
+  actorRole: string;
+  fromVersion?: number;
+  toVersion?: number;
+  fromStatus?: PlatformAdaptationStatus;
+  toStatus?: PlatformAdaptationStatus;
+  reason?: string;
+  timestamp: string;
+}
+
+export interface PlatformAdaptationSearchFilters {
+  contentId?: string;
+  platform?: PlatformType | string;
+  status?: PlatformAdaptationStatus | string;
+  version?: number;
+  createdBy?: string;
+  updatedAfter?: string;
+  updatedBefore?: string;
+}
+
+export interface CreatePlatformAdaptationInput {
+  contentId: string;
+  platform: PlatformType | string;
+  title?: string;
+  description?: string;
+  caption?: string;
+  hashtags?: string[];
+  callToAction?: string;
+  platformSpecificWording?: PlatformSpecificWording;
+  thumbnailConsiderations?: PlatformThumbnailConsideration;
+  generationSource?: AdaptationGenerationSource;
+}
+
+export interface UpdatePlatformAdaptationInput {
+  title?: string;
+  description?: string;
+  caption?: string;
+  hashtags?: string[];
+  callToAction?: string;
+  platformSpecificWording?: PlatformSpecificWording;
+  thumbnailConsiderations?: PlatformThumbnailConsideration;
+  status?: PlatformAdaptationStatus;
+}
+
+export interface AiAdaptationRecommendation {
+  platform: PlatformType;
+  titleVariations: string[];
+  captionVariations: string[];
+  description: string;
+  hashtags: string[];
+  callToActionVariations: string[];
+  platformSpecificWording: PlatformSpecificWording;
+  thumbnailConsiderations: PlatformThumbnailConsideration;
+  confidence: number;
+  rationale: string;
+  generationSource: AdaptationGenerationSource;
+  modelUsed?: string;
+}
+
+/**
+ * PHASE 22: PUBLISHING HUB TYPES & INTERFACES
+ */
+
+export type Phase22PublishingStatus =
+  | 'NOT_READY'
+  | 'READY_TO_PUBLISH'
+  | 'PUBLISHING'
+  | 'PUBLISHED'
+  | 'FAILED'
+  | 'MANUALLY_PUBLISHED'
+  | 'PUBLISHED_CONFIRMED';
+
+export type PublishingBlockerCode =
+  | 'INVALID_CONTENT_ID_FORMAT'
+  | 'CANONICAL_CONTENT_NOT_FOUND'
+  | 'SOCIAL_REVIEW_NOT_APPROVED'
+  | 'PLATFORM_ADAPTATION_MISSING'
+  | 'PLATFORM_ADAPTATION_NOT_APPROVED'
+  | 'PLATFORM_ADAPTATION_STALE'
+  | 'CANONICAL_HASH_MISMATCH'
+  | 'FINAL_VIDEO_MISSING'
+  | 'FINAL_VIDEO_NOT_ACCESSIBLE'
+  | 'THUMBNAIL_MISSING'
+  | 'THUMBNAIL_NOT_APPROVED'
+  | 'THUMBNAIL_NOT_ACCESSIBLE'
+  | 'REQUIRED_TITLE_MISSING'
+  | 'REQUIRED_DESCRIPTION_MISSING'
+  | 'REQUIRED_HASHTAGS_MISSING'
+  | 'REQUIRED_CTA_MISSING'
+  | 'PINNED_COMMENT_NOT_APPROVED'
+  | 'CAPTIONS_MISSING'
+  | 'STALE_ADAPTATION_VERSION'
+  | 'INVALID_METADATA'
+  | 'UNRESOLVED_PRODUCTION_BLOCKER';
+
+export interface PublishingReadinessEvaluation {
+  contentId: string;
+  platform: PlatformType;
+  isReadyToPublish: boolean;
+  blockers: PublishingBlockerCode[];
+  evaluatedAt: string;
+  checks: {
+    canonicalContentExists: boolean;
+    socialReviewApproved: boolean;
+    platformAdaptationApproved: boolean;
+    adaptationNotStale: boolean;
+    canonicalHashMatches: boolean;
+    finalVideoValidAndAccessible: boolean;
+    thumbnailValidAndAccessible: boolean;
+    requiredTitlePresent: boolean;
+    requiredDescriptionPresent: boolean;
+    requiredHashtagsPresent: boolean;
+    requiredCtaPresent: boolean;
+    pinnedCommentApprovedIfSupported: boolean;
+    captionsAvailable: boolean;
+    noUnresolvedProductionBlockers: boolean;
+  };
+}
+
+export interface PublisherPackage {
+  contentId: string;
+  platform: PlatformType;
+  readiness: {
+    isReadyToPublish: boolean;
+    blockers: PublishingBlockerCode[];
+    evaluatedAt: string;
+  };
+  assets: {
+    finalVideo: {
+      videoId: string;
+      productionStatus: VideoProductionStatus;
+      finalRenderPath: string | null;
+      driveFileId?: string;
+      width?: number;
+      height?: number;
+      durationSeconds?: number;
+      isAccessible: boolean;
+    } | null;
+    thumbnail: {
+      thumbnailId: string;
+      version: number;
+      driveFileId?: string;
+      candidateId?: string;
+      aspectRatio?: string;
+      isAccessible: boolean;
+    } | null;
+  };
+  text: {
+    title: string;
+    description: string;
+    caption: string;
+    hashtags: string[];
+    callToAction: string;
+    pinnedComment: string | null;
+    captions: string | null;
+  };
+  source: {
+    adaptationId: string;
+    adaptationVersion: number;
+    canonicalSourceHash: string;
+    adaptationHash: string;
+    questionId: string;
+    scriptId: string;
+    scriptVersion: number;
+    videoId: string;
+    videoVersion: number;
+    thumbnailId: string;
+    thumbnailVersion: number;
+    pinnedCommentPackageId?: string;
+    pinnedCommentVersion?: number;
+  };
+  status: {
+    adaptationStatus: PlatformAdaptationStatus;
+    socialReviewStatus: SocialReviewStatus;
+    publishingReadiness: 'READY_TO_PUBLISH' | 'NOT_READY';
+    publishingStatus: Phase22PublishingStatus;
+  };
+}
+
+export interface Phase22PublishingRecord {
+  id: string; // e.g. BP-PUB-000001
+  contentId: string;
+  platform: PlatformType;
+  platformAdaptationId: string;
+  adaptationVersion: number;
+  canonicalSourceHash: string;
+  adaptationHash: string;
+  videoId: string;
+  videoVersion: number;
+  thumbnailId: string;
+  thumbnailVersion: number;
+  pinnedCommentPackageId?: string;
+  pinnedCommentVersion?: number;
+  status: Phase22PublishingStatus;
+  publishedAt?: string;
+  publishedBy?: string;
+  publishedByName?: string;
+  publishedByRole?: string;
+  externalUrl?: string;
+  platformPostId?: string;
+  publicationNotes?: string;
+  failureReason?: string;
+  failedAt?: string;
+  failedBy?: string;
+  retryCount: number;
+  lastRetriedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PublisherPackageSearchFilters {
+  contentId?: string;
+  platform?: PlatformType | string;
+  readiness?: boolean | 'READY_TO_PUBLISH' | 'NOT_READY';
+  publishingStatus?: Phase22PublishingStatus | string;
+  adaptationStatus?: PlatformAdaptationStatus | string;
+}
+
+export interface MarkManuallyPublishedInput {
+  contentId: string;
+  platform: PlatformType | string;
+  externalUrl?: string;
+  platformPostId?: string;
+  publicationNotes?: string;
+  publishedAt?: string;
+}
+
+export interface MarkPublishingFailedInput {
+  contentId: string;
+  platform: PlatformType | string;
+  failureReason: string;
+  notes?: string;
+}
+
+// ============================================================================
+// Phase 23: Production Search, Queues & Dashboard Data Models
+// ============================================================================
+
+export type Phase23QueueType =
+  | 'MY_WORK'
+  | 'QUESTIONS'
+  | 'SCRIPTS'
+  | 'VIDEOS'
+  | 'REVIEWS'
+  | 'PUBLISHING';
+
+export interface Phase23SearchOptions {
+  contentId?: string;
+  search?: string;
+  topicId?: string;
+  subtopicId?: string;
+  difficulty?: string;
+  language?: string;
+  challengeType?: string;
+  presentationType?: string;
+  questionStyle?: string;
+  status?: string;
+  assigneeId?: string;
+  page?: number;
+  limit?: number;
+  sortBy?: 'updatedAt' | 'createdAt' | 'contentId' | 'title';
+  sortOrder?: 'asc' | 'desc';
+}
+
+export interface Phase23SearchResultItem {
+  contentId: string;
+  masterId?: string;
+  questionId?: string;
+  videoId?: string;
+  title: string;
+  topicId: string;
+  topicName: string;
+  subtopicId: string;
+  subtopicName: string;
+  difficulty: string;
+  language: string;
+  challengeType: string;
+  presentationType: string;
+  questionStyle: string;
+  status: string;
+  workflowStage: string;
+  assigneeId?: string;
+  assigneeName?: string;
+  questionStatus?: string;
+  scriptStatus?: string;
+  videoStatus?: string;
+  reviewStatus?: string;
+  socialReviewStatus?: string;
+  platformAdaptationStatus?: string;
+  publishingReadiness?: string;
+  publishingStatus?: string;
+  blockers: string[];
+  updatedAt: string;
+  createdAt: string;
+}
+
+export interface Phase23SearchResult {
+  totalCount: number;
+  returnedCount: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  items: Phase23SearchResultItem[];
+}
+
+export interface Phase23QueueItem {
+  id: string;
+  contentId: string;
+  type: 'QUESTION' | 'SCRIPT' | 'VIDEO' | 'REVIEW' | 'PUBLISHING';
+  title: string;
+  topicName: string;
+  subtopicName: string;
+  difficulty: string;
+  language: string;
+  status: string;
+  workflowStage: string;
+  assigneeId?: string;
+  assigneeName?: string;
+  actionRequired: string;
+  isActionableByCurrentActor: boolean;
+  priority: string;
+  blockers: string[];
+  updatedAt: string;
+}
+
+export interface Phase23QueueResult {
+  queueType: Phase23QueueType;
+  totalCount: number;
+  items: Phase23QueueItem[];
+}
+
+export interface Phase23DashboardMetrics {
+  totalActiveProductionItems: number;
+  myAssignedWork: number;
+  questionsNeedingAction: number;
+  scriptsNeedingAction: number;
+  videosNeedingAction: number;
+  reviewsPending: number;
+  socialReviewsPending: number;
+  publishingReadyItems: number;
+  publishingBlockersCount: number;
+  activeBlockersBreakdown: {
+    reviewPending: number;
+    changesRequested: number;
+    missingAsset: number;
+    staleAdaptation: number;
+    unreadyPublishing: number;
+    unassignedWork: number;
+  };
+  recentlyUpdatedItems: Phase23SearchResultItem[];
+}
+
+export interface Phase23ContentIdDetails {
+  contentId: string;
+  contentMaster?: any;
+  question?: any;
+  script?: any;
+  video?: any;
+  thumbnail?: any;
+  pinnedComment?: any;
+  socialReview?: any;
+  platformAdaptations?: any[];
+  publishing?: any;
+  publishingReadiness?: any;
+  aggregatedStatus: string;
+  workflowStage: string;
+  assignees: Array<{ role: string; userId: string; userName: string }>;
+  blockers: string[];
+  history: Array<{ timestamp: string; action: string; actorName: string; details: string }>;
+}// ============================================================================
+// PHASE 29: AI CONTENT STRATEGY & ADAPTIVE GENERATION TYPES
+// ============================================================================
+
+export type RecommendationStatus = 'ACTIVE' | 'APPLIED' | 'REJECTED' | 'STALE';
+
+export interface ContentStrategyRecommendation {
+  id: string; // e.g. BP-STR-######
+  createdAt: string;
+  sourceReportId?: string; // BP-SPI-###### if linked to Phase 28 performance intelligence
+  topicId: string;
+  subtopicId: string;
+  difficulty: 'EASY' | 'MEDIUM' | 'HARD';
+  questionStyle: string; // e.g. "NUMERICAL", "CONCEPTUAL"
+  context: string; // e.g. "Real-life application of..."
+  hook: string; // e.g. "Can you solve this tricky puzzle?"
+  presentation: string; // e.g. "Vertical Short", "Horizontal Video"
+  platformConsiderations?: string; // e.g. "Optimal for YouTube Shorts"
+  status: RecommendationStatus;
+  evidence: string;
+  sampleSize: number;
+  confidenceLevel: 'HIGH' | 'MEDIUM' | 'LOW' | 'INSUFFICIENT_DATA';
+  provenance?: AIProvenance;
+  appliedAt?: string;
+  appliedBy?: string;
+  rejectedAt?: string;
+  rejectedBy?: string;
+  staleAt?: string;
+  version: number;
+}
 
 

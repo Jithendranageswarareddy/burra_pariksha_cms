@@ -1,0 +1,28 @@
+{
+  "id": "DEL-BAK-1789500120626-d0cd3b78",
+  "backupTimestamp": "2026-09-15T19:22:00.626Z",
+  "sheetName": "AUDIT_LOG",
+  "entityId": "LOG-1789471820444-00005-j49d-undefined",
+  "physicalRowIndex": 2882,
+  "headers": [
+    "id",
+    "timestamp",
+    "actor_id",
+    "actor_name",
+    "action",
+    "entity_type",
+    "entity_id",
+    "details"
+  ],
+  "rawRow": [
+    "LOG-1789471820444-00005-j49d-undefined",
+    "2026-09-15T11:30:20.444Z",
+    "[object Object]"
+  ],
+  "record": {
+    "id": "LOG-1789471820444-00005-j49d-undefined",
+    "timestamp": "2026-09-15T11:30:20.444Z",
+    "actorId": "[object Object]"
+  },
+  "checksum": "77dbdfc2b9c2123e03bae2391318cc7c65a9fbf019099e98b667f93ef0729edc"
+}

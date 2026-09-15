@@ -296,6 +296,80 @@ export class GoogleDriveService {
   }
 
   /**
+   * Ensures the Phase 14 production folder hierarchy for a Content ID:
+   * Root (configurable) -> BP-CNT-###### -> { Raw, Edited, Final, Thumbnail }
+   */
+  public async ensureProductionHierarchy(contentId: string): Promise<{
+    rootFolderId: string;
+    contentFolderId: string;
+    rawFolderId: string;
+    editedFolderId: string;
+    finalFolderId: string;
+    thumbnailFolderId: string;
+  }> {
+    if (!contentId || typeof contentId !== 'string') {
+      throw new ValidationError('A valid canonical Content ID (e.g. BP-CNT-000001) is required for folder hierarchy.');
+    }
+
+    const rootFolderId = process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID
+      ? process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID
+      : await this.ensureFolder('Burra Pariksha');
+
+    const contentFolderId = await this.ensureFolder(contentId, rootFolderId);
+
+    const [rawFolderId, editedFolderId, finalFolderId, thumbnailFolderId] = await Promise.all([
+      this.ensureFolder('Raw', contentFolderId),
+      this.ensureFolder('Edited', contentFolderId),
+      this.ensureFolder('Final', contentFolderId),
+      this.ensureFolder('Thumbnail', contentFolderId),
+    ]);
+
+    return {
+      rootFolderId,
+      contentFolderId,
+      rawFolderId,
+      editedFolderId,
+      finalFolderId,
+      thumbnailFolderId,
+    };
+  }
+
+  /**
+   * Executes a Google Drive API operation with bounded retries for transient failures.
+   */
+  public async executeWithRetry<T>(
+    operation: () => Promise<T>,
+    maxRetries: number = 3,
+    delayMs: number = 1000
+  ): Promise<T> {
+    let attempt = 0;
+    while (attempt < maxRetries) {
+      try {
+        return await operation();
+      } catch (err: any) {
+        attempt++;
+        const isTransient = this.isTransientError(err);
+        if (!isTransient || attempt >= maxRetries) {
+          throw err;
+        }
+        const backoff = delayMs * Math.pow(2, attempt - 1);
+        console.warn(`[GoogleDriveService] Transient error encountered (attempt ${attempt}/${maxRetries}), retrying in ${backoff}ms:`, err?.message || err);
+        await new Promise((resolve) => setTimeout(resolve, backoff));
+      }
+    }
+    throw new Error('Operation failed after retries');
+  }
+
+  private isTransientError(err: any): boolean {
+    const status = err?.status || err?.statusCode || (err?.response && err.response.status);
+    if (status) {
+      return [408, 429, 500, 502, 503, 504].includes(status);
+    }
+    const errMsg = (err?.message || '').toLowerCase();
+    return errMsg.includes('timeout') || errMsg.includes('econnreset') || errMsg.includes('etimedout') || errMsg.includes('network') || errMsg.includes('rate limit');
+  }
+
+  /**
    * Uploads a binary media stream or buffer into Google Drive.
    */
   public async uploadFile(params: {
@@ -342,18 +416,20 @@ export class GoogleDriveService {
       const drive = this.getDriveApi();
       const mediaBody = Readable.from(buffer);
 
-      const createRes = await drive.files.create({
-        requestBody: {
-          name: params.fileName,
-          parents: params.folderId ? [params.folderId] : undefined,
-          description: params.description || `Burra Pariksha asset upload: ${params.fileName}`,
-        },
-        media: {
-          mimeType: params.mimeType,
-          body: mediaBody,
-        },
-        fields: 'id, name, mimeType, size, webViewLink, createdTime',
-      });
+      const createRes = await this.executeWithRetry(() =>
+        drive.files.create({
+          requestBody: {
+            name: params.fileName,
+            parents: params.folderId ? [params.folderId] : undefined,
+            description: params.description || `Burra Pariksha asset upload: ${params.fileName}`,
+          },
+          media: {
+            mimeType: params.mimeType,
+            body: mediaBody,
+          },
+          fields: 'id, name, mimeType, size, webViewLink, createdTime',
+        })
+      );
 
       const file = createRes.data;
       if (!file.id) {
@@ -408,10 +484,12 @@ export class GoogleDriveService {
 
     try {
       const drive = this.getDriveApi();
-      const res = await drive.files.get({
-        fileId,
-        fields: 'id, name, mimeType, size, webViewLink, createdTime, parents',
-      });
+      const res = await this.executeWithRetry(() =>
+        drive.files.get({
+          fileId,
+          fields: 'id, name, mimeType, size, webViewLink, createdTime, parents',
+        })
+      );
 
       const file = res.data;
       return {
@@ -482,9 +560,11 @@ export class GoogleDriveService {
         headers['Range'] = rangeHeader;
       }
 
-      const res = await drive.files.get(
-        { fileId, alt: 'media' },
-        { responseType: 'stream', headers }
+      const res = await this.executeWithRetry(() =>
+        drive.files.get(
+          { fileId, alt: 'media' },
+          { responseType: 'stream', headers }
+        )
       );
 
       const contentType = (res.headers['content-type'] as string) || 'application/octet-stream';

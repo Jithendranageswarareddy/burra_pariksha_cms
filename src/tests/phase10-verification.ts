@@ -424,6 +424,18 @@ export async function runPhase10Verification() {
   const cwActorCtx = { id: 'CW-01', name: 'Content Writer', role: UserRole.CONTENT_WRITER };
   const revActorCtx = { id: 'REV-01', name: 'Social Reviewer', role: UserRole.REVIEWER };
 
+  // Mock taxonomyService.validateQuestionTaxonomy to prevent errors if testCategory/testTopic don't exist in external sheets
+  const origValidateQuestionTaxonomy = taxonomyService.validateQuestionTaxonomy;
+  const origGetTopicById = taxonomyService.getTopicById;
+  const origGetSubtopicById = taxonomyService.getSubtopicById;
+  taxonomyService.validateQuestionTaxonomy = async () => ({
+    topic: { id: 'TP-01', name: 'Mock Topic', categoryId: 'CAT-01' },
+    subtopic: { id: 'ST-01', name: 'Mock Subtopic', topicId: 'TP-01' },
+    category: { id: 'CAT-01', name: 'Mock Category' }
+  } as any);
+  taxonomyService.getTopicById = async (id: string) => ({ id, name: 'Mock Topic', categoryId: 'CAT-01' } as any);
+  taxonomyService.getSubtopicById = async (id: string) => ({ id, name: 'Mock Subtopic', topicId: 'TP-01' } as any);
+
   // Setup entities for tests
   const testCategories = await taxonomyService.getCategories();
   let testCategory = testCategories[0] || { id: 'CAT-01', name: 'Mock Category' };
@@ -462,7 +474,7 @@ export async function runPhase10Verification() {
   console.log('DEBUG VIDEO RESOLVED:', { testVideoId });
 
   const testQuestionInput = {
-    questionText: 'Test service-level question',
+    questionText: 'Test service-level question ' + Math.random().toString(36).substring(2, 10),
     options: { a: 'A option', b: 'B option', c: 'C option', d: 'D option' },
     correctAnswer: 'A',
     explanation: 'Explanation',
@@ -820,6 +832,11 @@ export async function runPhase10Verification() {
   const canModifyAssignedVideo = await objectAuthService.canModifyVideo(assignedVEActor, videoObjWithAssignedVE);
   assert(canModifyAssignedVideo === true, `A specialist with correct role and valid assignment can perform the permitted operation`);
 
+  // Restore taxonomy validation
+  taxonomyService.validateQuestionTaxonomy = origValidateQuestionTaxonomy;
+  taxonomyService.getTopicById = origGetTopicById;
+  taxonomyService.getSubtopicById = origGetSubtopicById;
+
   console.log('\n====================================================');
   console.log(`PHASE 10 VERIFICATION COMPLETE: ${passedTests}/${totalTests} TESTS PASSED`);
   console.log('====================================================\n');
@@ -843,3 +860,14 @@ export async function runPhase10Verification() {
     ],
   };
 }
+
+runPhase10Verification()
+  .then((res) => {
+    console.log('Phase 10 Verification finished successfully!', res);
+    process.exit(0);
+  })
+  .catch((err) => {
+    console.error('Phase 10 Verification failed!', err);
+    process.exit(1);
+  });
+

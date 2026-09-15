@@ -11,7 +11,8 @@ import { apiClient } from '../lib/api-client';
 
 export const QuestionLibraryPage: React.FC = () => {
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [taxonomyTree, setTaxonomyTree] = useState<any[]>([]);
+  const [topics, setTopics] = useState<any[]>([]);
+  const [subtopics, setSubtopics] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -19,7 +20,6 @@ export const QuestionLibraryPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const urlSearch = searchParams.get('search') || searchParams.get('q') || '';
-  const selectedCategory = searchParams.get('categoryId') || '';
   const selectedTopic = searchParams.get('topicId') || '';
   const selectedSubtopic = searchParams.get('subtopicId') || '';
   const selectedDifficulty = searchParams.get('difficulty') || '';
@@ -75,7 +75,6 @@ export const QuestionLibraryPage: React.FC = () => {
       const next = new URLSearchParams(prev);
       next.delete('search');
       next.delete('q');
-      next.delete('categoryId');
       next.delete('topicId');
       next.delete('subtopicId');
       next.delete('difficulty');
@@ -85,12 +84,16 @@ export const QuestionLibraryPage: React.FC = () => {
     });
   };
 
-  // Load taxonomy once
+  // Load topics & subtopics once
   useEffect(() => {
     const fetchTaxonomy = async () => {
       try {
-        const tree = await apiClient.getTaxonomyTree();
-        setTaxonomyTree(tree);
+        const [topicsData, subtopicsData] = await Promise.all([
+          apiClient.getTopics().catch(() => []),
+          apiClient.getSubtopics().catch(() => []),
+        ]);
+        setTopics(topicsData);
+        setSubtopics(subtopicsData);
       } catch (err: any) {
         console.error('Error loading taxonomy:', err);
       }
@@ -105,7 +108,6 @@ export const QuestionLibraryPage: React.FC = () => {
     try {
       const data = await apiClient.getQuestions({
         search: urlSearch.trim() || undefined,
-        categoryId: selectedCategory || undefined,
         topicId: selectedTopic || undefined,
         subtopicId: selectedSubtopic || undefined,
         difficulty: selectedDifficulty ? (selectedDifficulty as DifficultyLevel) : undefined,
@@ -124,7 +126,6 @@ export const QuestionLibraryPage: React.FC = () => {
     loadQuestions();
   }, [
     urlSearch,
-    selectedCategory,
     selectedTopic,
     selectedSubtopic,
     selectedDifficulty,
@@ -132,17 +133,13 @@ export const QuestionLibraryPage: React.FC = () => {
     selectedVideoStatus,
   ]);
 
-  // Derived taxonomy options based on selection
-  const currentCategory = taxonomyTree.find((c) => c.id === selectedCategory);
-  const availableTopics = currentCategory
-    ? currentCategory.topics
-    : taxonomyTree.flatMap((c) => c.topics || []);
-  const currentTopic = availableTopics.find((t: any) => t.id === selectedTopic);
-  const availableSubtopics = currentTopic ? currentTopic.subtopics : [];
+  // Derived subtopics based on selected topic
+  const availableSubtopics = selectedTopic
+    ? subtopics.filter((s: any) => s.topicId === selectedTopic)
+    : subtopics;
 
   const hasActiveFilters =
     Boolean(urlSearch) ||
-    Boolean(selectedCategory) ||
     Boolean(selectedTopic) ||
     Boolean(selectedSubtopic) ||
     Boolean(selectedDifficulty) ||
@@ -218,26 +215,7 @@ export const QuestionLibraryPage: React.FC = () => {
         </div>
 
         {/* Multi-Filter Dropdowns Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 pt-2 border-t border-slate-100 text-xs">
-          {/* Category Filter */}
-          <div>
-            <label className="block text-[11px] font-semibold text-slate-500 mb-1">Category</label>
-            <select
-              value={selectedCategory}
-              onChange={(e) => {
-                updateFilter('categoryId', e.target.value, ['topicId', 'subtopicId']);
-              }}
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-            >
-              <option value="">All Categories</option>
-              {taxonomyTree.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 pt-2 border-t border-slate-100 text-xs">
           {/* Topic Filter */}
           <div>
             <label className="block text-[11px] font-semibold text-slate-500 mb-1">Topic</label>
@@ -249,7 +227,7 @@ export const QuestionLibraryPage: React.FC = () => {
               className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             >
               <option value="">All Topics</option>
-              {availableTopics.map((t: any) => (
+              {topics.map((t: any) => (
                 <option key={t.id} value={t.id}>
                   {t.name}
                 </option>

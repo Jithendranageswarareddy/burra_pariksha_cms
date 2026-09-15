@@ -1,0 +1,408 @@
+--- FORENSIC AUDIT LOG CHECK ---
+Total AUDIT_LOG records: 3563
+Found 45 malformed records.
+
+Record #1:
+ID: LOG-1789470313907-00001-ug68-undefined
+Timestamp: 2026-09-15T11:05:13.907Z
+User: undefined / undefined
+Action: undefined
+Entity ID: undefined
+Details: undefined
+Classification: UNCERTAIN
+
+Record #2:
+ID: LOG-1789470316727-00002-j86m-undefined
+Timestamp: 2026-09-15T11:05:16.727Z
+User: undefined / undefined
+Action: undefined
+Entity ID: undefined
+Details: undefined
+Classification: UNCERTAIN
+
+Record #3:
+ID: LOG-1789470317556-00003-r6cb-undefined
+Timestamp: 2026-09-15T11:05:17.556Z
+User: undefined / undefined
+Action: undefined
+Entity ID: undefined
+Details: undefined
+Classification: UNCERTAIN
+
+Record #4:
+ID: LOG-1789470323505-00004-se8c-undefined
+Timestamp: 2026-09-15T11:05:23.505Z
+User: undefined / undefined
+Action: undefined
+Entity ID: undefined
+Details: undefined
+Classification: UNCERTAIN
+
+Record #5:
+ID: LOG-1789470326279-00005-skkn-undefined
+Timestamp: 2026-09-15T11:05:26.279Z
+User: undefined / undefined
+Action: undefined
+Entity ID: undefined
+Details: undefined
+Classification: UNCERTAIN
+
+Record #6:
+ID: LOG-1789470330394-00006-8s1o-undefined
+Timestamp: 2026-09-15T11:05:30.394Z
+User: undefined / undefined
+Action: undefined
+Entity ID: undefined
+Details: undefined
+Classification: UNCERTAIN
+
+Record #7:
+ID: LOG-1789470331214-00007-p3xn-undefined
+Timestamp: 2026-09-15T11:05:31.214Z
+User: undefined / undefined
+Action: undefined
+Entity ID: undefined
+Details: undefined
+Classification: UNCERTAIN
+
+Record #8:
+ID: LOG-1789470333741-00008-ddcv-undefined
+Timestamp: 2026-09-15T11:05:33.741Z
+User: undefined / undefined
+Action: undefined
+Entity ID: undefined
+Details: undefined
+Classification: UNCERTAIN
+
+Record #9:
+ID: LOG-1789470334068-00009-qdpo-undefined
+Timestamp: 2026-09-15T11:05:34.068Z
+User: undefined / undefined
+Action: undefined
+Entity ID: undefined
+Details: undefined
+Classification: UNCERTAIN
+
+Record #10:
+ID: LOG-1789470334355-00010-fm6l-undefined
+Timestamp: 2026-09-15T11:05:34.355Z
+User: undefined / undefined
+Action: undefined
+Entity ID: undefined
+Details: undefined
+Classification: UNCERTAIN
+
+Record #11:
+ID: LOG-1789470367953-00011-7byn-undefined
+Timestamp: 2026-09-15T11:06:07.953Z
+User: undefined / undefined
+Action: undefined
+Entity ID: undefined
+Details: undefined
+Classification: UNCERTAIN
+
+Record #12:
+ID: LOG-1789470632529-00001-gxvu-undefined
+Timestamp: 2026-09-15T11:10:32.529Z
+User: undefined / undefined
+Action: undefined
+Entity ID: undefined
+Details: undefined
+Classification: UNCERTAIN
+
+Record #13:
+ID: LOG-1789470640805-00002-rip9-undefined
+Timestamp: 2026-09-15T11:10:40.805Z
+User: undefined / undefined
+Action: undefined
+Entity ID: undefined
+Details: undefined
+Classification: UNCERTAIN
+
+Record #14:
+ID: LOG-1789470643808-00003-xhhs-undefined
+Timestamp: 2026-09-15T11:10:43.808Z
+User: undefined / undefined
+Action: undefined
+Entity ID: undefined
+Details: undefined
+Classification: UNCERTAIN
+
+Record #15:
+ID: LOG-1789470646329-00004-oqxf-undefined
+Timestamp: 2026-09-15T11:10:46.329Z
+User: undefined / undefined
+Action: undefined
+Entity ID: undefined
+Details: undefined
+Classification: UNCERTAIN
+
+Record #16:
+ID: LOG-1789470649905-00005-jfqc-undefined
+Timestamp: 2026-09-15T11:10:49.905Z
+User: undefined / undefined
+Action: undefined
+Entity ID: undefined
+Details: undefined
+Classification: UNCERTAIN
+
+Record #17:
+ID: LOG-1789470831281-00001-isxt-undefined
+Timestamp: 2026-09-15T11:13:51.281Z
+User: undefined / undefined
+Action: undefined
+Entity ID: undefined
+Details: undefined
+Classification: UNCERTAIN
+
+Record #18:
+ID: LOG-1789470834693-00002-n8ow-undefined
+Timestamp: 2026-09-15T11:13:54.693Z
+User: undefined / undefined
+Action: undefined
+Entity ID: undefined
+Details: undefined
+Classification: UNCERTAIN
+
+Record #19:
+ID: LOG-1789470837759-00003-zddq-undefined
+Timestamp: 2026-09-15T11:13:57.759Z
+User: undefined / undefined
+Action: undefined
+Entity ID: undefined
+Details: undefined
+Classification: UNCERTAIN
+
+Record #20:
+ID: LOG-1789470840409-00004-b2o5-undefined
+Timestamp: 2026-09-15T11:14:00.409Z
+User: undefined / undefined
+Action: undefined
+Entity ID: undefined
+Details: undefined
+Classification: UNCERTAIN
+
+Record #21:
+ID: LOG-1789470843670-00005-mu2l-undefined
+Timestamp: 2026-09-15T11:14:03.670Z
+User: undefined / undefined
+Action: undefined
+Entity ID: undefined
+Details: undefined
+Classification: UNCERTAIN
+
+Record #22:
+ID: LOG-1789471753781-00001-hlng-undefined
+Timestamp: 2026-09-15T11:29:13.781Z
+User: undefined / undefined
+Action: undefined
+Entity ID: undefined
+Details: undefined
+Classification: UNCERTAIN
+
+Record #23:
+ID: LOG-1789471757180-00002-62jc-undefined
+Timestamp: 2026-09-15T11:29:17.180Z
+User: undefined / undefined
+Action: undefined
+Entity ID: undefined
+Details: undefined
+Classification: UNCERTAIN
+
+Record #24:
+ID: LOG-1789471760400-00003-jiay-undefined
+Timestamp: 2026-09-15T11:29:20.400Z
+User: undefined / undefined
+Action: undefined
+Entity ID: undefined
+Details: undefined
+Classification: UNCERTAIN
+
+Record #25:
+ID: LOG-1789471768449-00004-7djx-undefined
+Timestamp: 2026-09-15T11:29:28.449Z
+User: undefined / undefined
+Action: undefined
+Entity ID: undefined
+Details: undefined
+Classification: UNCERTAIN
+
+Record #26:
+ID: LOG-1789471817952-00001-96qy-undefined
+Timestamp: 2026-09-15T11:30:17.952Z
+User: undefined / undefined
+Action: undefined
+Entity ID: undefined
+Details: undefined
+Classification: UNCERTAIN
+
+Record #27:
+ID: LOG-1789471820444-00005-j49d-undefined
+Timestamp: 2026-09-15T11:30:20.444Z
+User: undefined / undefined
+Action: undefined
+Entity ID: undefined
+Details: undefined
+Classification: UNCERTAIN
+
+Record #28:
+ID: LOG-1789471821491-00002-svv9-undefined
+Timestamp: 2026-09-15T11:30:21.491Z
+User: undefined / undefined
+Action: undefined
+Entity ID: undefined
+Details: undefined
+Classification: UNCERTAIN
+
+Record #29:
+ID: LOG-1789471823824-00006-lw96-undefined
+Timestamp: 2026-09-15T11:30:23.824Z
+User: undefined / undefined
+Action: undefined
+Entity ID: undefined
+Details: undefined
+Classification: UNCERTAIN
+
+Record #30:
+ID: LOG-1789471824588-00003-u4b5-undefined
+Timestamp: 2026-09-15T11:30:24.588Z
+User: undefined / undefined
+Action: undefined
+Entity ID: undefined
+Details: undefined
+Classification: UNCERTAIN
+
+Record #31:
+ID: LOG-1789471828255-00007-a7lg-undefined
+Timestamp: 2026-09-15T11:30:28.255Z
+User: undefined / undefined
+Action: undefined
+Entity ID: undefined
+Details: undefined
+Classification: UNCERTAIN
+
+Record #32:
+ID: LOG-1789471875163-00008-b73l-undefined
+Timestamp: 2026-09-15T11:31:15.163Z
+User: undefined / undefined
+Action: undefined
+Entity ID: undefined
+Details: undefined
+Classification: UNCERTAIN
+
+Record #33:
+ID: LOG-1789471878870-00009-9stp-undefined
+Timestamp: 2026-09-15T11:31:18.870Z
+User: undefined / undefined
+Action: undefined
+Entity ID: undefined
+Details: undefined
+Classification: UNCERTAIN
+
+Record #34:
+ID: LOG-1789471881322-00010-a5j5-undefined
+Timestamp: 2026-09-15T11:31:21.322Z
+User: undefined / undefined
+Action: undefined
+Entity ID: undefined
+Details: undefined
+Classification: UNCERTAIN
+
+Record #35:
+ID: LOG-1789471881476-00004-hvgn-undefined
+Timestamp: 2026-09-15T11:31:21.476Z
+User: undefined / undefined
+Action: undefined
+Entity ID: undefined
+Details: undefined
+Classification: UNCERTAIN
+
+Record #36:
+ID: LOG-1789471881901-00011-el8c-undefined
+Timestamp: 2026-09-15T11:31:21.901Z
+User: undefined / undefined
+Action: undefined
+Entity ID: undefined
+Details: undefined
+Classification: UNCERTAIN
+
+Record #37:
+ID: LOG-1789471927984-00012-yrmv-undefined
+Timestamp: 2026-09-15T11:32:07.984Z
+User: undefined / undefined
+Action: undefined
+Entity ID: undefined
+Details: undefined
+Classification: UNCERTAIN
+
+Record #38:
+ID: LOG-1789471932407-00005-bdti-undefined
+Timestamp: 2026-09-15T11:32:12.407Z
+User: undefined / undefined
+Action: undefined
+Entity ID: undefined
+Details: undefined
+Classification: UNCERTAIN
+
+Record #39:
+ID: LOG-1789471933281-00006-xraf-undefined
+Timestamp: 2026-09-15T11:32:13.281Z
+User: undefined / undefined
+Action: undefined
+Entity ID: undefined
+Details: undefined
+Classification: UNCERTAIN
+
+Record #40:
+ID: LOG-1789471939807-00007-23zm-undefined
+Timestamp: 2026-09-15T11:32:19.807Z
+User: undefined / undefined
+Action: undefined
+Entity ID: undefined
+Details: undefined
+Classification: UNCERTAIN
+
+Record #41:
+ID: LOG-1789471942856-00008-tp4v-undefined
+Timestamp: 2026-09-15T11:32:22.856Z
+User: undefined / undefined
+Action: undefined
+Entity ID: undefined
+Details: undefined
+Classification: UNCERTAIN
+
+Record #42:
+ID: LOG-1789471990234-00009-ljw2-undefined
+Timestamp: 2026-09-15T11:33:10.234Z
+User: undefined / undefined
+Action: undefined
+Entity ID: undefined
+Details: undefined
+Classification: UNCERTAIN
+
+Record #43:
+ID: LOG-1789471992903-00010-wpco-undefined
+Timestamp: 2026-09-15T11:33:12.903Z
+User: undefined / undefined
+Action: undefined
+Entity ID: undefined
+Details: undefined
+Classification: UNCERTAIN
+
+Record #44:
+ID: LOG-1789471993208-00011-dv7h-undefined
+Timestamp: 2026-09-15T11:33:13.208Z
+User: undefined / undefined
+Action: undefined
+Entity ID: undefined
+Details: undefined
+Classification: UNCERTAIN
+
+Record #45:
+ID: LOG-1789471995801-00012-bou4-undefined
+Timestamp: 2026-09-15T11:33:15.801Z
+User: undefined / undefined
+Action: undefined
+Entity ID: undefined
+Details: undefined
+Classification: UNCERTAIN

@@ -151,13 +151,45 @@ export function rowToObject<T = Record<string, unknown>>(
     }
   }
 
-  // Handle nested options object reconstruction for Questions if needed
+  // Handle nested options object reconstruction and aliases for Questions if needed
   if (schema.sheetName === 'QUESTIONS') {
     const optA = (obj['optionA'] as string) || '';
     const optB = (obj['optionB'] as string) || '';
     const optC = (obj['optionC'] as string) || '';
     const optD = (obj['optionD'] as string) || '';
+    obj['optionA'] = optA;
+    obj['optionB'] = optB;
+    obj['optionC'] = optC;
+    obj['optionD'] = optD;
     obj['options'] = { a: optA, b: optB, c: optC, d: optD };
+
+    // Contract aliases: question <-> questionText
+    if (obj['questionText'] && !obj['question']) {
+      obj['question'] = obj['questionText'];
+    } else if (obj['question'] && !obj['questionText']) {
+      obj['questionText'] = obj['question'];
+    }
+
+    // Canonical correlation: contentId <-> contentMasterId
+    if (obj['contentMasterId'] && !obj['contentId']) {
+      obj['contentId'] = obj['contentMasterId'];
+    } else if (obj['contentId'] && !obj['contentMasterId']) {
+      obj['contentMasterId'] = obj['contentId'];
+    }
+
+    // Author: author <-> authorId
+    if (obj['authorId'] && !obj['author']) {
+      obj['author'] = obj['authorId'];
+    } else if (obj['author'] && !obj['authorId']) {
+      obj['authorId'] = obj['author'];
+    }
+
+    // Real-life context: realLifeContext <-> realWorldContext
+    if (obj['realLifeContext'] && !obj['realWorldContext']) {
+      obj['realWorldContext'] = obj['realLifeContext'];
+    } else if (obj['realWorldContext'] && !obj['realLifeContext']) {
+      obj['realLifeContext'] = obj['realWorldContext'];
+    }
 
     // Tags array parsing if stored as comma-separated or JSON
     if (typeof obj['tags'] === 'string') {
@@ -213,8 +245,13 @@ export function rowToObject<T = Record<string, unknown>>(
       const roleStr = obj['role'] as string;
       const parsedRoles = roleStr.split(',').map((r) => r.trim()).filter(Boolean);
       obj['roles'] = parsedRoles.length > 0 ? parsedRoles : [roleStr];
+      if (parsedRoles.length > 0) {
+        obj['role'] = parsedRoles[0];
+      }
     } else if (Array.isArray(obj['roles'])) {
-      // already parsed
+      if (!obj['role'] && (obj['roles'] as string[]).length > 0) {
+        obj['role'] = (obj['roles'] as string[])[0];
+      }
     } else {
       obj['roles'] = obj['role'] ? [obj['role']] : ['ADMIN'];
     }
@@ -240,12 +277,43 @@ export function objectToRow(
     }
   }
 
-  if (schema.sheetName === 'QUESTIONS' && obj['options'] && typeof obj['options'] === 'object') {
-    const opts = obj['options'] as { a?: string; b?: string; c?: string; d?: string };
-    if (opts.a !== undefined) flatObj['optionA'] = opts.a;
-    if (opts.b !== undefined) flatObj['optionB'] = opts.b;
-    if (opts.c !== undefined) flatObj['optionC'] = opts.c;
-    if (opts.d !== undefined) flatObj['optionD'] = opts.d;
+  if (schema.sheetName === 'QUESTIONS') {
+    if (obj['options'] && typeof obj['options'] === 'object') {
+      const opts = obj['options'] as { a?: string; b?: string; c?: string; d?: string };
+      if (opts.a !== undefined) flatObj['optionA'] = opts.a;
+      if (opts.b !== undefined) flatObj['optionB'] = opts.b;
+      if (opts.c !== undefined) flatObj['optionC'] = opts.c;
+      if (opts.d !== undefined) flatObj['optionD'] = opts.d;
+    } else if (obj['optionA'] !== undefined || obj['optionB'] !== undefined) {
+      flatObj['optionA'] = obj['optionA'] || '';
+      flatObj['optionB'] = obj['optionB'] || '';
+      flatObj['optionC'] = obj['optionC'] || '';
+      flatObj['optionD'] = obj['optionD'] || '';
+    }
+
+    if (flatObj['question'] && !flatObj['questionText']) {
+      flatObj['questionText'] = flatObj['question'];
+    } else if (flatObj['questionText'] && !flatObj['question']) {
+      flatObj['question'] = flatObj['questionText'];
+    }
+
+    if (flatObj['contentMasterId'] && !flatObj['contentId']) {
+      flatObj['contentId'] = flatObj['contentMasterId'];
+    } else if (flatObj['contentId'] && !flatObj['contentMasterId']) {
+      flatObj['contentMasterId'] = flatObj['contentId'];
+    }
+
+    if (flatObj['authorId'] && !flatObj['author']) {
+      flatObj['author'] = flatObj['authorId'];
+    } else if (flatObj['author'] && !flatObj['authorId']) {
+      flatObj['authorId'] = flatObj['author'];
+    }
+
+    if (flatObj['realLifeContext'] && !flatObj['realWorldContext']) {
+      flatObj['realWorldContext'] = flatObj['realLifeContext'];
+    } else if (flatObj['realWorldContext'] && !flatObj['realLifeContext']) {
+      flatObj['realLifeContext'] = flatObj['realWorldContext'];
+    }
   }
 
   if (schema.sheetName === 'QUESTIONS' && Array.isArray(obj['tags'])) {

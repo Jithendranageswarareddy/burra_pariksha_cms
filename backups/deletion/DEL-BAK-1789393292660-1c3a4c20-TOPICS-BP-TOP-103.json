@@ -1,0 +1,46 @@
+{
+  "id": "DEL-BAK-1789393292660-1c3a4c20",
+  "backupTimestamp": "2026-09-14T13:41:32.660Z",
+  "sheetName": "TOPICS",
+  "entityId": "BP-TOP-103",
+  "physicalRowIndex": 102,
+  "headers": [
+    "id",
+    "category_id",
+    "name",
+    "slug",
+    "description",
+    "display_order",
+    "is_active",
+    "created_at",
+    "updated_at"
+  ],
+  "rawRow": [
+    "BP-TOP-103",
+    "BP-CAT-003",
+    "Test Logic & Speed 1789386761452",
+    "test-logic-speed-1789386761452",
+    "Temporary topic for Task 2B verification",
+    1,
+    true,
+    "2026-09-14T11:52:42.430Z",
+    "2026-09-14T11:52:42.430Z"
+  ],
+  "record": {
+    "id": "BP-TOP-103",
+    "categoryId": "BP-CAT-003",
+    "name": "Test Logic & Speed 1789386761452",
+    "slug": "test-logic-speed-1789386761452",
+    "description": "Temporary topic for Task 2B verification",
+    "displayOrder": 1,
+    "isActive": true,
+    "createdAt": "2026-09-14T11:52:42.430Z",
+    "updatedAt": "2026-09-14T11:52:42.430Z"
+  },
+  "checksum": "1e36cfdb6ead2d528b816ef7969f015a49e154e79f71e7da310c5e199bb0c3cd",
+  "actor": {
+    "id": "PHASE2_REMEDIATION",
+    "name": "Safe Remediation Pipeline"
+  },
+  "reason": "Phase 2 remediation of synthetic test topic"
+}

@@ -49,6 +49,7 @@ export const SHEET_TABS = {
   QUESTION_VALIDATIONS: 'QUESTION_VALIDATIONS',
   SOCIAL_REVIEWS: 'SOCIAL_REVIEWS',
   QUESTION_CONFIG: 'QUESTION_CONFIG',
+  MEDIA_ASSETS: 'MEDIA_ASSETS',
 } as const;
 
 // Phase 9 Extended Planning Worksheet Names
@@ -83,6 +84,7 @@ export const ALL_SHEET_TABS: SheetTabName[] = [
   SHEET_TABS.SOCIAL_REVIEWS,
   SHEET_TABS.QUESTION_VALIDATIONS,
   SHEET_TABS.QUESTION_CONFIG,
+  SHEET_TABS.MEDIA_ASSETS,
   PLANNING_SHEET_TABS.CONTENT_PLANS,
   PLANNING_SHEET_TABS.CONTENT_BATCHES,
 ];
@@ -105,10 +107,11 @@ export const SEQUENCE_ENTITIES = {
   CONTENT_BATCH: 'CONTENT_BATCH',
   ASSIGNMENT: 'ASSIGNMENT',
   CONTENT_MASTER: 'CONTENT_MASTER',
-  CONTENT_ID: 'CONTENT_ID',
   SOCIAL_REVIEW: 'SOCIAL_REVIEW',
   SOCIAL_ANALYTICS: 'SOCIAL_ANALYTICS',
   SOCIAL_PERFORMANCE_INTELLIGENCE: 'SOCIAL_PERFORMANCE_INTELLIGENCE',
+  PLATFORM_ADAPTATION: 'PLATFORM_ADAPTATION',
+  CONTENT_STRATEGY: 'CONTENT_STRATEGY',
 } as const;
 
 export type SequenceEntityType = typeof SEQUENCE_ENTITIES[keyof typeof SEQUENCE_ENTITIES];
@@ -127,10 +130,11 @@ export const ID_PREFIX_MAP: Record<SequenceEntityType, { prefix: string; padLeng
   [SEQUENCE_ENTITIES.CONTENT_BATCH]: { prefix: 'BP-BCH-', padLength: 4 },
   [SEQUENCE_ENTITIES.ASSIGNMENT]: { prefix: 'BP-ASN-', padLength: 6 },
   [SEQUENCE_ENTITIES.CONTENT_MASTER]: { prefix: 'BP-CNT-', padLength: 6 },
-  [SEQUENCE_ENTITIES.CONTENT_ID]: { prefix: 'BP-CNT-', padLength: 6 },
   [SEQUENCE_ENTITIES.SOCIAL_REVIEW]: { prefix: 'BP-REV-', padLength: 6 },
   [SEQUENCE_ENTITIES.SOCIAL_ANALYTICS]: { prefix: 'BP-ANL-', padLength: 6 },
   [SEQUENCE_ENTITIES.SOCIAL_PERFORMANCE_INTELLIGENCE]: { prefix: 'BP-SPI-', padLength: 6 },
+  [SEQUENCE_ENTITIES.PLATFORM_ADAPTATION]: { prefix: 'BP-ADP-', padLength: 6 },
+  [SEQUENCE_ENTITIES.CONTENT_STRATEGY]: { prefix: 'BP-STR-', padLength: 6 },
 };
 
 // ============================================================================
@@ -211,6 +215,7 @@ export const SHEET_SCHEMAS: Record<SheetTabName, SheetSchemaContract> = {
       { name: 'last_login_at', propertyKey: 'last_login_at', type: 'date', required: false },
       { name: 'created_at', propertyKey: 'createdAt', type: 'date', required: true },
       { name: 'updated_at', propertyKey: 'updatedAt', type: 'date', required: true },
+      { name: 'session_version', propertyKey: 'sessionVersion', type: 'number', required: false },
     ],
   },
 
@@ -489,6 +494,8 @@ export const SHEET_SCHEMAS: Record<SheetTabName, SheetSchemaContract> = {
     primaryKey: 'id',
     columns: [
       { name: 'id', propertyKey: 'id', type: 'string', required: true, isPrimaryKey: true },
+      { name: 'content_id', propertyKey: 'contentId', type: 'string', required: false },
+      { name: 'content_master_id', propertyKey: 'contentMasterId', type: 'string', required: false, isForeignKey: true, foreignKeyTarget: { sheet: SHEET_TABS.CONTENT_MASTERS, column: 'id' } },
       { name: 'entity_type', propertyKey: 'entityType', type: 'string', required: true, allowedValues: ['QUESTION', 'VIDEO', 'SCRIPT', 'PUBLISHING'] },
       { name: 'entity_id', propertyKey: 'entityId', type: 'string', required: true },
       { name: 'from_status', propertyKey: 'fromStatus', type: 'string', required: true },
@@ -506,6 +513,8 @@ export const SHEET_SCHEMAS: Record<SheetTabName, SheetSchemaContract> = {
     primaryKey: 'id',
     columns: [
       { name: 'id', propertyKey: 'id', type: 'string', required: true, isPrimaryKey: true },
+      { name: 'content_id', propertyKey: 'contentId', type: 'string', required: false },
+      { name: 'content_master_id', propertyKey: 'contentMasterId', type: 'string', required: false, isForeignKey: true, foreignKeyTarget: { sheet: SHEET_TABS.CONTENT_MASTERS, column: 'id' } },
       { name: 'entity_type', propertyKey: 'entityType', type: 'string', required: false, allowedValues: ['QUESTION', 'VIDEO', 'SCRIPT', 'THUMBNAIL', 'PUBLISHING', 'CONTENT_PLAN', 'CONTENT_BATCH'] },
       { name: 'entity_id', propertyKey: 'entityId', type: 'string', required: false },
       { name: 'video_id', propertyKey: 'videoId', type: 'string', required: false },
@@ -712,6 +721,27 @@ export const SHEET_SCHEMAS: Record<SheetTabName, SheetSchemaContract> = {
       { name: 'updated_at', propertyKey: 'updatedAt', type: 'date', required: true },
     ],
   },
+
+  // 23. MEDIA_ASSETS (Google Drive Production Infrastructure Uploads)
+  [SHEET_TABS.MEDIA_ASSETS]: {
+    sheetName: SHEET_TABS.MEDIA_ASSETS,
+    purpose: 'Google Drive production assets and media versions metadata tracking',
+    primaryKey: 'id',
+    columns: [
+      { name: 'id', propertyKey: 'id', type: 'string', required: true, isPrimaryKey: true },
+      { name: 'content_id', propertyKey: 'contentId', type: 'string', required: true },
+      { name: 'drive_file_id', propertyKey: 'driveFileId', type: 'string', required: true },
+      { name: 'folder_id', propertyKey: 'folderId', type: 'string', required: true },
+      { name: 'file_name', propertyKey: 'fileName', type: 'string', required: true },
+      { name: 'mime_type', propertyKey: 'mimeType', type: 'string', required: true },
+      { name: 'file_size', propertyKey: 'fileSize', type: 'number', required: true },
+      { name: 'checksum', propertyKey: 'checksum', type: 'string', required: false },
+      { name: 'created_at', propertyKey: 'createdAt', type: 'date', required: true },
+      { name: 'updated_at', propertyKey: 'updatedAt', type: 'date', required: true },
+      { name: 'media_stage', propertyKey: 'mediaStage', type: 'string', required: true },
+      { name: 'version', propertyKey: 'version', type: 'number', required: true },
+    ],
+  },
 };
 
 // ============================================================================
@@ -733,7 +763,8 @@ export const QuestionConfigEntryZodSchema = z.object({
 
 export type QuestionConfigEntryZodInput = z.infer<typeof QuestionConfigEntryZodSchema>;
 
-export const CreateQuestionInputSchema = z.object({
+const QuestionInputBaseSchema = z.object({
+  id: z.string().optional(),
   contentId: z.string().optional(),
   contentMasterId: z.string().optional(),
   categoryId: z.string().optional(),
@@ -742,15 +773,31 @@ export const CreateQuestionInputSchema = z.object({
   topicName: z.string().optional(),
   subtopicId: z.string().min(1, 'Subtopic ID is required'),
   subtopicName: z.string().optional(),
-  difficulty: z.union([z.nativeEnum(DifficultyLevel), z.string()]),
+  difficulty: z.preprocess(
+    (val) => {
+      if (typeof val === 'string') {
+        const u = val.toUpperCase().trim();
+        if (u === 'INTERMEDIATE' || u === 'MEDIUM') return DifficultyLevel.MEDIUM;
+        if (u === 'EASY') return DifficultyLevel.EASY;
+        if (u === 'HARD') return DifficultyLevel.HARD;
+      }
+      return val;
+    },
+    z.nativeEnum(DifficultyLevel)
+  ),
   language: z.string().optional().default('TELUGU'),
   questionText: z.string().min(5, 'Question text must be at least 5 characters'),
+  question: z.string().optional(),
   options: z.object({
     a: z.string().min(1, 'Option A is required'),
     b: z.string().min(1, 'Option B is required'),
     c: z.string().min(1, 'Option C is required'),
     d: z.string().min(1, 'Option D is required'),
   }),
+  optionA: z.string().optional(),
+  optionB: z.string().optional(),
+  optionC: z.string().optional(),
+  optionD: z.string().optional(),
   correctAnswer: z.enum(['A', 'B', 'C', 'D']),
   explanation: z.string().min(5, 'Explanation must be at least 5 characters'),
   realWorldContext: z.string().optional(),
@@ -767,15 +814,68 @@ export const CreateQuestionInputSchema = z.object({
   aiPrompt: z.string().optional(),
   originalityScore: z.number().optional(),
   authorId: z.string().optional(),
+  author: z.string().optional(),
   generationMode: z.string().optional(),
+  createdAt: z.string().optional(),
+  updatedAt: z.string().optional(),
+  validationStatus: z.string().optional(),
+  validationScore: z.number().optional(),
+  lastValidationId: z.string().optional(),
 });
+
+function normalizeQuestionInput(val: any) {
+  if (val && typeof val === 'object') {
+    const copy = { ...val };
+    if (copy.question && !copy.questionText) {
+      copy.questionText = copy.question;
+    }
+    if (copy.questionText && !copy.question) {
+      copy.question = copy.questionText;
+    }
+    if (!copy.options && (copy.optionA !== undefined || copy.optionB !== undefined)) {
+      copy.options = {
+        a: copy.optionA || '',
+        b: copy.optionB || '',
+        c: copy.optionC || '',
+        d: copy.optionD || '',
+      };
+    } else if (copy.options && typeof copy.options === 'object') {
+      if (copy.optionA === undefined && copy.options.a !== undefined) copy.optionA = copy.options.a;
+      if (copy.optionB === undefined && copy.options.b !== undefined) copy.optionB = copy.options.b;
+      if (copy.optionC === undefined && copy.options.c !== undefined) copy.optionC = copy.options.c;
+      if (copy.optionD === undefined && copy.options.d !== undefined) copy.optionD = copy.options.d;
+    }
+    if (copy.realLifeContext && !copy.realWorldContext) {
+      copy.realWorldContext = copy.realLifeContext;
+    } else if (copy.realWorldContext && !copy.realLifeContext) {
+      copy.realLifeContext = copy.realWorldContext;
+    }
+    if (copy.contentId && !copy.contentMasterId) {
+      copy.contentMasterId = copy.contentId;
+    } else if (copy.contentMasterId && !copy.contentId) {
+      copy.contentId = copy.contentMasterId;
+    }
+    if (copy.author && !copy.authorId) {
+      copy.authorId = copy.author;
+    } else if (copy.authorId && !copy.author) {
+      copy.author = copy.authorId;
+    }
+    return copy;
+  }
+  return val;
+}
+
+export const CreateQuestionInputSchema = z.preprocess(normalizeQuestionInput, QuestionInputBaseSchema);
 
 export type CreateQuestionInput = z.input<typeof CreateQuestionInputSchema>;
 export type CreateQuestionOutput = z.infer<typeof CreateQuestionInputSchema>;
 
-export const UpdateQuestionInputSchema = CreateQuestionInputSchema.partial().extend({
-  id: z.string().min(1, 'Question ID is required for updates'),
-});
+export const UpdateQuestionInputSchema = z.preprocess(
+  normalizeQuestionInput,
+  QuestionInputBaseSchema.partial().extend({
+    id: z.string().min(1, 'Question ID is required for updates'),
+  })
+);
 
 export type UpdateQuestionInput = z.infer<typeof UpdateQuestionInputSchema>;
 
@@ -932,7 +1032,7 @@ export type UpdatePublishingInput = z.infer<typeof UpdatePublishingInputSchema>;
 // ============================================================================
 
 export const CreateContentPlanInputSchema = z.object({
-  categoryId: z.string().min(1, 'Category ID is required'),
+  categoryId: z.string().optional(),
   categoryName: z.string().optional(),
   topicId: z.string().min(1, 'Topic ID is required'),
   topicName: z.string().optional(),
@@ -996,7 +1096,7 @@ export const LinkBatchQuestionsInputSchema = z.object({
 export type LinkBatchQuestionsInput = z.infer<typeof LinkBatchQuestionsInputSchema>;
 
 export const AiContentPlanRequestSchema = z.object({
-  categoryId: z.string().min(1, 'Category ID is required'),
+  categoryId: z.string().optional(),
   topicId: z.string().optional(),
   targetTotalCount: z.number().int().min(5, 'Target total count must be at least 5').max(100, 'Target count capped at 100 per recommendation').default(20),
   language: z.nativeEnum(QuestionLanguage).optional().default(QuestionLanguage.TELUGU),
@@ -1275,11 +1375,41 @@ export const SOCIAL_PERFORMANCE_INTELLIGENCE_SCHEMA: SheetSchemaContract = {
     { name: 'AI_INSIGHTS', propertyKey: 'aiInsights', type: 'json', required: true },
     { name: 'IS_FALLBACK_MODE', propertyKey: 'isFallbackMode', type: 'boolean', required: true },
     { name: 'MODEL_USED', propertyKey: 'modelUsed', type: 'string', required: true },
+    { name: 'PROVENANCE', propertyKey: 'provenance', type: 'json', required: false },
     { name: 'EVIDENCE_TRACEABILITY', propertyKey: 'evidenceTraceability', type: 'json', required: true },
   ],
 };
 
-
-
-
-
+/**
+ * Phase 29: STRATEGY_RECOMMENDATIONS Schema
+ * Stored in separate Analytics Workbook under STRATEGY_RECOMMENDATIONS sheet tab.
+ */
+export const STRATEGY_RECOMMENDATION_SCHEMA: SheetSchemaContract = {
+  sheetName: 'STRATEGY_RECOMMENDATIONS' as any,
+  purpose: 'Stores Phase 29 AI content strategy recommendations in separate analytics workbook',
+  primaryKey: 'id',
+  columns: [
+    { name: 'ID', propertyKey: 'id', type: 'string', required: true },
+    { name: 'CREATED_AT', propertyKey: 'createdAt', type: 'string', required: true },
+    { name: 'SOURCE_REPORT_ID', propertyKey: 'sourceReportId', type: 'string', required: false },
+    { name: 'TOPIC_ID', propertyKey: 'topicId', type: 'string', required: true },
+    { name: 'SUBTOPIC_ID', propertyKey: 'subtopicId', type: 'string', required: true },
+    { name: 'DIFFICULTY', propertyKey: 'difficulty', type: 'string', required: true },
+    { name: 'QUESTION_STYLE', propertyKey: 'questionStyle', type: 'string', required: true },
+    { name: 'CONTEXT', propertyKey: 'context', type: 'string', required: true },
+    { name: 'HOOK', propertyKey: 'hook', type: 'string', required: true },
+    { name: 'PRESENTATION', propertyKey: 'presentation', type: 'string', required: true },
+    { name: 'PLATFORM_CONSIDERATIONS', propertyKey: 'platformConsiderations', type: 'string', required: false },
+    { name: 'STATUS', propertyKey: 'status', type: 'string', required: true },
+    { name: 'EVIDENCE', propertyKey: 'evidence', type: 'string', required: true },
+    { name: 'SAMPLE_SIZE', propertyKey: 'sampleSize', type: 'number', required: true },
+    { name: 'CONFIDENCE_LEVEL', propertyKey: 'confidenceLevel', type: 'string', required: true },
+    { name: 'PROVENANCE', propertyKey: 'provenance', type: 'json', required: false },
+    { name: 'APPLIED_AT', propertyKey: 'appliedAt', type: 'string', required: false },
+    { name: 'APPLIED_BY', propertyKey: 'appliedBy', type: 'string', required: false },
+    { name: 'REJECTED_AT', propertyKey: 'rejectedAt', type: 'string', required: false },
+    { name: 'REJECTED_BY', propertyKey: 'rejectedBy', type: 'string', required: false },
+    { name: 'STALE_AT', propertyKey: 'staleAt', type: 'string', required: false },
+    { name: 'VERSION', propertyKey: 'version', type: 'number', required: true },
+  ],
+};

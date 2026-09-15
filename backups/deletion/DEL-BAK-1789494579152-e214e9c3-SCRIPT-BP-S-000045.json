@@ -1,0 +1,58 @@
+{
+  "id": "DEL-BAK-1789494579152-e214e9c3",
+  "backupTimestamp": "2026-09-15T17:49:39.152Z",
+  "sheetName": "SCRIPT",
+  "entityId": "BP-S-000045",
+  "physicalRowIndex": 2,
+  "headers": [
+    "id",
+    "content_id",
+    "video_id",
+    "question_id",
+    "hook_text",
+    "problem_statement",
+    "step_by_step_solution",
+    "speed_trick_or_takeaway",
+    "call_to_action",
+    "current_version",
+    "notes",
+    "created_at",
+    "updated_at"
+  ],
+  "rawRow": [
+    "BP-S-000045",
+    "BP-CNT-TEST15-1789468979682",
+    "BP-V-000041",
+    "BP-Q-000169",
+    "✨ [HUMAN EDIT] This is an engaging human revised hook!",
+    "తెలంగాణ రాష్ట్ర రాజధాని ఏది? ఆప్షన్లు ఇవే:\nఎ) Hyderabad\nబి) Warangal\nసి) Karimnagar\nడి) Nizamabad",
+    "సరైన సమాధానం ఆప్షన్ ఎ) Hyderabad. తెలంగాణ రాష్ట్రం ఏర్పడినప్పటి నుండి హైదరాబాద్ నగరం దాని రాజధానిగా కొనసాగుతోంది. ఇది ఒక చారిత్రక మరియు ఆర్థిక కేంద్రం.",
+    "బుర్ర ట్రిక్: ఇలాంటి బేసిక్ క్వశ్చన్స్ వచ్చినప్పుడు కన్ఫ్యూజ్ అవ్వకండి. రాష్ట్రంలోని అతిపెద్ద నగరం మరియు ప్రధాన పరిపాలనా కేంద్రమే సాధారణంగా రాజధాని అవుతుందని గుర్తుంచుకోండి!",
+    "మీకు ఈ ఆన్సర్ ముందు నుండే తెలుసా? అయితే కామెంట్ బాక్స్‌లో 'నేను రెడీ' అని టైప్ చేయండి. మరిన్ని ఇలాంటి క్విక్ టిప్స్ కోసం @BurraPariksha ని ఫాలో అవ్వండి!",
+    3,
+    "ప్రతి సెక్షన్ ని చాలా ఎనర్జిటిక్ గా, ఫ్రెండ్లీ టోన్ లో చెప్పాలి. ఆప్షన్స్ చదివేటప్పుడు స్క్రీన్ మీద టెక్స్ట్ పాప్ అప్ అవ్వాలి.",
+    "2026-09-15T10:43:06.531Z",
+    "2026-09-15T10:43:15.707Z"
+  ],
+  "record": {
+    "id": "BP-S-000045",
+    "contentId": "BP-CNT-TEST15-1789468979682",
+    "videoId": "BP-V-000041",
+    "questionId": "BP-Q-000169",
+    "hookText": "✨ [HUMAN EDIT] This is an engaging human revised hook!",
+    "problemStatement": "తెలంగాణ రాష్ట్ర రాజధాని ఏది? ఆప్షన్లు ఇవే:\nఎ) Hyderabad\nబి) Warangal\nసి) Karimnagar\nడి) Nizamabad",
+    "stepByStepSolution": "సరైన సమాధానం ఆప్షన్ ఎ) Hyderabad. తెలంగాణ రాష్ట్రం ఏర్పడినప్పటి నుండి హైదరాబాద్ నగరం దాని రాజధానిగా కొనసాగుతోంది. ఇది ఒక చారిత్రక మరియు ఆర్థిక కేంద్రం.",
+    "speedTrickOrTakeaway": "బుర్ర ట్రిక్: ఇలాంటి బేసిక్ క్వశ్చన్స్ వచ్చినప్పుడు కన్ఫ్యూజ్ అవ్వకండి. రాష్ట్రంలోని అతిపెద్ద నగరం మరియు ప్రధాన పరిపాలనా కేంద్రమే సాధారణంగా రాజధాని అవుతుందని గుర్తుంచుకోండి!",
+    "callToAction": "మీకు ఈ ఆన్సర్ ముందు నుండే తెలుసా? అయితే కామెంట్ బాక్స్‌లో 'నేను రెడీ' అని టైప్ చేయండి. మరిన్ని ఇలాంటి క్విక్ టిప్స్ కోసం @BurraPariksha ని ఫాలో అవ్వండి!",
+    "currentVersion": 3,
+    "notes": "ప్రతి సెక్షన్ ని చాలా ఎనర్జిటిక్ గా, ఫ్రెండ్లీ టోన్ లో చెప్పాలి. ఆప్షన్స్ చదివేటప్పుడు స్క్రీన్ మీద టెక్స్ట్ పాప్ అప్ అవ్వాలి.",
+    "createdAt": "2026-09-15T10:43:06.531Z",
+    "updatedAt": "2026-09-15T10:43:15.707Z"
+  },
+  "checksum": "5d53d3028add75ad0960f9126391c8b31bb045cdb3fe816ca0bcc5dcc16747eb",
+  "actor": {
+    "id": "SYSTEM_CLEANUP",
+    "name": "Production Test-Data Sanitizer"
+  },
+  "reason": "Phase 30 Pre-Acceptance Production Cleanup"
+}

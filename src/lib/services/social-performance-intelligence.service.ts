@@ -18,6 +18,8 @@ import { idService } from './id.service';
 import { taxonomyService } from './taxonomy.service';
 import { AuditLogRepository } from '../repositories/audit-log.repository';
 import { geminiClient } from '../ai/gemini.client';
+import { phase24AIOrchestrator } from '../ai/phase24-orchestrator.service';
+import { AIProvenance } from '../../types/phase24-ai';
 import { PerformanceIntelligenceGenAISchema, PerformanceIntelligenceZodSchema, PerformanceIntelligenceAIOutput } from '../ai/schemas/performance-intelligence.schema';
 import { BURRA_PARIKSHA_PERFORMANCE_INTELLIGENCE_SYSTEM_INSTRUCTION, buildPerformanceIntelligencePrompt } from '../ai/prompts/performance-intelligence.prompt';
 import {
@@ -88,22 +90,53 @@ export class SocialPerformanceIntelligenceService {
       let aiOutput: PerformanceIntelligenceAIOutput;
       let isFallbackMode = false;
       let modelUsed = 'gemini-3.8-flash';
+      let provenance: AIProvenance | undefined = undefined;
 
-      const canUseAI = geminiClient.isConfigured() && input.forceFallback !== true;
+      const canUseAI = input.forceFallback !== true;
 
       if (canUseAI && totalSamples > 0) {
         try {
-          aiOutput = await this.invokeAIPerformanceAnalysis(deterministicSummary, dimensionBreakdown);
+          const aiResult = await this.invokeAIPerformanceAnalysis(deterministicSummary, dimensionBreakdown);
+          aiOutput = aiResult.aiOutput;
+          provenance = aiResult.provenance;
+          modelUsed = provenance.model || 'gemini-3.8-flash';
         } catch (aiErr: any) {
           // AI call failed or timed out — transition to deterministic rule engine safely
           isFallbackMode = true;
           modelUsed = 'DETERMINISTIC_RULE_ENGINE';
           aiOutput = this.generateDeterministicRuleInsights(deterministicSummary, dimensionBreakdown, totalSamples, insufficientDataFlag);
+          provenance = {
+            provider: 'DETERMINISTIC_FALLBACK',
+            model: 'DETERMINISTIC_RULE_ENGINE',
+            task: 'ANALYSIS',
+            generationSource: 'DETERMINISTIC_FALLBACK',
+            timestamp: new Date().toISOString(),
+            fallbackUsed: true,
+            attempts: [
+              {
+                providerId: 'DETERMINISTIC_FALLBACK',
+                modelId: 'DETERMINISTIC_RULE_ENGINE',
+                success: true,
+                latencyMs: 0,
+                errorMessage: aiErr?.message || 'AI call failed, falling back safely',
+                timestamp: new Date().toISOString(),
+              }
+            ],
+          };
         }
       } else {
         isFallbackMode = true;
         modelUsed = 'DETERMINISTIC_RULE_ENGINE';
         aiOutput = this.generateDeterministicRuleInsights(deterministicSummary, dimensionBreakdown, totalSamples, insufficientDataFlag);
+        provenance = {
+          provider: 'DETERMINISTIC_FALLBACK',
+          model: 'DETERMINISTIC_RULE_ENGINE',
+          task: 'ANALYSIS',
+          generationSource: 'DETERMINISTIC_FALLBACK',
+          timestamp: new Date().toISOString(),
+          fallbackUsed: true,
+          attempts: [],
+        };
       }
 
       // 6. Generate sequential ID: BP-SPI-######
@@ -123,6 +156,7 @@ export class SocialPerformanceIntelligenceService {
         aiInsights: aiOutput,
         isFallbackMode,
         modelUsed,
+        provenance,
         evidenceTraceability: {
           recordIdsUsed,
           totalSamples,
@@ -438,7 +472,7 @@ export class SocialPerformanceIntelligenceService {
   private async invokeAIPerformanceAnalysis(
     summary: SocialAnalyticsSummary,
     breakdown: SocialPerformanceIntelligenceRecord['dimensionBreakdown']
-  ): Promise<PerformanceIntelligenceAIOutput> {
+  ): Promise<{ aiOutput: PerformanceIntelligenceAIOutput; provenance: AIProvenance }> {
     const promptText = buildPerformanceIntelligencePrompt({
       totalRecords: summary.totalRecords,
       totalViews: summary.totalViews,
@@ -447,25 +481,19 @@ export class SocialPerformanceIntelligenceService {
       dimensionBreakdown: breakdown,
     });
 
-    const client = geminiClient.getClient();
-    if (!client) {
-      throw new Error('Gemini client unavailable');
-    }
-
-    const aiResponse = await client.models.generateContent({
-      model: 'gemini-3.8-flash',
-      contents: [
-        { role: 'user', parts: [{ text: promptText }] }
-      ],
-      config: {
-        systemInstruction: BURRA_PARIKSHA_PERFORMANCE_INTELLIGENCE_SYSTEM_INSTRUCTION,
-        responseMimeType: 'application/json',
-        responseSchema: PerformanceIntelligenceGenAISchema,
-      },
+    const aiResponseResult = await phase24AIOrchestrator.executeTask({
+      task: 'ANALYSIS',
+      prompt: promptText,
+      systemInstruction: BURRA_PARIKSHA_PERFORMANCE_INTELLIGENCE_SYSTEM_INSTRUCTION,
+      responseSchema: PerformanceIntelligenceGenAISchema,
     });
 
-    const rawText = aiResponse.text || '';
-    const parsed = JSON.parse(rawText);
+    if (aiResponseResult.status !== 'SUCCESS') {
+      throw new Error(aiResponseResult.error || 'AI performance analysis failed via Orchestrator');
+    }
+
+    // Since Gemini adapter returns parsed JSON in data:
+    const parsed = aiResponseResult.data || JSON.parse(aiResponseResult.text || '{}');
     const result = PerformanceIntelligenceZodSchema.parse(parsed);
 
     // Ensure postingTimeRecommendations are populated
@@ -476,7 +504,10 @@ export class SocialPerformanceIntelligenceService {
       );
     }
 
-    return result;
+    return {
+      aiOutput: result,
+      provenance: aiResponseResult.provenance,
+    };
   }
 
   /**

@@ -61,7 +61,7 @@ export const RetryPlatformModal: React.FC<RetryPlatformModalProps> = ({
         };
       }
 
-      const updated = await apiClient.retryPublishing(record.videoId, platform, options);
+      const updated = await apiClient.retryPublishing(record.videoId, platform.toLowerCase() as any, options);
 
       const actionText = mode === 'reschedule' ? 'rescheduled for publishing' : 'reset to DRAFT for immediate publishing';
       onSuccess(

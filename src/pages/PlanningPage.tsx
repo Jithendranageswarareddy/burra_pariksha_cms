@@ -147,7 +147,7 @@ export const PlanningPage: React.FC = () => {
 
   // Filter States
   const [planStatusFilter, setPlanStatusFilter] = useState<string>('ALL');
-  const [planCategoryFilter, setPlanCategoryFilter] = useState<string>('ALL');
+  const [planTopicFilter, setPlanTopicFilter] = useState<string>('ALL');
   const [planPriorityFilter, setPlanPriorityFilter] = useState<string>('ALL');
   const [planDifficultyFilter, setPlanDifficultyFilter] = useState<string>('ALL');
   const [planSearchQuery, setPlanSearchQuery] = useState<string>('');
@@ -155,7 +155,7 @@ export const PlanningPage: React.FC = () => {
   const [batchStatusFilter, setBatchStatusFilter] = useState<string>('ALL');
   const [batchSearchQuery, setBatchSearchQuery] = useState<string>('');
 
-  const [expandedCategoryId, setExpandedCategoryId] = useState<string | null>(null);
+  const [expandedTopicId, setExpandedTopicId] = useState<string | null>(null);
 
   // Initial Data Load
   const fetchAllData = async () => {
@@ -205,12 +205,12 @@ export const PlanningPage: React.FC = () => {
     fetchAllData();
   }, []);
 
-  // Filtered dropdowns for plan creation
-  const availableTopicsForPlan = topics.filter((t) => t.categoryId === planForm.categoryId);
+  // Filtered dropdowns for plan creation (Topic -> Subtopic primary)
+  const availableTopicsForPlan = topics;
   const availableSubtopicsForPlan = subtopics.filter((s) => s.topicId === planForm.topicId);
 
   // Available topics for AI Assistant
-  const availableTopicsForAi = topics.filter((t) => t.categoryId === aiForm.categoryId);
+  const availableTopicsForAi = topics;
 
   // Handlers
   const handleCreatePlan = async (e: React.FormEvent) => {
@@ -464,7 +464,7 @@ export const PlanningPage: React.FC = () => {
   const filteredPlans = useMemo(() => {
     return plans.filter((p) => {
       if (planStatusFilter !== 'ALL' && p.status !== planStatusFilter) return false;
-      if (planCategoryFilter !== 'ALL' && p.categoryId !== planCategoryFilter) return false;
+      if (planTopicFilter !== 'ALL' && p.topicId !== planTopicFilter) return false;
       if (planPriorityFilter !== 'ALL' && p.priority !== planPriorityFilter) return false;
       if (planDifficultyFilter !== 'ALL' && p.difficulty !== planDifficultyFilter) return false;
       if (planSearchQuery.trim()) {
@@ -473,14 +473,13 @@ export const PlanningPage: React.FC = () => {
           (p.id || '').toLowerCase().includes(q) ||
           (p.subtopicName && p.subtopicName.toLowerCase().includes(q)) ||
           (p.topicName && p.topicName.toLowerCase().includes(q)) ||
-          (p.categoryName && p.categoryName.toLowerCase().includes(q)) ||
           (p.notes && p.notes.toLowerCase().includes(q)) ||
           (p.realWorldContext && p.realWorldContext.toLowerCase().includes(q));
         if (!matches) return false;
       }
       return true;
     });
-  }, [plans, planStatusFilter, planCategoryFilter, planPriorityFilter, planDifficultyFilter, planSearchQuery]);
+  }, [plans, planStatusFilter, planTopicFilter, planPriorityFilter, planDifficultyFilter, planSearchQuery]);
 
   // Calendar groupings for editorial schedule
   const calendarSchedule = useMemo(() => {
@@ -801,17 +800,17 @@ export const PlanningPage: React.FC = () => {
               </div>
 
               <div className="flex items-center gap-1.5 bg-slate-950 px-2.5 py-1.5 rounded-lg border border-slate-800">
-                <span className="text-slate-400 shrink-0">Category:</span>
+                <span className="text-slate-400 shrink-0">Topic:</span>
                 <select
-                  id="plan-category-filter"
-                  value={planCategoryFilter}
-                  onChange={(e) => setPlanCategoryFilter(e.target.value)}
+                  id="plan-topic-filter"
+                  value={planTopicFilter}
+                  onChange={(e) => setPlanTopicFilter(e.target.value)}
                   className="bg-transparent text-slate-200 w-full focus:outline-hidden"
                 >
-                  <option value="ALL">All Categories</option>
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
+                  <option value="ALL">All Topics</option>
+                  {topics.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
                     </option>
                   ))}
                 </select>
@@ -910,8 +909,6 @@ export const PlanningPage: React.FC = () => {
                     {/* Taxonomy Hierarchy */}
                     <h3 className="text-base font-bold text-white mb-1">{plan.subtopicName}</h3>
                     <div className="text-xs text-slate-400 flex items-center gap-1 mb-3">
-                      <span>{plan.categoryName}</span>
-                      <span>›</span>
                       <span>{plan.topicName}</span>
                     </div>
 
@@ -1048,7 +1045,7 @@ export const PlanningPage: React.FC = () => {
                             </span>
                           </div>
                           <h4 className="text-sm font-bold text-white mb-0.5">{plan.subtopicName}</h4>
-                          <span className="text-[11px] text-slate-400 block mb-2">{plan.categoryName} › {plan.topicName}</span>
+                          <span className="text-[11px] text-slate-400 block mb-2">{plan.topicName}</span>
 
                           <div className="flex items-center justify-between text-[11px] text-slate-300 bg-slate-900 p-2 rounded border border-slate-800 mb-2">
                             <span>Progress:</span>
@@ -1105,7 +1102,7 @@ export const PlanningPage: React.FC = () => {
                             </span>
                           </div>
                           <h4 className="text-sm font-bold text-white mb-0.5">{plan.subtopicName}</h4>
-                          <span className="text-[11px] text-slate-400 block mb-2">{plan.categoryName} › {plan.topicName}</span>
+                          <span className="text-[11px] text-slate-400 block mb-2">{plan.topicName}</span>
 
                           <div className="flex items-center justify-between text-[11px] text-slate-300 bg-slate-900 p-2 rounded border border-slate-800 mb-2">
                             <span>Progress:</span>
@@ -1162,7 +1159,7 @@ export const PlanningPage: React.FC = () => {
                             </span>
                           </div>
                           <h4 className="text-sm font-bold text-white mb-0.5">{plan.subtopicName}</h4>
-                          <span className="text-[11px] text-slate-400 block mb-2">{plan.categoryName} › {plan.topicName}</span>
+                          <span className="text-[11px] text-slate-400 block mb-2">{plan.topicName}</span>
                         </div>
 
                         <div className="flex items-center justify-between pt-2 border-t border-slate-800/80 text-xs">
@@ -1204,7 +1201,7 @@ export const PlanningPage: React.FC = () => {
                         >
                           <div>
                             <span className="font-bold text-white block">{plan.subtopicName}</span>
-                            <span className="text-slate-400 text-[11px]">{plan.categoryName} › {plan.topicName}</span>
+                            <span className="text-slate-400 text-[11px]">{plan.topicName}</span>
                           </div>
                           <button
                             onClick={() => setSelectedPlanForDetails(plan)}
@@ -1240,7 +1237,7 @@ export const PlanningPage: React.FC = () => {
                         >
                           <div>
                             <span className="font-bold text-white block">{plan.subtopicName}</span>
-                            <span className="text-slate-400 text-[11px]">{plan.categoryName} › {plan.topicName}</span>
+                            <span className="text-slate-400 text-[11px]">{plan.topicName}</span>
                           </div>
                           <button
                             onClick={() => setSelectedPlanForDetails(plan)}
@@ -1509,8 +1506,8 @@ export const PlanningPage: React.FC = () => {
           <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
             <div className="p-4 border-b border-slate-800 bg-slate-900/80 flex items-center justify-between">
               <div>
-                <h3 className="text-base font-bold text-white">Hierarchical Taxonomy Matrix</h3>
-                <p className="text-xs text-slate-400">Click any category to expand its topics and subtopics.</p>
+                <h3 className="text-base font-bold text-white">Topic & Subtopic Coverage Matrix</h3>
+                <p className="text-xs text-slate-400">Click any topic to expand its subtopics.</p>
               </div>
               <span className="text-xs text-slate-400 font-medium">
                 {coverage.coveredSubtopicsCount} of {coverage.totalSubtopics} Subtopics Covered ({coverage.overallTaxonomyCoveragePercentage}%)
@@ -1518,23 +1515,20 @@ export const PlanningPage: React.FC = () => {
             </div>
 
             <div className="divide-y divide-slate-800">
-              {coverage.categories.map((cat) => {
-                const isExpanded = expandedCategoryId === cat.categoryId;
+              {coverage.categories.flatMap((c) => c.topics).map((top) => {
+                const isExpanded = expandedTopicId === top.topicId;
                 return (
-                  <div key={cat.categoryId} className="bg-slate-900">
+                  <div key={top.topicId} className="bg-slate-900">
                     <button
-                      onClick={() => setExpandedCategoryId(isExpanded ? null : cat.categoryId)}
-                      className="w-full p-4 flex items-center justify-between hover:bg-slate-850 transition-colors text-left"
+                      onClick={() => setExpandedTopicId(isExpanded ? null : top.topicId)}
+                      className="w-full p-4 flex items-center justify-between hover:bg-slate-850 transition-colors text-left cursor-pointer"
                     >
                       <div className="flex items-center gap-3">
-                        <div
-                          className="w-3 h-3 rounded-full shrink-0"
-                          style={{ backgroundColor: cat.colorCode || '#6366f1' }}
-                        />
+                        <div className="w-3 h-3 rounded-full shrink-0 bg-indigo-500" />
                         <div>
-                          <span className="text-base font-semibold text-white">{cat.categoryName}</span>
+                          <span className="text-base font-semibold text-white">{top.topicName}</span>
                           <span className="text-xs text-slate-400 block">
-                            {cat.totalTopics} Topics • {cat.totalSubtopics} Subtopics • {cat.totalQuestions} Questions
+                            {top.subtopicsCount} Subtopics • {top.totalQuestions} Questions
                           </span>
                         </div>
                       </div>
@@ -1543,7 +1537,7 @@ export const PlanningPage: React.FC = () => {
                         <div className="text-right hidden sm:block">
                           <span className="text-xs text-slate-400">Subtopic Coverage</span>
                           <span className="text-sm font-bold text-slate-200 block">
-                            {cat.coveredSubtopics}/{cat.totalSubtopics} ({cat.coveragePercentage}%)
+                            {top.activeSubtopicsCount}/{top.subtopicsCount} ({top.coveragePercentage}%)
                           </span>
                         </div>
                         {isExpanded ? <ChevronDown className="w-5 h-5 text-slate-400" /> : <ChevronRight className="w-5 h-5 text-slate-400" />}
@@ -1551,58 +1545,47 @@ export const PlanningPage: React.FC = () => {
                     </button>
 
                     {isExpanded && (
-                      <div className="bg-slate-950 p-4 border-t border-slate-800 space-y-4">
-                        {cat.topics.map((top) => (
-                          <div key={top.topicId} className="bg-slate-900 p-3.5 rounded-lg border border-slate-800">
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="text-sm font-bold text-slate-200">{top.topicName}</span>
-                              <span className="text-xs text-slate-400">
-                                {top.activeSubtopicsCount}/{top.subtopicsCount} active • {top.totalQuestions} questions
-                              </span>
-                            </div>
-
-                            {/* Subtopics Grid */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 mt-2">
-                              {top.subtopics.map((sub) => (
-                                <div
-                                  key={sub.subtopicId}
-                                  className={`p-2.5 rounded border text-xs flex flex-col justify-between ${
+                      <div className="bg-slate-950 p-4 border-t border-slate-800">
+                        {/* Subtopics Grid */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                          {top.subtopics.map((sub) => (
+                            <div
+                              key={sub.subtopicId}
+                              className={`p-2.5 rounded border text-xs flex flex-col justify-between ${
+                                sub.isZeroCoverage
+                                  ? 'bg-rose-950/20 border-rose-800/40 text-rose-300'
+                                  : sub.isLowCoverage
+                                  ? 'bg-amber-950/20 border-amber-800/40 text-amber-300'
+                                  : 'bg-slate-950/60 border-slate-800 text-slate-300'
+                              }`}
+                            >
+                              <div className="flex items-start justify-between gap-1 mb-1">
+                                <span className="font-semibold text-slate-200">{sub.subtopicName}</span>
+                                <span
+                                  className={`px-1.5 py-0.5 rounded font-mono font-bold text-[10px] ${
                                     sub.isZeroCoverage
-                                      ? 'bg-rose-950/20 border-rose-800/40 text-rose-300'
-                                      : sub.isLowCoverage
-                                      ? 'bg-amber-950/20 border-amber-800/40 text-amber-300'
-                                      : 'bg-slate-950/60 border-slate-800 text-slate-300'
+                                      ? 'bg-rose-500/20 text-rose-300'
+                                      : 'bg-indigo-500/20 text-indigo-300'
                                   }`}
                                 >
-                                  <div className="flex items-start justify-between gap-1 mb-1">
-                                    <span className="font-semibold text-slate-200">{sub.subtopicName}</span>
-                                    <span
-                                      className={`px-1.5 py-0.5 rounded font-mono font-bold text-[10px] ${
-                                        sub.isZeroCoverage
-                                          ? 'bg-rose-500/20 text-rose-300'
-                                          : 'bg-indigo-500/20 text-indigo-300'
-                                      }`}
-                                    >
-                                      {sub.totalQuestions} Qs
-                                    </span>
-                                  </div>
+                                  {sub.totalQuestions} Qs
+                                </span>
+                              </div>
 
-                                  <div className="flex items-center justify-between text-[10px] text-slate-500 mt-2">
-                                    <span>E:{sub.byDifficulty.easy} M:{sub.byDifficulty.medium} H:{sub.byDifficulty.hard}</span>
-                                    {sub.isZeroCoverage && (
-                                      <button
-                                        onClick={() => handleQuickCreatePlanForGap(sub.subtopicId)}
-                                        className="text-indigo-400 hover:text-indigo-300 font-semibold underline"
-                                      >
-                                        + Plan
-                                      </button>
-                                    )}
-                                  </div>
-                                </div>
-                              ))}
+                              <div className="flex items-center justify-between text-[10px] text-slate-500 mt-2">
+                                <span>E:{sub.byDifficulty.easy} M:{sub.byDifficulty.medium} H:{sub.byDifficulty.hard}</span>
+                                {sub.isZeroCoverage && (
+                                  <button
+                                    onClick={() => handleQuickCreatePlanForGap(sub.subtopicId)}
+                                    className="text-indigo-400 hover:text-indigo-300 font-semibold underline cursor-pointer"
+                                  >
+                                    + Plan
+                                  </button>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -1646,7 +1629,7 @@ export const PlanningPage: React.FC = () => {
                     className="bg-slate-950 p-3.5 rounded-lg border border-slate-800 flex flex-col justify-between"
                   >
                     <div>
-                      <span className="text-xs text-slate-500 block mb-0.5">{gap.categoryName} › {gap.topicName}</span>
+                      <span className="text-xs text-slate-500 block mb-0.5">{gap.topicName}</span>
                       <h4 className="text-sm font-bold text-white mb-2">{gap.subtopicName}</h4>
                     </div>
 
@@ -1844,28 +1827,20 @@ export const PlanningPage: React.FC = () => {
 
             <form onSubmit={handleGenerateAiRecommendation} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">Target Category *</label>
+                <label className="text-xs font-semibold text-slate-300 block mb-1">Target Topic *</label>
                 <select
                   required
-                  value={aiForm.categoryId}
-                  onChange={(e) => setAiForm({ ...aiForm, categoryId: e.target.value, topicId: '' })}
-                  className="w-full bg-slate-950 text-slate-200 text-xs p-2.5 rounded-lg border border-slate-800 focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="">Select Category</option>
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">Specific Topic (Optional)</label>
-                <select
                   value={aiForm.topicId}
-                  onChange={(e) => setAiForm({ ...aiForm, topicId: e.target.value })}
+                  onChange={(e) => {
+                    const tId = e.target.value;
+                    setAiForm({
+                      ...aiForm,
+                      topicId: tId,
+                    });
+                  }}
                   className="w-full bg-slate-950 text-slate-200 text-xs p-2.5 rounded-lg border border-slate-800 focus:ring-2 focus:ring-indigo-500"
                 >
-                  <option value="">All Topics in Category</option>
+                  <option value="">Select Topic</option>
                   {availableTopicsForAi.map((t) => (
                     <option key={t.id} value={t.id}>{t.name}</option>
                   ))}
@@ -1887,8 +1862,8 @@ export const PlanningPage: React.FC = () => {
               <div className="flex items-end">
                 <button
                   type="submit"
-                  disabled={isGeneratingAiPlan || !aiForm.categoryId}
-                  className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-semibold rounded-lg shadow-sm flex items-center justify-center gap-2"
+                  disabled={isGeneratingAiPlan || !aiForm.topicId}
+                  className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-semibold rounded-lg shadow-sm flex items-center justify-center gap-2 cursor-pointer"
                 >
                   {isGeneratingAiPlan ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                   Generate AI Plan
@@ -1979,30 +1954,23 @@ export const PlanningPage: React.FC = () => {
             </div>
 
             <form onSubmit={handleCreatePlan} className="space-y-3 text-xs">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
-                  <label className="font-semibold text-slate-300 block mb-1">Category *</label>
-                  <select
-                    required
-                    value={planForm.categoryId}
-                    onChange={(e) => setPlanForm({ ...planForm, categoryId: e.target.value, topicId: '', subtopicId: '' })}
-                    className="w-full bg-slate-950 text-slate-200 p-2 rounded border border-slate-800"
-                  >
-                    <option value="">Select</option>
-                    {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
-                </div>
-
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="font-semibold text-slate-300 block mb-1">Topic *</label>
                   <select
                     required
-                    disabled={!planForm.categoryId}
                     value={planForm.topicId}
-                    onChange={(e) => setPlanForm({ ...planForm, topicId: e.target.value, subtopicId: '' })}
-                    className="w-full bg-slate-950 text-slate-200 p-2 rounded border border-slate-800 disabled:opacity-50"
+                    onChange={(e) => {
+                      const tId = e.target.value;
+                      setPlanForm({
+                        ...planForm,
+                        topicId: tId,
+                        subtopicId: '',
+                      });
+                    }}
+                    className="w-full bg-slate-950 text-slate-200 p-2 rounded border border-slate-800"
                   >
-                    <option value="">Select</option>
+                    <option value="">Select Topic</option>
                     {availableTopicsForPlan.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
                   </select>
                 </div>
@@ -2016,7 +1984,7 @@ export const PlanningPage: React.FC = () => {
                     onChange={(e) => setPlanForm({ ...planForm, subtopicId: e.target.value })}
                     className="w-full bg-slate-950 text-slate-200 p-2 rounded border border-slate-800 disabled:opacity-50"
                   >
-                    <option value="">Select</option>
+                    <option value="">Select Subtopic</option>
                     {availableSubtopicsForPlan.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
                 </div>
@@ -2149,7 +2117,7 @@ export const PlanningPage: React.FC = () => {
                   <option value="">Select Content Plan</option>
                   {plans.map((p) => (
                     <option key={p.id} value={p.id}>
-                      {p.id} — {p.categoryName} › {p.topicName} ({p.subtopicName})
+                      {p.id} — {p.topicName} ({p.subtopicName})
                     </option>
                   ))}
                 </select>
@@ -2342,7 +2310,7 @@ export const PlanningPage: React.FC = () => {
                 </div>
                 <h2 className="text-xl font-bold text-white">{selectedPlanForDetails.subtopicName}</h2>
                 <span className="text-xs text-slate-400">
-                  {selectedPlanForDetails.categoryName} › {selectedPlanForDetails.topicName}
+                  {selectedPlanForDetails.topicName}
                 </span>
               </div>
               <button

@@ -20,7 +20,6 @@ import { QueueTable } from '../components/queue/QueueTable';
 import { EmptyState } from '../components/common/EmptyState';
 import { apiClient } from '../lib/api-client';
 import {
-  Category,
   DifficultyLevel,
   PriorityLevel,
   ProductionStats,
@@ -31,28 +30,24 @@ import {
 export const QueuePage: React.FC = () => {
   const [videos, setVideos] = useState<VideoType[]>([]);
   const [stats, setStats] = useState<ProductionStats | null>(null);
-  const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Filters State
   const [searchQuery, setSearchQuery] = useState('');
   const [priorityFilter, setPriorityFilter] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('');
-  const [categoryFilter, setCategoryFilter] = useState<string>('');
   const [difficultyFilter, setDifficultyFilter] = useState<string>('');
   const [sortBy, setSortBy] = useState<'priority' | 'newest' | 'oldest'>('priority');
 
   const loadQueueData = async () => {
     setIsLoading(true);
     try {
-      const [videosData, statsData, catData] = await Promise.all([
+      const [videosData, statsData] = await Promise.all([
         apiClient.getVideos().catch(() => []),
         apiClient.getProductionStats().catch(() => null),
-        apiClient.getCategories().catch(() => []),
       ]);
       setVideos(videosData);
       setStats(statsData);
-      setCategories(catData);
     } catch (err) {
       console.error('Error loading video queue:', err);
     } finally {
@@ -81,9 +76,6 @@ export const QueuePage: React.FC = () => {
         // Status filter
         if (statusFilter && v.status !== statusFilter) return false;
 
-        // Category filter
-        if (categoryFilter && v.question?.categoryId !== categoryFilter) return false;
-
         // Difficulty filter
         if (difficultyFilter && v.question?.difficulty !== difficultyFilter) return false;
 
@@ -95,8 +87,8 @@ export const QueuePage: React.FC = () => {
           const matchTitle = (v.title || '').toLowerCase().includes(q);
           const matchText = v.question?.questionText?.toLowerCase().includes(q);
           const matchTopic = v.question?.topicName?.toLowerCase().includes(q);
-          const matchCat = v.question?.categoryName?.toLowerCase().includes(q);
-          if (!matchId && !matchQId && !matchTitle && !matchText && !matchTopic && !matchCat) return false;
+          const matchSubtopic = v.question?.subtopicName?.toLowerCase().includes(q);
+          if (!matchId && !matchQId && !matchTitle && !matchText && !matchTopic && !matchSubtopic) return false;
         }
 
         return true;
@@ -119,12 +111,11 @@ export const QueuePage: React.FC = () => {
         if (diff !== 0) return diff;
         return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
       });
-  }, [videos, priorityFilter, statusFilter, categoryFilter, difficultyFilter, searchQuery, sortBy]);
+  }, [videos, priorityFilter, statusFilter, difficultyFilter, searchQuery, sortBy]);
 
   const activeFiltersCount = [
     priorityFilter,
     statusFilter,
-    categoryFilter,
     difficultyFilter,
     searchQuery,
   ].filter(Boolean).length;
@@ -280,20 +271,6 @@ export const QueuePage: React.FC = () => {
               ))}
             </select>
 
-            {/* Category Filter */}
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:ring-indigo-500"
-            >
-              <option value="">All Categories</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-
             {/* Difficulty Filter */}
             <select
               value={difficultyFilter}
@@ -314,7 +291,6 @@ export const QueuePage: React.FC = () => {
               onClick={() => {
                 setPriorityFilter('');
                 setStatusFilter('');
-                setCategoryFilter('');
                 setDifficultyFilter('');
                 setSearchQuery('');
               }}

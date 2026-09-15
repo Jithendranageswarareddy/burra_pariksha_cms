@@ -28,7 +28,7 @@ import {
   SourceQuestionContext,
   EnhancedSocialScriptContext,
 } from '../validators/social-invariance.validator';
-import { GeminiService } from '../ai/gemini.service';
+import { phase24AIOrchestrator } from '../ai/phase24-orchestrator.service';
 import { PlatformAdaptationService } from './platform-adaptation.service';
 import { socialQualityService } from './social-quality.service';
 
@@ -112,7 +112,7 @@ export class SocialEnhancementService {
       questionId: question.id,
       videoId: videoId || (question as any).videoId,
       contentMasterId: contentMasterId || question.contentMasterId,
-      language: question.language || QuestionLanguage.TELUGU,
+      language: (question.language as QuestionLanguage) || QuestionLanguage.TELUGU,
       status: eligibility.isEligible ? SocialEnhancementStatus.DRAFT : SocialEnhancementStatus.REJECTED,
       selectedHookStyle: HookStyle.CURIOSITY,
       hooks: [
@@ -231,10 +231,10 @@ export class SocialEnhancementService {
         ];
 
     // 2. Invoke Bounded Single AI Call
-    const aiResult = await GeminiService.getInstance().generateSocialHooksAndStrategy(
+    const aiResult = await phase24AIOrchestrator.generateSocialHooksAndStrategy(
       question,
       stylesToGenerate,
-      targetLanguage
+      targetLanguage as QuestionLanguage
     );
 
     // 3. Post-Generation Deterministic Invariance Check across all generated hooks
@@ -303,7 +303,7 @@ export class SocialEnhancementService {
       questionId: question.id,
       videoId: videoId || (question as any).videoId,
       contentMasterId: contentMasterId || question.contentMasterId,
-      language: targetLanguage,
+      language: targetLanguage as QuestionLanguage,
       status,
       selectedHookStyle: stylesToGenerate[0] || HookStyle.CURIOSITY,
       hooks: validatedHooks,
@@ -385,11 +385,11 @@ export class SocialEnhancementService {
     const targetWpm = pacingWpm || 140;
 
     // 2. Invoke Bounded Single AI Call
-    const aiResult = await GeminiService.getInstance().generateSpokenTeleprompterScript(
+    const aiResult = await phase24AIOrchestrator.generateSpokenTeleprompterScript(
       question,
       selectedHookText,
       targetHookStyle,
-      targetLanguage,
+      targetLanguage as QuestionLanguage,
       targetWpm
     );
 
@@ -478,7 +478,7 @@ export class SocialEnhancementService {
       questionId: question.id,
       selectedHookStyle: targetHookStyle,
       selectedHookText,
-      language: targetLanguage,
+      language: targetLanguage as QuestionLanguage,
       totalEstimatedDurationSeconds: aiResult.totalEstimatedDurationSeconds,
       pacingWpm: aiResult.pacingWpm,
       segments: normalizedSegments,
@@ -523,13 +523,12 @@ export class SocialEnhancementService {
 
     const targetLanguage = language || question.language || QuestionLanguage.TELUGU;
 
-    // 2. Invoke Gemini AI (or Fallback) via GeminiService in ONE call
-    const geminiService = GeminiService.getInstance();
-    const aiResult = await geminiService.generateSocialMetadata(
+    // 2. Invoke AI (or Fallback) via Phase24 AI Orchestrator in ONE call
+    const aiResult = await phase24AIOrchestrator.generateSocialMetadata(
       question,
       selectedHookText,
       teleprompterScript,
-      targetLanguage
+      targetLanguage as QuestionLanguage
     );
 
     // 3. Answer Leakage Check
@@ -625,7 +624,7 @@ export class SocialEnhancementService {
     const payload: SocialMetadataPayload = {
       id: `SMETA-${question.id}-${Date.now().toString(36).toUpperCase()}`,
       questionId: question.id!,
-      language: targetLanguage,
+      language: targetLanguage as QuestionLanguage,
       shortTitle: aiResult.metadata.shortTitle,
       socialCaption: aiResult.metadata.socialCaption,
       extendedDescription: aiResult.metadata.extendedDescription,

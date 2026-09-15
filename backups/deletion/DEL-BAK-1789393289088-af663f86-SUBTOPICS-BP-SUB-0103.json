@@ -1,0 +1,48 @@
+{
+  "id": "DEL-BAK-1789393289088-af663f86",
+  "backupTimestamp": "2026-09-14T13:41:29.088Z",
+  "sheetName": "SUBTOPICS",
+  "entityId": "BP-SUB-0103",
+  "physicalRowIndex": 102,
+  "headers": [
+    "id",
+    "topic_id",
+    "name",
+    "slug",
+    "description",
+    "notes",
+    "display_order",
+    "is_active",
+    "created_at",
+    "updated_at"
+  ],
+  "rawRow": [
+    "BP-SUB-0103",
+    "BP-TOP-103",
+    "Test Modular Arithmetic 1789386763743",
+    "test-modular-arithmetic-1789386763743",
+    "",
+    "Temporary subtopic for Task 2B verification",
+    1,
+    true,
+    "2026-09-14T11:52:44.714Z",
+    "2026-09-14T11:52:44.714Z"
+  ],
+  "record": {
+    "id": "BP-SUB-0103",
+    "topicId": "BP-TOP-103",
+    "name": "Test Modular Arithmetic 1789386763743",
+    "slug": "test-modular-arithmetic-1789386763743",
+    "notes": "Temporary subtopic for Task 2B verification",
+    "displayOrder": 1,
+    "isActive": true,
+    "createdAt": "2026-09-14T11:52:44.714Z",
+    "updatedAt": "2026-09-14T11:52:44.714Z"
+  },
+  "checksum": "f88c5dc7e50103a0eb436549ba8e6d16414bf3f7552140e0fad5c8901cb964cd",
+  "actor": {
+    "id": "PHASE2_REMEDIATION",
+    "name": "Safe Remediation Pipeline"
+  },
+  "reason": "Phase 2 remediation of synthetic test subtopic"
+}

@@ -3,4 +3,4 @@
  * Phase 2: Google Sheets Database Architecture & Persistence
  */
 
-export { UsersRepository, usersRepository } from './audit-log.repository';
+export { UsersRepository, usersRepository, type UserSessionState } from './audit-log.repository';

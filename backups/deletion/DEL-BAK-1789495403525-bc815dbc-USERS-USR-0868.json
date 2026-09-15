@@ -1,0 +1,52 @@
+{
+  "id": "DEL-BAK-1789495403525-bc815dbc",
+  "backupTimestamp": "2026-09-15T18:03:23.525Z",
+  "sheetName": "USERS",
+  "entityId": "USR-0868",
+  "physicalRowIndex": 4,
+  "headers": [
+    "id",
+    "name",
+    "email",
+    "role",
+    "avatar_url",
+    "is_active",
+    "password_hash",
+    "last_login_at",
+    "created_at",
+    "updated_at",
+    "session_version"
+  ],
+  "rawRow": [
+    "USR-0868",
+    "Ramesh Teluguspeaker",
+    "ramesh.1789414150867@burrapariksha.com",
+    "CONTENT_WRITER",
+    "",
+    true,
+    "",
+    "",
+    "2026-09-14T19:29:10.868Z",
+    "2026-09-14T19:29:13.117Z",
+    2
+  ],
+  "record": {
+    "id": "USR-0868",
+    "name": "Ramesh Teluguspeaker",
+    "email": "ramesh.1789414150867@burrapariksha.com",
+    "role": "CONTENT_WRITER",
+    "isActive": true,
+    "createdAt": "2026-09-14T19:29:10.868Z",
+    "updatedAt": "2026-09-14T19:29:13.117Z",
+    "sessionVersion": 2,
+    "roles": [
+      "CONTENT_WRITER"
+    ]
+  },
+  "checksum": "c53e4e19b7883d7fc594663d7c25c3d9601b161df1f6c107b1c879fb5701cd28",
+  "actor": {
+    "id": "SYSTEM_CLEANUP",
+    "name": "Production Test-Data Sanitizer"
+  },
+  "reason": "Phase 30 Pre-Acceptance Production Cleanup"
+}

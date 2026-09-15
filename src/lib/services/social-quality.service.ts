@@ -23,14 +23,14 @@ import {
   SourceQuestionContext,
   EnhancedSocialScriptContext,
 } from '../validators/social-invariance.validator';
-import { geminiService } from '../ai/gemini.service';
+import { phase24AIOrchestrator } from '../ai/phase24-orchestrator.service';
 import { AIProviderOptions } from '../ai/types';
 import { detectAnswerLeakage } from './platform-adaptation.service';
 
 export const QUALITY_DIMENSION_WEIGHTS: Record<SocialQualityDimension, number> = {
-  [SocialQualityDimension.ANSWER_INTEGRITY]: 0.20,
-  [SocialQualityDimension.CLARITY]: 0.15,
-  [SocialQualityDimension.CURIOSITY]: 0.15,
+  [SocialQualityDimension.ANSWER_INTEGRITY]: 0.15,
+  [SocialQualityDimension.CLARITY]: 0.10,
+  [SocialQualityDimension.CURIOSITY]: 0.10,
   [SocialQualityDimension.COMMENTABILITY]: 0.10,
   [SocialQualityDimension.RETENTION_POTENTIAL]: 0.10,
   [SocialQualityDimension.LANGUAGE_QUALITY]: 0.10,
@@ -38,6 +38,8 @@ export const QUALITY_DIMENSION_WEIGHTS: Record<SocialQualityDimension, number> =
   [SocialQualityDimension.CHALLENGE_QUALITY]: 0.05,
   [SocialQualityDimension.REAL_LIFE_RELEVANCE]: 0.05,
   [SocialQualityDimension.AUDIENCE_SUITABILITY]: 0.05,
+  [SocialQualityDimension.REPETITION_RISK]: 0.05,
+  [SocialQualityDimension.AUDIENCE_APPEAL]: 0.05,
 };
 
 export class SocialQualityService {
@@ -312,6 +314,8 @@ export class SocialQualityService {
         [SocialQualityDimension.SOCIAL_PRESENTATION]: 50,
         [SocialQualityDimension.LANGUAGE_QUALITY]: 50,
         [SocialQualityDimension.AUDIENCE_SUITABILITY]: 50,
+        [SocialQualityDimension.REPETITION_RISK]: 50,
+        [SocialQualityDimension.AUDIENCE_APPEAL]: 50,
       };
 
       return {
@@ -333,7 +337,7 @@ export class SocialQualityService {
 
     // Step 2: Skip AI or Force Fallback if requested
     if (options?.skipAI) {
-      const fallbackAI = geminiService.createFallbackSocialQualityAssessment(sourceQuestion, enhancementPackage);
+      const fallbackAI = phase24AIOrchestrator.createFallbackSocialQualityAssessment(sourceQuestion, enhancementPackage);
       return this.buildFinalPayload(
         payloadId,
         sourceQuestion.id,
@@ -353,7 +357,7 @@ export class SocialQualityService {
     let aiOutput: any = null;
 
     try {
-      const result = await geminiService.assessSocialQuality(
+      const result = await phase24AIOrchestrator.generateSocialQualityAssessment(
         sourceQuestion,
         enhancementPackage,
         platformAdaptations,
@@ -366,7 +370,7 @@ export class SocialQualityService {
       }
     } catch (err) {
       console.warn('[SocialQualityService] AI assessment error, using fallback:', err);
-      aiOutput = geminiService.createFallbackSocialQualityAssessment(sourceQuestion, enhancementPackage);
+      aiOutput = phase24AIOrchestrator.createFallbackSocialQualityAssessment(sourceQuestion, enhancementPackage);
       method = 'DETERMINISTIC_FALLBACK';
       aiCallsCount = 1;
     }
@@ -410,6 +414,8 @@ export class SocialQualityService {
       [SocialQualityDimension.SOCIAL_PRESENTATION]: Math.round(aiOutput.scores.socialPresentation),
       [SocialQualityDimension.LANGUAGE_QUALITY]: Math.round(aiOutput.scores.languageQuality),
       [SocialQualityDimension.AUDIENCE_SUITABILITY]: Math.round(aiOutput.scores.audienceSuitability),
+      [SocialQualityDimension.REPETITION_RISK]: Math.round(aiOutput.scores.repetitionRisk),
+      [SocialQualityDimension.AUDIENCE_APPEAL]: Math.round(aiOutput.scores.audienceAppeal),
     };
 
     // Calculate composite weighted score

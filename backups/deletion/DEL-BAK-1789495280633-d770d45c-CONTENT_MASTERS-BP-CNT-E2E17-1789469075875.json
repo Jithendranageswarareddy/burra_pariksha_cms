@@ -1,0 +1,48 @@
+{
+  "id": "DEL-BAK-1789495280633-d770d45c",
+  "backupTimestamp": "2026-09-15T18:01:20.633Z",
+  "sheetName": "CONTENT_MASTERS",
+  "entityId": "BP-CNT-E2E17-1789469075875",
+  "physicalRowIndex": 2,
+  "headers": [
+    "id",
+    "content_id",
+    "title",
+    "status",
+    "primary_question_id",
+    "category_id",
+    "topic_id",
+    "subtopic_id",
+    "created_by",
+    "created_at",
+    "updated_at",
+    "archived_at"
+  ],
+  "rawRow": [
+    "BP-CNT-E2E17-1789469075875",
+    "BP-CNT-E2E17-1789469075875",
+    "Phase 17 Real Drive E2E Content",
+    "APPROVED",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "2026-09-15T10:44:35.875Z",
+    "2026-09-15T10:44:35.875Z"
+  ],
+  "record": {
+    "id": "BP-CNT-E2E17-1789469075875",
+    "contentId": "BP-CNT-E2E17-1789469075875",
+    "title": "Phase 17 Real Drive E2E Content",
+    "status": "APPROVED",
+    "createdAt": "2026-09-15T10:44:35.875Z",
+    "updatedAt": "2026-09-15T10:44:35.875Z"
+  },
+  "checksum": "4e54512e29c17c33cc45c8fd2235ba32c0ab1f604c7fa4e03b27034099f5459d",
+  "actor": {
+    "id": "SYSTEM_CLEANUP",
+    "name": "Production Test-Data Sanitizer"
+  },
+  "reason": "Phase 30 Pre-Acceptance Production Cleanup"
+}

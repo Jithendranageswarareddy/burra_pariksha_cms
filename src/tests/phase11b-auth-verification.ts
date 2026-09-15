@@ -78,17 +78,26 @@ export async function runPhase11bAuthVerification() {
   const unknownUserLogin = await authService.login('USR-UNKNOWN-999', 'any_password');
   assert(unknownUserLogin.success === false, 'Login fails for non-existent user ID');
 
-  // Inactive User Rejection Test
-  const tempInactive = await usersRepository.appendRecord({
-    id: 'USR-INACTIVE-TEST',
-    name: 'Temporary Inactive User',
-    email: 'temp.inactive@burrapariksha.local',
-    role: UserRole.REVIEWER,
-    isActive: false,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  });
-  const inactiveLogin = await authService.login(tempInactive.id, 'password123');
+  // Inactive User Rejection Test without polluting live production workbook
+  const originalFindById = usersRepository.findById.bind(usersRepository);
+  usersRepository.findById = async (id: string) => {
+    if (id === 'USR-INACTIVE-TEST') {
+      return {
+        id: 'USR-INACTIVE-TEST',
+        name: 'Temporary Inactive User',
+        email: 'temp.inactive@burrapariksha.local',
+        role: UserRole.REVIEWER,
+        roles: [UserRole.REVIEWER],
+        isActive: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+    }
+    return originalFindById(id);
+  };
+
+  const inactiveLogin = await authService.login('USR-INACTIVE-TEST', 'password123');
+  usersRepository.findById = originalFindById;
   assert(inactiveLogin.success === false, 'Inactive users are strictly blocked from logging in');
 
   // ============================================================================

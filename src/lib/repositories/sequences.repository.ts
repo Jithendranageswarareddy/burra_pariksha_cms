@@ -92,6 +92,11 @@ export class SequencesRepository extends BaseRepository<SequenceRecord> {
   }
 
   private async performAllocation(entityType: string): Promise<{ allocatedNumber: number; prefix: string; padLength: number }> {
+    if (entityType === 'CONTENT_ID') {
+      throw new Error(
+        "RETIRED_SEQUENCE_ENTITY: 'CONTENT_ID' sequence is obsolete and retired. Use CONTENT_MASTER for canonical BP-CNT-###### ID allocation."
+      );
+    }
     let sequence = await this.getSequence(entityType);
     const config = ID_PREFIX_MAP[entityType as SequenceEntityType] || { prefix: 'BP-', padLength: 6 };
 

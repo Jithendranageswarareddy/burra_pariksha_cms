@@ -56,11 +56,41 @@ function extractOptionNumbers(text: string): number[] {
 /**
  * Checks if option contains the expected numeric value within numerical tolerance.
  */
-function optionMatchesValue(optionText: string, expectedVal: number, tolerance = 1e-2): boolean {
+function optionMatchesValue(optionText: string, expectedVal: number, expectedUnit?: string, tolerance = 1e-2): boolean {
   const nums = extractOptionNumbers(optionText);
   for (const n of nums) {
     if (Math.abs(n - expectedVal) <= tolerance || (expectedVal !== 0 && Math.abs((n - expectedVal) / expectedVal) <= 0.005)) {
       return true;
+    }
+
+    if (expectedUnit) {
+      const u = expectedUnit.toLowerCase();
+      const optLower = optionText.toLowerCase();
+
+      // Seconds <-> Minutes
+      if (u.includes('second') || u === 's' || u === 'sec' || u === 'secs') {
+        if (optLower.includes('min') || optLower.includes('minute')) {
+          if (Math.abs(n * 60 - expectedVal) <= tolerance || Math.abs(n - expectedVal / 60) <= tolerance) return true;
+        }
+      }
+      // Minutes <-> Hours
+      if (u.includes('minute') || u === 'min' || u === 'mins') {
+        if (optLower.includes('hour') || optLower.includes('hr') || optLower.includes('hrs')) {
+          if (Math.abs(n * 60 - expectedVal) <= tolerance || Math.abs(n - expectedVal / 60) <= tolerance) return true;
+        }
+      }
+      // Meters <-> Kilometers
+      if (u === 'm' || u.includes('meter') || u.includes('metres')) {
+        if (optLower.includes('km') || optLower.includes('kilometer')) {
+          if (Math.abs(n * 1000 - expectedVal) <= tolerance || Math.abs(n - expectedVal / 1000) <= tolerance) return true;
+        }
+      }
+      // m/s <-> km/h
+      if (u.includes('m/s')) {
+        if (optLower.includes('km/h') || optLower.includes('kmph')) {
+          if (Math.abs(n / 3.6 - expectedVal) <= tolerance || Math.abs(n - expectedVal * 3.6) <= tolerance) return true;
+        }
+      }
     }
   }
   return false;

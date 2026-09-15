@@ -7,7 +7,7 @@ import { AIProviderRegistry, aiProviderRegistry as defaultRegistry } from './reg
 import { GenerateCandidateInput, GenerationResult, AIProviderOptions } from './types';
 import { DEFAULT_AI_CONFIG } from './config';
 import { classifyAIError, AIProviderError, AIErrorClassification } from './error';
-import { questionConfigService } from '../services/question-config.service';
+import { questionConfigService, QuestionConfigError } from '../services/question-config.service';
 import { REAL_LIFE_CONTEXTS } from '../../config/question-creation.config';
 
 export interface OrchestratorOptions extends AIProviderOptions {
@@ -43,22 +43,16 @@ export class AIOrchestrator {
 
     // Resolve RANDOM / SMART_RANDOM realWorldContext using configured QUESTION_CONFIG catalogue
     const resolvedInput: GenerateCandidateInput = { ...input };
-    if (resolvedInput.realWorldContext?.toUpperCase() === 'RANDOM' || resolvedInput.realWorldContext?.toUpperCase() === 'SMART_RANDOM') {
-      try {
-        const activeContexts = await questionConfigService.getRealLifeContexts(true);
-        if (activeContexts && activeContexts.length > 0) {
-          const randIdx = Math.floor(Math.random() * activeContexts.length);
-          resolvedInput.realWorldContext = activeContexts[randIdx].displayLabel || activeContexts[randIdx].code;
-        } else {
-          const allExamples = REAL_LIFE_CONTEXTS.flatMap((c) => c.examples);
-          const randIdx = Math.floor(Math.random() * allExamples.length);
-          resolvedInput.realWorldContext = allExamples[randIdx];
-        }
-      } catch {
-        const allExamples = REAL_LIFE_CONTEXTS.flatMap((c) => c.examples);
-        const randIdx = Math.floor(Math.random() * allExamples.length);
-        resolvedInput.realWorldContext = allExamples[randIdx];
+    const ctxVal = resolvedInput.realLifeContext || resolvedInput.realWorldContext;
+    if (ctxVal?.toUpperCase() === 'RANDOM' || ctxVal?.toUpperCase() === 'SMART_RANDOM') {
+      const activeContexts = await questionConfigService.getRealLifeContexts(true);
+      if (!activeContexts || activeContexts.length === 0) {
+        throw new QuestionConfigError('QUESTION_CONFIG contains no active Real-Life Contexts for RANDOM resolution.');
       }
+      const randIdx = Math.floor(Math.random() * activeContexts.length);
+      const chosenCtx = activeContexts[randIdx].displayLabel || activeContexts[randIdx].code;
+      resolvedInput.realWorldContext = chosenCtx;
+      resolvedInput.realLifeContext = chosenCtx;
     }
 
     for (const providerId of providerChain) {

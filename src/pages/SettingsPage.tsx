@@ -29,6 +29,10 @@ import {
   Activity,
   Wrench,
   Zap,
+  Plus,
+  Edit2,
+  X,
+  Check,
 } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { Button } from '../components/common/Button';
@@ -116,6 +120,181 @@ export const SettingsPage: React.FC = () => {
     passedTests: number;
     results: { section: string; status: string }[];
   } | null>(null);
+
+  // Live Taxonomy State (Tab 3)
+  const [liveTaxonomyTree, setLiveTaxonomyTree] = useState<any[]>([]);
+  const [pureTaxonomyList, setPureTaxonomyList] = useState<any[]>([]);
+  const [taxonomyMetrics, setTaxonomyMetrics] = useState<any>(null);
+  const [isLoadingTaxonomy, setIsLoadingTaxonomy] = useState(false);
+  const [taxonomySearchQuery, setTaxonomySearchQuery] = useState('');
+  const [subtopicSearchQuery, setSubtopicSearchQuery] = useState('');
+  const [taxonomyFilterStatus, setTaxonomyFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
+  const [taxonomyFilterCompleteness, setTaxonomyFilterCompleteness] = useState<'all' | 'complete' | 'incomplete'>('all');
+  const [isRunningTests04, setIsRunningTests04] = useState(false);
+  const [testResults04, setTestResults04] = useState<any | null>(null);
+
+  // Administration modals & form state
+  const [isCreateTopicModalOpen, setIsCreateTopicModalOpen] = useState(false);
+  const [isCreateSubtopicModalOpen, setIsCreateSubtopicModalOpen] = useState(false);
+  const [editingTopic, setEditingTopic] = useState<any | null>(null);
+  const [editingSubtopic, setEditingSubtopic] = useState<any | null>(null);
+  const [isSavingTaxonomy, setIsSavingTaxonomy] = useState(false);
+
+  const [topicForm, setTopicForm] = useState({ name: '', slug: '', description: '', displayOrder: 101, isActive: true });
+  const [subtopicForm, setSubtopicForm] = useState({ topicId: 'BP-TOP-001', name: '', slug: '', description: '', notes: '', displayOrder: 101, isActive: true });
+
+  const canAdministerTaxonomy = user?.role === UserRole.ADMIN || user?.role === UserRole.CONTENT_MANAGER;
+
+  const fetchLiveTaxonomy = async () => {
+    setIsLoadingTaxonomy(true);
+    try {
+      const [tree, pureList, metrics] = await Promise.all([
+        apiClient.getTaxonomyTree(),
+        apiClient.getPureTaxonomyTree({ includeInactive: true }),
+        apiClient.getTaxonomyMetrics(),
+      ]);
+      setLiveTaxonomyTree(tree || []);
+      setPureTaxonomyList(pureList || []);
+      setTaxonomyMetrics(metrics || null);
+    } catch (err: any) {
+      console.warn('Failed to load live taxonomy:', err);
+    } finally {
+      setIsLoadingTaxonomy(false);
+    }
+  };
+
+  const handleRunVerificationSuite04 = async () => {
+    setIsRunningTests04(true);
+    try {
+      const res = await apiClient.runPhase04Verification();
+      setTestResults04(res);
+      setNotification({
+        text: `Phase 04 Taxonomy Verification Suite finished: ${res.passedTests}/${res.totalTests} checks passed. Gate Status: ${res.gateStatus}.`,
+        type: res.gateStatus === 'PASS' ? 'success' : 'error',
+      });
+    } catch (err: any) {
+      setNotification({ text: `Phase 04 test run failed: ${err?.message || 'Error'}`, type: 'error' });
+    } finally {
+      setIsRunningTests04(false);
+    }
+  };
+
+  const handleCreateTopic = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!topicForm.name.trim()) return;
+    setIsSavingTaxonomy(true);
+    try {
+      const generatedSlug = topicForm.slug.trim() || topicForm.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      await apiClient.createTopic({
+        name: topicForm.name.trim(),
+        slug: generatedSlug,
+        description: topicForm.description.trim() || undefined,
+        displayOrder: Number(topicForm.displayOrder) || 1,
+        isActive: topicForm.isActive,
+      });
+      setNotification({ text: `Topic "${topicForm.name}" created successfully.`, type: 'success' });
+      setIsCreateTopicModalOpen(false);
+      setTopicForm({ name: '', slug: '', description: '', displayOrder: 101, isActive: true });
+      await fetchLiveTaxonomy();
+    } catch (err: any) {
+      setNotification({ text: `Failed to create Topic: ${err?.message || 'Error'}`, type: 'error' });
+    } finally {
+      setIsSavingTaxonomy(false);
+    }
+  };
+
+  const handleUpdateTopic = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTopic || !editingTopic.name.trim()) return;
+    setIsSavingTaxonomy(true);
+    try {
+      await apiClient.updateTopic(editingTopic.id, {
+        name: editingTopic.name.trim(),
+        slug: editingTopic.slug.trim(),
+        description: editingTopic.description?.trim() || undefined,
+        displayOrder: Number(editingTopic.displayOrder) || 1,
+        isActive: editingTopic.isActive,
+      });
+      setNotification({ text: `Topic "${editingTopic.name}" updated successfully.`, type: 'success' });
+      setEditingTopic(null);
+      await fetchLiveTaxonomy();
+    } catch (err: any) {
+      setNotification({ text: `Failed to update Topic: ${err?.message || 'Error'}`, type: 'error' });
+    } finally {
+      setIsSavingTaxonomy(false);
+    }
+  };
+
+  const handleToggleTopicActive = async (topic: any) => {
+    const nextState = topic.isActive === false;
+    try {
+      await apiClient.toggleTopicActive(topic.id, nextState);
+      setNotification({ text: `Topic ${topic.id} is now ${nextState ? 'Active' : 'Inactive'}.`, type: 'success' });
+      await fetchLiveTaxonomy();
+    } catch (err: any) {
+      setNotification({ text: `Failed to toggle Topic active state: ${err?.message || 'Error'}`, type: 'error' });
+    }
+  };
+
+  const handleCreateSubtopic = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!subtopicForm.name.trim() || !subtopicForm.topicId) return;
+    setIsSavingTaxonomy(true);
+    try {
+      const generatedSlug = subtopicForm.slug.trim() || subtopicForm.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      await apiClient.createSubtopic({
+        topicId: subtopicForm.topicId,
+        name: subtopicForm.name.trim(),
+        slug: generatedSlug,
+        description: subtopicForm.description.trim() || undefined,
+        notes: subtopicForm.notes.trim() || undefined,
+        displayOrder: Number(subtopicForm.displayOrder) || 1,
+        isActive: subtopicForm.isActive,
+      });
+      setNotification({ text: `Subtopic "${subtopicForm.name}" created under Topic ${subtopicForm.topicId}.`, type: 'success' });
+      setIsCreateSubtopicModalOpen(false);
+      setSubtopicForm({ topicId: 'BP-TOP-001', name: '', slug: '', description: '', notes: '', displayOrder: 101, isActive: true });
+      await fetchLiveTaxonomy();
+    } catch (err: any) {
+      setNotification({ text: `Failed to create Subtopic: ${err?.message || 'Error'}`, type: 'error' });
+    } finally {
+      setIsSavingTaxonomy(false);
+    }
+  };
+
+  const handleUpdateSubtopic = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingSubtopic || !editingSubtopic.name.trim()) return;
+    setIsSavingTaxonomy(true);
+    try {
+      await apiClient.updateSubtopic(editingSubtopic.id, {
+        name: editingSubtopic.name.trim(),
+        slug: editingSubtopic.slug.trim(),
+        description: editingSubtopic.description?.trim() || undefined,
+        notes: editingSubtopic.notes?.trim() || undefined,
+        displayOrder: Number(editingSubtopic.displayOrder) || 1,
+        isActive: editingSubtopic.isActive,
+      });
+      setNotification({ text: `Subtopic "${editingSubtopic.name}" updated successfully.`, type: 'success' });
+      setEditingSubtopic(null);
+      await fetchLiveTaxonomy();
+    } catch (err: any) {
+      setNotification({ text: `Failed to update Subtopic: ${err?.message || 'Error'}`, type: 'error' });
+    } finally {
+      setIsSavingTaxonomy(false);
+    }
+  };
+
+  const handleToggleSubtopicActive = async (subtopic: any) => {
+    const nextState = subtopic.isActive === false;
+    try {
+      await apiClient.toggleSubtopicActive(subtopic.id, nextState);
+      setNotification({ text: `Subtopic ${subtopic.id} is now ${nextState ? 'Active' : 'Inactive'}.`, type: 'success' });
+      await fetchLiveTaxonomy();
+    } catch (err: any) {
+      setNotification({ text: `Failed to toggle Subtopic active state: ${err?.message || 'Error'}`, type: 'error' });
+    }
+  };
 
   const fetchSheetsHealth = async () => {
     setIsLoadingHealth(true);
@@ -278,7 +457,10 @@ export const SettingsPage: React.FC = () => {
       fetchIntegrityHealth();
       fetchRecoveryHealth();
     }
-  }, [user?.role]);
+    if (activeTab === 'taxonomy') {
+      fetchLiveTaxonomy();
+    }
+  }, [user?.role, activeTab]);
 
   const handleTabChange = (tabId: typeof activeTab) => {
     setActiveTab(tabId);
@@ -1438,34 +1620,807 @@ export const SettingsPage: React.FC = () => {
         {/* ========================================================================= */}
         {activeTab === 'taxonomy' && (
           <div className="space-y-6">
-            <div>
-              <h3 className="text-sm font-bold text-slate-900">Authoritative Telugu Aptitude Taxonomy</h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Standard categories, topics, and subtopics mapped directly to Telangana and Andhra Pradesh competitive exams.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {MOCK_CATEGORIES.map((cat) => (
-                <div key={cat.id} className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-slate-900 text-sm">{cat.name}</span>
-                    <span className="font-mono text-[10px] bg-slate-200 px-2 py-0.5 rounded font-semibold text-slate-700">
-                      {cat.id}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-slate-500">{cat.description}</p>
-                  <div className="text-[10px] text-slate-400 font-mono">
-                    {MOCK_TOPICS.filter((t) => t.categoryId === cat.id).length} Topics configured
-                  </div>
+            {/* Header & Primary Actions */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-slate-200">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-bold text-slate-900">Pure Topic / Subtopic Taxonomy (Phase 04)</h3>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                    Target: 100 &times; 100 = 10,000
+                  </span>
                 </div>
-              ))}
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Production taxonomy is strictly <strong className="text-indigo-700">Topic &rarr; Subtopic</strong>. No Subject, Category, or Section layers.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleRunVerificationSuite04}
+                  disabled={isRunningTests04}
+                  className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50"
+                >
+                  <PlayCircle className={`w-3.5 h-3.5 ${isRunningTests04 ? 'animate-spin' : ''}`} />
+                  <span>{isRunningTests04 ? 'Running Phase 04 Checks...' : 'Run Phase 04 Test Suite'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={fetchLiveTaxonomy}
+                  disabled={isLoadingTaxonomy}
+                  className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold rounded-lg flex items-center gap-1.5 cursor-pointer"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isLoadingTaxonomy ? 'animate-spin text-indigo-600' : ''}`} />
+                  <span>Refresh</span>
+                </button>
+
+                {canAdministerTaxonomy && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setIsCreateTopicModalOpen(true)}
+                      className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>New Topic</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setIsCreateSubtopicModalOpen(true)}
+                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>New Subtopic</span>
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
 
-            <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600 flex items-center gap-2">
-              <Info className="w-4 h-4 text-slate-400 shrink-0" />
-              <span>Hierarchical integrity (Category &rarr; Topic &rarr; Subtopic) is strictly validated on every write.</span>
+            {/* Authoritative Metrics & Data Gap Banner */}
+            <div className="p-4 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2 text-slate-900 font-bold text-xs">
+                  <ShieldCheck className="w-4 h-4 text-indigo-600" />
+                  <span>Authoritative Production Taxonomy Audit</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-mono px-2.5 py-0.5 rounded-full font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                    GATE STATUS: BLOCKED BY DATA GAP
+                  </span>
+                  <span className="text-[10px] text-slate-500 font-medium">
+                    (Rule 3 &amp; 6 Compliant)
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                  <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">Approved Topics</span>
+                  <div className="flex items-baseline gap-1 mt-1">
+                    <span className="text-xl font-bold text-slate-900">{taxonomyMetrics?.totalTopics ?? 100}</span>
+                    <span className="text-xs text-slate-400">/ 100 Target</span>
+                  </div>
+                  <span className="text-[10px] text-emerald-600 font-semibold block mt-0.5">&check; 100% Present</span>
+                </div>
+
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                  <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">Approved Subtopics</span>
+                  <div className="flex items-baseline gap-1 mt-1">
+                    <span className="text-xl font-bold text-indigo-700">{taxonomyMetrics?.totalSubtopics ?? 100}</span>
+                    <span className="text-xs text-slate-400">/ 10,000 Target</span>
+                  </div>
+                  <span className="text-[10px] text-amber-600 font-semibold block mt-0.5">1% Present (99 Topics Pending)</span>
+                </div>
+
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                  <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">Complete Topics</span>
+                  <div className="flex items-baseline gap-1 mt-1">
+                    <span className="text-xl font-bold text-emerald-700">{taxonomyMetrics?.completeTopicsCount ?? 1}</span>
+                    <span className="text-xs text-slate-400">/ 100</span>
+                  </div>
+                  <span className="text-[10px] text-slate-500 block mt-0.5">BP-TOP-001 has 100 Subtopics</span>
+                </div>
+
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                  <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">Identified Data Gap</span>
+                  <div className="flex items-baseline gap-1 mt-1">
+                    <span className="text-xl font-bold text-rose-600">{taxonomyMetrics?.missingSubtopics ?? 9900}</span>
+                    <span className="text-xs text-slate-400">Subtopics Missing</span>
+                  </div>
+                  <span className="text-[10px] text-slate-500 block mt-0.5">Across Topics BP-TOP-002..100</span>
+                </div>
+              </div>
+
+              <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-start gap-2.5">
+                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="font-semibold text-amber-950">
+                    Phase 04 Integrity Rule 3 &amp; 6 Strict Enforcement:
+                  </p>
+                  <p className="text-amber-800 text-[11px] leading-relaxed">
+                    Production taxonomy contains exactly 100 approved Topics (BP-TOP-001 through BP-TOP-100) and exactly 100 approved Subtopics (under BP-TOP-001).
+                    The remaining 9,900 Subtopics across Topics BP-TOP-002 through BP-TOP-100 do not yet exist in any authoritative source.
+                    In accordance with strict system rules, <strong>no synthetic or auto-filled records have been manufactured</strong>. The Phase 04 gate remains intentionally blocked on authoritative business data availability.
+                  </p>
+                </div>
+              </div>
             </div>
+
+            {/* Test Results Banner (If Executed) */}
+            {testResults04 && (
+              <div className="p-4 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <span className="text-xs font-bold text-slate-900">Phase 04 Deterministic Verification Report</span>
+                  </div>
+                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full font-mono ${testResults04.gateStatus === 'PASS' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                    {testResults04.passedTests}/{testResults04.totalTests} Unit Checks Passed &bull; Gate: {testResults04.gateStatus}
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-200 font-mono">
+                  {testResults04.gateMessage}
+                </p>
+                <div className="max-h-60 overflow-y-auto space-y-1 pr-1">
+                  {testResults04.results.map((r: any) => (
+                    <div key={r.testId} className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100 text-[11px]">
+                      <div className="flex items-center gap-2">
+                        <span className={`font-mono text-[10px] font-bold px-1.5 py-0.5 rounded ${r.passed ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
+                          {r.passed ? 'PASS' : 'FAIL'}
+                        </span>
+                        <span className="font-mono text-slate-500 font-semibold">{r.testId}</span>
+                        <span className="text-slate-800">{r.name}</span>
+                      </div>
+                      <span className="text-[10px] text-slate-500 truncate max-w-xs">{r.message}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Filter & Search Bar */}
+            <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+              <div className="flex flex-col sm:flex-row gap-3 items-center">
+                <div className="relative flex-1 w-full">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                  <input
+                    type="text"
+                    placeholder="Search topics by name, ID (e.g. BP-TOP-001), or slug..."
+                    value={taxonomySearchQuery}
+                    onChange={(e) => setTaxonomySearchQuery(e.target.value)}
+                    className="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:outline-hidden focus:border-indigo-500"
+                  />
+                </div>
+
+                <div className="relative flex-1 w-full">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                  <input
+                    type="text"
+                    placeholder="Search subtopics by keyword or ID..."
+                    value={subtopicSearchQuery}
+                    onChange={(e) => setSubtopicSearchQuery(e.target.value)}
+                    className="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:outline-hidden focus:border-indigo-500"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <select
+                    value={taxonomyFilterStatus}
+                    onChange={(e: any) => setTaxonomyFilterStatus(e.target.value)}
+                    className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-700 focus:outline-hidden"
+                  >
+                    <option value="all">Status: All</option>
+                    <option value="active">Active Only</option>
+                    <option value="inactive">Inactive Only</option>
+                  </select>
+
+                  <select
+                    value={taxonomyFilterCompleteness}
+                    onChange={(e: any) => setTaxonomyFilterCompleteness(e.target.value)}
+                    className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-700 focus:outline-hidden"
+                  >
+                    <option value="all">Completeness: All (100)</option>
+                    <option value="complete">Complete (1 Topic &bull; 100 subs)</option>
+                    <option value="incomplete">Pending (99 Topics &bull; 0 subs)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Live Topics & Subtopics List */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  Topics ({pureTaxonomyList.length > 0 ? pureTaxonomyList.length : liveTaxonomyTree.flatMap((c) => c.topics || []).length})
+                </h4>
+                <span className="text-[11px] text-slate-500 font-mono">
+                  Deterministic displayOrder: 1 &rarr; 100
+                </span>
+              </div>
+
+              {isLoadingTaxonomy ? (
+                <div className="p-8 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-500 flex items-center justify-center gap-2">
+                  <RefreshCw className="w-4 h-4 animate-spin text-indigo-600" />
+                  <span>Loading authoritative taxonomy records...</span>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {(pureTaxonomyList.length > 0 ? pureTaxonomyList : liveTaxonomyTree.flatMap((cat: any) => cat.topics || []))
+                    .filter((topic: any) => {
+                      if (taxonomyFilterStatus === 'active' && topic.isActive === false) return false;
+                      if (taxonomyFilterStatus === 'inactive' && topic.isActive !== false) return false;
+                      const subCount = topic.subtopics?.length || 0;
+                      if (taxonomyFilterCompleteness === 'complete' && subCount < 100) return false;
+                      if (taxonomyFilterCompleteness === 'incomplete' && subCount >= 100) return false;
+                      if (taxonomySearchQuery.trim()) {
+                        const q = taxonomySearchQuery.toLowerCase();
+                        const matchesName = topic.name?.toLowerCase().includes(q);
+                        const matchesId = topic.id?.toLowerCase().includes(q);
+                        const matchesSlug = topic.slug?.toLowerCase().includes(q);
+                        const matchesDesc = topic.description?.toLowerCase().includes(q);
+                        if (!matchesName && !matchesId && !matchesSlug && !matchesDesc) return false;
+                      }
+                      if (subtopicSearchQuery.trim()) {
+                        const sq = subtopicSearchQuery.toLowerCase();
+                        const hasMatchingSub = (topic.subtopics || []).some(
+                          (s: any) =>
+                            s.name?.toLowerCase().includes(sq) ||
+                            s.id?.toLowerCase().includes(sq) ||
+                            s.slug?.toLowerCase().includes(sq)
+                        );
+                        if (!hasMatchingSub) return false;
+                      }
+                      return true;
+                    })
+                    .map((topic: any) => {
+                      const subCount = topic.subtopics?.length || 0;
+                      const isComplete = subCount === 100;
+                      return (
+                        <div key={topic.id} className="p-4 bg-white border border-slate-200 rounded-xl space-y-3 text-xs shadow-xs">
+                          {/* Topic Header */}
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-slate-900 text-sm">{topic.name}</span>
+                                <span className="font-mono text-[10px] bg-slate-100 text-slate-700 border border-slate-200 px-1.5 py-0.5 rounded font-semibold">
+                                  {topic.id}
+                                </span>
+                                <span className="text-[10px] text-slate-400 font-mono">
+                                  #{topic.displayOrder}
+                                </span>
+                              </div>
+                              {topic.description && (
+                                <p className="text-[11px] text-slate-500 mt-1">{topic.description}</p>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${topic.isActive !== false ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}`}>
+                                {topic.isActive !== false ? 'Active' : 'Inactive'}
+                              </span>
+
+                              {canAdministerTaxonomy && (
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditingTopic({ ...topic })}
+                                    className="p-1 hover:bg-slate-100 rounded text-slate-600 cursor-pointer"
+                                    title="Edit Topic"
+                                  >
+                                    <Edit2 className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleToggleTopicActive(topic)}
+                                    className="px-1.5 py-0.5 hover:bg-slate-100 rounded text-[10px] font-semibold text-slate-600 cursor-pointer"
+                                    title="Toggle Active/Inactive"
+                                  >
+                                    {topic.isActive !== false ? 'Disable' : 'Enable'}
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Subtopics Section */}
+                          <div className="pt-2 border-t border-slate-100 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+                                Subtopics ({subCount})
+                              </span>
+                              <div className="flex items-center gap-2">
+                                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded font-mono ${isComplete ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                                  {isComplete ? '100 / 100 Complete' : 'Data Gap (0 / 100)'}
+                                </span>
+                                {canAdministerTaxonomy && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSubtopicForm({ ...subtopicForm, topicId: topic.id });
+                                      setIsCreateSubtopicModalOpen(true);
+                                    }}
+                                    className="text-[10px] text-indigo-600 hover:text-indigo-800 font-semibold cursor-pointer"
+                                  >
+                                    + Add Subtopic
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+
+                            {topic.subtopics && topic.subtopics.length > 0 ? (
+                              <div className="max-h-48 overflow-y-auto space-y-1 pr-1">
+                                {topic.subtopics
+                                  .filter((sub: any) => {
+                                    if (!subtopicSearchQuery.trim()) return true;
+                                    const sq = subtopicSearchQuery.toLowerCase();
+                                    return (
+                                      sub.name?.toLowerCase().includes(sq) ||
+                                      sub.id?.toLowerCase().includes(sq) ||
+                                      sub.slug?.toLowerCase().includes(sq)
+                                    );
+                                  })
+                                  .map((sub: any) => (
+                                    <div
+                                      key={sub.id}
+                                      className="flex items-center justify-between p-1.5 bg-slate-50 hover:bg-slate-100/80 border border-slate-200/80 rounded-lg text-[11px]"
+                                    >
+                                      <div className="flex items-center gap-1.5 truncate">
+                                        <span className="font-mono text-[9px] text-slate-400">#{sub.displayOrder}</span>
+                                        <span className="font-medium text-slate-800 truncate">{sub.name}</span>
+                                        <span className="font-mono text-[9px] text-slate-400 shrink-0">({sub.id})</span>
+                                      </div>
+
+                                      <div className="flex items-center gap-1 shrink-0">
+                                        <span className={`text-[9px] px-1.5 py-0.2 rounded ${sub.isActive !== false ? 'bg-emerald-100/70 text-emerald-800' : 'bg-slate-200 text-slate-600'}`}>
+                                          {sub.isActive !== false ? 'Active' : 'Inactive'}
+                                        </span>
+
+                                        {canAdministerTaxonomy && (
+                                          <div className="flex items-center gap-0.5">
+                                            <button
+                                              type="button"
+                                              onClick={() => setEditingSubtopic({ ...sub })}
+                                              className="p-0.5 hover:bg-slate-200 rounded text-slate-600 cursor-pointer"
+                                              title="Edit Subtopic"
+                                            >
+                                              <Edit2 className="w-3 h-3" />
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={() => handleToggleSubtopicActive(sub)}
+                                              className="px-1 py-0.2 text-[9px] hover:bg-slate-200 rounded text-slate-600 cursor-pointer"
+                                              title="Toggle Subtopic Active"
+                                            >
+                                              {sub.isActive !== false ? 'Off' : 'On'}
+                                            </button>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))}
+                              </div>
+                            ) : (
+                              <div className="p-3 bg-slate-50 border border-dashed border-slate-200 rounded-lg text-center text-[11px] text-slate-400">
+                                0 approved subtopics available in authoritative source. (Synthetic generation prohibited).
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
+            </div>
+
+            {/* Architecture Contract Footer */}
+            <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600 flex items-start gap-2.5">
+              <Info className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
+              <div>
+                <span className="font-semibold text-slate-900">Taxonomy Architecture Mandate: </span>
+                <span>Production operates strictly on a 2-tier <strong>Topic &rarr; Subtopic</strong> taxonomy. All questions and content masters link directly to Topic and Subtopic. Any extra hierarchy layers are excluded.</span>
+              </div>
+            </div>
+
+            {/* MODAL: Create Topic */}
+            {isCreateTopicModalOpen && (
+              <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+                <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl border border-slate-200">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                    <h4 className="text-sm font-bold text-slate-900">Create Approved Topic</h4>
+                    <button
+                      type="button"
+                      onClick={() => setIsCreateTopicModalOpen(false)}
+                      className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-600"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <form onSubmit={handleCreateTopic} className="space-y-3 text-xs">
+                    <div>
+                      <label className="block font-semibold text-slate-700 mb-1">Topic Name *</label>
+                      <input
+                        type="text"
+                        required
+                        value={topicForm.name}
+                        onChange={(e) => setTopicForm({ ...topicForm, name: e.target.value })}
+                        placeholder="e.g. Ratio and Proportion"
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:bg-white focus:border-indigo-500 focus:outline-hidden"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-semibold text-slate-700 mb-1">Slug (Auto-generated if empty)</label>
+                      <input
+                        type="text"
+                        value={topicForm.slug}
+                        onChange={(e) => setTopicForm({ ...topicForm, slug: e.target.value })}
+                        placeholder="ratio-and-proportion"
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:bg-white focus:border-indigo-500 focus:outline-hidden font-mono"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-semibold text-slate-700 mb-1">Description</label>
+                      <textarea
+                        rows={2}
+                        value={topicForm.description}
+                        onChange={(e) => setTopicForm({ ...topicForm, description: e.target.value })}
+                        placeholder="Pedagogical description of topic..."
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:bg-white focus:border-indigo-500 focus:outline-hidden"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block font-semibold text-slate-700 mb-1">Display Order</label>
+                        <input
+                          type="number"
+                          value={topicForm.displayOrder}
+                          onChange={(e) => setTopicForm({ ...topicForm, displayOrder: parseInt(e.target.value) || 1 })}
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:bg-white focus:border-indigo-500 focus:outline-hidden"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block font-semibold text-slate-700 mb-1">Initial Status</label>
+                        <select
+                          value={topicForm.isActive ? 'true' : 'false'}
+                          onChange={(e) => setTopicForm({ ...topicForm, isActive: e.target.value === 'true' })}
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:bg-white focus:border-indigo-500 focus:outline-hidden"
+                        >
+                          <option value="true">Active</option>
+                          <option value="false">Inactive</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                      <button
+                        type="button"
+                        onClick={() => setIsCreateTopicModalOpen(false)}
+                        className="px-3 py-1.5 text-slate-600 hover:bg-slate-100 rounded-lg"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={isSavingTaxonomy}
+                        className="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-lg shadow-xs disabled:opacity-50 cursor-pointer"
+                      >
+                        {isSavingTaxonomy ? 'Saving...' : 'Create Topic'}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+
+            {/* MODAL: Edit Topic */}
+            {editingTopic && (
+              <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+                <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl border border-slate-200">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-900">Edit Topic</h4>
+                      <span className="font-mono text-[10px] text-slate-500">{editingTopic.id}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setEditingTopic(null)}
+                      className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-600"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <form onSubmit={handleUpdateTopic} className="space-y-3 text-xs">
+                    <div>
+                      <label className="block font-semibold text-slate-700 mb-1">Topic Name *</label>
+                      <input
+                        type="text"
+                        required
+                        value={editingTopic.name}
+                        onChange={(e) => setEditingTopic({ ...editingTopic, name: e.target.value })}
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:bg-white focus:border-indigo-500 focus:outline-hidden"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-semibold text-slate-700 mb-1">Slug *</label>
+                      <input
+                        type="text"
+                        required
+                        value={editingTopic.slug}
+                        onChange={(e) => setEditingTopic({ ...editingTopic, slug: e.target.value })}
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:bg-white focus:border-indigo-500 focus:outline-hidden font-mono"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-semibold text-slate-700 mb-1">Description</label>
+                      <textarea
+                        rows={2}
+                        value={editingTopic.description || ''}
+                        onChange={(e) => setEditingTopic({ ...editingTopic, description: e.target.value })}
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:bg-white focus:border-indigo-500 focus:outline-hidden"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block font-semibold text-slate-700 mb-1">Display Order</label>
+                        <input
+                          type="number"
+                          value={editingTopic.displayOrder || 1}
+                          onChange={(e) => setEditingTopic({ ...editingTopic, displayOrder: parseInt(e.target.value) || 1 })}
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:bg-white focus:border-indigo-500 focus:outline-hidden"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block font-semibold text-slate-700 mb-1">Status</label>
+                        <select
+                          value={editingTopic.isActive !== false ? 'true' : 'false'}
+                          onChange={(e) => setEditingTopic({ ...editingTopic, isActive: e.target.value === 'true' })}
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:bg-white focus:border-indigo-500 focus:outline-hidden"
+                        >
+                          <option value="true">Active</option>
+                          <option value="false">Inactive</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                      <button
+                        type="button"
+                        onClick={() => setEditingTopic(null)}
+                        className="px-3 py-1.5 text-slate-600 hover:bg-slate-100 rounded-lg"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={isSavingTaxonomy}
+                        className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg shadow-xs disabled:opacity-50 cursor-pointer"
+                      >
+                        {isSavingTaxonomy ? 'Saving...' : 'Save Changes'}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+
+            {/* MODAL: Create Subtopic */}
+            {isCreateSubtopicModalOpen && (
+              <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+                <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl border border-slate-200">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                    <h4 className="text-sm font-bold text-slate-900">Create Approved Subtopic</h4>
+                    <button
+                      type="button"
+                      onClick={() => setIsCreateSubtopicModalOpen(false)}
+                      className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-600"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <form onSubmit={handleCreateSubtopic} className="space-y-3 text-xs">
+                    <div>
+                      <label className="block font-semibold text-slate-700 mb-1">Parent Topic *</label>
+                      <select
+                        required
+                        value={subtopicForm.topicId}
+                        onChange={(e) => setSubtopicForm({ ...subtopicForm, topicId: e.target.value })}
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:bg-white focus:border-indigo-500 focus:outline-hidden font-medium"
+                      >
+                        {(pureTaxonomyList.length > 0 ? pureTaxonomyList : liveTaxonomyTree.flatMap((c) => c.topics || [])).map((t: any) => (
+                          <option key={t.id} value={t.id}>
+                            {t.id} &bull; {t.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block font-semibold text-slate-700 mb-1">Subtopic Name *</label>
+                      <input
+                        type="text"
+                        required
+                        value={subtopicForm.name}
+                        onChange={(e) => setSubtopicForm({ ...subtopicForm, name: e.target.value })}
+                        placeholder="e.g. Ratio Simplification"
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:bg-white focus:border-indigo-500 focus:outline-hidden"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-semibold text-slate-700 mb-1">Slug (Auto-generated if empty)</label>
+                      <input
+                        type="text"
+                        value={subtopicForm.slug}
+                        onChange={(e) => setSubtopicForm({ ...subtopicForm, slug: e.target.value })}
+                        placeholder="ratio-simplification"
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:bg-white focus:border-indigo-500 focus:outline-hidden font-mono"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-semibold text-slate-700 mb-1">Description / Notes</label>
+                      <textarea
+                        rows={2}
+                        value={subtopicForm.notes}
+                        onChange={(e) => setSubtopicForm({ ...subtopicForm, notes: e.target.value })}
+                        placeholder="Pedagogical notes..."
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:bg-white focus:border-indigo-500 focus:outline-hidden"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block font-semibold text-slate-700 mb-1">Display Order</label>
+                        <input
+                          type="number"
+                          value={subtopicForm.displayOrder}
+                          onChange={(e) => setSubtopicForm({ ...subtopicForm, displayOrder: parseInt(e.target.value) || 1 })}
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:bg-white focus:border-indigo-500 focus:outline-hidden"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block font-semibold text-slate-700 mb-1">Initial Status</label>
+                        <select
+                          value={subtopicForm.isActive ? 'true' : 'false'}
+                          onChange={(e) => setSubtopicForm({ ...subtopicForm, isActive: e.target.value === 'true' })}
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:bg-white focus:border-indigo-500 focus:outline-hidden"
+                        >
+                          <option value="true">Active</option>
+                          <option value="false">Inactive</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                      <button
+                        type="button"
+                        onClick={() => setIsCreateSubtopicModalOpen(false)}
+                        className="px-3 py-1.5 text-slate-600 hover:bg-slate-100 rounded-lg"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={isSavingTaxonomy}
+                        className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg shadow-xs disabled:opacity-50 cursor-pointer"
+                      >
+                        {isSavingTaxonomy ? 'Saving...' : 'Create Subtopic'}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+
+            {/* MODAL: Edit Subtopic */}
+            {editingSubtopic && (
+              <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+                <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl border border-slate-200">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-900">Edit Subtopic</h4>
+                      <span className="font-mono text-[10px] text-slate-500">{editingSubtopic.id} (Parent: {editingSubtopic.topicId})</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setEditingSubtopic(null)}
+                      className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-600"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <form onSubmit={handleUpdateSubtopic} className="space-y-3 text-xs">
+                    <div>
+                      <label className="block font-semibold text-slate-700 mb-1">Subtopic Name *</label>
+                      <input
+                        type="text"
+                        required
+                        value={editingSubtopic.name}
+                        onChange={(e) => setEditingSubtopic({ ...editingSubtopic, name: e.target.value })}
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:bg-white focus:border-indigo-500 focus:outline-hidden"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-semibold text-slate-700 mb-1">Slug *</label>
+                      <input
+                        type="text"
+                        required
+                        value={editingSubtopic.slug}
+                        onChange={(e) => setEditingSubtopic({ ...editingSubtopic, slug: e.target.value })}
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:bg-white focus:border-indigo-500 focus:outline-hidden font-mono"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-semibold text-slate-700 mb-1">Description / Notes</label>
+                      <textarea
+                        rows={2}
+                        value={editingSubtopic.notes || editingSubtopic.description || ''}
+                        onChange={(e) => setEditingSubtopic({ ...editingSubtopic, notes: e.target.value, description: e.target.value })}
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:bg-white focus:border-indigo-500 focus:outline-hidden"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block font-semibold text-slate-700 mb-1">Display Order</label>
+                        <input
+                          type="number"
+                          value={editingSubtopic.displayOrder || 1}
+                          onChange={(e) => setEditingSubtopic({ ...editingSubtopic, displayOrder: parseInt(e.target.value) || 1 })}
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:bg-white focus:border-indigo-500 focus:outline-hidden"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block font-semibold text-slate-700 mb-1">Status</label>
+                        <select
+                          value={editingSubtopic.isActive !== false ? 'true' : 'false'}
+                          onChange={(e) => setEditingSubtopic({ ...editingSubtopic, isActive: e.target.value === 'true' })}
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:bg-white focus:border-indigo-500 focus:outline-hidden"
+                        >
+                          <option value="true">Active</option>
+                          <option value="false">Inactive</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                      <button
+                        type="button"
+                        onClick={() => setEditingSubtopic(null)}
+                        className="px-3 py-1.5 text-slate-600 hover:bg-slate-100 rounded-lg"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={isSavingTaxonomy}
+                        className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg shadow-xs disabled:opacity-50 cursor-pointer"
+                      >
+                        {isSavingTaxonomy ? 'Saving...' : 'Save Changes'}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

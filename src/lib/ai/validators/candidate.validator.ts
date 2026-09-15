@@ -19,7 +19,6 @@ import { MathematicalValidator, MathVerificationResult } from './mathematical.va
 import {
   BlindVerifierProvider,
   evaluateBlindDerivedResult,
-  GeminiBlindVerifierProvider,
 } from './blind-verifier';
 
 export interface CandidateValidationReport {
@@ -53,7 +52,10 @@ export class CandidateValidator {
   /**
    * Validates an AI question candidate with strict schema, pedagogical, and mathematical rules.
    */
-  public static validate(candidate: Partial<QuestionCandidate>): CandidateValidationReport {
+  public static validate(
+    candidate: Partial<QuestionCandidate>,
+    existingQuestions?: Array<{ id: string; questionText: string }>
+  ): CandidateValidationReport {
     const errors: string[] = [];
     const warnings: string[] = [];
 
@@ -266,6 +268,20 @@ export class CandidateValidator {
       errors.push('Literal "RANDOM" cannot be used as candidate real_world_context. A concrete context must be resolved.');
     }
 
+    // 13. Duplicate Question Text Check against Existing Question Bank
+    if (content && existingQuestions && existingQuestions.length > 0) {
+      const normContent = content.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim();
+      if (normContent) {
+        for (const eq of existingQuestions) {
+          const normEq = (eq.questionText || '').toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim();
+          if (normEq && normContent === normEq) {
+            warnings.push(`Duplicate candidate detected: Identical question text matches existing question ID: ${eq.id}.`);
+            break;
+          }
+        }
+      }
+    }
+
     return {
       isValid: errors.length === 0,
       errors,
@@ -286,9 +302,11 @@ export class CandidateValidator {
    */
   public static async validateAsync(
     candidate: Partial<QuestionCandidate>,
-    blindVerifier?: BlindVerifierProvider
+    blindVerifier?: BlindVerifierProvider,
+    existingQuestions?: Array<{ id: string; questionText: string }>
   ): Promise<CandidateValidationReport> {
-    const syncReport = CandidateValidator.validate(candidate);
+    const questions = existingQuestions || [];
+    const syncReport = CandidateValidator.validate(candidate, questions);
 
     // If deterministic check is already VERIFIED or FAILED, return immediately
     if (
@@ -299,7 +317,10 @@ export class CandidateValidator {
     }
 
     // If no blind verifier available, return sync report (remains UNVERIFIED)
-    const verifier = blindVerifier || new GeminiBlindVerifierProvider();
+    if (!blindVerifier) {
+      return syncReport;
+    }
+    const verifier = blindVerifier;
 
     try {
       const derived = await verifier.verifyBlindly({

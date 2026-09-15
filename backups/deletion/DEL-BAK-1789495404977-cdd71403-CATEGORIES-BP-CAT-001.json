@@ -1,0 +1,38 @@
+{
+  "id": "DEL-BAK-1789495404977-cdd71403",
+  "backupTimestamp": "2026-09-15T18:03:24.977Z",
+  "sheetName": "CATEGORIES",
+  "entityId": "BP-CAT-001",
+  "physicalRowIndex": 6,
+  "headers": [
+    "id",
+    "name",
+    "slug",
+    "description",
+    "color_code",
+    "created_at",
+    "updated_at"
+  ],
+  "rawRow": [
+    "BP-CAT-001",
+    "Test Automation Aptitude 1789384377252",
+    "test-automation-aptitude-1789384377252",
+    "Temporary category for Task 2B automated verification",
+    "#10B981",
+    "2026-09-14T11:12:57.955Z"
+  ],
+  "record": {
+    "id": "BP-CAT-001",
+    "name": "Test Automation Aptitude 1789384377252",
+    "slug": "test-automation-aptitude-1789384377252",
+    "description": "Temporary category for Task 2B automated verification",
+    "colorCode": "#10B981",
+    "createdAt": "2026-09-14T11:12:57.955Z"
+  },
+  "checksum": "9e4f4638292f427e1715a25804af734115d62055102c4b9abaef040635455aac",
+  "actor": {
+    "id": "SYSTEM_CLEANUP",
+    "name": "Production Test-Data Sanitizer"
+  },
+  "reason": "Phase 30 Pre-Acceptance Production Cleanup"
+}

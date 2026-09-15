@@ -1,0 +1,33 @@
+{
+  "id": "DEL-BAK-1789393370295-4d8691e3",
+  "backupTimestamp": "2026-09-14T13:42:50.295Z",
+  "sheetName": "CATEGORIES",
+  "entityId": "BP-CAT-004",
+  "physicalRowIndex": 9,
+  "headers": [
+    "id",
+    "name",
+    "slug",
+    "description",
+    "color_code",
+    "created_at",
+    "updated_at"
+  ],
+  "rawRow": [
+    "BP-CAT-004",
+    "Test Automation Aptitude 1789393342350",
+    "test-automation-aptitude-1789393342350",
+    "Temporary category for Task 2B automated verification",
+    "#10B981",
+    "2026-09-14T13:42:22.916Z"
+  ],
+  "record": {
+    "id": "BP-CAT-004",
+    "name": "Test Automation Aptitude 1789393342350",
+    "slug": "test-automation-aptitude-1789393342350",
+    "description": "Temporary category for Task 2B automated verification",
+    "colorCode": "#10B981",
+    "createdAt": "2026-09-14T13:42:22.916Z"
+  },
+  "checksum": "550abd6c2b3eb01233d6d27be7f52e872493af2ce2e71679dc0235e9e05328ad"
+}

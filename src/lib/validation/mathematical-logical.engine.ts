@@ -376,7 +376,7 @@ export class MathematicalLogicalEngine {
   private static solveSpeedDistanceTimeDirect(content: string): SolverSolution | null {
     // Check if asking speed
     const asksSpeed = /(?:what\s+is\s+the\s+speed|find\s+the\s+speed|వేగం\s+ఎంత)/i.test(content);
-    const distMatch = content.match(/(\d+(?:\.\d+)?)\s*(?:km|kilometers|కి\.మీ|కిలోమీటర్ల?)/i);
+    const distMatch = content.match(/(\d+(?:\.\d+)?)\s*(?:km|kilometers|కి\.మీ|కిలోమీటర్ల?)(?!\/h|\/hr|ph)/i);
     const timeHoursMatch = content.match(/(\d+(?:\.\d+)?)\s*(?:hours?|hrs?|గంటల?)/i);
 
     if (asksSpeed && distMatch && timeHoursMatch) {
@@ -397,7 +397,7 @@ export class MathematicalLogicalEngine {
 
     // Check if asking distance
     const asksDistance = /(?:what\s+is\s+the\s+distance|find\s+the\s+distance|దూరం\s+ఎంత)/i.test(content);
-    const speedMatch = content.match(/(\d+(?:\.\d+)?)\s*(?:km\/h|km\/hr|kmph|కిమీ\/గం)/i);
+    const speedMatch = content.match(/(\d+(?:\.\d+)?)\s*(?:km\/h|km\/hr|kmph|కిమీ\/గం|వేగంతో)/i);
     if (asksDistance && speedMatch && timeHoursMatch) {
       const s = parseFloat(speedMatch[1]);
       const t = parseFloat(timeHoursMatch[1]);
@@ -410,6 +410,24 @@ export class MathematicalLogicalEngine {
         details: `Distance = Speed * Time = ${s} km/h * ${t} h = ${rounded} km`,
         calculationSteps: [`Speed = ${s} km/h, Time = ${t} hours`, `Distance = ${s} * ${t} = ${rounded} km`],
       };
+    }
+
+    // Check if asking time
+    const asksTime = /(?:what\s+is\s+the\s+time|find\s+the\s+time|సమయం\s+ఎంత|పట్టే\s+సమయం)/i.test(content);
+    if (asksTime && distMatch && speedMatch) {
+      const d = parseFloat(distMatch[1]);
+      const s = parseFloat(speedMatch[1]);
+      if (s > 0) {
+        const time = d / s;
+        const rounded = Math.round(time * 100) / 100;
+        return {
+          problemType: 'Direct Time Calculation (Distance / Speed)',
+          expectedValue: rounded,
+          expectedUnit: 'hours',
+          details: `Time = Distance / Speed = ${d} km / ${s} km/h = ${rounded} hours`,
+          calculationSteps: [`Distance = ${d} km, Speed = ${s} km/h`, `Time = ${d} / ${s} = ${rounded} hours`],
+        };
+      }
     }
 
     return null;

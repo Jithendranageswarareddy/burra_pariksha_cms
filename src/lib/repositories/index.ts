@@ -28,4 +28,11 @@ export * from './content-masters.repository';
 export * from './validations.repository';
 export * from './social-reviews.repository';
 export * from './question-config.repository';
-
+export * from './refinement-candidates.repository';
+export * from './media-assets.repository';
+export * from './thumbnail-candidates.repository';
+export * from './pinned-comment-packages.repository';
+export * from './phase20-social-reviews.repository';
+export * from './platform-adaptations.repository';
+export * from './intelligence.repository';
+export * from './strategy-recommendation.repository';

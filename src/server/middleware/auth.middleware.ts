@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { authService } from '../../lib/services/auth.service';
+import { usersRepository, UserSessionState } from '../../lib/repositories/users.repository';
 import { UserRole } from '../../types';
 
 export interface AuthUserContext {
@@ -61,23 +62,62 @@ export function requireAuth(req: AuthenticatedRequest, res: Response, next: Next
     return;
   }
 
-  // Attach verified user context containing id, name, role, roles
-  // Never attach password_hash, session token, secrets, or credentials
-  const rolesList: string[] = [];
-  if (Array.isArray((payload as any).roles)) {
-    (payload as any).roles.forEach((r: any) => r && rolesList.push(String(r).trim()));
-  }
-  if (rolesList.length === 0 && payload.role) {
-    String(payload.role).split(',').forEach((r) => r.trim() && rolesList.push(r.trim()));
+  const completeAuth = (userState: UserSessionState | null) => {
+    if (userState) {
+      if (!userState.isActive) {
+        res.status(401).json({
+          success: false,
+          error: 'Invalid or expired session.',
+        });
+        return;
+      }
+
+      // Persistent session version check: token version must match or exceed current persistent session version
+      const tokenVersion = payload.sessionVersion ?? 1;
+      if (tokenVersion < userState.sessionVersion) {
+        res.status(401).json({
+          success: false,
+          error: 'Invalid or expired session.',
+        });
+        return;
+      }
+    }
+
+    const rolesList: string[] = [];
+    if (Array.isArray((payload as any).roles)) {
+      (payload as any).roles.forEach((r: any) => r && rolesList.push(String(r).trim()));
+    }
+    if (rolesList.length === 0 && payload.role) {
+      String(payload.role).split(',').forEach((r) => r.trim() && rolesList.push(r.trim()));
+    }
+
+    const authoritativeRoles = userState?.roles && userState.roles.length > 0 ? userState.roles : rolesList;
+    const authoritativeRole = userState?.role || payload.role || authoritativeRoles[0] || UserRole.ADMIN;
+
+    req.user = {
+      id: payload.userId,
+      name: payload.name,
+      role: authoritativeRole,
+      roles: authoritativeRoles.length > 0 ? authoritativeRoles : [authoritativeRole],
+    };
+    next();
+  };
+
+  const cachedState = usersRepository.getUserSessionState(payload.userId);
+  if (cachedState) {
+    completeAuth(cachedState);
+    return;
   }
 
-  req.user = {
-    id: payload.userId,
-    name: payload.name,
-    role: payload.role || rolesList[0] || UserRole.ADMIN,
-    roles: rolesList.length > 0 ? rolesList : [payload.role || UserRole.ADMIN],
-  };
-  next();
+  // When cache is cold (e.g. after server restart), fetch authoritative state from persistent repository
+  usersRepository.getAuthoritativeUserSessionState(payload.userId).then((authoritativeState) => {
+    completeAuth(authoritativeState);
+  }).catch(() => {
+    res.status(401).json({
+      success: false,
+      error: 'Invalid or expired session.',
+    });
+  });
 }
 
 

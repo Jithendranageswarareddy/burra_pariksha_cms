@@ -35,18 +35,23 @@ import {
   workflowService,
   workflowOrchestrationService,
   analyticsService,
+  phase15ScriptProductionService,
+  phase17VideoProductionService,
+  phase18ThumbnailIntelligenceService,
 } from '../lib/services';
-import { geminiService } from '../lib/ai/gemini.service';
+import { thumbnailCandidatesRepository } from '../lib/repositories/thumbnail-candidates.repository';
+import { ThumbnailSafetyValidator } from '../lib/validators/thumbnail-safety.validator';
 import { geminiClient } from '../lib/ai/gemini.client';
-import { aiOrchestrator } from '../lib/ai/orchestrator';
+import { phase24AIOrchestrator } from '../lib/ai/phase24-orchestrator.service';
 import { googleSheetsClient } from '../lib/google-sheets/client';
-import { QuestionStatus, UserRole, SocialReviewStatus, RenderValidationStatus, VideoProductionStatus } from '../types';
+import { QuestionStatus, UserRole, SocialReviewStatus, RenderValidationStatus, VideoProductionStatus, WorkflowActor } from '../types';
 import { ProductionAssetValidationService } from '../lib/services/production-asset-validation.service';
 import { ActorContext } from '../lib/services/object-auth.service';
 import { usersRepository } from '../lib/repositories/users.repository';
 import { questionsRepository } from '../lib/repositories/questions.repository';
 import { socialReviewsRepository } from '../lib/repositories/social-reviews.repository';
 import { thumbnailsRepository } from '../lib/repositories/thumbnails.repository';
+import { scriptsRepository, scriptVersionsRepository } from '../lib/repositories/scripts.repository';
 import { SocialEnhancementService } from '../lib/services/social-enhancement.service';
 import { SocialReviewService } from '../lib/services/social-review.service';
 import {
@@ -168,7 +173,9 @@ apiRouter.post('/auth/logout', async (req: Request, res: Response) => {
     if (token) {
       const payload = authService.verifySessionToken(token);
       if (payload) {
-        await authService.logout(payload.userId, payload.name);
+        await authService.logout(payload.userId, payload.name, token);
+      } else {
+        authService.revokeSession(token);
       }
     }
 
@@ -362,6 +369,20 @@ apiRouter.all('/test/task4', async (req: Request, res: Response) => {
   }
 });
 
+// Phase 05 Verification Endpoint
+apiRouter.all('/test/phase5', async (req: Request, res: Response) => {
+  try {
+    const { runPhase05QuestionContractVerification } = await import('../tests/phase-5-question-model');
+    const report = await runPhase05QuestionContractVerification();
+    res.json(report);
+  } catch (err: any) {
+    res.status(500).json({
+      error: 'Phase 05 verification failed',
+      message: err?.message || 'Unknown error during Phase 05 test run',
+    });
+  }
+});
+
 apiRouter.post('/sheets/initialize', async (req: Request, res: Response) => {
   try {
     const bootstrapSecret = process.env.BOOTSTRAP_SECRET;
@@ -409,6 +430,20 @@ apiRouter.get('/tests/task3f4', async (req: Request, res: Response) => {
     res.json(result);
   } catch (err: any) {
     res.status(500).json({ success: false, error: err?.message || 'Task 3F.4 tests failed' });
+  }
+});
+
+apiRouter.get('/tests/phase5', async (req: Request, res: Response) => {
+  if (process.env.NODE_ENV === 'production') {
+    res.status(404).json({ success: false, error: 'Test runner endpoints are disabled in production environment.' });
+    return;
+  }
+  try {
+    const { runPhase05QuestionContractVerification } = await import('../tests/phase-5-question-model');
+    const result = await runPhase05QuestionContractVerification();
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Phase 05 tests failed' });
   }
 });
 
@@ -1355,6 +1390,25 @@ apiRouter.get('/taxonomy/tree', async (req: Request, res: Response) => {
   }
 });
 
+apiRouter.get('/taxonomy/pure-tree', async (req: Request, res: Response) => {
+  try {
+    const includeInactive = req.query.includeInactive === 'true';
+    const tree = await taxonomyService.getPureTopicTree({ includeInactive });
+    res.json(tree);
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || 'Failed to fetch pure taxonomy tree' });
+  }
+});
+
+apiRouter.get('/taxonomy/metrics', async (req: Request, res: Response) => {
+  try {
+    const metrics = await taxonomyService.getTaxonomyMetrics();
+    res.json(metrics);
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || 'Failed to fetch taxonomy metrics' });
+  }
+});
+
 apiRouter.get('/categories', async (req: Request, res: Response) => {
   try {
     const search = req.query.search as string | undefined;
@@ -1562,7 +1616,7 @@ apiRouter.get('/questions/config', async (req: Request, res: Response) => {
       questionStyles: grouped.questionStyles,
       defaults: {
         realLifeContext: grouped.defaultRealLifeContext?.displayLabel || grouped.defaultRealLifeContext?.code || '',
-        questionStyle: grouped.defaultQuestionStyle?.code || 'STORY_BASED',
+        questionStyle: grouped.defaultQuestionStyle?.code || '',
         difficulty: 'Intermediate',
         language: 'TELUGU',
         defaultRealLifeContext: grouped.defaultRealLifeContext,
@@ -2370,6 +2424,376 @@ apiRouter.post('/videos/:videoId/script/return-to-editing', requireRole([UserRol
 });
 
 // ----------------------------------------------------
+// Phase 15: AI Script & Hook Production Endpoints
+// ----------------------------------------------------
+
+apiRouter.post('/phase15/script/generate', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { questionId } = req.body || {};
+    if (!questionId) {
+      return res.status(400).json({ error: 'Missing questionId parameter' });
+    }
+    const actor = getRequestActor(req);
+    const result = await phase15ScriptProductionService.generateScriptForQuestion(questionId, actor);
+    res.status(200).json(result);
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || 'Failed to generate script candidate' });
+  }
+});
+
+apiRouter.post('/phase15/script/:scriptId/edit', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { scriptId } = req.params;
+    const actor = getRequestActor(req);
+    const result = await phase15ScriptProductionService.editScriptCandidate(scriptId, req.body, actor);
+    res.status(200).json(result);
+  } catch (err: any) {
+    res.status(400).json({ error: err?.message || 'Failed to edit script candidate' });
+  }
+});
+
+// ----------------------------------------------------
+// Script Production & Workflow Endpoints (Phase 16)
+// ----------------------------------------------------
+apiRouter.post('/phase16/script/:scriptId/revert', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { scriptId } = req.params;
+    const { targetVersionNumber } = req.body || {};
+    if (!targetVersionNumber || typeof targetVersionNumber !== 'number') {
+      return res.status(400).json({ error: 'Valid targetVersionNumber is required.' });
+    }
+    const actor = getRequestActor(req);
+    const result = await phase15ScriptProductionService.revertScript(scriptId, targetVersionNumber, actor);
+    res.status(200).json(result);
+  } catch (err: any) {
+    res.status(400).json({ error: err?.message || 'Failed to revert script' });
+  }
+});
+
+apiRouter.post('/phase16/script/:scriptId/submit-review', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { scriptId } = req.params;
+    const { reviewerId } = req.body || {};
+    const actor = getRequestActor(req);
+    const result = await phase15ScriptProductionService.submitForReview(scriptId, reviewerId, actor);
+    res.status(200).json(result);
+  } catch (err: any) {
+    res.status(400).json({ error: err?.message || 'Failed to submit script for review' });
+  }
+});
+
+apiRouter.post('/phase16/script/:scriptId/approve', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { scriptId } = req.params;
+    const { versionNumber, expectedContentId } = req.body || {};
+    if (typeof versionNumber !== 'number') {
+      return res.status(400).json({ error: 'versionNumber is required to approve script.' });
+    }
+    const actor = getRequestActor(req);
+    const result = await phase15ScriptProductionService.approveScript(scriptId, versionNumber, actor, expectedContentId);
+    res.status(200).json(result);
+  } catch (err: any) {
+    res.status(400).json({ error: err?.message || 'Failed to approve script' });
+  }
+});
+
+apiRouter.post('/phase16/script/:scriptId/reject', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { scriptId } = req.params;
+    const { reason } = req.body || {};
+    if (!reason) {
+      return res.status(400).json({ error: 'Rejection reason is required.' });
+    }
+    const actor = getRequestActor(req);
+    const result = await phase15ScriptProductionService.rejectScript(scriptId, reason, actor);
+    res.status(200).json(result);
+  } catch (err: any) {
+    res.status(400).json({ error: err?.message || 'Failed to reject script' });
+  }
+});
+
+apiRouter.get('/phase16/script/:scriptId/versions', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { scriptId } = req.params;
+    const versions = await scriptVersionsRepository.findByScriptId(scriptId);
+    res.status(200).json({ scriptId, versions });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || 'Failed to fetch script versions' });
+  }
+});
+
+// ----------------------------------------------------
+// Video Production Workflow Endpoints (Phase 17)
+// ----------------------------------------------------
+
+apiRouter.post('/phase17/video/raw', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const actor = getRequestActor(req);
+    const { scriptId, expectedContentId, fileName, mimeType, binaryBase64 } = req.body || {};
+
+    if (!scriptId || !fileName || !mimeType || !binaryBase64) {
+      return res.status(400).json({
+        error: 'scriptId, fileName, mimeType, and binaryBase64 are required to initialize raw video.',
+      });
+    }
+
+    const rawBinaryBuffer = Buffer.from(binaryBase64, 'base64');
+    const result = await phase17VideoProductionService.initializeRawVideo(
+      {
+        scriptId,
+        expectedContentId,
+        rawBinaryBuffer,
+        fileName,
+        mimeType,
+      },
+      actor
+    );
+    res.status(200).json(result);
+  } catch (err: any) {
+    res.status(400).json({ error: err?.message || 'Failed to initialize raw video' });
+  }
+});
+
+apiRouter.post('/phase17/video/:videoId/transition-editing', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { videoId } = req.params;
+    const actor = getRequestActor(req);
+    const { expectedContentId, assignedEditorId } = req.body || {};
+
+    const result = await phase17VideoProductionService.transitionToEditing(
+      {
+        videoId,
+        expectedContentId,
+        assignedEditorId,
+      },
+      actor
+    );
+    res.status(200).json(result);
+  } catch (err: any) {
+    res.status(400).json({ error: err?.message || 'Failed to transition video to editing' });
+  }
+});
+
+apiRouter.post('/phase17/video/:videoId/edited', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { videoId } = req.params;
+    const actor = getRequestActor(req);
+    const { expectedContentId, fileName, mimeType, binaryBase64 } = req.body || {};
+
+    if (!fileName || !mimeType || !binaryBase64) {
+      return res.status(400).json({
+        error: 'fileName, mimeType, and binaryBase64 are required to upload edited video.',
+      });
+    }
+
+    const editedBinaryBuffer = Buffer.from(binaryBase64, 'base64');
+    const result = await phase17VideoProductionService.uploadEditedVideo(
+      {
+        videoId,
+        expectedContentId,
+        editedBinaryBuffer,
+        fileName,
+        mimeType,
+      },
+      actor
+    );
+    res.status(200).json(result);
+  } catch (err: any) {
+    res.status(400).json({ error: err?.message || 'Failed to upload edited video' });
+  }
+});
+
+apiRouter.post('/phase17/video/:videoId/approve-final', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { videoId } = req.params;
+    const actor = getRequestActor(req);
+    const { expectedContentId, fileName, mimeType, binaryBase64 } = req.body || {};
+
+    let finalBinaryBuffer: Buffer | undefined;
+    if (binaryBase64) {
+      finalBinaryBuffer = Buffer.from(binaryBase64, 'base64');
+    }
+
+    const result = await phase17VideoProductionService.approveFinalVideo(
+      {
+        videoId,
+        expectedContentId,
+        finalBinaryBuffer,
+        fileName,
+        mimeType,
+      },
+      actor
+    );
+    res.status(200).json(result);
+  } catch (err: any) {
+    res.status(400).json({ error: err?.message || 'Failed to approve final video' });
+  }
+});
+
+apiRouter.get('/phase17/video/:videoId/history', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { videoId } = req.params;
+    const history = await phase17VideoProductionService.getVideoProductionHistory(videoId);
+    res.status(200).json(history);
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || 'Failed to fetch video production history' });
+  }
+});
+
+// ----------------------------------------------------
+// Phase 18 — AI Thumbnail Intelligence & Workflow Endpoints
+// ----------------------------------------------------
+
+apiRouter.post('/phase18/thumbnails/generate-concepts', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const actor = getRequestActor(req);
+    const { contentId, numberOfVariants } = req.body;
+    if (!contentId) {
+      return res.status(400).json({ error: 'contentId is required' });
+    }
+    const result = await phase18ThumbnailIntelligenceService.generateConceptsForContent(
+      contentId,
+      actor,
+      { numberOfVariants: numberOfVariants ? Number(numberOfVariants) : undefined }
+    );
+    res.status(200).json(result);
+  } catch (err: any) {
+    res.status(400).json({ error: err?.message || 'Failed to generate thumbnail concepts' });
+  }
+});
+
+apiRouter.post('/phase18/thumbnails/manual-candidate', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const actor = getRequestActor(req);
+    const result = await phase18ThumbnailIntelligenceService.createCandidateManual(req.body, actor);
+    res.status(201).json(result);
+  } catch (err: any) {
+    res.status(400).json({ error: err?.message || 'Failed to create manual thumbnail candidate' });
+  }
+});
+
+apiRouter.put('/phase18/thumbnails/candidates/:candidateId', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { candidateId } = req.params;
+    const actor = getRequestActor(req);
+    const result = await phase18ThumbnailIntelligenceService.updateCandidate(candidateId, req.body, actor);
+    res.status(200).json(result);
+  } catch (err: any) {
+    res.status(400).json({ error: err?.message || 'Failed to update thumbnail candidate' });
+  }
+});
+
+apiRouter.post('/phase18/thumbnails/candidates/:candidateId/submit-review', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { candidateId } = req.params;
+    const actor = getRequestActor(req);
+    const { reviewerId } = req.body || {};
+    const result = await phase18ThumbnailIntelligenceService.submitForReview(candidateId, actor, reviewerId);
+    res.status(200).json(result);
+  } catch (err: any) {
+    res.status(400).json({ error: err?.message || 'Failed to submit candidate for review' });
+  }
+});
+
+apiRouter.post('/phase18/thumbnails/candidates/:candidateId/approve', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { candidateId } = req.params;
+    const actor = getRequestActor(req);
+    const { targetVersion, expectedContentId } = req.body || {};
+    if (!targetVersion) {
+      return res.status(400).json({ error: 'targetVersion is required' });
+    }
+    const result = await phase18ThumbnailIntelligenceService.approveCandidate(
+      candidateId,
+      Number(targetVersion),
+      actor,
+      expectedContentId
+    );
+    res.status(200).json(result);
+  } catch (err: any) {
+    res.status(400).json({ error: err?.message || 'Failed to approve candidate' });
+  }
+});
+
+apiRouter.post('/phase18/thumbnails/candidates/:candidateId/reject', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { candidateId } = req.params;
+    const actor = getRequestActor(req);
+    const { reason } = req.body || {};
+    if (!reason) {
+      return res.status(400).json({ error: 'reason is required for rejection' });
+    }
+    const result = await phase18ThumbnailIntelligenceService.rejectCandidate(candidateId, reason, actor);
+    res.status(200).json(result);
+  } catch (err: any) {
+    res.status(400).json({ error: err?.message || 'Failed to reject candidate' });
+  }
+});
+
+apiRouter.post('/phase18/thumbnails/upload-binary', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const actor = getRequestActor(req);
+    const { contentId, fileName, mimeType, base64Data, candidateId, designerNotes } = req.body;
+    if (!contentId || !fileName || !mimeType || !base64Data) {
+      return res.status(400).json({ error: 'contentId, fileName, mimeType, and base64Data are required' });
+    }
+    const fileBuffer = Buffer.from(base64Data, 'base64');
+    const result = await phase18ThumbnailIntelligenceService.uploadThumbnailBinary(
+      {
+        contentId,
+        fileName,
+        mimeType,
+        fileBuffer,
+        candidateId,
+        designerNotes,
+      },
+      actor
+    );
+    res.status(200).json(result);
+  } catch (err: any) {
+    res.status(400).json({ error: err?.message || 'Failed to upload thumbnail binary' });
+  }
+});
+
+apiRouter.get('/phase18/thumbnails/:contentId/candidates', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { contentId } = req.params;
+    const candidates = await thumbnailCandidatesRepository.findByContentId(contentId);
+    res.status(200).json(candidates);
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || 'Failed to fetch candidates' });
+  }
+});
+
+apiRouter.get('/phase18/thumbnails/:contentId/history', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { contentId } = req.params;
+    const history = await phase18ThumbnailIntelligenceService.getProductionHistory(contentId);
+    res.status(200).json(history);
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || 'Failed to fetch thumbnail production history' });
+  }
+});
+
+apiRouter.post('/phase18/thumbnails/validate-safety', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { hookHeadline, questionId } = req.body;
+    if (!hookHeadline || !questionId) {
+      return res.status(400).json({ error: 'hookHeadline and questionId are required' });
+    }
+    const question = await questionsRepository.findById(questionId);
+    if (!question) {
+      return res.status(404).json({ error: 'Question not found' });
+    }
+    const report = ThumbnailSafetyValidator.validate(hookHeadline, question);
+    res.status(200).json(report);
+  } catch (err: any) {
+    res.status(400).json({ error: err?.message || 'Failed to validate thumbnail safety' });
+  }
+});
+
+
+// ----------------------------------------------------
 // Thumbnail Management Endpoints (Phase 6)
 // ----------------------------------------------------
 
@@ -2922,19 +3346,21 @@ apiRouter.get('/ai/status', (req: Request, res: Response) => {
 
 apiRouter.post('/ai/generate', async (req: Request, res: Response) => {
   try {
-    const result = await aiOrchestrator.generateQuestionCandidate(req.body);
+    const result = await phase24AIOrchestrator.generateQuestionCandidate(req.body);
     res.json(result);
   } catch (err: any) {
-    res.status(500).json({
+    const statusCode = err.statusCode || (err.code === 'QUOTA_EXHAUSTED' ? 429 : 500);
+    res.status(statusCode).json({
       error: 'AI Generation Failed',
       message: err?.message || 'Failed to generate question candidate',
+      code: err?.code || 'AI_GENERATION_FAILED',
     });
   }
 });
 
 apiRouter.post('/ai/refine', async (req: Request, res: Response) => {
   try {
-    const result = await geminiService.refineCandidate(req.body);
+    const result = await phase24AIOrchestrator.refineQuestionCandidate(req.body);
     res.json(result);
   } catch (err: any) {
     res.status(500).json({
@@ -2946,7 +3372,7 @@ apiRouter.post('/ai/refine', async (req: Request, res: Response) => {
 
 apiRouter.post('/ai/script/generate', async (req: Request, res: Response) => {
   try {
-    const result = await geminiService.generateTeluguScript(req.body);
+    const result = await phase24AIOrchestrator.generateTeluguScript(req.body);
     res.json(result);
   } catch (err: any) {
     res.status(500).json({
@@ -3613,6 +4039,26 @@ apiRouter.get('/tests/phase4', async (req: Request, res: Response) => {
   }
 });
 
+apiRouter.all('/tests/phase04-verification', async (req: Request, res: Response) => {
+  try {
+    const { runPhase04TaxonomyVerification } = await import('../tests/phase04-taxonomy-verification');
+    const result = await runPhase04TaxonomyVerification();
+    res.json({ success: true, ...result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Phase 04 taxonomy verification failed' });
+  }
+});
+
+apiRouter.get('/tests/phase04-taxonomy', async (req: Request, res: Response) => {
+  try {
+    const { runPhase04TaxonomyVerification } = await import('../tests/phase04-taxonomy-verification');
+    const result = await runPhase04TaxonomyVerification();
+    res.json({ success: true, ...result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Phase 04 taxonomy verification failed' });
+  }
+});
+
 apiRouter.get('/tests/phase5', async (req: Request, res: Response) => {
   try {
     const { runPhase5Verification } = await import('../tests/phase5-verification');
@@ -3914,7 +4360,7 @@ apiRouter.post('/planning/similarity-check', async (req: Request, res: Response)
 apiRouter.post('/planning/ai-recommendation', async (req: Request, res: Response) => {
   try {
     const validated = AiContentPlanRequestSchema.parse(req.body);
-    const recommendation = await geminiService.generateContentPlanRecommendation(validated);
+    const recommendation = await phase24AIOrchestrator.generateContentPlanRecommendation(validated);
     res.json(recommendation);
   } catch (err: any) {
     res.status(400).json({ error: 'Failed to generate AI plan recommendation', message: err?.message });
@@ -5503,6 +5949,70 @@ apiRouter.get('/tests/phase28', async (req: Request, res: Response) => {
   }
 });
 
+// Phase 25: Multi-Model Consensus & AI Quality Judge Endpoint
+apiRouter.post(
+  '/questions/verify-consensus',
+  requireAuth,
+  requireRole([
+    UserRole.ADMIN,
+    UserRole.CONTENT_MANAGER,
+    UserRole.QUESTION_EDITOR,
+    UserRole.REVIEWER,
+  ]),
+  async (req: Request, res: Response) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const userRole = authReq.user?.role || UserRole.REVIEWER;
+      const { candidate, contentId, version, options } = req.body || {};
+
+      if (!candidate || !candidate.content) {
+        return res.status(400).json({
+          success: false,
+          error: 'ValidationError',
+          message: 'Question candidate object with content property is required.',
+        });
+      }
+
+      const { phase25ConsensusService } = await import('../lib/services/phase25-consensus.service');
+      const response = await phase25ConsensusService.verifyCandidate({
+        candidate,
+        contentId,
+        version,
+        options: {
+          ...options,
+          userRole,
+        },
+      });
+
+      res.json({
+        success: true,
+        ...response,
+      });
+    } catch (err: any) {
+      const isAuthError = err?.name === 'AuthorizationError';
+      res.status(isAuthError ? 403 : 500).json({
+        success: false,
+        error: err?.name || 'ConsensusVerificationError',
+        message: err?.message || 'Failed to execute multi-model consensus verification',
+      });
+    }
+  }
+);
+
+// Phase 25 Verification Test Endpoint
+apiRouter.get('/tests/phase25', async (req: Request, res: Response) => {
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(404).json({ success: false, error: 'Test runner endpoints are disabled in production.' });
+  }
+  try {
+    const { runPhase25Verification } = await import('../tests/run-phase25-only');
+    const result = await runPhase25Verification();
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message });
+  }
+});
+
 // ==========================================
 // Phase 29A: Controlled Strategy Integration Endpoints
 // ==========================================
@@ -5567,6 +6077,299 @@ apiRouter.post(
   }
 );
 
+/**
+ * Phase 29: Generate a new content strategy recommendation.
+ */
+apiRouter.post(
+  '/content-strategy/recommendations',
+  requireAuth,
+  requireRole([
+    UserRole.ADMIN,
+    UserRole.CONTENT_MANAGER,
+    UserRole.ANALYTICS_VIEWER,
+    UserRole.CREATOR,
+    UserRole.PUBLISHING_MANAGER,
+  ]),
+  async (req: Request, res: Response) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const actorId = authReq.user?.id || 'USR-APP';
+      const actorName = authReq.user?.name || 'User';
+
+      const { contentStrategyService } = await import('../lib/services/content-strategy.service');
+      const result = await contentStrategyService.generateStrategyRecommendation(req.body, actorId, actorName);
+
+      if (!result.success) {
+        return res.status(400).json(result);
+      }
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: 'Failed to generate content strategy recommendation', message: err?.message });
+    }
+  }
+);
+
+/**
+ * Phase 29: Get recent content strategy recommendations.
+ */
+apiRouter.get(
+  '/content-strategy/recommendations',
+  requireAuth,
+  requireRole([
+    UserRole.ADMIN,
+    UserRole.CONTENT_MANAGER,
+    UserRole.ANALYTICS_VIEWER,
+    UserRole.CREATOR,
+    UserRole.PUBLISHING_MANAGER,
+  ]),
+  async (req: Request, res: Response) => {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 20;
+      const { contentStrategyService } = await import('../lib/services/content-strategy.service');
+      const recommendations = await contentStrategyService.getRecommendations(limit);
+      res.json({ success: true, count: recommendations.length, recommendations });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: 'Failed to fetch content strategy recommendations', message: err?.message });
+    }
+  }
+);
+
+/**
+ * Phase 29: Get specific recommendation by ID.
+ */
+apiRouter.get(
+  '/content-strategy/recommendations/:id',
+  requireAuth,
+  requireRole([
+    UserRole.ADMIN,
+    UserRole.CONTENT_MANAGER,
+    UserRole.ANALYTICS_VIEWER,
+    UserRole.CREATOR,
+    UserRole.PUBLISHING_MANAGER,
+  ]),
+  async (req: Request, res: Response) => {
+    try {
+      const { contentStrategyService } = await import('../lib/services/content-strategy.service');
+      const rec = await contentStrategyService.getRecommendationById(req.params.id);
+      if (!rec) {
+        return res.status(404).json({ success: false, error: 'Content strategy recommendation not found' });
+      }
+      res.json({ success: true, recommendation: rec });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: 'Failed to fetch content strategy recommendation', message: err?.message });
+    }
+  }
+);
+
+/**
+ * Phase 29: Apply a recommendation to create a ContentPlan.
+ */
+apiRouter.post(
+  '/content-strategy/recommendations/:id/apply',
+  requireAuth,
+  requireRole([
+    UserRole.ADMIN,
+    UserRole.CONTENT_MANAGER,
+    UserRole.ANALYTICS_VIEWER,
+    UserRole.CREATOR,
+    UserRole.PUBLISHING_MANAGER,
+  ]),
+  async (req: Request, res: Response) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const actorId = authReq.user?.id || 'USR-APP';
+      const actorName = authReq.user?.name || 'User';
+
+      const { contentStrategyService } = await import('../lib/services/content-strategy.service');
+      const result = await contentStrategyService.applyRecommendation(req.params.id, actorId, actorName);
+
+      if (!result.success) {
+        return res.status(400).json(result);
+      }
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: 'Failed to apply strategy recommendation', message: err?.message });
+    }
+  }
+);
+
+/**
+ * Phase 29: Reject a recommendation.
+ */
+apiRouter.post(
+  '/content-strategy/recommendations/:id/reject',
+  requireAuth,
+  requireRole([
+    UserRole.ADMIN,
+    UserRole.CONTENT_MANAGER,
+    UserRole.ANALYTICS_VIEWER,
+    UserRole.CREATOR,
+    UserRole.PUBLISHING_MANAGER,
+  ]),
+  async (req: Request, res: Response) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const actorId = authReq.user?.id || 'USR-APP';
+      const actorName = authReq.user?.name || 'User';
+
+      const { contentStrategyService } = await import('../lib/services/content-strategy.service');
+      const result = await contentStrategyService.rejectRecommendation(req.params.id, actorId, actorName);
+
+      if (!result.success) {
+        return res.status(400).json(result);
+      }
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: 'Failed to reject strategy recommendation', message: err?.message });
+    }
+  }
+);
+
+/**
+ * Phase 29: Mark a recommendation as stale.
+ */
+apiRouter.post(
+  '/content-strategy/recommendations/:id/stale',
+  requireAuth,
+  requireRole([
+    UserRole.ADMIN,
+    UserRole.CONTENT_MANAGER,
+    UserRole.ANALYTICS_VIEWER,
+    UserRole.CREATOR,
+    UserRole.PUBLISHING_MANAGER,
+  ]),
+  async (req: Request, res: Response) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const actorId = authReq.user?.id || 'USR-APP';
+      const actorName = authReq.user?.name || 'User';
+
+      const { contentStrategyService } = await import('../lib/services/content-strategy.service');
+      const result = await contentStrategyService.markRecommendationStale(req.params.id, actorId, actorName);
+
+      if (!result.success) {
+        return res.status(400).json(result);
+      }
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: 'Failed to mark strategy recommendation as stale', message: err?.message });
+    }
+  }
+);
+
+// Phase 14: Google Drive Production Infrastructure Endpoints
+apiRouter.post('/media/upload', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const bb = busboy({ headers: req.headers });
+    let contentId = req.query.contentId as string | undefined;
+    let mediaStage = req.query.mediaStage as any | undefined;
+    let uploadedFile: { stream: Buffer; filename: string; mimeType: string } | null = null;
+
+    bb.on('field', (name, val) => {
+      if (name === 'contentId') contentId = val;
+      if (name === 'mediaStage') mediaStage = val;
+    });
+
+    bb.on('file', (name, fileStream, info) => {
+      const chunks: Buffer[] = [];
+      fileStream.on('data', (chunk) => {
+        chunks.push(chunk);
+      });
+      fileStream.on('end', () => {
+        uploadedFile = {
+          stream: Buffer.concat(chunks),
+          filename: info.filename,
+          mimeType: info.mimeType,
+        };
+      });
+    });
+
+    bb.on('finish', async () => {
+      try {
+        if (!contentId) {
+          return res.status(400).json({ error: 'ValidationError', message: 'contentId parameter is required.' });
+        }
+        if (!mediaStage) {
+          return res.status(400).json({ error: 'ValidationError', message: 'mediaStage parameter is required.' });
+        }
+        if (!uploadedFile) {
+          return res.status(400).json({ error: 'ValidationError', message: 'No file provided in multipart upload body.' });
+        }
+
+        const { phase14DriveService } = await import('../lib/services/phase14-drive.service');
+        const mediaAsset = await phase14DriveService.uploadProductionAsset({
+          contentId,
+          mediaStage,
+          fileName: uploadedFile.filename,
+          mimeType: uploadedFile.mimeType,
+          bodyStreamOrBuffer: uploadedFile.stream,
+        });
+
+        res.status(201).json({ success: true, data: mediaAsset });
+      } catch (err: any) {
+        res.status(err?.statusCode || 400).json({
+          error: err?.name || 'Upload Failed',
+          message: err?.message || 'Failed to upload media asset.',
+        });
+      }
+    });
+
+    bb.on('error', (err: any) => {
+      res.status(400).json({ error: 'Multipart Error', message: err?.message || 'Error parsing file upload stream.' });
+    });
+
+    req.pipe(bb);
+  } catch (err: any) {
+    res.status(500).json({ error: 'Initialization Error', message: err?.message || 'Failed to handle upload.' });
+  }
+});
+
+apiRouter.get('/media/download/:fileId', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { fileId } = req.params;
+    const rangeHeader = req.headers.range;
+
+    const { googleDriveService } = await import('../lib/services/google-drive.service');
+    const download = await googleDriveService.downloadFile(fileId, rangeHeader);
+
+    res.status(download.statusCode || (rangeHeader ? 206 : 200));
+    res.setHeader('Content-Type', download.contentType || 'application/octet-stream');
+    res.setHeader('Accept-Ranges', 'bytes');
+    if (download.contentLength) {
+      res.setHeader('Content-Length', download.contentLength);
+    }
+    if (download.contentRange) {
+      res.setHeader('Content-Range', download.contentRange);
+    }
+
+    download.stream.pipe(res);
+  } catch (err: any) {
+    res.status(err?.statusCode || 500).json({ error: err?.name || 'Download Error', message: err?.message || 'Failed to download asset.' });
+  }
+});
+
+apiRouter.get('/media/list/:contentId', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { contentId } = req.params;
+    const { phase14DriveService } = await import('../lib/services/phase14-drive.service');
+    const list = await phase14DriveService.listAssets(contentId);
+    res.json({ success: true, data: list });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message });
+  }
+});
+
+apiRouter.get('/media/latest/:contentId/:stage', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { contentId, stage } = req.params;
+    const { phase14DriveService } = await import('../lib/services/phase14-drive.service');
+    const latest = await phase14DriveService.getLatestAsset(contentId, stage as any);
+    res.json({ success: true, data: latest });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message });
+  }
+});
+
 // Phase 29A: Strategy Integration Verification Endpoint
 apiRouter.get('/tests/phase29', async (req: Request, res: Response) => {
   try {
@@ -5577,6 +6380,521 @@ apiRouter.get('/tests/phase29', async (req: Request, res: Response) => {
     res.status(500).json({ success: false, error: err?.message });
   }
 });
+
+// ============================================================================
+// PHASE 21: MULTI-PLATFORM CONTENT ADAPTATION ENDPOINTS
+// ============================================================================
+
+apiRouter.get('/adaptations/package/:contentId', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { contentId } = req.params;
+    const { phase21PlatformAdaptationService } = await import('../lib/services/phase21-platform-adaptation.service');
+    const pkg = await phase21PlatformAdaptationService.getMultiPlatformPackage(contentId);
+    res.json({ success: true, data: pkg });
+  } catch (err: any) {
+    res.status(err?.statusCode || 500).json({ success: false, error: err?.message });
+  }
+});
+
+apiRouter.get('/adaptations/search', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { contentId, platform, status, version, createdBy } = req.query;
+    const { phase21PlatformAdaptationService } = await import('../lib/services/phase21-platform-adaptation.service');
+    const records = await phase21PlatformAdaptationService.searchAdaptations({
+      contentId: contentId ? String(contentId) : undefined,
+      platform: platform ? String(platform) as any : undefined,
+      status: status ? String(status) as any : undefined,
+      version: version ? Number(version) : undefined,
+      createdBy: createdBy ? String(createdBy) : undefined,
+    });
+    res.json({ success: true, data: records });
+  } catch (err: any) {
+    res.status(err?.statusCode || 500).json({ success: false, error: err?.message });
+  }
+});
+
+apiRouter.post('/adaptations/recommend', requireAuth, aiRateLimiter, async (req: Request, res: Response) => {
+  try {
+    const { contentId, platform, forceFallback } = req.body;
+    const authReq = req as AuthenticatedRequest;
+    const actor: WorkflowActor = {
+      id: authReq.user?.id || 'USR-ANON',
+      name: authReq.user?.name || 'User',
+      role: (authReq.user?.role as UserRole) || UserRole.CREATOR,
+    };
+    const { phase21PlatformAdaptationService } = await import('../lib/services/phase21-platform-adaptation.service');
+    const rec = await phase21PlatformAdaptationService.generateAiAdaptationRecommendation(
+      contentId,
+      platform,
+      actor,
+      { forceFallback: Boolean(forceFallback) }
+    );
+    res.json({ success: true, data: rec });
+  } catch (err: any) {
+    res.status(err?.statusCode || 500).json({ success: false, error: err?.message });
+  }
+});
+
+apiRouter.post('/adaptations', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthenticatedRequest;
+    const actor: WorkflowActor = {
+      id: authReq.user?.id || 'USR-ANON',
+      name: authReq.user?.name || 'User',
+      role: (authReq.user?.role as UserRole) || UserRole.CREATOR,
+    };
+    const { phase21PlatformAdaptationService } = await import('../lib/services/phase21-platform-adaptation.service');
+    const created = await phase21PlatformAdaptationService.createAdaptation(req.body, actor);
+    res.status(201).json({ success: true, data: created });
+  } catch (err: any) {
+    res.status(err?.statusCode || 500).json({ success: false, error: err?.message });
+  }
+});
+
+apiRouter.put('/adaptations/:id', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const authReq = req as AuthenticatedRequest;
+    const actor: WorkflowActor = {
+      id: authReq.user?.id || 'USR-ANON',
+      name: authReq.user?.name || 'User',
+      role: (authReq.user?.role as UserRole) || UserRole.CREATOR,
+    };
+    const { phase21PlatformAdaptationService } = await import('../lib/services/phase21-platform-adaptation.service');
+    const updated = await phase21PlatformAdaptationService.updateAdaptation(id, req.body, actor);
+    res.json({ success: true, data: updated });
+  } catch (err: any) {
+    res.status(err?.statusCode || 500).json({ success: false, error: err?.message });
+  }
+});
+
+apiRouter.post('/adaptations/:id/submit-review', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const authReq = req as AuthenticatedRequest;
+    const actor: WorkflowActor = {
+      id: authReq.user?.id || 'USR-ANON',
+      name: authReq.user?.name || 'User',
+      role: (authReq.user?.role as UserRole) || UserRole.CREATOR,
+    };
+    const { phase21PlatformAdaptationService } = await import('../lib/services/phase21-platform-adaptation.service');
+    const submitted = await phase21PlatformAdaptationService.submitForReview(id, actor);
+    res.json({ success: true, data: submitted });
+  } catch (err: any) {
+    res.status(err?.statusCode || 500).json({ success: false, error: err?.message });
+  }
+});
+
+apiRouter.post('/adaptations/:id/approve', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const authReq = req as AuthenticatedRequest;
+    const actor: WorkflowActor = {
+      id: authReq.user?.id || 'USR-ANON',
+      name: authReq.user?.name || 'User',
+      role: (authReq.user?.role as UserRole) || UserRole.REVIEWER,
+    };
+    const { phase21PlatformAdaptationService } = await import('../lib/services/phase21-platform-adaptation.service');
+    const approved = await phase21PlatformAdaptationService.approveAdaptation(id, actor, { reason: req.body?.reason });
+    res.json({ success: true, data: approved });
+  } catch (err: any) {
+    res.status(err?.statusCode || 500).json({ success: false, error: err?.message });
+  }
+});
+
+apiRouter.post('/adaptations/:id/reject', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const authReq = req as AuthenticatedRequest;
+    const actor: WorkflowActor = {
+      id: authReq.user?.id || 'USR-ANON',
+      name: authReq.user?.name || 'User',
+      role: (authReq.user?.role as UserRole) || UserRole.REVIEWER,
+    };
+    const { phase21PlatformAdaptationService } = await import('../lib/services/phase21-platform-adaptation.service');
+    const rejected = await phase21PlatformAdaptationService.rejectAdaptation(id, req.body?.reason, actor);
+    res.json({ success: true, data: rejected });
+  } catch (err: any) {
+    res.status(err?.statusCode || 500).json({ success: false, error: err?.message });
+  }
+});
+
+apiRouter.post('/adaptations/:id/request-changes', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const authReq = req as AuthenticatedRequest;
+    const actor: WorkflowActor = {
+      id: authReq.user?.id || 'USR-ANON',
+      name: authReq.user?.name || 'User',
+      role: (authReq.user?.role as UserRole) || UserRole.REVIEWER,
+    };
+    const { phase21PlatformAdaptationService } = await import('../lib/services/phase21-platform-adaptation.service');
+    const changesReq = await phase21PlatformAdaptationService.requestChanges(id, req.body?.reason, actor);
+    res.json({ success: true, data: changesReq });
+  } catch (err: any) {
+    res.status(err?.statusCode || 500).json({ success: false, error: err?.message });
+  }
+});
+
+apiRouter.get('/adaptations/:id/versions', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { phase21PlatformAdaptationService } = await import('../lib/services/phase21-platform-adaptation.service');
+    const versions = await phase21PlatformAdaptationService.getAdaptationVersions(id);
+    res.json({ success: true, data: versions });
+  } catch (err: any) {
+    res.status(err?.statusCode || 500).json({ success: false, error: err?.message });
+  }
+});
+
+apiRouter.get('/adaptations/:id/staleness', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { phase21PlatformAdaptationService } = await import('../lib/services/phase21-platform-adaptation.service');
+    const staleness = await phase21PlatformAdaptationService.checkStaleness(id);
+    res.json({ success: true, data: staleness });
+  } catch (err: any) {
+    res.status(err?.statusCode || 500).json({ success: false, error: err?.message });
+  }
+});
+
+// ==========================================
+// PHASE 22: PUBLISHING HUB API ENDPOINTS
+// ==========================================
+
+apiRouter.get('/publishing/readiness/:contentId/:platform', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { contentId, platform } = req.params;
+    const { phase22PublishingHubService } = await import('../lib/services/phase22-publishing-hub.service');
+    const readiness = await phase22PublishingHubService.evaluateReadiness(contentId, platform);
+    res.json({ success: true, data: readiness });
+  } catch (err: any) {
+    res.status(err?.statusCode || 500).json({ success: false, error: err?.message });
+  }
+});
+
+apiRouter.get('/publishing/package/:contentId/:platform', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { contentId, platform } = req.params;
+    const { phase22PublishingHubService } = await import('../lib/services/phase22-publishing-hub.service');
+    const pkg = await phase22PublishingHubService.getPublisherPackage(contentId, platform);
+    res.json({ success: true, data: pkg });
+  } catch (err: any) {
+    res.status(err?.statusCode || 500).json({ success: false, error: err?.message });
+  }
+});
+
+apiRouter.get('/publishing/package/:contentId', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { contentId } = req.params;
+    const { phase22PublishingHubService } = await import('../lib/services/phase22-publishing-hub.service');
+    const packages = await phase22PublishingHubService.getAllPublisherPackagesForContent(contentId);
+    res.json({ success: true, data: packages });
+  } catch (err: any) {
+    res.status(err?.statusCode || 500).json({ success: false, error: err?.message });
+  }
+});
+
+apiRouter.get('/publishing/search', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { phase22PublishingHubService } = await import('../lib/services/phase22-publishing-hub.service');
+    const results = await phase22PublishingHubService.searchPublisherPackages(req.query as any);
+    res.json({ success: true, data: results });
+  } catch (err: any) {
+    res.status(err?.statusCode || 500).json({ success: false, error: err?.message });
+  }
+});
+
+apiRouter.post('/publishing/mark-published', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthenticatedRequest;
+    const actor: WorkflowActor = {
+      id: authReq.user?.id || 'USR-ANON',
+      name: authReq.user?.name || 'User',
+      role: (authReq.user?.role as UserRole) || UserRole.PUBLISHER,
+    };
+    const { phase22PublishingHubService } = await import('../lib/services/phase22-publishing-hub.service');
+    const record = await phase22PublishingHubService.markManuallyPublished(req.body, actor);
+    res.json({ success: true, data: record });
+  } catch (err: any) {
+    res.status(err?.statusCode || 500).json({ success: false, error: err?.message });
+  }
+});
+
+apiRouter.post('/publishing/mark-failed', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthenticatedRequest;
+    const actor: WorkflowActor = {
+      id: authReq.user?.id || 'USR-ANON',
+      name: authReq.user?.name || 'User',
+      role: (authReq.user?.role as UserRole) || UserRole.PUBLISHER,
+    };
+    const { phase22PublishingHubService } = await import('../lib/services/phase22-publishing-hub.service');
+    const record = await phase22PublishingHubService.markPublishingFailed(req.body, actor);
+    res.json({ success: true, data: record });
+  } catch (err: any) {
+    res.status(err?.statusCode || 500).json({ success: false, error: err?.message });
+  }
+});
+
+apiRouter.post('/publishing/retry', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthenticatedRequest;
+    const actor: WorkflowActor = {
+      id: authReq.user?.id || 'USR-ANON',
+      name: authReq.user?.name || 'User',
+      role: (authReq.user?.role as UserRole) || UserRole.PUBLISHER,
+    };
+    const { phase22PublishingHubService } = await import('../lib/services/phase22-publishing-hub.service');
+    const { contentId, platform, notes } = req.body;
+    const record = await phase22PublishingHubService.retryPublishing(contentId, platform, actor, notes);
+    res.json({ success: true, data: record });
+  } catch (err: any) {
+    res.status(err?.statusCode || 500).json({ success: false, error: err?.message });
+  }
+});
+
+// ==========================================
+// PHASE 26: AI PRODUCTION COPILOT ENDPOINTS
+// ==========================================
+
+apiRouter.get('/copilot/next-task', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthenticatedRequest;
+    const actor: ActorContext = {
+      id: authReq.user?.id || 'USR-ANON',
+      role: authReq.user?.role || UserRole.QUESTION_CREATOR,
+    };
+    const { phase26CopilotService } = await import('../lib/services/phase26-copilot.service');
+    const result = await phase26CopilotService.recommendNextTask(actor);
+    res.json({ success: true, data: result });
+  } catch (err: any) {
+    res.status(err instanceof Error && err.name === 'CopilotAuthorizationError' ? 403 : 500).json({ success: false, error: err?.message });
+  }
+});
+
+apiRouter.get('/copilot/question-improvements/:contentId', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthenticatedRequest;
+    const actor: ActorContext = {
+      id: authReq.user?.id || 'USR-ANON',
+      role: authReq.user?.role || UserRole.QUESTION_CREATOR,
+    };
+    const { contentId } = req.params;
+    const { phase26CopilotService } = await import('../lib/services/phase26-copilot.service');
+    const result = await phase26CopilotService.recommendQuestionImprovements(contentId, actor);
+    res.json({ success: true, data: result });
+  } catch (err: any) {
+    res.status(err instanceof Error && err.name === 'CopilotAuthorizationError' ? 403 : 500).json({ success: false, error: err?.message });
+  }
+});
+
+apiRouter.get('/copilot/difficulty/:contentId', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthenticatedRequest;
+    const actor: ActorContext = {
+      id: authReq.user?.id || 'USR-ANON',
+      role: authReq.user?.role || UserRole.QUESTION_CREATOR,
+    };
+    const { contentId } = req.params;
+    const { phase26CopilotService } = await import('../lib/services/phase26-copilot.service');
+    const result = await phase26CopilotService.recommendDifficulty(contentId, actor);
+    res.json({ success: true, data: result });
+  } catch (err: any) {
+    res.status(err instanceof Error && err.name === 'CopilotAuthorizationError' ? 403 : 500).json({ success: false, error: err?.message });
+  }
+});
+
+apiRouter.get('/copilot/contexts/:contentId', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthenticatedRequest;
+    const actor: ActorContext = {
+      id: authReq.user?.id || 'USR-ANON',
+      role: authReq.user?.role || UserRole.QUESTION_CREATOR,
+    };
+    const { contentId } = req.params;
+    const { phase26CopilotService } = await import('../lib/services/phase26-copilot.service');
+    const result = await phase26CopilotService.suggestContexts(contentId, actor);
+    res.json({ success: true, data: result });
+  } catch (err: any) {
+    res.status(err instanceof Error && err.name === 'CopilotAuthorizationError' ? 403 : 500).json({ success: false, error: err?.message });
+  }
+});
+
+apiRouter.get('/copilot/styles/:contentId', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthenticatedRequest;
+    const actor: ActorContext = {
+      id: authReq.user?.id || 'USR-ANON',
+      role: authReq.user?.role || UserRole.QUESTION_CREATOR,
+    };
+    const { contentId } = req.params;
+    const { phase26CopilotService } = await import('../lib/services/phase26-copilot.service');
+    const result = await phase26CopilotService.suggestQuestionStyles(contentId, actor);
+    res.json({ success: true, data: result });
+  } catch (err: any) {
+    res.status(err instanceof Error && err.name === 'CopilotAuthorizationError' ? 403 : 500).json({ success: false, error: err?.message });
+  }
+});
+
+apiRouter.post('/copilot/script', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthenticatedRequest;
+    const actor: ActorContext = {
+      id: authReq.user?.id || 'USR-ANON',
+      role: authReq.user?.role || UserRole.QUESTION_CREATOR,
+    };
+    const { contentId, hookStyle } = req.body;
+    const { phase26CopilotService } = await import('../lib/services/phase26-copilot.service');
+    const result = await phase26CopilotService.generateScript(contentId, hookStyle || 'DIRECT', actor);
+    res.json({ success: true, data: result });
+  } catch (err: any) {
+    res.status(err instanceof Error && err.name === 'CopilotAuthorizationError' ? 403 : 500).json({ success: false, error: err?.message });
+  }
+});
+
+apiRouter.get('/copilot/script-improvements/:contentId', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthenticatedRequest;
+    const actor: ActorContext = {
+      id: authReq.user?.id || 'USR-ANON',
+      role: authReq.user?.role || UserRole.QUESTION_CREATOR,
+    };
+    const { contentId } = req.params;
+    const { phase26CopilotService } = await import('../lib/services/phase26-copilot.service');
+    const result = await phase26CopilotService.improveScript(contentId, actor);
+    res.json({ success: true, data: result });
+  } catch (err: any) {
+    res.status(err instanceof Error && err.name === 'CopilotAuthorizationError' ? 403 : 500).json({ success: false, error: err?.message });
+  }
+});
+
+apiRouter.get('/copilot/thumbnails/:contentId', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthenticatedRequest;
+    const actor: ActorContext = {
+      id: authReq.user?.id || 'USR-ANON',
+      role: authReq.user?.role || UserRole.QUESTION_CREATOR,
+    };
+    const { contentId } = req.params;
+    const { phase26CopilotService } = await import('../lib/services/phase26-copilot.service');
+    const result = await phase26CopilotService.suggestThumbnails(contentId, actor);
+    res.json({ success: true, data: result });
+  } catch (err: any) {
+    res.status(err instanceof Error && err.name === 'CopilotAuthorizationError' ? 403 : 500).json({ success: false, error: err?.message });
+  }
+});
+
+apiRouter.get('/copilot/pinned-comments/:contentId', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthenticatedRequest;
+    const actor: ActorContext = {
+      id: authReq.user?.id || 'USR-ANON',
+      role: authReq.user?.role || UserRole.QUESTION_CREATOR,
+    };
+    const { contentId } = req.params;
+    const { phase26CopilotService } = await import('../lib/services/phase26-copilot.service');
+    const result = await phase26CopilotService.suggestPinnedComments(contentId, actor);
+    res.json({ success: true, data: result });
+  } catch (err: any) {
+    res.status(err instanceof Error && err.name === 'CopilotAuthorizationError' ? 403 : 500).json({ success: false, error: err?.message });
+  }
+});
+
+apiRouter.get('/copilot/titles/:contentId', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthenticatedRequest;
+    const actor: ActorContext = {
+      id: authReq.user?.id || 'USR-ANON',
+      role: authReq.user?.role || UserRole.QUESTION_CREATOR,
+    };
+    const { contentId } = req.params;
+    const { phase26CopilotService } = await import('../lib/services/phase26-copilot.service');
+    const result = await phase26CopilotService.suggestTitles(contentId, actor);
+    res.json({ success: true, data: result });
+  } catch (err: any) {
+    res.status(err instanceof Error && err.name === 'CopilotAuthorizationError' ? 403 : 500).json({ success: false, error: err?.message });
+  }
+});
+
+apiRouter.get('/copilot/captions/:contentId', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthenticatedRequest;
+    const actor: ActorContext = {
+      id: authReq.user?.id || 'USR-ANON',
+      role: authReq.user?.role || UserRole.QUESTION_CREATOR,
+    };
+    const { contentId } = req.params;
+    const { phase26CopilotService } = await import('../lib/services/phase26-copilot.service');
+    const result = await phase26CopilotService.suggestCaptions(contentId, actor);
+    res.json({ success: true, data: result });
+  } catch (err: any) {
+    res.status(err instanceof Error && err.name === 'CopilotAuthorizationError' ? 403 : 500).json({ success: false, error: err?.message });
+  }
+});
+
+apiRouter.get('/copilot/hashtags/:contentId', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthenticatedRequest;
+    const actor: ActorContext = {
+      id: authReq.user?.id || 'USR-ANON',
+      role: authReq.user?.role || UserRole.QUESTION_CREATOR,
+    };
+    const { contentId } = req.params;
+    const { phase26CopilotService } = await import('../lib/services/phase26-copilot.service');
+    const result = await phase26CopilotService.suggestHashtags(contentId, actor);
+    res.json({ success: true, data: result });
+  } catch (err: any) {
+    res.status(err instanceof Error && err.name === 'CopilotAuthorizationError' ? 403 : 500).json({ success: false, error: err?.message });
+  }
+});
+
+apiRouter.get('/copilot/bottlenecks', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthenticatedRequest;
+    const actor: ActorContext = {
+      id: authReq.user?.id || 'USR-ANON',
+      role: authReq.user?.role || UserRole.QUESTION_CREATOR,
+    };
+    const { phase26CopilotService } = await import('../lib/services/phase26-copilot.service');
+    const result = await phase26CopilotService.detectProductionBottlenecks(actor);
+    res.json({ success: true, data: result });
+  } catch (err: any) {
+    res.status(err instanceof Error && err.name === 'CopilotAuthorizationError' ? 403 : 500).json({ success: false, error: err?.message });
+  }
+});
+
+apiRouter.get('/copilot/review-feedback/:contentId', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthenticatedRequest;
+    const actor: ActorContext = {
+      id: authReq.user?.id || 'USR-ANON',
+      role: authReq.user?.role || UserRole.QUESTION_CREATOR,
+    };
+    const { contentId } = req.params;
+    const { phase26CopilotService } = await import('../lib/services/phase26-copilot.service');
+    const result = await phase26CopilotService.summarizeReviewFeedback(contentId, actor);
+    res.json({ success: true, data: result });
+  } catch (err: any) {
+    res.status(err instanceof Error && err.name === 'CopilotAuthorizationError' ? 403 : 500).json({ success: false, error: err?.message });
+  }
+});
+
+apiRouter.get('/copilot/suggestion/:suggestionId', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { suggestionId } = req.params;
+    const { phase26CopilotService } = await import('../lib/services/phase26-copilot.service');
+    const result = await phase26CopilotService.verifyStalenessAndRetrieve(suggestionId);
+    if (!result) {
+      return res.status(404).json({ success: false, error: 'Suggestion not found.' });
+    }
+    res.json({ success: true, data: result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message });
+  }
+});
+
+
 
 
 

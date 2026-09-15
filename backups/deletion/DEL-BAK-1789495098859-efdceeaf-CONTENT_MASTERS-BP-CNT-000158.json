@@ -1,0 +1,52 @@
+{
+  "id": "DEL-BAK-1789495098859-efdceeaf",
+  "backupTimestamp": "2026-09-15T17:58:18.859Z",
+  "sheetName": "CONTENT_MASTERS",
+  "entityId": "BP-CNT-000158",
+  "physicalRowIndex": 2,
+  "headers": [
+    "id",
+    "content_id",
+    "title",
+    "status",
+    "primary_question_id",
+    "category_id",
+    "topic_id",
+    "subtopic_id",
+    "created_by",
+    "created_at",
+    "updated_at",
+    "archived_at"
+  ],
+  "rawRow": [
+    "BP-CNT-000158",
+    "",
+    "Test service-level question",
+    "DRAFT",
+    "BP-Q-000146",
+    "CAT-01",
+    "TP-01",
+    "ST-01",
+    "QE-01",
+    "2026-09-14T19:38:44.924Z",
+    "2026-09-14T19:38:44.924Z"
+  ],
+  "record": {
+    "id": "BP-CNT-000158",
+    "title": "Test service-level question",
+    "status": "DRAFT",
+    "primaryQuestionId": "BP-Q-000146",
+    "categoryId": "CAT-01",
+    "topicId": "TP-01",
+    "subtopicId": "ST-01",
+    "createdBy": "QE-01",
+    "createdAt": "2026-09-14T19:38:44.924Z",
+    "updatedAt": "2026-09-14T19:38:44.924Z"
+  },
+  "checksum": "ddb68e951aaa0f79ead9d5fe95aa5f807ae91e68374339b6e7e17ad01a385166",
+  "actor": {
+    "id": "SYSTEM_CLEANUP",
+    "name": "Production Test-Data Sanitizer"
+  },
+  "reason": "Phase 30 Pre-Acceptance Production Cleanup"
+}

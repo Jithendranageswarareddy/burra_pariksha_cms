@@ -25,6 +25,16 @@ export class ThumbnailsRepository extends BaseRepository<Thumbnail> {
     const all = await this.findAll();
     return all.find((t) => t.videoId === videoId) || null;
   }
+
+  public async findByQuestionId(questionId: string): Promise<Thumbnail | null> {
+    const all = await this.findAll();
+    return all.find((t) => (t as any).questionId === questionId) || null;
+  }
+
+  public async findByContentId(contentId: string): Promise<Thumbnail | null> {
+    const all = await this.findAll();
+    return all.find((t) => (t as any).contentId === contentId) || null;
+  }
 }
 
 export class ThumbnailVersionsRepository extends BaseRepository<ThumbnailVersion> {

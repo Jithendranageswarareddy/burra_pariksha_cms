@@ -1,0 +1,75 @@
+/**
+ * BURRA PARIKSHA CMS - Phase 24 Mistral Provider Adapter
+ */
+
+import { AIProviderId, AIRequest } from '../../../types/phase24-ai';
+import { BaseAIProviderAdapter } from './base.adapter';
+
+export class MistralProviderAdapter extends BaseAIProviderAdapter {
+  public readonly providerId: AIProviderId = 'MISTRAL';
+  public readonly displayName: string = 'Mistral AI';
+
+  protected supportedModels = [
+    'mistral-small-latest',
+    'mistral-medium-latest',
+    'mistral-large-latest',
+  ];
+  protected defaultModelId = 'mistral-small-latest';
+  protected priority = 4;
+
+  public isConfigured(): boolean {
+    const key = process.env.MISTRAL_API_KEY;
+    return Boolean(key && key.trim().length > 0);
+  }
+
+  protected async executeProviderCall(request: AIRequest, modelId: string): Promise<{ text: string; data?: any }> {
+    const apiKey = process.env.MISTRAL_API_KEY;
+    if (!apiKey) {
+      throw new Error('MISTRAL_API_KEY is missing from server environment');
+    }
+
+    const messages = [];
+    if (request.systemInstruction) {
+      messages.push({ role: 'system', content: request.systemInstruction });
+    }
+    messages.push({ role: 'user', content: request.prompt });
+
+    const payload: any = {
+      model: modelId || this.defaultModelId,
+      messages,
+      temperature: request.temperature ?? 0.2,
+    };
+
+    if (request.maxTokens) {
+      payload.max_tokens = request.maxTokens;
+    }
+
+    const res = await fetch('https://api.mistral.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(`Mistral HTTP ${res.status}: ${this.sanitizeSecret(errText)}`);
+    }
+
+    const json = await res.json();
+    const text = json.choices?.[0]?.message?.content || '';
+    let data: any = undefined;
+
+    if (request.responseSchema || text.trim().startsWith('{') || text.trim().startsWith('[')) {
+      try {
+        data = JSON.parse(text);
+      } catch {
+        // Fallback to raw text
+      }
+    }
+
+    return { text, data };
+  }
+}

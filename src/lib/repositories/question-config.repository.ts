@@ -13,7 +13,7 @@ import { QuestionConfigDimension, QuestionConfigEntry } from '../../types';
 export class QuestionConfigRepository extends BaseRepository<QuestionConfigEntry> {
   private static instance: QuestionConfigRepository | null = null;
 
-  protected constructor() {
+  public constructor() {
     super(SHEET_SCHEMAS[SHEET_TABS.QUESTION_CONFIG]);
     // Note: No hardcoded fallback seeds are injected here.
     // Production configuration must be read from the actual Google Sheets worksheet.

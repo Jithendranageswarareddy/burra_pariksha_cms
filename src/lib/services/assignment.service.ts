@@ -843,12 +843,6 @@ export class AssignmentService {
       throw new Error(`Unauthorized: User management is restricted to Admin role.`);
     }
 
-    const trimmedEmail = input.email.trim().toLowerCase();
-    const existingUser = await usersRepository.findByEmail(trimmedEmail);
-    if (existingUser) {
-      throw new Error(`User with email "${trimmedEmail}" already exists (ID: ${existingUser.id}). Duplicate accounts are prohibited.`);
-    }
-
     // Determine normalized roles array and primary role string
     let rolesArray: (UserRole | string)[] = [];
     if (Array.isArray(input.roles) && input.roles.length > 0) {
@@ -859,6 +853,16 @@ export class AssignmentService {
 
     if (rolesArray.length === 0) {
       rolesArray = [UserRole.VIDEO_EDITOR];
+    }
+
+    if (rolesArray.includes('CREATOR') || rolesArray.includes('EDITOR') || rolesArray.includes(UserRole.CREATOR) || rolesArray.includes(UserRole.EDITOR)) {
+      throw new Error(`Cannot create user with legacy role: CREATOR and EDITOR are deprecated.`);
+    }
+
+    const trimmedEmail = input.email.trim().toLowerCase();
+    const existingUser = await usersRepository.findByEmail(trimmedEmail);
+    if (existingUser) {
+      throw new Error(`User with email "${trimmedEmail}" already exists (ID: ${existingUser.id}). Duplicate accounts are prohibited.`);
     }
 
     const roleString = rolesArray.join(', ');

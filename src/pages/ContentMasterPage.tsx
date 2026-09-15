@@ -470,8 +470,6 @@ export const ContentMasterPage: React.FC = () => {
 
             {primaryQuestion && (
               <p className="text-xs text-slate-500">
-                <span className="font-semibold text-slate-700">{primaryQuestion.categoryName || 'General'}</span>
-                {' → '}
                 <span className="font-semibold text-slate-700">{primaryQuestion.topicName || 'General'}</span>
                 {' → '}
                 <span className="font-semibold text-slate-700">{primaryQuestion.subtopicName || 'General'}</span>

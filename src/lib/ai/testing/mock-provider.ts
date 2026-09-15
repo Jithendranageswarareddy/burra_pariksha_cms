@@ -99,10 +99,17 @@ export class MockAIProvider implements AIProvider {
             explanation: 'Mock explanation of correct choice.',
             difficulty: input.difficulty || DifficultyLevel.MEDIUM,
             language: input.language || QuestionLanguage.ENGLISH,
+            real_world_context: input.realLifeContext || input.realWorldContext || '',
+            question_style: input.questionStyle || '',
+            challenge_type: input.challengeType || '',
+            presentation_type: input.presentationType || '',
             taxonomy: {
               categoryId: input.categoryId,
+              categoryName: input.categoryName,
               topicId: input.topicId,
+              topicName: input.topicName,
               subtopicId: input.subtopicId,
+              subtopicName: input.subtopicName,
             },
           },
           metadata: {

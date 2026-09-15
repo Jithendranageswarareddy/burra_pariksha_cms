@@ -72,8 +72,8 @@ export const ProductionTable: React.FC<ProductionTableProps> = ({ videos, onSele
                       >
                         {v.questionId}
                       </Link>
-                      {v.question?.categoryName && (
-                        <span>• {v.question.categoryName}</span>
+                      {v.question?.topicName && (
+                        <span>• {v.question.topicName}</span>
                       )}
                     </div>
                     {v.finalRenderPath && (

@@ -91,21 +91,49 @@ export const GenAiBlindSolverResponseSchema = {
   required: ['solvable', 'isNumerical', 'confidence'],
 };
 
+function parseTimeStringToMinutes(str: string): number | null {
+  if (!str) return null;
+  const m = str.match(/\b(\d{1,2}):(\d{2})(?:\s*(AM|PM|ఏఎం|పీఎం))?\b/i);
+  if (!m) return null;
+  let hrs = parseInt(m[1], 10);
+  const mins = parseInt(m[2], 10);
+  const ampm = m[3] ? m[3].toUpperCase() : null;
+  if (ampm === 'PM' || ampm === 'పీఎం') {
+    if (hrs < 12) hrs += 12;
+  } else if (ampm === 'AM' || ampm === 'ఏఎం') {
+    if (hrs === 12) hrs = 0;
+  }
+  return hrs * 60 + mins;
+}
+
 /**
  * Extracts numeric numbers from an option string.
  */
 function extractOptionNumbers(text: string): number[] {
   if (!text) return [];
-  const cleaned = text.replace(/(\d),(\d)/g, '$1$2');
+  const timeMins = parseTimeStringToMinutes(text);
+  const cleaned = text.replace(/(\d),(\d)/g, '$1$2').replace(/\b\d{1,2}:\d{2}(?:\s*(?:AM|PM|ఏఎం|పీఎం))?\b/gi, '');
   const matches = cleaned.match(/-?\d+(?:\.\d+)?/g);
-  if (!matches) return [];
-  return matches.map((m) => parseFloat(m)).filter((n) => !isNaN(n));
+  const nums: number[] = [];
+  if (timeMins !== null) nums.push(timeMins);
+  if (matches) {
+    matches.forEach((m) => {
+      const parsed = parseFloat(m);
+      if (!isNaN(parsed)) nums.push(parsed);
+    });
+  }
+  return nums;
 }
 
 /**
  * Checks if option contains the expected numeric value within tolerance.
  */
-function optionMatchesValue(optionText: string, expectedVal: number, tolerance = 1e-2): boolean {
+function optionMatchesValue(optionText: string, expectedVal: number, expectedUnit?: string, tolerance = 1e-2): boolean {
+  const optionTimeMins = parseTimeStringToMinutes(optionText);
+  if (optionTimeMins !== null && Math.abs(optionTimeMins - expectedVal) <= tolerance) {
+    return true;
+  }
+
   const nums = extractOptionNumbers(optionText);
   for (const n of nums) {
     if (
@@ -113,6 +141,37 @@ function optionMatchesValue(optionText: string, expectedVal: number, tolerance =
       (expectedVal !== 0 && Math.abs((n - expectedVal) / expectedVal) <= 0.005)
     ) {
       return true;
+    }
+
+    // Unit conversions support (seconds <-> minutes, minutes <-> hours, meters <-> km, m/s <-> km/h)
+    if (expectedUnit) {
+      const u = expectedUnit.toLowerCase();
+      const optLower = optionText.toLowerCase();
+
+      // Seconds <-> Minutes (e.g. 360 seconds <-> 6 minutes)
+      if (u.includes('second') || u === 's' || u === 'sec' || u === 'secs') {
+        if (optLower.includes('min') || optLower.includes('minute')) {
+          if (Math.abs(n * 60 - expectedVal) <= tolerance || Math.abs(n - expectedVal / 60) <= tolerance) return true;
+        }
+      }
+      // Minutes <-> Hours (e.g. 90 minutes <-> 1.5 hours)
+      if (u.includes('minute') || u === 'min' || u === 'mins') {
+        if (optLower.includes('hour') || optLower.includes('hr') || optLower.includes('hrs')) {
+          if (Math.abs(n * 60 - expectedVal) <= tolerance || Math.abs(n - expectedVal / 60) <= tolerance) return true;
+        }
+      }
+      // Meters <-> Kilometers
+      if (u === 'm' || u.includes('meter') || u.includes('metres')) {
+        if (optLower.includes('km') || optLower.includes('kilometer')) {
+          if (Math.abs(n * 1000 - expectedVal) <= tolerance || Math.abs(n - expectedVal / 1000) <= tolerance) return true;
+        }
+      }
+      // m/s <-> km/h
+      if (u.includes('m/s')) {
+        if (optLower.includes('km/h') || optLower.includes('kmph')) {
+          if (Math.abs(n / 3.6 - expectedVal) <= tolerance || Math.abs(n - expectedVal * 3.6) <= tolerance) return true;
+        }
+      }
     }
   }
   return false;
@@ -123,6 +182,8 @@ function optionMatchesValue(optionText: string, expectedVal: number, tolerance =
  */
 function cleanNumber(str: string): number | null {
   if (!str) return null;
+  const timeMins = parseTimeStringToMinutes(str);
+  if (timeMins !== null) return timeMins;
   const cleaned = str.replace(/,/g, '').trim();
   const num = parseFloat(cleaned);
   return isNaN(num) ? null : num;
@@ -235,7 +296,7 @@ export function evaluateBlindDerivedResult(
 
   const matchedOptions: ('A' | 'B' | 'C' | 'D')[] = [];
   (['A', 'B', 'C', 'D'] as const).forEach((optKey) => {
-    if (optionMatchesValue(optionsMap[optKey], expectedVal)) {
+    if (optionMatchesValue(optionsMap[optKey], expectedVal, expectedUnit)) {
       matchedOptions.push(optKey);
     }
   });

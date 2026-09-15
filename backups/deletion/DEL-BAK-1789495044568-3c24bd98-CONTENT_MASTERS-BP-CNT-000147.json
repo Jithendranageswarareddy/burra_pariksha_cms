@@ -1,0 +1,52 @@
+{
+  "id": "DEL-BAK-1789495044568-3c24bd98",
+  "backupTimestamp": "2026-09-15T17:57:24.568Z",
+  "sheetName": "CONTENT_MASTERS",
+  "entityId": "BP-CNT-000147",
+  "physicalRowIndex": 2,
+  "headers": [
+    "id",
+    "content_id",
+    "title",
+    "status",
+    "primary_question_id",
+    "category_id",
+    "topic_id",
+    "subtopic_id",
+    "created_by",
+    "created_at",
+    "updated_at",
+    "archived_at"
+  ],
+  "rawRow": [
+    "BP-CNT-000147",
+    "",
+    "P08-09 Test Question with spoofed author body",
+    "DRAFT",
+    "BP-Q-000135",
+    "CAT-GENERAL",
+    "BP-TOP-001",
+    "BP-SUB-0001",
+    "USR-EDT-P08",
+    "2026-09-14T18:32:19.353Z",
+    "2026-09-14T18:32:19.353Z"
+  ],
+  "record": {
+    "id": "BP-CNT-000147",
+    "title": "P08-09 Test Question with spoofed author body",
+    "status": "DRAFT",
+    "primaryQuestionId": "BP-Q-000135",
+    "categoryId": "CAT-GENERAL",
+    "topicId": "BP-TOP-001",
+    "subtopicId": "BP-SUB-0001",
+    "createdBy": "USR-EDT-P08",
+    "createdAt": "2026-09-14T18:32:19.353Z",
+    "updatedAt": "2026-09-14T18:32:19.353Z"
+  },
+  "checksum": "ad5bc2b918af5b40a7a1c087a012534991b459eba7c5152af5ddd97a28dd0611",
+  "actor": {
+    "id": "SYSTEM_CLEANUP",
+    "name": "Production Test-Data Sanitizer"
+  },
+  "reason": "Phase 30 Pre-Acceptance Production Cleanup"
+}

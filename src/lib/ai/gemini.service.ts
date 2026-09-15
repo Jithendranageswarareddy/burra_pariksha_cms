@@ -17,6 +17,12 @@ import { GenAiTeleprompterScriptResponseSchema, TeleprompterScriptZodSchema } fr
 import { SocialMetadataGenAISchema, SocialMetadataZodSchema, SocialMetadataAIResult } from './schemas/social-metadata.schema';
 import { PlatformAdaptedVariantGenAISchema, PlatformAdaptedVariantZodSchema } from './schemas/platform-adaptation.schema';
 import { SocialQualityAssessmentGenAISchema, SocialQualityAssessmentZodSchema, SocialQualityAssessmentAIOutput } from './schemas/social-quality.schema';
+import { GenAiThumbnailIntelligenceResponseSchema, AiThumbnailIntelligenceResponseZodSchema } from './schemas/thumbnail-intelligence.schema';
+import { BURRA_PARIKSHA_THUMBNAIL_SYSTEM_INSTRUCTION, buildThumbnailIntelligenceUserPrompt } from './prompts/thumbnail-intelligence.prompt';
+import { GenAiPinnedCommentPackageResponseSchema, AiPinnedCommentPackageZodSchema } from './schemas/pinned-comment.schema';
+import { BURRA_PARIKSHA_PINNED_COMMENT_SYSTEM_INSTRUCTION, buildPinnedCommentUserPrompt } from './prompts/pinned-comment.prompt';
+import { ThumbnailSafetyValidator } from '../validators/thumbnail-safety.validator';
+import { PinnedCommentSafetyValidator } from '../validators/pinned-comment-safety.validator';
 import { CandidateValidator } from './validators/candidate.validator';
 import { GeminiBlindVerifierProvider } from './validators/blind-verifier';
 import { ScriptValidator, ScriptValidationReport } from './validators/script.validator';
@@ -53,13 +59,16 @@ import {
   AiContentPlanRecommendation,
   AiPlanBatchSuggestion,
   AiPlanRecommendationSubtopic,
+  AiThumbnailConcept,
   DifficultyLevel,
   HookStyle,
   PriorityLevel,
   Question,
   QuestionLanguage,
+  Script,
   TeleprompterSegment,
   TeleprompterSegmentSection,
+  Video,
 } from '../../types';
 import {
   AIProvider,
@@ -257,19 +266,45 @@ export class GeminiService implements AIProvider {
         errorClassification = classified.classification;
         const sanitizedMsg = classified.sanitizedMessage;
 
-        console.warn('[GeminiService] Live generation failed, falling back to pedagogical engine:', sanitizedMsg);
-        rawCandidate = this.createFallbackCandidate(input);
-        isMockFallback = true;
-        fallbackReason = classified.classification === 'QUOTA_EXHAUSTED'
-          ? 'Gemini API quota limit reached (HTTP 429 / RESOURCE_EXHAUSTED)'
-          : sanitizedMsg.slice(0, 120);
+        if (options?.allowMockFallback) {
+          console.warn('[GeminiService] Live generation failed, falling back to mock candidate:', sanitizedMsg);
+          rawCandidate = this.createFallbackCandidate(input);
+          isMockFallback = true;
+          fallbackReason = classified.classification === 'QUOTA_EXHAUSTED'
+            ? 'Gemini API quota limit reached (HTTP 429 / RESOURCE_EXHAUSTED)'
+            : sanitizedMsg.slice(0, 120);
+        } else {
+          throw err instanceof AIProviderError
+            ? err
+            : new AIProviderError(
+                `Gemini generation failed: ${sanitizedMsg}`,
+                this.providerId,
+                model,
+                classified.classification,
+                false,
+                classified.classification === 'QUOTA_EXHAUSTED' ? 429 : 500
+              );
+        }
       }
     } else {
-      rawCandidate = this.createFallbackCandidate(input);
-      isMockFallback = true;
-      fallbackReason = 'Gemini API is not configured or missing API key';
-      errorClassification = 'AUTH_ERROR';
+      if (options?.allowMockFallback) {
+        rawCandidate = this.createFallbackCandidate(input);
+        isMockFallback = true;
+        fallbackReason = 'Gemini API is not configured or missing API key';
+        errorClassification = 'AUTH_ERROR';
+      } else {
+        throw new AIProviderError(
+          'Gemini API is not configured or missing API key',
+          this.providerId,
+          geminiClient.getModelName(),
+          'AUTH_ERROR',
+          false,
+          401
+        );
+      }
     }
+
+    const contextVal = input.realLifeContext || input.realWorldContext || '';
 
     // Attach taxonomy context
     const candidate: QuestionCandidate = {
@@ -285,10 +320,12 @@ export class GeminiService implements AIProvider {
       real_world_context:
         (rawCandidate.real_world_context && rawCandidate.real_world_context.toUpperCase() !== 'RANDOM')
           ? rawCandidate.real_world_context
-          : (input.realWorldContext && input.realWorldContext.toUpperCase() !== 'RANDOM'
-              ? input.realWorldContext
+          : (contextVal && contextVal.toUpperCase() !== 'RANDOM'
+              ? contextVal
               : (input.language === QuestionLanguage.TELUGU ? 'హైదరాబాద్ మెట్రో ప్రయాణం' : 'Daily Commute & Public Transit')),
       question_style: rawCandidate.question_style || input.questionStyle || 'Real-World Scenario',
+      challenge_type: rawCandidate.challenge_type || input.challengeType || 'Standard Challenge',
+      presentation_type: rawCandidate.presentation_type || input.presentationType || 'Standard Text',
       taxonomy: {
         categoryId: input.categoryId,
         categoryName: input.categoryName,
@@ -709,7 +746,7 @@ export class GeminiService implements AIProvider {
    * confirm/approve the recommendation before any plan or batch is created.
    */
   public async generateContentPlanRecommendation(input: {
-    categoryId: string;
+    categoryId?: string;
     topicId?: string;
     targetTotalCount?: number;
     language?: QuestionLanguage;
@@ -717,8 +754,11 @@ export class GeminiService implements AIProvider {
     focusContext?: string;
   }): Promise<AiContentPlanRecommendation> {
     const targetTotal = input.targetTotalCount || 20;
-    const category = await taxonomyService.getCategoryById(input.categoryId);
-    const categoryName = category ? category.name : input.categoryId;
+    let categoryName = 'Aptitude Content';
+    if (input.categoryId) {
+      const category = await taxonomyService.getCategoryById(input.categoryId);
+      categoryName = category ? category.name : input.categoryId;
+    }
 
     let topics = await taxonomyService.getTopics(input.categoryId);
     if (input.topicId) {
@@ -726,6 +766,9 @@ export class GeminiService implements AIProvider {
     }
 
     const topicName = input.topicId && topics.length > 0 ? topics[0].name : undefined;
+    if (topicName && (!input.categoryId || categoryName === 'Aptitude Content')) {
+      categoryName = topicName;
+    }
 
     // Fetch existing questions to detect zero/low coverage
     const allQuestions = await questionsRepository.findAll();
@@ -1696,6 +1739,8 @@ export class GeminiService implements AIProvider {
     const socialPresentationScore = hasMetadata ? 85 : 60;
     const languageQualityScore = isTelugu ? 80 : 85;
     const audienceSuitabilityScore = 90;
+    const repetitionRiskScore = 85;
+    const audienceAppealScore = 90;
 
     return {
       scores: {
@@ -1708,6 +1753,8 @@ export class GeminiService implements AIProvider {
         socialPresentation: socialPresentationScore,
         languageQuality: languageQualityScore,
         audienceSuitability: audienceSuitabilityScore,
+        repetitionRisk: repetitionRiskScore,
+        audienceAppeal: audienceAppealScore,
       },
       findings: [
         {
@@ -1724,6 +1771,295 @@ export class GeminiService implements AIProvider {
         'Include a direct prompt in the CTA inviting viewers to comment their chosen option.',
       ],
       confidence: 0.85,
+    };
+  }
+
+  /**
+   * Phase 18: Generate AI Thumbnail Intelligence Concepts
+   * Generates structured A/B thumbnail concepts with curiosity framing, visual directions, and audience targeting.
+   * Enforces answer-leakage protection and mobile readability.
+   */
+  public async generateThumbnailIntelligence(
+    question: Question,
+    contentId: string,
+    options?: { script?: Script; video?: Video; numberOfVariants?: number }
+  ): Promise<AiThumbnailConcept[]> {
+    try {
+      const prompt = buildThumbnailIntelligenceUserPrompt(question, options?.script);
+      const systemInstruction = BURRA_PARIKSHA_THUMBNAIL_SYSTEM_INSTRUCTION;
+
+      const { text } = await this.callGeminiWithRetryAndFallback({
+        contents: prompt,
+        config: {
+          systemInstruction,
+          responseMimeType: 'application/json',
+          responseSchema: GenAiThumbnailIntelligenceResponseSchema as any,
+          temperature: 0.7,
+        },
+        timeoutMs: 30000,
+        timeoutMsg: 'Gemini thumbnail intelligence generation timed out',
+      });
+
+      if (!text) {
+        return this.createFallbackThumbnailIntelligence(question, contentId, options);
+      }
+
+      const parsedJson = JSON.parse(text);
+      const validationResult = AiThumbnailIntelligenceResponseZodSchema.safeParse(parsedJson);
+
+      if (!validationResult.success || !validationResult.data.concepts || validationResult.data.concepts.length === 0) {
+        return this.createFallbackThumbnailIntelligence(question, contentId, options);
+      }
+
+      const now = new Date().toISOString();
+      return validationResult.data.concepts.map((concept, index) => {
+        // Enforce answer-leakage safety check
+        let safeHeadline = concept.hookHeadline;
+        const safetyCheck = ThumbnailSafetyValidator.validate(safeHeadline, question);
+        if (!safetyCheck.isValid || safetyCheck.leaksAnswer) {
+          safeHeadline = `99% DID THIS MISTAKE! 🔥`;
+        }
+
+        const variantLetter = String.fromCharCode(65 + index); // A, B, C...
+        const conceptId = `BP-TC-${contentId.replace(/^BP-CNT-/, '')}-${variantLetter}`;
+
+        return {
+          id: conceptId,
+          contentId,
+          questionId: question.id,
+          scriptId: options?.script?.id,
+          videoId: options?.video?.id,
+          conceptName: concept.conceptName,
+          hookHeadline: safeHeadline,
+          curiosityFraming: concept.curiosityFraming,
+          visualDirection: concept.visualDirection,
+          audienceTargeting: {
+            primaryAudience: concept.audienceTargeting.primaryAudience,
+            secondaryAudience: concept.audienceTargeting.secondaryAudience,
+            languageStyle: concept.audienceTargeting.languageStyle as any,
+            difficultyPerception: concept.audienceTargeting.difficultyPerception as any,
+          },
+          abVariant: concept.abVariant || variantLetter,
+          isAiGenerated: true,
+          notes: concept.notes,
+          createdAt: now,
+        };
+      });
+    } catch (error) {
+      console.warn('Gemini generateThumbnailIntelligence encountered error, falling back to deterministic template:', error);
+      return this.createFallbackThumbnailIntelligence(question, contentId, options);
+    }
+  }
+
+  /**
+   * Phase 18: Fallback Thumbnail Intelligence Generator
+   * Generates deterministic, high-contrast, curiosity-optimized thumbnail concepts without external API calls.
+   */
+  public createFallbackThumbnailIntelligence(
+    question: Question,
+    contentId: string,
+    options?: { script?: Script; video?: Video }
+  ): AiThumbnailConcept[] {
+    const now = new Date().toISOString();
+    const contentNum = contentId.replace(/^BP-CNT-/, '');
+
+    const topicLabel = question.topicName || 'Mathematics';
+
+    const conceptA: AiThumbnailConcept = {
+      id: `BP-TC-${contentNum}-A`,
+      contentId,
+      questionId: question.id,
+      scriptId: options?.script?.id,
+      videoId: options?.video?.id,
+      conceptName: 'Concept A - High Stakes Ego Trap',
+      hookHeadline: '99% WRONG! 🔥 Try in 10s?',
+      curiosityFraming: {
+        curiosityAngle: 'Immediate ego verification challenging fast mathematical intuition',
+        psychologicalTrigger: 'Ego challenge, pride, and intellectual urgency',
+        hypothesis: 'Viewers pause scrolling to prove they belong to the top 1% who can calculate without error',
+      },
+      visualDirection: {
+        composition: 'Bold split-screen: prominent puzzle equation on top, presenter with curious questioning pose below',
+        colorPalette: ['#0B192C', '#FF6500', '#FFFFFF', '#FFD700'],
+        focalPoint: 'High-contrast question hook text in signature yellow on midnight blue background',
+        emotionOrExpression: 'Intense, challenging eyebrow raise pointing towards the question statement',
+        brandingElements: 'Burra Pariksha official badge top-left corner, vibrant red 10-second timer icon',
+      },
+      audienceTargeting: {
+        primaryAudience: 'AP & TS SI/Constable/DSC/RRB Competitive Exam Aspirants',
+        secondaryAudience: 'General Telugu social media users who love brain riddles',
+        languageStyle: 'BILINGUAL',
+        difficultyPerception: 'LOOKS_EASY_BUT_HARD',
+      },
+      abVariant: 'A',
+      isAiGenerated: true,
+      notes: `Deterministic concept variant A generated for ${topicLabel}`,
+      createdAt: now,
+    };
+
+    const conceptB: AiThumbnailConcept = {
+      id: `BP-TC-${contentNum}-B`,
+      contentId,
+      questionId: question.id,
+      scriptId: options?.script?.id,
+      videoId: options?.video?.id,
+      conceptName: 'Concept B - Hidden Logic Shortcut',
+      hookHeadline: 'SPEED METHOD in 5s! ⚡',
+      curiosityFraming: {
+        curiosityAngle: 'Unveiling a hidden calculation shortcut that traditional schooling overlooks',
+        psychologicalTrigger: 'Exclusive knowledge discovery and FOMO',
+        hypothesis: 'Students click to discover the speed-hack before competing test-takers do',
+      },
+      visualDirection: {
+        composition: 'Clean center-stage equation with a bright crimson warning circle on the tricky step',
+        colorPalette: ['#1E201E', '#3EC70B', '#F1F1F1', '#FF1E56'],
+        focalPoint: 'Highlighted mathematical trap with glowing lightning icon',
+        emotionOrExpression: 'Smiling, confident knowing look holding a smart shortcut cue card',
+        brandingElements: 'Burra Pariksha logo watermark top-right, clean high-contrast title banner',
+      },
+      audienceTargeting: {
+        primaryAudience: 'Speed-math students and competitive aspirants seeking calculation shortcuts',
+        secondaryAudience: 'Parents and educators interested in fast mathematical pedagogy',
+        languageStyle: 'BILINGUAL',
+        difficultyPerception: 'FAST_TRICK',
+      },
+      abVariant: 'B',
+      isAiGenerated: true,
+      notes: `Deterministic concept variant B generated for ${topicLabel}`,
+      createdAt: now,
+    };
+
+    return [conceptA, conceptB];
+  }
+
+  /**
+   * Phase 19: Generate AI Pinned Comment & Conversation Intelligence Package
+   * Generates structured pinned comment, discussion prompt, follow-up challenge questions, and audience engagement prompt.
+   * If real Gemini succeeds: isAiGenerated = true, aiModelUsed = model.
+   * If Gemini fails/unavailable: falls back to deterministic template with isAiGenerated = false, aiModelUsed = 'deterministic-fallback'.
+   */
+  public async generatePinnedCommentPackage(
+    question: Question,
+    contentId: string,
+    options?: { script?: Script; video?: Video; approvedScriptVersion?: number }
+  ): Promise<{
+    pinnedComment: string;
+    answerDiscussionPrompt: string;
+    followUpQuestions: string[];
+    audienceParticipationPrompt: string;
+    isAiGenerated: boolean;
+    aiModelUsed: string;
+    notes?: string;
+  }> {
+    try {
+      const prompt = buildPinnedCommentUserPrompt(question, options?.script);
+      const systemInstruction = BURRA_PARIKSHA_PINNED_COMMENT_SYSTEM_INSTRUCTION;
+
+      const { text, modelUsed } = await this.callGeminiWithRetryAndFallback({
+        contents: prompt,
+        config: {
+          systemInstruction,
+          responseMimeType: 'application/json',
+          responseSchema: GenAiPinnedCommentPackageResponseSchema as any,
+          temperature: 0.7,
+        },
+        timeoutMs: 30000,
+        timeoutMsg: 'Gemini pinned comment package generation timed out',
+      });
+
+      if (!text) {
+        return this.createFallbackPinnedCommentPackage(question, contentId, options);
+      }
+
+      const parsedJson = JSON.parse(text);
+      const validationResult = AiPinnedCommentPackageZodSchema.safeParse(parsedJson);
+
+      if (!validationResult.success) {
+        return this.createFallbackPinnedCommentPackage(question, contentId, options);
+      }
+
+      const data = validationResult.data;
+
+      // Run safety validator on the AI output; if issues or answer leakage detected, sanitize or fallback
+      const safetyCheck = PinnedCommentSafetyValidator.validate(
+        {
+          pinnedComment: data.pinnedComment,
+          answerDiscussionPrompt: data.answerDiscussionPrompt,
+          followUpQuestions: data.followUpQuestions,
+          audienceParticipationPrompt: data.audienceParticipationPrompt,
+        },
+        question
+      );
+
+      if (!safetyCheck.isValid || safetyCheck.leaksAnswer || safetyCheck.hasBannedPlaceholders) {
+        return this.createFallbackPinnedCommentPackage(question, contentId, options);
+      }
+
+      return {
+        pinnedComment: data.pinnedComment,
+        answerDiscussionPrompt: data.answerDiscussionPrompt,
+        followUpQuestions: data.followUpQuestions,
+        audienceParticipationPrompt: data.audienceParticipationPrompt,
+        isAiGenerated: true,
+        aiModelUsed: modelUsed || 'gemini-2.5-flash',
+        notes: data.notes || 'Generated with Gemini conversational AI',
+      };
+    } catch (error) {
+      console.warn('Gemini generatePinnedCommentPackage encountered error, falling back to deterministic template:', error);
+      return this.createFallbackPinnedCommentPackage(question, contentId, options);
+    }
+  }
+
+  /**
+   * Phase 19: Fallback Pinned Comment Package Generator
+   * Generates deterministic, high-engagement pinned comment package without external API calls.
+   * Clearly identified as isAiGenerated: false, aiModelUsed: 'deterministic-fallback'.
+   */
+  public createFallbackPinnedCommentPackage(
+    question: Question,
+    contentId: string,
+    options?: { script?: Script; video?: Video; approvedScriptVersion?: number }
+  ): {
+    pinnedComment: string;
+    answerDiscussionPrompt: string;
+    followUpQuestions: string[];
+    audienceParticipationPrompt: string;
+    isAiGenerated: boolean;
+    aiModelUsed: string;
+    notes?: string;
+  } {
+    const topicLabel = question.topicName || 'Mathematics';
+    const subtopicLabel = question.subtopicName || 'Logical Reasoning';
+    const cleanQ = (question.questionText || question.question || 'this brain teaser').trim();
+
+    const pinnedComment = `🧠 **BURRA PARIKSHA CHALLENGE — ${topicLabel.toUpperCase()}** 🧠\n\n` +
+      `Question: "${cleanQ}"\n\n` +
+      `A) ${question.optionA || 'Option A'}\n` +
+      `B) ${question.optionB || 'Option B'}\n` +
+      `C) ${question.optionC || 'Option C'}\n` +
+      `D) ${question.optionD || 'Option D'}\n\n` +
+      `👇 **DO NOT SCROLL DOWN TILL YOU TRY!**\n` +
+      `1️⃣ Pause the video & calculate.\n` +
+      `2️⃣ Comment your option and how many seconds it took.\n` +
+      `3️⃣ Read the full step-by-step logic in the replies below! ✨`;
+
+    const answerDiscussionPrompt = `Which calculation method did you use first — did you test Option A, eliminate Option D, or use the direct formula? Explain your logic!`;
+
+    const followUpQuestions = [
+      `Level 2 Twist: If the values in this question were doubled, which option would be correct?`,
+      `Mental Math Challenge: Can you solve this same problem without writing anything on paper in under 7 seconds?`
+    ];
+
+    const audienceParticipationPrompt = `Comment "BURRA CRACKED 🔥" if you solved this before the 10-second timer ended! Tag a friend preparing for AP/TS SI or DSC exams.`;
+
+    return {
+      pinnedComment,
+      answerDiscussionPrompt,
+      followUpQuestions,
+      audienceParticipationPrompt,
+      isAiGenerated: false,
+      aiModelUsed: 'deterministic-fallback',
+      notes: `Deterministic engagement package generated for ${topicLabel} (${subtopicLabel})`,
     };
   }
 }

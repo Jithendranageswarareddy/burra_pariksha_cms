@@ -74,8 +74,17 @@ export class AuditLogRepository extends BaseRepository<AuditLog> {
   }
 }
 
+export interface UserSessionState {
+  sessionVersion: number;
+  isActive: boolean;
+  role: string;
+  roles: string[];
+}
+
 export class UsersRepository extends BaseRepository<User> {
   private static instance: UsersRepository | null = null;
+  private userSessionVersions: Map<string, number> = new Map();
+  private userSessionStates: Map<string, UserSessionState> = new Map();
 
   private constructor() {
     super(SHEET_SCHEMAS[SHEET_TABS.USERS]);
@@ -96,8 +105,8 @@ export class UsersRepository extends BaseRepository<User> {
           id: 'USR-002',
           name: 'Surendra Reddy',
           email: 'seelamsurendrareddy999@gmail.com',
-          role: UserRole.VIDEO_EDITOR,
-          roles: [UserRole.VIDEO_EDITOR],
+          role: UserRole.CONTENT_MANAGER,
+          roles: [UserRole.CONTENT_MANAGER, UserRole.VIDEO_EDITOR],
           isActive: true,
           createdAt: now,
           updatedAt: now,
@@ -112,6 +121,261 @@ export class UsersRepository extends BaseRepository<User> {
       UsersRepository.instance = new UsersRepository();
     }
     return UsersRepository.instance;
+  }
+
+  public getUserSessionVersion(userId: string): number {
+    return this.userSessionVersions.get(userId) ?? 1;
+  }
+
+  public incrementSessionVersion(userId: string): number {
+    const next = this.getUserSessionVersion(userId) + 1;
+    this.userSessionVersions.set(userId, next);
+    const existing = this.getUserSessionState(userId);
+    if (existing) {
+      existing.sessionVersion = next;
+      this.userSessionStates.set(userId, existing);
+    }
+    return next;
+  }
+
+  public async incrementSessionVersionPersistent(userId: string): Promise<number> {
+    const user = await this.findById(userId);
+    const currentVersion = user?.sessionVersion ?? this.getUserSessionVersion(userId);
+    const nextVersion = currentVersion + 1;
+    this.userSessionVersions.set(userId, nextVersion);
+    await this.updateRecord(userId, { sessionVersion: nextVersion });
+    return nextVersion;
+  }
+
+  public invalidateUserSessions(userId: string): number {
+    return this.incrementSessionVersion(userId);
+  }
+
+  public async invalidateUserSessionsPersistent(userId: string): Promise<number> {
+    return this.incrementSessionVersionPersistent(userId);
+  }
+
+  public clearSessionCacheForTesting(): void {
+    this.userSessionVersions.clear();
+    this.userSessionStates.clear();
+  }
+
+  public setUserSessionState(userId: string, state: Partial<UserSessionState>): void {
+    const current = this.getUserSessionState(userId) || {
+      sessionVersion: this.getUserSessionVersion(userId),
+      isActive: true,
+      role: '',
+      roles: [],
+    };
+    const updated: UserSessionState = {
+      ...current,
+      ...state,
+    };
+    if (state.sessionVersion !== undefined) {
+      this.userSessionVersions.set(userId, state.sessionVersion);
+    }
+    this.userSessionStates.set(userId, updated);
+  }
+
+  public getUserSessionState(userId: string): UserSessionState | null {
+    const sheetStore = BaseRepository.fallbackStore.get(this.schema.sheetName);
+    const user = sheetStore?.get(userId);
+    const cachedState = this.userSessionStates.get(userId);
+
+    if (user) {
+      const version = user.sessionVersion ?? this.userSessionVersions.get(userId) ?? cachedState?.sessionVersion ?? 1;
+      const rolesList: string[] = [];
+      if (Array.isArray(user.roles)) {
+        rolesList.push(...user.roles.map((r) => String(r).trim()));
+      } else if (user.role) {
+        rolesList.push(String(user.role).trim());
+      }
+      const state: UserSessionState = {
+        sessionVersion: version,
+        isActive: user.isActive !== false,
+        role: String(user.role || rolesList[0] || ''),
+        roles: rolesList,
+      };
+      this.userSessionStates.set(userId, state);
+      return state;
+    }
+
+    return cachedState || null;
+  }
+
+  public async getAuthoritativeUserSessionState(userId: string): Promise<UserSessionState | null> {
+    if (!this.userSessionStates.has(userId)) {
+      const user = await this.findById(userId);
+      if (!user) return null;
+      return this.userSessionStates.get(userId) || null;
+    }
+    return this.userSessionStates.get(userId) || null;
+  }
+
+  public override seedFallbackData(records: User[]): void {
+    super.seedFallbackData(records);
+    records.forEach((u) => {
+      const version = u.sessionVersion ?? 1;
+      this.userSessionVersions.set(u.id, version);
+      const rolesList: string[] = [];
+      if (Array.isArray(u.roles)) {
+        rolesList.push(...u.roles.map((r) => String(r).trim()));
+      } else if (u.role) {
+        rolesList.push(String(u.role).trim());
+      }
+      this.setUserSessionState(u.id, {
+        sessionVersion: version,
+        isActive: u.isActive !== false,
+        role: String(u.role || rolesList[0] || ''),
+        roles: rolesList,
+      });
+    });
+  }
+
+  public override async appendRecord(record: User): Promise<User> {
+    const result = await super.appendRecord(record);
+    const version = record.sessionVersion ?? 1;
+    this.userSessionVersions.set(record.id, version);
+    const rolesList: string[] = [];
+    if (Array.isArray(record.roles)) {
+      rolesList.push(...record.roles.map((r) => String(r).trim()));
+    } else if (record.role) {
+      rolesList.push(String(record.role).trim());
+    }
+    this.setUserSessionState(record.id, {
+      sessionVersion: version,
+      isActive: record.isActive !== false,
+      role: String(record.role || rolesList[0] || ''),
+      roles: rolesList,
+    });
+    return result;
+  }
+
+  public override async updateRecord(id: string, updates: Partial<User>): Promise<User | null> {
+    const existing = await this.findById(id);
+    let shouldInvalidate = false;
+
+    if (existing) {
+      // 1. Role changed (downgraded, upgraded, or altered)
+      if (updates.role !== undefined && String(updates.role).trim() !== String(existing.role).trim()) {
+        shouldInvalidate = true;
+      }
+      // 2. Roles array changed
+      if (updates.roles !== undefined) {
+        const existingRoles = (Array.isArray(existing.roles) ? existing.roles : [existing.role || ''])
+          .map((r) => String(r).trim())
+          .filter(Boolean)
+          .sort()
+          .join(',');
+        const newRoles = updates.roles
+          .map((r) => String(r).trim())
+          .filter(Boolean)
+          .sort()
+          .join(',');
+        if (existingRoles !== newRoles) {
+          shouldInvalidate = true;
+        }
+      }
+      // 3. Deactivated (is_active=false)
+      if (updates.isActive !== undefined && updates.isActive === false && existing.isActive !== false) {
+        shouldInvalidate = true;
+      }
+      // 4. Reactivated (invalidates sessions issued prior to deactivation)
+      if (updates.isActive !== undefined && updates.isActive === true && existing.isActive === false) {
+        shouldInvalidate = true;
+      }
+      // 5. Explicit session version increment
+      if (updates.sessionVersion !== undefined) {
+        const currentVersion = this.getUserSessionVersion(id);
+        if (updates.sessionVersion > currentVersion) {
+          shouldInvalidate = true;
+        }
+      }
+    }
+
+    if (shouldInvalidate) {
+      const currentVersion = existing?.sessionVersion ?? this.getUserSessionVersion(id);
+      const nextVersion = currentVersion + 1;
+      this.userSessionVersions.set(id, nextVersion);
+      updates.sessionVersion = nextVersion;
+    }
+
+    const updated = await super.updateRecord(id, updates);
+
+    if (updated) {
+      const version = updated.sessionVersion ?? this.getUserSessionVersion(id);
+      this.userSessionVersions.set(id, version);
+      const rolesList: string[] = [];
+      if (Array.isArray(updated.roles)) {
+        rolesList.push(...updated.roles.map((r) => String(r).trim()));
+      } else if (updated.role) {
+        rolesList.push(String(updated.role).trim());
+      }
+      this.setUserSessionState(id, {
+        sessionVersion: version,
+        isActive: updated.isActive !== false,
+        role: updated.role,
+        roles: rolesList,
+      });
+    }
+
+    return updated;
+  }
+
+  public override async findById(id: string): Promise<User | null> {
+    const user = await super.findById(id);
+    if (user) {
+      if (user.role && typeof user.role === 'string' && user.role.includes(',')) {
+        const parts = user.role.split(',').map((r) => r.trim()).filter(Boolean);
+        user.role = parts[0];
+        if (!user.roles || user.roles.length === 0) {
+          user.roles = parts;
+        }
+      }
+      const version = user.sessionVersion ?? this.userSessionVersions.get(user.id) ?? 1;
+      this.userSessionVersions.set(user.id, version);
+      const rolesList: string[] = [];
+      if (Array.isArray(user.roles)) {
+        rolesList.push(...user.roles.map((r) => String(r).trim()));
+      } else if (user.role) {
+        rolesList.push(String(user.role).trim());
+      }
+      this.setUserSessionState(user.id, {
+        sessionVersion: version,
+        isActive: user.isActive !== false,
+        role: String(user.role || rolesList[0] || ''),
+        roles: rolesList,
+      });
+    }
+    return user;
+  }
+
+  public override async findAll(): Promise<User[]> {
+    const users = await super.findAll();
+    for (const user of users) {
+      if (user.role && typeof user.role === 'string' && user.role.includes(',')) {
+        const parts = user.role.split(',').map((r) => r.trim()).filter(Boolean);
+        user.role = parts[0];
+        if (!user.roles || user.roles.length === 0) {
+          user.roles = parts;
+        }
+      }
+      const version = user.sessionVersion ?? this.userSessionVersions.get(user.id) ?? 1;
+      this.userSessionVersions.set(user.id, version);
+      const rolesList: string[] = [];
+      if (Array.isArray(user.roles)) {
+        rolesList.push(...user.roles.map((r) => String(r).trim()));
+      } else if (user.role) {
+        rolesList.push(String(user.role).trim());
+      }
+      this.setUserSessionState(user.id, {
+        sessionVersion: version,
+        isActive: user.isActive !== false,
+        role: String(user.role || rolesList[0] || ''),
+        roles: rolesList,
+      });
+    }
+    return users;
   }
 
   public async findByEmail(email: string): Promise<User | null> {

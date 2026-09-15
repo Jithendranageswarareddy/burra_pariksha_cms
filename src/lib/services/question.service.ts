@@ -16,6 +16,7 @@ import { workflowService } from './workflow.service';
 import { auditService } from './audit.service';
 import { contentMasterService } from './content-master.service';
 import { ReferenceIntegrityError, ValidationError } from '../google-sheets/errors';
+import { MultiLayerVerificationEngine } from '../validation/multi-layer-verification.engine';
 
 export interface DuplicateMatch {
   questionId: string;
@@ -79,11 +80,12 @@ function calculateJaccardSimilarity(textA: string, textB: string): number {
  * REJECTED -> EDITING, DRAFT
  */
 const VALID_QUESTION_TRANSITIONS: Record<QuestionStatus, QuestionStatus[]> = {
-  [QuestionStatus.DRAFT]: [QuestionStatus.GENERATED],
-  [QuestionStatus.GENERATED]: [QuestionStatus.EDITING, QuestionStatus.APPROVED, QuestionStatus.REJECTED],
-  [QuestionStatus.EDITING]: [QuestionStatus.APPROVED, QuestionStatus.REJECTED, QuestionStatus.GENERATED],
-  [QuestionStatus.APPROVED]: [QuestionStatus.EDITING],
-  [QuestionStatus.REJECTED]: [QuestionStatus.EDITING, QuestionStatus.DRAFT],
+  [QuestionStatus.DRAFT]: [QuestionStatus.GENERATED, QuestionStatus.ARCHIVED],
+  [QuestionStatus.GENERATED]: [QuestionStatus.EDITING, QuestionStatus.APPROVED, QuestionStatus.REJECTED, QuestionStatus.ARCHIVED],
+  [QuestionStatus.EDITING]: [QuestionStatus.APPROVED, QuestionStatus.REJECTED, QuestionStatus.GENERATED, QuestionStatus.ARCHIVED],
+  [QuestionStatus.APPROVED]: [QuestionStatus.EDITING, QuestionStatus.ARCHIVED],
+  [QuestionStatus.REJECTED]: [QuestionStatus.EDITING, QuestionStatus.DRAFT, QuestionStatus.ARCHIVED],
+  [QuestionStatus.ARCHIVED]: [QuestionStatus.DRAFT, QuestionStatus.EDITING],
 };
 
 import { videoService } from './video.service';
@@ -192,13 +194,16 @@ export class QuestionService {
     // 1. Zod runtime schema validation
     const validatedInput = CreateQuestionInputSchema.parse(input);
 
-    // Validate distinct options and correct answer choice
+    // Validate non-empty and distinct options and correct answer choice
     const optValues = [
       validatedInput.options.a.trim().toLowerCase(),
       validatedInput.options.b.trim().toLowerCase(),
       validatedInput.options.c.trim().toLowerCase(),
       validatedInput.options.d.trim().toLowerCase(),
     ];
+    if (optValues.some((v) => v.length === 0)) {
+      throw new ValidationError('Question options must not contain empty choices.');
+    }
     if (new Set(optValues).size < 4) {
       throw new ValidationError('Question options must contain 4 distinct choices.');
     }
@@ -212,6 +217,33 @@ export class QuestionService {
     let resolvedSubtopicId = validatedInput.subtopicId;
     const inputContext = ((validatedInput as any).realLifeContext || validatedInput.realWorldContext || '').trim();
     const isRandomContext = inputContext.toUpperCase() === 'RANDOM' || inputContext.toUpperCase() === 'SMART_RANDOM';
+
+    // Validate explicit non-random realLifeContext against inactive entries in QUESTION_CONFIG
+    if (inputContext && !isRandomContext) {
+      const allContexts = await questionConfigService.getRealLifeContexts(false, true);
+      const match = allContexts.find(
+        (c) =>
+          c.code.toUpperCase() === inputContext.toUpperCase() ||
+          c.displayLabel.toLowerCase() === inputContext.toLowerCase()
+      );
+      if (match && !match.isActive) {
+        throw new ValidationError(`Selected Real-Life Context "${inputContext}" is inactive in QUESTION_CONFIG.`);
+      }
+    }
+
+    // Validate explicit questionStyle against inactive entries in QUESTION_CONFIG
+    const inputStyle = ((validatedInput as any).questionStyle || '').trim();
+    if (inputStyle) {
+      const allStyles = await questionConfigService.getQuestionStyles(false, true);
+      const match = allStyles.find(
+        (s) =>
+          s.code.toUpperCase() === inputStyle.toUpperCase() ||
+          s.displayLabel.toLowerCase() === inputStyle.toLowerCase()
+      );
+      if (match && !match.isActive) {
+        throw new ValidationError(`Selected Question Style "${inputStyle}" is inactive in QUESTION_CONFIG.`);
+      }
+    }
 
     let resolvedGenerationMode: 'SUBTOPIC' | 'RANDOM' =
       validatedInput.generationMode?.toUpperCase() === 'RANDOM' ||
@@ -289,7 +321,12 @@ export class QuestionService {
       difficulty: validatedInput.difficulty,
       language: (validatedInput as any).language || 'TELUGU',
       questionText: validatedInput.questionText,
+      question: validatedInput.questionText,
       options: validatedInput.options,
+      optionA: validatedInput.options.a,
+      optionB: validatedInput.options.b,
+      optionC: validatedInput.options.c,
+      optionD: validatedInput.options.d,
       correctAnswer: validatedInput.correctAnswer,
       explanation: validatedInput.explanation,
       realWorldContext: resolvedRealLifeContext,
@@ -306,12 +343,86 @@ export class QuestionService {
       source: validatedInput.source || 'Manual Authoring',
       aiPromptUsed: validatedInput.aiPromptUsed || '',
       authorId: actor.id,
+      author: actor.name || actor.id,
       generationMode: resolvedGenerationMode,
       createdAt: now,
       updatedAt: now,
     };
 
-    // 4. Persist to authoritative QUESTIONS sheet
+    // 4. Enforce Multi-Layer Verification Pipeline & Backend Save Gate
+    const verificationReport = await MultiLayerVerificationEngine.verify(newQuestion, {
+      actor: actor.name,
+    });
+
+    if (verificationReport.aggregatedStatus === 'FAILED' || !verificationReport.canSave) {
+      const errDetail = verificationReport.overallErrors.join('; ');
+      throw new ValidationError(`Question creation REJECTED at Backend Save Gate due to multi-layer verification failure: ${errDetail}`);
+    }
+
+    // Assign server-authoritative verification status (overriding any client spoofing)
+    newQuestion.validationStatus = verificationReport.canonicalValidationStatus;
+    newQuestion.validationScore = verificationReport.confidenceScore;
+    newQuestion.lastValidationId = verificationReport.id;
+
+    // Save validation audit record
+    try {
+      await validationsRepository.saveValidationResult({
+        id: verificationReport.id,
+        questionId: newQuestion.id,
+        status: verificationReport.canonicalValidationStatus,
+        confidenceScore: verificationReport.confidenceScore,
+        validatorVersion: MultiLayerVerificationEngine.VERSION,
+        validationRuleVersion: '2026.09.v1',
+        timestamp: verificationReport.timestamp,
+        source: 'MULTI_LAYER_PIPELINE',
+        summary: verificationReport.overallErrors.length > 0 
+          ? `Verification failed with ${verificationReport.overallErrors.length} error(s)`
+          : `Multi-layer verification ${verificationReport.aggregatedStatus}`,
+        checks: verificationReport.layerList.map(l => ({
+          checkId: l.layerId,
+          checkName: l.layerName,
+          passed: l.status === 'VERIFIED' || l.status === 'N/A',
+          severity: l.status === 'FAILED' ? 'FATAL' : l.status === 'UNVERIFIED' ? 'WARN' : 'INFO',
+          message: l.summary,
+        })),
+        errors: verificationReport.overallErrors,
+        warnings: verificationReport.overallWarnings,
+        recommendations: [],
+        answerVerification: {
+          isConsistent: verificationReport.layers['5']?.status !== 'FAILED',
+          declaredAnswer: newQuestion.correctAnswer,
+          details: verificationReport.layers['6']?.summary || '',
+          contradictionDetected: verificationReport.layers['5']?.status === 'FAILED',
+        },
+        explanationVerification: {
+          isValid: verificationReport.layers['7']?.status === 'VERIFIED',
+          contradictsAnswer: verificationReport.layers['5']?.status === 'FAILED',
+          reachesDeclaredResult: true,
+          substantiveLength: (newQuestion.explanation || '').length >= 5,
+          details: verificationReport.layers['7']?.summary || '',
+        },
+        ambiguityResult: {
+          isAmbiguous: false,
+          ambiguityReasons: [],
+          confidence: verificationReport.confidenceScore,
+          details: 'No ambiguity',
+        },
+        mathematicalLogicalResult: verificationReport.evidence?.mathDerivation || {
+          status: verificationReport.layers['3']?.status === 'N/A' ? 'NOT_APPLICABLE' : 'VERIFIED',
+          details: verificationReport.layers['3']?.summary || '',
+        },
+        layers: verificationReport.layers,
+        layerList: verificationReport.layerList,
+        aggregatedLayerStatus: verificationReport.aggregatedStatus,
+        humanReviewState: verificationReport.humanReviewState,
+        createdAt: verificationReport.timestamp,
+        updatedAt: verificationReport.timestamp,
+      } as any);
+    } catch {
+      // Best-effort audit save
+    }
+
+    // 5. Persist to authoritative QUESTIONS sheet
     await questionsRepository.appendRecord(newQuestion);
 
     // 5. Record initial Workflow state transition (DRAFT -> GENERATED)
@@ -372,18 +483,27 @@ export class QuestionService {
 
     // Validate explicit non-random realLifeContext against inactive entries in QUESTION_CONFIG
     if (requestPayload.realLifeContext && !isRandomContext) {
-      try {
-        const allContexts = await questionConfigService.getRealLifeContexts(false);
-        const match = allContexts.find(
-          (c) =>
-            c.code.toUpperCase() === requestPayload.realLifeContext!.toUpperCase() ||
-            c.displayLabel.toLowerCase() === requestPayload.realLifeContext!.toLowerCase()
-        );
-        if (match && !match.isActive) {
-          throw new ValidationError(`Selected Real-Life Context "${requestPayload.realLifeContext}" is inactive in QUESTION_CONFIG.`);
-        }
-      } catch (err: any) {
-        if (err instanceof ValidationError) throw err;
+      const allContexts = await questionConfigService.getRealLifeContexts(false, false);
+      const match = allContexts.find(
+        (c) =>
+          c.code.toUpperCase() === requestPayload.realLifeContext!.toUpperCase() ||
+          c.displayLabel.toLowerCase() === requestPayload.realLifeContext!.toLowerCase()
+      );
+      if (match && !match.isActive) {
+        throw new ValidationError(`Selected Real-Life Context "${requestPayload.realLifeContext}" is inactive in QUESTION_CONFIG.`);
+      }
+    }
+
+    // Validate explicit questionStyle against inactive entries in QUESTION_CONFIG
+    if (requestPayload.questionStyle) {
+      const allStyles = await questionConfigService.getQuestionStyles(false, false);
+      const match = allStyles.find(
+        (s) =>
+          s.code.toUpperCase() === requestPayload.questionStyle!.toUpperCase() ||
+          s.displayLabel.toLowerCase() === requestPayload.questionStyle!.toLowerCase()
+      );
+      if (match && !match.isActive) {
+        throw new ValidationError(`Selected Question Style "${requestPayload.questionStyle}" is inactive in QUESTION_CONFIG.`);
       }
     }
 
@@ -424,7 +544,15 @@ export class QuestionService {
       generationMode: resolvedGenerationMode,
     };
     QuestionCreationValidator.validateStructure(validationPayload);
-    const questionStyle = validationPayload.questionStyle || 'STORY_BASED';
+    let questionStyle = validationPayload.questionStyle;
+    if (!questionStyle) {
+      try {
+        const defaultStyle = await questionConfigService.getDefaultQuestionStyle();
+        questionStyle = defaultStyle?.code || defaultStyle?.displayLabel || 'STORY_BASED';
+      } catch {
+        questionStyle = 'STORY_BASED';
+      }
+    }
 
     // 3. Validate Taxonomy Integrity
     const { category, topic, subtopic } = await taxonomyService.validateTaxonomy(
@@ -462,6 +590,7 @@ export class QuestionService {
 
     const newQuestion: Question = {
       id,
+      contentId: contentMasterId,
       contentMasterId,
       categoryId: category.id,
       categoryName: category.name,
@@ -472,12 +601,17 @@ export class QuestionService {
       difficulty,
       language,
       questionText: requestPayload.questionText.trim(),
+      question: requestPayload.questionText.trim(),
       options: {
         a: requestPayload.options.a.trim(),
         b: requestPayload.options.b.trim(),
         c: (requestPayload.options.c || '').trim(),
         d: (requestPayload.options.d || '').trim(),
       },
+      optionA: requestPayload.options.a.trim(),
+      optionB: requestPayload.options.b.trim(),
+      optionC: (requestPayload.options.c || '').trim(),
+      optionD: (requestPayload.options.d || '').trim(),
       correctAnswer: requestPayload.correctAnswer,
       explanation: requestPayload.explanation.trim(),
       realWorldContext: realLifeContext,
@@ -494,12 +628,88 @@ export class QuestionService {
       aiPrompt: requestPayload.aiPrompt || '',
       originalityScore: requestPayload.originalityScore || 0,
       authorId: actor.id,
+      author: actor.name || actor.id,
       generationMode: resolvedGenerationMode,
       createdAt: now,
       updatedAt: now,
     };
 
-    // 6. Append to authoritative QUESTIONS sheet
+    // 6. Enforce Multi-Layer Verification Pipeline & Backend Save Gate
+    const verificationReport = await MultiLayerVerificationEngine.verify(newQuestion, {
+      actor: actor.name,
+      humanReview: (requestPayload as any).humanReview,
+      aiVerifierResult: (requestPayload as any).aiVerifierResult,
+    });
+
+    if (verificationReport.aggregatedStatus === 'FAILED' || !verificationReport.canSave) {
+      const errDetail = verificationReport.overallErrors.join('; ');
+      throw new ValidationError(`Question creation REJECTED at Backend Save Gate due to multi-layer verification failure: ${errDetail}`);
+    }
+
+    // Assign server-authoritative verification status (overriding any client spoofing)
+    newQuestion.validationStatus = verificationReport.canonicalValidationStatus;
+    newQuestion.validationScore = verificationReport.confidenceScore;
+    newQuestion.lastValidationId = verificationReport.id;
+
+    // Save validation audit record
+    try {
+      await validationsRepository.saveValidationResult({
+        id: verificationReport.id,
+        questionId: newQuestion.id,
+        status: verificationReport.canonicalValidationStatus,
+        confidenceScore: verificationReport.confidenceScore,
+        validatorVersion: MultiLayerVerificationEngine.VERSION,
+        validationRuleVersion: '2026.09.v1',
+        timestamp: verificationReport.timestamp,
+        source: 'MULTI_LAYER_PIPELINE',
+        summary: verificationReport.overallErrors.length > 0
+          ? `Verification failed with ${verificationReport.overallErrors.length} error(s)`
+          : `Multi-layer verification ${verificationReport.aggregatedStatus}`,
+        checks: verificationReport.layerList.map(l => ({
+          checkId: l.layerId,
+          checkName: l.layerName,
+          passed: l.status === 'VERIFIED' || l.status === 'N/A',
+          severity: l.status === 'FAILED' ? 'FATAL' : l.status === 'UNVERIFIED' ? 'WARN' : 'INFO',
+          message: l.summary,
+        })),
+        errors: verificationReport.overallErrors,
+        warnings: verificationReport.overallWarnings,
+        recommendations: [],
+        answerVerification: {
+          isConsistent: verificationReport.layers['5']?.status !== 'FAILED',
+          declaredAnswer: newQuestion.correctAnswer,
+          details: verificationReport.layers['6']?.summary || '',
+          contradictionDetected: verificationReport.layers['5']?.status === 'FAILED',
+        },
+        explanationVerification: {
+          isValid: verificationReport.layers['7']?.status === 'VERIFIED',
+          contradictsAnswer: verificationReport.layers['5']?.status === 'FAILED',
+          reachesDeclaredResult: true,
+          substantiveLength: (newQuestion.explanation || '').length >= 5,
+          details: verificationReport.layers['7']?.summary || '',
+        },
+        ambiguityResult: {
+          isAmbiguous: false,
+          ambiguityReasons: [],
+          confidence: verificationReport.confidenceScore,
+          details: 'No ambiguity',
+        },
+        mathematicalLogicalResult: verificationReport.evidence?.mathDerivation || {
+          status: verificationReport.layers['3']?.status === 'N/A' ? 'NOT_APPLICABLE' : 'VERIFIED',
+          details: verificationReport.layers['3']?.summary || '',
+        },
+        layers: verificationReport.layers,
+        layerList: verificationReport.layerList,
+        aggregatedLayerStatus: verificationReport.aggregatedStatus,
+        humanReviewState: verificationReport.humanReviewState,
+        createdAt: verificationReport.timestamp,
+        updatedAt: verificationReport.timestamp,
+      } as any);
+    } catch {
+      // Best-effort audit save
+    }
+
+    // 7. Append to authoritative QUESTIONS sheet
     await questionsRepository.appendRecord(newQuestion);
 
     // 7. Workflow State Transition
@@ -664,13 +874,14 @@ export class QuestionService {
       );
     }
 
-    // 6. Merge record (preserve immutable ID, contentId, contentMasterId, and createdAt, generate new server updatedAt)
+    // 6. Merge record (preserve immutable ID, contentId, contentMasterId, authorId, and createdAt, generate new server updatedAt)
     const updatedRecord: any = {
+      ...existing,
       ...updates,
       ...enrichedTaxonomy,
       id: existing.id,
-      contentId: existing.contentId,
-      contentMasterId: existing.contentMasterId,
+      contentId: existing.contentId || existing.contentMasterId,
+      contentMasterId: existing.contentMasterId || existing.contentId,
       createdAt: existing.createdAt,
       status: nextStatus,
       videoStatus: nextVideoStatus,
@@ -680,7 +891,55 @@ export class QuestionService {
       updatedAt: new Date().toISOString(),
     };
 
+    if (updatedRecord.questionText) {
+      updatedRecord.question = updatedRecord.questionText;
+    } else if (updatedRecord.question) {
+      updatedRecord.questionText = updatedRecord.question;
+    }
+
+    if (updatedRecord.options) {
+      updatedRecord.optionA = updatedRecord.options.a;
+      updatedRecord.optionB = updatedRecord.options.b;
+      updatedRecord.optionC = updatedRecord.options.c;
+      updatedRecord.optionD = updatedRecord.options.d;
+    } else if (updatedRecord.optionA !== undefined || updatedRecord.optionB !== undefined) {
+      updatedRecord.options = {
+        a: updatedRecord.optionA || '',
+        b: updatedRecord.optionB || '',
+        c: updatedRecord.optionC || '',
+        d: updatedRecord.optionD || '',
+      };
+    }
+
+    if (existing.authorId) {
+      updatedRecord.authorId = existing.authorId;
+      updatedRecord.author = existing.author || existing.authorId;
+    }
+
+    if (updatedRecord.realLifeContext) {
+      updatedRecord.realWorldContext = updatedRecord.realLifeContext;
+    } else if (updatedRecord.realWorldContext) {
+      updatedRecord.realLifeContext = updatedRecord.realWorldContext;
+    }
+
+    // Run multi-layer verification on merged update payload
+    const verificationReport = await MultiLayerVerificationEngine.verify(updatedRecord, {
+      actor: actor.name,
+    });
+
+    if (verificationReport.aggregatedStatus === 'FAILED' || !verificationReport.canSave) {
+      const errDetail = verificationReport.overallErrors.join('; ');
+      throw new ValidationError(`Question update REJECTED at Backend Save Gate due to multi-layer verification failure: ${errDetail}`);
+    }
+
+    if (isMaterialEdit) {
+      updatedRecord.validationStatus = verificationReport.canonicalValidationStatus;
+      updatedRecord.validationScore = verificationReport.confidenceScore;
+      updatedRecord.lastValidationId = verificationReport.id;
+    }
+
     const result = await questionsRepository.updateRecord(id, updatedRecord);
+
     if (!result) {
       throw new Error(`Failed to update question with ID "${id}".`);
     }

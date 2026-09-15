@@ -169,18 +169,31 @@ export class QuestionCreationValidator {
 
     const optA = (options.a || '').trim();
     const optB = (options.b || '').trim();
-
-    if (!optA || !optB) {
-      throw new ValidationError('At least Option A and Option B must be provided.');
-    }
+    const optC = (options.c || '').trim();
+    const optD = (options.d || '').trim();
 
     // Challenge-type specific answer structure rules
     if (challengeType === 'TRUE_FALSE' || challengeType === 'TRUE / FALSE' || challengeType === 'YES_NO' || challengeType === 'YES / NO') {
+      if (!optA || !optB) {
+        throw new ValidationError('At least Option A and Option B must be provided.');
+      }
+      if (optA.toLowerCase() === optB.toLowerCase()) {
+        throw new ValidationError('Question options must contain distinct choices.');
+      }
       if (payload.correctAnswer !== 'A' && payload.correctAnswer !== 'B') {
         throw new ValidationError(`For challenge type "${payload.challengeType}", correctAnswer must be "A" or "B".`);
       }
     } else {
-      // ABCD / Multiple Choice / Arrange / Incorrect
+      // ABCD / Multiple Choice / Arrange / Incorrect - strictly enforces exactly 4 distinct non-empty options
+      if (!optA || !optB || !optC || !optD) {
+        throw new ValidationError('Exactly four distinct options (A, B, C, D) are required and none may be empty.');
+      }
+
+      const optValues = [optA.toLowerCase(), optB.toLowerCase(), optC.toLowerCase(), optD.toLowerCase()];
+      if (new Set(optValues).size < 4) {
+        throw new ValidationError('Question options must contain 4 distinct choices.');
+      }
+
       if (!['A', 'B', 'C', 'D'].includes(payload.correctAnswer)) {
         throw new ValidationError('correctAnswer must be one of "A", "B", "C", or "D".');
       }

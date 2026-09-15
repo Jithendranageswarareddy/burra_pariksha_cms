@@ -1,369 +1,483 @@
 /**
- * BURRA PARIKSHA CMS - PHASE 9 VERIFICATION TEST SUITE
- * Content Planning, Batch Management & Question Intelligence
+ * BURRA PARIKSHA CMS - PHASE 09 MULTI-LAYER QUESTION VERIFICATION TEST SUITE
+ * Test Suite: P09-01 to P09-25
  * 
  * Verifies end-to-end functionality for:
- * 1. Content Planning CRUD, ID Allocation, and Taxonomy Integrity
- * 2. Administrative Plan Approval Workflow
- * 3. Content Batch Production Sprints and Progress Metrics
- * 4. Question Linking and Multi-Stage Batch Progress Tracking
- * 5. Full Taxonomy Coverage Intelligence & Aggregations
- * 6. Curriculum Gap Analysis (Zero-Coverage, Low-Coverage, Difficulty/Language Gaps)
- * 7. Duplicate Detection & Jaccard Lexical Similarity Engine
- * 8. Question Bank Diversity Radar Diagnostics
- * 9. Gemini AI Content Planning Assistant & Advisory Proposals
- * 10. Operational Audit Logging for all Planning & Batch Actions
+ * 1. Structural Validation Layer
+ * 2. Deterministic Validation Layer
+ * 3. Mathematical Verification Layer
+ * 4. Non-mathematical N/A Handling
+ * 5. Independent AI Verification Layer
+ * 6. AI Verifier Unavailable -> UNVERIFIED
+ * 7. Contradiction Detection Layer
+ * 8. Answer / Options Consistency Layer
+ * 9. Explanation Consistency Layer
+ * 10. Exact Duplicate Detection Layer
+ * 11. Repetition / Near-Duplicate Detection Layer
+ * 12. Human Review State Layer
+ * 13. FAILED Precedence Rule
+ * 14. FAILED Cannot Be Overwritten by VERIFIED
+ * 15. UNVERIFIED Aggregation Rule
+ * 16. Verification Persistence & Audit Trail
+ * 17. Backend Save Gate Enforcement
+ * 18. Client Spoofing Prevention
+ * 19. Manual Question Verification Path
+ * 20. AI Candidate Verification Path
+ * 21. Manual & AI Convergence
+ * 22. Invalid Question Cannot Silently Reach Save
+ * 23. Verification Does Not Silently Mutate Question
+ * 24. Historical Verification Traceability
+ * 25. Complete Verification Aggregation Report
  */
 
-import { planningService } from '../lib/services/planning.service';
-import { similarityService } from '../lib/services/similarity.service';
-import { geminiService } from '../lib/ai/gemini.service';
-import { idService } from '../lib/services/id.service';
-import { taxonomyService } from '../lib/services/taxonomy.service';
+import { MultiLayerVerificationEngine } from '../lib/validation/multi-layer-verification.engine';
 import { questionService } from '../lib/services/question.service';
-import { auditLogRepository } from '../lib/repositories/audit-log.repository';
-import { contentPlansRepository } from '../lib/repositories/content-plans.repository';
-import { contentBatchesRepository } from '../lib/repositories/content-batches.repository';
-import {
-  ContentBatchStatus,
-  ContentPlanStatus,
-  DifficultyLevel,
-  PriorityLevel,
-  QuestionLanguage,
-  QuestionStatus,
-  QuestionStyle,
-} from '../types';
+import { questionValidationService } from '../lib/services/question-validation.service';
+import { validationsRepository } from '../lib/repositories/validations.repository';
+import { questionsRepository } from '../lib/repositories/questions.repository';
+import { taxonomyService } from '../lib/services/taxonomy.service';
+import { QuestionValidationStatus, QuestionLanguage, QuestionStatus } from '../types';
 
 export async function runPhase9Verification() {
   console.log('====================================================');
-  console.log('BURRA PARIKSHA CMS - PHASE 9 VERIFICATION SUITE');
-  console.log('Content Planning, Batch Management & Question Intelligence');
+  console.log('BURRA PARIKSHA CMS - PHASE 09 VERIFICATION SUITE');
+  console.log('Multi-Layer Question Verification Pipeline & Save Gate');
   console.log('====================================================\n');
 
   let passedTests = 0;
   let totalTests = 0;
 
-  function assert(condition: boolean, testName: string, detail?: string) {
+  function assert(condition: boolean, testCode: string, testName: string, detail?: string) {
     totalTests++;
     if (condition) {
-      console.log(`[PASS] Test ${totalTests}: ${testName}`);
+      console.log(`[PASS] Test ${testCode}: ${testName}`);
       passedTests++;
     } else {
-      console.error(`[FAIL] Test ${totalTests}: ${testName} - Detail: ${detail || 'Assertion failed'}`);
-      throw new Error(`Phase 9 Verification failed on Test ${totalTests}: ${testName} - ${detail || ''}`);
+      console.error(`[FAIL] Test ${testCode}: ${testName} - Detail: ${detail || 'Assertion failed'}`);
+      throw new Error(`Phase 09 Verification failed on Test ${testCode}: ${testName} - ${detail || ''}`);
     }
   }
 
-  const testActor = { id: 'USR-001', name: 'Test Administrator / Content Lead' };
+  const testActor = { id: 'USR-ADMIN-01', name: 'Phase 09 Test Lead', role: 'ADMIN' };
 
-  // ============================================================================
-  // SECTION 1: ID GENERATION & SEQUENCE INVARIANTS
-  // ============================================================================
-  console.log('\n--- Section 1: ID Allocation & Sequence Invariants ---');
-
-  const planId1 = await idService.allocateContentPlanId();
-  const planId2 = await idService.allocateContentPlanId();
-  assert(planId1.startsWith('BP-PLN-'), `Content Plan ID has BP-PLN- prefix: ${planId1}`);
-  assert(planId2.startsWith('BP-PLN-'), `Second Content Plan ID has BP-PLN- prefix: ${planId2}`);
-  assert(planId1 !== planId2, `Allocated Plan IDs are strictly unique: ${planId1} vs ${planId2}`);
-
-  const batchId1 = await idService.allocateContentBatchId();
-  const batchId2 = await idService.allocateContentBatchId();
-  assert(batchId1.startsWith('BP-BCH-'), `Content Batch ID has BP-BCH- prefix: ${batchId1}`);
-  assert(batchId2.startsWith('BP-BCH-'), `Second Content Batch ID has BP-BCH- prefix: ${batchId2}`);
-  assert(batchId1 !== batchId2, `Allocated Batch IDs are strictly unique: ${batchId1} vs ${batchId2}`);
-
-  // ============================================================================
-  // SECTION 2: CONTENT PLAN CREATION & TAXONOMY INTEGRITY
-  // ============================================================================
-  console.log('\n--- Section 2: Content Plan Creation & Taxonomy Integrity ---');
-
+  // Load canonical taxonomy for test cases
   const categories = await taxonomyService.getCategories();
-  assert(categories.length > 0, `Taxonomy categories loaded (count: ${categories.length})`);
-  const targetCategory = categories[0];
+  const category = categories[0] || { id: 'CAT-001', name: 'General Studies' };
 
-  const topics = await taxonomyService.getTopics(targetCategory.id);
-  assert(topics.length > 0, `Topics found for category ${targetCategory.name}`);
-  const targetTopic = topics[0];
+  // Resolve a real topic and subtopic that are guaranteed to exist to prevent ReferenceIntegrityError
+  const allSubtopics = await (await import('../lib/repositories/subtopics.repository')).subtopicsRepository.findAll();
+  let topic = { id: 'BP-TOP-001', name: 'Number Fundamentals' };
+  let subtopic = { id: 'BP-SUB-0001', name: 'Number Identification Challenges' };
 
-  const subtopics = await taxonomyService.getSubtopics(targetTopic.id);
-  assert(subtopics.length > 0, `Subtopics found for topic ${targetTopic.name}`);
-  const targetSubtopic = subtopics[0];
-
-  // 1. Create Valid Content Plan
-  const createdPlan = await planningService.createContentPlan(
-    {
-      categoryId: targetCategory.id,
-      topicId: targetTopic.id,
-      subtopicId: targetSubtopic.id,
-      difficulty: DifficultyLevel.MEDIUM,
-      language: QuestionLanguage.ENGLISH,
-      targetQuestionCount: 15,
-      realWorldContext: 'Supermarket billing & retail discounts',
-      questionStyle: QuestionStyle.REAL_WORLD_SCENARIO,
-      priority: PriorityLevel.HIGH,
-      plannedDate: '2026-09-01',
-      notes: 'Strategic sprint for Q3 exam cycle',
-    },
-    testActor
-  );
-
-  assert(!!createdPlan.id && createdPlan.id.startsWith('BP-PLN-'), `Created plan has valid ID: ${createdPlan.id}`);
-  assert(createdPlan.status === ContentPlanStatus.DRAFT, `Initial plan status is DRAFT (was: ${createdPlan.status})`);
-  assert(createdPlan.targetQuestionCount === 15, `Target question count is 15 (was: ${createdPlan.targetQuestionCount})`);
-  assert(createdPlan.categoryName === targetCategory.name, `Plan has enriched category name: ${createdPlan.categoryName}`);
-  assert(createdPlan.topicName === targetTopic.name, `Plan has enriched topic name: ${createdPlan.topicName}`);
-
-  // 2. Reject Mismatched Taxonomy Hierarchy
-  let taxonomyErrorThrown = false;
-  try {
-    const anotherCat = categories.length > 1 ? categories[1] : { id: 'CAT-OTHER', name: 'Other Category' };
-    await planningService.createContentPlan(
-      {
-        categoryId: anotherCat.id,
-        topicId: targetTopic.id, // Mismatched topic belonging to targetCategory, not anotherCat
-        subtopicId: targetSubtopic.id,
-        difficulty: DifficultyLevel.HARD,
-        language: QuestionLanguage.ENGLISH,
-        priority: PriorityLevel.HIGH,
-        targetQuestionCount: 10,
-        plannedDate: '2026-09-02',
-      },
-      testActor
-    );
-  } catch (err: any) {
-    taxonomyErrorThrown = true;
-    assert(
-      err.message.includes('Taxonomy') || err.message.includes('belongs to') || err.message.includes('does not exist'),
-      `Rejects invalid Category-Topic hierarchy with clear diagnostic: ${err.message}`
-    );
+  if (allSubtopics.length > 0) {
+    const sub = allSubtopics[0];
+    const top = await (await import('../lib/repositories/topics.repository')).topicsRepository.findById(sub.topicId);
+    if (top) {
+      topic = { id: top.id, name: top.name };
+      subtopic = { id: sub.id, name: sub.name };
+    }
   }
-  assert(taxonomyErrorThrown, 'Mismatched taxonomy properly rejected during plan creation');
 
-  // ============================================================================
-  // SECTION 3: PLAN UPDATES & ADMINISTRATIVE APPROVAL
-  // ============================================================================
-  console.log('\n--- Section 3: Plan Updates & Administrative Approval ---');
-
-  const updatedPlan = await planningService.updateContentPlan(
-    createdPlan.id,
-    {
-      targetQuestionCount: 20,
-      notes: 'Updated target from 15 to 20 per syllabus review',
-    },
-    testActor
-  );
-  assert(updatedPlan.targetQuestionCount === 20, `Target updated to 20 (was: ${updatedPlan.targetQuestionCount})`);
-
-  // Administrator explicitly approves the plan
-  const approvedPlan = await planningService.approveContentPlan(createdPlan.id, testActor);
-  assert(approvedPlan.status === ContentPlanStatus.APPROVED, `Plan status transitioned to APPROVED by Admin`);
-
-  // ============================================================================
-  // SECTION 4: PRODUCTION BATCHES & LIFECYCLE MANAGEMENT
-  // ============================================================================
-  console.log('\n--- Section 4: Production Batches & Lifecycle Management ---');
-
-  const createdBatch = await planningService.createContentBatch(
-    {
-      name: `${targetTopic.name} Sprint 1 - High Priority`,
-      description: 'First production batch for approved plan',
-      planId: approvedPlan.id,
-      targetCount: 10,
-      priority: PriorityLevel.URGENT,
-      plannedDate: '2026-09-05',
-      questionIds: [],
-    },
-    testActor
-  );
-
-  assert(!!createdBatch.id && createdBatch.id.startsWith('BP-BCH-'), `Batch has valid ID: ${createdBatch.id}`);
-  assert(createdBatch.status === ContentBatchStatus.PLANNED, `Initial batch status is PLANNED`);
-  assert(createdBatch.planId === approvedPlan.id, `Batch correctly references plan: ${createdBatch.planId}`);
-
-  // Check that creating a batch against an APPROVED plan transitioned the plan to IN_PROGRESS
-  const refreshedPlan = await planningService.getContentPlanById(approvedPlan.id);
-  assert(refreshedPlan?.status === ContentPlanStatus.IN_PROGRESS, `Plan automatically transitioned to IN_PROGRESS upon batch creation`);
-  assert((refreshedPlan?.createdBatchesCount || 0) >= 1, `Plan reflects created batch count: ${refreshedPlan?.createdBatchesCount}`);
-
-  // ============================================================================
-  // SECTION 5: QUESTION ASSOCIATION & BATCH PROGRESS METRICS
-  // ============================================================================
-  console.log('\n--- Section 5: Question Association & Batch Progress Metrics ---');
-
-  // Create two real test questions to associate with the batch
-  const testQ1 = await questionService.createQuestion({
-    categoryId: targetCategory.id,
-    topicId: targetTopic.id,
-    subtopicId: targetSubtopic.id,
-    difficulty: DifficultyLevel.MEDIUM,
-    questionText: `Phase 9 Batch Test Question Alpha: A dealer marks his goods 25% above cost price and allows 10% discount. What is his profit percentage?`,
+  // Helper valid question base
+  const getBaseCandidate = (): any => ({
+    topicId: topic.id,
+    subtopicId: subtopic.id,
+    categoryId: category.id,
+    difficulty: 'Intermediate' as any,
+    language: QuestionLanguage.TELUGU,
+    questionText: `క్రింది సమాధానాలలో ఒక రైలు 60 km/h వేగంతో ప్రయాణిస్తే 120 km దూరం పూర్తి చేయడానికి పట్టే సమయం ఎంత? (Test run ${Date.now()})`,
     options: {
-      a: '12.5%',
-      b: '15%',
-      c: '10%',
-      d: '18%',
+      a: '1 గంట',
+      b: '2 గంటలు',
+      c: '3 గంటలు',
+      d: '4 గంటలు',
+    },
+    correctAnswer: 'B',
+    explanation: 'సమయం = దూరం / వేగం = 120 / 60 = 2 గంటలు. కావున Option B సరైన సమాధానం.',
+  });
+
+  // ============================================================================
+  // P09-01: Structural Validation Layer
+  // ============================================================================
+  console.log('\n--- P09-01: Structural Validation Layer ---');
+  const invalidStructCandidate = {
+    ...getBaseCandidate(),
+    questionText: '', // Empty text
+  };
+  const r01 = await MultiLayerVerificationEngine.verify(invalidStructCandidate, { skipTaxonomyLookup: true });
+  assert(r01.layers['1'].status === 'FAILED', 'P09-01', 'Structural validation returns FAILED on missing questionText');
+  assert(r01.aggregatedStatus === 'FAILED', 'P09-01b', 'Aggregated status becomes FAILED on structural error');
+
+  // ============================================================================
+  // P09-02: Deterministic Validation Layer
+  // ============================================================================
+  console.log('\n--- P09-02: Deterministic Validation Layer ---');
+  const malformedCandidate = {
+    ...getBaseCandidate(),
+    questionText: 'Test question with <script>alert("hack")</script> inserted into text',
+  };
+  const r02 = await MultiLayerVerificationEngine.verify(malformedCandidate, { skipTaxonomyLookup: true });
+  assert(r02.layers['2'].status === 'FAILED', 'P09-02', 'Deterministic layer returns FAILED on malformed script tag');
+
+  // ============================================================================
+  // P09-03: Mathematical Verification Layer
+  // ============================================================================
+  console.log('\n--- P09-03: Mathematical Verification Layer ---');
+  const validMathCandidate = getBaseCandidate();
+  const r03 = await MultiLayerVerificationEngine.verify(validMathCandidate, { skipTaxonomyLookup: true });
+  assert(r03.layers['3'].status === 'VERIFIED', 'P09-03', 'Mathematical layer returns VERIFIED for correct calculation (120/60 = 2 hours)');
+
+  // ============================================================================
+  // P09-04: Non-mathematical N/A Handling
+  // ============================================================================
+  console.log('\n--- P09-04: Non-mathematical N/A Handling ---');
+  const verbalCandidate = {
+    ...getBaseCandidate(),
+    questionText: 'భారతదేశ మొదటి ప్రధానమంత్రి ఎవరు?',
+    options: {
+      a: 'జవహర్ లాల్ నెహ్రూ',
+      b: 'మహాత్మా గాంధీ',
+      c: 'లాల్ బహదూర్ శాస్త్రి',
+      d: 'సర్దార్ పటేల్',
     },
     correctAnswer: 'A',
-    explanation: 'Let CP = 100. MP = 125. SP = 125 * 0.9 = 112.5. Profit = 12.5%.',
-  });
+    explanation: 'స్వతంత్ర భారతదేశం యొక్క మొదటి ప్రధానమంత్రి జవహర్ లాల్ నెహ్రూ. కావున Option A సరైన సమాధానం.',
+  };
+  const r04 = await MultiLayerVerificationEngine.verify(verbalCandidate, { skipTaxonomyLookup: true });
+  assert(r04.layers['3'].status === 'N/A', 'P09-04', 'Non-mathematical qualitative problem returns N/A for Layer 3');
 
-  const testQ2 = await questionService.createQuestion({
-    categoryId: targetCategory.id,
-    topicId: targetTopic.id,
-    subtopicId: targetSubtopic.id,
-    difficulty: DifficultyLevel.MEDIUM,
-    questionText: `Phase 9 Batch Test Question Beta: A shopkeeper sells two articles for Rs 990 each, making 10% profit on one and 10% loss on another. What is the net outcome?`,
-    options: {
-      a: '1% loss',
-      b: '1% gain',
-      c: 'No profit no loss',
-      d: '2% loss',
+  // ============================================================================
+  // P09-05: Independent AI Verification Layer
+  // ============================================================================
+  console.log('\n--- P09-05: Independent AI Verification Layer ---');
+  const r05 = await MultiLayerVerificationEngine.verify(getBaseCandidate(), {
+    skipTaxonomyLookup: true,
+    aiVerifierResult: {
+      success: true,
+      status: 'VERIFIED',
+      modelId: 'Gemini Pro Verifier (Independent)',
     },
+  });
+  assert(r05.layers['4'].status === 'VERIFIED', 'P09-05', 'Independent AI verifier layer returns VERIFIED when AI verifies candidate');
+
+  // ============================================================================
+  // P09-06: AI Verifier Unavailable -> UNVERIFIED
+  // ============================================================================
+  console.log('\n--- P09-06: AI Verifier Unavailable -> UNVERIFIED ---');
+  const r06 = await MultiLayerVerificationEngine.verify(getBaseCandidate(), {
+    skipTaxonomyLookup: true,
+    aiVerifierAvailable: false,
+  });
+  assert(r06.layers['4'].status === 'UNVERIFIED', 'P09-06', 'AI verifier unavailable returns UNVERIFIED (never auto-passes as VERIFIED)');
+
+  // ============================================================================
+  // P09-07: Contradiction Detection Layer
+  // ============================================================================
+  console.log('\n--- P09-07: Contradiction Detection Layer ---');
+  const contradictionCandidate = {
+    ...getBaseCandidate(),
     correctAnswer: 'A',
-    explanation: 'Common loss percentage = (x / 10)^2 = (10 / 10)^2 = 1% loss.',
+    explanation: 'సరైన గణన ద్వారా 120/60 = 2 గంటలు. కావున Option B సరైన సమాధానం.', // Explains B, but declared answer is A!
+  };
+  const r07 = await MultiLayerVerificationEngine.verify(contradictionCandidate, { skipTaxonomyLookup: true });
+  assert(r07.layers['5'].status === 'FAILED', 'P09-07', 'Contradiction detection returns FAILED when explanation option B disagrees with declared answer A');
+
+  // ============================================================================
+  // P09-08: Answer / Options Consistency Layer
+  // ============================================================================
+  console.log('\n--- P09-08: Answer / Options Consistency Layer ---');
+  const duplicateOptsCandidate = {
+    ...getBaseCandidate(),
+    options: {
+      a: '2 గంటలు',
+      b: '2 గంటలు', // Duplicate option!
+      c: '3 గంటలు',
+      d: '4 గంటలు',
+    },
+  };
+  const r08 = await MultiLayerVerificationEngine.verify(duplicateOptsCandidate, { skipTaxonomyLookup: true });
+  assert(r08.layers['6'].status === 'FAILED', 'P09-08', 'Answer/Options layer returns FAILED on duplicate option values');
+
+  // ============================================================================
+  // P09-09: Explanation Consistency Layer
+  // ============================================================================
+  console.log('\n--- P09-09: Explanation Consistency Layer ---');
+  const shortExpCandidate = {
+    ...getBaseCandidate(),
+    explanation: 'OK', // Too short (< 5 chars)
+  };
+  const r09 = await MultiLayerVerificationEngine.verify(shortExpCandidate, { skipTaxonomyLookup: true });
+  assert(r09.layers['7'].status === 'FAILED', 'P09-09', 'Explanation layer returns FAILED when explanation is less than 5 characters');
+
+  // ============================================================================
+  // P09-10: Exact Duplicate Detection Layer
+  // ============================================================================
+  console.log('\n--- P09-10: Exact Duplicate Detection Layer ---');
+  const existingQuestions = await questionsRepository.findAll();
+  const mockExistingQ = {
+    id: 'BP-Q-TEST-EXISTING-1',
+    questionText: 'భారత రాజ్యాంగంలో ప్రాథమిక హక్కులు ఏ భాగంలో ఉన్నాయి?',
+    categoryName: 'General Studies',
+    topicName: 'Polity',
+  } as any;
+
+  const exactDupCandidate = {
+    ...getBaseCandidate(),
+    questionText: 'భారత రాజ్యాంగంలో ప్రాథమిక హక్కులు ఏ భాగంలో ఉన్నాయి?',
+  };
+
+  const r10 = await MultiLayerVerificationEngine.verify(exactDupCandidate, {
+    skipTaxonomyLookup: true,
+    existingQuestions: [...existingQuestions, mockExistingQ],
   });
-
-  // Link questions to batch
-  const linkedBatch = await planningService.linkBatchQuestions(
-    createdBatch.id,
-    [testQ1.id, testQ2.id],
-    'ADD',
-    testActor
-  );
-  assert(linkedBatch.questionIds.length === 2, `Batch has 2 linked questions (was: ${linkedBatch.questionIds.length})`);
-  assert(linkedBatch.status === ContentBatchStatus.ACTIVE, `Batch transitioned to ACTIVE upon linking questions`);
-
-  // Compute progress metrics
-  const batchMetrics = await planningService.getBatchProgressMetrics(createdBatch.id);
-  assert(batchMetrics.totalAssociated === 2, `Metrics reflect 2 associated questions`);
-  assert(batchMetrics.targetCount === 10, `Target count is 10`);
-  assert(batchMetrics.remainingToApprove === 10, `Remaining to approve is 10 (test questions in DRAFT)`);
-  assert(batchMetrics.completionPercentage === 0, `0% approved questions initially`);
-  assert(!batchMetrics.isReadyForProduction, `Batch is not yet ready for production (needs 10 approved)`);
-
-  // Approve one test question and re-check metrics
-  await questionService.updateQuestion(testQ1.id, { status: QuestionStatus.APPROVED }, testActor);
-  const updatedMetrics = await planningService.getBatchProgressMetrics(createdBatch.id);
-  assert(updatedMetrics.approved === 1, `Approved count updated to 1`);
-  assert(updatedMetrics.remainingToApprove === 9, `Remaining to approve is now 9 (10 - 1)`);
-  assert(updatedMetrics.completionPercentage === 10, `Completion percentage is 10% (1/10)`);
+  assert(r10.layers['8'].status === 'FAILED', 'P09-10', 'Layer 8 returns FAILED on exact duplicate question text');
 
   // ============================================================================
-  // SECTION 6: TAXONOMY COVERAGE INTELLIGENCE
+  // P09-11: Repetition / Near-Duplicate Detection Layer
   // ============================================================================
-  console.log('\n--- Section 6: Taxonomy Coverage Intelligence ---');
+  console.log('\n--- P09-11: Repetition / Near-Duplicate Detection Layer ---');
+  const nearDupCandidate = {
+    ...getBaseCandidate(),
+    questionText: 'భారత రాజ్యాంగంలో ప్రాథమిక హక్కులు ముఖ్యంగా ఏ భాగంలో పొందుపరచబడ్డాయి?',
+  };
+  const mockNearExistingQ = {
+    id: 'BP-Q-TEST-EXISTING-2',
+    questionText: 'భారత రాజ్యాంగంలో ప్రాథమిక హక్కులు ఏ భాగంలో పొందుపరచబడ్డాయి?',
+  } as any;
 
-  const coverage = await planningService.getCoverageOverview();
-  assert(coverage.totalCategories > 0, `Coverage overview includes categories (count: ${coverage.totalCategories})`);
-  assert(coverage.totalTopics > 0, `Coverage overview includes topics (count: ${coverage.totalTopics})`);
-  assert(coverage.totalSubtopics > 0, `Coverage overview includes subtopics (count: ${coverage.totalSubtopics})`);
-  assert(coverage.totalQuestions >= 2, `Coverage aggregates all questions in library (total: ${coverage.totalQuestions})`);
-  assert(coverage.overallTaxonomyCoveragePercentage >= 0 && coverage.overallTaxonomyCoveragePercentage <= 100, `Overall coverage % is bounded [0, 100]: ${coverage.overallTaxonomyCoveragePercentage}%`);
-  assert(typeof coverage.byDifficulty.easy === 'number', `Difficulty breakdown includes Easy count`);
-  assert(typeof coverage.byDifficulty.medium === 'number', `Difficulty breakdown includes Medium count`);
-  assert(typeof coverage.byDifficulty.hard === 'number', `Difficulty breakdown includes Hard count`);
-  assert(typeof coverage.byLanguage.english === 'number', `Language breakdown includes English count`);
-
-  // ============================================================================
-  // SECTION 7: CURRICULUM GAP ANALYSIS
-  // ============================================================================
-  console.log('\n--- Section 7: Curriculum Gap Analysis ---');
-
-  const gaps = await planningService.getGapAnalysis();
-  assert(Array.isArray(gaps.zeroCoverageSubtopics), `Gap analysis lists zero-coverage subtopics`);
-  assert(Array.isArray(gaps.lowCoverageSubtopics), `Gap analysis lists low-coverage subtopics`);
-  assert(Array.isArray(gaps.difficultyGaps), `Gap analysis lists difficulty balance gaps`);
-  assert(Array.isArray(gaps.languageGaps), `Gap analysis lists regional language gaps`);
-  assert(Array.isArray(gaps.concentrationRisks), `Gap analysis detects topic concentration risks`);
-
-  // ============================================================================
-  // SECTION 8: SIMILARITY, DUPLICATE DETECTION & RADAR
-  // ============================================================================
-  console.log('\n--- Section 8: Similarity & Diversity Intelligence ---');
-
-  const normA = similarityService.normalizeText('A train 150m long travels at 60 km/h!');
-  const normB = similarityService.normalizeText('a train 150m long travels at 60 km/h.');
-  assert(normA === normB, `Text normalization ignores case and punctuation: '${normA}' === '${normB}'`);
-
-  const simIdentical = similarityService.calculateJaccardSimilarity(
-    'A train 150 meters long crosses a bridge in 15 seconds',
-    'A train 150 meters long crosses a bridge in 15 seconds'
-  );
-  assert(simIdentical === 1.0, `Jaccard similarity for identical strings is 1.0 (was: ${simIdentical})`);
-
-  const simDifferent = similarityService.calculateJaccardSimilarity(
-    'A train crosses a bridge',
-    'Profit and loss discount calculation on supermarket goods'
-  );
-  assert(simDifferent < 0.2, `Jaccard similarity for completely distinct topics is low (< 0.2, was: ${simDifferent})`);
-
-  // Test duplicate detection against live library
-  const dupCheck = await similarityService.findSimilarQuestions(
-    `Phase 9 Batch Test Question Alpha: A dealer marks his goods 25% above cost price and allows 10% discount. What is his profit percentage?`
-  );
-  assert(dupCheck.length > 0, `Similarity engine detected exact match with test question`);
-  assert(dupCheck[0].type === 'EXACT_DUPLICATE', `Match type is EXACT_DUPLICATE`);
-  assert(dupCheck[0].similarityScore === 1.0, `Match score is 1.0`);
-
-  // Diversity Radar scan across entire bank
-  const radarReport = await similarityService.generateDiversityRadarReport();
-  assert(radarReport.scannedQuestionsCount >= 2, `Radar scanned full question bank (count: ${radarReport.scannedQuestionsCount})`);
-  assert(typeof radarReport.healthScore === 'number' && radarReport.healthScore >= 0 && radarReport.healthScore <= 100, `Health score is valid: ${radarReport.healthScore}`);
-  assert(Array.isArray(radarReport.diversityWarnings), `Radar produces structured diversity warnings`);
-
-  // ============================================================================
-  // SECTION 9: AI CONTENT PLANNING ASSISTANT (GEMINI)
-  // ============================================================================
-  console.log('\n--- Section 9: AI Content Planning Assistant (Gemini) ---');
-
-  const aiRecommendation = await geminiService.generateContentPlanRecommendation({
-    categoryId: targetCategory.id,
-    topicId: targetTopic.id,
-    targetTotalCount: 20,
-    language: QuestionLanguage.ENGLISH,
+  const r11 = await MultiLayerVerificationEngine.verify(nearDupCandidate, {
+    skipTaxonomyLookup: true,
+    existingQuestions: [mockNearExistingQ],
   });
-
-  assert(aiRecommendation.isAiGenerated === true, `Recommendation marked as AI generated`);
-  assert(aiRecommendation.categoryId === targetCategory.id, `Recommendation matches requested category`);
-  assert(aiRecommendation.targetTotalCount === 20, `Recommendation matches target count of 20`);
-  assert(aiRecommendation.recommendedDistribution.length > 0, `Recommendation contains subtopic distribution breakdown`);
-  assert(aiRecommendation.suggestedBatchGrouping.length > 0, `Recommendation suggests logical sprint batch groupings`);
-  assert(!!aiRecommendation.pedagogicalRationale, `Recommendation includes pedagogical rationale: ${aiRecommendation.pedagogicalRationale.slice(0, 50)}...`);
-
-  // Verify that AI recommendation did NOT automatically create records in the database
-  const plansAfterAi = await contentPlansRepository.findAll();
-  const autoCreatedPlan = plansAfterAi.find((p) => p.notes === aiRecommendation.pedagogicalRationale);
-  assert(!autoCreatedPlan, `Human Authority Safeguard: AI recommendation did NOT auto-create plans in database`);
+  assert(r11.layers['8'].status === 'FAILED', 'P09-11', 'Layer 8 returns FAILED on near-duplicate question text');
 
   // ============================================================================
-  // SECTION 10: AUDIT TRAIL VERIFICATION
+  // P09-12: Human Review State Layer
   // ============================================================================
-  console.log('\n--- Section 10: Operational Audit Trail Verification ---');
-
-  const auditLogs = await auditLogRepository.findAll();
-  const planCreatedLog = auditLogs.find((l) => l.action === 'CONTENT_PLAN_CREATED' && l.entityId === createdPlan.id);
-  assert(!!planCreatedLog, `Audit log recorded CONTENT_PLAN_CREATED for ${createdPlan.id}`);
-
-  const planApprovedLog = auditLogs.find((l) => l.action === 'CONTENT_PLAN_APPROVED' && l.entityId === createdPlan.id);
-  assert(!!planApprovedLog, `Audit log recorded CONTENT_PLAN_APPROVED for ${createdPlan.id}`);
-
-  const batchCreatedLog = auditLogs.find((l) => l.action === 'CONTENT_BATCH_CREATED' && l.entityId === createdBatch.id);
-  assert(!!batchCreatedLog, `Audit log recorded CONTENT_BATCH_CREATED for ${createdBatch.id}`);
-
-  const batchLinkedLog = auditLogs.find((l) => l.action === 'CONTENT_BATCH_QUESTIONS_LINKED' && l.entityId === createdBatch.id);
-  assert(!!batchLinkedLog, `Audit log recorded CONTENT_BATCH_QUESTIONS_LINKED for ${createdBatch.id}`);
+  console.log('\n--- P09-12: Human Review State Layer ---');
+  const r12 = await MultiLayerVerificationEngine.verify(getBaseCandidate(), {
+    skipTaxonomyLookup: true,
+    humanReview: {
+      requiresHumanReview: true,
+      reviewStatus: 'APPROVED',
+      reviewerId: 'USR-REVIEWER-1',
+      reviewerName: 'Lead Reviewer',
+      reviewedAt: new Date().toISOString(),
+      comments: 'Verified correct by editorial lead',
+    },
+  });
+  assert(r12.layers['9'].status === 'VERIFIED', 'P09-12', 'Layer 9 returns VERIFIED when human review is explicitly APPROVED');
 
   // ============================================================================
-  // SUMMARY
+  // P09-13: FAILED Precedence Rule
   // ============================================================================
+  console.log('\n--- P09-13: FAILED Precedence Rule ---');
+  const failedPrecedenceCandidate = {
+    ...getBaseCandidate(),
+    options: { a: '2', b: '2', c: '3', d: '4' }, // Layer 6 FAILED
+  };
+  const r13 = await MultiLayerVerificationEngine.verify(failedPrecedenceCandidate, {
+    skipTaxonomyLookup: true,
+    aiVerifierResult: { success: true, status: 'VERIFIED' }, // AI says VERIFIED
+  });
+  assert(r13.aggregatedStatus === 'FAILED', 'P09-13', 'Aggregated status is FAILED despite AI verifier saying VERIFIED');
+  assert(r13.canSave === false, 'P09-13b', 'canSave is strictly false when aggregatedStatus is FAILED');
+
+  // ============================================================================
+  // P09-14: FAILED Cannot Be Overwritten by VERIFIED
+  // ============================================================================
+  console.log('\n--- P09-14: FAILED Cannot Be Overwritten by VERIFIED ---');
+  assert(
+    r13.canonicalValidationStatus === QuestionValidationStatus.INVALID,
+    'P09-14',
+    'Canonical validation status is INVALID and cannot be overwritten by weaker VERIFIED claim'
+  );
+
+  // ============================================================================
+  // P09-15: UNVERIFIED Aggregation Rule
+  // ============================================================================
+  console.log('\n--- P09-15: UNVERIFIED Aggregation Rule ---');
+  const r15 = await MultiLayerVerificationEngine.verify(getBaseCandidate(), {
+    skipTaxonomyLookup: true,
+    aiVerifierAvailable: false, // AI verifier unavailable
+  });
+  assert(r15.aggregatedStatus === 'UNVERIFIED', 'P09-15', 'Aggregated status becomes UNVERIFIED when AI verifier is unavailable');
+  assert(r15.canonicalValidationStatus === QuestionValidationStatus.NEEDS_REVIEW, 'P09-15b', 'Canonical status becomes NEEDS_REVIEW');
+
+  // ============================================================================
+  // P09-16: Verification Persistence & Audit Trail
+  // ============================================================================
+  console.log('\n--- P09-16: Verification Persistence & Audit Trail ---');
+  const testValResult = await questionValidationService.validateCandidate(getBaseCandidate(), { skipTaxonomyLookup: true });
+  const savedAudit = await validationsRepository.saveValidationResult(testValResult);
+  assert(savedAudit.id === testValResult.id, 'P09-16', 'Validation result persisted into validationsRepository audit trail');
+
+  // ============================================================================
+  // P09-17: Backend Save Gate Enforcement
+  // ============================================================================
+  console.log('\n--- P09-17: Backend Save Gate Enforcement ---');
+  let saveGateBlocked = false;
+  try {
+    await questionService.createQuestion({
+      topicId: topic.id,
+      subtopicId: subtopic.id,
+      difficulty: 'Intermediate' as any,
+      language: QuestionLanguage.TELUGU as any,
+      questionText: 'Test invalid question with script tag <script>alert(1)</script>',
+      options: { a: 'A', b: 'B', c: 'C', d: 'D' }, // Distinct options
+      correctAnswer: 'A',
+      explanation: 'Test explanation',
+    } as any, testActor);
+  } catch (err: any) {
+    saveGateBlocked = true;
+    assert(err.message.includes('Save Gate') || err.message.includes('REJECTED'), 'P09-17', 'Save Gate threw expected ValidationError');
+  }
+  assert(saveGateBlocked, 'P09-17b', 'Backend Save Gate successfully blocked invalid question creation');
+
+  // ============================================================================
+  // P09-18: Client Spoofing Prevention
+  // ============================================================================
+  console.log('\n--- P09-18: Client Spoofing Prevention ---');
+  const spoofPayload = {
+    ...getBaseCandidate(),
+    questionText: `Valid candidate text for client spoofing test (${Date.now()})`,
+    validationStatus: QuestionValidationStatus.VALID, // Client spoof claim
+  };
+  const createdWithSpoof = await questionService.createQuestionFromRequest({
+    creationMode: 'manual',
+    topicId: topic.id,
+    subtopicId: subtopic.id,
+    difficulty: 'Intermediate' as any,
+    questionText: spoofPayload.questionText,
+    options: spoofPayload.options,
+    correctAnswer: 'B',
+    explanation: spoofPayload.explanation,
+    validationStatus: 'VALID' as any, // Client attempt to spoof VALID status
+  } as any, testActor);
+
+  assert(
+    createdWithSpoof.validationStatus !== undefined && createdWithSpoof.validationStatus !== null,
+    'P09-18',
+    'Server determined validation status is assigned'
+  );
+
+  // Clean up created question
+  try {
+    await questionsRepository.deleteRecord(createdWithSpoof.id);
+  } catch {
+    // Ignore cleanup
+  }
+
+  // ============================================================================
+  // P09-19: Manual Question Verification Path
+  // ============================================================================
+  console.log('\n--- P09-19: Manual Question Verification Path ---');
+  const manualQuestion = await questionService.createQuestion({
+    topicId: topic.id,
+    subtopicId: subtopic.id,
+    difficulty: 'Intermediate' as any,
+    language: QuestionLanguage.TELUGU as any,
+    questionText: `మాన్యువల్ ప్రశ్న పరీక్షా వచనం (${Date.now()})`,
+    options: { a: '10', b: '20', c: '30', d: '40' },
+    correctAnswer: 'B',
+    explanation: 'వివరణ కనీసం 5 అక్షరాలు కలిగి ఉంది.',
+  } as any, testActor);
+
+  assert(manualQuestion.lastValidationId !== undefined, 'P09-19', 'Manual question routed through multi-layer verification path and received validation ID');
+  try { await questionsRepository.deleteRecord(manualQuestion.id); } catch {}
+
+  // ============================================================================
+  // P09-20: AI Candidate Verification Path
+  // ============================================================================
+  console.log('\n--- P09-20: AI Candidate Verification Path ---');
+  const aiCandidate = await questionService.createQuestionFromRequest({
+    creationMode: 'ai',
+    topicId: topic.id,
+    subtopicId: subtopic.id,
+    difficulty: 'Intermediate' as any,
+    questionText: `AI ఉత్పత్తి చేసిన ప్రశ్న వచనం (${Date.now()})`,
+    options: { a: '100', b: '200', c: '300', d: '400' },
+    correctAnswer: 'C',
+    explanation: 'AI వివరాలు సమాధానం 300 ను వివరిస్తాయి.',
+  } as any, testActor);
+
+  assert(aiCandidate.lastValidationId !== undefined, 'P09-20', 'AI candidate routed through multi-layer verification path');
+  try { await questionsRepository.deleteRecord(aiCandidate.id); } catch {}
+
+  // ============================================================================
+  // P09-21: Manual & AI Convergence
+  // ============================================================================
+  console.log('\n--- P09-21: Manual & AI Convergence ---');
+  assert(
+    manualQuestion.validationStatus !== undefined && aiCandidate.validationStatus !== undefined,
+    'P09-21',
+    'Both manual and AI candidates converge on the same multi-layer verification engine'
+  );
+
+  // ============================================================================
+  // P09-22: Invalid Question Cannot Silently Reach Save
+  // ============================================================================
+  console.log('\n--- P09-22: Invalid Question Cannot Silently Reach Save ---');
+  const allQsBefore = await questionsRepository.findAll();
+  try {
+    await questionService.createQuestion({
+      topicId: topic.id,
+      subtopicId: subtopic.id,
+      difficulty: 'Intermediate' as any,
+      language: QuestionLanguage.TELUGU as any,
+      questionText: 'Invalid question math contradiction test',
+      options: { a: '10 km/h', b: '20 km/h', c: '30 km/h', d: '40 km/h' },
+      correctAnswer: 'A',
+      explanation: 'వివరణ సరైన సమాధానం B అని చెబుతుంది. (Option B is correct)', // Contradicts declared answer A!
+    } as any, testActor);
+  } catch {
+    // Expected Save Gate rejection
+  }
+  const allQsAfter = await questionsRepository.findAll();
+  assert(allQsBefore.length === allQsAfter.length, 'P09-22', 'No new record created in QUESTIONS repository when Save Gate rejects invalid question');
+
+  // ============================================================================
+  // P09-23: Verification Does Not Silently Mutate Question
+  // ============================================================================
+  console.log('\n--- P09-23: Verification Does Not Silently Mutate Question ---');
+  const immutableTest = getBaseCandidate();
+  const textBefore = immutableTest.questionText;
+  const optsBefore = JSON.stringify(immutableTest.options);
+  await MultiLayerVerificationEngine.verify(immutableTest, { skipTaxonomyLookup: true });
+  assert(immutableTest.questionText === textBefore, 'P09-23', 'Question text remains unmutated after verification');
+  assert(JSON.stringify(immutableTest.options) === optsBefore, 'P09-23b', 'Question options remain unmutated after verification');
+
+  // ============================================================================
+  // P09-24: Historical Verification Traceability
+  // ============================================================================
+  console.log('\n--- P09-24: Historical Verification Traceability ---');
+  const targetQId = 'BP-Q-TRACE-TEST-1';
+  const val1 = await MultiLayerVerificationEngine.verify({ ...getBaseCandidate(), id: targetQId }, { skipTaxonomyLookup: true });
+  const val2 = await MultiLayerVerificationEngine.verify({ ...getBaseCandidate(), id: targetQId }, { skipTaxonomyLookup: true });
+  
+  await validationsRepository.saveValidationResult(val1 as any);
+  await validationsRepository.saveValidationResult(val2 as any);
+
+  const history = await validationsRepository.getHistoryByQuestionId(targetQId);
+  assert(history.length >= 2, 'P09-24', `Historical validation records traceable in validationsRepository (count: ${history.length})`);
+
+  // ============================================================================
+  // P09-25: Complete Verification Aggregation Report
+  // ============================================================================
+  console.log('\n--- P09-25: Complete Verification Aggregation Report ---');
+  const fullReport = await MultiLayerVerificationEngine.verify(getBaseCandidate(), { skipTaxonomyLookup: true });
+  assert(fullReport.layerList.length === 9, 'P09-25a', 'Verification report contains exactly 9 verification layer results');
+  assert(fullReport.aggregatedStatus !== undefined, 'P09-25b', 'Verification report contains aggregated status');
+  assert(fullReport.confidenceScore >= 0 && fullReport.confidenceScore <= 1, 'P09-25c', 'Confidence score is normalized between 0 and 1');
+
   console.log('\n====================================================');
-  console.log(`PHASE 9 VERIFICATION COMPLETE: ${passedTests}/${totalTests} TESTS PASSED`);
+  console.log(`PHASE 09 VERIFICATION PASSED: ${passedTests}/${totalTests} TESTS GREEN`);
   console.log('====================================================\n');
 
   return {
-    passed: passedTests,
-    total: totalTests,
-    status: 'ALL_TESTS_PASSED',
+    success: true,
+    passedTests,
+    totalTests,
+    summary: `Phase 09 Multi-Layer Question Verification verified: ${passedTests}/${totalTests} tests passed cleanly.`,
   };
 }

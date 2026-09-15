@@ -18,6 +18,7 @@ import {
   WorksheetNotFoundError,
 } from './errors';
 import { colIndexToA1Letter } from './helpers';
+import { deletionSafetyService, DirectDeleteBypassError, VerifiedDeletionToken } from '../services/deletion-safety.service';
 
 export interface GoogleSheetsConfig {
   spreadsheetId: string;
@@ -98,15 +99,22 @@ export class GoogleSheetsClient {
     if (sheetName) {
       if (sheetName.includes(':')) {
         this.rowCache.delete(sheetName);
+        this.inFlightReads.delete(sheetName);
       } else {
         for (const key of this.rowCache.keys()) {
           if (key === sheetName || key.endsWith(`:${sheetName}`)) {
             this.rowCache.delete(key);
           }
         }
+        for (const key of this.inFlightReads.keys()) {
+          if (key === sheetName || key.endsWith(`:${sheetName}`)) {
+            this.inFlightReads.delete(key);
+          }
+        }
       }
     } else {
       this.rowCache.clear();
+      this.inFlightReads.clear();
     }
   }
 
@@ -456,8 +464,22 @@ export class GoogleSheetsClient {
 
   /**
    * Deletes a specific row by 1-based sheet row index.
+   * STRICT SAFETY GATE: Direct calls to deleteRow() without a valid single-use VerifiedDeletionToken
+   * from DeletionSafetyService are strictly prohibited to prevent unbacked sheet mutations.
    */
-  public async deleteRow(sheetName: string, sheetRowIndex: number, overrideSpreadsheetId?: string): Promise<void> {
+  public async deleteRow(
+    sheetName: string,
+    sheetRowIndex: number,
+    overrideSpreadsheetId?: string,
+    safetyToken?: VerifiedDeletionToken
+  ): Promise<void> {
+    if (!safetyToken || !deletionSafetyService.consumeToken(safetyToken, sheetName, sheetRowIndex)) {
+      throw new DirectDeleteBypassError(
+        `Direct call to googleSheetsClient.deleteRow('${sheetName}', ${sheetRowIndex}) is blocked. ` +
+        `All deletions must pass through BaseRepository.deleteRecord() with mandatory verified backup.`
+      );
+    }
+
     const spreadsheetId = this.getSpreadsheetId(overrideSpreadsheetId);
     this.invalidateRowCache(`${spreadsheetId}:${sheetName}`);
     return this.executeWithRetry(async () => {

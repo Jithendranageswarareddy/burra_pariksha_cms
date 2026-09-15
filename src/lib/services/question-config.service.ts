@@ -58,6 +58,22 @@ export class QuestionConfigService {
   }
 
   /**
+   * Allows setting a custom repository on the singleton instance (useful for testing).
+   */
+  public setRepository(repository: QuestionConfigRepository): void {
+    (this as any).repository = repository;
+    this.invalidateCache();
+  }
+
+  /**
+   * Resets the repository back to the default production QuestionConfigRepository.
+   */
+  public resetRepository(): void {
+    (this as any).repository = questionConfigRepository;
+    this.invalidateCache();
+  }
+
+  /**
    * Explicitly invalidates the in-memory configuration cache.
    */
   public invalidateCache(): void {

@@ -45,7 +45,6 @@ export const QuestionDetailPage: React.FC = () => {
   const [notification, setNotification] = useState<string | null>(null);
 
   // Edit Form State
-  const [editCategoryId, setEditCategoryId] = useState('');
   const [editTopicId, setEditTopicId] = useState('');
   const [editSubtopicId, setEditSubtopicId] = useState('');
   const [editDifficulty, setEditDifficulty] = useState<DifficultyLevel>(DifficultyLevel.MEDIUM);
@@ -97,7 +96,6 @@ export const QuestionDetailPage: React.FC = () => {
   };
 
   const initEditForm = (q: Question) => {
-    setEditCategoryId(q.categoryId);
     setEditTopicId(q.topicId);
     setEditSubtopicId(q.subtopicId);
     setEditDifficulty(q.difficulty as DifficultyLevel);
@@ -144,31 +142,13 @@ export const QuestionDetailPage: React.FC = () => {
     return () => clearTimeout(timer);
   }, [editQuestionText, isEditing, id]);
 
-  const currentCategory = taxonomyTree.find((c) => c.id === editCategoryId);
-  const availableTopics = currentCategory?.topics || [];
-  const currentTopic = availableTopics.find((t: any) => t.id === editTopicId);
+  const allTopics = taxonomyTree.flatMap((c: any) => c.topics || (c.id && !c.topics ? [c] : []));
+  const currentTopic = allTopics.find((t: any) => t.id === editTopicId);
   const availableSubtopics = currentTopic?.subtopics || [];
-
-  const handleCategoryChange = (newCatId: string) => {
-    setEditCategoryId(newCatId);
-    const cat = taxonomyTree.find((c) => c.id === newCatId);
-    if (cat && cat.topics?.length > 0) {
-      const top = cat.topics[0];
-      setEditTopicId(top.id);
-      if (top.subtopics?.length > 0) {
-        setEditSubtopicId(top.subtopics[0].id);
-      } else {
-        setEditSubtopicId('');
-      }
-    } else {
-      setEditTopicId('');
-      setEditSubtopicId('');
-    }
-  };
 
   const handleTopicChange = (newTopicId: string) => {
     setEditTopicId(newTopicId);
-    const top = availableTopics.find((t: any) => t.id === newTopicId);
+    const top = allTopics.find((t: any) => t.id === newTopicId);
     if (top && top.subtopics?.length > 0) {
       setEditSubtopicId(top.subtopics[0].id);
     } else {
@@ -190,8 +170,6 @@ export const QuestionDetailPage: React.FC = () => {
         .filter(Boolean);
 
       const updated = await apiClient.updateQuestion(id, {
-        categoryId: editCategoryId,
-        categoryName: currentCategory?.name || question.categoryName,
         topicId: editTopicId,
         topicName: currentTopic?.name || question.topicName,
         subtopicId: editSubtopicId,
@@ -406,7 +384,7 @@ export const QuestionDetailPage: React.FC = () => {
       {/* Page Header */}
       <PageHeader
         title={`${question.id} • ${question.topicName}`}
-        description={`${question.categoryName} → ${question.topicName} → ${question.subtopicName}`}
+        description={`${question.topicName} → ${question.subtopicName}`}
         badge={
           <div className="flex items-center gap-2">
             {question.contentMasterId ? (
@@ -446,25 +424,7 @@ export const QuestionDetailPage: React.FC = () => {
               </div>
 
               {/* Taxonomy Selectors */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                    Category <span className="text-rose-500">*</span>
-                  </label>
-                  <select
-                    value={editCategoryId}
-                    onChange={(e) => handleCategoryChange(e.target.value)}
-                    required
-                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-xs text-slate-900 focus:ring-2 focus:ring-indigo-500"
-                  >
-                    {taxonomyTree.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-700 mb-1">
                     Topic <span className="text-rose-500">*</span>
@@ -473,10 +433,10 @@ export const QuestionDetailPage: React.FC = () => {
                     value={editTopicId}
                     onChange={(e) => handleTopicChange(e.target.value)}
                     required
-                    disabled={availableTopics.length === 0}
+                    disabled={allTopics.length === 0}
                     className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-xs text-slate-900 focus:ring-2 focus:ring-indigo-500"
                   >
-                    {availableTopics.map((t: any) => (
+                    {allTopics.map((t: any) => (
                       <option key={t.id} value={t.id}>
                         {t.name}
                       </option>

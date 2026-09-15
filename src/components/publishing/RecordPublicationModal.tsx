@@ -93,7 +93,7 @@ export const RecordPublicationModal: React.FC<RecordPublicationModalProps> = ({
 
       const updated = await apiClient.markPlatformPublished(
         record.videoId,
-        platform,
+        platform.toLowerCase() as any,
         postUrl.trim(),
         notes.trim() || undefined
       );

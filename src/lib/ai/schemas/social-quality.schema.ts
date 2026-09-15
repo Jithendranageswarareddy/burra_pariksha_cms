@@ -48,6 +48,14 @@ export const SocialQualityAssessmentGenAISchema: Schema = {
           type: Type.NUMBER,
           description: 'Score (0-100) for broad audience appeal, safety, and accessibility.',
         },
+        repetitionRisk: {
+          type: Type.NUMBER,
+          description: 'Score (0-100) for risk of repetition or redundancy across syllabus.',
+        },
+        audienceAppeal: {
+          type: Type.NUMBER,
+          description: 'Score (0-100) for student and viewer visual and conceptual appeal.',
+        },
       },
       required: [
         'clarity',
@@ -59,6 +67,8 @@ export const SocialQualityAssessmentGenAISchema: Schema = {
         'socialPresentation',
         'languageQuality',
         'audienceSuitability',
+        'repetitionRisk',
+        'audienceAppeal',
       ],
     },
     findings: {
@@ -119,6 +129,8 @@ export const SocialQualityAssessmentZodSchema = z.object({
     socialPresentation: z.number().min(0).max(100),
     languageQuality: z.number().min(0).max(100),
     audienceSuitability: z.number().min(0).max(100),
+    repetitionRisk: z.number().min(0).max(100),
+    audienceAppeal: z.number().min(0).max(100),
   }),
   findings: z.array(
     z.object({

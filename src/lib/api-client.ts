@@ -194,18 +194,95 @@ class ApiClient {
     return this.request('/categories');
   }
 
-  public async getTopics(categoryId?: string): Promise<Topic[]> {
+  public async getTopics(
+    categoryId?: string,
+    options?: { search?: string; includeInactive?: boolean }
+  ): Promise<Topic[]> {
     const params = new URLSearchParams();
     if (categoryId) params.set('categoryId', categoryId);
+    if (options?.search) params.set('search', options.search);
+    if (options?.includeInactive) params.set('includeInactive', 'true');
     const qs = params.toString();
     return this.request(`/topics${qs ? `?${qs}` : ''}`);
   }
 
-  public async getSubtopics(topicId?: string): Promise<Subtopic[]> {
+  public async getTopicById(id: string): Promise<Topic> {
+    return this.request(`/topics/${encodeURIComponent(id)}`);
+  }
+
+  public async createTopic(data: Partial<Topic>): Promise<Topic> {
+    return this.request('/topics', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  public async updateTopic(id: string, data: Partial<Topic>): Promise<Topic> {
+    return this.request(`/topics/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  public async toggleTopicActive(id: string, isActive: boolean): Promise<Topic> {
+    return this.request(`/topics/${encodeURIComponent(id)}/toggle-active`, {
+      method: 'PATCH',
+      body: JSON.stringify({ isActive }),
+    });
+  }
+
+  public async getSubtopics(
+    topicId?: string,
+    options?: { search?: string; includeInactive?: boolean }
+  ): Promise<Subtopic[]> {
     const params = new URLSearchParams();
     if (topicId) params.set('topicId', topicId);
+    if (options?.search) params.set('search', options.search);
+    if (options?.includeInactive) params.set('includeInactive', 'true');
     const qs = params.toString();
     return this.request(`/subtopics${qs ? `?${qs}` : ''}`);
+  }
+
+  public async getSubtopicById(id: string): Promise<Subtopic> {
+    return this.request(`/subtopics/${encodeURIComponent(id)}`);
+  }
+
+  public async createSubtopic(data: Partial<Subtopic>): Promise<Subtopic> {
+    return this.request('/subtopics', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  public async updateSubtopic(id: string, data: Partial<Subtopic>): Promise<Subtopic> {
+    return this.request(`/subtopics/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  public async toggleSubtopicActive(id: string, isActive: boolean): Promise<Subtopic> {
+    return this.request(`/subtopics/${encodeURIComponent(id)}/toggle-active`, {
+      method: 'PATCH',
+      body: JSON.stringify({ isActive }),
+    });
+  }
+
+  public async getPureTaxonomyTree(options?: { includeInactive?: boolean }): Promise<Array<Topic & { subtopics: Subtopic[] }>> {
+    const params = new URLSearchParams();
+    if (options?.includeInactive) params.set('includeInactive', 'true');
+    const qs = params.toString();
+    return this.request(`/taxonomy/pure-tree${qs ? `?${qs}` : ''}`);
+  }
+
+  public async getTaxonomyMetrics(): Promise<any> {
+    return this.request('/taxonomy/metrics');
+  }
+
+  public async runPhase04Verification(): Promise<any> {
+    return this.request('/tests/phase04-verification', {
+      method: 'POST',
+    });
   }
 
   // Questions

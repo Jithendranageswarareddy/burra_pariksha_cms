@@ -160,21 +160,12 @@ export class SmartRandomService {
     const isRandomContext = !realLifeContext || realLifeContext.toUpperCase() === 'RANDOM' || realLifeContext.toUpperCase() === 'SMART_RANDOM';
 
     if (isRandomContext) {
-      try {
-        const configuredContexts = await questionConfigService.getRealLifeContexts(true);
-        if (configuredContexts && configuredContexts.length > 0) {
-          const randomIndex = Math.floor(Math.random() * configuredContexts.length);
-          realLifeContext = configuredContexts[randomIndex].displayLabel || configuredContexts[randomIndex].code;
-        } else {
-          const allExamples = REAL_LIFE_CONTEXTS.flatMap((c) => c.examples);
-          const randomIndex = Math.floor(Math.random() * allExamples.length);
-          realLifeContext = allExamples[randomIndex];
-        }
-      } catch {
-        const allExamples = REAL_LIFE_CONTEXTS.flatMap((c) => c.examples);
-        const randomIndex = Math.floor(Math.random() * allExamples.length);
-        realLifeContext = allExamples[randomIndex];
+      const configuredContexts = await questionConfigService.getRealLifeContexts(true);
+      if (!configuredContexts || configuredContexts.length === 0) {
+        throw new ValidationError('QUESTION_CONFIG contains no active Real-Life Contexts for RANDOM resolution.');
       }
+      const randomIndex = Math.floor(Math.random() * configuredContexts.length);
+      realLifeContext = configuredContexts[randomIndex].displayLabel || configuredContexts[randomIndex].code;
     } else {
       // Explicit context was passed; check for inactive status in QUESTION_CONFIG
       try {
