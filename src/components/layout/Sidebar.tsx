@@ -17,6 +17,7 @@ import {
   Users,
   RotateCcw,
   CheckCheck,
+  BarChart2,
 } from 'lucide-react';
 import { NAVIGATION_SECTIONS } from '../../config/navigation';
 import { APP_CONFIG } from '../../config/constants';
@@ -39,6 +40,7 @@ const iconMap: Record<string, React.ElementType> = {
   RotateCcw,
   Layers,
   CheckCheck,
+  BarChart2,
 };
 
 interface SidebarProps {

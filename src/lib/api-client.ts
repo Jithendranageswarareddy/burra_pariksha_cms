@@ -1314,6 +1314,47 @@ class ApiClient {
       body: JSON.stringify({ reason }),
     });
   }
+
+  public async recordSocialAnalytics(
+    input: import('../types').CreateSocialAnalyticsInput
+  ): Promise<{ success: boolean; record?: import('../types').SocialAnalyticsRecord; error?: string }> {
+    return this.request('/analytics', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  }
+
+  public async getSocialAnalyticsForContent(
+    contentId: string
+  ): Promise<{ success: boolean; count: number; contentId: string; records: import('../types').SocialAnalyticsRecord[] }> {
+    return this.request(`/analytics/content/${encodeURIComponent(contentId)}`);
+  }
+
+  public async querySocialAnalytics(
+    filters?: import('../types').SocialAnalyticsQueryFilters
+  ): Promise<{ success: boolean; count: number; records: import('../types').SocialAnalyticsRecord[] }> {
+    const params = new URLSearchParams();
+    if (filters?.contentId) params.append('contentId', filters.contentId);
+    if (filters?.platform) params.append('platform', filters.platform);
+    if (filters?.topicId) params.append('topicId', filters.topicId);
+    if (filters?.subtopicId) params.append('subtopicId', filters.subtopicId);
+    if (filters?.startDate) params.append('startDate', filters.startDate);
+    if (filters?.endDate) params.append('endDate', filters.endDate);
+    const queryString = params.toString();
+    return this.request(`/analytics${queryString ? `?${queryString}` : ''}`);
+  }
+
+  public async getSocialAnalyticsSummary(
+    filters?: import('../types').SocialAnalyticsQueryFilters
+  ): Promise<{ success: boolean; summary: import('../types').SocialAnalyticsSummary }> {
+    const params = new URLSearchParams();
+    if (filters?.contentId) params.append('contentId', filters.contentId);
+    if (filters?.platform) params.append('platform', filters.platform);
+    if (filters?.startDate) params.append('startDate', filters.startDate);
+    if (filters?.endDate) params.append('endDate', filters.endDate);
+    const queryString = params.toString();
+    return this.request(`/analytics/summary${queryString ? `?${queryString}` : ''}`);
+  }
 }
 
 export const apiClient = new ApiClient();

@@ -18,6 +18,7 @@ import { ProductionTrackerPage } from './pages/ProductionTrackerPage';
 import { ProductionBoardPage } from './pages/ProductionBoardPage';
 import { VideoDetailPage } from './pages/VideoDetailPage';
 import { PublishingPage } from './pages/PublishingPage';
+import { SocialAnalyticsPage } from './pages/SocialAnalyticsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { RecoveryAdminPage } from './pages/RecoveryAdminPage';
 import { PlanningPage } from './pages/PlanningPage';
@@ -73,6 +74,8 @@ function AppRoutes() {
 
         {/* Publishing Route */}
         <Route path="publishing" element={<PublishingPage />} />
+        <Route path="social-analytics" element={<SocialAnalyticsPage />} />
+        <Route path="social-analytics/:contentId" element={<SocialAnalyticsPage />} />
 
         {/* Team Operations Routes (Phase 10 & Task 3E.1) */}
         <Route path="my-work" element={<MyWorkPage />} />

@@ -99,6 +99,13 @@ export const NAVIGATION_SECTIONS: NavSection[] = [
         iconName: 'Share2',
         description: 'Manual social upload tracker (YouTube, IG, FB)',
       },
+      {
+        name: 'Social Analytics',
+        href: '/social-analytics',
+        iconName: 'BarChart2',
+        badge: 'Phase 27',
+        description: 'Historical performance metrics entry & history',
+      },
     ],
   },
   {

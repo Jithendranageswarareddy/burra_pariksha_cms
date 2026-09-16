@@ -24,6 +24,7 @@ import { AmbiguityDetector } from './ambiguity.detector';
 import { ConsistencyValidator } from './consistency.validator';
 import { FairnessValidator } from './fairness.validator';
 import { ConsensusEngine } from './consensus.engine';
+import { SemanticReasoningProvider } from '../ai/validators/semantic-reasoning.provider';
 import { MultiLayerVerificationEngine } from './multi-layer-verification.engine';
 
 export interface ValidationPipelineOptions {
@@ -44,6 +45,7 @@ export class QuestionValidationEngine {
     question: Question,
     options: ValidationPipelineOptions = {}
   ): Promise<ValidationResult> {
+
     const checks: ValidationCheckItem[] = [];
     const errors: string[] = [];
     const warnings: string[] = [];
@@ -295,11 +297,28 @@ export class QuestionValidationEngine {
     warnings.push(...fairnessVal.warnings);
 
     // =========================================================================
+    // Conditionally filter SemanticReasoningProvider if not needed
+    // "semantic AI should run only when semantic reasoning is actually needed"
+    // =========================================================================
+    const isDeterministic = mathLogical.status === 'PROVABLY_VALID' || mathLogical.status === 'CONTRADICTORY';
+    const needsSemanticAI = !isDeterministic && (
+      mathLogical.status === 'NOT_APPLICABLE' ||
+      mathLogical.status === 'NOT_DETERMINISTICALLY_VERIFIED' ||
+      ambiguityVal.result.isAmbiguous ||
+      explanationVal.check.status === 'FAIL'
+    );
+
+    let activeProviders = options.providers || [];
+    if (!needsSemanticAI) {
+      activeProviders = activeProviders.filter(p => p.providerId !== 'semantic-reasoning-verifier');
+    }
+
+    // =========================================================================
     // STAGE 9: Multi-Model Consensus (if providers configured)
     // =========================================================================
     const consensusResult = await ConsensusEngine.evaluateProviders(
       question,
-      options.providers,
+      activeProviders,
       mathematicalContradiction
     );
     checks.push(...consensusResult.checks);
@@ -314,7 +333,7 @@ export class QuestionValidationEngine {
     let confidenceScore = 1.0;
 
     // Fatal contradiction or structural error drops confidence to 0
-    const hasFatalFailure =
+    let hasFatalFailure =
       hasStructuralError ||
       hasTaxonomyError ||
       !optionsVal.isValid ||
@@ -334,17 +353,10 @@ export class QuestionValidationEngine {
         confidenceScore = Math.min(confidenceScore, 0.5);
       }
 
-      // Cap confidence if unmodeled math
-      if (mathLogical.status === 'NOT_DETERMINISTICALLY_VERIFIED') {
-        confidenceScore = Math.min(confidenceScore, 0.7);
-      }
-
       // Cap confidence if model conflict
       if (consensusResult.hasConflict) {
         confidenceScore = Math.min(confidenceScore, 0.6);
       }
-
-      confidenceScore = Math.max(0.1, Math.round(confidenceScore * 100) / 100);
     }
 
     // Determine Final Status
@@ -354,6 +366,34 @@ export class QuestionValidationEngine {
       skipTaxonomyLookup: options.skipTaxonomyLookup,
     });
 
+    const realAuthoritativeMath = multiLayerReport.layers['LAYER_4_INDEPENDENT_AI'];
+
+    // Update the mathematical check if the independent AI verification ran
+    const mathLogicCheck = checks.find(c => c.id === 'CHK_STAGE_4_MATH_LOGIC');
+    if (mathLogicCheck && mathLogicCheck.status === 'NEEDS_REVIEW' && realAuthoritativeMath) {
+      if (realAuthoritativeMath.status === 'VERIFIED') {
+        mathLogicCheck.status = 'PASS';
+        mathLogicCheck.name = 'Authoritative Mathematical & Logical Truth Verification';
+        mathLogicCheck.message = 'Provably Valid (Verified via Blind Verifier)';
+        answerVerified = true;
+      } else if (realAuthoritativeMath.status === 'FAILED') {
+        mathLogicCheck.status = 'FAIL';
+        mathLogicCheck.name = 'Authoritative Mathematical & Logical Truth Verification';
+        mathLogicCheck.message = 'Independent Mathematical Verification Failed';
+        mathLogicCheck.details = realAuthoritativeMath.errors?.join('; ') || 'Blind AI derivation failed.';
+        mathematicalContradiction = true; // Crucial for aggregation
+        hasFatalFailure = true;
+      }
+    }
+
+    if (!hasFatalFailure) {
+      // Cap confidence if unmodeled math AND AI failed to verify it
+      if (mathLogical.status === 'NOT_DETERMINISTICALLY_VERIFIED' && realAuthoritativeMath?.status !== 'VERIFIED') {
+        confidenceScore = Math.min(confidenceScore, 0.7);
+      }
+      confidenceScore = Math.max(0.1, Math.round(confidenceScore * 100) / 100);
+    }
+
     let finalStatus: QuestionValidationStatus;
 
     if (hasFatalFailure || multiLayerReport.aggregatedStatus === 'FAILED') {
@@ -361,8 +401,9 @@ export class QuestionValidationEngine {
     } else if (
       multiLayerReport.aggregatedStatus === 'UNVERIFIED' ||
       ambiguityVal.result.isAmbiguous ||
-      mathLogical.status === 'NOT_DETERMINISTICALLY_VERIFIED' ||
+      (mathLogical.status === 'NOT_DETERMINISTICALLY_VERIFIED' && realAuthoritativeMath?.status !== 'VERIFIED') ||
       consensusResult.hasConflict ||
+      consensusResult.suggestedStatus === QuestionValidationStatus.INVALID ||
       consensusResult.suggestedStatus === QuestionValidationStatus.NEEDS_REVIEW ||
       confidenceScore < 0.8
     ) {

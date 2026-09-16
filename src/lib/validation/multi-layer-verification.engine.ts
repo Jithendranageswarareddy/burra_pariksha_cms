@@ -33,7 +33,7 @@ import { ConsistencyValidator } from './consistency.validator';
 import { FairnessValidator } from './fairness.validator';
 import { similarityService } from '../services/similarity.service';
 import { questionsRepository } from '../repositories/questions.repository';
-import { evaluateBlindDerivedResult } from '../ai/validators/blind-verifier';
+import { evaluateBlindDerivedResult, GeminiBlindVerifierProvider } from '../ai/validators/blind-verifier';
 
 export type VerificationLayerStatus = 'VERIFIED' | 'FAILED' | 'UNVERIFIED' | 'N/A';
 
@@ -382,14 +382,20 @@ export class MultiLayerVerificationEngine {
     } else if (process.env.GEMINI_API_KEY) {
       // In runtime with API Key configured, if mathematical check is UNVERIFIED, run blind verifier evaluation
       try {
-        if (l3Status === 'UNVERIFIED') {
+        if (l3Status === 'VERIFIED' || l3Status === 'FAILED' || l3Status === 'N/A') {
+          l4Status = 'N/A';
+          aiEvidence = { generatorModel, verifierModel, note: 'Blind AI bypassed because deterministic validation was sufficient or not applicable.' };
+        } else if (l3Status === 'UNVERIFIED') {
+          const blindVerifier = new GeminiBlindVerifierProvider(options.verifierModel);
+          const derived = await blindVerifier.verifyBlindly({
+            problemText: questionText,
+            language: questionInput.language as any,
+            topicName: typeof questionInput.topicId === 'string' ? questionInput.topicId : undefined,
+            subtopicName: typeof questionInput.subtopicId === 'string' ? questionInput.subtopicId : undefined,
+          });
+
           const blindResult = evaluateBlindDerivedResult(
-            {
-              solvable: true,
-              isNumerical: true,
-              expectedValue: mathDetails?.calculatedValue || '',
-              confidence: 0.9,
-            },
+            derived,
             {
               option_a: opts.a || '',
               option_b: opts.b || '',
@@ -409,9 +415,6 @@ export class MultiLayerVerificationEngine {
             l4Status = 'UNVERIFIED';
           }
           aiEvidence = { generatorModel, verifierModel, blindResult };
-        } else if (l1Status === 'VERIFIED' && l2Status === 'VERIFIED' && l3Status !== 'FAILED') {
-          l4Status = 'VERIFIED';
-          aiEvidence = { generatorModel, verifierModel, note: 'Independent verification completed.' };
         }
       } catch (aiErr: any) {
         l4Status = 'UNVERIFIED';
@@ -698,7 +701,8 @@ export class MultiLayerVerificationEngine {
       l9Status = 'VERIFIED';
     } else {
       // Default: if any prior layer is UNVERIFIED, human review is marked as UNVERIFIED
-      if (l3Status === 'UNVERIFIED' || l4Status === 'UNVERIFIED') {
+      const mathResolved = l3Status === 'VERIFIED' || l4Status === 'VERIFIED';
+      if (!mathResolved || l4Status === 'UNVERIFIED') {
         l9Status = 'UNVERIFIED';
         l9Warnings.push('Candidate requires human editorial review.');
         humanState.requiresHumanReview = true;
@@ -738,7 +742,10 @@ export class MultiLayerVerificationEngine {
     }
 
     const hasFailedLayer = layerList.some(l => l.status === 'FAILED');
-    const hasUnverifiedLayer = layerList.some(l => l.status === 'UNVERIFIED');
+    const hasUnverifiedLayer = layerList.some(l => 
+      l.status === 'UNVERIFIED' && 
+      !(l.layerNumber === 3 && l4Status === 'VERIFIED')
+    );
 
     let aggregatedStatus: VerificationLayerStatus;
     let canonicalValidationStatus: QuestionValidationStatus;
