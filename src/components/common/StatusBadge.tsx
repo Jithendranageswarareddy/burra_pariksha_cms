@@ -73,3 +73,5 @@ export const SocialStatusBadge: React.FC<SocialStatusBadgeProps> = ({ status }) 
     </span>
   );
 };
+
+export { Badge, BADGE_CONFIG } from '../../design-system/components/Badge';

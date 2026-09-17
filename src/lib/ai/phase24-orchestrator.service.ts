@@ -17,6 +17,8 @@ import { GenerateCandidateInput, GenerationResult, QuestionCandidate, RefineCand
 import { Phase24ProviderRegistry, phase24ProviderRegistry } from './phase24-registry';
 import { questionConfigService } from '../services/question-config.service';
 import { geminiService } from './gemini.service';
+import { GenAiQuestionCandidateResponseSchema } from './schemas/question-candidate.schema';
+import { QuestionCreationValidator } from '../validators/question-creation.validator';
 import {
   AiContentPlanRecommendation,
   AiThumbnailConcept,
@@ -259,6 +261,9 @@ export class Phase24AIOrchestrator {
       }
     }
 
+    const normalizedDifficulty = QuestionCreationValidator.normalizeDifficulty(resolvedInput.difficulty);
+    resolvedInput.difficulty = normalizedDifficulty as any;
+
     const prompt = `Generate a single ${resolvedInput.difficulty} level multiple-choice question on ${resolvedInput.topicName || resolvedInput.topicId} (${resolvedInput.subtopicName || resolvedInput.subtopicId}) in ${resolvedInput.language}. Return structured JSON with fields: content, option_a, option_b, option_c, option_d, correct_answer (A/B/C/D), explanation.`;
     const systemInstruction = 'You are an expert competitive exam question author. Output strictly JSON matching the required schema.';
 
@@ -268,6 +273,7 @@ export class Phase24AIOrchestrator {
         prompt,
         systemInstruction,
         temperature: 0.2,
+        responseSchema: GenAiQuestionCandidateResponseSchema,
       },
       options
     );
@@ -281,7 +287,7 @@ export class Phase24AIOrchestrator {
         option_d: response.data.option_d || response.data.options?.[3] || 'Option D',
         correct_answer: (response.data.correct_answer || response.data.correctAnswer || 'A').toUpperCase() as any,
         explanation: response.data.explanation || response.data.solutionText || '',
-        difficulty: resolvedInput.difficulty,
+        difficulty: normalizedDifficulty as any,
         language: resolvedInput.language,
         real_world_context: resolvedInput.realWorldContext,
       };
@@ -303,36 +309,13 @@ export class Phase24AIOrchestrator {
       };
     }
 
-    // If AI is unavailable or failed, handle zero-paid spend requirement: produce clean fallback if allowed or return safe result
-    const fallbackCandidate: QuestionCandidate = {
-      content: `[Manual Template] ${resolvedInput.topicName || resolvedInput.topicId}: Calculate the standard result under ${resolvedInput.difficulty} parameters.`,
-      option_a: '10',
-      option_b: '20',
-      option_c: '30',
-      option_d: '40',
-      correct_answer: 'B',
-      explanation: 'Calculation derived manually.',
-      difficulty: resolvedInput.difficulty,
-      language: resolvedInput.language,
-      real_world_context: resolvedInput.realWorldContext || 'General',
-    };
-
-    return {
-      candidate: fallbackCandidate,
-      metadata: {
-        modelUsed: 'DETERMINISTIC_FALLBACK',
-        generationDurationMs: 0,
-        providerId: 'DETERMINISTIC_FALLBACK',
-        fallbackUsed: true,
-        fallbackReason: response.error || 'AI Unavailable',
-        attemptedProviders: response.provenance.attempts.map((a) => a.providerId),
-      },
-      validation: {
-        isValid: true,
-        errors: [],
-        warnings: ['Generated via deterministic fallback because AI providers were unavailable.'],
-      } as any,
-    };
+    // Do NOT return a fake [Manual Template] candidate when AI generation fails.
+    // Return an explicit generation failure error so Question Studio does not present fake production content.
+    const failureReason = response.error || 'AI candidate generation failed or returned invalid output. Please retry.';
+    const genError = new Error(failureReason) as any;
+    genError.code = 'AI_GENERATION_FAILED';
+    genError.retryable = true;
+    throw genError;
   }
 
   public isConfigured(): boolean {

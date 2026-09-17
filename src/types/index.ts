@@ -2360,6 +2360,7 @@ export interface UploadEditedVideoInput {
   editedBinaryBuffer: Buffer;
   fileName: string;
   mimeType: string;
+  advanceStatus?: boolean;
 }
 
 export interface ApproveFinalVideoInput {

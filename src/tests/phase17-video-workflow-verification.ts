@@ -12,6 +12,8 @@
  */
 
 import crypto from 'crypto';
+import { videoService } from '../lib/services/video.service';
+import { ValidationError } from '../lib/google-sheets/errors';
 import { questionsRepository } from '../lib/repositories/questions.repository';
 import { scriptsRepository } from '../lib/repositories/scripts.repository';
 import { videosRepository } from '../lib/repositories/videos.repository';
@@ -554,6 +556,176 @@ export async function runPhase17Verification(): Promise<{
       }
     }
     addResult('P17-20', 'Real Google Drive E2E binary round-trip', p20, 'Real video binary uploaded to Final/ folder in Google Drive, read back, and validated with bit-identical MD5 checksum.');
+
+    // -------------------------------------------------------------------------
+    // Regression Tests for Raw Video Upload UI & Blocking Logic (P17-21 to P17-24)
+    // -------------------------------------------------------------------------
+
+    // P17-21: Raw video upload success
+    let p21 = false;
+    let regressionVideoId = '';
+    const regressionContentId = `BP-CNT-${Math.floor(100000 + Math.random() * 900000)}`;
+    const regressionQuestionId = await idService.allocateQuestionId();
+
+    try {
+      // 1. Setup metadata for regression video
+      await contentMastersRepository.create({
+        id: regressionContentId,
+        contentId: regressionContentId,
+        title: 'Phase 17 Regression Test Master',
+        status: ContentMasterStatus.APPROVED,
+        currentVersion: 1,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+
+      const regressionQuestion = {
+        id: regressionQuestionId,
+        contentMasterId: regressionContentId,
+        contentId: regressionContentId,
+        questionText: 'Regression Test Question',
+        options: { a: 'A', b: 'B', c: 'C', d: 'D' },
+        correctAnswer: 'A',
+        topicName: 'Physics',
+        subtopicName: 'Electromagnetism',
+        difficulty: DifficultyLevel.MEDIUM,
+        language: QuestionLanguage.TELUGU,
+        status: QuestionStatus.APPROVED,
+        videoStatus: VideoProductionStatus.SCRIPT_READY,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      } as any;
+      await questionsRepository.appendRecord(regressionQuestion);
+
+      const regressionVideo = await videoService.queueApprovedQuestion({
+        questionId: regressionQuestionId,
+      }, adminActor);
+
+      regressionVideoId = regressionVideo.id;
+
+      // Ensure state is RECORDING by transitioning through SCRIPT_READY first
+      await videoService.transitionStatus(regressionVideoId, VideoProductionStatus.SCRIPT_READY, adminActor);
+      await videoService.transitionStatus(regressionVideoId, VideoProductionStatus.RECORDING, adminActor);
+
+      // Perform a real upload of a tiny video asset using videoService.uploadVideoAsset
+      const mockVideoBuffer = Buffer.from('mock video file data for regression test');
+      const uploadedVideo = await videoService.uploadVideoAsset({
+        contentId: regressionContentId,
+        videoId: regressionVideoId,
+        fileName: 'regression_test_raw_video.mp4',
+        mimeType: 'video/mp4',
+        size: mockVideoBuffer.length,
+        fileStreamOrBuffer: mockVideoBuffer,
+        actor: adminActor,
+      });
+
+      if (uploadedVideo.driveFileId && uploadedVideo.driveFileId.length > 0) {
+        p21 = true;
+      }
+
+      // Safe cleanup of regression file in drive
+      if (uploadedVideo.driveFileId) {
+        try {
+          await googleDriveService.deleteFile(uploadedVideo.driveFileId);
+        } catch {}
+      }
+    } catch (err: any) {
+      console.error('[P17-21] Error in raw video upload success regression test:', err?.message || err);
+    }
+    addResult('P17-21', 'Raw video upload success', p21, 'Uploading raw video asset successfully processes binary, populates driveFileId, and updates video metadata.');
+
+    // P17-22: Raw video upload failure
+    let p22 = false;
+    try {
+      await videoService.uploadVideoAsset({
+        contentId: regressionContentId,
+        videoId: regressionVideoId,
+        fileName: 'invalid_extension.txt', // not a valid video extension
+        mimeType: 'text/plain',
+        size: 100,
+        fileStreamOrBuffer: Buffer.from('some text data'),
+        actor: adminActor,
+      });
+    } catch (err: any) {
+      if (err instanceof ValidationError || err.message.includes('media allowlist') || err.message.includes('Validation')) {
+        p22 = true;
+      }
+    }
+    addResult('P17-22', 'Raw video upload failure', p22, 'Uploading invalid file category / mimeType is strictly rejected with a ValidationError.');
+
+    // P17-23: Mark Recorded blocked when no raw file exists
+    let p23 = false;
+    let blockedVideoId = '';
+    try {
+      const blockedContentId = `BP-CNT-${Math.floor(100000 + Math.random() * 900000)}`;
+      const blockedQuestionId = await idService.allocateQuestionId();
+
+      await contentMastersRepository.create({
+        id: blockedContentId,
+        contentId: blockedContentId,
+        title: 'Phase 17 Blocked Test Master',
+        status: ContentMasterStatus.APPROVED,
+        currentVersion: 1,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+
+      const blockedQuestion = {
+        id: blockedQuestionId,
+        contentMasterId: blockedContentId,
+        contentId: blockedContentId,
+        questionText: 'Blocked Test Question',
+        options: { a: 'A', b: 'B', c: 'C', d: 'D' },
+        correctAnswer: 'A',
+        topicName: 'Physics',
+        subtopicName: 'Electromagnetism',
+        difficulty: DifficultyLevel.MEDIUM,
+        language: QuestionLanguage.TELUGU,
+        status: QuestionStatus.APPROVED,
+        videoStatus: VideoProductionStatus.SCRIPT_READY,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      } as any;
+      await questionsRepository.appendRecord(blockedQuestion);
+
+      const blockedVideo = await videoService.queueApprovedQuestion({
+        questionId: blockedQuestionId,
+      }, adminActor);
+
+      blockedVideoId = blockedVideo.id;
+
+      // Ensure state is RECORDING by transitioning through SCRIPT_READY first
+      await videoService.transitionStatus(blockedVideoId, VideoProductionStatus.SCRIPT_READY, adminActor);
+      await videoService.transitionStatus(blockedVideoId, VideoProductionStatus.RECORDING, adminActor);
+
+      // Now attempt to transition to RECORDED with bypassRawCheck = false (the API behavior)
+      await videoService.transitionStatus(blockedVideoId, VideoProductionStatus.RECORDED, adminActor, 'Attempt without raw file', undefined, false);
+    } catch (err: any) {
+      if (err instanceof ValidationError && err.message.includes('Raw video file must be uploaded')) {
+        p23 = true;
+      }
+    }
+    addResult('P17-23', 'Mark Recorded blocked when no raw file exists', p23, 'Marking recorded status on video is strictly blocked if driveFileId is missing.');
+
+    // P17-24: Mark Recorded allowed after real raw file exists
+    let p24 = false;
+    if (blockedVideoId) {
+      try {
+        // Force mock driveFileId to bypass raw check
+        await videosRepository.updateRecord(blockedVideoId, {
+          driveFileId: 'mock-drive-file-id-for-regression-test',
+        });
+
+        // Now attempt to transition to RECORDED with bypassRawCheck = false
+        const transitionResult = await videoService.transitionStatus(blockedVideoId, VideoProductionStatus.RECORDED, adminActor, 'Attempt with raw file exists', undefined, false);
+        if (transitionResult.status === VideoProductionStatus.RECORDED) {
+          p24 = true;
+        }
+      } catch (err: any) {
+        console.error('[P17-24] Error in allowed Mark Recorded test:', err?.message || err);
+      }
+    }
+    addResult('P17-24', 'Mark Recorded allowed after real raw file exists', p24, 'Marking recorded status on video succeeds once driveFileId is populated.');
 
     const totalChecks = results.length;
     const passed = passedCount === totalChecks;

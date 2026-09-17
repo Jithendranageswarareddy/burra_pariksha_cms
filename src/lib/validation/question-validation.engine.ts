@@ -32,6 +32,7 @@ export interface ValidationPipelineOptions {
   source?: ValidationSource;
   actor?: string;
   skipTaxonomyLookup?: boolean;
+  skipDuplicateCheck?: boolean;
 }
 
 export class QuestionValidationEngine {
@@ -45,6 +46,19 @@ export class QuestionValidationEngine {
     question: Question,
     options: ValidationPipelineOptions = {}
   ): Promise<ValidationResult> {
+    // Resolve canonical questionText across aliases before validation
+    const normalizedQuestionText = (
+      question.questionText ||
+      (question as any).question ||
+      (question as any).content ||
+      ''
+    ).trim();
+
+    try {
+      question.questionText = normalizedQuestionText;
+    } catch (e) {
+      // Ignore if the object is frozen/read-only
+    }
 
     const checks: ValidationCheckItem[] = [];
     const errors: string[] = [];
@@ -71,7 +85,7 @@ export class QuestionValidationEngine {
         challengeType,
         presentationType: question.presentationType,
         language: question.language || 'TELUGU',
-        questionText: question.questionText,
+        questionText: normalizedQuestionText,
         options: opts,
         correctAnswer: declaredAnswer as any,
         explanation: question.explanation,
@@ -364,6 +378,7 @@ export class QuestionValidationEngine {
     const multiLayerReport = await MultiLayerVerificationEngine.verify(question, {
       actor: options.actor,
       skipTaxonomyLookup: options.skipTaxonomyLookup,
+      skipDuplicateCheck: options.skipDuplicateCheck,
     });
 
     const realAuthoritativeMath = multiLayerReport.layers['LAYER_4_INDEPENDENT_AI'];

@@ -144,15 +144,6 @@ export class TaxonomyService {
     const categories = await this.getCategories();
     const found = categories.find((c) => c.id === id);
     if (found) return found;
-    if (id === 'CAT-GENERAL') {
-      return {
-        id: 'CAT-GENERAL',
-        name: 'General / Uncategorized Topics',
-        slug: 'general-topics',
-        description: 'Standalone topics without assigned parent category',
-        createdAt: new Date().toISOString(),
-      };
-    }
     return null;
   }
 
@@ -892,18 +883,9 @@ export class TaxonomyService {
     categoryId: string | undefined,
     topicId: string,
     subtopicId: string
-  ): Promise<{ category: Category; topic: Topic; subtopic: Subtopic }> {
+  ): Promise<{ category?: Category; topic: Topic; subtopic: Subtopic }> {
     const result = await this.validateQuestionTaxonomy(topicId, subtopicId, categoryId);
-    let cat = result.category;
-    if (!cat) {
-      cat = {
-        id: categoryId || 'CAT-GENERAL',
-        name: 'General',
-        slug: 'general',
-        createdAt: new Date().toISOString(),
-      };
-    }
-    return { category: cat, topic: result.topic, subtopic: result.subtopic };
+    return { category: result.category, topic: result.topic, subtopic: result.subtopic };
   }
 
   // ----------------------------------------------------

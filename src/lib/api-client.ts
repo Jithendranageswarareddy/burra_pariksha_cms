@@ -143,9 +143,9 @@ class ApiClient {
     try {
       const res = await fetch(`/api${endpoint}`, {
         credentials: 'include',
+        ...options,
         headers,
         signal,
-        ...options,
       });
 
       const data = await res.json();
@@ -188,6 +188,10 @@ class ApiClient {
   // Taxonomy
   public async getTaxonomyTree(): Promise<any[]> {
     return this.request('/taxonomy/tree');
+  }
+
+  public async getPureTopicTree(includeInactive = false): Promise<any[]> {
+    return this.request(`/taxonomy/pure-tree?includeInactive=${includeInactive}`);
   }
 
   public async getCategories(): Promise<Category[]> {
@@ -482,6 +486,75 @@ class ApiClient {
     });
   }
 
+  public async uploadVideoFile(videoId: string, file: File, contentId?: string): Promise<Video> {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (contentId) {
+      formData.append('contentId', contentId);
+    }
+    formData.append('videoId', videoId);
+
+    const headers: Record<string, string> = {};
+    if (this.sessionToken) {
+      headers['Authorization'] = `Bearer ${this.sessionToken}`;
+    }
+
+    const res = await fetch(`/api/videos/${encodeURIComponent(videoId)}/upload`, {
+      method: 'POST',
+      headers,
+      body: formData,
+      credentials: 'include',
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data?.message || data?.error || 'Failed to upload file');
+    }
+    return data;
+  }
+
+  public async uploadEditedVideoFile(
+    videoId: string,
+    file: File,
+    expectedContentId?: string,
+    advanceStatus: boolean = false
+  ): Promise<any> {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (expectedContentId) {
+      formData.append('expectedContentId', expectedContentId);
+    }
+    formData.append('advanceStatus', String(advanceStatus));
+
+    const headers: Record<string, string> = {};
+    if (this.sessionToken) {
+      headers['Authorization'] = `Bearer ${this.sessionToken}`;
+    }
+
+    const res = await fetch(`/api/phase17/video/${encodeURIComponent(videoId)}/edited`, {
+      method: 'POST',
+      headers,
+      body: formData,
+      credentials: 'include',
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data?.message || data?.error || 'Failed to upload edited video');
+    }
+    return data;
+  }
+
+  public async getVideoProductionHistory(videoId: string): Promise<{
+    video: Video;
+    currentState: string;
+    rawAssets: any[];
+    editedAssets: any[];
+    finalAssets: any[];
+  }> {
+    return this.request(`/phase17/video/${encodeURIComponent(videoId)}/history`);
+  }
+
   public async completeFinalRender(id: string, remarks?: string): Promise<Video> {
     return this.request(`/videos/${encodeURIComponent(id)}/final-render/complete`, {
       method: 'POST',
@@ -639,6 +712,41 @@ class ApiClient {
   }
 
   // Thumbnails (Phase 6)
+  public async uploadThumbnailFile(
+    videoId: string,
+    file: File,
+    notes?: string
+  ): Promise<{
+    thumbnail: import('../types').Thumbnail;
+    version: import('../types').ThumbnailVersion;
+    driveFile: any;
+  }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('videoId', videoId);
+    if (notes) {
+      formData.append('designerNotes', notes);
+    }
+
+    const headers: Record<string, string> = {};
+    if (this.sessionToken) {
+      headers['Authorization'] = `Bearer ${this.sessionToken}`;
+    }
+
+    const res = await fetch(`/api/videos/${encodeURIComponent(videoId)}/thumbnail/upload`, {
+      method: 'POST',
+      headers,
+      body: formData,
+      credentials: 'include',
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data?.message || data?.error || 'Failed to upload thumbnail file');
+    }
+    return data;
+  }
+
   public async getThumbnail(videoId: string): Promise<{ thumbnail: import('../types').Thumbnail | null; draftProposal?: any }> {
     return this.request(`/videos/${encodeURIComponent(videoId)}/thumbnail`);
   }
@@ -1354,6 +1462,52 @@ class ApiClient {
     if (filters?.endDate) params.append('endDate', filters.endDate);
     const queryString = params.toString();
     return this.request(`/analytics/summary${queryString ? `?${queryString}` : ''}`);
+  }
+
+  // Phase 28: Performance Intelligence
+  public async getIntelligenceReports(
+    limit: number = 20
+  ): Promise<{ success: boolean; count: number; reports: import('../types').SocialPerformanceIntelligenceRecord[] }> {
+    return this.request(`/analytics/intelligence?limit=${limit}`);
+  }
+
+  public async getIntelligenceReportById(
+    id: string
+  ): Promise<{ success: boolean; report?: import('../types').SocialPerformanceIntelligenceRecord }> {
+    return this.request(`/analytics/intelligence/${encodeURIComponent(id)}`);
+  }
+
+  public async generateIntelligenceReport(
+    input?: { contentId?: string; platform?: string; startDate?: string; endDate?: string; topicId?: string; subtopicId?: string; forceFallback?: boolean }
+  ): Promise<{ success: boolean; record?: import('../types').SocialPerformanceIntelligenceRecord; error?: string }> {
+    return this.request('/analytics/intelligence', {
+      method: 'POST',
+      body: JSON.stringify(input || {}),
+    });
+  }
+
+  // Phase 29: Content Strategy
+  public async getStrategyRecommendations(
+    limit: number = 10
+  ): Promise<{ success: boolean; count: number; data: import('../types').ContentStrategyRecommendation[] }> {
+    return this.request(`/content-strategy/recommendations?limit=${limit}`);
+  }
+
+  public async generateStrategyRecommendation(
+    input?: { sourceReportId?: string; forceFallback?: boolean }
+  ): Promise<{ success: boolean; recommendation?: import('../types').ContentStrategyRecommendation; error?: string }> {
+    return this.request('/content-strategy/recommendations', {
+      method: 'POST',
+      body: JSON.stringify(input || {}),
+    });
+  }
+
+  public async applyStrategyRecommendation(
+    id: string
+  ): Promise<{ success: boolean; data?: import('../types').ContentStrategyRecommendation; error?: string }> {
+    return this.request(`/content-strategy/recommendations/${encodeURIComponent(id)}/apply`, {
+      method: 'POST',
+    });
   }
 }
 

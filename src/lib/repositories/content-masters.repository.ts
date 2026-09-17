@@ -46,6 +46,10 @@ export class ContentMastersRepository extends BaseRepository<ContentMaster> {
     const all = await this.findAll();
     return all.filter((m) => m.subtopicId === subtopicId);
   }
+
+  public async delete(id: string, options?: { actor?: { id: string; name: string }; reason?: string }): Promise<boolean> {
+    return this.deleteRecord(id, options);
+  }
 }
 
 export const contentMastersRepository = ContentMastersRepository.getInstance();

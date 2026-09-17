@@ -387,7 +387,7 @@ export const PlanningPage: React.FC = () => {
       const targetTop = targetSub ? topics.find((t) => t.id === targetSub.topicId) : null;
       const targetCat = targetTop ? categories.find((c) => c.id === targetTop.categoryId) : null;
 
-      if (!targetSub || !targetTop || !targetCat) {
+      if (!targetSub || !targetTop) {
         throw new Error('Taxonomy mapping missing for recommended subtopic.');
       }
 
@@ -395,7 +395,7 @@ export const PlanningPage: React.FC = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          categoryId: targetCat.id,
+          categoryId: targetCat?.id || '',
           topicId: targetTop.id,
           subtopicId: targetSub.id,
           difficulty: DifficultyLevel.MEDIUM,

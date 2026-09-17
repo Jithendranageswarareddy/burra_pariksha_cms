@@ -3,14 +3,15 @@ import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { ErrorBoundary } from './ErrorBoundary';
+import { AppBreadcrumbs } from '../../design-system/components/AppBreadcrumbs';
 
 export const Layout: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
     <ErrorBoundary>
-      <div className="min-h-screen bg-slate-50 text-slate-900 flex">
-        {/* Sidebar */}
+      <div id="burra-app-shell" className="min-h-screen bg-slate-50 text-slate-900 flex antialiased">
+        {/* Persistent Desktop Sidebar / Mobile Drawer */}
         <Sidebar
           isOpenMobile={mobileMenuOpen}
           onCloseMobile={() => setMobileMenuOpen(false)}
@@ -18,21 +19,44 @@ export const Layout: React.FC = () => {
 
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col min-w-0 lg:pl-64">
+          {/* Top Bar Header */}
           <Header onOpenMobileMenu={() => setMobileMenuOpen(true)} />
 
-          <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
+          {/* Breadcrumbs Sub-Header Bar */}
+          <div
+            id="shell-breadcrumb-bar"
+            className="bg-white/80 backdrop-blur-xs border-b border-slate-200/80 px-4 sm:px-6 lg:px-8 py-2 sticky top-16 z-20"
+          >
+            <div className="max-w-7xl mx-auto">
+              <AppBreadcrumbs />
+            </div>
+          </div>
+
+          {/* Main Page Container */}
+          <main
+            id="app-main-content"
+            role="main"
+            tabIndex={-1}
+            className="flex-1 w-full max-w-7xl mx-auto px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-8 focus:outline-hidden"
+          >
             <Outlet />
           </main>
 
-          {/* Footer Notice */}
-          <footer className="px-6 py-4 border-t border-slate-200 bg-white text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-2">
+          {/* Shell Footer */}
+          <footer
+            id="shell-footer"
+            className="px-6 py-4 border-t border-slate-200 bg-white text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-2"
+          >
             <div className="flex items-center gap-2">
               <span className="font-semibold text-slate-700">Burra Pariksha CMS</span>
               <span>•</span>
-              <span>Content Operations System</span>
+              <span>Content Studio</span>
+              <span>•</span>
+              <span className="font-mono text-[11px] text-indigo-600">15-Step Production Pipeline</span>
             </div>
-            <div className="text-[11px] text-slate-400">
-              Authoritative Persistence: Google Sheets DB
+            <div className="flex items-center gap-2 text-[11px] text-slate-400">
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              <span>Authoritative Persistence: Google Sheets DB</span>
             </div>
           </footer>
         </div>

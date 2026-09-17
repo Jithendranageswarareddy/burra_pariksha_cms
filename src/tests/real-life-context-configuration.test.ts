@@ -188,7 +188,7 @@ async function runRealLifeContextVerification() {
 
     // Create question with realLifeContext = 'RANDOM'
     const randomPayload: QuestionCreationRequestPayload = {
-      creationMode: 'manual',
+      creationMode: 'ai',
       categoryId: 'CAT-QA',
       topicId: 'TOP-QA-01',
       subtopicId: 'SUB-01',
@@ -256,7 +256,7 @@ async function runRealLifeContextVerification() {
       try {
         await questionService.createQuestionFromRequest(
           {
-            creationMode: 'manual',
+            creationMode: 'ai',
             categoryId: 'CAT-QA',
             topicId: 'TOP-QA-01',
             subtopicId: 'SUB-01',

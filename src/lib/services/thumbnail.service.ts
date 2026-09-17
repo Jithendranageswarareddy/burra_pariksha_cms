@@ -49,7 +49,13 @@ export class ThumbnailService {
   private verifyThumbnailRole(actor: { role?: string | UserRole }): void {
     if (actor.role) {
       const r = String(actor.role).toUpperCase();
-      const allowed = [UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.THUMBNAIL_DESIGNER, UserRole.DESIGNER];
+      const allowed = [
+        UserRole.ADMIN,
+        UserRole.CONTENT_MANAGER,
+        UserRole.VIDEO_EDITOR,
+        UserRole.THUMBNAIL_DESIGNER,
+        UserRole.DESIGNER,
+      ];
       if (!allowed.includes(r as any)) {
         throw new Error(`Unauthorized: Role "${actor.role}" is not allowed to modify thumbnails.`);
       }
@@ -241,19 +247,53 @@ export class ThumbnailService {
   }
 
   /**
+   * Downloads a thumbnail binary file stream from Google Drive.
+   */
+  public async downloadThumbnail(thumbnailId: string) {
+    const thumb = await thumbnailsRepository.findById(thumbnailId);
+    if (!thumb) {
+      throw new Error(`Thumbnail "${thumbnailId}" not found.`);
+    }
+    if (!thumb.driveFileId) {
+      throw new Error(`Thumbnail "${thumbnailId}" does not have an attached Google Drive asset.`);
+    }
+    return googleDriveService.downloadFile(thumb.driveFileId);
+  }
+
+  /**
    * Updates thumbnail review status (PENDING / DESIGNED / APPROVED / REJECTED).
    */
   public async updateStatus(
     thumbnailId: string,
     newStatus: 'PENDING' | 'DESIGNED' | 'APPROVED' | 'REJECTED',
-    actor: { id: string; name: string; role?: string | UserRole } = { id: 'USR-001', name: 'Admin / Content Lead', role: UserRole.ADMIN },
+    actorOrRemarks?: { id: string; name: string; role?: string | UserRole } | string,
     remarks?: string
   ): Promise<Thumbnail> {
+    let actor: { id: string; name: string; role?: string | UserRole };
+    let finalRemarks: string | undefined = remarks;
+
+    if (typeof actorOrRemarks === 'string') {
+      actor = { id: 'USR-001', name: 'Admin / Content Lead', role: UserRole.ADMIN };
+      finalRemarks = actorOrRemarks;
+    } else if (actorOrRemarks) {
+      actor = actorOrRemarks;
+    } else {
+      actor = { id: 'USR-001', name: 'Admin / Content Lead', role: UserRole.ADMIN };
+    }
+
     this.verifyThumbnailRole(actor);
 
     const existing = await thumbnailsRepository.findById(thumbnailId);
     if (!existing) {
       throw new Error(`Thumbnail "${thumbnailId}" not found.`);
+    }
+
+    if (newStatus === 'APPROVED') {
+      if (!existing.driveFileId || !existing.driveFileId.trim()) {
+        throw new Error(
+          `Cannot approve thumbnail "${thumbnailId}": No real Google Drive thumbnail asset exists (driveFileId is missing). An actual thumbnail image must be uploaded before approval.`
+        );
+      }
     }
 
     const previousStatus = existing.status;
@@ -299,6 +339,29 @@ export class ThumbnailService {
   }
 
   /**
+   * Uploads a binary thumbnail file to Google Drive and links it to the Thumbnail record.
+   */
+  public async uploadThumbnailFile(
+    videoId: string,
+    fileStreamOrBuffer: any,
+    fileName: string,
+    mimeType: string,
+    designerNotes?: string,
+    actor?: { id: string; name: string; role?: string | UserRole }
+  ): Promise<{ thumbnail: Thumbnail; version: ThumbnailVersion }> {
+    const size = Buffer.isBuffer(fileStreamOrBuffer) ? fileStreamOrBuffer.length : undefined;
+    return this.uploadThumbnailAsset({
+      videoId,
+      fileName,
+      mimeType,
+      fileStreamOrBuffer,
+      size,
+      designerNotes,
+      actor,
+    });
+  }
+
+  /**
    * Uploads a binary thumbnail asset to Google Drive and links it to the Thumbnail record.
    */
   public async uploadThumbnailAsset(params: {
@@ -312,6 +375,20 @@ export class ThumbnailService {
   }): Promise<{ thumbnail: Thumbnail; version: ThumbnailVersion }> {
     const actor = params.actor || { id: 'USR-001', name: 'Admin / Content Lead', role: UserRole.ADMIN };
     this.verifyThumbnailRole(actor);
+
+    const validMimeTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
+    if (!validMimeTypes.includes(params.mimeType.toLowerCase())) {
+      throw new ValidationError(
+        `Invalid file type "${params.mimeType}". Thumbnails must be image/png, image/jpeg, or image/webp.`
+      );
+    }
+
+    if (params.size !== undefined && params.size === 0) {
+      throw new ValidationError('Uploaded thumbnail file is empty (0 bytes).');
+    }
+    if (Buffer.isBuffer(params.fileStreamOrBuffer) && params.fileStreamOrBuffer.length === 0) {
+      throw new ValidationError('Uploaded thumbnail file is empty (0 bytes).');
+    }
 
     const video = await videosRepository.findById(params.videoId);
     if (!video) {

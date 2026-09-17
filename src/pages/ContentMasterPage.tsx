@@ -219,8 +219,8 @@ export const ContentMasterPage: React.FC = () => {
       <div className="space-y-6 max-w-7xl mx-auto pb-12">
         <PageHeader
           id="content-masters-list-header"
-          title="Content Masters Explorer"
-          description="Permanent Content Master lifecycle anchors connecting questions, videos, production assets, reviews, and publishing."
+          title="Content Library Explorer"
+          description="Content lifecycle records connecting questions, scripts, video production, assets, and publishing."
           badge={
             <span className="px-2.5 py-0.5 bg-purple-100 text-purple-800 border border-purple-300 rounded text-xs font-mono font-bold flex items-center gap-1.5">
               <Layers className="w-3.5 h-3.5 text-purple-600" />

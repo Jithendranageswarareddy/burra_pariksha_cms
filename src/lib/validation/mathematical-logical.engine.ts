@@ -575,7 +575,7 @@ export class MathematicalLogicalEngine {
   // 10. Successive Discounts
   // =========================================================================
   private static solveSuccessiveDiscountsProblem(content: string): SolverSolution | null {
-    const isSuccessive = /successive\s*discounts?|వరస\s*రాయితీలు/i.test(content);
+    const isSuccessive = /successive\s*discounts?|వరస\s*రాయితీలు|వరస\s*తగ్గింపులు/i.test(content);
     if (isSuccessive) {
       const pcts = [...content.matchAll(/(\d+(?:\.\d+)?)\s*%/g)].map((m) => parseFloat(m[1]));
       if (pcts.length >= 2) {
@@ -605,9 +605,9 @@ export class MathematicalLogicalEngine {
   // 11. Marked Price and Discount -> Selling Price
   // =========================================================================
   private static solveMarkupDiscountProblem(content: string): SolverSolution | null {
-    const isDiscount = /discount|రాయితీ/i.test(content);
-    const mpMatch = content.match(/(?:marked\s*price|list\s*price|mrp|ప్రకటన\s*వెల)\s*[₹Rs\.]*\s*(\d+(?:,\d+)?)/i);
-    const discMatch = content.match(/(\d+(?:\.\d+)?)\s*%\s*(?:discount|రాయితీ)/i);
+    const isDiscount = /discount|రాయితీ|తగ్గింపు/i.test(content);
+    const mpMatch = content.match(/(?:marked\s*price|list\s*price|mrp|ప్రకటన\s*వెల|ధర)\s*(?:[₹Rs\.]|రూ|\.)*\s*(\d+(?:,\d+)?)/i);
+    const discMatch = content.match(/(\d+(?:\.\d+)?)\s*%\s*(?:discount|రాయితీ|తగ్గింపు)/i);
 
     if (isDiscount && mpMatch && discMatch) {
       const mp = cleanNumber(mpMatch[1]);

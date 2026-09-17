@@ -1,0 +1,48 @@
+{
+  "id": "DEL-BAK-1789662106269-17fe3b19",
+  "backupTimestamp": "2026-09-17T16:21:46.269Z",
+  "sheetName": "THUMBNAILS",
+  "entityId": "THM-TEST-P09-V-1789662072425",
+  "physicalRowIndex": 7,
+  "headers": [
+    "id",
+    "content_id",
+    "video_id",
+    "hook_headline",
+    "drive_asset_url",
+    "preview_url",
+    "status",
+    "current_version",
+    "created_at",
+    "updated_at",
+    "drive_file_id",
+    "drive_folder_id",
+    "drive_folder_url",
+    "file_name",
+    "mime_type",
+    "file_size"
+  ],
+  "rawRow": [
+    "THM-TEST-P09-V-1789662072425",
+    "",
+    "TEST-P09-V-1789662072425",
+    "Triangle Angle Secret Revealed!",
+    "https://drive.google.com/file/d/test-thumbnail-p09/view",
+    "",
+    "APPROVED",
+    1,
+    "2026-09-17T16:21:15.009Z",
+    "2026-09-17T16:21:15.009Z"
+  ],
+  "record": {
+    "id": "THM-TEST-P09-V-1789662072425",
+    "videoId": "TEST-P09-V-1789662072425",
+    "hookHeadline": "Triangle Angle Secret Revealed!",
+    "driveAssetUrl": "https://drive.google.com/file/d/test-thumbnail-p09/view",
+    "status": "APPROVED",
+    "currentVersion": 1,
+    "createdAt": "2026-09-17T16:21:15.009Z",
+    "updatedAt": "2026-09-17T16:21:15.009Z"
+  },
+  "checksum": "bf512e846b7edcf4065f52211ea96075fff4358aa01cc2a7dbb02eb5b7e25375"
+}

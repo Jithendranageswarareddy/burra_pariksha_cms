@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { Button } from '../components/common/Button';
+import { QuestionWorkflowHeader } from '../components/questions/QuestionWorkflowHeader';
 import { QuestionStatusBadge, VideoStatusBadge } from '../components/common/StatusBadge';
 import { DifficultyBadge } from '../components/common/DifficultyBadge';
 import { EntityAssignmentsSection } from '../components/assignments/EntityAssignmentsSection';
@@ -317,41 +318,27 @@ export const QuestionDetailPage: React.FC = () => {
   return (
     <div className="space-y-6 max-w-5xl mx-auto animate-in fade-in duration-200">
       {/* Top Navigation Bar */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <Link
           to="/questions"
           className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>Back to Question Library</span>
+          <span>Back to Library (Step 02)</span>
         </Link>
 
-        <div className="flex items-center gap-2">
-          {!isEditing ? (
-            <Button
-              variant="outline"
-              size="sm"
-              icon={Edit3}
-              onClick={() => {
-                initEditForm(question);
-                setIsEditing(true);
-              }}
-            >
-              Edit Content & Taxonomy
+        <div className="flex items-center gap-2 flex-wrap">
+          <Link to={`/questions/${encodeURIComponent(question.id)}/improve`}>
+            <Button variant="outline" size="sm" icon={Edit3}>
+              Improve Question (Step 03)
             </Button>
-          ) : (
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={X}
-              onClick={() => {
-                initEditForm(question);
-                setIsEditing(false);
-              }}
-            >
-              Cancel Edit
+          </Link>
+
+          <Link to={`/questions/${encodeURIComponent(question.id)}/verify`}>
+            <Button variant="primary" size="sm" icon={ShieldCheck}>
+              Verify & Approve (Step 04)
             </Button>
-          )}
+          </Link>
 
           <Link to={`/social-review/${encodeURIComponent(question.id)}`}>
             <Button variant="outline" size="sm" icon={CheckCheck}>
@@ -366,6 +353,12 @@ export const QuestionDetailPage: React.FC = () => {
           </Link>
         </div>
       </div>
+
+      <QuestionWorkflowHeader
+        currentStep={question.status === QuestionStatus.APPROVED ? 4 : question.status === QuestionStatus.GENERATED ? 4 : 3}
+        questionId={question.id}
+        questionTitle={question.questionText?.slice(0, 45) + '...'}
+      />
 
       {notification && (
         <div className="p-3.5 bg-emerald-50 border border-emerald-300 text-emerald-900 rounded-xl text-xs font-medium flex items-center gap-2 animate-in fade-in">
@@ -946,7 +939,7 @@ export const QuestionDetailPage: React.FC = () => {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-400">Author / Source:</span>
-                <span className="text-slate-700">{question.source || 'Manual Authoring'}</span>
+                <span className="text-slate-700">{question.source || 'AI Generator Studio'}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-400">Author ID:</span>

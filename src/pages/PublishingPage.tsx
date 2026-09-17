@@ -15,8 +15,10 @@ import {
   Clock,
   UserCheck,
   RotateCcw,
+  UploadCloud,
+  Layers,
 } from 'lucide-react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { PageHeader } from '../components/layout/PageHeader';
 import { Button } from '../components/common/Button';
 import { Modal } from '../components/common/Modal';
@@ -27,6 +29,7 @@ import { RecordPublicationModal } from '../components/publishing/RecordPublicati
 import { PublishingAssignmentModal } from '../components/publishing/PublishingAssignmentModal';
 import { RetryPlatformModal } from '../components/publishing/RetryPlatformModal';
 import { FinalizePublishingModal } from '../components/publishing/FinalizePublishingModal';
+import { PublishingWorkflowHeader } from '../components/publishing/PublishingWorkflowHeader';
 import {
   Publishing,
   SocialPublishStatus,
@@ -45,6 +48,14 @@ export const PublishingPage: React.FC = () => {
   const urlVideoId = searchParams.get('videoId') || '';
   const urlSearchQuery = searchParams.get('searchQuery') || searchParams.get('search') || searchParams.get('q') || urlVideoId;
   const filterPlatform = searchParams.get('platform') || searchParams.get('filterPlatform') || 'ALL';
+  const isPackageStage = searchParams.get('stage') === 'package';
+
+  // If stage=package was passed, redirect smoothly to the dedicated Step 14 PublishingPackagePage
+  useEffect(() => {
+    if (isPackageStage) {
+      navigate(urlVideoId ? `/publishing-package?videoId=${encodeURIComponent(urlVideoId)}` : '/publishing-package', { replace: true });
+    }
+  }, [isPackageStage, urlVideoId, navigate]);
 
   // Primary Data State
   const [records, setRecords] = useState<Publishing[]>([]);
@@ -372,15 +383,24 @@ export const PublishingPage: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      {/* Header */}
+      {/* Page Header */}
       <PageHeader
-        title="Publishing Operations Hub"
-        description="Human-in-the-loop social distribution: package copying, scheduling, retry orchestration, and live URL verification."
+        title="15 Publish"
+        description="Manual multi-platform distribution: YouTube Shorts, Instagram Reels, and Facebook Video manual uploads, scheduling, retries, and live URL verification."
         badge={
           <span className="text-xs font-mono font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-            Phase 13 • Gate D Production Readiness
+            Step 15 • Publish
           </span>
         }
+      />
+
+      {/* Step 15 Publishing Workflow Steps Bar */}
+      <PublishingWorkflowHeader
+        currentStep={15}
+        videoId={urlVideoId || undefined}
+        videoTitle={urlVideoId && videoMap[urlVideoId] ? videoMap[urlVideoId].title : undefined}
+        videoStatus={urlVideoId && videoMap[urlVideoId] ? videoMap[urlVideoId].status : undefined}
+        questionId={urlVideoId && videoMap[urlVideoId] ? videoMap[urlVideoId].questionId : undefined}
       />
 
       {/* Workflow Architecture Notice */}

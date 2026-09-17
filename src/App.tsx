@@ -11,14 +11,25 @@ import { Layout } from './components/layout/Layout';
 import { DashboardPage } from './pages/DashboardPage';
 import { QuestionLibraryPage } from './pages/QuestionLibraryPage';
 import { QuestionDetailPage } from './pages/QuestionDetailPage';
-
+import { QuestionImprovePage } from './pages/QuestionImprovePage';
+import { QuestionVerifyApprovePage } from './pages/QuestionVerifyApprovePage';
 import { QuestionStudioPage } from './pages/QuestionStudioPage';
 import { QueuePage } from './pages/QueuePage';
 import { ProductionTrackerPage } from './pages/ProductionTrackerPage';
 import { ProductionBoardPage } from './pages/ProductionBoardPage';
 import { VideoDetailPage } from './pages/VideoDetailPage';
+import { VideoCreateScriptPage } from './pages/VideoCreateScriptPage';
+import { VideoReviewScriptPage } from './pages/VideoReviewScriptPage';
+import { VideoRecordPage } from './pages/VideoRecordPage';
+import { VideoEditPage } from './pages/VideoEditPage';
+import { VideoFinalPage } from './pages/VideoFinalPage';
+import { VideoThumbnailPage } from './pages/VideoThumbnailPage';
+import { VideoPinnedCommentPage } from './pages/VideoPinnedCommentPage';
+import { PlatformPackagesPage } from './pages/PlatformPackagesPage';
+import { PublishingPackagePage } from './pages/PublishingPackagePage';
 import { PublishingPage } from './pages/PublishingPage';
 import { SocialAnalyticsPage } from './pages/SocialAnalyticsPage';
+import { AnalyticsExperiencePage } from './pages/AnalyticsExperiencePage';
 import { SettingsPage } from './pages/SettingsPage';
 import { RecoveryAdminPage } from './pages/RecoveryAdminPage';
 import { PlanningPage } from './pages/PlanningPage';
@@ -61,19 +72,83 @@ function AppRoutes() {
         <Route path="social-review" element={<SocialReviewPage />} />
         <Route path="social-review/:reviewId" element={<SocialReviewPage />} />
         <Route path="studio" element={<QuestionStudioPage />} />
-        <Route path="questions/new" element={<Navigate to="/studio?mode=manual" replace />} />
+        <Route path="questions/new" element={<Navigate to="/studio" replace />} />
+        <Route path="questions/improve" element={<QuestionImprovePage />} />
+        <Route path="questions/:id/improve" element={<QuestionImprovePage />} />
+        <Route path="questions/verify" element={<QuestionVerifyApprovePage />} />
+        <Route path="questions/:id/verify" element={<QuestionVerifyApprovePage />} />
         <Route path="questions/:id" element={<QuestionDetailPage />} />
-        <Route path="generate" element={<Navigate to="/studio?mode=ai" replace />} />
+        <Route path="generate" element={<Navigate to="/studio" replace />} />
 
         {/* Production Routes */}
         <Route path="queue" element={<QueuePage />} />
         <Route path="production" element={<ProductionTrackerPage />} />
-        <Route path="production-board" element={<ProductionBoardPage />} />
+        <Route path="production-tracker" element={<Navigate to="/production" replace />} />
+        <Route path="production-board" element={<Navigate to="/production?status=EDITING" replace />} />
+
+        {/* Video Production 5-Step Workflow Routes */}
+        <Route path="videos/create-script" element={<VideoCreateScriptPage />} />
+        <Route path="videos/:videoId/create-script" element={<VideoCreateScriptPage />} />
+        <Route path="production/:videoId/create-script" element={<VideoCreateScriptPage />} />
+
+        <Route path="videos/review-script" element={<VideoReviewScriptPage />} />
+        <Route path="videos/:videoId/review-script" element={<VideoReviewScriptPage />} />
+        <Route path="production/:videoId/review-script" element={<VideoReviewScriptPage />} />
+
+        <Route path="videos/record" element={<VideoRecordPage />} />
+        <Route path="videos/:videoId/record" element={<VideoRecordPage />} />
+        <Route path="production/:videoId/record" element={<VideoRecordPage />} />
+
+        <Route path="videos/edit-video" element={<VideoEditPage />} />
+        <Route path="videos/:videoId/edit-video" element={<VideoEditPage />} />
+        <Route path="production/:videoId/edit-video" element={<VideoEditPage />} />
+
+        <Route path="videos/final-video" element={<VideoFinalPage />} />
+        <Route path="videos/:videoId/final-video" element={<VideoFinalPage />} />
+        <Route path="production/:videoId/final-video" element={<VideoFinalPage />} />
+
+        {/* Asset & Social Review Workflow Routes (Phase 08) */}
+        <Route path="videos/thumbnail" element={<VideoThumbnailPage />} />
+        <Route path="videos/:videoId/thumbnail" element={<VideoThumbnailPage />} />
+        <Route path="production/:videoId/thumbnail" element={<VideoThumbnailPage />} />
+
+        <Route path="videos/pinned-comment" element={<VideoPinnedCommentPage />} />
+        <Route path="videos/:videoId/pinned-comment" element={<VideoPinnedCommentPage />} />
+        <Route path="production/:videoId/pinned-comment" element={<VideoPinnedCommentPage />} />
+
+        <Route path="videos/:videoId/social-review" element={<SocialReviewPage />} />
+        <Route path="production/:videoId/social-review" element={<SocialReviewPage />} />
+
         <Route path="production/:videoId" element={<VideoDetailPage />} />
         <Route path="videos/:videoId" element={<VideoDetailPage />} />
 
-        {/* Publishing Route */}
+        {/* Publishing 3-Step Workflow Routes (Phase 09: Steps 13-15) */}
+        <Route path="platform-packages" element={<PlatformPackagesPage />} />
+        <Route path="videos/platform-packages" element={<PlatformPackagesPage />} />
+        <Route path="videos/:videoId/platform-packages" element={<PlatformPackagesPage />} />
+        <Route path="production/:videoId/platform-packages" element={<PlatformPackagesPage />} />
+
+        <Route path="publishing-package" element={<PublishingPackagePage />} />
+        <Route path="videos/publishing-package" element={<PublishingPackagePage />} />
+        <Route path="videos/:videoId/publishing-package" element={<PublishingPackagePage />} />
+        <Route path="production/:videoId/publishing-package" element={<PublishingPackagePage />} />
+
         <Route path="publishing" element={<PublishingPage />} />
+        <Route path="videos/:videoId/publish" element={<PublishingPage />} />
+        <Route path="production/:videoId/publish" element={<PublishingPage />} />
+
+        {/* Top-Level Analytics Experience Routes (Phase 10) */}
+        <Route path="analytics" element={<Navigate to="/analytics/overview" replace />} />
+        <Route path="analytics/overview" element={<AnalyticsExperiencePage />} />
+        <Route path="analytics/video" element={<AnalyticsExperiencePage />} />
+        <Route path="analytics/platform" element={<AnalyticsExperiencePage />} />
+        <Route path="analytics/topic" element={<AnalyticsExperiencePage />} />
+        <Route path="analytics/subtopic" element={<AnalyticsExperiencePage />} />
+        <Route path="analytics/difficulty" element={<AnalyticsExperiencePage />} />
+        <Route path="analytics/engagement" element={<AnalyticsExperiencePage />} />
+        <Route path="analytics/retention" element={<AnalyticsExperiencePage />} />
+        <Route path="analytics/intelligence" element={<AnalyticsExperiencePage />} />
+        <Route path="analytics/strategy" element={<AnalyticsExperiencePage />} />
         <Route path="social-analytics" element={<SocialAnalyticsPage />} />
         <Route path="social-analytics/:contentId" element={<SocialAnalyticsPage />} />
 
@@ -85,6 +160,7 @@ function AppRoutes() {
         {/* System Settings Route */}
         <Route path="settings" element={<SettingsPage />} />
         <Route path="recovery" element={<RecoveryAdminPage />} />
+        <Route path="admin" element={<RecoveryAdminPage />} />
 
         {/* 404 Fallback */}
         <Route path="*" element={<NotFoundPage />} />

@@ -30,7 +30,7 @@ async function runTests() {
   console.log("=== Hybrid Boundary Tests ===");
 
   // Test 1: Deterministic Success -> VALID (Bypasses AI)
-  MathematicalLogicalEngine.verify = () => ({ status: 'VERIFIED', problemType: 'Math', details: 'mock', calculatedValue: '10', matchedOption: 'A' } as any);
+  MathematicalLogicalEngine.verify = () => ({ status: 'PROVABLY_VALID', problemType: 'Math', details: 'mock', calculatedValue: '10', matchedOption: 'A' } as any);
   let aiCalled = false;
   GeminiBlindVerifierProvider.prototype.verifyBlindly = async () => { aiCalled = true; return { solvable: true, isNumerical: true, expectedValue: "10", confidence: 0.9 }; };
   let res = await questionValidationService.validateCandidate({...qBase, questionText: "2+2=4", options: {a:"4",b:"3",c:"2",d:"1"}, correctAnswer: "A"} as any, { skipTaxonomyLookup: true, providers: [{ id: 'gemini', priority: 1, maxRetries: 1 } as any] });

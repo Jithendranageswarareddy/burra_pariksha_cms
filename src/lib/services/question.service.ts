@@ -340,7 +340,7 @@ export class QuestionService {
       status,
       videoStatus,
       tags: validatedInput.tags || [],
-      source: validatedInput.source || 'Manual Authoring',
+      source: validatedInput.source || 'AI Generator Studio',
       aiPromptUsed: validatedInput.aiPromptUsed || '',
       authorId: actor.id,
       author: actor.name || actor.id,
@@ -474,6 +474,16 @@ export class QuestionService {
       return this.idempotencyCache.get(requestPayload.idempotencyKey)!;
     }
 
+    // Resolve canonical questionText across aliases at creation boundary
+    const canonicalQuestionText = (
+      requestPayload.questionText ||
+      requestPayload.question ||
+      (requestPayload as any).content ||
+      ''
+    ).trim();
+    requestPayload.questionText = canonicalQuestionText;
+    requestPayload.question = canonicalQuestionText;
+
     // 1. Resolve RANDOM / SMART_RANDOM parameters if needed
     const isRandomContext = requestPayload.realLifeContext?.toUpperCase() === 'RANDOM' || requestPayload.realLifeContext?.toUpperCase() === 'SMART_RANDOM';
     const isRandomSubtopic = requestPayload.subtopicId?.toUpperCase() === 'RANDOM';
@@ -520,7 +530,7 @@ export class QuestionService {
 
     const topicId = resolvedParams.topicId;
     const subtopicId = resolvedParams.subtopicId;
-    const categoryId = resolvedParams.categoryId || requestPayload.categoryId || 'CAT-QA';
+    const categoryId = resolvedParams.categoryId || requestPayload.categoryId;
     const difficulty = resolvedParams.difficulty;
     const realLifeContext = resolvedParams.realLifeContext;
     const challengeType = resolvedParams.challengeType;
@@ -555,10 +565,10 @@ export class QuestionService {
     }
 
     // 3. Validate Taxonomy Integrity
-    const { category, topic, subtopic } = await taxonomyService.validateTaxonomy(
-      categoryId,
+    const { category, topic, subtopic } = await taxonomyService.validateQuestionTaxonomy(
       topicId,
-      subtopicId
+      subtopicId,
+      categoryId
     );
 
     // 4. Allocate Permanent Sequence Question ID
@@ -573,7 +583,7 @@ export class QuestionService {
             ? requestPayload.questionText.slice(0, 100)
             : `Content Master for Question ${id}`,
           primaryQuestionId: id,
-          categoryId: category.id,
+          categoryId: category?.id || categoryId || '',
           topicId: topic.id,
           subtopicId: subtopic.id,
           createdBy: actor.id,
@@ -592,8 +602,8 @@ export class QuestionService {
       id,
       contentId: contentMasterId,
       contentMasterId,
-      categoryId: category.id,
-      categoryName: category.name,
+      categoryId: category?.id || categoryId || '',
+      categoryName: category?.name || '',
       topicId: topic.id,
       topicName: topic.name,
       subtopicId: subtopic.id,
@@ -622,7 +632,7 @@ export class QuestionService {
       status,
       videoStatus,
       tags: requestPayload.tags || [],
-      source: requestPayload.source || (requestPayload.creationMode === 'ai' ? 'AI Generator Studio' : 'Manual Authoring'),
+      source: requestPayload.source || 'AI Generator Studio',
       aiPromptUsed: requestPayload.aiPromptUsed || '',
       aiModel: requestPayload.aiModel || '',
       aiPrompt: requestPayload.aiPrompt || '',
@@ -733,7 +743,7 @@ export class QuestionService {
         creationMode: requestPayload.creationMode,
         questionId: id,
         contentMasterId,
-        categoryId: category.id,
+        categoryId: category?.id || categoryId || '',
         topicId: topic.id,
         subtopicId: subtopic.id,
         difficulty,
@@ -801,10 +811,10 @@ export class QuestionService {
     };
 
     if (updates.categoryId || updates.topicId || updates.subtopicId) {
-      const { category, topic, subtopic } = await taxonomyService.validateTaxonomy(targetCat, targetTopic, targetSubtopic);
+      const { category, topic, subtopic } = await taxonomyService.validateQuestionTaxonomy(targetTopic, targetSubtopic, targetCat);
       enrichedTaxonomy = {
-        categoryId: category.id,
-        categoryName: category.name,
+        categoryId: category?.id || targetCat || '',
+        categoryName: category?.name || '',
         topicId: topic.id,
         topicName: topic.name,
         subtopicId: subtopic.id,

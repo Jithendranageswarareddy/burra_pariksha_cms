@@ -97,6 +97,14 @@ export const TeamOperationsPage: React.FC = () => {
       (authUser.role as string) === 'CONTENT_LEAD'
     : true; // Default to true if not strictly logged in for developer preview
 
+  const isAdmin = Boolean(
+    authUser &&
+      (authUser.role === UserRole.ADMIN ||
+        authUser.role === 'ADMIN' ||
+        (Array.isArray(authUser.roles) &&
+          (authUser.roles.includes(UserRole.ADMIN) || authUser.roles.includes('ADMIN'))))
+  );
+
   useEffect(() => {
     loadAllData();
   }, []);
@@ -136,6 +144,7 @@ export const TeamOperationsPage: React.FC = () => {
   };
 
   const handleOpenNewUser = () => {
+    if (!isAdmin) return;
     setEditingUser(null);
     setUserName('');
     setUserEmail('');
@@ -146,6 +155,7 @@ export const TeamOperationsPage: React.FC = () => {
   };
 
   const handleOpenEditUser = (u: User) => {
+    if (!isAdmin) return;
     setEditingUser(u);
     setUserName(u.name);
     setUserEmail(u.email);
@@ -291,14 +301,16 @@ export const TeamOperationsPage: React.FC = () => {
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
 
-          <button
-            type="button"
-            onClick={handleOpenNewUser}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg shadow-2xs transition-colors"
-          >
-            <UserPlus className="w-4 h-4" />
-            <span>Add Member</span>
-          </button>
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={handleOpenNewUser}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg shadow-2xs transition-colors"
+            >
+              <UserPlus className="w-4 h-4" />
+              <span>Add Member</span>
+            </button>
+          )}
 
           <button
             type="button"
@@ -806,14 +818,16 @@ export const TeamOperationsPage: React.FC = () => {
               <h3 className="font-bold text-sm text-slate-900">Burra Pariksha Team Directory</h3>
               <p className="text-xs text-slate-500 mt-0.5">Authoritative user directory registered in Google Sheets.</p>
             </div>
-            <button
-              type="button"
-              onClick={handleOpenNewUser}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg shadow-2xs transition-colors"
-            >
-              <UserPlus className="w-3.5 h-3.5" />
-              <span>Add User</span>
-            </button>
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={handleOpenNewUser}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg shadow-2xs transition-colors"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>Add User</span>
+              </button>
+            )}
           </div>
 
           <div className="divide-y divide-slate-100">
@@ -853,15 +867,17 @@ export const TeamOperationsPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleOpenEditUser(u)}
-                      className="px-3 py-1 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors"
-                    >
-                      Edit Roles & Profile
-                    </button>
-                  </div>
+                  {isAdmin && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEditUser(u)}
+                        className="px-3 py-1 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors"
+                      >
+                        Edit Roles & Profile
+                      </button>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -884,7 +900,7 @@ export const TeamOperationsPage: React.FC = () => {
       />
 
       {/* User Management Modal */}
-      {isUserModalOpen && (
+      {isAdmin && isUserModalOpen && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden">
             <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">

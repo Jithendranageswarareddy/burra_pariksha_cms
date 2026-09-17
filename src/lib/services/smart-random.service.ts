@@ -64,57 +64,35 @@ export class SmartRandomService {
    * then resolving RANDOM / SMART_RANDOM requests.
    */
   public async resolveParameters(input: SmartRandomInput): Promise<ResolvedCreationParameters> {
-    // 1. Resolve Taxonomy (Topic & Subtopic)
-    const taxonomyTree = await taxonomyService.getTaxonomyTree();
-    if (!taxonomyTree || taxonomyTree.length === 0) {
+    // 1. Resolve Taxonomy (Topic & Subtopic) directly
+    const pureTopics = await taxonomyService.getPureTopicTree();
+    if (!pureTopics || pureTopics.length === 0) {
       throw new Error('Taxonomy is empty. Cannot resolve parameters.');
     }
 
     let topicObj: any = null;
-    let selectedCat: any = null;
 
-    // Search across all categories if topicId is provided
     if (input.topicId && input.topicId !== 'RANDOM' && input.topicId !== 'SMART_RANDOM') {
-      for (const cat of taxonomyTree) {
-        const top = (cat.topics || []).find((t: any) => t.id === input.topicId);
-        if (top) {
-          topicObj = top;
-          selectedCat = cat;
-          break;
-        }
-      }
-    }
-
-    if (!selectedCat) {
-      selectedCat = taxonomyTree.find((c) => c.id === input.categoryId) || taxonomyTree[0];
+      topicObj = pureTopics.find((t) => t.id === input.topicId);
     }
 
     // Handle RANDOM / SMART_RANDOM or missing Topic
     if (!topicObj) {
-      // Pick topics that have at least 1 active subtopic
-      const activeTopics = (selectedCat.topics || []).filter(
-        (t: any) => t.isActive !== false && (t.subtopics || []).some((s: any) => s.isActive !== false)
+      const activeTopics = pureTopics.filter(
+        (t) => t.isActive !== false && (t.subtopics || []).some((s: any) => s.isActive !== false)
       );
 
-      // If selected category has no valid topics with subtopics, check all categories
-      const candidateTopics = activeTopics.length > 0 ? activeTopics : taxonomyTree.flatMap((c) =>
-        (c.topics || []).filter((t: any) => t.isActive !== false && (t.subtopics || []).some((s: any) => s.isActive !== false))
-      );
-
-      if (candidateTopics.length === 0) {
-        throw new Error(`Category "${selectedCat.name}" has no topics with active subtopics.`);
+      if (activeTopics.length === 0) {
+        throw new Error('No topics with active subtopics available for selection.');
       }
 
       if (input.topicId === 'SMART_RANDOM') {
-        topicObj = candidateTopics.reduce((min: any, curr: any) =>
-          (curr.subtopics?.length || 0) < (min.subtopics?.length || 0) ? curr : min, candidateTopics[0]);
+        topicObj = activeTopics.reduce((min: any, curr: any) =>
+          (curr.subtopics?.length || 0) < (min.subtopics?.length || 0) ? curr : min, activeTopics[0]);
       } else {
-        const randomIndex = Math.floor(Math.random() * candidateTopics.length);
-        topicObj = candidateTopics[randomIndex];
+        const randomIndex = Math.floor(Math.random() * activeTopics.length);
+        topicObj = activeTopics[randomIndex];
       }
-
-      // Re-align selectedCat with the chosen topic's category
-      selectedCat = taxonomyTree.find((c) => (c.topics || []).some((t: any) => t.id === topicObj.id)) || selectedCat;
     }
 
     // Resolve Subtopic
@@ -226,8 +204,8 @@ export class SmartRandomService {
       input.difficulty === 'SMART_RANDOM';
 
     return {
-      categoryId: selectedCat.id,
-      categoryName: selectedCat.name,
+      categoryId: topicObj.categoryId || input.categoryId || '',
+      categoryName: '',
       topicId: topicObj.id,
       topicName: topicObj.name,
       subtopicId: subtopicObj.id,

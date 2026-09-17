@@ -137,7 +137,7 @@ export const StaleContentSection: React.FC<StaleContentSectionProps> = ({ items 
                   </h4>
 
                   <div className="text-[10px] text-slate-500">
-                    {item.category} • {item.topic}
+                    {item.topic || item.category || 'General'}
                   </div>
                 </div>
 

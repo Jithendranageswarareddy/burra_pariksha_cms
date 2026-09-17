@@ -110,6 +110,10 @@ export class QuestionsRepository extends BaseRepository<Question> {
     const all = await this.findAll();
     return all.filter((q) => q.contentMasterId === contentMasterId);
   }
+
+  public async delete(id: string, options?: { actor?: { id: string; name: string }; reason?: string }): Promise<boolean> {
+    return this.deleteRecord(id, options);
+  }
 }
 
 export const questionsRepository = QuestionsRepository.getInstance();

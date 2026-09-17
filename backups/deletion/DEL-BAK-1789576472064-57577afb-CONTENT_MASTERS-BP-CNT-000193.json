@@ -1,0 +1,51 @@
+{
+  "id": "DEL-BAK-1789576472064-57577afb",
+  "backupTimestamp": "2026-09-16T16:34:32.064Z",
+  "sheetName": "CONTENT_MASTERS",
+  "entityId": "BP-CNT-000193",
+  "physicalRowIndex": 5,
+  "headers": [
+    "id",
+    "content_id",
+    "title",
+    "status",
+    "primary_question_id",
+    "category_id",
+    "topic_id",
+    "subtopic_id",
+    "created_by",
+    "created_at",
+    "updated_at",
+    "archived_at"
+  ],
+  "rawRow": [
+    "BP-CNT-000193",
+    "",
+    "ఒక పెట్టెలో 10 బంతులు ఉన్నాయి. 3 బంతులు తీసివేస్తే ఎన్ని మిగులుతాయి?",
+    "DRAFT",
+    "BP-Q-000199",
+    "",
+    "BP-TOP-001",
+    "BP-SUB-0001",
+    "USR-TEST",
+    "2026-09-16T16:33:27.172Z",
+    "2026-09-16T16:33:27.172Z"
+  ],
+  "record": {
+    "id": "BP-CNT-000193",
+    "title": "ఒక పెట్టెలో 10 బంతులు ఉన్నాయి. 3 బంతులు తీసివేస్తే ఎన్ని మిగులుతాయి?",
+    "status": "DRAFT",
+    "primaryQuestionId": "BP-Q-000199",
+    "topicId": "BP-TOP-001",
+    "subtopicId": "BP-SUB-0001",
+    "createdBy": "USR-TEST",
+    "createdAt": "2026-09-16T16:33:27.172Z",
+    "updatedAt": "2026-09-16T16:33:27.172Z"
+  },
+  "checksum": "2040994ee5af3f2d9fbddc333755fb320d38ed65d173c60ac3e47b9a2ac850d1",
+  "actor": {
+    "id": "USR-TEST",
+    "name": "Stage 2 Decoupling Verifier"
+  },
+  "reason": "Test cleanup"
+}

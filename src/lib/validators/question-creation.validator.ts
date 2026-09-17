@@ -24,6 +24,8 @@ export interface QuestionCreationRequestPayload {
   language?: QuestionLanguage | string;
   questionStyle?: string;
   questionText: string;
+  question?: string;
+  content?: string;
   options: {
     a: string;
     b: string;
@@ -49,13 +51,20 @@ export class QuestionCreationValidator {
    * Normalizes difficulty string to canonical 11 difficulty level IDs.
    */
   public static normalizeDifficulty(diff?: string): string {
-    if (!diff) return 'Intermediate';
+    if (!diff) return 'MEDIUM';
     const trimmed = diff.trim();
-    if (trimmed === 'Medium') return 'Intermediate';
-    if (trimmed === 'EASY') return 'Easy';
-    if (trimmed === 'HARD') return 'Hard';
+    const u = trimmed.toUpperCase();
+    if (['EASY', 'BEGINNER', 'EASY-INTERMEDIATE'].includes(u)) return 'EASY';
+    if (['HARD', 'VERY HARD', 'VERY_HARD', 'EXPERT', 'MASTER', 'IMPOSSIBLE'].includes(u)) return 'HARD';
+    if (['INTERMEDIATE', 'MEDIUM', 'INTERMEDIATE-HARD', 'RANDOM'].includes(u)) return 'MEDIUM';
     const match = DIFFICULTY_LEVELS.find((d) => d.id.toLowerCase() === trimmed.toLowerCase());
-    return match ? match.id : trimmed;
+    if (match) {
+      const matchU = match.id.toUpperCase();
+      if (['EASY', 'BEGINNER', 'EASY-INTERMEDIATE'].includes(matchU)) return 'EASY';
+      if (['HARD', 'VERY HARD', 'VERY_HARD', 'EXPERT', 'MASTER', 'IMPOSSIBLE'].includes(matchU)) return 'HARD';
+      return 'MEDIUM';
+    }
+    return trimmed;
   }
 
   /**
@@ -103,7 +112,18 @@ export class QuestionCreationValidator {
     }
 
     // 2. Question Text
-    if (!payload.questionText || payload.questionText.trim().length < 5) {
+    const rawQuestionText = (
+      payload.questionText ||
+      payload.question ||
+      (payload as any).content ||
+      ''
+    ).trim();
+    payload.questionText = rawQuestionText;
+    if (payload.question !== undefined) {
+      payload.question = rawQuestionText;
+    }
+
+    if (!payload.questionText || payload.questionText.length < 5) {
       throw new ValidationError('Question text is required and must be at least 5 characters long.');
     }
 
@@ -121,10 +141,10 @@ export class QuestionCreationValidator {
     }
 
     // 5. Difficulty Validation
-    if (payload.difficulty && payload.difficulty.toLowerCase() === 'medium') {
-      payload.difficulty = 'Intermediate';
+    if (payload.difficulty) {
+      payload.difficulty = this.normalizeDifficulty(payload.difficulty);
     }
-    const allowedDifficulties = [...DIFFICULTY_LEVELS.map((d) => d.id.toLowerCase()), 'medium'];
+    const allowedDifficulties = [...DIFFICULTY_LEVELS.map((d) => d.id.toLowerCase()), 'easy', 'medium', 'hard'];
     if (payload.difficulty && !allowedDifficulties.includes(payload.difficulty.toLowerCase())) {
       throw new ValidationError(
         `Invalid difficulty level "${payload.difficulty}". Allowed: ${DIFFICULTY_LEVELS.map((d) => d.id).join(', ')}.`

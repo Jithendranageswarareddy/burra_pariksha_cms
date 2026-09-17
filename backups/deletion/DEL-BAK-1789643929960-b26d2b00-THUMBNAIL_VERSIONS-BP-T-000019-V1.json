@@ -1,0 +1,38 @@
+{
+  "id": "DEL-BAK-1789643929960-b26d2b00",
+  "backupTimestamp": "2026-09-17T11:18:49.960Z",
+  "sheetName": "THUMBNAIL_VERSIONS",
+  "entityId": "BP-T-000019-V1",
+  "physicalRowIndex": 2,
+  "headers": [
+    "id",
+    "thumbnail_id",
+    "version_number",
+    "drive_asset_url",
+    "designer_notes",
+    "created_at",
+    "drive_file_id"
+  ],
+  "rawRow": [
+    "BP-T-000019-V1",
+    "BP-T-000019",
+    1,
+    "https://images.unsplash.com/photo-1234",
+    "Brief without file",
+    "2026-09-17T11:07:22.318Z"
+  ],
+  "record": {
+    "id": "BP-T-000019-V1",
+    "thumbnailId": "BP-T-000019",
+    "versionNumber": 1,
+    "driveAssetUrl": "https://images.unsplash.com/photo-1234",
+    "designerNotes": "Brief without file",
+    "createdAt": "2026-09-17T11:07:22.318Z"
+  },
+  "checksum": "913c2f8f1c8876e0a9f422b5285df28af694e4d0e2da1f0f069da6909688e714",
+  "actor": {
+    "id": "USR-001",
+    "name": "Surgical Cleanup Script"
+  },
+  "reason": "Post-audit cleanup of thumbnail verification test artifacts"
+}

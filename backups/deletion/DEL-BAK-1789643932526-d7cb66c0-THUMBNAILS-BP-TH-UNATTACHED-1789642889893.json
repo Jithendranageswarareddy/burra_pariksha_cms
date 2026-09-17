@@ -1,0 +1,53 @@
+{
+  "id": "DEL-BAK-1789643932526-d7cb66c0",
+  "backupTimestamp": "2026-09-17T11:18:52.526Z",
+  "sheetName": "THUMBNAILS",
+  "entityId": "BP-TH-UNATTACHED-1789642889893",
+  "physicalRowIndex": 2,
+  "headers": [
+    "id",
+    "content_id",
+    "video_id",
+    "hook_headline",
+    "drive_asset_url",
+    "preview_url",
+    "status",
+    "current_version",
+    "created_at",
+    "updated_at",
+    "drive_file_id",
+    "drive_folder_id",
+    "drive_folder_url",
+    "file_name",
+    "mime_type",
+    "file_size"
+  ],
+  "rawRow": [
+    "BP-TH-UNATTACHED-1789642889893",
+    "",
+    "BP-V-UNATTACHED-TEST",
+    "No file attached",
+    "",
+    "https://images.unsplash.com/photo-1234",
+    "PENDING",
+    1,
+    "2026-09-17T11:01:29.893Z",
+    "2026-09-17T11:01:29.893Z"
+  ],
+  "record": {
+    "id": "BP-TH-UNATTACHED-1789642889893",
+    "videoId": "BP-V-UNATTACHED-TEST",
+    "hookHeadline": "No file attached",
+    "previewUrl": "https://images.unsplash.com/photo-1234",
+    "status": "PENDING",
+    "currentVersion": 1,
+    "createdAt": "2026-09-17T11:01:29.893Z",
+    "updatedAt": "2026-09-17T11:01:29.893Z"
+  },
+  "checksum": "ce5d682824d979731f909ab07411596bc856d5d5c89133f89f08cce9092a2109",
+  "actor": {
+    "id": "USR-001",
+    "name": "Surgical Cleanup Script"
+  },
+  "reason": "Post-audit cleanup of thumbnail verification test artifacts"
+}

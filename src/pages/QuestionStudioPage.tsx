@@ -1,8 +1,7 @@
 /**
- * BURRA PARIKSHA CMS - Unified Question Studio Workspace
- * Phase 7 - Task 7B: Unified Question Studio Foundation
+ * BURRA PARIKSHA CMS - AI Question Studio Workspace
  * 
- * Supports both AI Mode (generation + refinement) and Manual Mode (direct authoring)
+ * Supports AI Generation, AI Refinement, and human candidate editing
  * while converging on a single Candidate Editor model and canonical save pipeline.
  * Includes pre-save server-side validation (POST /api/questions/validate-candidate)
  * and stale validation state tracking on material candidate edits.
@@ -12,7 +11,6 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Sparkles,
-  PenTool,
   Wand2,
   CheckCircle,
   AlertTriangle,
@@ -29,6 +27,7 @@ import {
 } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { Button } from '../components/common/Button';
+import { QuestionWorkflowHeader } from '../components/questions/QuestionWorkflowHeader';
 import { apiClient } from '../lib/api-client';
 import {
   Category,
@@ -47,8 +46,6 @@ import {
 import { CandidateValidator, CandidateValidationReport } from '../lib/ai/validators/candidate.validator';
 import { MathVerificationResult } from '../lib/ai/validators/mathematical.validator';
 import { QUESTION_CREATION_CONFIG } from '../config/question-creation.config';
-
-type StudioMode = 'ai' | 'manual';
 
 const REAL_WORLD_HOOK_SUGGESTIONS = [
   'Metro escalator commuter rush hour',
@@ -90,10 +87,6 @@ export const QuestionStudioPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Mode Selection: 'ai' or 'manual'
-  const initialMode = (searchParams.get('mode') as StudioMode) || 'ai';
-  const [mode, setMode] = useState<StudioMode>(initialMode === 'manual' ? 'manual' : 'ai');
-
   // Deep-linking URL Parameters
   const queryCategory = searchParams.get('categoryId') || searchParams.get('category') || searchParams.get('cat');
   const queryTopic = searchParams.get('topicId') || searchParams.get('topic');
@@ -129,6 +122,18 @@ export const QuestionStudioPage: React.FC = () => {
     queryContext || ''
   );
   const [customInstructions, setCustomInstructions] = useState<string>('');
+
+  const formatDifficultyForUi = (diff?: string): string => {
+    if (!diff) return 'Intermediate';
+    const u = diff.trim().toUpperCase();
+    if (u === 'MEDIUM' || u === 'INTERMEDIATE') return 'Intermediate';
+    if (u === 'EASY') return 'Easy';
+    if (u === 'HARD') return 'Hard';
+    const match = QUESTION_CREATION_CONFIG.difficulties.find(
+      (d) => d.id.toLowerCase() === diff.toLowerCase() || d.label.toLowerCase() === diff.toLowerCase()
+    );
+    return match ? match.id : diff;
+  };
 
   // Real-Time QUESTION_CONFIG State (Creator-Managed Studio Configuration)
   const [realLifeContexts, setRealLifeContexts] = useState<QuestionConfigEntry[]>([]);
@@ -174,6 +179,7 @@ export const QuestionStudioPage: React.FC = () => {
   // Duplicate Check States
   const [duplicateMatches, setDuplicateMatches] = useState<any[]>([]);
   const [isCheckingDuplicate, setIsCheckingDuplicate] = useState<boolean>(false);
+  const [hasCheckedDuplicate, setHasCheckedDuplicate] = useState<boolean>(false);
 
   // Save States
   const [isSaving, setIsSaving] = useState<boolean>(false);
@@ -183,18 +189,7 @@ export const QuestionStudioPage: React.FC = () => {
   // Suppress marking validation stale during initial generation load
   const isInternalUpdateRef = useRef<boolean>(false);
 
-  // Sync search parameter when mode changes
-  const handleModeSwitch = (newMode: StudioMode) => {
-    if (isDirty && hasCandidate && candidate.questionText.trim().length > 0) {
-      if (!window.confirm('You have unsaved changes in your current candidate draft. Do you want to switch modes while keeping your candidate?')) {
-        return;
-      }
-    }
-    setMode(newMode);
-    const newParams = new URLSearchParams(searchParams);
-    newParams.set('mode', newMode);
-    setSearchParams(newParams, { replace: true });
-  };
+
 
   // 3. Initial Load: Configuration, Taxonomy & AI Status
   const loadStudioConfig = useCallback(async (isRefresh = false) => {
@@ -268,38 +263,37 @@ export const QuestionStudioPage: React.FC = () => {
     async function initStudio() {
       try {
         setLoadingTaxonomy(true);
-        const [tree, cats, aiInfo] = await Promise.all([
-          apiClient.getTaxonomyTree().catch(() => []),
-          apiClient.getCategories().catch(() => []),
+        const [pureTree, aiInfo] = await Promise.all([
+          apiClient.getPureTopicTree().catch(() => []),
           apiClient.getAiStatus().catch(() => ({ isConfigured: false, model: 'gemini-3.1-flash-lite' })),
         ]);
 
-        setTaxonomyTree(tree);
-        setCategories(cats);
+        let topicsList: any[] = pureTree;
+        if (!topicsList || topicsList.length === 0) {
+          const legacyTree = await apiClient.getTaxonomyTree().catch(() => []);
+          const flattened: any[] = [];
+          legacyTree.forEach((cat: any) => {
+            if (cat.topics) {
+              cat.topics.forEach((top: any) => {
+                flattened.push({ ...top, categoryId: cat.id, categoryName: cat.name });
+              });
+            }
+          });
+          topicsList = flattened;
+        }
+
+        setTaxonomyTree(topicsList);
         setAiStatus(aiInfo);
 
         if (queryTopic) {
           setSelectedTopic(queryTopic);
           if (querySubtopic) setSelectedSubtopic(querySubtopic);
-          const parentCat = tree.find((c: any) => c.topics?.some((t: any) => t.id === queryTopic));
-          if (parentCat) setSelectedCategory(parentCat.id);
-        } else {
-          let firstTopic: any = null;
-          let firstCatId = 'CAT-QA';
-          for (const cat of tree) {
-            if (cat.topics && cat.topics.length > 0) {
-              firstTopic = cat.topics[0];
-              firstCatId = cat.id;
-              break;
-            }
-          }
-          if (firstTopic) {
-            setSelectedCategory(firstCatId);
-            setSelectedTopic(firstTopic.id);
-            const firstSub = (firstTopic.subtopics || [])[0];
-            if (firstSub) {
-              setSelectedSubtopic(firstSub.id);
-            }
+        } else if (topicsList && topicsList.length > 0) {
+          const firstTopic = topicsList[0];
+          setSelectedTopic(firstTopic.id);
+          const firstSub = (firstTopic.subtopics || [])[0];
+          if (firstSub) {
+            setSelectedSubtopic(firstSub.id);
           }
         }
       } catch (err) {
@@ -309,19 +303,14 @@ export const QuestionStudioPage: React.FC = () => {
       }
     }
     initStudio();
-  }, [queryCategory, queryTopic, querySubtopic]);
+  }, [queryTopic, querySubtopic]);
 
   // Derived taxonomy helpers (Topic -> Subtopic direct mapping)
   const allTopics = useMemo(() => {
-    const list: any[] = [];
-    taxonomyTree.forEach((cat: any) => {
-      if (cat.topics) {
-        cat.topics.forEach((top: any) => {
-          list.push({ ...top, categoryId: cat.id, categoryName: cat.name });
-        });
-      }
-    });
-    return list;
+    if (Array.isArray(taxonomyTree)) {
+      return taxonomyTree;
+    }
+    return [];
   }, [taxonomyTree]);
 
   const currentTopicData = useMemo(() => {
@@ -332,11 +321,9 @@ export const QuestionStudioPage: React.FC = () => {
 
   const handleTopicChange = (topId: string) => {
     setSelectedTopic(topId);
-    const top = allTopics.find((t: any) => t.id === topId);
-    const parentCatId = top?.categoryId || selectedCategory || 'CAT-QA';
-    setSelectedCategory(parentCatId);
-    setCandidate((prev) => ({ ...prev, topicId: topId, categoryId: parentCatId }));
+    setCandidate((prev) => ({ ...prev, topicId: topId }));
 
+    const top = allTopics.find((t: any) => t.id === topId);
     if (top && top.subtopics && top.subtopics.length > 0) {
       const newSub = top.subtopics[0].id;
       setSelectedSubtopic(newSub);
@@ -393,12 +380,15 @@ export const QuestionStudioPage: React.FC = () => {
   const triggerDuplicateCheck = useCallback(async (text: string) => {
     if (!text || text.trim().length < 15) {
       setDuplicateMatches([]);
+      setHasCheckedDuplicate(false);
       return;
     }
     setIsCheckingDuplicate(true);
+    setHasCheckedDuplicate(false);
     try {
       const res = await apiClient.checkDuplicate(text);
       setDuplicateMatches(res.matches || []);
+      setHasCheckedDuplicate(true);
     } catch (err) {
       console.warn('Duplicate check error:', err);
     } finally {
@@ -470,7 +460,7 @@ export const QuestionStudioPage: React.FC = () => {
 
       isInternalUpdateRef.current = true;
       const newStudioCandidate: StudioCandidate = {
-        questionText: generated.content,
+        questionText: generated.content || (generated as any).questionText || (generated as any).question || '',
         optionA: generated.option_a,
         optionB: generated.option_b,
         optionC: generated.option_c,
@@ -480,7 +470,7 @@ export const QuestionStudioPage: React.FC = () => {
         categoryId: selectedCategory,
         topicId: selectedTopic,
         subtopicId: selectedSubtopic,
-        difficulty,
+        difficulty: formatDifficultyForUi(generated.difficulty || difficulty),
         challengeType,
         presentationType,
         language: generated.language || language,
@@ -571,13 +561,14 @@ export const QuestionStudioPage: React.FC = () => {
       isInternalUpdateRef.current = true;
       setCandidate((prev) => ({
         ...prev,
-        questionText: refined.content,
+        questionText: refined.content || (refined as any).questionText || (refined as any).question || prev.questionText || '',
         optionA: refined.option_a,
         optionB: refined.option_b,
         optionC: refined.option_c,
         optionD: refined.option_d,
         correctAnswer: refined.correct_answer,
         explanation: refined.explanation,
+        difficulty: formatDifficultyForUi(refined.difficulty || prev.difficulty),
         language: refined.language || prev.language,
         realLifeContext: refined.real_world_context || prev.realLifeContext,
         mathematicalVerification: mathVerification,
@@ -640,7 +631,6 @@ export const QuestionStudioPage: React.FC = () => {
         },
         correctAnswer: candidate.correctAnswer,
         explanation: candidate.explanation,
-        categoryId: selectedCategory,
         topicId: selectedTopic,
         subtopicId: selectedSubtopic,
         difficulty: candidate.difficulty,
@@ -677,7 +667,7 @@ export const QuestionStudioPage: React.FC = () => {
     setIsSaving(true);
 
     try {
-      const idempotencyKey = `studio-${mode}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      const idempotencyKey = `studio-ai-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
       const isRandomMode =
         selectedSubtopic === 'RANDOM' ||
@@ -690,8 +680,7 @@ export const QuestionStudioPage: React.FC = () => {
           : (realLifeContext && realLifeContext !== 'RANDOM' ? realLifeContext : undefined);
 
       const created = await apiClient.createQuestionCanonical({
-        creationMode: mode === 'ai' ? 'ai' : 'manual',
-        categoryId: selectedCategory,
+        creationMode: 'ai',
         topicId: selectedTopic,
         subtopicId: selectedSubtopic,
         difficulty: candidate.difficulty,
@@ -702,6 +691,7 @@ export const QuestionStudioPage: React.FC = () => {
         generationMode: isRandomMode ? 'RANDOM' : 'SUBTOPIC',
         questionStyle: candidate.questionStyle || questionStyle || 'STORY_BASED',
         questionText: candidate.questionText.trim(),
+        question: candidate.questionText.trim(),
         options: {
           a: candidate.optionA.trim(),
           b: candidate.optionB.trim(),
@@ -755,6 +745,7 @@ export const QuestionStudioPage: React.FC = () => {
     setServerValidationResult(null);
     setIsValidationStale(false);
     setDuplicateMatches([]);
+    setHasCheckedDuplicate(false);
     setSavedSuccessInfo(null);
     setErrorMessage(null);
   };
@@ -776,44 +767,19 @@ export const QuestionStudioPage: React.FC = () => {
   return (
     <div className="space-y-6 pb-12 animate-in fade-in duration-200">
       <PageHeader
-        title="Unified Question Studio"
+        title="01 Generate Question"
+        description="Select Topic & Subtopic taxonomy, generate structured question candidates with AI, and review before saving."
+        breadcrumbs={[
+          { label: 'Home', href: '/' },
+          { label: '01 Generate Question' },
+        ]}
         actions={
           <div className="flex items-center gap-3 flex-wrap">
-            {/* Mode Switcher */}
-            <div className="bg-slate-100 p-1 rounded-xl flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => handleModeSwitch('ai')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  mode === 'ai'
-                    ? 'bg-indigo-600 text-white shadow-xs'
-                    : 'text-slate-600 hover:bg-slate-200/60 hover:text-slate-900'
-                }`}
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>AI Mode</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleModeSwitch('manual')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  mode === 'manual'
-                    ? 'bg-indigo-600 text-white shadow-xs'
-                    : 'text-slate-600 hover:bg-slate-200/60 hover:text-slate-900'
-                }`}
-              >
-                <PenTool className="w-3.5 h-3.5" />
-                <span>Manual Authoring</span>
-              </button>
-            </div>
-
             {/* AI Model Indicator Pill */}
-            {mode === 'ai' && (
-              <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 border border-slate-200 rounded-lg text-[11px] font-mono text-slate-700">
-                <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
-                <span>Engine: {aiStatus.model}</span>
-              </div>
-            )}
+            <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 border border-slate-200 rounded-lg text-[11px] font-mono text-slate-700">
+              <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
+              <span>AI Engine: {aiStatus.model}</span>
+            </div>
 
             <Button
               variant="outline"
@@ -837,6 +803,12 @@ export const QuestionStudioPage: React.FC = () => {
         }
       />
 
+      <QuestionWorkflowHeader
+        currentStep={1}
+        questionId={savedSuccessInfo?.id}
+        questionTitle={savedSuccessInfo ? `Saved Question ${savedSuccessInfo.id}` : undefined}
+      />
+
       {/* Global Error Alert Banner */}
       {errorMessage && (
         <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 flex items-start gap-3 animate-in slide-in-from-top-2">
@@ -857,7 +829,7 @@ export const QuestionStudioPage: React.FC = () => {
 
       {/* Global Success Banner */}
       {savedSuccessInfo && (
-        <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 flex items-center justify-between animate-in slide-in-from-top-2">
+        <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 animate-in slide-in-from-top-2">
           <div className="flex items-center gap-3">
             <CheckCircle className="w-6 h-6 text-emerald-600 shrink-0" />
             <div>
@@ -868,23 +840,31 @@ export const QuestionStudioPage: React.FC = () => {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Button
               variant="outline"
               size="sm"
-              onClick={handleResetStudio}
+              onClick={() => navigate('/questions')}
               className="bg-white hover:bg-emerald-100 border-emerald-300 text-emerald-900"
             >
-              Create Another
+              Question Library (Step 02)
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate(`/questions/${savedSuccessInfo.id}/improve`)}
+              className="bg-white hover:bg-emerald-100 border-emerald-300 text-emerald-900"
+            >
+              Improve Question (Step 03)
             </Button>
             <Button
               variant="primary"
               size="sm"
-              onClick={() => navigate(`/questions/${savedSuccessInfo.id}`)}
+              onClick={() => navigate(`/questions/${savedSuccessInfo.id}/verify`)}
               icon={ArrowRight}
               className="bg-emerald-600 hover:bg-emerald-700 text-white"
             >
-              Open Question
+              Verify & Approve (Step 04)
             </Button>
           </div>
         </div>
@@ -968,7 +948,7 @@ export const QuestionStudioPage: React.FC = () => {
             <div>
               <label className="text-xs font-semibold text-slate-700">Target Difficulty</label>
               <select
-                value={candidate.difficulty || difficulty || 'Intermediate'}
+                value={formatDifficultyForUi(candidate.difficulty || difficulty || 'Intermediate')}
                 onChange={(e) => {
                   setDifficulty(e.target.value);
                   updateCandidateField('difficulty', e.target.value);
@@ -1160,64 +1140,30 @@ export const QuestionStudioPage: React.FC = () => {
             </div>
           </div>
 
-          {/* AI-Mode Specific Controls */}
-          {mode === 'ai' && (
-            <div className="space-y-3 pt-3 border-t border-slate-100 animate-in fade-in">
-              <div>
-                <label className="text-xs font-semibold text-slate-700">Custom AI Generation Guidance</label>
-                <textarea
-                  value={customInstructions}
-                  onChange={(e) => setCustomInstructions(e.target.value)}
-                  rows={2}
-                  placeholder="e.g., Include a trick option for calculating discount stacking on UPI payment..."
-                  className="w-full mt-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:border-indigo-500 focus:outline-hidden"
-                />
-              </div>
-
-              <Button
-                variant="primary"
-                size="md"
-                onClick={handleGenerate}
-                isLoading={isGenerating}
-                icon={Sparkles}
-                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm mt-2"
-              >
-                {hasCandidate ? 'Regenerate Fresh Candidate' : 'Generate Question Candidate'}
-              </Button>
+          {/* AI Generation Controls */}
+          <div className="space-y-3 pt-3 border-t border-slate-100 animate-in fade-in">
+            <div>
+              <label className="text-xs font-semibold text-slate-700">Custom AI Generation Guidance</label>
+              <textarea
+                value={customInstructions}
+                onChange={(e) => setCustomInstructions(e.target.value)}
+                rows={2}
+                placeholder="e.g., Include a trick option for calculating discount stacking on UPI payment..."
+                className="w-full mt-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:border-indigo-500 focus:outline-hidden"
+              />
             </div>
-          )}
 
-          {/* Manual-Mode Specific Actions */}
-          {mode === 'manual' && (
-            <div className="pt-3 border-t border-slate-100 space-y-2 animate-in fade-in">
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 text-xs text-slate-600">
-                <span className="font-semibold text-slate-900 block mb-0.5">Manual Authoring Active</span>
-                Type your problem statement, options, and solution directly in the candidate workspace.
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setCandidate((prev) => ({
-                    ...prev,
-                    questionText: '',
-                    optionA: '',
-                    optionB: '',
-                    optionC: '',
-                    optionD: '',
-                    correctAnswer: 'A',
-                    explanation: '',
-                  }));
-                  setHasCandidate(false);
-                  setIsDirty(false);
-                }}
-                icon={RotateCcw}
-                className="w-full text-slate-700 border-slate-200 hover:bg-slate-100"
-              >
-                Clear Canvas & Start Fresh
-              </Button>
-            </div>
-          )}
+            <Button
+              variant="primary"
+              size="md"
+              onClick={handleGenerate}
+              isLoading={isGenerating}
+              icon={Sparkles}
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm mt-2"
+            >
+              {hasCandidate ? 'Regenerate Fresh Candidate' : 'Generate Question Candidate'}
+            </Button>
+          </div>
         </div>
 
         {/* RIGHT COLUMN: CANDIDATE EDITOR WORKSPACE */}
@@ -1238,13 +1184,13 @@ export const QuestionStudioPage: React.FC = () => {
                 )}
 
                 <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
-                  {mode === 'ai' ? 'AI Candidate' : 'Manual Draft'}
+                  AI Candidate
                 </span>
               </div>
             </div>
 
             {/* AI Refinement Modifiers */}
-            {mode === 'ai' && hasCandidate && (
+            {hasCandidate && (
               <div className="p-3 bg-indigo-50/70 border border-indigo-100 rounded-xl space-y-2">
                 <div className="flex items-center justify-between text-xs font-semibold text-indigo-900">
                   <span className="flex items-center gap-1.5">
@@ -1481,18 +1427,27 @@ export const QuestionStudioPage: React.FC = () => {
 
             {/* Duplicate Matches Box */}
             {duplicateMatches.length > 0 && (
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-1.5 animate-in fade-in">
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-1.5 animate-in fade-in" id="duplicate-matches-box">
                 <div className="flex items-center gap-2 text-amber-900 font-bold text-xs">
                   <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
                   <span>Potential Duplicate Question Detected ({duplicateMatches.length} match)</span>
                 </div>
                 {duplicateMatches.slice(0, 2).map((match: any, idx: number) => (
                   <p key={idx} className="text-[11px] text-amber-800 pl-6">
-                    • Match with <span className="font-mono font-semibold">{match.id}</span> (Similarity:{' '}
-                    <span className="font-semibold">{Math.round((match.score || 0) * 100)}%</span>): &quot;
+                    • Match with <span className="font-mono font-semibold">{match.questionId}</span> (Similarity:{' '}
+                    <span className="font-semibold">{Math.round((match.similarity || 0) * 100)}%</span>): &quot;
                     {match.questionText || match.content}&quot;
                   </p>
                 ))}
+              </div>
+            )}
+
+            {hasCheckedDuplicate && duplicateMatches.length === 0 && (
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl space-y-1 animate-in fade-in" id="no-duplicates-box">
+                <div className="flex items-center gap-2 text-emerald-900 font-bold text-xs">
+                  <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>No duplicate questions found in the library.</span>
+                </div>
               </div>
             )}
 

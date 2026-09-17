@@ -11,6 +11,7 @@ import {
   Play,
   Save,
   FileQuestion,
+  UploadCloud,
 } from 'lucide-react';
 import { Video, Script, VideoProductionStatus, AssignmentTaskType } from '../../types';
 import { apiClient } from '../../lib/api-client';
@@ -38,6 +39,42 @@ export const RecordingWorkspace: React.FC<RecordingWorkspaceProps> = ({
   // Notes state
   const [recordingNotes, setRecordingNotes] = useState<string>(video.notes || '');
   const [isSavingNotes, setIsSavingNotes] = useState<boolean>(false);
+
+  // Raw file upload state
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isUploadingFile, setIsUploadingFile] = useState<boolean>(false);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setSelectedFile(e.target.files[0]);
+    } else {
+      setSelectedFile(null);
+    }
+  };
+
+  const handleUploadFile = async () => {
+    if (!selectedFile) return;
+    setIsUploadingFile(true);
+    setError(null);
+    setSuccessMessage(null);
+    try {
+      const updatedVideo = await apiClient.uploadVideoFile(videoId, selectedFile, video.contentId);
+      setSuccessMessage(`Successfully uploaded "${selectedFile.name}" to Google Drive! File ID: ${updatedVideo.driveFileId}`);
+      setSelectedFile(null);
+      // Reset the file input element visually
+      const fileInput = document.getElementById('raw-video-file-input') as HTMLInputElement | null;
+      if (fileInput) {
+        fileInput.value = '';
+      }
+      if (onStatusChange) {
+        onStatusChange();
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Failed to upload video asset.');
+    } finally {
+      setIsUploadingFile(false);
+    }
+  };
 
   const fetchScript = async () => {
     try {
@@ -138,10 +175,11 @@ export const RecordingWorkspace: React.FC<RecordingWorkspaceProps> = ({
               <Button
                 variant="primary"
                 size="sm"
-                disabled={isUpdating}
+                disabled={isUpdating || !video.driveFileId}
                 onClick={() => handleStatusTransition(VideoProductionStatus.RECORDED)}
                 className="text-xs"
                 icon={CheckCircle2}
+                title={!video.driveFileId ? "A raw video file must be uploaded before marking as Recorded" : ""}
               >
                 Mark Recorded (RECORDED)
               </Button>
@@ -251,6 +289,67 @@ export const RecordingWorkspace: React.FC<RecordingWorkspaceProps> = ({
 
         {/* Right Col: Recording Assignments & Operational Notes */}
         <div className="space-y-6">
+          {/* Raw Video Upload Card */}
+          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-3">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <UploadCloud className="w-4 h-4 text-indigo-600" />
+                <h3 className="text-sm font-bold text-slate-900">Raw Video Upload</h3>
+              </div>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              {video.driveFileId ? (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg space-y-1.5">
+                  <div className="flex items-center gap-1.5 font-semibold text-emerald-900">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <span>Raw Video Uploaded</span>
+                  </div>
+                  <div className="font-mono text-[10px] text-emerald-700 break-all space-y-1">
+                    <p><strong>File ID:</strong> {video.driveFileId}</p>
+                    {video.finalRenderPath && <p><strong>Path:</strong> {video.finalRenderPath}</p>}
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg">
+                  <p className="font-medium text-[11px] leading-snug">
+                    A raw video file is required in Google Drive before you can mark this video as Recorded.
+                  </p>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider">Select Video File</label>
+                <input
+                  id="raw-video-file-input"
+                  type="file"
+                  accept="video/*"
+                  onChange={handleFileChange}
+                  disabled={isUploadingFile}
+                  className="w-full text-xs text-slate-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 border border-slate-200 rounded-lg p-1.5 focus:outline-none"
+                />
+              </div>
+
+              {selectedFile && (
+                <div className="text-[11px] text-slate-600 space-y-1 bg-slate-50 p-2 rounded-lg border border-slate-100">
+                  <p className="truncate"><strong>Name:</strong> {selectedFile.name}</p>
+                  <p><strong>Size:</strong> {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB</p>
+                </div>
+              )}
+
+              <Button
+                variant="primary"
+                size="sm"
+                className="w-full text-xs justify-center"
+                disabled={!selectedFile || isUploadingFile}
+                onClick={handleUploadFile}
+                icon={UploadCloud}
+              >
+                {isUploadingFile ? 'Uploading to Google Drive...' : 'Upload Raw Video'}
+              </Button>
+            </div>
+          </div>
+
           {/* Recording Assignment Card */}
           <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-3">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">

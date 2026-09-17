@@ -1,18 +1,22 @@
 import React from 'react';
+import { SectionLoading, PageLoading, Spinner, Skeleton } from '../../design-system/components/Loading';
 
-interface LoadingStateProps {
+export interface LoadingStateProps {
   id?: string;
   message?: string;
+  fullPage?: boolean;
 }
 
 export const LoadingState: React.FC<LoadingStateProps> = ({
   id = 'loading-state-view',
   message = 'Loading data...',
+  fullPage = false,
 }) => {
-  return (
-    <div id={id} className="flex flex-col items-center justify-center p-12 space-y-3">
-      <div className="w-8 h-8 border-3 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
-      <p className="text-sm font-medium text-slate-500">{message}</p>
-    </div>
-  );
+  if (fullPage) {
+    return <PageLoading id={id} message={message} />;
+  }
+  return <SectionLoading id={id} message={message} />;
 };
+
+export { Spinner, Skeleton, PageLoading, SectionLoading };
+export default LoadingState;

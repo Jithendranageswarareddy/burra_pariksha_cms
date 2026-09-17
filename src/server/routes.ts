@@ -49,6 +49,8 @@ import { ProductionAssetValidationService } from '../lib/services/production-ass
 import { ActorContext } from '../lib/services/object-auth.service';
 import { usersRepository } from '../lib/repositories/users.repository';
 import { questionsRepository } from '../lib/repositories/questions.repository';
+import { mediaAssetsRepository } from '../lib/repositories/media-assets.repository';
+import { videosRepository } from '../lib/repositories/videos.repository';
 import { socialReviewsRepository } from '../lib/repositories/social-reviews.repository';
 import { thumbnailsRepository } from '../lib/repositories/thumbnails.repository';
 import { scriptsRepository, scriptVersionsRepository } from '../lib/repositories/scripts.repository';
@@ -1656,9 +1658,14 @@ apiRouter.post('/questions/create', requireRole([UserRole.ADMIN, UserRole.CONTEN
     const idempotencyHeader = req.headers['x-idempotency-key'];
     const idempotencyKey = typeof idempotencyHeader === 'string' ? idempotencyHeader : req.body.idempotencyKey;
 
+    const rawQuestionText = (req.body.questionText || req.body.question || req.body.content || '');
+    const canonicalQuestionText = typeof rawQuestionText === 'string' ? rawQuestionText.trim() : '';
+
     const payload = {
-      creationMode: req.body.creationMode || 'manual',
+      creationMode: req.body.creationMode || 'ai',
       ...req.body,
+      questionText: canonicalQuestionText || req.body.questionText,
+      question: canonicalQuestionText || req.body.question,
       idempotencyKey,
     };
 
@@ -1889,13 +1896,14 @@ apiRouter.post(
   requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.QUESTION_EDITOR, UserRole.REVIEWER]),
   async (req: Request, res: Response) => {
     try {
-      const { question, skipTaxonomyLookup, source } = req.body || {};
+      const { question, skipTaxonomyLookup, skipDuplicateCheck, source } = req.body || {};
       if (!question) {
         return res.status(400).json({ success: false, error: 'Question payload is required for candidate validation.' });
       }
 
       const result = await questionValidationService.validateCandidate(question, {
         skipTaxonomyLookup: Boolean(skipTaxonomyLookup),
+        skipDuplicateCheck: Boolean(skipDuplicateCheck),
         source,
       });
       res.json({ success: true, data: result });
@@ -2182,7 +2190,25 @@ apiRouter.patch('/videos/:id/status', requireRole([UserRole.ADMIN, UserRole.CONT
     if (!canModify) {
       return res.status(403).json({ error: 'Forbidden: You do not have permission to update this video status.' });
     }
-    const updated = await videoService.transitionStatus(id, status, currentActor, remarks, actualDurationSeconds);
+
+    if (status === VideoProductionStatus.RECORDED && !video.driveFileId) {
+      return res.status(400).json({
+        error: 'ValidationError',
+        message: 'Raw video file must be uploaded to Google Drive before marking as Recorded.',
+      });
+    }
+
+    if ((status === VideoProductionStatus.EDITED || status === VideoProductionStatus.FINAL_REVIEW) && video.status === VideoProductionStatus.EDITING) {
+      const editedAssets = await mediaAssetsRepository.findByContentIdAndStage(video.contentId || '', 'EDITED');
+      if (editedAssets.length === 0) {
+        return res.status(400).json({
+          error: 'ValidationError',
+          message: 'An edited video file must be uploaded to Google Drive before completing editing or sending to Final Review.',
+        });
+      }
+    }
+
+    const updated = await videoService.transitionStatus(id, status, currentActor, remarks, actualDurationSeconds, false);
     res.json(updated);
   } catch (err: any) {
     res.status(err?.statusCode || 400).json({
@@ -2279,6 +2305,15 @@ apiRouter.post('/videos/:id/final-render/complete', requireRole([UserRole.ADMIN,
       return res.status(400).json({
         error: 'Invalid State Transition',
         message: `Cannot complete editing from status "${video.status}". Video must be in "EDITING" status.`,
+      });
+    }
+
+    // Authoritative check: An edited video must be uploaded to Google Drive
+    const editedAssets = await mediaAssetsRepository.findByContentIdAndStage(video.contentId || '', 'EDITED');
+    if (editedAssets.length === 0) {
+      return res.status(400).json({
+        error: 'ValidationError',
+        message: 'An edited video file must be uploaded before completing editing.',
       });
     }
 
@@ -2574,34 +2609,102 @@ apiRouter.post('/phase17/video/:videoId/transition-editing', requireAuth, async 
   }
 });
 
-apiRouter.post('/phase17/video/:videoId/edited', requireAuth, async (req: Request, res: Response) => {
-  try {
-    const { videoId } = req.params;
-    const actor = getRequestActor(req);
-    const { expectedContentId, fileName, mimeType, binaryBase64 } = req.body || {};
+apiRouter.post(
+  '/phase17/video/:videoId/edited',
+  requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.VIDEO_EDITOR, UserRole.EDITOR]),
+  async (req: Request, res: Response) => {
+    try {
+      const { videoId } = req.params;
+      const actor = getRequestActor(req);
 
-    if (!fileName || !mimeType || !binaryBase64) {
-      return res.status(400).json({
-        error: 'fileName, mimeType, and binaryBase64 are required to upload edited video.',
-      });
+      const video = await videosRepository.findById(videoId);
+      if (!video) {
+        return res.status(404).json({ error: `Video with ID "${videoId}" does not exist.` });
+      }
+
+      const canModify = await objectAuthService.canModifyVideo(actor, video);
+      if (!canModify) {
+        return res.status(403).json({ error: 'Forbidden: You do not have permission to upload edited video for this video.' });
+      }
+
+      const isMultipart = req.headers['content-type']?.includes('multipart/form-data');
+
+      if (isMultipart) {
+        const bb = busboy({ headers: req.headers });
+        let expectedContentId = req.query.expectedContentId as string | undefined;
+        let advanceStatusStr = req.query.advanceStatus as string | undefined;
+        let uploadedFile: { buffer: Buffer; filename: string; mimeType: string } | null = null;
+
+        bb.on('field', (name, val) => {
+          if (name === 'expectedContentId') expectedContentId = val;
+          if (name === 'advanceStatus') advanceStatusStr = val;
+        });
+
+        bb.on('file', (name, fileStream, info) => {
+          const chunks: Buffer[] = [];
+          fileStream.on('data', (chunk) => chunks.push(chunk));
+          fileStream.on('end', () => {
+            uploadedFile = {
+              buffer: Buffer.concat(chunks),
+              filename: info.filename,
+              mimeType: info.mimeType,
+            };
+          });
+        });
+
+        bb.on('finish', async () => {
+          try {
+            if (!uploadedFile) {
+              return res.status(400).json({ error: 'No video file provided in multipart upload body.' });
+            }
+            const advanceStatus = advanceStatusStr !== 'false';
+            const result = await phase17VideoProductionService.uploadEditedVideo(
+              {
+                videoId,
+                expectedContentId: expectedContentId || video.contentId,
+                editedBinaryBuffer: uploadedFile.buffer,
+                fileName: uploadedFile.filename,
+                mimeType: uploadedFile.mimeType,
+                advanceStatus,
+              },
+              actor
+            );
+            res.status(200).json(result);
+          } catch (err: any) {
+            res.status(400).json({ error: err?.message || 'Failed to upload edited video' });
+          }
+        });
+
+        req.pipe(bb);
+        return;
+      }
+
+      const { expectedContentId, fileName, mimeType, binaryBase64, advanceStatus } = req.body || {};
+
+      if (!fileName || !mimeType || !binaryBase64) {
+        return res.status(400).json({
+          error: 'fileName, mimeType, and binaryBase64 are required to upload edited video.',
+        });
+      }
+
+      const editedBinaryBuffer = Buffer.from(binaryBase64, 'base64');
+      const result = await phase17VideoProductionService.uploadEditedVideo(
+        {
+          videoId,
+          expectedContentId: expectedContentId || video.contentId,
+          editedBinaryBuffer,
+          fileName,
+          mimeType,
+          advanceStatus: advanceStatus !== false,
+        },
+        actor
+      );
+      res.status(200).json(result);
+    } catch (err: any) {
+      res.status(400).json({ error: err?.message || 'Failed to upload edited video' });
     }
-
-    const editedBinaryBuffer = Buffer.from(binaryBase64, 'base64');
-    const result = await phase17VideoProductionService.uploadEditedVideo(
-      {
-        videoId,
-        expectedContentId,
-        editedBinaryBuffer,
-        fileName,
-        mimeType,
-      },
-      actor
-    );
-    res.status(200).json(result);
-  } catch (err: any) {
-    res.status(400).json({ error: err?.message || 'Failed to upload edited video' });
   }
-});
+);
 
 apiRouter.post('/phase17/video/:videoId/approve-final', requireAuth, async (req: Request, res: Response) => {
   try {

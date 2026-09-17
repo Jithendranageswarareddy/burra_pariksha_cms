@@ -38,6 +38,16 @@ import { SocialEnhancementService } from './social-enhancement.service';
 import { PlatformAdaptationService } from './platform-adaptation.service';
 
 export class SocialReviewService {
+  private static draftCache: Map<string, any> = new Map();
+
+  public static clearDraftCache(questionId?: string): void {
+    if (questionId) {
+      this.draftCache.delete(questionId);
+    } else {
+      this.draftCache.clear();
+    }
+  }
+
   /**
    * Computes a deterministic SHA-256 fingerprint for the approval-relevant content in a social package.
    * Property ordering is canonicalized so equivalent content always yields the exact same hash.
@@ -209,11 +219,15 @@ export class SocialReviewService {
       contentMaster = await contentMastersRepository.findById(question.contentMasterId);
     }
 
-    // Build draft social artifacts using SocialEnhancementService
-    const draftResult = await SocialEnhancementService.generateSocialEnhancementDraft({
-      question,
-      contentMasterId: question.contentMasterId,
-    });
+    // Build draft social artifacts using SocialEnhancementService (with caching for stability)
+    let draftResult = this.draftCache.get(question.id);
+    if (!draftResult) {
+      draftResult = await SocialEnhancementService.generateSocialEnhancementDraft({
+        question,
+        contentMasterId: question.contentMasterId,
+      });
+      this.draftCache.set(question.id, draftResult);
+    }
 
     const payload = draftResult.payload;
     const hook = payload.hooks && payload.hooks.length > 0 ? payload.hooks[0] : null;

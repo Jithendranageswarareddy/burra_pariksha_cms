@@ -1,0 +1,40 @@
+{
+  "id": "DEL-BAK-1789643927653-e96b1faf",
+  "backupTimestamp": "2026-09-17T11:18:47.653Z",
+  "sheetName": "THUMBNAIL_VERSIONS",
+  "entityId": "BP-T-000018-V1",
+  "physicalRowIndex": 2,
+  "headers": [
+    "id",
+    "thumbnail_id",
+    "version_number",
+    "drive_asset_url",
+    "designer_notes",
+    "created_at",
+    "drive_file_id"
+  ],
+  "rawRow": [
+    "BP-T-000018-V1",
+    "BP-T-000018",
+    1,
+    "https://drive.google.com/file/d/1Q1rc6yYmM76MtlOp20_69-3dqQDCnM66/view?usp=drivesdk",
+    "Initial test thumbnail upload",
+    "2026-09-17T11:07:13.805Z",
+    "1Q1rc6yYmM76MtlOp20_69-3dqQDCnM66"
+  ],
+  "record": {
+    "id": "BP-T-000018-V1",
+    "thumbnailId": "BP-T-000018",
+    "versionNumber": 1,
+    "driveAssetUrl": "https://drive.google.com/file/d/1Q1rc6yYmM76MtlOp20_69-3dqQDCnM66/view?usp=drivesdk",
+    "designerNotes": "Initial test thumbnail upload",
+    "createdAt": "2026-09-17T11:07:13.805Z",
+    "driveFileId": "1Q1rc6yYmM76MtlOp20_69-3dqQDCnM66"
+  },
+  "checksum": "9f005e4891e2709ca908e17c4845a393f088b12bbc5256aab996a63b5a8bb572",
+  "actor": {
+    "id": "USR-001",
+    "name": "Surgical Cleanup Script"
+  },
+  "reason": "Post-audit cleanup of thumbnail verification test artifacts"
+}

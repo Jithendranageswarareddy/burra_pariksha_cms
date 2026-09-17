@@ -78,7 +78,7 @@ export async function runLanguageDefaultVerification() {
   // Test 2a: Omitted language payload -> TELUGU
   const createdOmitted = await questionService.createQuestion(
     {
-      creationMode: 'manual',
+      creationMode: 'ai',
       topicId: validTopic,
       subtopicId: validSubtopic,
       difficulty: 'Intermediate',
@@ -99,7 +99,7 @@ export async function runLanguageDefaultVerification() {
   // Test 2b: Explicit ENGLISH payload -> ENGLISH
   const createdEnglish = await questionService.createQuestion(
     {
-      creationMode: 'manual',
+      creationMode: 'ai',
       topicId: validTopic,
       subtopicId: validSubtopic,
       difficulty: 'Intermediate',
@@ -121,7 +121,7 @@ export async function runLanguageDefaultVerification() {
   // Test 2c: Explicit TELUGU payload -> TELUGU
   const createdTelugu = await questionService.createQuestion(
     {
-      creationMode: 'manual',
+      creationMode: 'ai',
       topicId: validTopic,
       subtopicId: validSubtopic,
       difficulty: 'Intermediate',

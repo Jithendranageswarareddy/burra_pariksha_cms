@@ -13,6 +13,7 @@ import {
   Clock,
   Layers,
   Sparkles,
+  Download,
 } from 'lucide-react';
 import { Thumbnail, ThumbnailVersion } from '../../types';
 import { apiClient } from '../../lib/api-client';
@@ -36,6 +37,12 @@ export const ThumbnailWorkspace: React.FC<ThumbnailWorkspaceProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  // File Upload State
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState<boolean>(false);
+  const [uploadProgress, setUploadProgress] = useState<string | null>(null);
+  const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null);
+
   // Form Fields
   const [hookHeadline, setHookHeadline] = useState<string>('');
   const [driveAssetUrl, setDriveAssetUrl] = useState<string>('');
@@ -45,6 +52,18 @@ export const ThumbnailWorkspace: React.FC<ThumbnailWorkspaceProps> = ({
   // Version modal
   const [showVersionModal, setShowVersionModal] = useState<boolean>(false);
   const [designerNotes, setDesignerNotes] = useState<string>('');
+
+  const hasDriveAsset = Boolean(thumbnail?.driveFileId && thumbnail.driveFileId.trim());
+
+  useEffect(() => {
+    if (selectedFile) {
+      const objUrl = URL.createObjectURL(selectedFile);
+      setLocalPreviewUrl(objUrl);
+      return () => URL.revokeObjectURL(objUrl);
+    } else {
+      setLocalPreviewUrl(null);
+    }
+  }, [selectedFile]);
 
   const fetchThumbnailData = async () => {
     try {
@@ -75,6 +94,63 @@ export const ThumbnailWorkspace: React.FC<ThumbnailWorkspaceProps> = ({
   useEffect(() => {
     fetchThumbnailData();
   }, [videoId]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0];
+      const validTypes = ['image/png', 'image/jpeg', 'image/webp'];
+      if (!validTypes.includes(file.type)) {
+        setError('Please select a valid image file (PNG, JPEG, or WebP).');
+        setSelectedFile(null);
+        return;
+      }
+      setSelectedFile(file);
+      setError(null);
+    }
+  };
+
+  const handleUploadFile = async () => {
+    if (!selectedFile) {
+      setError('Please select an image file first.');
+      return;
+    }
+
+    try {
+      setIsUploading(true);
+      setError(null);
+      setSuccessMessage(null);
+      setUploadProgress('Uploading thumbnail binary to Google Drive...');
+
+      const res = await apiClient.uploadThumbnailFile(
+        videoId,
+        selectedFile,
+        designerNotes || 'Uploaded via Thumbnail Workspace'
+      );
+
+      setThumbnail(res.thumbnail);
+      setStatus(res.thumbnail.status);
+      setDriveAssetUrl(res.thumbnail.driveAssetUrl || '');
+      setPreviewUrl(res.thumbnail.previewUrl || '');
+
+      const vers = await apiClient.getThumbnailVersions(res.thumbnail.id);
+      setVersions(vers);
+
+      setSuccessMessage(
+        `Thumbnail "${res.thumbnail.fileName || selectedFile.name}" successfully uploaded to Google Drive (v${res.thumbnail.currentVersion})!`
+      );
+      setSelectedFile(null);
+      const fileInput = document.getElementById('thumbnail-file-input') as HTMLInputElement | null;
+      if (fileInput) fileInput.value = '';
+
+      if (onStatusChange) onStatusChange();
+      setTimeout(() => setSuccessMessage(null), 5000);
+    } catch (err: any) {
+      setError(err?.message || 'Failed to upload thumbnail file to Google Drive');
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(null);
+    }
+  };
 
   const handleSave = async (createNewVersion: boolean) => {
     try {
@@ -117,7 +193,16 @@ export const ThumbnailWorkspace: React.FC<ThumbnailWorkspaceProps> = ({
 
   const handleQuickStatusChange = async (newStatus: 'PENDING' | 'DESIGNED' | 'APPROVED' | 'REJECTED') => {
     if (!thumbnail) {
+      if (newStatus === 'APPROVED') {
+        setError('Cannot approve thumbnail: A real thumbnail image must be uploaded to Google Drive first.');
+        return;
+      }
       setStatus(newStatus);
+      return;
+    }
+
+    if (newStatus === 'APPROVED' && !hasDriveAsset) {
+      setError('Cannot approve thumbnail: A real thumbnail image must be uploaded to Google Drive first (driveFileId is missing).');
       return;
     }
 
@@ -162,6 +247,10 @@ export const ThumbnailWorkspace: React.FC<ThumbnailWorkspaceProps> = ({
       </div>
     );
   }
+
+  const effectivePreviewSrc =
+    localPreviewUrl ||
+    (hasDriveAsset && thumbnail?.id ? `/api/thumbnails/${encodeURIComponent(thumbnail.id)}/download` : (previewUrl || null));
 
   return (
     <div className="space-y-6">
@@ -214,12 +303,15 @@ export const ThumbnailWorkspace: React.FC<ThumbnailWorkspaceProps> = ({
           <div className="flex items-center gap-1.5">
             <button
               type="button"
-              disabled={isSaving}
+              disabled={isSaving || !hasDriveAsset}
               onClick={() => handleQuickStatusChange('APPROVED')}
-              className={`text-xs px-2.5 py-1 rounded font-medium border flex items-center gap-1 ${
-                status === 'APPROVED'
-                  ? 'bg-emerald-600 text-white border-emerald-600'
-                  : 'bg-white text-slate-600 border-slate-200 hover:bg-emerald-50'
+              title={!hasDriveAsset ? 'Cannot approve: A real thumbnail file must be uploaded to Google Drive first' : 'Approve thumbnail'}
+              className={`text-xs px-2.5 py-1 rounded font-medium border flex items-center gap-1 transition-all ${
+                !hasDriveAsset
+                  ? 'bg-slate-50 text-slate-400 border-slate-200 cursor-not-allowed opacity-60'
+                  : status === 'APPROVED'
+                  ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                  : 'bg-white text-slate-600 border-slate-200 hover:bg-emerald-50 hover:text-emerald-700'
               }`}
             >
               <Check className="w-3 h-3" />
@@ -259,9 +351,134 @@ export const ThumbnailWorkspace: React.FC<ThumbnailWorkspaceProps> = ({
 
       {/* Main Split Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left 2 Cols: Asset Editor & Image Preview */}
+        {/* Left 2 Cols: Real File Upload, Verified Drive Details, & Visual Preview */}
         <div className="lg:col-span-2 space-y-5">
-          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-4">
+          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-5">
+            {/* 1. Real Image File Picker & Upload to Google Drive */}
+            <div className="space-y-3 pb-4 border-b border-slate-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                    Upload Production Thumbnail (PNG / JPEG / WebP)
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    Uploads the actual image binary directly to Google Drive into the content item's Thumbnails folder.
+                  </p>
+                </div>
+                {isUploading && (
+                  <span className="text-[11px] text-indigo-600 font-mono animate-pulse">
+                    {uploadProgress || 'Uploading...'}
+                  </span>
+                )}
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+                <input
+                  id="thumbnail-file-input"
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  onChange={handleFileChange}
+                  disabled={isUploading}
+                  className="flex-1 text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 border border-slate-200 rounded-lg p-1.5 focus:outline-none"
+                />
+
+                <Button
+                  variant="primary"
+                  size="sm"
+                  disabled={!selectedFile || isUploading}
+                  onClick={handleUploadFile}
+                  className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center gap-1.5 shrink-0"
+                  icon={UploadCloud}
+                >
+                  {isUploading ? 'Uploading to Drive...' : 'Upload to Google Drive'}
+                </Button>
+              </div>
+
+              {selectedFile && (
+                <div className="flex items-center justify-between text-[11px] text-indigo-900 bg-indigo-50/60 p-2.5 rounded-lg border border-indigo-100 font-mono">
+                  <span className="truncate max-w-xs">
+                    <strong>Selected:</strong> {selectedFile.name}
+                  </span>
+                  <span>
+                    <strong>Size:</strong> {(selectedFile.size / 1024).toFixed(1)} KB
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* 2. Uploaded Google Drive Asset Details & Download Action */}
+            {hasDriveAsset && thumbnail ? (
+              <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span className="font-bold text-xs text-emerald-900">
+                      Google Drive Thumbnail Ready (v{thumbnail.currentVersion})
+                    </span>
+                  </div>
+                  <span className="font-mono text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-semibold border border-emerald-300">
+                    {thumbnail.id}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono text-emerald-900 bg-white/80 p-3 rounded-lg border border-emerald-100">
+                  <div>
+                    <span className="text-slate-500 font-sans font-medium text-[11px]">Filename:</span>
+                    <p className="font-semibold truncate">{thumbnail.fileName || 'thumbnail.png'}</p>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 font-sans font-medium text-[11px]">Drive File ID:</span>
+                    <p className="font-semibold truncate">{thumbnail.driveFileId}</p>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 font-sans font-medium text-[11px]">File Size:</span>
+                    <p className="font-semibold">
+                      {thumbnail.fileSize
+                        ? `${(thumbnail.fileSize / 1024).toFixed(1)} KB (${thumbnail.fileSize.toLocaleString()} bytes)`
+                        : '—'}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 font-sans font-medium text-[11px]">MIME Type:</span>
+                    <p className="font-semibold">{thumbnail.mimeType || 'image/png'}</p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2.5 pt-1">
+                  <a
+                    href={`/api/thumbnails/${encodeURIComponent(thumbnail.id)}/download`}
+                    download={thumbnail.fileName || `thumbnail-${thumbnail.id}.png`}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold text-xs transition-colors shadow-xs"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Download Thumbnail from CMS</span>
+                  </a>
+
+                  {thumbnail.driveAssetUrl && (
+                    <a
+                      href={thumbnail.driveAssetUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg font-medium text-xs transition-colors"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+                      <span>Open in Google Drive</span>
+                    </a>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold text-amber-900">No Google Drive Thumbnail Asset</p>
+                  <p className="text-[11px] text-amber-700 mt-0.5">
+                    Select and upload a real PNG, JPEG, or WebP image above. A verified Google Drive asset is required before this thumbnail can be approved.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Hook Headline */}
             <div>
               <div className="flex items-center justify-between mb-1">
@@ -281,10 +498,10 @@ export const ThumbnailWorkspace: React.FC<ThumbnailWorkspaceProps> = ({
               />
             </div>
 
-            {/* Google Drive Asset URL */}
+            {/* Optional Design Source Link (PSD / Figma) */}
             <div>
               <label className="block text-xs font-bold text-slate-800 mb-1">
-                Google Drive Asset / PSD / Figma URL
+                Optional Design Source Link (PSD / Figma project URL)
               </label>
               <div className="flex items-center gap-2">
                 <input
@@ -300,34 +517,7 @@ export const ThumbnailWorkspace: React.FC<ThumbnailWorkspaceProps> = ({
                     target="_blank"
                     rel="noreferrer"
                     className="p-2 border border-slate-300 rounded-lg hover:bg-slate-50 text-slate-600"
-                    title="Open Drive link"
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                  </a>
-                )}
-              </div>
-            </div>
-
-            {/* Image Preview URL */}
-            <div>
-              <label className="block text-xs font-bold text-slate-800 mb-1">
-                Rendered Preview Image URL (Direct PNG / JPG Link)
-              </label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="url"
-                  value={previewUrl}
-                  onChange={(e) => setPreviewUrl(e.target.value)}
-                  placeholder="https://images.unsplash.com/... or Google Drive direct image link"
-                  className="flex-1 text-xs px-3 py-2 border border-slate-300 rounded-lg focus:ring-1 focus:ring-indigo-500 font-mono text-slate-700"
-                />
-                {previewUrl && (
-                  <a
-                    href={previewUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="p-2 border border-slate-300 rounded-lg hover:bg-slate-50 text-slate-600"
-                    title="Open direct image"
+                    title="Open link"
                   >
                     <ExternalLink className="w-4 h-4" />
                   </a>
@@ -343,9 +533,9 @@ export const ThumbnailWorkspace: React.FC<ThumbnailWorkspaceProps> = ({
               <div className="bg-slate-900 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-center gap-6 border border-slate-800">
                 {/* 9:16 Shorts Mockup Frame */}
                 <div className="w-40 h-72 bg-slate-800 rounded-xl overflow-hidden relative shadow-lg border border-slate-700 flex flex-col justify-between shrink-0">
-                  {previewUrl ? (
+                  {effectivePreviewSrc ? (
                     <img
-                      src={previewUrl}
+                      src={effectivePreviewSrc}
                       alt="Thumbnail Preview"
                       referrerPolicy="no-referrer"
                       className="absolute inset-0 w-full h-full object-cover"
@@ -404,7 +594,7 @@ export const ThumbnailWorkspace: React.FC<ThumbnailWorkspaceProps> = ({
                   className="text-xs flex items-center gap-1.5"
                 >
                   <Save className="w-3.5 h-3.5" />
-                  <span>Save In-Place</span>
+                  <span>Save Details</span>
                 </Button>
 
                 <Button
@@ -435,7 +625,7 @@ export const ThumbnailWorkspace: React.FC<ThumbnailWorkspaceProps> = ({
 
             {versions.length === 0 ? (
               <div className="p-4 text-center text-slate-400 text-xs bg-slate-50 rounded-lg">
-                No versions committed yet. Click "Save as New Graphic Version" to record a snapshot.
+                No versions committed yet. Upload a thumbnail image or click "Save as New Graphic Version" to record a snapshot.
               </div>
             ) : (
               <div className="space-y-2.5 max-h-96 overflow-y-auto pr-1">
@@ -470,21 +660,33 @@ export const ThumbnailWorkspace: React.FC<ThumbnailWorkspaceProps> = ({
                       </p>
 
                       <div className="flex items-center justify-between pt-1 border-t border-slate-100/80">
-                        <span className="text-[10px] text-slate-400 font-mono truncate max-w-[140px]">
-                          {ver.driveAssetUrl}
+                        <span className="text-[10px] text-slate-400 font-mono truncate max-w-[120px]">
+                          {ver.driveFileId ? `ID: ${ver.driveFileId}` : ver.driveAssetUrl}
                         </span>
 
-                        {ver.driveAssetUrl && (
-                          <a
-                            href={ver.driveAssetUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-[11px] text-pink-600 hover:underline font-medium flex items-center gap-1"
-                          >
-                            <span>Open</span>
-                            <ExternalLink className="w-3 h-3" />
-                          </a>
-                        )}
+                        <div className="flex items-center gap-2">
+                          {thumbnail?.id && (
+                            <a
+                              href={`/api/thumbnails/${encodeURIComponent(thumbnail.id)}/download`}
+                              download={`thumbnail-v${ver.versionNumber}.png`}
+                              className="text-[11px] text-indigo-600 hover:underline font-medium flex items-center gap-1"
+                            >
+                              <Download className="w-3 h-3" />
+                              <span>Download</span>
+                            </a>
+                          )}
+                          {ver.driveAssetUrl && (
+                            <a
+                              href={ver.driveAssetUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-[11px] text-pink-600 hover:underline font-medium flex items-center gap-1"
+                            >
+                              <span>Drive</span>
+                              <ExternalLink className="w-3 h-3" />
+                            </a>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );

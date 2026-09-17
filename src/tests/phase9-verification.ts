@@ -369,21 +369,22 @@ export async function runPhase9Verification() {
   }
 
   // ============================================================================
-  // P09-19: Manual Question Verification Path
+  // P09-19: Direct Question Verification Path
   // ============================================================================
-  console.log('\n--- P09-19: Manual Question Verification Path ---');
+  console.log('\n--- P09-19: Direct Question Verification Path ---');
   const manualQuestion = await questionService.createQuestion({
+    creationMode: 'ai',
     topicId: topic.id,
     subtopicId: subtopic.id,
     difficulty: 'Intermediate' as any,
     language: QuestionLanguage.TELUGU as any,
-    questionText: `మాన్యువల్ ప్రశ్న పరీక్షా వచనం (${Date.now()})`,
+    questionText: `ప్రశ్న పరీక్షా వచనం (${Date.now()})`,
     options: { a: '10', b: '20', c: '30', d: '40' },
     correctAnswer: 'B',
     explanation: 'వివరణ కనీసం 5 అక్షరాలు కలిగి ఉంది.',
   } as any, testActor);
 
-  assert(manualQuestion.lastValidationId !== undefined, 'P09-19', 'Manual question routed through multi-layer verification path and received validation ID');
+  assert(manualQuestion.lastValidationId !== undefined, 'P09-19', 'Direct question routed through multi-layer verification path and received validation ID');
   try { await questionsRepository.deleteRecord(manualQuestion.id); } catch {}
 
   // ============================================================================
@@ -405,13 +406,13 @@ export async function runPhase9Verification() {
   try { await questionsRepository.deleteRecord(aiCandidate.id); } catch {}
 
   // ============================================================================
-  // P09-21: Manual & AI Convergence
+  // P09-21: Multi-Layer Verification Convergence
   // ============================================================================
-  console.log('\n--- P09-21: Manual & AI Convergence ---');
+  console.log('\n--- P09-21: Multi-Layer Verification Convergence ---');
   assert(
     manualQuestion.validationStatus !== undefined && aiCandidate.validationStatus !== undefined,
     'P09-21',
-    'Both manual and AI candidates converge on the same multi-layer verification engine'
+    'Question candidates converge on the same multi-layer verification engine'
   );
 
   // ============================================================================

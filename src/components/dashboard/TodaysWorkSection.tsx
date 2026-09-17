@@ -159,7 +159,7 @@ export const TodaysWorkSection: React.FC<TodaysWorkSectionProps> = ({ items }) =
                         {item.priority}
                       </span>
                       <span className="text-[11px] font-semibold text-slate-700">
-                        {item.category} • {item.topic}
+                        {item.topic || item.category || 'General'}
                       </span>
                       <span className="text-[10px] text-slate-400 flex items-center gap-1 font-mono">
                         <Clock className="w-3 h-3" />

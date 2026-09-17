@@ -156,16 +156,88 @@ export const ProductionTrackerPage: React.FC = () => {
     searchInput || urlSearchQuery,
   ].filter(Boolean).length;
 
+  const targetTab = useMemo(() => {
+    switch (selectedStatus) {
+      case VideoProductionStatus.SCRIPT_REQUIRED:
+      case VideoProductionStatus.SCRIPT_READY:
+        return 'script';
+      case VideoProductionStatus.EDITING:
+      case VideoProductionStatus.EDITED:
+        return 'editing';
+      case VideoProductionStatus.FINAL_REVIEW:
+        return 'final-review';
+      case VideoProductionStatus.READY_TO_UPLOAD:
+        return 'thumbnail';
+      case VideoProductionStatus.UPLOADED:
+        return 'pinned-comment';
+      default:
+        return undefined;
+    }
+  }, [selectedStatus]);
+
+  const workflowMeta = useMemo(() => {
+    switch (selectedStatus) {
+      case VideoProductionStatus.SCRIPT_REQUIRED:
+        return {
+          stepBadge: 'Step 05 • Create Script',
+          title: 'Create Script',
+          description: 'Draft teleprompter scripts, attention hooks, Telugu translations, and timing breakdowns for queued aptitude questions.',
+        };
+      case VideoProductionStatus.SCRIPT_READY:
+        return {
+          stepBadge: 'Step 06 • Review Script',
+          title: 'Review Script',
+          description: 'Verify host timing, teleprompter readiness, and pedagogical clarity before studio recording.',
+        };
+      case VideoProductionStatus.EDITING:
+        return {
+          stepBadge: 'Step 08 • Edit Video',
+          title: 'Edit Video',
+          description: 'Video post-production, motion graphics cuts, and final short video asset assembly.',
+        };
+      case VideoProductionStatus.FINAL_REVIEW:
+        return {
+          stepBadge: 'Step 09 • Final Video',
+          title: 'Final Video',
+          description: 'Quality control signoff, duration compliance, and final video render lock.',
+        };
+      case VideoProductionStatus.READY_TO_UPLOAD:
+        return {
+          stepBadge: 'Step 10 • Create Thumbnail',
+          title: 'Create Thumbnail',
+          description: 'Custom thumbnail asset design, Google Drive upload, and approval for YouTube Shorts.',
+        };
+      case VideoProductionStatus.UPLOADED:
+        return {
+          stepBadge: 'Step 11 • Pinned Comment',
+          title: 'Pinned Comment',
+          description: 'Design, review, and approve audience challenge questions and pinned solution comments.',
+        };
+      default:
+        return {
+          stepBadge: undefined,
+          title: 'Video Production Tracker',
+          description: 'End-to-end multi-stage video workflow tracking from script drafting to teleprompter recording and 4K shorts master renders.',
+        };
+    }
+  }, [selectedStatus]);
+
   return (
     <div className="space-y-6 animate-in fade-in duration-200 pb-12">
       {/* Header */}
       <PageHeader
-        title="Video Production Tracker"
-        description="End-to-end multi-stage video workflow tracking from script drafting to teleprompter recording and 4K shorts master renders."
+        title={workflowMeta.title}
+        description={workflowMeta.description}
         badge={
-          <span className="text-xs font-mono font-semibold px-2.5 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
-            {videos.length} Total Productions
-          </span>
+          workflowMeta.stepBadge ? (
+            <span className="text-xs font-mono font-semibold px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+              {workflowMeta.stepBadge}
+            </span>
+          ) : (
+            <span className="text-xs font-mono font-semibold px-2.5 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
+              {videos.length} Total Productions
+            </span>
+          )
         }
         actions={
           <div className="flex items-center gap-2">
@@ -363,9 +435,9 @@ export const ProductionTrackerPage: React.FC = () => {
           }}
         />
       ) : viewMode === 'kanban' ? (
-        <ProductionKanban videos={filteredVideos} />
+        <ProductionKanban videos={filteredVideos} targetTab={targetTab} />
       ) : (
-        <ProductionTable videos={filteredVideos} />
+        <ProductionTable videos={filteredVideos} targetTab={targetTab} />
       )}
     </div>
   );

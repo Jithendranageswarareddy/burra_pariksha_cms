@@ -1,6 +1,7 @@
 import React from 'react';
 import { DIFFICULTY_CONFIG } from '../../config/constants';
 import { DifficultyLevel } from '../../types';
+import { Badge } from '../../design-system/components/Badge';
 
 interface DifficultyBadgeProps {
   difficulty: DifficultyLevel;
@@ -15,15 +16,19 @@ export const DifficultyBadge: React.FC<DifficultyBadgeProps> = ({ difficulty, si
     dot: 'bg-slate-500',
   };
 
-  const sizeClasses = size === 'sm' ? 'px-2 py-0.5 text-xs' : 'px-2.5 py-0.5 text-xs font-medium';
+  const variantMap: Record<string, 'success' | 'warning' | 'danger'> = {
+    EASY: 'success',
+    MEDIUM: 'warning',
+    HARD: 'danger',
+  };
 
   return (
-    <span
+    <Badge
       id={`badge-difficulty-${safeDifficulty.toString().toLowerCase()}`}
-      className={`inline-flex items-center rounded border ${config.bg} ${sizeClasses} select-none`}
+      variant={variantMap[safeDifficulty] || 'neutral'}
+      size={size}
     >
-      <span className={`w-1.5 h-1.5 rounded-full ${config.dot} mr-1.5`} />
       {config.label}
-    </span>
+    </Badge>
   );
 };

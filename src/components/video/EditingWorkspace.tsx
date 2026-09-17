@@ -15,8 +15,10 @@ import {
   FileQuestion,
   ArrowRight,
   RotateCcw,
+  UploadCloud,
+  Download,
 } from 'lucide-react';
-import { Video, Script, VideoProductionStatus, AssignmentTaskType, RenderValidationStatus } from '../../types';
+import { Video, Script, VideoProductionStatus, AssignmentTaskType, RenderValidationStatus, MediaAsset } from '../../types';
 import { ProductionAssetValidationService } from '../../lib/services/production-asset-validation.service';
 import { apiClient } from '../../lib/api-client';
 import { Button } from '../common/Button';
@@ -41,6 +43,13 @@ export const EditingWorkspace: React.FC<EditingWorkspaceProps> = ({
   const [isUpdating, setIsUpdating] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Edited Video Upload & Asset History state
+  const [selectedEditedFile, setSelectedEditedFile] = useState<File | null>(null);
+  const [isUploadingEdited, setIsUploadingEdited] = useState<boolean>(false);
+  const [editedAssets, setEditedAssets] = useState<MediaAsset[]>([]);
+  const [rawAsset, setRawAsset] = useState<MediaAsset | null>(null);
+  const [isLoadingHistory, setIsLoadingHistory] = useState<boolean>(false);
 
   // Notes & Asset URLs state
   const [editingNotes, setEditingNotes] = useState<string>(video.notes || '');
@@ -67,8 +76,26 @@ export const EditingWorkspace: React.FC<EditingWorkspaceProps> = ({
     }
   };
 
+  const fetchHistory = async () => {
+    try {
+      setIsLoadingHistory(true);
+      const history = await apiClient.getVideoProductionHistory(videoId);
+      if (history.editedAssets) {
+        setEditedAssets(history.editedAssets);
+      }
+      if (history.rawAssets && history.rawAssets.length > 0) {
+        setRawAsset(history.rawAssets[0]);
+      }
+    } catch (err: any) {
+      console.warn('Failed to load video production history:', err);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
+
   useEffect(() => {
     fetchScript();
+    fetchHistory();
     setEditingNotes(video.notes || '');
     setDriveUrl(video.driveFolderUrl || '');
     setFinalRenderUrl(video.finalRenderPath || '');
@@ -78,6 +105,58 @@ export const EditingWorkspace: React.FC<EditingWorkspaceProps> = ({
     setAspectRatio(video.finalRenderAspectRatio || '');
     setActualDuration(video.actualDurationSeconds ? String(video.actualDurationSeconds) : '');
   }, [videoId, video]);
+
+  const handleEditedFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setSelectedEditedFile(e.target.files[0]);
+      setError(null);
+    } else {
+      setSelectedEditedFile(null);
+    }
+  };
+
+  const handleUploadEditedVideo = async () => {
+    if (!selectedEditedFile) return;
+    setIsUploadingEdited(true);
+    setError(null);
+    setSuccessMessage(null);
+    try {
+      const res = await apiClient.uploadEditedVideoFile(
+        videoId,
+        selectedEditedFile,
+        video.contentId,
+        false
+      );
+
+      setSuccessMessage(
+        `Successfully uploaded edited video "${selectedEditedFile.name}" to Google Drive! Asset ID: ${res.latestMediaAsset?.id || 'MEDIA-EDITED'}`
+      );
+      setSelectedEditedFile(null);
+      const fileInput = document.getElementById('edited-video-file-input') as HTMLInputElement | null;
+      if (fileInput) {
+        fileInput.value = '';
+      }
+
+      // Auto-populate default vertical short specs if empty
+      if (!width) setWidth('1080');
+      if (!height) setHeight('1920');
+      if (!format) setFormat('MP4');
+      if (!aspectRatio) setAspectRatio('9:16');
+      if (!actualDuration) setActualDuration(String(video.targetDurationSeconds || 45));
+      if (!finalRenderUrl && res.latestMediaAsset?.fileName) {
+        setFinalRenderUrl(res.latestMediaAsset.fileName);
+      }
+
+      await fetchHistory();
+      if (onStatusChange) {
+        onStatusChange();
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Failed to upload edited video asset.');
+    } finally {
+      setIsUploadingEdited(false);
+    }
+  };
 
   const handleStatusTransition = async (nextStatus: VideoProductionStatus) => {
     setIsUpdating(true);
@@ -158,6 +237,9 @@ export const EditingWorkspace: React.FC<EditingWorkspaceProps> = ({
     finalRenderPath: finalRenderUrl,
   });
 
+  const latestEditedAsset = editedAssets.length > 0 ? editedAssets[0] : null;
+  const hasEditedVideo = Boolean(latestEditedAsset);
+
   const priorityCfg = PRIORITY_CONFIG[video.priority] || PRIORITY_CONFIG['NORMAL'];
 
   return (
@@ -208,12 +290,50 @@ export const EditingWorkspace: React.FC<EditingWorkspaceProps> = ({
                 <Button
                   variant="primary"
                   size="sm"
-                  disabled={isUpdating || liveValidation.status !== RenderValidationStatus.VALID}
+                  disabled={isUpdating || liveValidation.status !== RenderValidationStatus.VALID || !hasEditedVideo}
                   onClick={handleCompleteEditing}
-                  className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white"
+                  className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-50"
                   icon={CheckCircle2}
+                  title={!hasEditedVideo ? 'An edited video must be uploaded before completing editing' : undefined}
                 >
                   Complete Editing (EDITED)
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  disabled={isUpdating || !hasEditedVideo}
+                  onClick={() => handleStatusTransition(VideoProductionStatus.FINAL_REVIEW)}
+                  className="text-xs disabled:opacity-50"
+                  icon={ArrowRight}
+                  title={!hasEditedVideo ? 'An edited video must be uploaded before sending to Final Review' : undefined}
+                >
+                  Send to Final Review (FINAL_REVIEW)
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  disabled={isUpdating || !hasEditedVideo}
+                  onClick={() => handleStatusTransition(VideoProductionStatus.READY_TO_UPLOAD)}
+                  className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50"
+                  icon={CheckCircle2}
+                  title={!hasEditedVideo ? 'An edited video must be uploaded before marking Ready to Upload' : undefined}
+                >
+                  Ready to Upload (READY_TO_UPLOAD)
+                </Button>
+              </>
+            )}
+
+            {video.status === VideoProductionStatus.EDITED && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={isUpdating}
+                  onClick={() => handleStatusTransition(VideoProductionStatus.EDITING)}
+                  className="text-xs"
+                  icon={RotateCcw}
+                >
+                  Return to Editing
                 </Button>
                 <Button
                   variant="primary"
@@ -515,8 +635,175 @@ export const EditingWorkspace: React.FC<EditingWorkspaceProps> = ({
           </div>
         </div>
 
-        {/* Right Col: Script Preview Summary & Editing Assignments */}
+        {/* Right Col: Edited Video Upload, Script Preview Summary & Editing Assignments */}
         <div className="space-y-6">
+          {/* Edited Video Upload & Verification Card */}
+          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <Scissors className="w-4 h-4 text-indigo-600" />
+                <h3 className="text-sm font-bold text-slate-900">Edited Video Production</h3>
+              </div>
+              {isLoadingHistory && (
+                <span className="text-[10px] text-slate-400 font-mono">Refreshing...</span>
+              )}
+            </div>
+
+            {/* 1. Current Raw Video / Access */}
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-slate-700 uppercase tracking-wider text-[10px]">
+                  Raw Video Source
+                </span>
+                {video.driveFileId ? (
+                  <span className="inline-flex items-center gap-1 font-semibold text-[10px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                    Drive Ready
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                    No Raw Asset
+                  </span>
+                )}
+              </div>
+
+              <div className="space-y-1 font-mono text-[11px] text-slate-600 break-all">
+                <p><strong>File:</strong> {rawAsset?.fileName || video.fileName || 'raw-recording.mp4'}</p>
+                {video.driveFileId && (
+                  <p><strong>Drive File ID:</strong> {video.driveFileId}</p>
+                )}
+                {(rawAsset?.fileSize || video.fileSize) && (
+                  <p><strong>Size:</strong> {(((rawAsset?.fileSize || video.fileSize) || 0) / (1024 * 1024)).toFixed(2)} MB</p>
+                )}
+              </div>
+
+              {video.driveFileId && (
+                <a
+                  href={`/api/videos/${encodeURIComponent(videoId)}/download`}
+                  target="_blank"
+                  rel="noreferrer"
+                  download={video.fileName || `raw-video-${videoId}.mp4`}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-md font-semibold text-xs transition-colors"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Download Raw Video for External Editing
+                </a>
+              )}
+            </div>
+
+            {/* 2 & 3. Choose & Upload Edited Video */}
+            <div className="space-y-2.5 pt-1">
+              <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                Upload Edited Video (MP4/MOV)
+              </label>
+              <input
+                id="edited-video-file-input"
+                type="file"
+                accept="video/mp4,video/quicktime,video/webm,video/x-matroska"
+                onChange={handleEditedFileChange}
+                disabled={isUploadingEdited}
+                className="w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 border border-slate-200 rounded-lg p-1.5 focus:outline-none"
+              />
+
+              {selectedEditedFile && (
+                <div className="text-[11px] text-slate-600 space-y-0.5 bg-indigo-50/50 p-2 rounded-lg border border-indigo-100 font-mono">
+                  <p className="truncate"><strong>Selected:</strong> {selectedEditedFile.name}</p>
+                  <p><strong>Size:</strong> {(selectedEditedFile.size / (1024 * 1024)).toFixed(2)} MB</p>
+                </div>
+              )}
+
+              <Button
+                variant="primary"
+                size="sm"
+                className="w-full text-xs justify-center bg-indigo-600 hover:bg-indigo-700 text-white"
+                disabled={!selectedEditedFile || isUploadingEdited}
+                onClick={handleUploadEditedVideo}
+                icon={UploadCloud}
+              >
+                {isUploadingEdited ? 'Uploading to Google Drive...' : 'Upload Edited Video'}
+              </Button>
+            </div>
+
+            {/* 4. Uploaded Edited-Video Status / Reference */}
+            {latestEditedAsset ? (
+              <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg space-y-1.5">
+                <div className="flex items-center justify-between font-semibold text-emerald-900">
+                  <div className="flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>Edited Video Uploaded (V{latestEditedAsset.version})</span>
+                  </div>
+                  <span className="font-mono text-[10px] bg-emerald-100 text-emerald-900 px-1.5 py-0.5 rounded">
+                    {latestEditedAsset.id}
+                  </span>
+                </div>
+                <div className="font-mono text-[10px] text-emerald-700 break-all space-y-0.5">
+                  <p><strong>File Name:</strong> {latestEditedAsset.fileName}</p>
+                  <p><strong>Drive File ID:</strong> {latestEditedAsset.driveFileId}</p>
+                  <p><strong>Checksum:</strong> {latestEditedAsset.checksum || (latestEditedAsset as any).md5Checksum || 'Verified'}</p>
+                  <p><strong>Size:</strong> {(latestEditedAsset.fileSize / (1024 * 1024)).toFixed(2)} MB</p>
+                  <p><strong>Uploaded:</strong> {new Date(latestEditedAsset.createdAt).toLocaleString()}</p>
+                </div>
+              </div>
+            ) : (
+              <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg space-y-1">
+                <div className="flex items-center gap-1.5 font-semibold text-amber-900 text-xs">
+                  <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                  <span>Edited Video Required</span>
+                </div>
+                <p className="text-[11px] leading-snug">
+                  An edited video file must be uploaded before completing editing or sending to Final Review.
+                </p>
+              </div>
+            )}
+
+            {/* 5. Render Validation Result */}
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-slate-700 uppercase tracking-wider text-[10px]">
+                  Render Specifications Validation
+                </span>
+                {liveValidation.status === RenderValidationStatus.VALID ? (
+                  <span className="inline-flex items-center gap-1 font-semibold text-[10px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                    Valid Specs
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 font-semibold text-[10px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                    <AlertTriangle className="w-3 h-3 text-amber-600" />
+                    Needs Specs
+                  </span>
+                )}
+              </div>
+
+              <div className="space-y-1 text-[11px] text-slate-600">
+                <div className="flex justify-between py-0.5 border-b border-slate-200/60">
+                  <span>Dimensions (1080×1920):</span>
+                  <span className="font-mono font-medium text-slate-800">{width || '—'} × {height || '—'}</span>
+                </div>
+                <div className="flex justify-between py-0.5 border-b border-slate-200/60">
+                  <span>Aspect Ratio (9:16):</span>
+                  <span className="font-mono font-medium text-slate-800">{aspectRatio || '—'}</span>
+                </div>
+                <div className="flex justify-between py-0.5 border-b border-slate-200/60">
+                  <span>Format (MP4):</span>
+                  <span className="font-mono font-medium text-slate-800">{format || '—'}</span>
+                </div>
+                <div className="flex justify-between py-0.5">
+                  <span>Duration ({video.targetDurationSeconds || 45}s target):</span>
+                  <span className="font-mono font-medium text-slate-800">{actualDuration || '—'}s</span>
+                </div>
+              </div>
+
+              {liveValidation.errors.length > 0 && (
+                <div className="text-[10px] text-rose-700 bg-rose-50 p-2 rounded border border-rose-100 space-y-0.5">
+                  {liveValidation.errors.map((err, idx) => (
+                    <p key={idx}>• {err}</p>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Script Context Card */}
           <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-3">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">

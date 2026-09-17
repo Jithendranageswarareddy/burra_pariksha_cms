@@ -826,6 +826,10 @@ const QuestionInputBaseSchema = z.object({
 function normalizeQuestionInput(val: any) {
   if (val && typeof val === 'object') {
     const copy = { ...val };
+    if (copy.content && !copy.questionText && !copy.question) {
+      copy.questionText = copy.content;
+      copy.question = copy.content;
+    }
     if (copy.question && !copy.questionText) {
       copy.questionText = copy.question;
     }

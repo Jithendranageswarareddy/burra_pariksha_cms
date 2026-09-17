@@ -17,6 +17,7 @@ import {
   publishingRepository,
   usersRepository,
 } from '../repositories';
+import { mediaAssetsRepository } from '../repositories/media-assets.repository';
 import { idService } from './id.service';
 import { workflowService } from './workflow.service';
 import { auditService } from './audit.service';
@@ -351,7 +352,8 @@ export class VideoService {
     newStatus: VideoProductionStatus,
     actor: { id: string; name: string; role?: string | UserRole } = { id: 'USR-001', name: 'Admin / Content Lead', role: UserRole.ADMIN },
     remarks?: string,
-    actualDurationSeconds?: number
+    actualDurationSeconds?: number,
+    bypassRawCheck: boolean = true
   ): Promise<Video> {
     this.verifyVideoRole(actor);
 
@@ -365,6 +367,21 @@ export class VideoService {
 
     if (video.status === newStatus) {
       return video;
+    }
+
+    if (newStatus === VideoProductionStatus.RECORDED && !video.driveFileId && !bypassRawCheck) {
+      throw new ValidationError('Raw video file must be uploaded to Google Drive before marking as Recorded.');
+    }
+
+    if (
+      (newStatus === VideoProductionStatus.EDITED || newStatus === VideoProductionStatus.FINAL_REVIEW) &&
+      video.status === VideoProductionStatus.EDITING &&
+      !bypassRawCheck
+    ) {
+      const editedAssets = await mediaAssetsRepository.findByContentIdAndStage(video.contentId || '', 'EDITED');
+      if (editedAssets.length === 0) {
+        throw new ValidationError('An edited video file must be uploaded before completing editing or sending to Final Review.');
+      }
     }
 
     // Enforce state machine rules

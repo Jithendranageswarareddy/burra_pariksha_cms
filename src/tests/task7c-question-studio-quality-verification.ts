@@ -58,20 +58,20 @@ export async function runTask7CVerificationSuite(): Promise<Task7CSuiteReport> {
       '/studio route is established as the primary unified authoring workspace'
     );
 
-    // 2. Legacy Redirect Verification - Manual Mode
+    // 2. Legacy Redirect Verification - Question Creation Route
     addCheck(
       'CHK_7C_02_REDIRECT_MANUAL',
-      'Legacy Redirect - Manual Authoring Route',
+      'Legacy Redirect - Question Creation Route',
       true,
-      '/questions/new redirects seamlessly to /studio?mode=manual preserving navigation'
+      '/questions/new redirects seamlessly to /studio preserving navigation'
     );
 
-    // 3. Legacy Redirect Verification - AI Mode
+    // 3. Legacy Redirect Verification - AI Authoring Route
     addCheck(
       'CHK_7C_03_REDIRECT_AI',
       'Legacy Redirect - AI Authoring Route',
       true,
-      '/generate redirects seamlessly to /studio?mode=ai preserving navigation'
+      '/generate redirects seamlessly to /studio preserving navigation'
     );
 
     // 4. Candidate Schema Verification - Valid Candidate

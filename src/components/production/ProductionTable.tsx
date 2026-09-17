@@ -5,13 +5,15 @@ import { VideoStatusBadge } from '../common/StatusBadge';
 import { PRIORITY_CONFIG } from '../../config/constants';
 import { PipelineProgress } from './PipelineProgress';
 import { ArrowRight, ExternalLink } from 'lucide-react';
+import { formatDisplayId } from '../../utils/formatters';
 
 interface ProductionTableProps {
   videos: Video[];
   onSelectVideo?: (video: Video) => void;
+  targetTab?: string;
 }
 
-export const ProductionTable: React.FC<ProductionTableProps> = ({ videos, onSelectVideo }) => {
+export const ProductionTable: React.FC<ProductionTableProps> = ({ videos, onSelectVideo, targetTab }) => {
   const navigate = useNavigate();
 
   return (
@@ -33,6 +35,7 @@ export const ProductionTable: React.FC<ProductionTableProps> = ({ videos, onSele
           <tbody className="divide-y divide-slate-100 text-slate-700">
             {videos.map((v) => {
               const priorityConfig = PRIORITY_CONFIG[v.priority] || PRIORITY_CONFIG[PriorityLevel.NORMAL];
+              const videoDetailUrl = targetTab ? `/production/${v.id}?tab=${targetTab}` : `/production/${v.id}`;
 
               return (
                 <tr
@@ -43,18 +46,18 @@ export const ProductionTable: React.FC<ProductionTableProps> = ({ videos, onSele
                     if (onSelectVideo) {
                       onSelectVideo(v);
                     } else {
-                      navigate(`/production/${v.id}`);
+                      navigate(videoDetailUrl);
                     }
                   }}
                 >
                   {/* Video ID */}
                   <td className="py-3 px-4 font-mono font-bold text-indigo-600 whitespace-nowrap">
                     <Link
-                      to={`/production/${v.id}`}
+                      to={videoDetailUrl}
                       onClick={(e) => e.stopPropagation()}
                       className="hover:underline"
                     >
-                      {v.id}
+                      {formatDisplayId(v.contentMasterId || v.id, 'video')}
                     </Link>
                   </td>
 
@@ -70,7 +73,7 @@ export const ProductionTable: React.FC<ProductionTableProps> = ({ videos, onSele
                         onClick={(e) => e.stopPropagation()}
                         className="text-indigo-600 hover:underline font-semibold"
                       >
-                        {v.questionId}
+                        {formatDisplayId(v.questionId, 'question')}
                       </Link>
                       {v.question?.topicName && (
                         <span>• {v.question.topicName}</span>

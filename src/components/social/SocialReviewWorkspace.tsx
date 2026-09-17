@@ -28,6 +28,14 @@ export const SocialReviewWorkspace: React.FC<SocialReviewWorkspaceProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'script' | 'platforms' | 'history'>('overview');
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tabParam = params.get('tab');
+    if (tabParam && ['overview', 'script', 'platforms', 'history'].includes(tabParam)) {
+      setActiveTab(tabParam as any);
+    }
+  }, []);
+
   // Modal State for Request Changes / Reject
   const [modalType, setModalType] = useState<'CHANGES_REQUESTED' | 'REJECTED' | null>(null);
   const [reasonText, setReasonText] = useState<string>('');

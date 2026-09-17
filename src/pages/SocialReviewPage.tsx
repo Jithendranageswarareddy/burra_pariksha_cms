@@ -28,20 +28,23 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../lib/api-client';
 import { SocialReviewWorkspace } from '../components/social/SocialReviewWorkspace';
+import { AssetWorkflowHeader } from '../components/social/AssetWorkflowHeader';
 import { SocialReviewRecord, SocialReviewStatus, UserRole } from '../types';
 import { Button } from '../components/common/Button';
 
 export const SocialReviewPage: React.FC = () => {
-  const { reviewId: routeParamId } = useParams<{ reviewId?: string }>();
+  const { reviewId: routeParamId, videoId: routeVideoId } = useParams<{ reviewId?: string; videoId?: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user } = useAuth();
 
   // Effective identifier from either route param or query string
-  const activeId = routeParamId || searchParams.get('reviewId') || searchParams.get('questionId') || '';
+  const activeId = routeParamId || routeVideoId || searchParams.get('reviewId') || searchParams.get('videoId') || searchParams.get('questionId') || '';
+  const isPlatformsMode = searchParams.get('tab') === 'platforms';
 
   // Workspace single-item state
   const [resolvedQuestionId, setResolvedQuestionId] = useState<string | null>(null);
+  const [resolvedVideoId, setResolvedVideoId] = useState<string | null>(null);
   const [activeReviewRecord, setActiveReviewRecord] = useState<SocialReviewRecord | null>(null);
   const [isLoadingItem, setIsLoadingItem] = useState(false);
   const [itemError, setItemError] = useState<{ status: number; message: string } | null>(null);
@@ -58,7 +61,21 @@ export const SocialReviewPage: React.FC = () => {
     setIsLoadingItem(true);
     setItemError(null);
     try {
-      const res = await apiClient.getSocialReviewItem(id);
+      let targetLookupId = id;
+      // If it looks like a video ID or might be a video
+      if (id.startsWith('BP-V-') || routeVideoId) {
+        setResolvedVideoId(id);
+        try {
+          const v = await apiClient.getVideoById(id);
+          if (v && v.questionId) {
+            targetLookupId = v.questionId;
+          }
+        } catch {
+          // fallback to standard lookup
+        }
+      }
+
+      const res = await apiClient.getSocialReviewItem(targetLookupId);
       if (res.success && res.data) {
         setResolvedQuestionId(res.questionId || res.data.question.id);
         setActiveReviewRecord(res.review || null);
@@ -74,7 +91,7 @@ export const SocialReviewPage: React.FC = () => {
     } finally {
       setIsLoadingItem(false);
     }
-  }, []);
+  }, [routeVideoId]);
 
   // Load reviews list/queue
   const loadReviewsQueue = useCallback(async () => {
@@ -257,6 +274,12 @@ export const SocialReviewPage: React.FC = () => {
     // Authorized Workspace Render
     return (
       <div className="space-y-6 max-w-7xl mx-auto pb-16">
+        <AssetWorkflowHeader
+          currentStep={12}
+          videoId={resolvedVideoId || undefined}
+          questionId={resolvedQuestionId || undefined}
+        />
+
         {/* Navigation & Context Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-4">
           <div className="flex items-center gap-2 flex-wrap">
@@ -327,11 +350,16 @@ export const SocialReviewPage: React.FC = () => {
               <CheckCheck className="w-5 h-5" />
             </div>
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-              Social Content Review Workspace
+              {isPlatformsMode ? 'Platform Packages' : 'Social Content Review Workspace'}
             </h1>
+            <span className="text-xs font-mono font-semibold px-2.5 py-0.5 rounded-full bg-violet-50 text-violet-700 border border-violet-200">
+              {isPlatformsMode ? 'Step 13 • Platform Packages' : 'Step 12 • Social Review'}
+            </span>
           </div>
           <p className="text-xs text-slate-500">
-            Phase 8H human review, invariance validation, platform adaptations, and quality assurance.
+            {isPlatformsMode
+              ? 'Multi-platform social distribution packages: YouTube Shorts, Instagram Reels, and Facebook Video adaptations.'
+              : 'Phase 8H human review, invariance validation, platform adaptations, and quality assurance.'}
           </p>
         </div>
 
@@ -425,48 +453,54 @@ export const SocialReviewPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredReviews.map((rev) => (
-                  <tr
-                    key={rev.id}
-                    onClick={() => navigate(`/social-review/${encodeURIComponent(rev.id)}`)}
-                    className="hover:bg-violet-50/50 cursor-pointer transition-colors group"
-                  >
-                    <td className="px-4 py-3 font-mono font-bold text-slate-900 group-hover:text-violet-700">
-                      {rev.id}
-                    </td>
-                    <td className="px-4 py-3 font-mono text-slate-700">
-                      {rev.questionId}
-                    </td>
-                    <td className="px-4 py-3">
-                      {getStatusBadge(rev.decision)}
-                    </td>
-                    <td className="px-4 py-3">
-                      {rev.overallQualityScoreAtReview !== undefined && rev.overallQualityScoreAtReview !== null ? (
-                        <span className="font-semibold text-emerald-600 font-mono">
-                          {rev.overallQualityScoreAtReview}/100
-                        </span>
-                      ) : (
-                        <span className="text-slate-400">N/A</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">
-                      {rev.reviewerName || rev.reviewerId || 'Unassigned'}
-                    </td>
-                    <td className="px-4 py-3 text-slate-500 font-mono text-[11px]">
-                      {rev.reviewedAt ? new Date(rev.reviewedAt).toLocaleDateString() : '—'}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <Link
-                        to={`/social-review/${encodeURIComponent(rev.id)}`}
-                        onClick={(e) => e.stopPropagation()}
-                        className="inline-flex items-center gap-1 font-semibold text-violet-600 hover:text-violet-800 transition-colors"
-                      >
-                        <span>Open Workspace</span>
-                        <ChevronRight className="w-3.5 h-3.5" />
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
+                {filteredReviews.map((rev) => {
+                  const targetReviewUrl = isPlatformsMode
+                    ? `/social-review/${encodeURIComponent(rev.id)}?tab=platforms`
+                    : `/social-review/${encodeURIComponent(rev.id)}`;
+
+                  return (
+                    <tr
+                      key={rev.id}
+                      onClick={() => navigate(targetReviewUrl)}
+                      className="hover:bg-violet-50/50 cursor-pointer transition-colors group"
+                    >
+                      <td className="px-4 py-3 font-mono font-bold text-slate-900 group-hover:text-violet-700">
+                        {rev.id}
+                      </td>
+                      <td className="px-4 py-3 font-mono text-slate-700">
+                        {rev.questionId}
+                      </td>
+                      <td className="px-4 py-3">
+                        {getStatusBadge(rev.decision)}
+                      </td>
+                      <td className="px-4 py-3">
+                        {rev.overallQualityScoreAtReview !== undefined && rev.overallQualityScoreAtReview !== null ? (
+                          <span className="font-semibold text-emerald-600 font-mono">
+                            {rev.overallQualityScoreAtReview}/100
+                          </span>
+                        ) : (
+                          <span className="text-slate-400">N/A</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {rev.reviewerName || rev.reviewerId || 'Unassigned'}
+                      </td>
+                      <td className="px-4 py-3 text-slate-500 font-mono text-[11px]">
+                        {rev.reviewedAt ? new Date(rev.reviewedAt).toLocaleDateString() : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <Link
+                          to={targetReviewUrl}
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex items-center gap-1 font-semibold text-violet-600 hover:text-violet-800 transition-colors"
+                        >
+                          <span>{isPlatformsMode ? 'Open Platform Packages' : 'Open Workspace'}</span>
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

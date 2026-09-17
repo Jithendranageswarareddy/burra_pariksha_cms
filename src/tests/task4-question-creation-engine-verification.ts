@@ -431,36 +431,36 @@ export async function runTask4QuestionCreationEngineVerification(): Promise<Task
     });
   }
 
-  // CHECK-10: Manual Creation Path
+  // CHECK-10: Direct Question Save Path Verification
   try {
     const created = await questionService.createQuestionFromRequest({
-      creationMode: 'manual',
+      creationMode: 'ai',
       topicId: sampleTopic.id,
       subtopicId: sampleSubtopic.id,
       difficulty: 'Intermediate',
       challengeType: 'ABCD',
-      questionText: 'Manual creation path verification question.',
+      questionText: 'Direct creation path verification question.',
       options: { a: 'A1', b: 'B1', c: 'C1', d: 'D1' },
       correctAnswer: 'C',
-      explanation: 'Detailed manual step explanation.',
-      source: 'Manual Authoring',
+      explanation: 'Detailed step explanation.',
+      source: 'AI Generator Studio',
     });
 
-    const isManualValid = created.source === 'Manual Authoring' && created.authorId === 'USR-001';
+    const isValid = created.source === 'AI Generator Studio' && created.authorId === 'USR-001';
 
     checks.push({
       id: 'CHECK-10',
-      name: 'Manual Creation Path',
-      passed: isManualValid,
+      name: 'Direct Question Save Path',
+      passed: isValid,
       classification: 'B',
-      details: isManualValid
-        ? `Manual path executed cleanly with author USR-001 and source "Manual Authoring".`
-        : 'Manual creation path failed metadata verification.',
+      details: isValid
+        ? `Direct save path executed cleanly with author USR-001 and source "AI Generator Studio".`
+        : 'Direct creation path failed metadata verification.',
     });
   } catch (err: any) {
     checks.push({
       id: 'CHECK-10',
-      name: 'Manual Creation Path',
+      name: 'Direct Question Save Path',
       passed: false,
       classification: 'B',
       details: `Error: ${err?.message}`,

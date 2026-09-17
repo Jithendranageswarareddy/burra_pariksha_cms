@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Plus, Sparkles, RotateCcw, BookOpen, RefreshCw, AlertCircle } from 'lucide-react';
+import { Sparkles, RotateCcw, BookOpen, RefreshCw, AlertCircle, ShieldCheck, Edit3 } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { Button } from '../components/common/Button';
 import { SearchInput } from '../components/common/SearchInput';
 import { QuestionTable } from '../components/questions/QuestionTable';
 import { EmptyState } from '../components/common/EmptyState';
+import { QuestionWorkflowHeader } from '../components/questions/QuestionWorkflowHeader';
 import { DifficultyLevel, Question, QuestionStatus, VideoProductionStatus } from '../types';
 import { apiClient } from '../lib/api-client';
 
@@ -146,19 +147,41 @@ export const QuestionLibraryPage: React.FC = () => {
     Boolean(selectedQuestionStatus) ||
     Boolean(selectedVideoStatus);
 
+  const workflowMeta = useMemo(() => {
+    if (selectedQuestionStatus === QuestionStatus.DRAFT) {
+      return {
+        stepBadge: 'Step 03 • Improve Question',
+        title: 'Improve Question',
+        description: 'Review and refine draft questions, formulas, explanations, and real-world context before verification.',
+      };
+    }
+    if (selectedQuestionStatus === QuestionStatus.GENERATED) {
+      return {
+        stepBadge: 'Step 04 • Verify & Approve',
+        title: 'Verify & Approve',
+        description: 'Perform mathematical verification, formula validation, and editorial approval on AI-generated questions.',
+      };
+    }
+    return {
+      stepBadge: undefined,
+      title: 'Question Library',
+      description: 'Master repository of aptitude questions, solution scripts, and video production assignments.',
+    };
+  }, [selectedQuestionStatus]);
+
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
       {/* Header */}
       <PageHeader
-        title="Question Library"
-        description="Master repository of aptitude questions, solution scripts, and video production assignments."
+        title="02 Question Library"
+        description="Master inventory of generated, draft, and approved aptitude questions. Filter by topic, difficulty, and stage."
         badge={
           <span className="text-xs font-mono font-semibold px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
             {questions.length} Questions
           </span>
         }
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Button
               variant="outline"
               size="sm"
@@ -169,19 +192,16 @@ export const QuestionLibraryPage: React.FC = () => {
               <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
-            <Link to="/generate">
+            <Link to="/studio">
               <Button variant="primary" size="sm" icon={Sparkles}>
-                AI Question Studio
-              </Button>
-            </Link>
-            <Link to="/questions/new">
-              <Button variant="secondary" size="sm" icon={Plus}>
-                New Question
+                + Generate Question (Step 01)
               </Button>
             </Link>
           </div>
         }
       />
+
+      <QuestionWorkflowHeader currentStep={2} />
 
       {error && (
         <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs flex items-center gap-2">
@@ -313,7 +333,7 @@ export const QuestionLibraryPage: React.FC = () => {
         <EmptyState
           icon={BookOpen}
           title="No questions match your filters"
-          description="Try adjusting your keyword search or resetting category and status filters."
+          description="Try adjusting your keyword search or resetting topic and status filters."
           actionLabel="Clear All Filters"
           onAction={resetFilters}
         />

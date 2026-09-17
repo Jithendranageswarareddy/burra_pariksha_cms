@@ -360,7 +360,8 @@ export class Phase17VideoProductionService {
       'upload edited video'
     );
 
-    const { videoId, expectedContentId, editedBinaryBuffer, fileName, mimeType } = input;
+    const { videoId, expectedContentId, editedBinaryBuffer, fileName, mimeType, advanceStatus } = input;
+    const shouldAdvance = advanceStatus !== false;
 
     const video = await videosRepository.findById(videoId);
     if (!video) {
@@ -397,7 +398,7 @@ export class Phase17VideoProductionService {
 
     const now = new Date().toISOString();
     const updatedVideo = await videosRepository.updateRecord(videoId, {
-      status: VideoProductionStatus.EDITED,
+      status: shouldAdvance ? VideoProductionStatus.EDITED : video.status,
       driveFileId: mediaAsset.driveFileId,
       driveFolderId: mediaAsset.folderId,
       fileName: mediaAsset.fileName,
@@ -408,7 +409,7 @@ export class Phase17VideoProductionService {
     });
 
     if (!updatedVideo) {
-      throw new ValidationError(`Failed to update video "${videoId}" status to EDITED.`);
+      throw new ValidationError(`Failed to update video "${videoId}" record.`);
     }
 
     await auditService.log(actor.id, actor.name, 'UPLOAD_EDITED_VIDEO', 'VIDEO', videoId, {
@@ -418,18 +419,20 @@ export class Phase17VideoProductionService {
       version: mediaAsset.version,
     });
 
-    await workflowService.recordTransition(
-      'VIDEO',
-      videoId,
-      video.status,
-      VideoProductionStatus.EDITED,
-      actor.id,
-      `Edited video binary uploaded (V${mediaAsset.version})`
-    );
+    if (shouldAdvance && video.status !== VideoProductionStatus.EDITED) {
+      await workflowService.recordTransition(
+        'VIDEO',
+        videoId,
+        video.status,
+        VideoProductionStatus.EDITED,
+        actor.id,
+        `Edited video binary uploaded (V${mediaAsset.version})`
+      );
+    }
 
     return {
       video: updatedVideo,
-      currentWorkflowState: 'EDITED',
+      currentWorkflowState: shouldAdvance ? 'EDITED' : this.getWorkflowState(updatedVideo),
       latestMediaAsset: mediaAsset,
       scriptId: '',
       questionId: updatedVideo.questionId,

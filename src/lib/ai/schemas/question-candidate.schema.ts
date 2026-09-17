@@ -34,7 +34,18 @@ export const QuestionCandidateZodSchema = z.object({
     .string()
     .min(20, 'Pedagogical explanation must be at least 20 characters long')
     .max(2500, 'Explanation exceeds maximum 2500 characters limit'),
-  difficulty: z.nativeEnum(DifficultyLevel).default(DifficultyLevel.MEDIUM),
+  difficulty: z.preprocess(
+    (val) => {
+      if (typeof val === 'string') {
+        const u = val.trim().toUpperCase();
+        if (['EASY', 'BEGINNER', 'EASY-INTERMEDIATE'].includes(u)) return DifficultyLevel.EASY;
+        if (['HARD', 'VERY HARD', 'VERY_HARD', 'EXPERT', 'MASTER', 'IMPOSSIBLE'].includes(u)) return DifficultyLevel.HARD;
+        if (['INTERMEDIATE', 'MEDIUM', 'INTERMEDIATE-HARD', 'RANDOM'].includes(u)) return DifficultyLevel.MEDIUM;
+      }
+      return val;
+    },
+    z.nativeEnum(DifficultyLevel).default(DifficultyLevel.MEDIUM)
+  ),
   language: z.nativeEnum(QuestionLanguage).default(QuestionLanguage.TELUGU),
   real_world_context: z.string().optional().default(''),
   question_style: z.string().optional().default(''),

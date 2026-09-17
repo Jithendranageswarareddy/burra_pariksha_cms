@@ -64,7 +64,7 @@ export async function runQuestionStylePersistenceTests() {
   console.log('--- Suite 1: Interface & Request Contract ---');
 
   const samplePayloadWithStyle: QuestionCreationRequestPayload = {
-    creationMode: 'manual',
+    creationMode: 'ai',
     categoryId: 'CAT-QA',
     topicId: 'TOP-QA-01',
     subtopicId: 'SUB-01',
@@ -334,7 +334,7 @@ export async function runQuestionStylePersistenceTests() {
 
     // Create with explicit STORY_BASED
     const q1 = await questionService.createQuestionFromRequest({
-      creationMode: 'manual',
+      creationMode: 'ai',
       categoryId: 'CAT-QA',
       topicId: 'TOP-QA-01',
       subtopicId: 'SUB-01',
@@ -386,7 +386,7 @@ export async function runQuestionStylePersistenceTests() {
 
     // Create with missing style (should default to STORY_BASED)
     const q3 = await questionService.createQuestionFromRequest({
-      creationMode: 'manual',
+      creationMode: 'ai',
       categoryId: 'CAT-QA',
       topicId: 'TOP-QA-01',
       subtopicId: 'SUB-01',

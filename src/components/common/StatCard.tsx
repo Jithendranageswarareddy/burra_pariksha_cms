@@ -1,5 +1,6 @@
 import React from 'react';
 import { LucideIcon } from 'lucide-react';
+import { Card } from '../../design-system/components/Card';
 
 interface StatCardProps {
   id?: string;
@@ -37,12 +38,12 @@ export const StatCard: React.FC<StatCardProps> = ({
   onClick,
 }) => {
   return (
-    <div
+    <Card
       id={id || `stat-card-${(title || '').toString().toLowerCase().replace(/\s+/g, '-')}`}
+      variant={onClick ? 'interactive' : 'default'}
+      padding="none"
       onClick={onClick}
-      className={`bg-white rounded-xl border border-slate-200 p-5 shadow-xs transition-all hover:border-slate-300 ${
-        onClick ? 'cursor-pointer hover:shadow-sm' : ''
-      }`}
+      className="p-5"
     >
       <div className="flex items-start justify-between">
         <div className="space-y-1">
@@ -63,6 +64,6 @@ export const StatCard: React.FC<StatCardProps> = ({
           )}
         </div>
       )}
-    </div>
+    </Card>
   );
 };

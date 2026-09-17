@@ -52,6 +52,7 @@ import { PublishingWorkspace } from '../components/video/PublishingWorkspace';
 import { RecordingWorkspace } from '../components/video/RecordingWorkspace';
 import { EditingWorkspace } from '../components/video/EditingWorkspace';
 import { FinalReviewWorkspace } from '../components/video/FinalReviewWorkspace';
+import { VideoWorkflowHeader } from '../components/video/VideoWorkflowHeader';
 
 export const VideoDetailPage: React.FC = () => {
   const { videoId } = useParams<{ videoId: string }>();
@@ -229,8 +230,27 @@ export const VideoDetailPage: React.FC = () => {
   const allowedNextTransitions = VALID_VIDEO_TRANSITIONS[video.status] || [];
   const priorityConfig = PRIORITY_CONFIG[video.priority] || PRIORITY_CONFIG[PriorityLevel.NORMAL];
 
+  const workflowStep: 5 | 6 | 7 | 8 | 9 =
+    video.status === VideoProductionStatus.SCRIPT_READY
+      ? 6
+      : video.status === VideoProductionStatus.RECORDING || video.status === VideoProductionStatus.RECORDED
+      ? 7
+      : video.status === VideoProductionStatus.EDITING
+      ? 8
+      : video.status === VideoProductionStatus.FINAL_REVIEW || video.status === VideoProductionStatus.READY_TO_UPLOAD || video.status === VideoProductionStatus.UPLOADED
+      ? 9
+      : 5;
+
   return (
     <div className="space-y-6 max-w-6xl mx-auto animate-in fade-in duration-200 pb-16">
+      {/* 5-Step Video Workflow Stepper */}
+      <VideoWorkflowHeader
+        currentStep={workflowStep}
+        videoId={video.id}
+        videoTitle={video.title}
+        videoStatus={video.status}
+      />
+
       {/* Top Breadcrumb & Quick Nav */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-xs text-slate-500">

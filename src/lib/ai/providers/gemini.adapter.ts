@@ -56,11 +56,23 @@ export class GeminiProviderAdapter extends BaseAIProviderAdapter {
     const text = response.text || '';
     let data: any = undefined;
 
-    if (request.responseSchema || text.trim().startsWith('{') || text.trim().startsWith('[')) {
+    const cleanedText = text
+      .replace(/^```(?:json)?\s*/i, '')
+      .replace(/\s*```$/, '')
+      .trim();
+
+    if (request.responseSchema || cleanedText.startsWith('{') || cleanedText.startsWith('[')) {
       try {
-        data = JSON.parse(text);
+        data = JSON.parse(cleanedText);
       } catch {
-        // Text wasn't valid JSON, fallback to raw text
+        try {
+          const match = text.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
+          if (match) {
+            data = JSON.parse(match[0]);
+          }
+        } catch {
+          // Text wasn't valid JSON, fallback to raw text
+        }
       }
     }
 

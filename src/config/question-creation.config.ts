@@ -1,6 +1,6 @@
 /**
  * BURRA PARIKSHA CMS - Question Creation Engine Configuration
- * Single Source of Truth for creation dimensions across Manual and AI workflows.
+ * Single Source of Truth for creation dimensions across AI Question Studio workflows.
  */
 
 import { QuestionLanguage } from '../types';

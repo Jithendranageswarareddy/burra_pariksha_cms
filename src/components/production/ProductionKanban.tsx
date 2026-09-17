@@ -3,11 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { Clock, User, ArrowRight, ExternalLink, PauseCircle, Film } from 'lucide-react';
 import { PriorityLevel, Video, VideoProductionStatus } from '../../types';
 import { PRIORITY_CONFIG, VIDEO_STATUS_CONFIG } from '../../config/constants';
+import { formatDisplayId } from '../../utils/formatters';
 
 interface ProductionKanbanProps {
   videos: Video[];
   onSelectVideo?: (video: Video) => void;
   onQuickMove?: (videoId: string, nextStatus: VideoProductionStatus) => void;
+  targetTab?: string;
 }
 
 const KANBAN_COLUMNS: {
@@ -51,6 +53,7 @@ const KANBAN_COLUMNS: {
 export const ProductionKanban: React.FC<ProductionKanbanProps> = ({
   videos,
   onSelectVideo,
+  targetTab,
 }) => {
   const navigate = useNavigate();
 
@@ -107,7 +110,7 @@ export const ProductionKanban: React.FC<ProductionKanbanProps> = ({
                         if (onSelectVideo) {
                           onSelectVideo(video);
                         } else {
-                          navigate(`/production/${video.id}`);
+                          navigate(targetTab ? `/production/${video.id}?tab=${targetTab}` : `/production/${video.id}`);
                         }
                       }}
                       className="bg-white p-3.5 rounded-lg border border-slate-200 hover:border-indigo-400 hover:shadow-xs transition-all cursor-pointer space-y-2.5 group"
@@ -115,7 +118,7 @@ export const ProductionKanban: React.FC<ProductionKanbanProps> = ({
                       {/* Top IDs & Priority Badge */}
                       <div className="flex items-start justify-between gap-2">
                         <span className="text-[10px] font-mono font-bold text-indigo-600 px-1.5 py-0.5 bg-indigo-50 border border-indigo-100 rounded">
-                          {video.id}
+                          {formatDisplayId(video.contentMasterId || video.id, 'video')}
                         </span>
                         <span
                           className={`text-[10px] px-2 py-0.5 rounded font-semibold ${priorityConfig.bg} ${priorityConfig.text}`}
