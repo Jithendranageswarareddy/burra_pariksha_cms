@@ -20,7 +20,6 @@ import {
 } from 'lucide-react';
 import { Video, Question, VideoProductionStatus } from '../types';
 import { apiClient } from '../lib/api-client';
-import { VideoWorkflowHeader } from '../components/video/VideoWorkflowHeader';
 import { ProductionJourneyBar } from '../components/production/ProductionJourneyBar';
 import { useProductionJourney } from '../contexts/ProductionJourneyContext';
 import { PageHeader } from '../design-system/components/PageHeader';
@@ -43,7 +42,7 @@ export const VideoCreateScriptPage: React.FC = () => {
   const [videoList, setVideoList] = useState<Video[]>([]);
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
   const [question, setQuestion] = useState<Question | null>(null);
-  const [showMathProofDrawer, setShowMathProofDrawer] = useState<boolean>(true);
+  const [showMathProofDrawer, setShowMathProofDrawer] = useState<boolean>(false);
 
   // Script Draft Form State
   const [hookText, setHookText] = useState<string>('');
@@ -199,6 +198,13 @@ export const VideoCreateScriptPage: React.FC = () => {
     }
   };
 
+  const handleSaveAndProceed = async () => {
+    const targetId = videoId || selectedVideo?.id;
+    if (!targetId) return;
+    await handleSaveDraft();
+    navigate(`/videos/${encodeURIComponent(targetId)}?tab=recording`);
+  };
+
   const handleCopyAll = () => {
     navigator.clipboard.writeText(combinedScriptText);
     setCopied(true);
@@ -215,12 +221,17 @@ export const VideoCreateScriptPage: React.FC = () => {
     );
 
     return (
-      <div className="space-y-6 max-w-6xl mx-auto pb-16">
-        <VideoWorkflowHeader currentStep={5} />
+      <div className="space-y-6 max-w-7xl mx-auto pb-16 animate-in fade-in duration-200">
+        <ProductionJourneyBar activeStage="AUDIENCE_SCRIPT" showDetails />
 
         <PageHeader
           title="Draft Script"
           description="Author, draft, and AI-generate 5-part video scripts for Telugu short-form educational videos"
+          breadcrumbs={[
+            { label: 'Home', href: '/' },
+            { label: 'Video Production', href: '/production' },
+            { label: 'Draft Script' },
+          ]}
         />
 
         {error && (
@@ -229,113 +240,100 @@ export const VideoCreateScriptPage: React.FC = () => {
           </Alert>
         )}
 
-        <Card padding="md">
-          <div className="p-4 border-b border-slate-100">
-            <h3 className="text-sm font-bold text-slate-900">Select Video for Script Creation</h3>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Choose a video in SCRIPT_REQUIRED or QUEUED status to generate or write its 5-part Telugu script
-            </p>
-          </div>
-          <div className="p-4 space-y-4">
-            <input
-              type="text"
-              placeholder="Search by Video ID, Question ID, or Title..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full text-xs px-3.5 py-2.5 border border-slate-300 rounded-lg focus:ring-1 focus:ring-indigo-500"
-            />
-
-            {isLoading ? (
-              <PageLoading message="Loading video records..." />
-            ) : filteredVideos.length === 0 ? (
-              <EmptyState
-                title="No Videos Found"
-                description="No video production items matched your search query."
+        <Card variant="default" padding="lg" className="rounded-2xl border-slate-200/80 shadow-xs">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-100">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">Select Video for Script Creation</h3>
+              <p className="text-xs text-slate-500">
+                Choose a video record to generate or write its 5-part Telugu teleprompter script.
+              </p>
+            </div>
+            <div className="w-full sm:w-72">
+              <input
+                type="text"
+                placeholder="Search by Video ID, Question ID, or Title..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full text-xs px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-indigo-500"
               />
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {filteredVideos.map((vid) => (
-                  <div
-                    key={vid.id}
-                    onClick={() => navigate(`/videos/${encodeURIComponent(vid.id)}/create-script`)}
-                    className="p-4 rounded-xl border border-slate-200 hover:border-indigo-400 bg-white hover:bg-indigo-50/30 transition-all cursor-pointer space-y-2.5 shadow-2xs group"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-mono text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
-                        {vid.id}
-                      </span>
-                      <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-100 text-slate-700">
-                        {vid.status}
-                      </span>
-                    </div>
-                    <h4 className="text-xs font-bold text-slate-900 group-hover:text-indigo-600 line-clamp-2">
-                      {vid.title}
-                    </h4>
-                    <div className="flex items-center justify-between text-[11px] text-slate-500 pt-2 border-t border-slate-100">
-                      <span>Ref: {vid.questionId || 'N/A'}</span>
-                      <span className="text-indigo-600 font-semibold flex items-center gap-1">
-                        Author Script <ArrowRight className="w-3 h-3" />
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            </div>
           </div>
+
+          {isLoading ? (
+            <PageLoading message="Loading video records..." />
+          ) : filteredVideos.length === 0 ? (
+            <EmptyState
+              title="No Videos Found"
+              description="No video production items matched your search query."
+            />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {filteredVideos.map((vid) => (
+                <div
+                  key={vid.id}
+                  onClick={() => navigate(`/videos/${encodeURIComponent(vid.id)}/create-script`)}
+                  className="p-4 rounded-xl border border-slate-200 hover:border-indigo-400 bg-white hover:bg-indigo-50/30 transition-all cursor-pointer space-y-2.5 shadow-2xs group"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
+                      {vid.id}
+                    </span>
+                    <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-100 text-slate-700">
+                      {vid.status}
+                    </span>
+                  </div>
+                  <h4 className="text-xs font-bold text-slate-900 group-hover:text-indigo-600 line-clamp-2">
+                    {vid.title}
+                  </h4>
+                  <div className="flex items-center justify-between text-[11px] text-slate-500 pt-2 border-t border-slate-100">
+                    <span>Ref: {vid.questionId || 'N/A'}</span>
+                    <span className="text-indigo-600 font-semibold flex items-center gap-1">
+                      Author Script <ArrowRight className="w-3 h-3" />
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </Card>
       </div>
     );
   }
 
+  const activeVideoId = selectedVideo?.id || videoId;
+
   return (
-    <div className="space-y-6 max-w-6xl mx-auto pb-16">
-      <ProductionJourneyBar
-        onNavigateTab={(tab) => {
-          const targetId = videoId || selectedVideo?.id;
-          if (targetId) {
-            navigate(`/videos/${encodeURIComponent(targetId)}?tab=${tab}`);
-          }
-        }}
-      />
+    <div className="space-y-5 max-w-7xl mx-auto pb-16 animate-in fade-in duration-200">
+      {/* 1. Permanent 15-Stage Timeline Anchor */}
+      <ProductionJourneyBar activeStage="AUDIENCE_SCRIPT" showDetails />
 
-      <VideoWorkflowHeader
-        currentStep={5}
-        videoId={videoId || selectedVideo?.id}
-        videoTitle={selectedVideo?.title}
-        videoStatus={selectedVideo?.status}
-      />
-
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-xs text-indigo-600 font-mono font-semibold bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
-              {selectedVideo?.id || videoId}
-            </span>
-            <span className="text-xs font-semibold px-2 py-0.5 bg-indigo-100 text-indigo-800 rounded">
-              Stage 03 • Audience Script
-            </span>
-          </div>
-          <h1 className="text-xl font-bold text-slate-900">Audience Engagement Script Engine</h1>
-          <p className="text-xs text-slate-500">
-            Telugu teleprompter narration vs. mathematical proof • 5-part high-retention structure (~45s)
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2 flex-wrap">
-          <Link to="/production">
-            <Button variant="outline" size="sm" icon={Film} className="text-xs">
-              Production Tracker
-            </Button>
-          </Link>
-          {selectedVideo?.questionId && (
-            <Link to={`/questions/${selectedVideo.questionId}`}>
-              <Button variant="outline" size="sm" icon={BookOpen} className="text-xs">
-                View Question Record
+      {/* 2. Unified Page Header with Direct Links */}
+      <PageHeader
+        title="Audience Engagement Script Engine"
+        description="Telugu teleprompter narration vs. mathematical proof • 5-part high-retention structure (~45s)"
+        breadcrumbs={[
+          { label: 'Home', href: '/' },
+          { label: 'Video Production', href: '/production' },
+          { label: activeVideoId, href: `/videos/${encodeURIComponent(activeVideoId)}` },
+          { label: 'Scriptwriting' },
+        ]}
+        actions={
+          <div className="flex items-center gap-2 flex-wrap">
+            <Link to="/production">
+              <Button variant="outline" size="sm" icon={Film}>
+                Production Tracker
               </Button>
             </Link>
-          )}
-        </div>
-      </div>
+            {selectedVideo?.questionId && (
+              <Link to={`/questions/${selectedVideo.questionId}`}>
+                <Button variant="outline" size="sm" icon={BookOpen}>
+                  View Question Record
+                </Button>
+              </Link>
+            )}
+          </div>
+        }
+      />
 
       {error && (
         <Alert variant="error" title="Script Generation / Save Error" onDismiss={() => setError(null)}>
@@ -352,339 +350,374 @@ export const VideoCreateScriptPage: React.FC = () => {
       {isLoading ? (
         <PageLoading message="Loading script creation workspace..." />
       ) : (
-        <div className="space-y-6">
-          {/* AI Generator Control Panel */}
-          <Card padding="md">
-            <div className="p-4 border-b border-slate-100 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-indigo-600" />
-                <h3 className="text-sm font-bold text-slate-900">AI Telugu Script Generator</h3>
-              </div>
-              <Badge variant="active" size="sm">Gemini 2.5 Flash</Badge>
-            </div>
-            <div className="p-4 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Script Tone & Style
-                  </label>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* ========================================================
+              LEFT PANE (lg:col-span-8): COMPACT AI RIBBON & 5-PART SCRIPT CANVAS
+              ======================================================== */}
+          <div className="lg:col-span-8 space-y-4">
+            {/* Compact AI Script Generator Ribbon */}
+            <Card variant="default" padding="sm" className="rounded-2xl border-slate-200/80 shadow-xs">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-1.5">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0">
+                    <Sparkles className="w-4 h-4 text-indigo-600" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-xs font-bold text-slate-900">AI Telugu Script Generator</h3>
+                      <Badge variant="active" size="sm" className="text-[10px] py-0 px-1.5 font-mono">
+                        Gemini 2.5 Flash
+                      </Badge>
+                    </div>
+                    <p className="text-[11px] text-slate-500 hidden sm:block">
+                      Auto-structure 5-part teleprompter narration
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
                   <select
                     value={tone}
                     onChange={(e: any) => setTone(e.target.value)}
-                    className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:ring-1 focus:ring-indigo-500 bg-white"
+                    className="text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-indigo-500"
                   >
-                    <option value="ENERGETIC_EXAM_COACH">Energetic Exam Coach (High Retention)</option>
-                    <option value="CLEAR_CONCEPTUAL">Clear & Conceptual (Step-by-Step Focus)</option>
-                    <option value="EXAM_TRICK_FOCUSED">Speed Trick / Exam Shortcut Focused</option>
+                    <option value="ENERGETIC_EXAM_COACH">Energetic Exam Coach</option>
+                    <option value="CLEAR_CONCEPTUAL">Clear Conceptual</option>
+                    <option value="EXAM_TRICK_FOCUSED">Shortcut Focused</option>
                   </select>
-                </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Target Duration (Seconds)
-                  </label>
                   <select
                     value={targetDurationSeconds}
                     onChange={(e) => setTargetDurationSeconds(Number(e.target.value))}
-                    className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:ring-1 focus:ring-indigo-500 bg-white"
+                    className="text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-indigo-500"
                   >
-                    <option value={30}>30s (Ultra-fast Shortcut)</option>
-                    <option value={45}>45s (Standard YouTube Short)</option>
-                    <option value={60}>60s (Deep Concept Explanation)</option>
+                    <option value={30}>30s Target</option>
+                    <option value={45}>45s Target</option>
+                    <option value={60}>60s Target</option>
                   </select>
-                </div>
 
-                <div className="flex items-end">
                   <Button
                     variant="primary"
-                    size="md"
+                    size="sm"
                     disabled={isGeneratingAi}
                     onClick={handleGenerateScriptWithAi}
                     icon={Sparkles}
-                    className="w-full text-xs justify-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs"
                   >
-                    {isGeneratingAi ? 'Generating Telugu Script...' : 'Generate 5-Part Script'}
+                    {isGeneratingAi ? 'Generating...' : '✦ Generate 5-Part Script'}
                   </Button>
                 </div>
               </div>
-            </div>
-          </Card>
+            </Card>
 
-          {/* Main 2-Column Workspace */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Left 2 Cols: 5-Part Script Editor */}
-            <div className="lg:col-span-2 space-y-4">
-              <Card padding="md">
-                <div className="p-4 border-b border-slate-100 flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-900">5-Part Script Draft</h3>
-                    <p className="text-xs text-slate-500">Edit and refine the narration script for teleprompter filming</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleCopyAll}
-                      icon={copied ? Check : Copy}
-                      className="text-xs"
-                    >
-                      {copied ? 'Copied' : 'Copy All'}
-                    </Button>
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      disabled={isSaving}
-                      onClick={handleSaveDraft}
-                      icon={Save}
-                      className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white"
-                    >
-                      {isSaving ? 'Saving...' : 'Save Draft'}
-                    </Button>
-                  </div>
+            {/* 5-Part Teleprompter Script Draft Canvas */}
+            <Card variant="default" padding="lg" className="rounded-2xl border-slate-200/80 shadow-xs">
+              <div className="flex items-center justify-between pb-3.5 mb-4 border-b border-slate-100">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">5-Part Teleprompter Script Draft</h3>
+                  <p className="text-xs text-slate-500">Edit and refine narration script for teleprompter filming</p>
                 </div>
-
-                <div className="p-4 space-y-4">
-                  {/* Part 1: Hook */}
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                        <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[11px] font-mono font-bold">1</span>
-                        Hook (0–5s) • High Energy Attention Grabber
-                      </label>
-                      <span className="text-[11px] text-slate-400">Target: ~10-15 words</span>
-                    </div>
-                    <textarea
-                      value={hookText}
-                      onChange={(e) => setHookText(e.target.value)}
-                      placeholder="e.g. ఈ క్వశ్చన్ ని 10 సెకన్లలో సాల్వ్ చేయగలరా? చాలా మంది ఇక్కడే తప్పు చేస్తారు!"
-                      rows={2}
-                      className="w-full text-xs p-3 border border-slate-300 rounded-lg focus:ring-1 focus:ring-indigo-500 font-medium"
-                    />
-                  </div>
-
-                  {/* Part 2: Problem Statement */}
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                        <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[11px] font-mono font-bold">2</span>
-                        Problem Statement (5–15s) • Question Narration
-                      </label>
-                      <span className="text-[11px] text-slate-400">Target: ~25-35 words</span>
-                    </div>
-                    <textarea
-                      value={problemStatement}
-                      onChange={(e) => setProblemStatement(e.target.value)}
-                      placeholder="e.g. ఒక రైలు 60 km/h వేగంతో ప్రయాణిస్తూ 200 మీటర్ల ప్లాట్‌ఫారమ్‌ను 18 సెకన్లలో దాటింది..."
-                      rows={3}
-                      className="w-full text-xs p-3 border border-slate-300 rounded-lg focus:ring-1 focus:ring-indigo-500"
-                    />
-                  </div>
-
-                  {/* Part 3: Spoken Solution & Intuition */}
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                        <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[11px] font-mono font-bold">3</span>
-                        3. Spoken Solution & Intuition (15–35s) • Conversational Explanation
-                      </label>
-                      <span className="text-[11px] text-slate-400">Target: ~45-60 words</span>
-                    </div>
-                    <div className="p-2 mb-2 bg-indigo-50/70 border border-indigo-100 rounded-lg text-[11px] text-indigo-900 leading-relaxed">
-                      💡 <strong>Conversational Narration Guidance:</strong> Spoken Telugu should explain the solution intuitively like coaching a friend. Avoid reading textbook algebraic equations mechanically!
-                    </div>
-                    <textarea
-                      value={stepByStepSolution}
-                      onChange={(e) => setStepByStepSolution(e.target.value)}
-                      placeholder="Spoken Telugu explanation of the intuitive steps..."
-                      rows={4}
-                      className="w-full text-xs p-3 border border-slate-300 rounded-lg focus:ring-1 focus:ring-indigo-500 font-sans"
-                    />
-                  </div>
-
-                  {/* Part 4: Speed Shortcut */}
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                        <span className="w-5 h-5 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center text-[11px] font-mono font-bold">4</span>
-                        4. Burra Speed Shortcut / Takeaway (35–45s) • High-Retention Exam Trick
-                      </label>
-                      <span className="text-[11px] text-slate-400 font-mono text-amber-700">Exam Shortcut</span>
-                    </div>
-                    <div className="p-2 mb-2 bg-amber-50 border border-amber-200 rounded-lg text-[11px] text-amber-900 leading-relaxed">
-                      ⚡ <strong>High-Retention Exam Trick:</strong> Deliver the core mental math shortcut, unit-digit elimination rule, or ratio trick that saves 40+ seconds on the actual exam.
-                    </div>
-                    <textarea
-                      value={speedTrickOrTakeaway}
-                      onChange={(e) => setSpeedTrickOrTakeaway(e.target.value)}
-                      placeholder="Pro-Tip: In the actual exam, check the units digit to eliminate Options B and D instantly!"
-                      rows={2}
-                      className="w-full text-xs p-3 border border-slate-300 rounded-lg focus:ring-1 focus:ring-indigo-500 bg-amber-50/40 font-sans"
-                    />
-                  </div>
-
-                  {/* Part 5: Call to Action */}
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                        <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center text-[11px] font-mono font-bold">5</span>
-                        Call to Action (45–50s) • Outro & Next Question Hook
-                      </label>
-                      <span className="text-[11px] text-slate-400">~10 words</span>
-                    </div>
-                    <input
-                      type="text"
-                      value={callToAction}
-                      onChange={(e) => setCallToAction(e.target.value)}
-                      placeholder="e.g. మరిన్ని షార్ట్‌కట్స్ కోసం ఇప్పుడే Burra Pariksha ఛానెల్ ని Follow చేయండి!"
-                      className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:ring-1 focus:ring-indigo-500 font-medium text-slate-800"
-                    />
-                  </div>
-
-                  {/* Production & Teleprompter Notes */}
-                  <div className="pt-3 border-t border-slate-100">
-                    <label className="block text-xs font-semibold text-slate-600 mb-1">
-                      Production Cues & Teleprompter Notes
-                    </label>
-                    <input
-                      type="text"
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      placeholder="e.g. High energy start, emphasize formula graphic at 0:18"
-                      className="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg text-slate-600 bg-slate-50"
-                    />
-                  </div>
-                </div>
-              </Card>
-            </div>
-
-            {/* Right Col: Duration Estimator & Source Context */}
-            <div className="space-y-4">
-              {/* Teleprompter Pacing Estimator */}
-              <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                    <Clock className="w-4 h-4 text-indigo-600" />
-                    Pacing & Timing
-                  </span>
-                  <Badge variant={estimatedSeconds <= 50 ? 'success' : 'warning'} size="sm">
-                    {estimatedSeconds <= 50 ? 'Optimal Pace' : 'Exceeds 50s'}
-                  </Badge>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 p-3 bg-slate-50 rounded-lg border border-slate-100 text-center">
-                  <div>
-                    <span className="text-[11px] text-slate-500 block">Total Words</span>
-                    <span className="text-xl font-bold font-mono text-slate-900">{totalWords}</span>
-                  </div>
-                  <div>
-                    <span className="text-[11px] text-slate-500 block">Est. Duration</span>
-                    <span className="text-xl font-bold font-mono text-indigo-700">~{estimatedSeconds}s</span>
-                  </div>
-                </div>
-
-                <p className="text-[11px] text-slate-500 leading-relaxed">
-                  Calculated using standard Telugu short-form narration rate of <strong>140 words/minute</strong>.
-                </p>
-              </div>
-
-              {/* Question & Reviewer Math Proof Reference Card */}
-              {question && (
-                <div className="bg-slate-900 text-slate-100 rounded-xl border border-slate-700 p-5 shadow-xs space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <BookOpen className="w-4 h-4 text-indigo-400" />
-                      <span className="text-xs font-bold uppercase tracking-wider text-slate-300">
-                        Reviewer Math Proof
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setShowMathProofDrawer(!showMathProofDrawer)}
-                      className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 font-medium"
-                    >
-                      <span>{showMathProofDrawer ? 'Collapse' : 'Expand'}</span>
-                      {showMathProofDrawer ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                    </button>
-                  </div>
-
-                  {showMathProofDrawer && (
-                    <div className="space-y-3 text-xs pt-2 border-t border-slate-800 animate-in fade-in">
-                      <div>
-                        <span className="text-[11px] font-semibold text-indigo-400 block mb-1 uppercase tracking-wider">
-                          Problem Statement
-                        </span>
-                        <p className="text-slate-200 text-xs leading-relaxed font-sans">
-                          {(question as any).statementTe || (question as any).statement || question.questionText}
-                        </p>
-                      </div>
-
-                      <div>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                            Authoritative Math Proof
-                          </span>
-                          <span className="text-[10px] text-emerald-400 font-bold bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800">
-                            Option {String(question.correctAnswer || (question as any).correctOption || '').toUpperCase()}
-                          </span>
-                        </div>
-                        <div className="text-slate-300 font-mono text-[11px] bg-black/60 p-2.5 rounded border border-slate-800 max-h-44 overflow-y-auto whitespace-pre-wrap">
-                          {(question as any).explanationTe || question.explanation || 'No proof text available on record.'}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1.5 border-t border-slate-800">
-                        <span>ID: <strong className="font-mono text-indigo-300">{question.id}</strong></span>
-                        <span>Topic: <strong className="text-slate-300">{question.topicName || (question as any).topic || question.topicId || 'General'}</strong></span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Next Step Action Card - Teleprompter & Filming Bridge */}
-              <div className="bg-white rounded-xl border-2 border-indigo-200 p-5 shadow-xs space-y-3">
-                <div className="flex items-center gap-2 text-indigo-700 font-bold text-xs">
-                  <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[10px] font-mono">
-                    04
-                  </span>
-                  <span>Next Stage: Teleprompter &amp; Filming</span>
-                </div>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  Telugu spoken narration drafted? Move immediately into filming with the host teleprompter tool.
-                </p>
-
-                <div className="space-y-2 pt-1">
-                  <Button
-                    variant="primary"
-                    size="md"
-                    onClick={() => {
-                      const targetId = videoId || selectedVideo?.id;
-                      navigate(`/videos/${encodeURIComponent(targetId)}?tab=recording`);
-                    }}
-                    icon={ArrowRight}
-                    className="w-full text-xs justify-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 shadow-xs"
-                  >
-                    Open Teleprompter &amp; Filming →
-                  </Button>
-
+                <div className="flex items-center gap-2">
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => {
-                      const targetId = videoId || selectedVideo?.id;
-                      navigate(`/videos/${encodeURIComponent(targetId)}?tab=script`);
-                    }}
-                    className="w-full text-xs justify-center text-slate-700 hover:bg-slate-50"
+                    onClick={handleCopyAll}
+                    icon={copied ? Check : Copy}
+                    className="text-xs"
                   >
-                    Open in Studio Workspace
+                    {copied ? 'Copied' : 'Copy All'}
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    disabled={isSaving}
+                    onClick={handleSaveDraft}
+                    icon={Save}
+                    className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-semibold"
+                  >
+                    {isSaving ? 'Saving...' : 'Save Draft'}
                   </Button>
                 </div>
               </div>
-            </div>
+
+              <div className="space-y-4">
+                {/* Part 1: Hook */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                      <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[11px] font-mono font-bold">
+                        1
+                      </span>
+                      Hook (0–5s) • High Energy Attention Grabber
+                    </label>
+                    <span className="text-[11px] text-slate-400 font-mono">Target: ~10-15 words</span>
+                  </div>
+                  <textarea
+                    value={hookText}
+                    onChange={(e) => setHookText(e.target.value)}
+                    placeholder="e.g. ఈ క్వశ్చన్ ని 10 సెకన్లలో సాల్వ్ చేయగలరా? చాలా మంది ఇక్కడే తప్పు చేస్తారు!"
+                    rows={2}
+                    className="w-full text-sm sm:text-base font-telugu font-medium text-slate-900 leading-relaxed bg-white border border-slate-200 rounded-xl focus:border-indigo-500 focus:outline-hidden p-3"
+                  />
+                </div>
+
+                {/* Part 2: Problem Statement */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                      <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[11px] font-mono font-bold">
+                        2
+                      </span>
+                      Problem Statement (5–15s) • Question Narration
+                    </label>
+                    <span className="text-[11px] text-slate-400 font-mono">Target: ~25-35 words</span>
+                  </div>
+                  <textarea
+                    value={problemStatement}
+                    onChange={(e) => setProblemStatement(e.target.value)}
+                    placeholder="e.g. ఒక రైలు 60 km/h వేగంతో ప్రయాణిస్తూ 200 మీటర్ల ప్లాట్‌ఫారమ్‌ను 18 సెకన్లలో దాటింది..."
+                    rows={3}
+                    className="w-full text-sm sm:text-base font-telugu font-medium text-slate-900 leading-relaxed bg-white border border-slate-200 rounded-xl focus:border-indigo-500 focus:outline-hidden p-3"
+                  />
+                </div>
+
+                {/* Part 3: Spoken Solution & Intuition */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                      <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[11px] font-mono font-bold">
+                        3
+                      </span>
+                      Spoken Solution & Intuition (15–35s) • Conversational Explanation
+                    </label>
+                    <span className="text-[11px] text-slate-400 font-mono">Target: ~45-60 words</span>
+                  </div>
+                  <div className="p-2.5 mb-2 bg-indigo-50/70 border border-indigo-100 rounded-xl text-[11px] text-indigo-900 leading-relaxed">
+                    💡 <strong>Conversational Narration Guidance:</strong> Spoken Telugu should explain the solution intuitively like coaching a friend. Avoid reading textbook algebraic equations mechanically!
+                  </div>
+                  <textarea
+                    value={stepByStepSolution}
+                    onChange={(e) => setStepByStepSolution(e.target.value)}
+                    placeholder="Spoken Telugu explanation of the intuitive steps..."
+                    rows={4}
+                    className="w-full text-sm sm:text-base font-telugu font-medium text-slate-900 leading-relaxed bg-white border border-slate-200 rounded-xl focus:border-indigo-500 focus:outline-hidden p-3"
+                  />
+                </div>
+
+                {/* Part 4: Burra Speed Shortcut */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                      <span className="w-5 h-5 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center text-[11px] font-mono font-bold">
+                        4
+                      </span>
+                      Burra Speed Shortcut (35–45s) • High-Retention Exam Trick
+                    </label>
+                    <span className="text-[11px] font-mono font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                      Exam Shortcut
+                    </span>
+                  </div>
+                  <div className="p-2.5 mb-2 bg-amber-50 border border-amber-200/80 rounded-xl text-[11px] text-amber-900 leading-relaxed">
+                    ⚡ <strong>High-Retention Exam Trick:</strong> Deliver the core mental math shortcut, unit-digit elimination rule, or ratio trick that saves 40+ seconds on the actual exam.
+                  </div>
+                  <textarea
+                    value={speedTrickOrTakeaway}
+                    onChange={(e) => setSpeedTrickOrTakeaway(e.target.value)}
+                    placeholder="Pro-Tip: In the actual exam, check the units digit to eliminate Options B and D instantly!"
+                    rows={2}
+                    className="w-full text-sm sm:text-base font-telugu font-medium text-slate-900 leading-relaxed bg-amber-50/30 border border-amber-200 rounded-xl focus:border-indigo-500 focus:outline-hidden p-3"
+                  />
+                </div>
+
+                {/* Part 5: Call to Action */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                      <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center text-[11px] font-mono font-bold">
+                        5
+                      </span>
+                      Call to Action (45–50s) • Outro & Next Question Hook
+                    </label>
+                    <span className="text-[11px] text-slate-400 font-mono">Target: ~10 words</span>
+                  </div>
+                  <textarea
+                    value={callToAction}
+                    onChange={(e) => setCallToAction(e.target.value)}
+                    placeholder="e.g. మరిన్ని షార్ట్‌కట్స్ కోసం ఇప్పుడే Burra Pariksha ఛానెల్ ని Follow చేయండి!"
+                    rows={2}
+                    className="w-full text-sm sm:text-base font-telugu font-medium text-slate-900 leading-relaxed bg-white border border-slate-200 rounded-xl focus:border-indigo-500 focus:outline-hidden p-3"
+                  />
+                </div>
+
+                {/* Production Cues & Teleprompter Notes */}
+                <div className="pt-3 border-t border-slate-100">
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">
+                    Production Cues & Teleprompter Notes
+                  </label>
+                  <input
+                    type="text"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="e.g. High energy start, emphasize formula graphic at 0:18"
+                    className="w-full text-xs px-3 py-2 border border-slate-200 rounded-xl text-slate-700 bg-slate-50 focus:bg-white focus:outline-hidden focus:border-indigo-500"
+                  />
+                </div>
+              </div>
+            </Card>
+          </div>
+
+          {/* ========================================================
+              RIGHT PANE (lg:col-span-4): STICKY PRODUCTION & TIMING RAIL
+              ======================================================== */}
+          <div className="lg:col-span-4 lg:sticky lg:top-6 space-y-4">
+            {/* CARD 1 (TOP - PRIMARY ADVANCEMENT STATION): "Next Stage: Teleprompter & Filming" */}
+            <Card
+              variant="elevated"
+              padding="lg"
+              className="rounded-2xl border-indigo-100 shadow-md bg-white"
+            >
+              <div className="flex items-center gap-2 text-indigo-700 font-bold text-xs pb-3 mb-3 border-b border-indigo-100">
+                <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[10px] font-mono font-bold">
+                  04
+                </span>
+                <span>Next Stage: Teleprompter &amp; Filming</span>
+              </div>
+              <p className="text-xs text-slate-600 leading-relaxed mb-4">
+                Telugu spoken narration drafted? Move immediately into filming with the host teleprompter tool.
+              </p>
+
+              <div className="space-y-2.5">
+                <Button
+                  variant="primary"
+                  size="lg"
+                  onClick={handleSaveAndProceed}
+                  disabled={isSaving}
+                  icon={ArrowRight}
+                  className="w-full justify-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 shadow-md text-sm"
+                >
+                  {isSaving ? 'Saving Draft...' : 'Save & Proceed to Step 04: Teleprompter →'}
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const targetId = activeVideoId;
+                    navigate(`/videos/${encodeURIComponent(targetId)}?tab=script`);
+                  }}
+                  className="w-full justify-center text-xs text-slate-700 hover:bg-slate-50"
+                >
+                  Open in Studio Workspace
+                </Button>
+              </div>
+            </Card>
+
+            {/* CARD 2: "Pacing & Timing" */}
+            <Card variant="default" padding="lg" className="rounded-2xl border-slate-200/80 shadow-xs">
+              <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                  <Clock className="w-4 h-4 text-indigo-600" />
+                  Pacing & Timing
+                </span>
+                <Badge
+                  variant={estimatedSeconds <= 50 ? 'approved' : 'draft'}
+                  size="sm"
+                  className={`font-bold text-[11px] ${
+                    estimatedSeconds <= 50
+                      ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                      : 'bg-amber-50 text-amber-800 border-amber-200'
+                  }`}
+                >
+                  {estimatedSeconds <= 50 ? 'Optimal Pace' : 'Too Long'}
+                </Badge>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 p-3 bg-slate-50/80 rounded-xl border border-slate-100 text-center mb-3">
+                <div>
+                  <span className="text-[11px] text-slate-500 block">Total Words</span>
+                  <span className="text-xl font-bold font-mono text-slate-900">{totalWords}</span>
+                </div>
+                <div>
+                  <span className="text-[11px] text-slate-500 block">Est. Duration</span>
+                  <span className="text-xl font-bold font-mono text-indigo-700">~{estimatedSeconds}s</span>
+                </div>
+              </div>
+
+              <p className="text-[11px] text-slate-500 leading-relaxed">
+                Calculated using standard Telugu short-form narration rate of <strong>140 words/minute</strong>.
+              </p>
+            </Card>
+
+            {/* CARD 3: "Reviewer Math Proof" (Dark reference drawer) */}
+            {question && (
+              <div className="bg-slate-900 text-slate-100 rounded-2xl border border-slate-800 p-4 shadow-xs space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <BookOpen className="w-4 h-4 text-indigo-400" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-300">
+                      Reviewer Math Proof
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowMathProofDrawer(!showMathProofDrawer)}
+                    className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 font-medium transition-colors"
+                  >
+                    <span>{showMathProofDrawer ? 'Collapse' : 'Expand'}</span>
+                    {showMathProofDrawer ? (
+                      <ChevronUp className="w-3.5 h-3.5" />
+                    ) : (
+                      <ChevronDown className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                </div>
+
+                {showMathProofDrawer && (
+                  <div className="space-y-3 text-xs pt-3 border-t border-slate-800 animate-in fade-in duration-150">
+                    <div>
+                      <span className="text-[11px] font-semibold text-indigo-400 block mb-1 uppercase tracking-wider">
+                        Problem Statement
+                      </span>
+                      <p className="text-slate-200 text-xs leading-relaxed font-telugu">
+                        {(question as any).statementTe || (question as any).statement || question.questionText}
+                      </p>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                          Authoritative Math Proof
+                        </span>
+                        <span className="text-[10px] text-emerald-400 font-bold bg-emerald-950 px-2 py-0.5 rounded-md border border-emerald-800">
+                          Option {String(question.correctAnswer || (question as any).correctOption || '').toUpperCase()}
+                        </span>
+                      </div>
+                      <div className="text-slate-300 font-telugu text-[11px] bg-black/60 p-2.5 rounded-xl border border-slate-800 max-h-44 overflow-y-auto whitespace-pre-wrap leading-relaxed">
+                        {(question as any).explanationTe || question.explanation || 'No proof text available on record.'}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1.5 border-t border-slate-800">
+                      <span>
+                        ID: <strong className="font-mono text-indigo-300">{question.id}</strong>
+                      </span>
+                      <span>
+                        Topic:{' '}
+                        <strong className="text-slate-300">
+                          {question.topicName || (question as any).topic || question.topicId || 'General'}
+                        </strong>
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
     </div>
   );
 };
+
 export default VideoCreateScriptPage;
+
