@@ -5,7 +5,6 @@ import {
   Video,
   FileQuestion,
   Clock,
-  User,
   Film,
   Calendar,
   Save,
@@ -27,6 +26,8 @@ import {
   Scissors,
   ShieldCheck,
   CheckCheck,
+  Share2,
+  FolderGit2,
 } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { Button } from '../components/common/Button';
@@ -53,6 +54,7 @@ import { RecordingWorkspace } from '../components/video/RecordingWorkspace';
 import { EditingWorkspace } from '../components/video/EditingWorkspace';
 import { FinalReviewWorkspace } from '../components/video/FinalReviewWorkspace';
 import { VideoWorkflowHeader } from '../components/video/VideoWorkflowHeader';
+import { SocialReviewWorkspace } from '../components/social/SocialReviewWorkspace';
 
 export const VideoDetailPage: React.FC = () => {
   const { videoId } = useParams<{ videoId: string }>();
@@ -64,12 +66,12 @@ export const VideoDetailPage: React.FC = () => {
   const [isUpdating, setIsUpdating] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [notification, setNotification] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'recording' | 'editing' | 'final-review' | 'script' | 'thumbnail' | 'pinned-comment' | 'publishing'>('overview');
+  const [activeTab, setActiveTab] = useState<'script' | 'recording' | 'editing' | 'final-review' | 'social' | 'overview' | 'thumbnail' | 'pinned-comment' | 'publishing'>('script');
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const tabParam = params.get('tab');
-    if (tabParam && ['overview', 'recording', 'editing', 'final-review', 'script', 'thumbnail', 'pinned-comment', 'publishing'].includes(tabParam)) {
+    if (tabParam && ['script', 'recording', 'editing', 'final-review', 'social', 'overview', 'thumbnail', 'pinned-comment', 'publishing'].includes(tabParam)) {
       setActiveTab(tabParam as any);
     }
   }, [location.search]);
@@ -205,14 +207,14 @@ export const VideoDetailPage: React.FC = () => {
     return (
       <div className="text-center py-20 space-y-4">
         <div className="w-8 h-8 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto" />
-        <p className="text-xs text-slate-500 font-mono">Loading video production record from Google Sheets...</p>
+        <p className="text-xs text-slate-500 font-mono">Loading video studio workspace...</p>
       </div>
     );
   }
 
   if (!video) {
     return (
-      <div className="text-center py-16 space-y-4 bg-white rounded-xl border border-slate-200 p-8 max-w-xl mx-auto">
+      <div className="text-center py-16 space-y-4 bg-white rounded-2xl border border-slate-200 p-8 max-w-xl mx-auto">
         <AlertTriangle className="w-8 h-8 text-rose-500 mx-auto" />
         <h3 className="text-base font-bold text-slate-800">Video Record Not Found</h3>
         <p className="text-xs text-slate-500">
@@ -231,28 +233,51 @@ export const VideoDetailPage: React.FC = () => {
   const priorityConfig = PRIORITY_CONFIG[video.priority] || PRIORITY_CONFIG[PriorityLevel.NORMAL];
 
   const workflowStep: 5 | 6 | 7 | 8 | 9 =
-    video.status === VideoProductionStatus.SCRIPT_READY
+    activeTab === 'script'
+      ? 5
+      : activeTab === 'recording'
       ? 6
-      : video.status === VideoProductionStatus.RECORDING || video.status === VideoProductionStatus.RECORDED
+      : activeTab === 'editing'
       ? 7
-      : video.status === VideoProductionStatus.EDITING
+      : activeTab === 'final-review'
       ? 8
-      : video.status === VideoProductionStatus.FINAL_REVIEW || video.status === VideoProductionStatus.READY_TO_UPLOAD || video.status === VideoProductionStatus.UPLOADED
+      : activeTab === 'social'
       ? 9
+      : video.status === VideoProductionStatus.RECORDING || video.status === VideoProductionStatus.RECORDED
+      ? 6
+      : video.status === VideoProductionStatus.EDITING
+      ? 7
+      : video.status === VideoProductionStatus.FINAL_REVIEW || video.status === VideoProductionStatus.READY_TO_UPLOAD || video.status === VideoProductionStatus.UPLOADED
+      ? 8
       : 5;
 
+  const handleStepSelect = (stepNumber: 5 | 6 | 7 | 8 | 9) => {
+    const stageMap: Record<number, typeof activeTab> = {
+      5: 'script',
+      6: 'recording',
+      7: 'editing',
+      8: 'final-review',
+      9: 'social',
+    };
+    const target = stageMap[stepNumber] || 'script';
+    setActiveTab(target);
+    navigate(`/videos/${encodeURIComponent(video.id)}?tab=${target}`, { replace: true });
+  };
+
   return (
-    <div className="space-y-6 max-w-6xl mx-auto animate-in fade-in duration-200 pb-16">
-      {/* 5-Step Video Workflow Stepper */}
+    <div className="space-y-6 max-w-7xl mx-auto animate-in fade-in duration-200 pb-16">
+      {/* 5-Step Video Pipeline Stepper Header */}
       <VideoWorkflowHeader
         currentStep={workflowStep}
         videoId={video.id}
         videoTitle={video.title}
         videoStatus={video.status}
+        onStepSelect={handleStepSelect}
+        activeStageTab={activeTab}
       />
 
-      {/* Top Breadcrumb & Quick Nav */}
-      <div className="flex items-center justify-between">
+      {/* Top Breadcrumb & Navigation */}
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2 text-xs text-slate-500">
           <Link to="/production" className="hover:text-slate-900 font-medium flex items-center gap-1">
             <ArrowLeft className="w-3.5 h-3.5" />
@@ -262,17 +287,17 @@ export const VideoDetailPage: React.FC = () => {
           <span className="font-mono text-indigo-600 font-semibold">{video.id}</span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {video.questionId && (
             <Link to={`/social-review/${encodeURIComponent(video.questionId)}`}>
-              <Button variant="outline" size="sm" icon={CheckCheck} className="text-xs">
-                Social Review
+              <Button variant="outline" size="sm" icon={Share2} className="text-xs">
+                Standalone Review
               </Button>
             </Link>
           )}
           <Link to="/queue">
             <Button variant="outline" size="sm" className="text-xs">
-              View Video Queue
+              Video Queue
             </Button>
           </Link>
           <Link to={`/questions/${video.questionId}`}>
@@ -285,14 +310,14 @@ export const VideoDetailPage: React.FC = () => {
 
       {/* Notifications / Alerts */}
       {notification && (
-        <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-lg flex items-center gap-2.5 animate-in fade-in">
+        <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl flex items-center gap-2.5 animate-in fade-in">
           <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
           <span>{notification}</span>
         </div>
       )}
 
       {errorMessage && (
-        <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-lg flex items-start gap-2.5 animate-in fade-in">
+        <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-xl flex items-start gap-2.5 animate-in fade-in">
           <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
           <div>
             <p className="font-semibold">Operation Error</p>
@@ -302,42 +327,42 @@ export const VideoDetailPage: React.FC = () => {
       )}
 
       {/* Main Header Card */}
-      <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-xs space-y-4">
+      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
         <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
           <div className="space-y-1.5 flex-1">
             <div className="flex flex-wrap items-center gap-2.5">
-              <span className="font-mono text-sm font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded border border-indigo-200">
+              <span className="font-mono text-sm font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-200">
                 {video.id}
               </span>
               {video.contentMasterId ? (
                 <Link
                   to={`/content-masters/${encodeURIComponent(video.contentMasterId)}`}
-                  className="font-mono text-xs font-bold text-purple-800 hover:text-purple-950 bg-purple-100 hover:bg-purple-200 px-2.5 py-1 rounded border border-purple-300 transition-colors inline-flex items-center gap-1"
+                  className="font-mono text-xs font-bold text-purple-800 hover:text-purple-950 bg-purple-100 hover:bg-purple-200 px-2.5 py-1 rounded-lg border border-purple-300 transition-colors inline-flex items-center gap-1"
                   title="View Content Master Explorer"
                 >
                   Master: {video.contentMasterId}
                 </Link>
               ) : (
-                <span className="text-xs font-mono bg-slate-100 text-slate-500 px-2.5 py-1 rounded">
+                <span className="text-xs font-mono bg-slate-100 text-slate-500 px-2.5 py-1 rounded-lg">
                   Master: Not linked
                 </span>
               )}
               <VideoStatusBadge status={video.status} size="md" />
-              <span className={`text-xs px-2.5 py-1 rounded font-semibold ${priorityConfig.bg} ${priorityConfig.text}`}>
+              <span className={`text-xs px-2.5 py-1 rounded-lg font-semibold ${priorityConfig.bg} ${priorityConfig.text}`}>
                 Priority: {priorityConfig.label}
               </span>
               {video.actualDurationSeconds ? (
-                <span className="text-xs font-mono bg-slate-100 text-slate-700 px-2 py-1 rounded font-medium">
+                <span className="text-xs font-mono bg-slate-100 text-slate-700 px-2 py-1 rounded-lg font-medium">
                   {video.actualDurationSeconds}s (Actual Duration)
                 </span>
               ) : (
-                <span className="text-xs font-mono bg-slate-100 text-slate-500 px-2 py-1 rounded">
+                <span className="text-xs font-mono bg-slate-100 text-slate-500 px-2 py-1 rounded-lg">
                   {video.targetDurationSeconds || 45}s Target
                 </span>
               )}
             </div>
             <h1 className="text-lg font-bold text-slate-900 leading-tight pt-1">{video.title}</h1>
-            <p className="text-xs text-slate-500 flex items-center gap-2">
+            <p className="text-xs text-slate-500 flex items-center gap-2 flex-wrap">
               <span>Ref Question:</span>
               <Link
                 to={`/questions/${video.questionId}`}
@@ -376,343 +401,460 @@ export const VideoDetailPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Production & Asset Workspace Tabs */}
-      <div className="flex border-b border-slate-200 gap-1 text-xs font-semibold overflow-x-auto bg-white p-1 rounded-xl border shadow-2xs">
+      {/* Unified 5-Stage Studio Navigation Bar */}
+      <div className="flex border-b border-slate-200 gap-1.5 text-xs font-semibold overflow-x-auto bg-white p-1.5 rounded-2xl border shadow-2xs">
         <button
           type="button"
-          onClick={() => setActiveTab('overview')}
-          className={`px-4 py-2.5 rounded-lg flex items-center gap-2 transition-all shrink-0 ${
-            activeTab === 'overview'
-              ? 'bg-indigo-50 text-indigo-700 font-bold border border-indigo-200'
+          onClick={() => setActiveTab('script')}
+          className={`px-4 py-2.5 rounded-xl flex items-center gap-2 transition-all shrink-0 cursor-pointer ${
+            activeTab === 'script'
+              ? 'bg-indigo-600 text-white font-bold shadow-xs'
               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
           }`}
         >
-          <Film className="w-4 h-4" />
-          <span>Stage Flow & Details</span>
+          <Edit3 className="w-4 h-4" />
+          <span>1. Scripting</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab('recording')}
-          className={`px-4 py-2.5 rounded-lg flex items-center gap-2 transition-all shrink-0 ${
+          className={`px-4 py-2.5 rounded-xl flex items-center gap-2 transition-all shrink-0 cursor-pointer ${
             activeTab === 'recording'
-              ? 'bg-indigo-50 text-indigo-700 font-bold border border-indigo-200'
+              ? 'bg-indigo-600 text-white font-bold shadow-xs'
               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
           }`}
         >
-          <Mic className="w-4 h-4 text-indigo-600" />
-          <span>Recording Workspace</span>
+          <Mic className="w-4 h-4" />
+          <span>2. Teleprompter &amp; Filming</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab('editing')}
-          className={`px-4 py-2.5 rounded-lg flex items-center gap-2 transition-all shrink-0 ${
+          className={`px-4 py-2.5 rounded-xl flex items-center gap-2 transition-all shrink-0 cursor-pointer ${
             activeTab === 'editing'
-              ? 'bg-indigo-50 text-indigo-700 font-bold border border-indigo-200'
+              ? 'bg-indigo-600 text-white font-bold shadow-xs'
               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
           }`}
         >
-          <Scissors className="w-4 h-4 text-indigo-600" />
-          <span>Editing Workspace</span>
+          <Scissors className="w-4 h-4" />
+          <span>3. Editing Bay</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab('final-review')}
-          className={`px-4 py-2.5 rounded-lg flex items-center gap-2 transition-all shrink-0 ${
+          className={`px-4 py-2.5 rounded-xl flex items-center gap-2 transition-all shrink-0 cursor-pointer ${
             activeTab === 'final-review'
-              ? 'bg-indigo-50 text-indigo-700 font-bold border border-indigo-200'
+              ? 'bg-indigo-600 text-white font-bold shadow-xs'
               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
           }`}
         >
-          <ShieldCheck className="w-4 h-4 text-indigo-600" />
-          <span>Final Review</span>
+          <ShieldCheck className="w-4 h-4" />
+          <span>4. Final QC Lock</span>
         </button>
 
         <button
           type="button"
-          onClick={() => setActiveTab('script')}
-          className={`px-4 py-2.5 rounded-lg flex items-center gap-2 transition-all shrink-0 ${
-            activeTab === 'script'
-              ? 'bg-indigo-50 text-indigo-700 font-bold border border-indigo-200'
+          onClick={() => setActiveTab('social')}
+          className={`px-4 py-2.5 rounded-xl flex items-center gap-2 transition-all shrink-0 cursor-pointer ${
+            activeTab === 'social'
+              ? 'bg-indigo-600 text-white font-bold shadow-xs'
               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
           }`}
         >
-          <Edit3 className="w-4 h-4" />
-          <span>Script Workspace</span>
+          <Share2 className="w-4 h-4" />
+          <span>5. Social Packaging &amp; Simulator</span>
+        </button>
+
+        <div className="h-6 w-px bg-slate-200 self-center mx-1 shrink-0" />
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('overview')}
+          className={`px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 transition-all shrink-0 cursor-pointer ${
+            activeTab === 'overview'
+              ? 'bg-slate-800 text-white font-bold shadow-xs'
+              : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+          }`}
+        >
+          <Film className="w-3.5 h-3.5" />
+          <span>Stage Flow &amp; State Logs</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab('thumbnail')}
-          className={`px-4 py-2.5 rounded-lg flex items-center gap-2 transition-all shrink-0 ${
+          className={`px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 transition-all shrink-0 cursor-pointer ${
             activeTab === 'thumbnail'
-              ? 'bg-indigo-50 text-indigo-700 font-bold border border-indigo-200'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+              ? 'bg-slate-800 text-white font-bold shadow-xs'
+              : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
           }`}
         >
-          <Sparkles className="w-4 h-4" />
+          <Sparkles className="w-3.5 h-3.5" />
           <span>Thumbnail Asset</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab('pinned-comment')}
-          className={`px-4 py-2.5 rounded-lg flex items-center gap-2 transition-all shrink-0 ${
+          className={`px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 transition-all shrink-0 cursor-pointer ${
             activeTab === 'pinned-comment'
-              ? 'bg-indigo-50 text-indigo-700 font-bold border border-indigo-200'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+              ? 'bg-slate-800 text-white font-bold shadow-xs'
+              : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
           }`}
         >
-          <Activity className="w-4 h-4" />
+          <Activity className="w-3.5 h-3.5" />
           <span>Pinned Comment</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab('publishing')}
-          className={`px-4 py-2.5 rounded-lg flex items-center gap-2 transition-all shrink-0 ${
+          className={`px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 transition-all shrink-0 cursor-pointer ${
             activeTab === 'publishing'
-              ? 'bg-indigo-50 text-indigo-700 font-bold border border-indigo-200'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+              ? 'bg-slate-800 text-white font-bold shadow-xs'
+              : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
           }`}
         >
-          <UploadCloud className="w-4 h-4" />
+          <UploadCloud className="w-3.5 h-3.5" />
           <span>Manual Publishing</span>
         </button>
       </div>
 
-      {/* Tab 1: Overview & Stage Actions */}
-      {activeTab === 'overview' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left 2 Cols: Production Controls & Question Preview */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Status Transition Control Panel */}
-          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <Film className="w-4 h-4 text-indigo-600" />
-                <h3 className="text-sm font-bold text-slate-900">Production Stage Actions</h3>
-              </div>
-              <span className="text-xs text-slate-400 font-mono">State Machine Guard Active</span>
+      {/* Main Studio Grid: Active Stage Surface (Left) + Persistent Question & Math Proof Rail (Right) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Left Side: Active Stage Canvas */}
+        <div className="lg:col-span-8 space-y-6">
+          {/* Stage 1: Script Workspace */}
+          {activeTab === 'script' && (
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs">
+              <ScriptWorkspace
+                videoId={video.id}
+                videoStatus={video.status}
+                onStatusChange={fetchVideoDetails}
+              />
             </div>
+          )}
 
-            {video.status === VideoProductionStatus.UPLOADED && (
-              <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-900 text-xs flex items-center gap-3">
-                <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-                <div>
-                  <p className="font-bold">Video Production Complete & Published</p>
-                  <p className="text-emerald-700 mt-0.5">
-                    This video has reached the terminal UPLOADED state. It is ready for distribution across Burra Pariksha channels.
-                  </p>
+          {/* Stage 2: Recording Workspace */}
+          {activeTab === 'recording' && (
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs">
+              <RecordingWorkspace
+                videoId={video.id}
+                video={video}
+                onStatusChange={fetchVideoDetails}
+              />
+            </div>
+          )}
+
+          {/* Stage 3: Editing Workspace */}
+          {activeTab === 'editing' && (
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs">
+              <EditingWorkspace
+                videoId={video.id}
+                video={video}
+                onStatusChange={fetchVideoDetails}
+                onNavigateTab={(tab) => setActiveTab(tab)}
+              />
+            </div>
+          )}
+
+          {/* Stage 4: Final Review Workspace */}
+          {activeTab === 'final-review' && (
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs">
+              <FinalReviewWorkspace
+                videoId={video.id}
+                video={video}
+                onStatusChange={fetchVideoDetails}
+                onNavigateTab={(tab) => setActiveTab(tab)}
+              />
+            </div>
+          )}
+
+          {/* Stage 5: Social Review & Simulator */}
+          {activeTab === 'social' && (
+            <div className="bg-white border border-slate-200 rounded-2xl p-2 sm:p-4 shadow-xs">
+              <SocialReviewWorkspace
+                questionId={video.questionId}
+                driveFolderUrl={video.driveFolderUrl}
+                onReviewSubmitted={fetchVideoDetails}
+              />
+            </div>
+          )}
+
+          {/* Extra Tab: Thumbnail */}
+          {activeTab === 'thumbnail' && (
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs">
+              <ThumbnailWorkspace
+                videoId={video.id}
+                videoTitle={video.title}
+                onStatusChange={fetchVideoDetails}
+              />
+            </div>
+          )}
+
+          {/* Extra Tab: Pinned Comment */}
+          {activeTab === 'pinned-comment' && (
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs">
+              <PinnedCommentWorkspace
+                videoId={video.id}
+                onStatusChange={fetchVideoDetails}
+              />
+            </div>
+          )}
+
+          {/* Extra Tab: Manual Publishing */}
+          {activeTab === 'publishing' && (
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs">
+              <PublishingWorkspace
+                video={video}
+                onStatusChange={fetchVideoDetails}
+              />
+            </div>
+          )}
+
+          {/* Extra Tab: Overview & Stage Actions */}
+          {activeTab === 'overview' && (
+            <div className="space-y-6">
+              {/* Status Transition Control Panel */}
+              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <Film className="w-4 h-4 text-indigo-600" />
+                    <h3 className="text-sm font-bold text-slate-900">Production Stage Actions</h3>
+                  </div>
+                  <span className="text-xs text-slate-400 font-mono">State Machine Guard Active</span>
                 </div>
-              </div>
-            )}
 
-            {video.status === VideoProductionStatus.CANCELLED && (
-              <div className="p-4 bg-rose-50 border border-rose-200 rounded-lg text-rose-900 text-xs flex items-center gap-3">
-                <XCircle className="w-5 h-5 text-rose-600 shrink-0" />
-                <div>
-                  <p className="font-bold">Video Production Cancelled</p>
-                  <p className="text-rose-700 mt-0.5">
-                    This production item has been marked CANCELLED (terminal state). To restart, re-queue the question from the Question Library.
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {video.status !== VideoProductionStatus.UPLOADED && video.status !== VideoProductionStatus.CANCELLED && (
-              <div className="space-y-4">
-                {/* Optional Status Transition Remarks */}
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Transition Remarks / Stage Notes (Logged in WORKFLOW sheet)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g., Script approved by host, raw footage recorded at studio 2..."
-                    value={statusRemark}
-                    onChange={(e) => setStatusRemark(e.target.value)}
-                    className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:ring-1 focus:ring-indigo-500"
-                  />
-                </div>
-
-                {video.status === VideoProductionStatus.READY_TO_UPLOAD && (
-                  <div className="p-3 bg-teal-50 border border-teal-200 rounded-lg space-y-2">
-                    <label className="block text-xs font-semibold text-teal-900">
-                      Actual Rendered Duration (Seconds)
-                    </label>
-                    <input
-                      type="number"
-                      value={actualDuration || 45}
-                      onChange={(e) => setActualDuration(Number(e.target.value))}
-                      className="w-32 text-xs px-3 py-1.5 border border-teal-300 rounded-md font-mono"
-                    />
+                {video.status === VideoProductionStatus.UPLOADED && (
+                  <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-900 text-xs flex items-center gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                    <div>
+                      <p className="font-bold">Video Production Complete & Published</p>
+                      <p className="text-emerald-700 mt-0.5">
+                        This video has reached the terminal UPLOADED state. It is ready for distribution across Burra Pariksha channels.
+                      </p>
+                    </div>
                   </div>
                 )}
 
-                {/* Available Action Buttons */}
-                <div className="space-y-2">
-                  <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                    Permitted Next Transitions:
-                  </span>
-                  <div className="flex flex-wrap gap-2.5">
-                    {allowedNextTransitions.map((next) => {
-                      const nextCfg = VIDEO_STATUS_CONFIG[next];
-                      const isUpload = next === VideoProductionStatus.UPLOADED;
-                      const isHold = next === VideoProductionStatus.ON_HOLD;
-                      const isCancel = next === VideoProductionStatus.CANCELLED;
-
-                      return (
-                        <Button
-                          key={next}
-                          variant={isUpload ? 'primary' : isCancel ? 'danger' : 'outline'}
-                          size="sm"
-                          disabled={isUpdating}
-                          onClick={() => handleStatusTransition(next)}
-                          className={`text-xs flex items-center gap-1.5 ${
-                            isHold ? 'bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100' : ''
-                          }`}
-                        >
-                          {isUpload && <UploadCloud className="w-3.5 h-3.5" />}
-                          {isHold && <PauseCircle className="w-3.5 h-3.5 text-amber-600" />}
-                          {isCancel && <XCircle className="w-3.5 h-3.5 text-rose-600" />}
-                          {!isUpload && !isHold && !isCancel && <Play className="w-3 h-3 text-indigo-600" />}
-                          <span>Move to {nextCfg?.label || next}</span>
-                        </Button>
-                      );
-                    })}
+                {video.status === VideoProductionStatus.CANCELLED && (
+                  <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-rose-900 text-xs flex items-center gap-3">
+                    <XCircle className="w-5 h-5 text-rose-600 shrink-0" />
+                    <div>
+                      <p className="font-bold">Video Production Cancelled</p>
+                      <p className="text-rose-700 mt-0.5">
+                        This production item has been marked CANCELLED (terminal state). To restart, re-queue the question from the Question Library.
+                      </p>
+                    </div>
                   </div>
-                </div>
-              </div>
-            )}
-          </div>
+                )}
 
-          {/* Question Preview Card */}
+                {video.status !== VideoProductionStatus.UPLOADED && video.status !== VideoProductionStatus.CANCELLED && (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        Transition Remarks / Stage Notes (Logged in WORKFLOW sheet)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g., Script approved by host, raw footage recorded at studio 2..."
+                        value={statusRemark}
+                        onChange={(e) => setStatusRemark(e.target.value)}
+                        className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:ring-1 focus:ring-indigo-500"
+                      />
+                    </div>
+
+                    {video.status === VideoProductionStatus.READY_TO_UPLOAD && (
+                      <div className="p-3 bg-teal-50 border border-teal-200 rounded-lg space-y-2">
+                        <label className="block text-xs font-semibold text-teal-900">
+                          Actual Rendered Duration (Seconds)
+                        </label>
+                        <input
+                          type="number"
+                          value={actualDuration || 45}
+                          onChange={(e) => setActualDuration(Number(e.target.value))}
+                          className="w-32 text-xs px-3 py-1.5 border border-teal-300 rounded-md font-mono"
+                        />
+                      </div>
+                    )}
+
+                    <div className="space-y-2">
+                      <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                        Permitted Next Transitions:
+                      </span>
+                      <div className="flex flex-wrap gap-2.5">
+                        {allowedNextTransitions.map((next) => {
+                          const nextCfg = VIDEO_STATUS_CONFIG[next];
+                          const isUpload = next === VideoProductionStatus.UPLOADED;
+                          const isHold = next === VideoProductionStatus.ON_HOLD;
+                          const isCancel = next === VideoProductionStatus.CANCELLED;
+
+                          return (
+                            <Button
+                              key={next}
+                              variant={isUpload ? 'primary' : isCancel ? 'danger' : 'outline'}
+                              size="sm"
+                              disabled={isUpdating}
+                              onClick={() => handleStatusTransition(next)}
+                              className={`text-xs flex items-center gap-1.5 ${
+                                isHold ? 'bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100' : ''
+                              }`}
+                            >
+                              {isUpload && <UploadCloud className="w-3.5 h-3.5" />}
+                              {isHold && <PauseCircle className="w-3.5 h-3.5 text-amber-600" />}
+                              {isCancel && <XCircle className="w-3.5 h-3.5 text-rose-600" />}
+                              {!isUpload && !isHold && !isCancel && <Play className="w-3 h-3 text-indigo-600" />}
+                              <span>Move to {nextCfg?.label || next}</span>
+                            </Button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Workflow Status Transition History */}
+              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-3">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <History className="w-4 h-4 text-indigo-600" />
+                    <h3 className="text-sm font-bold text-slate-900">Workflow State Transitions</h3>
+                  </div>
+                  <span className="text-[11px] text-slate-400 font-mono">WORKFLOW Worksheet</span>
+                </div>
+
+                {video.workflowHistory && video.workflowHistory.length > 0 ? (
+                  <div className="divide-y divide-slate-100">
+                    {video.workflowHistory.map((wf) => (
+                      <div key={wf.id} className="py-2.5 text-xs flex items-start justify-between gap-3">
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-[10px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">
+                              {wf.fromStatus}
+                            </span>
+                            <span className="text-slate-400">&rarr;</span>
+                            <span className="font-mono text-[10px] bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded font-semibold">
+                              {wf.toStatus}
+                            </span>
+                          </div>
+                          {wf.remarks && <p className="text-slate-600 text-[11px] pt-0.5">{wf.remarks}</p>}
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-slate-500 font-medium">{wf.triggeredBy || wf.actorName || 'System'}</p>
+                          <p className="text-[10px] text-slate-400 font-mono">
+                            {new Date(wf.timestamp).toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-400 py-3 text-center">No workflow transition logs recorded yet.</p>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Right Side: Persistent Question & Math Proof Rail */}
+        <div className="lg:col-span-4 space-y-6">
+          {/* Question Card */}
           {video.question && (
-            <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-4">
+            <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                 <div className="flex items-center gap-2">
                   <FileQuestion className="w-4 h-4 text-indigo-600" />
-                  <h3 className="text-sm font-bold text-slate-900">Referenced Question Record</h3>
+                  <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                    Question &amp; Math Proof
+                  </h3>
                 </div>
-                <div className="flex items-center gap-2">
-                  <QuestionStatusBadge status={video.question.status} size="sm" />
-                  <DifficultyBadge difficulty={video.question.difficulty as DifficultyLevel} />
-                </div>
+                <DifficultyBadge difficulty={video.question.difficulty as DifficultyLevel} />
               </div>
 
-              <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg">
-                <p className="text-xs text-slate-500 font-mono mb-1">
-                  Taxonomy: {video.question.topicName} &gt; {video.question.subtopicName}
-                </p>
-                <h4 className="text-sm font-semibold text-slate-900 leading-relaxed">
+              {/* Telugu Problem Statement */}
+              <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
+                <span className="text-[10px] font-mono text-slate-500 font-bold uppercase block">
+                  Telugu Problem Statement
+                </span>
+                <p className="font-telugu text-sm font-semibold text-slate-900 leading-relaxed">
                   {video.question.questionText}
-                </h4>
+                </p>
               </div>
 
-              {/* Options Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {/* Options & Correct Answer Badge */}
+              <div className="space-y-2">
                 {(['a', 'b', 'c', 'd'] as const).map((optKey) => {
-                  const isCorrect = video.question?.correctAnswer?.toLowerCase() === optKey;
+                  const isCorrect = String(video.question?.correctAnswer).toLowerCase() === optKey;
                   const text = video.question?.options?.[optKey];
                   if (!text) return null;
 
                   return (
                     <div
                       key={optKey}
-                      className={`p-3 rounded-lg border text-xs flex items-start gap-2.5 ${
+                      className={`p-2.5 rounded-xl border text-xs font-telugu flex items-start gap-2.5 transition ${
                         isCorrect
-                          ? 'bg-emerald-50/70 border-emerald-300 text-emerald-950 font-medium'
+                          ? 'bg-emerald-50 border-emerald-300 text-emerald-950 font-bold shadow-2xs'
                           : 'bg-white border-slate-200 text-slate-700'
                       }`}
                     >
                       <span
-                        className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] shrink-0 ${
+                        className={`w-5 h-5 rounded-md flex items-center justify-center font-mono font-bold text-[10px] shrink-0 ${
                           isCorrect ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600'
                         }`}
                       >
                         {optKey.toUpperCase()}
                       </span>
-                      <div className="flex-1 leading-snug">{text}</div>
+                      <div className="flex-1 leading-snug pt-0.5">{text}</div>
+                      {isCorrect && (
+                        <span className="text-[10px] font-sans font-bold bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-300 shrink-0">
+                          Correct Answer
+                        </span>
+                      )}
                     </div>
                   );
                 })}
               </div>
 
-              {/* Explanation & Context */}
+              {/* Burra Speed Trick Proof */}
               {video.question.explanation && (
-                <div className="p-3.5 bg-indigo-50/50 border border-indigo-100 rounded-lg text-xs space-y-1">
-                  <span className="font-bold text-indigo-900">Explanation & Trick:</span>
-                  <p className="text-slate-700 leading-relaxed">{video.question.explanation}</p>
+                <div className="p-3.5 bg-indigo-50/70 border border-indigo-200 rounded-xl text-xs space-y-1">
+                  <span className="font-bold text-indigo-950 flex items-center gap-1">
+                    <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                    Burra Speed Trick &amp; Proof:
+                  </span>
+                  <p className="text-slate-800 leading-relaxed font-telugu text-[11px]">
+                    {video.question.explanation}
+                  </p>
                 </div>
               )}
 
               {video.question.realWorldContext && (
-                <div className="p-3 bg-amber-50/60 border border-amber-200 rounded-lg text-xs space-y-0.5">
-                  <span className="font-bold text-amber-900">Real-World Application Hook:</span>
-                  <p className="text-amber-800">{video.question.realWorldContext}</p>
+                <div className="p-3 bg-amber-50/60 border border-amber-200 rounded-xl text-xs space-y-0.5">
+                  <span className="font-bold text-amber-900 text-[11px]">Pedagogical Context:</span>
+                  <p className="text-amber-800 text-[11px] leading-relaxed">{video.question.realWorldContext}</p>
                 </div>
               )}
             </div>
           )}
 
-          {/* Workflow Status Transition History */}
-          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-3">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <History className="w-4 h-4 text-indigo-600" />
-                <h3 className="text-sm font-bold text-slate-900">Workflow State Transitions</h3>
-              </div>
-              <span className="text-[11px] text-slate-400 font-mono">WORKFLOW Worksheet</span>
-            </div>
-
-            {video.workflowHistory && video.workflowHistory.length > 0 ? (
-              <div className="divide-y divide-slate-100">
-                {video.workflowHistory.map((wf) => (
-                  <div key={wf.id} className="py-2.5 text-xs flex items-start justify-between gap-3">
-                    <div className="space-y-0.5">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-[10px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">
-                          {wf.fromStatus}
-                        </span>
-                        <span className="text-slate-400">&rarr;</span>
-                        <span className="font-mono text-[10px] bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded font-semibold">
-                          {wf.toStatus}
-                        </span>
-                      </div>
-                      {wf.remarks && <p className="text-slate-600 text-[11px] pt-0.5">{wf.remarks}</p>}
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-slate-500 font-medium">{wf.triggeredBy || wf.actorName || 'System'}</p>
-                      <p className="text-[10px] text-slate-400 font-mono">
-                        {new Date(wf.timestamp).toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-xs text-slate-400 py-3 text-center">No workflow transition logs recorded yet.</p>
-            )}
-          </div>
-        </div>
-
-        {/* Right 1 Col: Production Metadata, Assignments & Audit Feed */}
-        <div className="space-y-6">
-          {/* Metadata & Assignees Panel */}
-          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-4">
+          {/* Master Cut & Assigned Staff Card */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
                 <UserCheck className="w-4 h-4 text-indigo-600" />
-                <h3 className="text-sm font-bold text-slate-900">Production Staff & Assets</h3>
+                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                  Staff &amp; Master Assets
+                </h3>
               </div>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setIsEditingMeta(!isEditingMeta)}
-                className="text-xs p-1 h-7"
+                className="text-xs p-1 h-7 cursor-pointer"
               >
                 <Edit3 className="w-3.5 h-3.5" />
               </Button>
@@ -721,36 +863,37 @@ export const VideoDetailPage: React.FC = () => {
             {!isEditingMeta ? (
               <div className="space-y-3 text-xs">
                 <div>
-                  <span className="text-slate-400 block text-[10px] uppercase font-semibold">Assigned Host</span>
-                  <span className="font-medium text-slate-800">{video.assignedHost || '— Unassigned —'}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block text-[10px] uppercase font-semibold">Assigned Editor</span>
-                  <span className="font-medium text-slate-800">{video.assignedEditor || '— Unassigned —'}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block text-[10px] uppercase font-semibold">Drive Folder URL</span>
+                  <span className="text-slate-400 block text-[10px] uppercase font-bold">Google Drive Master Cut</span>
                   {video.driveFolderUrl ? (
                     <a
                       href={video.driveFolderUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="text-indigo-600 hover:underline flex items-center gap-1 mt-0.5 truncate"
+                      className="text-indigo-600 hover:underline flex items-center gap-1 mt-1 font-semibold truncate bg-indigo-50/50 p-2 rounded-lg border border-indigo-100"
                     >
+                      <FolderGit2 className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
                       <span className="truncate">{video.driveFolderUrl}</span>
-                      <ExternalLink className="w-3 h-3 shrink-0" />
+                      <ExternalLink className="w-3 h-3 shrink-0 ml-auto" />
                     </a>
                   ) : (
-                    <span className="text-slate-400">Not configured</span>
+                    <span className="text-slate-400 italic">Drive folder link not configured</span>
                   )}
                 </div>
-                <div>
-                  <span className="text-slate-400 block text-[10px] uppercase font-semibold">YouTube Shorts Ref</span>
-                  <span className="font-mono text-slate-800">{video.youtubeId || 'Not uploaded'}</span>
+
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl">
+                    <span className="text-slate-400 block text-[10px] uppercase font-bold">Assigned Host</span>
+                    <span className="font-semibold text-slate-800 text-xs">{video.assignedHost || '— Unassigned —'}</span>
+                  </div>
+                  <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl">
+                    <span className="text-slate-400 block text-[10px] uppercase font-bold">Assigned Editor</span>
+                    <span className="font-semibold text-slate-800 text-xs">{video.assignedEditor || '— Unassigned —'}</span>
+                  </div>
                 </div>
+
                 <div>
-                  <span className="text-slate-400 block text-[10px] uppercase font-semibold">Production Notes</span>
-                  <p className="text-slate-700 bg-slate-50 p-2.5 rounded-lg mt-1 whitespace-pre-wrap leading-relaxed">
+                  <span className="text-slate-400 block text-[10px] uppercase font-bold">Production Notes</span>
+                  <p className="text-slate-700 bg-slate-50 p-2.5 rounded-xl mt-1 whitespace-pre-wrap leading-relaxed text-[11px]">
                     {video.notes || 'No specific production notes provided.'}
                   </p>
                 </div>
@@ -764,7 +907,7 @@ export const VideoDetailPage: React.FC = () => {
                     value={editHost}
                     onChange={(e) => setEditHost(e.target.value)}
                     placeholder="e.g. Lead Host / Sravani"
-                    className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg"
+                    className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs"
                   />
                 </div>
                 <div>
@@ -774,7 +917,7 @@ export const VideoDetailPage: React.FC = () => {
                     value={editEditor}
                     onChange={(e) => setEditEditor(e.target.value)}
                     placeholder="e.g. Video Editor / Ramesh"
-                    className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg"
+                    className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs"
                   />
                 </div>
                 <div>
@@ -819,115 +962,20 @@ export const VideoDetailPage: React.FC = () => {
             )}
           </div>
 
-          {/* Phase 10: Rich Entity Assignments Section */}
+          {/* Entity Assignments Component */}
           <EntityAssignmentsSection
             entityType="VIDEO"
             entityId={video.id}
             title="Video Task Assignments"
             defaultTaskType="RECORDING"
           />
-
-          {/* Audit Trail Feed */}
-          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-3">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <Activity className="w-4 h-4 text-indigo-600" />
-                <h3 className="text-sm font-bold text-slate-900">Audit Trail</h3>
-              </div>
-              <span className="text-[11px] text-slate-400 font-mono">AUDIT_LOG</span>
-            </div>
-
-            {video.auditLogs && video.auditLogs.length > 0 ? (
-              <div className="divide-y divide-slate-100">
-                {video.auditLogs.map((log) => (
-                  <div key={log.id} className="py-2 text-xs flex items-start gap-2.5">
-                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0" />
-                    <div className="space-y-0.5 flex-1">
-                      <p className="text-slate-800 font-medium">
-                        <span className="font-semibold">{log.actorName}</span>: {log.action}
-                      </p>
-                      <p className="text-[10px] text-slate-400 font-mono">
-                        {new Date(log.timestamp).toLocaleTimeString()}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-xs text-slate-400 py-2 text-center">No audit log entries found.</p>
-            )}
-          </div>
         </div>
       </div>
-      )}
-
-      {/* Tab: Recording Workspace */}
-      {activeTab === 'recording' && (
-        <RecordingWorkspace
-          videoId={video.id}
-          video={video}
-          onStatusChange={fetchVideoDetails}
-        />
-      )}
-
-      {/* Tab: Editing Workspace */}
-      {activeTab === 'editing' && (
-        <EditingWorkspace
-          videoId={video.id}
-          video={video}
-          onStatusChange={fetchVideoDetails}
-          onNavigateTab={(tab) => setActiveTab(tab)}
-        />
-      )}
-
-      {/* Tab: Final Review Workspace */}
-      {activeTab === 'final-review' && (
-        <FinalReviewWorkspace
-          videoId={video.id}
-          video={video}
-          onStatusChange={fetchVideoDetails}
-          onNavigateTab={(tab) => setActiveTab(tab)}
-        />
-      )}
-
-      {/* Tab 2: Script Management */}
-      {activeTab === 'script' && (
-        <ScriptWorkspace
-          videoId={video.id}
-          videoStatus={video.status}
-          onStatusChange={fetchVideoDetails}
-        />
-      )}
-
-      {/* Tab 3: Thumbnail Management */}
-      {activeTab === 'thumbnail' && (
-        <ThumbnailWorkspace
-          videoId={video.id}
-          videoTitle={video.title}
-          onStatusChange={fetchVideoDetails}
-        />
-      )}
-
-      {/* Tab 4: Pinned Comment Management */}
-      {activeTab === 'pinned-comment' && (
-        <PinnedCommentWorkspace
-          videoId={video.id}
-          onStatusChange={fetchVideoDetails}
-        />
-      )}
-
-      {/* Tab 5: Publishing Distribution Workspace */}
-      {activeTab === 'publishing' && (
-        <PublishingWorkspace
-          video={video}
-          onStatusChange={fetchVideoDetails}
-        />
-      )}
 
       {/* Task Assignment Modal */}
       {showAssignModal && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-white rounded-xl border border-slate-200 shadow-xl max-w-md w-full p-6 space-y-4">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-md w-full p-6 space-y-4">
             <h3 className="text-sm font-bold text-slate-900">Assign Production Task</h3>
             <form onSubmit={handleCreateAssignment} className="space-y-3 text-xs">
               <div>
@@ -951,7 +999,7 @@ export const VideoDetailPage: React.FC = () => {
                 >
                   <option value="SCRIPTING">Scripting / Review</option>
                   <option value="RECORDING">Host Recording</option>
-                  <option value="EDITING">Video Editing & Motion Graphics</option>
+                  <option value="EDITING">Video Editing &amp; Motion Graphics</option>
                   <option value="THUMBNAIL">Thumbnail Creation</option>
                   <option value="REVIEW">Final Review / QC</option>
                 </select>
@@ -983,3 +1031,4 @@ export const VideoDetailPage: React.FC = () => {
     </div>
   );
 };
+export default VideoDetailPage;

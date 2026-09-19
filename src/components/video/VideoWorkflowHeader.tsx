@@ -2,11 +2,11 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import {
   FileText,
-  FileCheck,
   Video as VideoIcon,
   Scissors,
   Film,
   Check,
+  Share2,
 } from 'lucide-react';
 import { Badge } from '../../design-system/components/Badge';
 
@@ -16,13 +16,16 @@ export interface VideoWorkflowHeaderProps {
   videoTitle?: string;
   videoStatus?: string;
   className?: string;
+  onStepSelect?: (stepNumber: 5 | 6 | 7 | 8 | 9) => void;
+  activeStageTab?: string;
 }
 
-interface StepMeta {
+export interface StepMeta {
   stepNumber: 5 | 6 | 7 | 8 | 9;
   stepCode: string;
   label: string;
   shortLabel: string;
+  stageKey: string;
   icon: React.ElementType;
   path: string;
   description: string;
@@ -31,48 +34,53 @@ interface StepMeta {
 export const VIDEO_STEPS: StepMeta[] = [
   {
     stepNumber: 5,
-    stepCode: '05',
-    label: 'Create Script',
-    shortLabel: 'Create Script',
+    stepCode: '01',
+    label: '1. Scripting',
+    shortLabel: 'Scripting',
+    stageKey: 'script',
     icon: FileText,
     path: '/videos/create-script',
     description: 'AI generation from question & viral hook',
   },
   {
     stepNumber: 6,
-    stepCode: '06',
-    label: 'Review Script',
-    shortLabel: 'Review Script',
-    icon: FileCheck,
-    path: '/videos/review-script',
-    description: 'Teleprompter pacing, revisions & approval',
-  },
-  {
-    stepNumber: 7,
-    stepCode: '07',
-    label: 'Record Video',
-    shortLabel: 'Record Video',
+    stepCode: '02',
+    label: '2. Teleprompter & Filming',
+    shortLabel: 'Filming',
+    stageKey: 'recording',
     icon: VideoIcon,
     path: '/videos/record',
     description: 'Speaker teleprompter & raw footage intake',
   },
   {
-    stepNumber: 8,
-    stepCode: '08',
-    label: 'Edit Video',
-    shortLabel: 'Edit Video',
+    stepNumber: 7,
+    stepCode: '03',
+    label: '3. Editing Bay',
+    shortLabel: 'Editing',
+    stageKey: 'editing',
     icon: Scissors,
     path: '/videos/edit-video',
-    description: 'Motion graphics, sound mix & asset sync',
+    description: 'Motion graphics, audio mix & drive link sync',
+  },
+  {
+    stepNumber: 8,
+    stepCode: '04',
+    label: '4. Final QC Lock',
+    shortLabel: 'QC Lock',
+    stageKey: 'final-review',
+    icon: Film,
+    path: '/videos/final-video',
+    description: 'Quality signoff & compliance checklist',
   },
   {
     stepNumber: 9,
-    stepCode: '09',
-    label: 'Final Video',
-    shortLabel: 'Final Video',
-    icon: Film,
-    path: '/videos/final-video',
-    description: 'Quality signoff & publishing readiness',
+    stepCode: '05',
+    label: '5. Social Packaging & Simulator',
+    shortLabel: 'Social & Sim',
+    stageKey: 'social',
+    icon: Share2,
+    path: '/videos/social-packaging',
+    description: '9:16 smartphone simulator & one-click copy',
   },
 ];
 
@@ -82,21 +90,12 @@ export const VideoWorkflowHeader: React.FC<VideoWorkflowHeaderProps> = ({
   videoTitle,
   videoStatus,
   className = '',
+  onStepSelect,
+  activeStageTab,
 }) => {
   const getStepPath = (step: StepMeta): string => {
     if (videoId) {
-      switch (step.stepNumber) {
-        case 5:
-          return `/videos/${encodeURIComponent(videoId)}/create-script`;
-        case 6:
-          return `/videos/${encodeURIComponent(videoId)}/review-script`;
-        case 7:
-          return `/videos/${encodeURIComponent(videoId)}/record`;
-        case 8:
-          return `/videos/${encodeURIComponent(videoId)}/edit-video`;
-        case 9:
-          return `/videos/${encodeURIComponent(videoId)}/final-video`;
-      }
+      return `/videos/${encodeURIComponent(videoId)}?tab=${step.stageKey}`;
     }
     return step.path;
   };
@@ -104,30 +103,30 @@ export const VideoWorkflowHeader: React.FC<VideoWorkflowHeaderProps> = ({
   return (
     <div
       id="video-workflow-stepper"
-      className={`bg-white rounded-xl border border-slate-200/90 shadow-xs p-3 sm:p-4 mb-6 ${className}`}
+      className={`bg-white rounded-2xl border border-slate-200/90 shadow-xs p-3.5 sm:p-4 mb-6 ${className}`}
     >
       <div className="flex items-center justify-between gap-2 mb-3 pb-2.5 border-b border-slate-100 flex-wrap">
         <div className="flex items-center gap-2">
           <Badge variant="neutral" size="sm" className="font-mono font-semibold">
-            PRODUCTION WORKFLOW: STEPS 05–09
+            BURRA 5-STAGE VIDEO WORKSPACE
           </Badge>
           <span className="text-xs text-slate-500 hidden md:inline">
-            From Script Creation to Final Video Review & Signoff
+            End-to-End Shorts Production, Final Review & Social Simulation
           </span>
         </div>
 
         {videoId && (
           <div className="flex items-center gap-2 text-xs">
-            <span className="text-slate-400">Current Video:</span>
+            <span className="text-slate-400 font-medium">Video ID:</span>
             <Link
               to={`/videos/${encodeURIComponent(videoId)}`}
-              className="font-mono font-semibold text-indigo-600 hover:underline max-w-[220px] truncate"
+              className="font-mono font-bold text-indigo-600 hover:underline max-w-[220px] truncate"
               title={videoTitle || videoId}
             >
               {videoId} {videoTitle ? `• ${videoTitle}` : ''}
             </Link>
             {videoStatus && (
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-semibold border border-slate-200">
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 font-semibold border border-slate-200">
                 {videoStatus}
               </span>
             )}
@@ -135,53 +134,83 @@ export const VideoWorkflowHeader: React.FC<VideoWorkflowHeaderProps> = ({
         )}
       </div>
 
-      {/* 5-Step Progress Bar Grid */}
+      {/* Modern 5-Step Pipeline Stepper Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-2.5">
         {VIDEO_STEPS.map((step) => {
-          const isCurrent = step.stepNumber === currentStep;
+          const isCurrent = activeStageTab
+            ? activeStageTab === step.stageKey
+            : step.stepNumber === currentStep;
           const isCompleted = step.stepNumber < currentStep;
-          const isUpcoming = step.stepNumber > currentStep;
           const StepIcon = step.icon;
           const targetUrl = getStepPath(step);
+
+          const handleClick = (e: React.MouseEvent) => {
+            if (onStepSelect) {
+              e.preventDefault();
+              onStepSelect(step.stepNumber);
+            }
+          };
 
           return (
             <Link
               key={step.stepNumber}
               to={targetUrl}
+              onClick={handleClick}
               id={`video-step-pill-${step.stepCode}`}
-              className={`relative flex items-center gap-2.5 p-2.5 sm:p-3 rounded-lg border transition-all text-left ${
+              className={`relative flex items-center gap-2.5 p-2.5 sm:p-3 rounded-xl border transition-all text-left cursor-pointer ${
                 isCurrent
-                  ? 'bg-indigo-50/70 border-indigo-300 ring-1 ring-indigo-400 text-indigo-950 shadow-xs'
+                  ? 'bg-indigo-600 border-indigo-600 text-white font-bold ring-2 ring-indigo-300 shadow-sm'
                   : isCompleted
-                  ? 'bg-emerald-50/40 border-emerald-200 text-emerald-900 hover:bg-emerald-50'
-                  : 'bg-slate-50/70 border-slate-200 text-slate-600 hover:bg-slate-100/70'
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100/70'
+                  : 'bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200/60'
               }`}
             >
               {/* Step indicator number / check badge */}
               <div
-                className={`w-6 h-6 sm:w-7 sm:h-7 rounded-md flex items-center justify-center text-xs font-mono font-bold shrink-0 transition-colors ${
+                className={`w-6 h-6 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center text-xs font-mono font-bold shrink-0 transition-colors ${
                   isCurrent
-                    ? 'bg-indigo-600 text-white shadow-xs'
+                    ? 'bg-white text-indigo-600 shadow-xs'
                     : isCompleted
-                    ? 'bg-emerald-600 text-white'
+                    ? 'bg-emerald-600 text-white shadow-xs'
                     : 'bg-slate-200 text-slate-600'
                 }`}
               >
-                {isCompleted ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : step.stepCode}
+                {isCompleted && !isCurrent ? (
+                  <Check className="w-3.5 h-3.5 stroke-[3]" />
+                ) : (
+                  step.stepCode
+                )}
               </div>
 
               {/* Step details */}
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1">
+                  <StepIcon
+                    className={`w-3.5 h-3.5 shrink-0 ${
+                      isCurrent
+                        ? 'text-indigo-100'
+                        : isCompleted
+                        ? 'text-emerald-600'
+                        : 'text-slate-400'
+                    }`}
+                  />
                   <span
-                    className={`text-xs font-semibold truncate ${
-                      isCurrent ? 'text-indigo-900 font-bold' : isCompleted ? 'text-emerald-950' : 'text-slate-800'
+                    className={`text-xs truncate ${
+                      isCurrent
+                        ? 'text-white font-bold'
+                        : isCompleted
+                        ? 'text-emerald-900 font-semibold'
+                        : 'text-slate-700 font-medium'
                     }`}
                   >
                     {step.label}
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-500 truncate hidden xl:block">
+                <p
+                  className={`text-[10px] truncate hidden xl:block mt-0.5 ${
+                    isCurrent ? 'text-indigo-100/90' : 'text-slate-400'
+                  }`}
+                >
                   {step.description}
                 </p>
               </div>
@@ -192,3 +221,4 @@ export const VideoWorkflowHeader: React.FC<VideoWorkflowHeaderProps> = ({
     </div>
   );
 };
+export default VideoWorkflowHeader;
