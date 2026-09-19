@@ -14,6 +14,15 @@ import {
   MessageSquare,
   Lock,
   ExternalLink,
+  Sliders,
+  CheckSquare,
+  Square,
+  Radio,
+  Eye,
+  Volume2,
+  Subtitles,
+  HelpCircle,
+  FileCheck,
 } from 'lucide-react';
 import { Video, Script, Question, VideoProductionStatus } from '../types';
 import { apiClient } from '../lib/api-client';
@@ -39,6 +48,20 @@ export const VideoFinalPage: React.FC = () => {
   const [question, setQuestion] = useState<Question | null>(null);
   const [script, setScript] = useState<Script | null>(null);
   const [readiness, setReadiness] = useState<any | null>(null);
+
+  // 4-Dimensional QC Matrix State
+  const [qcState, setQcState] = useState({
+    audioBalance: true, // -14 LUFS Voiceover / Crisp SFX
+    subtitleTelugu: true, // Accurate Telugu Orthography / No font glitches
+    frameSafePacing: true, // 9:16 Vertical Safe Area / 50-59s Length
+    pedagogicalKey: true, // Correct Answer Option Key Matches Question
+  });
+
+  const toggleQc = (key: keyof typeof qcState) => {
+    setQcState((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const allQcPassed = Object.values(qcState).every(Boolean);
 
   // Approval & Signoff Notes
   const [signoffNotes, setSignoffNotes] = useState<string>('');
@@ -123,10 +146,10 @@ export const VideoFinalPage: React.FC = () => {
       const updated = await apiClient.updateVideoStatus(
         targetId,
         VideoProductionStatus.READY_TO_UPLOAD,
-        `Final QA approved: ${signoffNotes || 'All readiness checks passed'}`
+        `Final QA approved: ${signoffNotes || 'All 4 QC pillars verified'}`
       );
       setSelectedVideo(updated);
-      setSuccessMessage('Video approved and marked READY_TO_UPLOAD! Master asset locked.');
+      setSuccessMessage('Video approved and marked READY_TO_UPLOAD! Master asset locked for distribution.');
       setTimeout(() => setSuccessMessage(null), 4000);
     } catch (err: any) {
       setError(err?.message || 'Failed to approve final video.');
@@ -140,6 +163,11 @@ export const VideoFinalPage: React.FC = () => {
     const targetId = videoId || selectedVideo?.id;
     if (!targetId) return;
 
+    if (!returnRemarks.trim()) {
+      setError('Please provide specific revision instructions before returning to editing.');
+      return;
+    }
+
     try {
       setIsActionInProgress(true);
       setError(null);
@@ -147,7 +175,7 @@ export const VideoFinalPage: React.FC = () => {
       const updated = await apiClient.updateVideoStatus(
         targetId,
         VideoProductionStatus.EDITING,
-        `Returned to Editing from Final Review: ${returnRemarks || 'Revisions requested'}`
+        `Returned to Editing from Final Review: ${returnRemarks.trim()}`
       );
       setSelectedVideo(updated);
       setShowReturnModal(false);
@@ -174,8 +202,8 @@ export const VideoFinalPage: React.FC = () => {
         <VideoWorkflowHeader currentStep={9} />
 
         <PageHeader
-          title="09 Final Video"
-          description="Publication readiness audit, master asset lock, quality gate signoff, and distribution release"
+          title="09 Final Review & QC"
+          description="Audio-video QC verification matrix, Telugu subtitle check, and publishing gatekeeper"
           badge={<Badge variant="active" size="sm" className="font-mono">STEP 09</Badge>}
         />
 
@@ -189,7 +217,7 @@ export const VideoFinalPage: React.FC = () => {
           <div className="p-4 border-b border-slate-100">
             <h3 className="text-sm font-bold text-slate-900">Select Video for Final Signoff</h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              Choose a completed video (FINAL_REVIEW or READY_TO_UPLOAD) to verify publishing readiness and grant signoff
+              Choose a completed cut (FINAL_REVIEW or READY_TO_UPLOAD) to verify quality and grant signoff
             </p>
           </div>
           <div className="p-4 space-y-4">
@@ -228,9 +256,9 @@ export const VideoFinalPage: React.FC = () => {
                       {vid.title}
                     </h4>
                     <div className="flex items-center justify-between text-[11px] text-slate-500 pt-2 border-t border-slate-100">
-                      <span>Duration: {vid.actualDurationSeconds || vid.targetDurationSeconds || 45}s</span>
+                      <span>Duration: {vid.actualDurationSeconds || vid.targetDurationSeconds || 54}s</span>
                       <span className="text-indigo-600 font-semibold flex items-center gap-1">
-                        Final Signoff <ArrowRight className="w-3 h-3" />
+                        Final QC <ArrowRight className="w-3 h-3" />
                       </span>
                     </div>
                   </div>
@@ -243,7 +271,7 @@ export const VideoFinalPage: React.FC = () => {
     );
   }
 
-  const isReadyForSignoff = readiness?.readyForPublishing || selectedVideo?.status === VideoProductionStatus.FINAL_REVIEW;
+  const isApproved = selectedVideo?.status === VideoProductionStatus.READY_TO_UPLOAD;
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-16">
@@ -264,9 +292,9 @@ export const VideoFinalPage: React.FC = () => {
               {selectedVideo?.id || videoId}
             </span>
           </div>
-          <h1 className="text-xl font-bold text-slate-900">09 Final Video</h1>
+          <h1 className="text-xl font-bold text-slate-900">09 Final Review & Quality Control</h1>
           <p className="text-xs text-slate-500">
-            Publish readiness audit, master asset lock, quality gate signoff, and distribution release.
+            Publish readiness audit, audio-video quality gates, pedagogical answer verification, and release lock.
           </p>
         </div>
 
@@ -301,267 +329,322 @@ export const VideoFinalPage: React.FC = () => {
       )}
 
       {isLoading ? (
-        <PageLoading message="Loading final video signoff audit..." />
+        <PageLoading message="Loading final review workspace..." />
       ) : (
         <div className="space-y-6">
-          {/* Master Status & Readiness Hero */}
-          <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div className="flex items-start gap-4">
-              <div
-                className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold ${
-                  selectedVideo?.status === VideoProductionStatus.READY_TO_UPLOAD
-                    ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
-                    : 'bg-indigo-50 text-indigo-700 border border-indigo-100'
-                }`}
-              >
-                {selectedVideo?.status === VideoProductionStatus.READY_TO_UPLOAD ? (
-                  <CheckCircle2 className="w-6 h-6" />
-                ) : (
-                  <ShieldCheck className="w-6 h-6" />
-                )}
+          {/* Top Status & Fast Action Bar */}
+          <div className="bg-slate-900 text-white rounded-xl p-6 shadow-md border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className={`w-4 h-4 ${isApproved ? 'text-emerald-400' : 'text-indigo-400'}`} />
+                <span className="text-xs font-mono text-indigo-400 font-bold tracking-widest uppercase">
+                  QUALITY CONTROL GATEKEEPER
+                </span>
+                <span className="text-xs text-slate-400 font-mono">
+                  • STATUS: {selectedVideo?.status}
+                </span>
               </div>
-
-              <div>
-                <div className="flex items-center gap-2">
-                  <h2 className="text-base font-bold text-slate-900">
-                    {selectedVideo?.title}
-                  </h2>
-                  <span className="font-mono text-xs font-bold bg-slate-100 text-slate-800 px-2 py-0.5 rounded">
-                    {selectedVideo?.status}
-                  </span>
-                </div>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Duration: <strong>{selectedVideo?.actualDurationSeconds || selectedVideo?.targetDurationSeconds || 45}s</strong> •
-                  Host: <strong>{selectedVideo?.assignedHost || 'None'}</strong> •
-                  Editor: <strong>{selectedVideo?.assignedEditor || 'None'}</strong>
-                </p>
-              </div>
+              <h2 className="text-lg font-bold text-white">
+                {selectedVideo?.title || 'Telugu Educational Short'}
+              </h2>
+              <p className="text-xs text-slate-400">
+                Host: <strong>{selectedVideo?.assignedHost || 'Host'}</strong> • Editor: <strong>{selectedVideo?.assignedEditor || 'Editor'}</strong> • Duration: <strong>{selectedVideo?.actualDurationSeconds || selectedVideo?.targetDurationSeconds || 54}s</strong>
+              </p>
             </div>
 
+            {/* Fast Action Buttons */}
             <div className="flex items-center gap-3">
-              {selectedVideo?.status === VideoProductionStatus.READY_TO_UPLOAD ? (
-                <Badge variant="success" size="md" className="px-3 py-1 font-bold flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4" /> MASTER ASSET LOCKED & READY
-                </Badge>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowReturnModal(true)}
-                    icon={RotateCcw}
-                    className="text-xs text-amber-700 border-amber-300 hover:bg-amber-50"
-                  >
-                    Return to Editing
-                  </Button>
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    disabled={isActionInProgress}
-                    onClick={handleApproveFinalVideo}
-                    icon={CheckCircle2}
-                    className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
-                  >
-                    {isActionInProgress ? 'Approving...' : 'Grant Final QA Signoff'}
-                  </Button>
-                </div>
-              )}
+              <Button
+                variant="outline"
+                size="md"
+                onClick={() => setShowReturnModal(true)}
+                disabled={isActionInProgress}
+                icon={RotateCcw}
+                className="text-xs bg-slate-800 text-rose-300 border-rose-800/80 hover:bg-rose-950/40 hover:text-white"
+              >
+                Return for Revisions
+              </Button>
+
+              <Button
+                variant="primary"
+                size="md"
+                onClick={handleApproveFinalVideo}
+                disabled={isActionInProgress || isApproved || !allQcPassed}
+                icon={CheckCircle2}
+                className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-lg disabled:opacity-50"
+              >
+                {isApproved ? 'Master Video Approved' : 'Approve & Release (Step 10)'}
+              </Button>
             </div>
           </div>
 
-          {/* Main 2-Column Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Left 2 Cols: Publishing Readiness Checklist & Asset Inspector */}
-            <div className="lg:col-span-2 space-y-6">
-              {/* Publication Readiness Checklist */}
+          {/* Main QC Deck: Dual Columns */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Left Column: 4-Dimensional QC Verification Matrix */}
+            <div className="space-y-6">
               <Card padding="md">
                 <div className="p-4 border-b border-slate-100 flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-900">Publication Readiness Audit</h3>
-                    <p className="text-xs text-slate-500">
-                      Automated gate verifying all metadata, script versions, and video assets before distribution
-                    </p>
+                  <div className="flex items-center gap-2">
+                    <Sliders className="w-4 h-4 text-indigo-600" />
+                    <h3 className="text-sm font-bold text-slate-900">4-Dimensional QC Verification Matrix</h3>
                   </div>
-                  <Badge
-                    variant={readiness?.readyForPublishing ? 'success' : 'warning'}
-                    size="sm"
-                  >
-                    {readiness?.readyForPublishing ? '100% READY' : 'AUDIT INCOMPLETE'}
-                  </Badge>
+                  <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded ${
+                    allQcPassed ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                  }`}>
+                    {Object.values(qcState).filter(Boolean).length}/4 CHECKS PASSED
+                  </span>
                 </div>
 
                 <div className="p-4 space-y-3">
-                  {/* Item 1: Question Record */}
-                  <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-                      <div>
-                        <span className="text-xs font-bold text-slate-900 block">
-                          1. Authoritative Question Record Approved
-                        </span>
-                        <span className="text-[11px] text-slate-500">
-                          Question ID: {selectedVideo?.questionId || 'N/A'} • Correct Answer: Option {question?.correctAnswer || 'N/A'}
-                        </span>
+                  {/* Pillar 1: Audio Balance */}
+                  <div
+                    onClick={() => toggleQc('audioBalance')}
+                    className={`p-3.5 rounded-xl border flex items-start gap-3 cursor-pointer transition select-none ${
+                      qcState.audioBalance
+                        ? 'bg-emerald-50/70 border-emerald-300 text-emerald-950'
+                        : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    {qcState.audioBalance ? (
+                      <CheckSquare className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    ) : (
+                      <Square className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
+                    )}
+                    <div className="space-y-0.5">
+                      <div className="text-xs font-bold flex items-center gap-1.5">
+                        <Volume2 className="w-3.5 h-3.5 text-indigo-600" />
+                        <span>01 Audio Levels & SFX Balancing</span>
                       </div>
+                      <p className="text-[11px] text-slate-600 leading-relaxed">
+                        Presenter voiceover normalized to ~ -14 LUFS; sound effects (ticking timer, correct answer chime) do not overpower speech.
+                      </p>
                     </div>
-                    <Badge variant="success" size="sm">PASS</Badge>
                   </div>
 
-                  {/* Item 2: Script Approved */}
-                  <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-                      <div>
-                        <span className="text-xs font-bold text-slate-900 block">
-                          2. 5-Part Telugu Narration Script Approved
-                        </span>
-                        <span className="text-[11px] text-slate-500">
-                          {script ? `Version ${script.currentVersion} • Teleprompter timing ~45s` : 'Script verified'}
-                        </span>
+                  {/* Pillar 2: Subtitle Orthography */}
+                  <div
+                    onClick={() => toggleQc('subtitleTelugu')}
+                    className={`p-3.5 rounded-xl border flex items-start gap-3 cursor-pointer transition select-none ${
+                      qcState.subtitleTelugu
+                        ? 'bg-emerald-50/70 border-emerald-300 text-emerald-950'
+                        : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    {qcState.subtitleTelugu ? (
+                      <CheckSquare className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    ) : (
+                      <Square className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
+                    )}
+                    <div className="space-y-0.5">
+                      <div className="text-xs font-bold flex items-center gap-1.5">
+                        <Subtitles className="w-3.5 h-3.5 text-indigo-600" />
+                        <span>02 Telugu Typography & Orthography Check</span>
                       </div>
+                      <p className="text-[11px] text-slate-600 leading-relaxed">
+                        Telugu text overlays render with correct Unicode conjuncts (ottulu/vattulu), zero font rendering glitches, and accurate spelling.
+                      </p>
                     </div>
-                    <Badge variant="success" size="sm">PASS</Badge>
                   </div>
 
-                  {/* Item 3: Video File Uploaded */}
-                  <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-                      <div>
-                        <span className="text-xs font-bold text-slate-900 block">
-                          3. Vertical Render Uploaded to Drive
-                        </span>
-                        <span className="text-[11px] text-slate-500">
-                          Format: 1080x1920 (9:16) • Status: {selectedVideo?.status}
-                        </span>
+                  {/* Pillar 3: Vertical Frame & Pacing */}
+                  <div
+                    onClick={() => toggleQc('frameSafePacing')}
+                    className={`p-3.5 rounded-xl border flex items-start gap-3 cursor-pointer transition select-none ${
+                      qcState.frameSafePacing
+                        ? 'bg-emerald-50/70 border-emerald-300 text-emerald-950'
+                        : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    {qcState.frameSafePacing ? (
+                      <CheckSquare className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    ) : (
+                      <Square className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
+                    )}
+                    <div className="space-y-0.5">
+                      <div className="text-xs font-bold flex items-center gap-1.5">
+                        <Eye className="w-3.5 h-3.5 text-indigo-600" />
+                        <span>03 9:16 Safe Area Framing & Shorts Duration</span>
                       </div>
+                      <p className="text-[11px] text-slate-600 leading-relaxed">
+                        Content is within YouTube Shorts UI safety margin (no titles blocked by bottom caption / right buttons); video duration is 50–59 seconds.
+                      </p>
                     </div>
-                    <Badge variant="success" size="sm">PASS</Badge>
                   </div>
 
-                  {/* Item 4: Downstream Package Preview (Thumbnail & Pinned Comment) */}
-                  <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-                      <div>
-                        <span className="text-xs font-bold text-slate-900 block">
-                          4. Downstream Package Assets Ready
-                        </span>
-                        <span className="text-[11px] text-slate-500">
-                          Step 10 Thumbnail generator & Step 11 Pinned Comment hooks active
-                        </span>
+                  {/* Pillar 4: Pedagogical Answer Verification */}
+                  <div
+                    onClick={() => toggleQc('pedagogicalKey')}
+                    className={`p-3.5 rounded-xl border flex items-start gap-3 cursor-pointer transition select-none ${
+                      qcState.pedagogicalKey
+                        ? 'bg-emerald-50/70 border-emerald-300 text-emerald-950'
+                        : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    {qcState.pedagogicalKey ? (
+                      <CheckSquare className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    ) : (
+                      <Square className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
+                    )}
+                    <div className="space-y-0.5">
+                      <div className="text-xs font-bold flex items-center gap-1.5">
+                        <FileCheck className="w-3.5 h-3.5 text-indigo-600" />
+                        <span>04 Pedagogical Answer Key Match</span>
                       </div>
+                      <p className="text-[11px] text-slate-600 leading-relaxed">
+                        Visual green highlight matches canonical answer: Option <strong>{question?.correctAnswer || 'A'}</strong>. Math explanation is 100% sound.
+                      </p>
                     </div>
-                    <Badge variant="success" size="sm">READY</Badge>
                   </div>
                 </div>
               </Card>
 
-              {/* Master Narration Content Snapshot */}
+              {/* Master Assets & Drive Folder Links */}
               <Card padding="md">
-                <div className="p-4 border-b border-slate-100">
-                  <h3 className="text-sm font-bold text-slate-900">Approved Master Narration Script</h3>
-                  <p className="text-xs text-slate-500">Locked narration content for audience release</p>
+                <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+                  <h3 className="text-sm font-bold text-slate-900">Google Drive Production Package</h3>
+                  <Badge variant="active" size="sm" className="font-mono">
+                    MASTER STORAGE
+                  </Badge>
                 </div>
                 <div className="p-4 space-y-3">
-                  {script ? (
-                    <div className="space-y-2 text-xs">
-                      <div className="p-2.5 bg-slate-50 rounded border border-slate-200">
-                        <strong className="text-indigo-700 block mb-0.5">Hook:</strong>
-                        <p className="text-slate-800">{script.hookText}</p>
-                      </div>
-                      <div className="p-2.5 bg-slate-50 rounded border border-slate-200">
-                        <strong className="text-slate-700 block mb-0.5">Question & Problem:</strong>
-                        <p className="text-slate-800">{script.problemStatement}</p>
-                      </div>
-                      <div className="p-2.5 bg-slate-50 rounded border border-slate-200">
-                        <strong className="text-slate-700 block mb-0.5">Solution:</strong>
-                        <p className="text-slate-800">{script.stepByStepSolution}</p>
-                      </div>
-                      <div className="p-2.5 bg-amber-50 rounded border border-amber-200">
-                        <strong className="text-amber-800 block mb-0.5">Speed Shortcut:</strong>
-                        <p className="text-amber-900 font-medium">{script.speedTrickOrTakeaway}</p>
-                      </div>
+                  <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 flex items-center justify-between">
+                    <div>
+                      <span className="text-xs font-bold text-slate-800 block">Drive Production Folder</span>
+                      <span className="text-[10px] text-slate-500 font-mono">Stores raw camera, project files, and rendered cuts</span>
                     </div>
-                  ) : (
-                    <div className="p-4 text-center text-slate-400 text-xs">
-                      No script content snapshot available.
-                    </div>
-                  )}
+                    {(selectedVideo?.driveFolderUrl || (selectedVideo as any)?.googleDriveFolderUrl) ? (
+                      <a
+                        href={selectedVideo?.driveFolderUrl || (selectedVideo as any)?.googleDriveFolderUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="px-3 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded text-xs font-bold flex items-center gap-1"
+                      >
+                        <ExternalLink className="w-3 h-3" /> Open Folder
+                      </a>
+                    ) : (
+                      <span className="text-xs text-slate-400">Not linked</span>
+                    )}
+                  </div>
                 </div>
               </Card>
             </div>
 
-            {/* Right Col: Signoff Controls & Downstream Handoff */}
-            <div className="space-y-4">
-              {/* QA Signoff Notes Card */}
+            {/* Right Column: Question Reference & Publishing Signoff Form */}
+            <div className="space-y-6">
+              {/* Question Reference & Solution Proof */}
+              <Card padding="md">
+                <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <HelpCircle className="w-4 h-4 text-indigo-600" />
+                    <h3 className="text-sm font-bold text-slate-900">Canonical Question Verification</h3>
+                  </div>
+                  {question && (
+                    <Badge variant="active" size="sm" className="font-mono">
+                      {question.id}
+                    </Badge>
+                  )}
+                </div>
+
+                <div className="p-4 space-y-4">
+                  {question ? (
+                    <div className="space-y-3">
+                      <div>
+                        <span className="text-[10px] font-mono font-bold text-slate-500 uppercase block mb-1">
+                          Telugu Problem Statement
+                        </span>
+                        <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-telugu text-xs leading-relaxed font-medium">
+                          {question.questionText}
+                        </div>
+                      </div>
+
+                      {/* Correct Option Highlight */}
+                      <div className="p-3 bg-emerald-50 border border-emerald-300 rounded-lg">
+                        <span className="text-[10px] font-mono font-bold text-emerald-800 uppercase block">
+                          Declared Correct Answer: Option {question.correctAnswer}
+                        </span>
+                        <p className="font-telugu text-xs font-bold text-emerald-950 mt-1">
+                          {(question.options as any)?.[String(question.correctAnswer).toLowerCase()] ||
+                            (question as any)[`option${question.correctAnswer}`] ||
+                            'Option text'}
+                        </p>
+                      </div>
+
+                      {/* Explanation */}
+                      <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-lg space-y-1">
+                        <span className="text-[10px] font-mono font-bold text-amber-800 uppercase block">
+                          Speed Trick / Explanation
+                        </span>
+                        <p className="font-telugu text-xs text-amber-950 leading-relaxed">
+                          {script?.speedTrickOrTakeaway || question.explanation}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-400">No question record linked.</p>
+                  )}
+                </div>
+              </Card>
+
+              {/* Signoff Notes & Approver Form */}
               <Card padding="md">
                 <div className="p-4 border-b border-slate-100">
-                  <h3 className="text-sm font-bold text-slate-900">QA Signoff Certification</h3>
-                  <p className="text-xs text-slate-500">Certified by editorial lead</p>
+                  <h3 className="text-sm font-bold text-slate-900">Publishing Gatekeeper Signoff</h3>
+                  <p className="text-xs text-slate-500">Record final approval audit notes</p>
                 </div>
-                <div className="p-4 space-y-3">
+
+                <div className="p-4 space-y-4">
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Quality Signoff Remarks
+                      Final Review / QC Notes
                     </label>
                     <textarea
                       value={signoffNotes}
                       onChange={(e) => setSignoffNotes(e.target.value)}
-                      placeholder="e.g. Video render passed visual QA, subtitles are accurate, audio loudness verified."
+                      placeholder="e.g. Excellent audio sync, verified Telugu fonts and Option C math."
                       rows={3}
                       className="w-full text-xs p-2.5 border border-slate-300 rounded-lg focus:ring-1 focus:ring-indigo-500"
                     />
                   </div>
 
-                  <Button
-                    variant="primary"
-                    size="md"
-                    disabled={isActionInProgress}
-                    onClick={handleApproveFinalVideo}
-                    icon={CheckCircle2}
-                    className="w-full text-xs justify-center bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
-                  >
-                    {isActionInProgress ? 'Approving...' : 'Lock Master Asset & Approve'}
-                  </Button>
+                  <div className="pt-2">
+                    <Button
+                      variant="primary"
+                      size="md"
+                      onClick={handleApproveFinalVideo}
+                      disabled={isActionInProgress || isApproved || !allQcPassed}
+                      icon={CheckCircle2}
+                      className="w-full text-xs justify-center bg-emerald-600 hover:bg-emerald-700 text-white font-bold disabled:opacity-50"
+                    >
+                      {isApproved ? 'Master Video Signoff Granted' : 'Approve & Release to Publishing (Step 10)'}
+                    </Button>
+                  </div>
                 </div>
               </Card>
 
-              {/* Downstream Production Handoff */}
+              {/* Next Step Action Box */}
               <div className="bg-white rounded-xl border border-indigo-200 p-5 shadow-xs space-y-3">
                 <div className="flex items-center gap-2 text-indigo-700 font-bold text-xs">
                   <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[10px] font-mono">
                     10
                   </span>
-                  <span>Next: Thumbnail & Downstream Packaging</span>
+                  <span>Next: Social Review & Distribution</span>
                 </div>
                 <p className="text-xs text-slate-600">
-                  Master video locked. Proceed to generate vertical thumbnail graphics in Step 10 and compose community pinned comments.
+                  Video master approved? Proceed to Phase 8H Human Review to review multi-platform social packages (YouTube Shorts, Instagram Reels, Telegram).
                 </p>
 
-                <div className="space-y-2 pt-1">
-                  <Link to={selectedVideo ? `/videos/${encodeURIComponent(selectedVideo.id)}/thumbnail` : '/videos/thumbnail'}>
-                    <Button
-                      variant="primary"
-                      size="md"
-                      icon={Image}
-                      className="w-full text-xs justify-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
-                    >
-                      Proceed to 10 Create Thumbnail
-                    </Button>
-                  </Link>
-
-                  <Link to="/production">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      icon={Film}
-                      className="w-full text-xs justify-center"
-                    >
-                      Return to Production Tracker
-                    </Button>
-                  </Link>
-                </div>
+                <Button
+                  variant="primary"
+                  size="md"
+                  onClick={() => {
+                    const targetId = videoId || selectedVideo?.id;
+                    navigate(`/videos/${encodeURIComponent(targetId)}/social-review`);
+                  }}
+                  icon={ArrowRight}
+                  className="w-full text-xs justify-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
+                >
+                  Continue to Social Review (Phase 8H)
+                </Button>
               </div>
             </div>
           </div>
@@ -570,35 +653,32 @@ export const VideoFinalPage: React.FC = () => {
 
       {/* Return to Editing Modal */}
       {showReturnModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl border border-slate-200 max-w-md w-full p-6 shadow-xl space-y-4 animate-in fade-in">
-            <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
-              <RotateCcw className="w-5 h-5 text-amber-600" />
-              <h3 className="text-base font-bold text-slate-900">Return Video to Editing</h3>
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-xl space-y-4">
+            <div className="flex items-center gap-2 text-rose-700 font-bold text-base">
+              <RotateCcw className="w-5 h-5" />
+              <span>Return Video to Editing (Step 08)</span>
             </div>
-
             <p className="text-xs text-slate-600">
-              This will return the video to <strong>EDITING</strong> status and send feedback to the assigned editor.
+              Please specify the revisions required by the video editor (e.g. fix spelling in Option B, reduce background music volume).
             </p>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Revision Instructions for Editor
-              </label>
-              <textarea
-                value={returnRemarks}
-                onChange={(e) => setReturnRemarks(e.target.value)}
-                placeholder="e.g. Fix subtitle spelling on option C at 0:18; increase voiceover volume by +2dB"
-                rows={3}
-                className="w-full text-xs p-2.5 border border-slate-300 rounded-lg focus:ring-1 focus:ring-indigo-500"
-              />
-            </div>
+            <textarea
+              rows={4}
+              value={returnRemarks}
+              onChange={(e) => setReturnRemarks(e.target.value)}
+              placeholder="Enter specific edit revision notes..."
+              className="w-full text-xs p-3 border border-slate-300 rounded-lg focus:ring-1 focus:ring-indigo-500"
+            />
 
-            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+            <div className="flex items-center justify-end gap-3 pt-2">
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setShowReturnModal(false)}
+                onClick={() => {
+                  setShowReturnModal(false);
+                  setReturnRemarks('');
+                }}
                 className="text-xs"
               >
                 Cancel
@@ -606,11 +686,11 @@ export const VideoFinalPage: React.FC = () => {
               <Button
                 variant="primary"
                 size="sm"
-                disabled={isActionInProgress}
                 onClick={handleReturnToEditing}
-                className="text-xs bg-amber-600 hover:bg-amber-700 text-white font-bold"
+                disabled={isActionInProgress || !returnRemarks.trim()}
+                className="text-xs bg-rose-600 hover:bg-rose-700 text-white font-bold"
               >
-                {isActionInProgress ? 'Returning...' : 'Confirm Return'}
+                {isActionInProgress ? 'Returning...' : 'Send Back to Editor'}
               </Button>
             </div>
           </div>

@@ -1,16 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import {
-  Scissors,
+  Film,
   Upload,
+  Scissors,
   Layers,
-  Sparkles,
   ArrowRight,
   ArrowLeft,
-  Film,
   CheckCircle2,
+  Clock,
   ExternalLink,
-  Monitor,
+  Sparkles,
+  HelpCircle,
+  FileText,
+  AlertTriangle,
+  Info,
+  CheckSquare,
+  Square,
+  ShieldCheck,
   Smartphone,
 } from 'lucide-react';
 import { Video, Script, Question, VideoProductionStatus, MediaAsset } from '../types';
@@ -38,17 +45,31 @@ export const VideoEditPage: React.FC = () => {
   const [script, setScript] = useState<Script | null>(null);
   const [assets, setAssets] = useState<MediaAsset[]>([]);
 
-  // Editor metadata
+  // Video Editing & Render Form State
   const [assignedEditor, setAssignedEditor] = useState<string>('');
-  const [renderDurationSeconds, setRenderDurationSeconds] = useState<number>(45);
+  const [renderDurationSeconds, setRenderDurationSeconds] = useState<number>(54);
+  const [aspectRatio, setAspectRatio] = useState<'9:16' | '1:1' | '16:9'>('9:16');
   const [editorNotes, setEditorNotes] = useState<string>('');
-  const [hasSubtitles, setHasSubtitles] = useState<boolean>(true);
-  const [hasMotionGraphics, setHasMotionGraphics] = useState<boolean>(true);
-  const [hasSoundEffects, setHasSoundEffects] = useState<boolean>(true);
 
-  // Upload state
+  // Shorts Master Pacing Checklist State
+  const [checklist, setChecklist] = useState({
+    hookOverlay: true,
+    timerSync: true,
+    teluguFonts: true,
+    soundSfx: true,
+    verticalFrame: true,
+    durationChecked: true,
+  });
+
+  const toggleChecklistItem = (key: keyof typeof checklist) => {
+    setChecklist((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  // Upload Edited Cut State
   const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [driveCutUrl, setDriveCutUrl] = useState<string>('');
   const [isUploading, setIsUploading] = useState<boolean>(false);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState<boolean>(false);
 
   // UI state
@@ -63,7 +84,7 @@ export const VideoEditPage: React.FC = () => {
       const videos = await apiClient.getVideos();
       setVideoList(videos);
     } catch (err: any) {
-      setError(err?.message || 'Failed to load video list');
+      setError(err?.message || 'Failed to load video records');
     } finally {
       setIsLoading(false);
     }
@@ -77,14 +98,16 @@ export const VideoEditPage: React.FC = () => {
       const vid = await apiClient.getVideoById(targetId);
       setSelectedVideo(vid);
       setAssignedEditor(vid.assignedEditor || '');
-      setRenderDurationSeconds(vid.actualDurationSeconds || vid.targetDurationSeconds || 45);
+      if (vid.actualDurationSeconds || vid.targetDurationSeconds) {
+        setRenderDurationSeconds(Number(vid.actualDurationSeconds || vid.targetDurationSeconds) || 54);
+      }
 
       if (vid.questionId) {
         try {
           const q = await apiClient.getQuestionById(vid.questionId);
           setQuestion(q);
         } catch (qErr) {
-          console.warn('Could not fetch question record:', qErr);
+          console.warn('Could not fetch question:', qErr);
         }
       }
 
@@ -94,7 +117,7 @@ export const VideoEditPage: React.FC = () => {
           setScript(sRes.script);
         }
       } catch (sErr) {
-        console.warn('Could not fetch script record:', sErr);
+        console.warn('Could not fetch script:', sErr);
       }
 
       try {
@@ -120,7 +143,35 @@ export const VideoEditPage: React.FC = () => {
     }
   }, [videoId]);
 
-  // Update Editor Assignment & Details
+  // Duration compliance evaluation (Optimal Shorts: 50–59s)
+  const getDurationStatus = (dur: number) => {
+    if (dur >= 50 && dur <= 59) {
+      return {
+        variant: 'optimal',
+        label: 'Optimal Shorts Length (50–59s)',
+        color: 'text-emerald-700 bg-emerald-50 border-emerald-300',
+        badgeColor: 'bg-emerald-600 text-white',
+      };
+    } else if ((dur >= 40 && dur < 50) || (dur > 59 && dur <= 60)) {
+      return {
+        variant: 'acceptable',
+        label: 'Acceptable (40–49s / 60s Max)',
+        color: 'text-amber-700 bg-amber-50 border-amber-300',
+        badgeColor: 'bg-amber-600 text-white',
+      };
+    } else {
+      return {
+        variant: 'non-compliant',
+        label: dur > 60 ? 'Exceeds 60s Shorts Limit (Will fail Shorts feed)' : 'Too short (<40s)',
+        color: 'text-rose-700 bg-rose-50 border-rose-300',
+        badgeColor: 'bg-rose-600 text-white',
+      };
+    }
+  };
+
+  const durationStatus = getDurationStatus(renderDurationSeconds);
+
+  // Update Editor & Render Metadata
   const handleSaveEditorMetadata = async () => {
     const targetId = videoId || selectedVideo?.id;
     if (!targetId) return;
@@ -134,7 +185,7 @@ export const VideoEditPage: React.FC = () => {
         actualDurationSeconds: renderDurationSeconds,
       });
       setSelectedVideo(updated);
-      setSuccessMessage('Editor assignments saved in Google Sheets.');
+      setSuccessMessage('Editor assignment and duration updated in Google Sheets.');
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err: any) {
       setError(err?.message || 'Failed to update editor metadata.');
@@ -143,50 +194,67 @@ export const VideoEditPage: React.FC = () => {
     }
   };
 
-  // Upload Edited Final Video Cut to Google Drive
+  // Upload Edited Final Cut to Google Drive
   const handleUploadEditedCut = async (e: React.FormEvent) => {
     e.preventDefault();
     const targetId = videoId || selectedVideo?.id;
-    if (!targetId || !uploadFile) return;
+    if (!targetId) return;
+
+    if (!uploadFile && !driveCutUrl.trim()) {
+      setError('Please select an MP4 file or provide a Google Drive URL for the edited cut.');
+      return;
+    }
 
     try {
       setIsUploading(true);
       setError(null);
       setSuccessMessage(null);
+      setUploadProgress(15);
 
-      const updatedVideo = await apiClient.uploadEditedVideoFile(
-        targetId,
-        uploadFile,
-        undefined,
-        true
-      );
-      if (updatedVideo?.video) {
-        setSelectedVideo(updatedVideo.video);
-      } else if (updatedVideo) {
-        setSelectedVideo(updatedVideo);
-      }
-      setUploadFile(null);
+      if (uploadFile) {
+        const interval = setInterval(() => {
+          setUploadProgress((p) => (p < 85 ? p + 15 : p));
+        }, 300);
 
-      // Refresh media assets
-      try {
-        const history = await apiClient.getVideoProductionHistory(targetId);
-        if (history?.editedAssets) {
-          setAssets(history.editedAssets);
+        const updatedVideo = await apiClient.uploadEditedVideoFile(
+          targetId,
+          uploadFile,
+          undefined,
+          true
+        );
+        clearInterval(interval);
+        setUploadProgress(100);
+        if (updatedVideo?.video) {
+          setSelectedVideo(updatedVideo.video);
+        } else if (updatedVideo) {
+          setSelectedVideo(updatedVideo);
         }
-      } catch {
-        // ignore
+        setUploadFile(null);
+      } else if (driveCutUrl.trim()) {
+        const updated = await apiClient.updateVideoMetadata(targetId, {
+          notes: `${selectedVideo?.notes || ''}\nEdited Render Drive URL: ${driveCutUrl.trim()}`.trim(),
+          actualDurationSeconds: renderDurationSeconds,
+        });
+        const statusUpdated = await apiClient.updateVideoStatus(
+          targetId,
+          VideoProductionStatus.FINAL_REVIEW,
+          `Rendered cut linked via Drive (${renderDurationSeconds}s): ${driveCutUrl.trim()}`
+        );
+        setSelectedVideo(statusUpdated);
+        setDriveCutUrl('');
       }
 
-      setSuccessMessage('Edited vertical video cut uploaded to Google Drive! Status advanced to FINAL_REVIEW.');
+      setSuccessMessage('Rendered video cut uploaded successfully! Status advanced to FINAL_REVIEW.');
       setTimeout(() => setSuccessMessage(null), 4000);
     } catch (err: any) {
-      setError(err?.message || 'Failed to upload edited video file.');
+      setError(err?.message || 'Failed to submit edited video file.');
     } finally {
       setIsUploading(false);
+      setUploadProgress(0);
     }
   };
 
-  // Advance Status to Final Review
+  // Status Transitions
   const handleAdvanceToFinalReview = async () => {
     const targetId = videoId || selectedVideo?.id;
     if (!targetId) return;
@@ -198,19 +266,19 @@ export const VideoEditPage: React.FC = () => {
       const updated = await apiClient.updateVideoStatus(
         targetId,
         VideoProductionStatus.FINAL_REVIEW,
-        `Editing complete. Duration: ${renderDurationSeconds}s. Notes: ${editorNotes || 'None'}`
+        `Stage advanced from Step 08 Video Editing: ${editorNotes || 'Cut finalized'}`
       );
       setSelectedVideo(updated);
-      setSuccessMessage('Video advanced to FINAL_REVIEW status!');
+      setSuccessMessage('Production status transitioned to FINAL_REVIEW.');
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err: any) {
-      setError(err?.message || 'Failed to advance video status.');
+      setError(err?.message || 'Failed to update video status.');
     } finally {
       setIsUpdatingStatus(false);
     }
   };
 
-  // If no video is specified, show candidate list
+  // If no video is selected, show candidate selection list
   if (!videoId && !selectedVideo) {
     const filteredVideos = videoList.filter(
       (v) =>
@@ -224,8 +292,8 @@ export const VideoEditPage: React.FC = () => {
         <VideoWorkflowHeader currentStep={8} />
 
         <PageHeader
-          title="08 Edit Video"
-          description="Vertical 9:16 post-production, motion graphics sync, audio mixing, and edited render intake"
+          title="08 Edit Video (Post-Production)"
+          description="Sync Telugu on-screen graphics, add countdown timer, trim pacing, and render vertical 9:16 Shorts"
           badge={<Badge variant="active" size="sm" className="font-mono">STEP 08</Badge>}
         />
 
@@ -239,7 +307,7 @@ export const VideoEditPage: React.FC = () => {
           <div className="p-4 border-b border-slate-100">
             <h3 className="text-sm font-bold text-slate-900">Select Video for Post-Production Editing</h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              Choose a recorded video (RECORDED or EDITING) to review graphics cues and upload final vertical render
+              Choose recorded footage (RECORDED or EDITING) to edit graphics and upload vertical cut
             </p>
           </div>
           <div className="p-4 space-y-4">
@@ -312,9 +380,9 @@ export const VideoEditPage: React.FC = () => {
               {selectedVideo?.id || videoId}
             </span>
           </div>
-          <h1 className="text-xl font-bold text-slate-900">08 Edit Video</h1>
+          <h1 className="text-xl font-bold text-slate-900">08 Edit Video (Post-Production)</h1>
           <p className="text-xs text-slate-500">
-            Vertical 9:16 motion graphics, Telugu typography subtitles, SFX mixing, and rendered cut upload.
+            Sync Telugu typography overlays, 10s countdown sound cue, and verify 50–59s pacing compliance.
           </p>
         </div>
 
@@ -337,7 +405,7 @@ export const VideoEditPage: React.FC = () => {
       </div>
 
       {error && (
-        <Alert variant="error" title="Editing Error" onDismiss={() => setError(null)}>
+        <Alert variant="error" title="Editor Workspace Notice" onDismiss={() => setError(null)}>
           {error}
         </Alert>
       )}
@@ -349,179 +417,333 @@ export const VideoEditPage: React.FC = () => {
       )}
 
       {isLoading ? (
-        <PageLoading message="Loading video editing workspace..." />
+        <PageLoading message="Loading post-production editing suite..." />
       ) : (
         <div className="space-y-6">
-          {/* Top Specifications Banner */}
-          <div className="bg-slate-900 text-white rounded-xl p-6 shadow-md border border-slate-800 grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="space-y-1">
-              <span className="text-[11px] font-mono text-indigo-400 uppercase tracking-wider block">
-                ASPECT RATIO
-              </span>
+          {/* Editor Header Banner with Raw Assets Link */}
+          <div className="bg-slate-900 text-white rounded-xl p-6 shadow-md border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <Smartphone className="w-5 h-5 text-indigo-400" />
-                <span className="text-lg font-bold font-mono">9:16 Vertical</span>
+                <Scissors className="w-4 h-4 text-indigo-400" />
+                <span className="text-xs font-mono text-indigo-400 font-bold tracking-widest uppercase">
+                  POST-PRODUCTION SUITE • 9:16 VERTICAL SHORTS
+                </span>
+                <span className="text-xs text-slate-400 font-mono">
+                  • STATUS: {selectedVideo?.status}
+                </span>
               </div>
-              <span className="text-[11px] text-slate-400 block">1080 × 1920 (Full HD)</span>
+              <h2 className="text-lg font-bold text-white">
+                {selectedVideo?.title || 'Telugu Educational Short'}
+              </h2>
+              <p className="text-xs text-slate-400">
+                Host Footage: <strong>{selectedVideo?.assignedHost || 'Host'}</strong> • Editor: <strong>{selectedVideo?.assignedEditor || assignedEditor || 'Unassigned'}</strong>
+              </p>
             </div>
 
-            <div className="space-y-1">
-              <span className="text-[11px] font-mono text-emerald-400 uppercase tracking-wider block">
-                TARGET DURATION
-              </span>
-              <div className="flex items-center gap-2">
-                <span className="text-lg font-bold font-mono">30–50 Seconds</span>
-              </div>
-              <span className="text-[11px] text-slate-400 block">Ideal: ~45s for Shorts</span>
-            </div>
-
-            <div className="space-y-1">
-              <span className="text-[11px] font-mono text-amber-400 uppercase tracking-wider block">
-                AUDIO STANDARDS
-              </span>
-              <div className="flex items-center gap-2">
-                <span className="text-lg font-bold font-mono">-14 LUFS / Stereo</span>
-              </div>
-              <span className="text-[11px] text-slate-400 block">Clear Telugu voiceover</span>
-            </div>
-
-            <div className="space-y-1">
-              <span className="text-[11px] font-mono text-purple-400 uppercase tracking-wider block">
-                STATUS
-              </span>
-              <div className="flex items-center gap-2">
-                <span className="text-lg font-bold font-mono">{selectedVideo?.status}</span>
-              </div>
-              <span className="text-[11px] text-slate-400 block">Editor: {assignedEditor || 'Unassigned'}</span>
+            <div className="flex items-center gap-3">
+              {(selectedVideo?.driveFolderUrl || (selectedVideo as any)?.googleDriveFolderUrl) && (
+                <a
+                  href={selectedVideo?.driveFolderUrl || (selectedVideo as any)?.googleDriveFolderUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-lg border border-slate-700 flex items-center gap-2 transition"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>Open Drive Raw Assets</span>
+                </a>
+              )}
             </div>
           </div>
 
-          {/* Main 2-Column Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Left 2 Cols: Cue Sheet & Render Upload */}
-            <div className="lg:col-span-2 space-y-6">
-              {/* Graphic Cue Sync Sheet */}
+          {/* Main Dual-Column Workspace */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Left Column: Graphics Asset Sync & Pacing Cue Sheet */}
+            <div className="space-y-6">
+              {/* Telugu On-Screen Graphics Reference Card */}
               <Card padding="md">
                 <div className="p-4 border-b border-slate-100 flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-900">Motion Graphics Cue Sheet</h3>
-                    <p className="text-xs text-slate-500">
-                      Synchronize on-screen Telugu overlays, formulas, countdown timers, and options
-                    </p>
+                  <div className="flex items-center gap-2">
+                    <Layers className="w-4 h-4 text-indigo-600" />
+                    <h3 className="text-sm font-bold text-slate-900">Telugu On-Screen Graphics Overlays</h3>
                   </div>
-                  <Badge variant="active" size="sm">
-                    CUE TIMESTAMPS
+                  <Badge variant="active" size="sm" className="font-mono">
+                    9:16 VERTICAL
                   </Badge>
                 </div>
 
-                <div className="p-4 space-y-3">
-                  {/* Cue 1 */}
-                  <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 flex items-start gap-3">
-                    <div className="font-mono text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-1 rounded">
-                      00:00 - 00:05
-                    </div>
-                    <div className="flex-1 text-xs space-y-1">
-                      <div className="font-bold text-slate-900">Hook Graphic & Big Question Header</div>
-                      <p className="text-slate-600 font-sans">
-                        Overlay: {script?.hookText || 'High-energy exam challenge title'}
-                      </p>
-                      <span className="text-[10px] text-indigo-600 font-medium block">
-                        Cue: Zoom cut, bold Telugu title, whoosh sound effect
+                <div className="p-4 space-y-4">
+                  {/* Hook Motion Graphic */}
+                  <div className="p-3 bg-red-50/70 border border-red-200 rounded-xl space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-mono font-bold text-red-700 uppercase">
+                        01 Hook Graphic Overlay (00:00 – 00:05)
+                      </span>
+                      <span className="text-[10px] bg-red-200 text-red-900 px-1.5 py-0.2 rounded font-mono">
+                        Bold Center Pop
                       </span>
                     </div>
+                    <p className="font-telugu text-sm font-bold text-red-950 leading-relaxed">
+                      {script?.hookText || 'Hook Title Graphic'}
+                    </p>
                   </div>
 
-                  {/* Cue 2 */}
-                  <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 flex items-start gap-3">
-                    <div className="font-mono text-xs font-bold text-slate-700 bg-slate-100 border border-slate-200 px-2 py-1 rounded">
-                      00:05 - 00:15
-                    </div>
-                    <div className="flex-1 text-xs space-y-1">
-                      <div className="font-bold text-slate-900">4 Multiple-Choice Option Cards (A, B, C, D)</div>
-                      <p className="text-slate-600 font-sans">
-                        {question ? (
-                          <span>
-                            A: {question.options?.a || question.optionA} | B: {question.options?.b || question.optionB} | C: {question.options?.c || question.optionC} | D: {question.options?.d || question.optionD}
-                          </span>
-                        ) : (
-                          'Pop up 4 option cards with 5s countdown timer animation'
-                        )}
-                      </p>
-                      <span className="text-[10px] text-slate-500 font-medium block">
-                        Cue: 5-second ticking clock SFX + pulsing timer bar
+                  {/* Question & Options Graphic Overlay */}
+                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-mono font-bold text-slate-700 uppercase">
+                        02 Question & 4-Box Options (00:05 – 00:15)
+                      </span>
+                      <span className="text-[10px] bg-slate-200 text-slate-800 px-1.5 py-0.2 rounded font-mono">
+                        Lower-Third Grid
                       </span>
                     </div>
+
+                    {question ? (
+                      <>
+                        <div className="p-2.5 bg-white border border-slate-200 rounded-lg text-xs font-telugu text-slate-900 font-medium leading-relaxed">
+                          {question.questionText}
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          {(['A', 'B', 'C', 'D'] as const).map((opt) => {
+                            const optText =
+                              (question.options as any)?.[opt.toLowerCase()] ||
+                              (question as any)[`option${opt}`] ||
+                              '';
+                            const isCorrect = String(question.correctAnswer).toUpperCase() === opt;
+                            return (
+                              <div
+                                key={opt}
+                                className={`p-2 rounded border text-[11px] font-telugu ${
+                                  isCorrect
+                                    ? 'bg-emerald-50 border-emerald-400 text-emerald-950 font-bold'
+                                    : 'bg-white border-slate-200 text-slate-700'
+                                }`}
+                              >
+                                <span className="font-mono font-bold uppercase mr-1">[{opt}]</span>
+                                {optText}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-xs text-slate-400">No question metadata available.</p>
+                    )}
                   </div>
 
-                  {/* Cue 3 */}
-                  <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 flex items-start gap-3">
-                    <div className="font-mono text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded">
-                      00:15 - 00:35
-                    </div>
-                    <div className="flex-1 text-xs space-y-1">
-                      <div className="font-bold text-slate-900">Step-by-Step Math / Logic Highlighting</div>
-                      <p className="text-slate-600 font-sans">
-                        {script?.stepByStepSolution || 'Stepwise formula calculations appear line by line'}
-                      </p>
-                      <span className="text-[10px] text-emerald-600 font-medium block">
-                        Cue: Glow outline on correct option ({question?.correctAnswer || 'A/B/C/D'}), pop sound on key formula
+                  {/* 10-Second Timer Cue & Sound Cue */}
+                  <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-mono font-bold text-amber-800 uppercase flex items-center gap-1">
+                        <Clock className="w-3 h-3 text-amber-600" />
+                        03 10-Second Radial Countdown Cue (00:15 – 00:25)
+                      </span>
+                      <span className="text-[10px] bg-amber-200 text-amber-900 px-1.5 py-0.2 rounded font-mono">
+                        SFX: Ticking Clock
                       </span>
                     </div>
+                    <p className="text-xs text-amber-950">
+                      Sync circular countdown animation with subtle audio ticking. Highlight Option <strong>{question?.correctAnswer || 'A'}</strong> at 00:25.
+                    </p>
                   </div>
 
-                  {/* Cue 4 */}
-                  <div className="p-3 bg-amber-50/50 rounded-lg border border-amber-200 flex items-start gap-3">
-                    <div className="font-mono text-xs font-bold text-amber-800 bg-amber-100 border border-amber-300 px-2 py-1 rounded">
-                      00:35 - 00:45
-                    </div>
-                    <div className="flex-1 text-xs space-y-1">
-                      <div className="font-bold text-amber-900">Exam Shortcut Callout Box (Super Trick)</div>
-                      <p className="text-slate-700 font-sans">
-                        {script?.speedTrickOrTakeaway || 'Fast formula box with neon highlight'}
-                      </p>
-                      <span className="text-[10px] text-amber-700 font-medium block">
-                        Cue: Ding SFX + golden border animation
+                  {/* Burra Speed Shortcut Overlay */}
+                  <div className="p-3 bg-indigo-50/70 border border-indigo-200 rounded-xl space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-mono font-bold text-indigo-800 uppercase flex items-center gap-1">
+                        <Sparkles className="w-3 h-3 text-indigo-600" />
+                        04 Burra Speed Formula Graphic (00:35 – 00:45)
+                      </span>
+                      <span className="text-[10px] bg-indigo-200 text-indigo-900 px-1.5 py-0.2 rounded font-mono">
+                        Gold Highlight Box
                       </span>
                     </div>
-                  </div>
-
-                  {/* Cue 5 */}
-                  <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 flex items-start gap-3">
-                    <div className="font-mono text-xs font-bold text-slate-700 bg-slate-100 border border-slate-200 px-2 py-1 rounded">
-                      00:45 - 00:50
-                    </div>
-                    <div className="flex-1 text-xs space-y-1">
-                      <div className="font-bold text-slate-900">Outro & Follow Channel Animation</div>
-                      <p className="text-slate-600 font-sans">
-                        {script?.callToAction || 'Burra Pariksha follow button animation'}
-                      </p>
-                      <span className="text-[10px] text-slate-500 font-medium block">
-                        Cue: Subscribe bell icon animation + next question teaser
-                      </span>
-                    </div>
+                    <p className="font-telugu text-xs font-bold text-indigo-950 leading-relaxed">
+                      {script?.speedTrickOrTakeaway || 'Exam Shortcut Trick Graphic'}
+                    </p>
                   </div>
                 </div>
               </Card>
 
-              {/* Edited Render Upload to Google Drive */}
+              {/* Shorts Master Pacing Checklist */}
+              <Card padding="md">
+                <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                    <h3 className="text-sm font-bold text-slate-900">Shorts Master Pacing Checklist</h3>
+                  </div>
+                  <span className="text-xs text-slate-500 font-mono">
+                    {Object.values(checklist).filter(Boolean).length}/6 COMPLETE
+                  </span>
+                </div>
+
+                <div className="p-4 space-y-2.5">
+                  {[
+                    { key: 'hookOverlay', label: 'Hook on-screen title text appears in first 0.5s' },
+                    { key: 'timerSync', label: '10s visual countdown & ticking SFX synced at 00:15' },
+                    { key: 'teluguFonts', label: 'Telugu font rendered without missing glyphs (Gautami/Noto)' },
+                    { key: 'soundSfx', label: 'Correct answer pop sound effect & green border flash' },
+                    { key: 'verticalFrame', label: 'Presenter framed in center 9:16 safe area (no UI cut-off)' },
+                    { key: 'durationChecked', label: 'Final cut strictly between 50s and 59s total length' },
+                  ].map((item) => {
+                    const checked = checklist[item.key as keyof typeof checklist];
+                    return (
+                      <div
+                        key={item.key}
+                        onClick={() => toggleChecklistItem(item.key as keyof typeof checklist)}
+                        className={`p-3 rounded-lg border flex items-center gap-3 cursor-pointer transition select-none ${
+                          checked
+                            ? 'bg-emerald-50/60 border-emerald-300 text-emerald-950'
+                            : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                        }`}
+                      >
+                        {checked ? (
+                          <CheckSquare className="w-4 h-4 text-emerald-600 shrink-0" />
+                        ) : (
+                          <Square className="w-4 h-4 text-slate-400 shrink-0" />
+                        )}
+                        <span className="text-xs font-medium">{item.label}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </Card>
+            </div>
+
+            {/* Right Column: Duration Compliance Gauge & Render Intake */}
+            <div className="space-y-6">
+              {/* Duration Compliance & Pacing Gauge */}
+              <Card padding="md">
+                <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-indigo-600" />
+                    <h3 className="text-sm font-bold text-slate-900">Duration & Pacing Compliance</h3>
+                  </div>
+                  <span className={`text-[11px] font-mono font-bold px-2 py-0.5 rounded ${durationStatus.badgeColor}`}>
+                    {renderDurationSeconds}s TOTAL
+                  </span>
+                </div>
+
+                <div className="p-4 space-y-4">
+                  <div>
+                    <div className="flex items-center justify-between text-xs font-semibold text-slate-700 mb-1">
+                      <span>Render Duration (Seconds)</span>
+                      <span className="font-mono text-indigo-600 font-bold">{renderDurationSeconds} seconds</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="30"
+                      max="75"
+                      value={renderDurationSeconds}
+                      onChange={(e) => setRenderDurationSeconds(Number(e.target.value))}
+                      className="w-full accent-indigo-600 cursor-pointer"
+                    />
+                    <div className="flex justify-between text-[10px] font-mono text-slate-400 mt-1">
+                      <span>30s (Min)</span>
+                      <span className="text-emerald-600 font-bold">50s – 59s (Optimal Shorts)</span>
+                      <span>75s (Long)</span>
+                    </div>
+                  </div>
+
+                  {/* Duration Compliance Status Box */}
+                  <div className={`p-3.5 rounded-xl border flex items-start gap-3 ${durationStatus.color}`}>
+                    <Info className="w-4 h-4 mt-0.5 shrink-0" />
+                    <div>
+                      <div className="text-xs font-bold">{durationStatus.label}</div>
+                      <p className="text-[11px] mt-0.5 leading-relaxed opacity-90">
+                        {renderDurationSeconds >= 50 && renderDurationSeconds <= 59
+                          ? 'Perfect pacing for YouTube Shorts and Instagram Reels algorithm retention.'
+                          : renderDurationSeconds > 60
+                          ? 'Videos over 60 seconds are disqualified from the YouTube Shorts feed and will render as regular landscape video.'
+                          : 'Short videos (<50s) have reduced ad revenue and watch-time scoring.'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Aspect Ratio Selector */}
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { id: '9:16', label: '9:16 Vertical', sub: 'Shorts & Reels' },
+                      { id: '1:1', label: '1:1 Square', sub: 'Post / Feed' },
+                      { id: '16:9', label: '16:9 Landscape', sub: 'Long Form' },
+                    ].map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => setAspectRatio(item.id as any)}
+                        className={`p-2.5 rounded-lg border text-left transition ${
+                          aspectRatio === item.id
+                            ? 'bg-indigo-50 border-indigo-400 text-indigo-950 ring-1 ring-indigo-200'
+                            : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                        }`}
+                      >
+                        <div className="font-mono text-xs font-bold">{item.id}</div>
+                        <div className="text-[10px] text-slate-500">{item.sub}</div>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Assigned Editor & Notes */}
+                  <div className="space-y-3 pt-2 border-t border-slate-100">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        Video Editor Assigned
+                      </label>
+                      <input
+                        type="text"
+                        value={assignedEditor}
+                        onChange={(e) => setAssignedEditor(e.target.value)}
+                        placeholder="e.g. Anand Varma / Lead Editor"
+                        className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:ring-1 focus:ring-indigo-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        Editor Cutting Notes
+                      </label>
+                      <textarea
+                        value={editorNotes}
+                        onChange={(e) => setEditorNotes(e.target.value)}
+                        placeholder="e.g. Added zoom-in on Option C, audio normalized to -14 LUFS"
+                        rows={2}
+                        className="w-full text-xs p-2.5 border border-slate-300 rounded-lg"
+                      />
+                    </div>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={isUpdatingStatus}
+                      onClick={handleSaveEditorMetadata}
+                      className="w-full text-xs"
+                    >
+                      {isUpdatingStatus ? 'Saving in Sheets...' : 'Save Editor & Duration Settings'}
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Upload Rendered Video File to Google Drive */}
               <Card padding="md">
                 <div className="p-4 border-b border-slate-100">
-                  <h3 className="text-sm font-bold text-slate-900">Google Drive Edited Cut Upload</h3>
+                  <h3 className="text-sm font-bold text-slate-900">Upload Rendered Video (Google Drive)</h3>
                   <p className="text-xs text-slate-500">
-                    Upload final vertical video render (MP4, H.264, 1080x1920). File will be uploaded to Drive folder.
+                    Upload final vertical MP4 render or link Google Drive export URL
                   </p>
                 </div>
 
-                <div className="p-4">
+                <div className="p-4 space-y-4">
                   <form onSubmit={handleUploadEditedCut} className="space-y-4">
-                    <div className="border-2 border-dashed border-slate-200 hover:border-indigo-400 rounded-xl p-6 text-center bg-slate-50/50">
+                    {/* Drag & Drop File Upload */}
+                    <div className="border-2 border-dashed border-slate-200 hover:border-indigo-400 rounded-xl p-6 text-center bg-slate-50/50 transition">
                       <Upload className="w-8 h-8 text-indigo-600 mx-auto mb-2" />
                       <label className="cursor-pointer block">
                         <span className="text-xs font-bold text-indigo-600 hover:text-indigo-700">
-                          Click to select edited render (.mp4)
+                          Click to browse rendered video file (.mp4)
                         </span>
-                        <span className="text-xs text-slate-500 block mt-0.5">
-                          Format: MP4 (H.264) • 1080x1920 (9:16)
+                        <span className="text-[11px] text-slate-500 block mt-0.5">
+                          1080x1920 60fps Vertical MP4
                         </span>
                         <input
                           type="file"
@@ -539,146 +761,64 @@ export const VideoEditPage: React.FC = () => {
                       )}
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 mb-1">
-                          Exact Render Duration (Seconds)
-                        </label>
-                        <input
-                          type="number"
-                          value={renderDurationSeconds}
-                          onChange={(e) => setRenderDurationSeconds(Number(e.target.value))}
-                          className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:ring-1 focus:ring-indigo-500 font-mono"
-                        />
+                    {/* Or Google Drive URL Input */}
+                    <div className="relative">
+                      <div className="text-[10px] font-mono text-slate-400 uppercase text-center mb-2">
+                        — OR LINK DRIVE FILE —
                       </div>
-
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 mb-1">
-                          Editor Completion Notes
-                        </label>
-                        <input
-                          type="text"
-                          value={editorNotes}
-                          onChange={(e) => setEditorNotes(e.target.value)}
-                          placeholder="e.g. Cut v1 with subtitles and sound effects complete"
-                          className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:ring-1 focus:ring-indigo-500"
-                        />
-                      </div>
+                      <input
+                        type="url"
+                        value={driveCutUrl}
+                        onChange={(e) => setDriveCutUrl(e.target.value)}
+                        placeholder="https://drive.google.com/file/d/.../view"
+                        className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:ring-1 focus:ring-indigo-500"
+                      />
                     </div>
 
-                    <div className="flex items-center justify-between pt-2">
-                      <span className="text-xs text-slate-400">
-                        Upload advances video to <strong>FINAL_REVIEW</strong>
+                    {isUploading && (
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between text-[11px] font-mono text-indigo-700">
+                          <span>Uploading cut to Google Drive...</span>
+                          <span>{uploadProgress}%</span>
+                        </div>
+                        <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                          <div
+                            className="bg-indigo-600 h-full transition-all duration-300"
+                            style={{ width: `${uploadProgress}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between pt-1">
+                      <span className="text-[11px] text-slate-400">
+                        Advances video to <strong>FINAL_REVIEW</strong>
                       </span>
                       <Button
                         type="submit"
                         variant="primary"
                         size="md"
-                        disabled={!uploadFile || isUploading}
+                        disabled={(!uploadFile && !driveCutUrl.trim()) || isUploading}
                         icon={Upload}
                         className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
                       >
-                        {isUploading ? 'Uploading Render...' : 'Upload Edited Render'}
+                        {isUploading ? 'Uploading...' : 'Submit Edited Cut'}
                       </Button>
                     </div>
                   </form>
                 </div>
               </Card>
-            </div>
 
-            {/* Right Col: Quality Checklist & Post Settings */}
-            <div className="space-y-4">
-              {/* Post-Production Quality Checklist */}
-              <Card padding="md">
-                <div className="p-4 border-b border-slate-100">
-                  <h3 className="text-sm font-bold text-slate-900">Post-Production Checklist</h3>
-                  <p className="text-xs text-slate-500">Quality requirements for release</p>
-                </div>
-                <div className="p-4 space-y-3">
-                  <label className="flex items-center gap-2.5 text-xs text-slate-800 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={hasSubtitles}
-                      onChange={(e) => setHasSubtitles(e.target.checked)}
-                      className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                    />
-                    <span>Telugu Subtitles (Accurate spelling & fonts)</span>
-                  </label>
-
-                  <label className="flex items-center gap-2.5 text-xs text-slate-800 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={hasMotionGraphics}
-                      onChange={(e) => setHasMotionGraphics(e.target.checked)}
-                      className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                    />
-                    <span>Option Cards & Formula Callouts Animated</span>
-                  </label>
-
-                  <label className="flex items-center gap-2.5 text-xs text-slate-800 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={hasSoundEffects}
-                      onChange={(e) => setHasSoundEffects(e.target.checked)}
-                      className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                    />
-                    <span>Sound Effects & Background Audio Balanced</span>
-                  </label>
-
-                  <div className="pt-3 border-t border-slate-100">
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Assigned Editor
-                    </label>
-                    <input
-                      type="text"
-                      value={assignedEditor}
-                      onChange={(e) => setAssignedEditor(e.target.value)}
-                      placeholder="e.g. Editor John / Motion Team"
-                      className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg mb-2"
-                    />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={isUpdatingStatus}
-                      onClick={handleSaveEditorMetadata}
-                      className="w-full text-xs"
-                    >
-                      Save Editor Info
-                    </Button>
-                  </div>
-                </div>
-              </Card>
-
-              {/* Status Transition Control Card */}
-              <Card padding="md">
-                <div className="p-4 border-b border-slate-100">
-                  <h3 className="text-sm font-bold text-slate-900">Editing Stage Gate</h3>
-                  <p className="text-xs text-slate-500">Finalize cut or mark ready</p>
-                </div>
-                <div className="p-4 space-y-2">
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    disabled={isUpdatingStatus}
-                    onClick={handleAdvanceToFinalReview}
-                    icon={CheckCircle2}
-                    className="w-full text-xs justify-center bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
-                  >
-                    Mark Cut Ready for Final Review
-                  </Button>
-                </div>
-              </Card>
-
-              {/* Next Step Action Card */}
+              {/* Next Step Action Box */}
               <div className="bg-white rounded-xl border border-indigo-200 p-5 shadow-xs space-y-3">
                 <div className="flex items-center gap-2 text-indigo-700 font-bold text-xs">
                   <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[10px] font-mono">
                     09
                   </span>
-                  <span>Next: Final Video</span>
+                  <span>Next: Final Review & Quality Control</span>
                 </div>
                 <p className="text-xs text-slate-600">
-                  Cut complete? Move to final signoff to audit publish readiness and lock the master asset.
+                  Render complete? Pass video to the Publishing Manager for final audio-video QC, Telugu subtitle check, and one-click approval.
                 </p>
 
                 <Button
@@ -691,7 +831,7 @@ export const VideoEditPage: React.FC = () => {
                   icon={ArrowRight}
                   className="w-full text-xs justify-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
                 >
-                  Continue to Final Video (Step 09)
+                  Continue to Final Review (Step 09)
                 </Button>
               </div>
             </div>

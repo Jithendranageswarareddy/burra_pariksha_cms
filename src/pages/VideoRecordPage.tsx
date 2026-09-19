@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import {
   Video as VideoIcon,
@@ -9,6 +9,20 @@ import {
   Film,
   ExternalLink,
   RotateCcw,
+  Play,
+  Pause,
+  Maximize2,
+  Minimize2,
+  FlipHorizontal,
+  Sliders,
+  CheckCircle2,
+  Sparkles,
+  HelpCircle,
+  Clock,
+  Layers,
+  FileText,
+  Radio,
+  Check,
 } from 'lucide-react';
 import { Video, Script, Question, VideoProductionStatus } from '../types';
 import { apiClient } from '../lib/api-client';
@@ -38,13 +52,21 @@ export const VideoRecordPage: React.FC = () => {
   const [assignedHost, setAssignedHost] = useState<string>('');
   const [recordingTake, setRecordingTake] = useState<number>(1);
   const [hostNotes, setHostNotes] = useState<string>('');
+  
+  // Teleprompter Engine State
   const [teleprompterMode, setTeleprompterMode] = useState<boolean>(false);
-  const [teleprompterSpeed, setTeleprompterSpeed] = useState<number>(3); // 1-5
-  const [fontSize, setFontSize] = useState<'sm' | 'md' | 'lg' | 'xl'>('lg');
+  const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  const [scrollSpeed, setScrollSpeed] = useState<number>(3); // 1 to 10
+  const [fontSizePx, setFontSizePx] = useState<number>(36); // 28, 36, 48, 64
+  const [isMirrored, setIsMirrored] = useState<boolean>(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const scrollAnimationRef = useRef<number | null>(null);
 
-  // Upload state
+  // Upload / Raw Footage State
   const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [driveUrlInput, setDriveUrlInput] = useState<string>('');
   const [isUploading, setIsUploading] = useState<boolean>(false);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState<boolean>(false);
 
   // UI state
@@ -106,6 +128,53 @@ export const VideoRecordPage: React.FC = () => {
     }
   }, [videoId]);
 
+  // Spacebar toggle & Escape key listener for teleprompter
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!teleprompterMode) return;
+      if (e.code === 'Space') {
+        e.preventDefault();
+        setIsPlaying((prev) => !prev);
+      } else if (e.code === 'Escape') {
+        e.preventDefault();
+        setTeleprompterMode(false);
+        setIsPlaying(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [teleprompterMode]);
+
+  // Teleprompter Auto-Scroll Engine Loop
+  useEffect(() => {
+    if (teleprompterMode && isPlaying) {
+      const scroll = () => {
+        if (scrollContainerRef.current) {
+          // Scroll speed multiplier
+          const step = scrollSpeed * 0.45;
+          scrollContainerRef.current.scrollTop += step;
+          scrollAnimationRef.current = requestAnimationFrame(scroll);
+        }
+      };
+      scrollAnimationRef.current = requestAnimationFrame(scroll);
+    } else {
+      if (scrollAnimationRef.current) {
+        cancelAnimationFrame(scrollAnimationRef.current);
+      }
+    }
+    return () => {
+      if (scrollAnimationRef.current) {
+        cancelAnimationFrame(scrollAnimationRef.current);
+      }
+    };
+  }, [teleprompterMode, isPlaying, scrollSpeed]);
+
+  const handleRestartScroll = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = 0;
+    }
+  };
+
   // Update Host Assignment & Video Metadata
   const handleSaveHostAssignment = async () => {
     const targetId = videoId || selectedVideo?.id;
@@ -132,22 +201,49 @@ export const VideoRecordPage: React.FC = () => {
   const handleUploadRawFootage = async (e: React.FormEvent) => {
     e.preventDefault();
     const targetId = videoId || selectedVideo?.id;
-    if (!targetId || !uploadFile) return;
+    if (!targetId) return;
+
+    if (!uploadFile && !driveUrlInput.trim()) {
+      setError('Please select a video file to upload or provide a Google Drive raw footage URL.');
+      return;
+    }
 
     try {
       setIsUploading(true);
       setError(null);
       setSuccessMessage(null);
+      setUploadProgress(15);
 
-      const updatedVideo = await apiClient.uploadVideoFile(targetId, uploadFile);
-      setSelectedVideo(updatedVideo);
-      setUploadFile(null);
-      setSuccessMessage('Raw footage successfully uploaded to Google Drive! Status updated to RECORDED.');
+      if (uploadFile) {
+        const interval = setInterval(() => {
+          setUploadProgress((p) => (p < 85 ? p + 15 : p));
+        }, 300);
+
+        const updatedVideo = await apiClient.uploadVideoFile(targetId, uploadFile);
+        clearInterval(interval);
+        setUploadProgress(100);
+        setSelectedVideo(updatedVideo);
+        setUploadFile(null);
+      } else if (driveUrlInput.trim()) {
+        const updated = await apiClient.updateVideoMetadata(targetId, {
+          notes: `${selectedVideo?.notes || ''}\nRaw Footage Drive URL: ${driveUrlInput.trim()}`.trim(),
+        });
+        const statusUpdated = await apiClient.updateVideoStatus(
+          targetId,
+          VideoProductionStatus.RECORDED,
+          `Raw footage linked via Drive: ${driveUrlInput.trim()}`
+        );
+        setSelectedVideo(statusUpdated);
+        setDriveUrlInput('');
+      }
+
+      setSuccessMessage('Raw footage registered successfully! Video status advanced to RECORDED.');
       setTimeout(() => setSuccessMessage(null), 4000);
     } catch (err: any) {
-      setError(err?.message || 'Failed to upload raw video file to Google Drive.');
+      setError(err?.message || 'Failed to upload raw video file.');
     } finally {
       setIsUploading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -163,7 +259,7 @@ export const VideoRecordPage: React.FC = () => {
       const updated = await apiClient.updateVideoStatus(
         targetId,
         newStatus,
-        `Stage advanced from Step 07 Recording Studio: ${hostNotes || 'Take completed'}`
+        `Stage advanced from Step 07 Recording Studio: Take #${recordingTake} - ${hostNotes || 'Take completed'}`
       );
       setSelectedVideo(updated);
       setSuccessMessage(`Production status transitioned to ${newStatus}.`);
@@ -175,90 +271,202 @@ export const VideoRecordPage: React.FC = () => {
     }
   };
 
-  // Teleprompter Full Screen View
+  // High-Performance Full-Screen Teleprompter Modal
   if (teleprompterMode && script) {
-    const fontSizes = {
-      sm: 'text-xl',
-      md: 'text-2xl',
-      lg: 'text-4xl',
-      xl: 'text-6xl',
-    }[fontSize];
-
     return (
-      <div className="fixed inset-0 bg-black text-white z-50 p-8 flex flex-col justify-between overflow-hidden select-none">
-        {/* Teleprompter Header Bar */}
-        <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
+      <div className="fixed inset-0 z-50 bg-slate-950 text-white flex flex-col justify-between overflow-hidden select-none font-sans">
+        {/* Teleprompter Top Header Bar */}
+        <div className="flex items-center justify-between px-6 py-3.5 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 shrink-0">
           <div className="flex items-center gap-3">
             <span className="w-3 h-3 rounded-full bg-red-600 animate-pulse" />
-            <span className="font-mono text-sm font-bold tracking-widest text-red-500 uppercase">
-              STUDIO PROMPTER • {selectedVideo?.id || 'PROD'}
-            </span>
+            <div>
+              <span className="font-mono text-xs font-bold tracking-widest text-red-500 uppercase">
+                STUDIO TELEPROMPTER • {selectedVideo?.id || 'PROD'}
+              </span>
+              <span className="text-[11px] text-slate-400 block font-mono">
+                Host: {selectedVideo?.assignedHost || 'Presenter'} • Take #{recordingTake}
+              </span>
+            </div>
           </div>
 
-          {/* Prompt Controls */}
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded-lg p-1 text-xs">
-              <span className="text-zinc-400 px-2 font-mono">SIZE:</span>
-              {(['sm', 'md', 'lg', 'xl'] as const).map((s) => (
+          {/* Teleprompter Controls Deck */}
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Play / Pause Toggle */}
+            <button
+              onClick={() => setIsPlaying(!isPlaying)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition ${
+                isPlaying
+                  ? 'bg-amber-600 hover:bg-amber-700 text-white'
+                  : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+              }`}
+              title="Spacebar to toggle"
+            >
+              {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+              <span>{isPlaying ? 'PAUSE (Space)' : 'AUTO-SCROLL (Space)'}</span>
+            </button>
+
+            {/* Restart Scroll */}
+            <button
+              onClick={handleRestartScroll}
+              className="p-1.5 rounded-lg bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 text-xs flex items-center gap-1"
+              title="Restart from top"
+            >
+              <RotateCcw className="w-4 h-4" />
+            </button>
+
+            {/* Speed Slider */}
+            <div className="flex items-center gap-2 bg-slate-800/80 px-2.5 py-1 rounded-lg border border-slate-700 text-xs">
+              <span className="text-slate-400 font-mono text-[10px]">SPEED: {scrollSpeed}x</span>
+              <input
+                type="range"
+                min="1"
+                max="10"
+                value={scrollSpeed}
+                onChange={(e) => setScrollSpeed(Number(e.target.value))}
+                className="w-20 accent-red-500 cursor-pointer"
+              />
+            </div>
+
+            {/* Font Scaler Controls */}
+            <div className="flex items-center gap-1 bg-slate-800/80 px-1.5 py-1 rounded-lg border border-slate-700 text-xs">
+              <span className="text-slate-400 font-mono text-[10px] px-1">SIZE:</span>
+              {[
+                { label: 'S (28px)', px: 28 },
+                { label: 'M (36px)', px: 36 },
+                { label: 'L (48px)', px: 48 },
+                { label: 'XL (64px)', px: 64 },
+              ].map((item) => (
                 <button
-                  key={s}
-                  onClick={() => setFontSize(s)}
-                  className={`px-2 py-0.5 rounded font-mono uppercase ${
-                    fontSize === s ? 'bg-red-600 text-white font-bold' : 'text-zinc-400 hover:text-white'
+                  key={item.px}
+                  onClick={() => setFontSizePx(item.px)}
+                  className={`px-2 py-0.5 rounded text-[11px] font-mono transition ${
+                    fontSizePx === item.px
+                      ? 'bg-red-600 text-white font-bold'
+                      : 'text-slate-400 hover:text-white'
                   }`}
                 >
-                  {s}
+                  {item.label}
                 </button>
               ))}
             </div>
 
+            {/* Mirror Flip Toggle */}
+            <button
+              onClick={() => setIsMirrored(!isMirrored)}
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-mono flex items-center gap-1.5 border transition ${
+                isMirrored
+                  ? 'bg-indigo-600 border-indigo-400 text-white'
+                  : 'bg-slate-800 border-slate-700 text-slate-300 hover:text-white'
+              }`}
+              title="Mirror horizontal flip for glass teleprompters"
+            >
+              <FlipHorizontal className="w-3.5 h-3.5" />
+              <span>{isMirrored ? 'MIRRORED' : 'MIRROR'}</span>
+            </button>
+
+            {/* Exit Fullscreen */}
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setTeleprompterMode(false)}
-              className="text-xs bg-zinc-900 text-white border-zinc-700 hover:bg-zinc-800"
+              onClick={() => {
+                setTeleprompterMode(false);
+                setIsPlaying(false);
+              }}
+              className="text-xs bg-slate-800 text-white border-slate-700 hover:bg-slate-700"
             >
-              Exit Teleprompter
+              <Minimize2 className="w-3.5 h-3.5 mr-1" /> Exit (ESC)
             </Button>
           </div>
         </div>
 
-        {/* Scrolling Script Text Stream */}
-        <div className="flex-1 overflow-y-auto py-12 px-6 max-w-4xl mx-auto space-y-12 leading-relaxed">
-          {/* Section 1 */}
-          <div className="space-y-2 border-l-4 border-red-500 pl-6">
-            <div className="text-xs font-mono text-red-400 tracking-wider uppercase">01 HOOK (0-5s)</div>
-            <p className={`${fontSizes} font-bold text-amber-300 font-sans`}>{script.hookText}</p>
+        {/* Teleprompter Scrolling Content View */}
+        <div
+          ref={scrollContainerRef}
+          className={`flex-1 overflow-y-auto px-8 md:px-20 py-16 max-w-5xl mx-auto w-full space-y-16 transition-transform ${
+            isMirrored ? 'scale-x-[-1]' : ''
+          }`}
+          style={{
+            scrollBehavior: isPlaying ? 'auto' : 'smooth',
+          }}
+        >
+          {/* Section 1: Hook */}
+          <div className="space-y-3 border-l-4 border-red-500 pl-6 bg-red-950/20 p-6 rounded-r-2xl">
+            <div className="flex items-center gap-2 font-mono text-xs text-red-400 font-bold uppercase tracking-widest">
+              <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
+              01 • HOOK (00:00 – 00:05) • MAX ENERGY
+            </div>
+            <p
+              className="font-telugu leading-loose font-medium text-amber-300"
+              style={{ fontSize: `${fontSizePx}px` }}
+            >
+              {script.hookText}
+            </p>
           </div>
 
-          {/* Section 2 */}
-          <div className="space-y-2 border-l-4 border-indigo-500 pl-6">
-            <div className="text-xs font-mono text-indigo-400 tracking-wider uppercase">02 PROBLEM (5-15s)</div>
-            <p className={`${fontSizes} text-zinc-100 font-sans`}>{script.problemStatement}</p>
+          {/* Section 2: Problem Statement */}
+          <div className="space-y-3 border-l-4 border-indigo-500 pl-6 bg-indigo-950/20 p-6 rounded-r-2xl">
+            <div className="font-mono text-xs text-indigo-400 font-bold uppercase tracking-widest">
+              02 • PROBLEM STATEMENT & OPTIONS (00:05 – 00:15) • CLEAR ENUNCIATION
+            </div>
+            <p
+              className="font-telugu leading-loose font-medium text-slate-100"
+              style={{ fontSize: `${fontSizePx}px` }}
+            >
+              {script.problemStatement}
+            </p>
           </div>
 
-          {/* Section 3 */}
-          <div className="space-y-2 border-l-4 border-emerald-500 pl-6">
-            <div className="text-xs font-mono text-emerald-400 tracking-wider uppercase">03 STEP-BY-STEP (15-35s)</div>
-            <p className={`${fontSizes} text-zinc-100 font-sans`}>{script.stepByStepSolution}</p>
+          {/* Section 3: Step-by-Step Solution */}
+          <div className="space-y-3 border-l-4 border-emerald-500 pl-6 bg-emerald-950/20 p-6 rounded-r-2xl">
+            <div className="font-mono text-xs text-emerald-400 font-bold uppercase tracking-widest">
+              03 • STEP-BY-STEP SOLUTION (00:15 – 00:35) • EXPLANATORY PACE
+            </div>
+            <p
+              className="font-telugu leading-loose font-medium text-slate-100"
+              style={{ fontSize: `${fontSizePx}px` }}
+            >
+              {script.stepByStepSolution}
+            </p>
           </div>
 
-          {/* Section 4 */}
-          <div className="space-y-2 border-l-4 border-yellow-500 pl-6">
-            <div className="text-xs font-mono text-yellow-400 tracking-wider uppercase">04 SHORTCUT (35-45s)</div>
-            <p className={`${fontSizes} font-bold text-yellow-300 font-sans`}>{script.speedTrickOrTakeaway}</p>
+          {/* Section 4: Burra Speed Shortcut */}
+          <div className="space-y-3 border-l-4 border-amber-500 pl-6 bg-amber-950/25 p-6 rounded-r-2xl">
+            <div className="flex items-center gap-2 font-mono text-xs text-amber-400 font-bold uppercase tracking-widest">
+              <Sparkles className="w-4 h-4 text-amber-400" />
+              04 • BURRA SPEED TRICK (00:35 – 00:45) • EXAM SHORTCUT
+            </div>
+            <p
+              className="font-telugu leading-loose font-bold text-yellow-300"
+              style={{ fontSize: `${fontSizePx}px` }}
+            >
+              {script.speedTrickOrTakeaway}
+            </p>
           </div>
 
-          {/* Section 5 */}
-          <div className="space-y-2 border-l-4 border-purple-500 pl-6">
-            <div className="text-xs font-mono text-purple-400 tracking-wider uppercase">05 OUTRO (45-50s)</div>
-            <p className={`${fontSizes} text-zinc-300 font-sans`}>{script.callToAction}</p>
+          {/* Section 5: Call to Action */}
+          <div className="space-y-3 border-l-4 border-purple-500 pl-6 bg-purple-950/20 p-6 rounded-r-2xl">
+            <div className="font-mono text-xs text-purple-400 font-bold uppercase tracking-widest">
+              05 • OUTRO & SUBSCRIBE CTA (00:45 – 00:50) • FOLLOW PROMPT
+            </div>
+            <p
+              className="font-telugu leading-loose font-medium text-purple-200"
+              style={{ fontSize: `${fontSizePx}px` }}
+            >
+              {script.callToAction}
+            </p>
+          </div>
+
+          {/* End of Script Padding */}
+          <div className="py-20 text-center text-slate-600 font-mono text-sm border-t border-slate-800">
+            --- END OF SCRIPT • BURRA PARIKSHA SHORTS ---
           </div>
         </div>
 
-        {/* Teleprompter Footer */}
-        <div className="text-center text-xs text-zinc-500 border-t border-zinc-800 pt-3">
-          Press <strong>ESC</strong> or click <strong>Exit Teleprompter</strong> to return to video workflow
+        {/* Teleprompter Footer Status Bar */}
+        <div className="px-6 py-2.5 bg-slate-900 border-t border-slate-800 text-center text-xs text-slate-400 font-mono shrink-0 flex items-center justify-between">
+          <span>Status: {isPlaying ? '🟢 Auto-scrolling' : '⏸ Paused'}</span>
+          <span>Press <strong>Spacebar</strong> to Play/Pause • <strong>ESC</strong> to Exit Studio View</span>
+          <span>Mirror: {isMirrored ? 'Active (Glass Mode)' : 'Normal'}</span>
         </div>
       </div>
     );
@@ -366,9 +574,9 @@ export const VideoRecordPage: React.FC = () => {
               {selectedVideo?.id || videoId}
             </span>
           </div>
-          <h1 className="text-xl font-bold text-slate-900">07 Record Video</h1>
+          <h1 className="text-xl font-bold text-slate-900">07 Record Video (Studio Deck)</h1>
           <p className="text-xs text-slate-500">
-            Film on-camera presenter delivery with high-readability teleprompter and upload raw recordings.
+            Film on-camera presenter delivery with high-readability Telugu teleprompter, manage takes, and upload raw footage.
           </p>
         </div>
 
@@ -391,7 +599,7 @@ export const VideoRecordPage: React.FC = () => {
       </div>
 
       {error && (
-        <Alert variant="error" title="Recording Error" onDismiss={() => setError(null)}>
+        <Alert variant="error" title="Recording Workspace Notice" onDismiss={() => setError(null)}>
           {error}
         </Alert>
       )}
@@ -422,7 +630,7 @@ export const VideoRecordPage: React.FC = () => {
                 {selectedVideo?.title || 'Telugu Educational Short'}
               </h2>
               <p className="text-xs text-slate-400">
-                Presenter: <strong>{selectedVideo?.assignedHost || 'Unassigned'}</strong> • Take: <strong>#{recordingTake}</strong>
+                Presenter: <strong>{selectedVideo?.assignedHost || assignedHost || 'Unassigned'}</strong> • Take: <strong>#{recordingTake}</strong>
               </p>
             </div>
 
@@ -431,7 +639,7 @@ export const VideoRecordPage: React.FC = () => {
                 variant="primary"
                 size="lg"
                 onClick={() => setTeleprompterMode(true)}
-                icon={VideoIcon}
+                icon={Maximize2}
                 className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs shadow-lg"
               >
                 Launch Studio Teleprompter
@@ -439,16 +647,99 @@ export const VideoRecordPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Main 2-Column Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Left 2 Cols: Script Delivery Cues & Raw Upload */}
-            <div className="lg:col-span-2 space-y-6">
-              {/* Teleprompter Cue Sheet Preview */}
+          {/* Main Studio Deck Dual-Column Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Left Column: Question Reference & Speed Trick Proof */}
+            <div className="space-y-6">
+              {/* Question Reference Card */}
               <Card padding="md">
                 <div className="p-4 border-b border-slate-100 flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-900">Script Delivery Cue Sheet</h3>
-                    <p className="text-xs text-slate-500">Structured 5-stage teleprompter pacing for host recording</p>
+                  <div className="flex items-center gap-2">
+                    <HelpCircle className="w-4 h-4 text-indigo-600" />
+                    <h3 className="text-sm font-bold text-slate-900">Question Reference & Answer Key</h3>
+                  </div>
+                  {question && (
+                    <Badge variant="active" size="sm" className="font-mono">
+                      {question.id}
+                    </Badge>
+                  )}
+                </div>
+
+                <div className="p-4 space-y-4">
+                  {question ? (
+                    <div className="space-y-4">
+                      <div>
+                        <span className="text-[10px] font-mono font-bold text-slate-500 uppercase block mb-1">
+                          Problem Statement (Telugu)
+                        </span>
+                        <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-telugu text-sm leading-relaxed font-medium">
+                          {question.questionText}
+                        </div>
+                      </div>
+
+                      {/* ABCD Options Grid */}
+                      <div>
+                        <span className="text-[10px] font-mono font-bold text-slate-500 uppercase block mb-2">
+                          Options & Correct Answer
+                        </span>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          {(['A', 'B', 'C', 'D'] as const).map((opt) => {
+                            const optText =
+                              (question.options as any)?.[opt.toLowerCase()] ||
+                              (question as any)[`option${opt}`] ||
+                              '';
+                            const isCorrect = String(question.correctAnswer).toUpperCase() === opt;
+                            return (
+                              <div
+                                key={opt}
+                                className={`p-3 rounded-lg border text-xs font-telugu transition ${
+                                  isCorrect
+                                    ? 'bg-emerald-50 border-emerald-400 text-emerald-950 font-semibold ring-1 ring-emerald-200 shadow-2xs'
+                                    : 'bg-white border-slate-200 text-slate-800'
+                                }`}
+                              >
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="font-mono font-bold text-[11px] uppercase">
+                                    Option {opt}
+                                  </span>
+                                  {isCorrect && (
+                                    <span className="text-[10px] font-sans font-bold bg-emerald-600 text-white px-1.5 py-0.2 rounded">
+                                      ✓ CORRECT
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="leading-relaxed">{optText || 'N/A'}</div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Burra Speed Trick & Math Proof */}
+                      <div className="p-3.5 bg-amber-50/70 border border-amber-200 rounded-xl space-y-1.5">
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-amber-900">
+                          <Sparkles className="w-4 h-4 text-amber-600" />
+                          <span>Burra Speed Trick & Math Proof</span>
+                        </div>
+                        <p className="text-xs text-amber-950 font-telugu leading-relaxed">
+                          {script?.speedTrickOrTakeaway || question.explanation || 'Exam shortcut trick verification.'}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-8 text-center text-slate-400 text-xs bg-slate-50 rounded-lg border border-slate-100">
+                      No question metadata linked to this video record.
+                    </div>
+                  )}
+                </div>
+              </Card>
+
+              {/* Script Delivery Cue Sheet Preview */}
+              <Card padding="md">
+                <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-slate-600" />
+                    <h3 className="text-sm font-bold text-slate-900">5-Part Telugu Narration Cues</h3>
                   </div>
                   {script && (
                     <Badge variant="active" size="sm">
@@ -457,71 +748,134 @@ export const VideoRecordPage: React.FC = () => {
                   )}
                 </div>
 
-                <div className="p-4 space-y-4">
+                <div className="p-4 space-y-2.5 text-xs">
                   {script ? (
-                    <div className="space-y-3">
-                      <div className="p-3 bg-red-50/50 rounded-lg border border-red-100">
-                        <span className="text-[10px] font-mono font-bold text-red-700 uppercase block mb-1">
-                          01 Hook (0–5s) • Max Energy
-                        </span>
-                        <p className="text-xs font-bold text-slate-900">{script.hookText}</p>
+                    <>
+                      <div className="p-2.5 bg-red-50/50 rounded-lg border border-red-100">
+                        <span className="text-[10px] font-mono font-bold text-red-700 uppercase block">01 Hook (0–5s)</span>
+                        <p className="font-telugu text-slate-900 mt-1 leading-relaxed">{script.hookText}</p>
                       </div>
-
-                      <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
-                        <span className="text-[10px] font-mono font-bold text-slate-600 uppercase block mb-1">
-                          02 Problem Statement (5–15s) • Clear Cadence
-                        </span>
-                        <p className="text-xs text-slate-800">{script.problemStatement}</p>
+                      <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200">
+                        <span className="text-[10px] font-mono font-bold text-slate-600 uppercase block">02 Problem (5–15s)</span>
+                        <p className="font-telugu text-slate-800 mt-1 leading-relaxed">{script.problemStatement}</p>
                       </div>
-
-                      <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
-                        <span className="text-[10px] font-mono font-bold text-slate-600 uppercase block mb-1">
-                          03 Step-by-Step Solution (15–35s) • Explanatory Pace
-                        </span>
-                        <p className="text-xs text-slate-800">{script.stepByStepSolution}</p>
+                      <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200">
+                        <span className="text-[10px] font-mono font-bold text-slate-600 uppercase block">03 Solution (15–35s)</span>
+                        <p className="font-telugu text-slate-800 mt-1 leading-relaxed">{script.stepByStepSolution}</p>
                       </div>
-
-                      <div className="p-3 bg-amber-50/50 rounded-lg border border-amber-200">
-                        <span className="text-[10px] font-mono font-bold text-amber-800 uppercase block mb-1">
-                          04 Speed Shortcut (35–45s) • Exam Trick Hook
-                        </span>
-                        <p className="text-xs font-bold text-amber-900">{script.speedTrickOrTakeaway}</p>
+                      <div className="p-2.5 bg-amber-50/50 rounded-lg border border-amber-200">
+                        <span className="text-[10px] font-mono font-bold text-amber-800 uppercase block">04 Shortcut (35–45s)</span>
+                        <p className="font-telugu font-bold text-amber-900 mt-1 leading-relaxed">{script.speedTrickOrTakeaway}</p>
                       </div>
-
-                      <div className="p-3 bg-emerald-50/50 rounded-lg border border-emerald-100">
-                        <span className="text-[10px] font-mono font-bold text-emerald-800 uppercase block mb-1">
-                          05 Outro & CTA (45–50s) • Follow Prompt
-                        </span>
-                        <p className="text-xs text-emerald-900 font-medium">{script.callToAction}</p>
+                      <div className="p-2.5 bg-purple-50/50 rounded-lg border border-purple-100">
+                        <span className="text-[10px] font-mono font-bold text-purple-800 uppercase block">05 Outro & CTA (45–50s)</span>
+                        <p className="font-telugu text-purple-900 mt-1 leading-relaxed">{script.callToAction}</p>
                       </div>
-                    </div>
+                    </>
                   ) : (
-                    <div className="p-6 text-center text-slate-400 text-xs bg-slate-50 rounded-lg border border-slate-100">
-                      No script approved yet. Please author and approve in Step 05 & 06 before filming.
+                    <div className="p-6 text-center text-slate-400 text-xs">
+                      No script approved yet. Please review in Step 06.
                     </div>
                   )}
                 </div>
               </Card>
+            </div>
 
-              {/* Raw Footage Upload to Google Drive */}
+            {/* Right Column: Take Manager & Raw Footage Intake */}
+            <div className="space-y-6">
+              {/* Take Manager Card */}
+              <Card padding="md">
+                <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Radio className="w-4 h-4 text-red-600 animate-pulse" />
+                    <h3 className="text-sm font-bold text-slate-900">Recording Take Manager</h3>
+                  </div>
+                  <span className="font-mono text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 rounded">
+                    ACTIVE TAKE #{recordingTake}
+                  </span>
+                </div>
+
+                <div className="p-4 space-y-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      On-Camera Presenter
+                    </label>
+                    <input
+                      type="text"
+                      value={assignedHost}
+                      onChange={(e) => setAssignedHost(e.target.value)}
+                      placeholder="e.g. Ramesh Kumar / Presenter 1"
+                      className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:ring-1 focus:ring-indigo-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Take Selector
+                    </label>
+                    <div className="flex items-center gap-2">
+                      {[1, 2, 3, 4, 5].map((takeNum) => (
+                        <button
+                          key={takeNum}
+                          type="button"
+                          onClick={() => setRecordingTake(takeNum)}
+                          className={`flex-1 py-1.5 rounded-lg text-xs font-mono font-bold border transition ${
+                            recordingTake === takeNum
+                              ? 'bg-red-600 border-red-700 text-white shadow-xs'
+                              : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                          }`}
+                        >
+                          #{takeNum}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Host Notes & Director Remarks
+                    </label>
+                    <textarea
+                      value={hostNotes}
+                      onChange={(e) => setHostNotes(e.target.value)}
+                      placeholder="e.g. Take 2 has best energy on the hook; clear Telugu pronunciation on Option B"
+                      rows={3}
+                      className="w-full text-xs p-2.5 border border-slate-300 rounded-lg focus:ring-1 focus:ring-indigo-500"
+                    />
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={isUpdatingStatus}
+                    onClick={handleSaveHostAssignment}
+                    className="w-full text-xs"
+                  >
+                    {isUpdatingStatus ? 'Saving in Sheets...' : 'Save Presenter & Take Metadata'}
+                  </Button>
+                </div>
+              </Card>
+
+              {/* Raw Footage Upload / Google Drive Link */}
               <Card padding="md">
                 <div className="p-4 border-b border-slate-100">
-                  <h3 className="text-sm font-bold text-slate-900">Google Drive Raw Footage Intake</h3>
+                  <h3 className="text-sm font-bold text-slate-900">Raw Footage Intake (Google Drive)</h3>
                   <p className="text-xs text-slate-500">
-                    Upload camera video file (.mp4, .mov). File will be placed in the video's Google Drive production folder.
+                    Upload raw camera recording or paste direct Google Drive footage URL
                   </p>
                 </div>
 
-                <div className="p-4">
+                <div className="p-4 space-y-4">
                   <form onSubmit={handleUploadRawFootage} className="space-y-4">
-                    <div className="border-2 border-dashed border-slate-200 hover:border-indigo-400 rounded-xl p-6 text-center bg-slate-50/50">
-                      <Upload className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+                    {/* Drag & Drop File Upload */}
+                    <div className="border-2 border-dashed border-slate-200 hover:border-indigo-400 rounded-xl p-6 text-center bg-slate-50/50 transition">
+                      <Upload className="w-8 h-8 text-indigo-600 mx-auto mb-2" />
                       <label className="cursor-pointer block">
                         <span className="text-xs font-bold text-indigo-600 hover:text-indigo-700">
-                          Click to browse raw video file
+                          Click to browse raw camera file (.mp4, .mov)
                         </span>
-                        <span className="text-xs text-slate-500 block mt-0.5">
-                          Supports MP4, MOV, ProRes (Up to 1.5GB)
+                        <span className="text-[11px] text-slate-500 block mt-0.5">
+                          Supports high-bitrate ProRes / MP4
                         </span>
                         <input
                           type="file"
@@ -539,103 +893,59 @@ export const VideoRecordPage: React.FC = () => {
                       )}
                     </div>
 
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-slate-400">
-                        Uploading automatically sets status to <strong>RECORDED</strong>
+                    {/* Or Google Drive URL Input */}
+                    <div className="relative">
+                      <div className="text-[10px] font-mono text-slate-400 uppercase text-center mb-2">
+                        — OR LINK DRIVE FILE —
+                      </div>
+                      <input
+                        type="url"
+                        value={driveUrlInput}
+                        onChange={(e) => setDriveUrlInput(e.target.value)}
+                        placeholder="https://drive.google.com/file/d/.../view"
+                        className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:ring-1 focus:ring-indigo-500"
+                      />
+                    </div>
+
+                    {isUploading && (
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between text-[11px] font-mono text-indigo-700">
+                          <span>Uploading to Google Drive...</span>
+                          <span>{uploadProgress}%</span>
+                        </div>
+                        <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                          <div
+                            className="bg-indigo-600 h-full transition-all duration-300"
+                            style={{ width: `${uploadProgress}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between pt-1">
+                      <span className="text-[11px] text-slate-400">
+                        Advances video to <strong>RECORDED</strong>
                       </span>
                       <Button
                         type="submit"
                         variant="primary"
                         size="md"
-                        disabled={!uploadFile || isUploading}
+                        disabled={(!uploadFile && !driveUrlInput.trim()) || isUploading}
                         icon={Upload}
                         className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
                       >
-                        {isUploading ? 'Uploading to Drive...' : 'Upload Raw Footage'}
+                        {isUploading ? 'Uploading...' : 'Submit Raw Footage'}
                       </Button>
                     </div>
                   </form>
                 </div>
               </Card>
-            </div>
 
-            {/* Right Col: Host Assignment & Transition Controls */}
-            <div className="space-y-4">
-              {/* Host Assignment Card */}
+              {/* Status Advance & Editor Handoff */}
               <Card padding="md">
                 <div className="p-4 border-b border-slate-100">
-                  <h3 className="text-sm font-bold text-slate-900">Presenter & Take Settings</h3>
-                  <p className="text-xs text-slate-500">Record metadata in Google Sheets</p>
-                </div>
-                <div className="p-4 space-y-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      On-Camera Host
-                    </label>
-                    <input
-                      type="text"
-                      value={assignedHost}
-                      onChange={(e) => setAssignedHost(e.target.value)}
-                      placeholder="e.g. Ramesh Kumar / Host A"
-                      className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:ring-1 focus:ring-indigo-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Take Number
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setRecordingTake((t) => Math.max(1, t - 1))}
-                        className="px-3 py-1.5 border border-slate-300 rounded text-xs font-bold"
-                      >
-                        -
-                      </button>
-                      <span className="font-mono text-sm font-bold text-slate-900 px-3">
-                        Take #{recordingTake}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setRecordingTake((t) => t + 1)}
-                        className="px-3 py-1.5 border border-slate-300 rounded text-xs font-bold"
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Host Notes / Retake Remarks
-                    </label>
-                    <textarea
-                      value={hostNotes}
-                      onChange={(e) => setHostNotes(e.target.value)}
-                      placeholder="e.g. Take 2 has best energy on the hook; slight stumble in take 1"
-                      rows={2}
-                      className="w-full text-xs p-2.5 border border-slate-300 rounded-lg"
-                    />
-                  </div>
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={isUpdatingStatus}
-                    onClick={handleSaveHostAssignment}
-                    className="w-full text-xs"
-                  >
-                    {isUpdatingStatus ? 'Saving...' : 'Save Host Assignment'}
-                  </Button>
-                </div>
-              </Card>
-
-              {/* Status Transition Control Card */}
-              <Card padding="md">
-                <div className="p-4 border-b border-slate-100">
-                  <h3 className="text-sm font-bold text-slate-900">Recording Stage Actions</h3>
-                  <p className="text-xs text-slate-500">Advance or re-queue status</p>
+                  <h3 className="text-sm font-bold text-slate-900">Recording Stage Transition</h3>
+                  <p className="text-xs text-slate-500">Advance status or handoff directly to editor</p>
                 </div>
                 <div className="p-4 space-y-2">
                   <Button
@@ -656,22 +966,22 @@ export const VideoRecordPage: React.FC = () => {
                     onClick={() => handleUpdateStatus(VideoProductionStatus.EDITING)}
                     className="w-full text-xs justify-between"
                   >
-                    <span>Handoff to Editor</span>
-                    <span className="font-mono text-[10px] bg-slate-100 px-1.5 py-0.5 rounded">EDITING</span>
+                    <span>Handoff to Video Editor</span>
+                    <span className="font-mono text-[10px] bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded">EDITING</span>
                   </Button>
                 </div>
               </Card>
 
-              {/* Next Step Action Card */}
+              {/* Next Step Action Box */}
               <div className="bg-white rounded-xl border border-indigo-200 p-5 shadow-xs space-y-3">
                 <div className="flex items-center gap-2 text-indigo-700 font-bold text-xs">
                   <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[10px] font-mono">
                     08
                   </span>
-                  <span>Next: Edit Video</span>
+                  <span>Next: Edit Video (Post-Production)</span>
                 </div>
                 <p className="text-xs text-slate-600">
-                  Raw recording captured? Advance to video editing workspace to sync graphics and upload vertical render.
+                  Raw recording captured? Proceed to the Video Editor workspace to sync Telugu motion graphics, countdown timers, and check 50–59s pacing.
                 </p>
 
                 <Button
@@ -695,3 +1005,4 @@ export const VideoRecordPage: React.FC = () => {
   );
 };
 export default VideoRecordPage;
+
