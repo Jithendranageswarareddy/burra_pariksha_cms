@@ -33,7 +33,6 @@ import { PageHeader } from '../components/layout/PageHeader';
 import { Button } from '../components/common/Button';
 import { VideoStatusBadge, QuestionStatusBadge } from '../components/common/StatusBadge';
 import { DifficultyBadge } from '../components/common/DifficultyBadge';
-import { PipelineProgress } from '../components/production/PipelineProgress';
 import { EntityAssignmentsSection } from '../components/assignments/EntityAssignmentsSection';
 import { apiClient } from '../lib/api-client';
 import {
@@ -55,11 +54,14 @@ import { EditingWorkspace } from '../components/video/EditingWorkspace';
 import { FinalReviewWorkspace } from '../components/video/FinalReviewWorkspace';
 import { VideoWorkflowHeader } from '../components/video/VideoWorkflowHeader';
 import { SocialReviewWorkspace } from '../components/social/SocialReviewWorkspace';
+import { ProductionJourneyBar } from '../components/production/ProductionJourneyBar';
+import { useProductionJourney } from '../contexts/ProductionJourneyContext';
 
 export const VideoDetailPage: React.FC = () => {
   const { videoId } = useParams<{ videoId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const { loadJourneyForVideo } = useProductionJourney();
 
   const [video, setVideo] = useState<VideoType | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -107,6 +109,7 @@ export const VideoDetailPage: React.FC = () => {
       setEditDriveUrl(data.driveFolderUrl || '');
       setEditYoutubeId(data.youtubeId || '');
       setActualDuration(data.actualDurationSeconds);
+      loadJourneyForVideo(videoId, data);
     } catch (err: any) {
       setErrorMessage(err?.message || `Video "${videoId}" was not found in the authoritative database.`);
     } finally {
@@ -391,15 +394,17 @@ export const VideoDetailPage: React.FC = () => {
             </select>
           </div>
         </div>
-
-        {/* Visual Pipeline Progress */}
-        <div className="pt-3 border-t border-slate-100">
-          <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
-            Production Stage Flow
-          </div>
-          <PipelineProgress currentStatus={video.status} />
-        </div>
       </div>
+
+      {/* Production Journey Orchestration Stepper */}
+      <ProductionJourneyBar
+        showDetails
+        onNavigateTab={(tab) => {
+          if (['script', 'recording', 'editing', 'final-review', 'social', 'overview', 'thumbnail', 'pinned-comment', 'publishing'].includes(tab)) {
+            setActiveTab(tab as any);
+          }
+        }}
+      />
 
       {/* Unified 5-Stage Studio Navigation Bar */}
       <div className="flex border-b border-slate-200 gap-1.5 text-xs font-semibold overflow-x-auto bg-white p-1.5 rounded-2xl border shadow-2xs">

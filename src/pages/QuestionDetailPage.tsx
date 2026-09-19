@@ -30,6 +30,8 @@ import { QuestionWorkflowHeader } from '../components/questions/QuestionWorkflow
 import { QuestionStatusBadge, VideoStatusBadge } from '../components/common/StatusBadge';
 import { DifficultyBadge } from '../components/common/DifficultyBadge';
 import { EntityAssignmentsSection } from '../components/assignments/EntityAssignmentsSection';
+import { ProductionJourneyBar } from '../components/production/ProductionJourneyBar';
+import { useProductionJourney } from '../contexts/ProductionJourneyContext';
 import { apiClient } from '../lib/api-client';
 import {
   DifficultyLevel,
@@ -44,6 +46,7 @@ import {
 
 export const QuestionDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const { loadJourneyForQuestion } = useProductionJourney();
 
   const [question, setQuestion] = useState<Question | null>(null);
   const [workflowHistory, setWorkflowHistory] = useState<Workflow[]>([]);
@@ -95,6 +98,7 @@ export const QuestionDetailPage: React.FC = () => {
       setTopics(topicsData);
       setSubtopics(subtopicsData);
       initEditForm(questionData);
+      loadJourneyForQuestion(questionData.id, questionData);
 
       // Fetch workflow and audit history in parallel
       try {
@@ -384,87 +388,8 @@ export const QuestionDetailPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Workflow & Lineage Timeline */}
-      <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs">
-        <div className="flex items-center justify-between gap-2 overflow-x-auto text-xs pb-1">
-          {/* Step 1: Question Studio / Canonical */}
-          <div className="flex items-center gap-2 shrink-0">
-            <span className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 font-bold flex items-center justify-center text-[11px]">
-              01
-            </span>
-            <div>
-              <div className="font-bold text-slate-800">Question Studio</div>
-              <div className="text-[10px] text-slate-400 font-mono">Canonical Ready</div>
-            </div>
-          </div>
-
-          <ArrowRight className="w-4 h-4 text-slate-300 shrink-0" />
-
-          {/* Step 2: Verification */}
-          <div className="flex items-center gap-2 shrink-0">
-            <span
-              className={`w-6 h-6 rounded-full font-bold flex items-center justify-center text-[11px] ${
-                isApproved ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
-              }`}
-            >
-              02
-            </span>
-            <div>
-              <div className="font-bold text-slate-800">Pedagogical Proof</div>
-              <div className="text-[10px] text-slate-500 font-mono">
-                {isApproved ? 'Approved & Solved' : 'Pending Verification'}
-              </div>
-            </div>
-          </div>
-
-          <ArrowRight className="w-4 h-4 text-slate-300 shrink-0" />
-
-          {/* Step 3: Script & Teleprompter */}
-          <div className="flex items-center gap-2 shrink-0">
-            <span
-              className={`w-6 h-6 rounded-full font-bold flex items-center justify-center text-[11px] ${
-                isQueued || isInProduction ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-400'
-              }`}
-            >
-              03
-            </span>
-            <div>
-              <div className="font-bold text-slate-800">Presenter Script</div>
-              <div className="text-[10px] text-slate-400 font-mono">Telugu Cues (Hook &bull; Trick)</div>
-            </div>
-          </div>
-
-          <ArrowRight className="w-4 h-4 text-slate-300 shrink-0" />
-
-          {/* Step 4: Video Production */}
-          <div className="flex items-center gap-2 shrink-0">
-            <span
-              className={`w-6 h-6 rounded-full font-bold flex items-center justify-center text-[11px] ${
-                isInProduction ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'
-              }`}
-            >
-              04
-            </span>
-            <div>
-              <div className="font-bold text-slate-800">Vertical Shorts</div>
-              <div className="text-[10px] text-slate-400 font-mono">{question.videoStatus}</div>
-            </div>
-          </div>
-
-          <ArrowRight className="w-4 h-4 text-slate-300 shrink-0" />
-
-          {/* Step 5: Social Review Package */}
-          <div className="flex items-center gap-2 shrink-0">
-            <span className="w-6 h-6 rounded-full bg-slate-100 text-slate-400 font-bold flex items-center justify-center text-[11px]">
-              05
-            </span>
-            <div>
-              <div className="font-bold text-slate-800">Multi-Channel Dist</div>
-              <div className="text-[10px] text-slate-400 font-mono">Phase 8H Social Suite</div>
-            </div>
-          </div>
-        </div>
-      </div>
+      {/* Production Journey Orchestration Stepper */}
+      <ProductionJourneyBar showDetails />
 
       {notification && (
         <div className="p-3.5 bg-emerald-50 border border-emerald-300 text-emerald-900 rounded-xl text-xs font-medium flex items-center gap-2 animate-in fade-in">

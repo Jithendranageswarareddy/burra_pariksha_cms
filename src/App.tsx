@@ -6,6 +6,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ProductionJourneyProvider } from './contexts/ProductionJourneyContext';
 import { LoginPage } from './pages/LoginPage';
 import { Layout } from './components/layout/Layout';
 import { DashboardPage } from './pages/DashboardPage';
@@ -176,7 +177,9 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <AppRoutes />
+        <ProductionJourneyProvider>
+          <AppRoutes />
+        </ProductionJourneyProvider>
       </AuthProvider>
     </BrowserRouter>
   );
