@@ -11,7 +11,15 @@ export const Layout: React.FC = () => {
   return (
     <ErrorBoundary>
       <div id="burra-app-shell" className="min-h-screen bg-slate-50 text-slate-900 flex antialiased">
-        {/* Persistent Desktop Sidebar / Mobile Drawer */}
+        {/* Skip to Main Content Link for Accessibility */}
+        <a
+          href="#app-main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:top-3 focus:left-3 z-50 px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg shadow-md outline-hidden focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 text-xs"
+        >
+          Skip to main content
+        </a>
+
+        {/* Persistent Desktop Sidebar / Accessible Mobile Drawer */}
         <Sidebar
           isOpenMobile={mobileMenuOpen}
           onCloseMobile={() => setMobileMenuOpen(false)}
@@ -22,7 +30,7 @@ export const Layout: React.FC = () => {
           {/* Top Bar Header */}
           <Header onOpenMobileMenu={() => setMobileMenuOpen(true)} />
 
-          {/* Breadcrumbs Sub-Header Bar */}
+          {/* Breadcrumbs Sub-Header Bar (Frozen 6-Hub IA) */}
           <div
             id="shell-breadcrumb-bar"
             className="bg-white/80 backdrop-blur-xs border-b border-slate-200/80 px-4 sm:px-6 lg:px-8 py-2 sticky top-16 z-20"
@@ -39,7 +47,9 @@ export const Layout: React.FC = () => {
             tabIndex={-1}
             className="flex-1 w-full max-w-7xl mx-auto px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-8 focus:outline-hidden"
           >
-            <Outlet />
+            <ErrorBoundary isPageLevel={true}>
+              <Outlet />
+            </ErrorBoundary>
           </main>
 
           {/* Shell Footer */}
@@ -50,13 +60,13 @@ export const Layout: React.FC = () => {
             <div className="flex items-center gap-2">
               <span className="font-semibold text-slate-700">Burra Pariksha CMS</span>
               <span>•</span>
-              <span>Content Studio</span>
+              <span>Operations Hub</span>
               <span>•</span>
-              <span className="font-mono text-[11px] text-indigo-600">15-Step Production Pipeline</span>
+              <span className="font-mono text-[11px] text-indigo-600">6 Core Hubs</span>
             </div>
             <div className="flex items-center gap-2 text-[11px] text-slate-400">
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              <span>Authoritative Persistence: Google Sheets DB</span>
+              <span>Authoritative Persistence: Google Sheets DB (Topic → Subtopic)</span>
             </div>
           </footer>
         </div>

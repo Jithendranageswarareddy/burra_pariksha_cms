@@ -1,72 +1,51 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
-  Sparkles,
+  UserCheck,
   BookOpen,
-  Edit3,
-  ShieldCheck,
-  FileText,
-  FileCheck,
+  Sparkles,
   Video,
-  Scissors,
   Film,
-  Image,
-  MessageSquare,
-  CheckCheck,
-  Share2,
-  CheckCircle2,
+  ShieldCheck,
   UploadCloud,
   BarChart2,
-  UserCheck,
+  Compass,
+  Users,
+  Layers,
   Settings,
   RotateCcw,
-  Compass,
-  Table,
-  Layers,
-  Users,
-  ChevronDown,
   GraduationCap,
-  TrendingUp,
-  Target,
-  Clock,
-  Heart,
+  ChevronRight,
+  ShieldAlert,
 } from 'lucide-react';
-import { NAVIGATION_SECTIONS, NavItem } from '../../config/navigation';
+import { AUTHORITATIVE_HUBS, HubNavItem } from '../../config/navigation';
 import { APP_CONFIG } from '../../config/constants';
 import { useAuth } from '../../contexts/AuthContext';
-import { UserRole } from '../../types';
+import {
+  hasNavigationCapability,
+  getRoleDisplayName,
+  CANONICAL_ROLE_DESCRIPTORS,
+  resolveCanonicalRole,
+} from '../../config/roles';
 
-// Icon map for navigation configuration
+// Accessible Icon Map for Authoritative Navigation
 const iconMap: Record<string, React.ElementType> = {
   LayoutDashboard,
-  Sparkles,
+  UserCheck,
   BookOpen,
-  Edit3,
-  ShieldCheck,
-  FileText,
-  FileCheck,
+  Sparkles,
   Video,
-  Scissors,
   Film,
-  Image,
-  MessageSquare,
-  CheckCheck,
-  Share2,
-  CheckCircle2,
+  ShieldCheck,
   UploadCloud,
   BarChart2,
-  UserCheck,
+  Compass,
+  Users,
+  Layers,
   Settings,
   RotateCcw,
-  Compass,
-  Table,
-  Layers,
-  Users,
-  TrendingUp,
-  Target,
-  Clock,
-  Heart,
+  LayersIcon: Layers,
 };
 
 export interface SidebarProps {
@@ -77,19 +56,6 @@ export interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ isOpenMobile = false, onCloseMobile }) => {
   const { user } = useAuth();
   const location = useLocation();
-
-  // Detect if any secondary route is currently active
-  const isSecondaryActive = ['/dashboard', '/planning', '/production-board', '/content-masters', '/team'].some(
-    (p) => location.pathname === p || location.pathname.startsWith(`${p}/`)
-  );
-
-  const [secondaryOpen, setSecondaryOpen] = useState(isSecondaryActive);
-
-  useEffect(() => {
-    if (isSecondaryActive) {
-      setSecondaryOpen(true);
-    }
-  }, [isSecondaryActive]);
 
   // Keyboard accessibility for mobile drawer
   useEffect(() => {
@@ -106,157 +72,150 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpenMobile = false, onCloseM
     };
   }, [isOpenMobile, onCloseMobile]);
 
+  /**
+   * Deterministic active link calculation.
+   * Maps nested contextual routes to their parent authoritative hub link.
+   */
   const isCurrentActive = (href: string): boolean => {
-    const [targetPath, targetQuery] = href.split('?');
     const currentPath = location.pathname;
-    const currentQuery = location.search;
 
-    // Special dashboard index handling
-    if (href === '/dashboard' && (currentPath === '/' || currentPath === '/dashboard')) {
-      return true;
+    // 1. HOME: Overview
+    if (href === '/dashboard') {
+      return currentPath === '/' || currentPath === '/dashboard';
     }
 
-    // Match routes with query parameter constraints (e.g. ?status=..., ?stage=..., ?tab=...)
-    if (targetQuery) {
-      const targetParams = new URLSearchParams(targetQuery);
-      const currentParams = new URLSearchParams(currentQuery);
-
-      if (currentPath !== targetPath) {
-        // Handle deep-linked video detail tabs matching their respective production steps
-        if (targetPath === '/production' && (currentPath.startsWith('/production/') || currentPath.startsWith('/videos/'))) {
-          const status = targetParams.get('status');
-          const tab = currentParams.get('tab');
-          if ((status === 'SCRIPT_REQUIRED' || status === 'SCRIPT_READY') && (tab === 'script' || currentPath.includes('script'))) return true;
-          if (status === 'EDITING' && (tab === 'editing' || currentPath.includes('edit-video'))) return true;
-          if (status === 'FINAL_REVIEW' && (tab === 'final-review' || currentPath.includes('final-video'))) return true;
-          if (status === 'READY_TO_UPLOAD' && (tab === 'thumbnail' || currentPath.includes('thumbnail'))) return true;
-          if (status === 'UPLOADED' && (tab === 'pinned-comment' || currentPath.includes('pinned-comment'))) return true;
-        }
-        return false;
-      }
-
-      for (const [key, val] of targetParams.entries()) {
-        if (currentParams.get(key) !== val) return false;
-      }
-      return true;
+    // 2. HOME: My Work
+    if (href === '/my-work') {
+      return currentPath === '/my-work';
     }
 
-    // Handle recording step when viewing a video in recording tab
+    // 3. QUESTIONS: Library
+    if (href === '/questions') {
+      return (
+        currentPath === '/questions' ||
+        (currentPath.startsWith('/questions/') &&
+          !currentPath.includes('/improve') &&
+          !currentPath.includes('/verify') &&
+          currentPath !== '/questions/new')
+      );
+    }
+
+    // 4. QUESTIONS: Question Studio
+    if (href === '/studio') {
+      return (
+        currentPath === '/studio' ||
+        currentPath === '/generate' ||
+        currentPath === '/questions/new' ||
+        currentPath.includes('/improve') ||
+        currentPath.includes('/verify')
+      );
+    }
+
+    // 5. PRODUCTION: Recording Queue
     if (href === '/queue') {
-      if (currentPath === '/queue') return true;
-      if (
-        (currentPath.startsWith('/production/') || currentPath.startsWith('/videos/')) &&
-        new URLSearchParams(currentQuery).get('tab') === 'recording'
-      ) {
-        return true;
-      }
-      return false;
+      return (
+        currentPath === '/queue' ||
+        currentPath.includes('/record')
+      );
     }
 
-    // Step 13: Platform Packages
-    if (href === '/platform-packages') {
-      if (currentPath === '/platform-packages' || currentPath.includes('/platform-packages')) return true;
-      if (currentPath === '/social-review' && new URLSearchParams(currentQuery).get('tab') === 'platforms') return true;
-      return false;
+    // 6. PRODUCTION: Production Pipeline
+    if (href === '/production') {
+      return (
+        currentPath === '/production' ||
+        currentPath === '/production-tracker' ||
+        currentPath === '/production-board' ||
+        currentPath.startsWith('/videos/') ||
+        currentPath.startsWith('/production/')
+      );
     }
 
-    // Step 14: Publishing Package
-    if (href === '/publishing-package') {
-      if (currentPath === '/publishing-package' || currentPath.includes('/publishing-package')) return true;
-      if (currentPath === '/publishing' && new URLSearchParams(currentQuery).get('stage') === 'package') return true;
-      return false;
+    // 7. PUBLISHING: Quality Signoff
+    if (href === '/social-review') {
+      return currentPath.startsWith('/social-review');
     }
 
-    // Step 15: Publish
+    // 8. PUBLISHING: Publishing Manager
     if (href === '/publishing') {
-      if (currentPath === '/publishing' && new URLSearchParams(currentQuery).get('stage') !== 'package') return true;
-      if (currentPath.endsWith('/publish')) return true;
-      return false;
+      return (
+        currentPath === '/publishing' ||
+        currentPath === '/publishing-package' ||
+        currentPath === '/platform-packages' ||
+        currentPath.endsWith('/publish') ||
+        currentPath.endsWith('/publishing-package') ||
+        currentPath.endsWith('/platform-packages')
+      );
     }
 
-    // If current URL has parameters that match a more specific step on the same base path,
-    // don't mark the generic bare route as active.
-    if (currentQuery) {
-      const currentParams = new URLSearchParams(currentQuery);
-      if (targetPath === '/questions' && (currentParams.has('status') || currentParams.has('step'))) {
-        return false;
-      }
-      if (targetPath === '/production' && (currentParams.has('status') || currentParams.has('tab'))) {
-        return false;
-      }
-      if (targetPath === '/social-review' && currentParams.get('tab') === 'platforms') {
-        return false;
-      }
-      if (targetPath === '/publishing' && currentParams.get('stage') === 'package') {
-        return false;
-      }
+    // 9. ANALYTICS: Analytics Hub
+    if (href === '/analytics/overview') {
+      return currentPath.startsWith('/analytics') || currentPath.startsWith('/social-analytics');
     }
 
-    // Standard exact or prefix path matching
-    if (currentPath === targetPath) return true;
-    if (currentPath.startsWith(`${targetPath}/`)) return true;
+    // 10. MANAGEMENT: Planning & Batches
+    if (href === '/planning') {
+      return currentPath === '/planning';
+    }
 
-    return false;
+    // 11. MANAGEMENT: Team Workload
+    if (href === '/team') {
+      return currentPath === '/team' || currentPath === '/team-work';
+    }
+
+    // 12. MANAGEMENT: Content Explorer
+    if (href === '/content-masters') {
+      return currentPath.startsWith('/content-masters');
+    }
+
+    // 13. SYSTEM: System Health
+    if (href === '/settings') {
+      return currentPath === '/settings';
+    }
+
+    // 14. SYSTEM: Disaster Recovery
+    if (href === '/recovery') {
+      return currentPath === '/recovery' || currentPath === '/admin';
+    }
+
+    return currentPath === href || currentPath.startsWith(`${href}/`);
   };
 
-  const renderNavItem = (item: NavItem) => {
-    if (item.href === '/recovery' && user?.role !== UserRole.ADMIN && user?.role !== 'ADMIN') {
+  // User presentation data
+  const canonicalRole = resolveCanonicalRole(user?.role);
+  const roleDescriptor = CANONICAL_ROLE_DESCRIPTORS[canonicalRole];
+  const userRoleDisplayName = getRoleDisplayName(user?.role);
+
+  const renderNavItem = (item: HubNavItem) => {
+    // Capability-based visibility check
+    if (item.capability && !hasNavigationCapability(user?.role, item.capability)) {
       return null;
-    }
-    if (item.href === '/social-review' || item.href.startsWith('/social-review')) {
-      const allowed = [UserRole.ADMIN, 'ADMIN', UserRole.CONTENT_MANAGER, 'CONTENT_MANAGER', UserRole.REVIEWER, 'REVIEWER'];
-      if (!user || !allowed.includes(user.role as any)) {
-        return null;
-      }
     }
 
     const Icon = iconMap[item.iconName] || Layers;
     const active = isCurrentActive(item.href);
-    const navId = item.step
-      ? `nav-step-${item.step}`
-      : `nav-${item.href.replace('/', '').replace(/[/?=&]/g, '-') || 'home'}`;
 
     return (
       <NavLink
-        key={item.href}
+        key={item.id}
         to={item.href}
-        id={navId}
+        id={`nav-link-${item.id}`}
         onClick={onCloseMobile}
         aria-current={active ? 'page' : undefined}
-        className={`group flex items-center justify-between px-3 py-1.5 text-xs rounded-lg transition-all focus:outline-hidden focus:ring-2 focus:ring-indigo-400 ${
+        title={item.description}
+        className={`group flex items-center justify-between px-3 py-2 text-xs rounded-lg transition-all focus:outline-hidden focus:ring-2 focus:ring-indigo-400 ${
           active
             ? 'bg-indigo-600 text-white shadow-xs font-semibold'
             : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/70 font-medium'
         }`}
       >
         <div className="flex items-center gap-2.5 min-w-0">
-          {item.step ? (
-            <span
-              className={`font-mono text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 transition-colors ${
-                active
-                  ? 'bg-white/20 text-white font-extrabold'
-                  : 'bg-slate-800 text-indigo-400 group-hover:bg-slate-700/80 group-hover:text-indigo-300 border border-slate-700/60'
-              }`}
-            >
-              {item.step}
-            </span>
-          ) : (
-            <Icon
-              className={`w-3.5 h-3.5 shrink-0 transition-colors ${
-                active ? 'text-white' : 'text-slate-400 group-hover:text-slate-200'
-              }`}
-            />
-          )}
-
-          {item.step && (
-            <Icon
-              className={`w-3.5 h-3.5 shrink-0 transition-colors ${
-                active ? 'text-white' : 'text-slate-500 group-hover:text-slate-300'
-              }`}
-            />
-          )}
-
-          <span className="truncate text-[12px]">{item.name}</span>
+          <Icon
+            className={`w-4 h-4 shrink-0 transition-colors ${
+              active ? 'text-white' : 'text-slate-400 group-hover:text-slate-200'
+            }`}
+            aria-hidden="true"
+          />
+          <span className="truncate text-[13px]">{item.name}</span>
         </div>
 
         {item.badge && (
@@ -279,6 +238,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpenMobile = false, onCloseM
       {/* Mobile Backdrop */}
       {isOpenMobile && (
         <div
+          id="sidebar-mobile-backdrop"
           className="fixed inset-0 z-40 bg-slate-900/60 backdrop-blur-xs lg:hidden animate-in fade-in-50 duration-200"
           onClick={onCloseMobile}
           aria-hidden="true"
@@ -295,88 +255,78 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpenMobile = false, onCloseM
       >
         {/* Brand Header */}
         <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-800/80 bg-slate-950/40 shrink-0">
-          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-600 text-white shadow-inner font-bold text-base">
+          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-600 text-white shadow-inner font-bold text-base shrink-0">
             <GraduationCap className="w-4 h-4" />
           </div>
           <div className="flex flex-col min-w-0">
             <span className="text-sm font-bold text-white tracking-tight uppercase truncate">
               {APP_CONFIG.name}
             </span>
-            <span className="text-[11px] text-indigo-400 font-medium tracking-wide">
-              {APP_CONFIG.phase}
+            <span className="text-[11px] text-indigo-400 font-medium tracking-wide truncate">
+              Burra Pariksha CMS
             </span>
           </div>
         </div>
 
-        {/* Navigation Sections */}
-        <nav className="flex-1 px-3 py-3 overflow-y-auto space-y-5 scrollbar-thin scrollbar-thumb-slate-800">
-          {NAVIGATION_SECTIONS.map((section) => {
-            if (section.isSecondary) {
-              return (
-                <div key={section.title} className="space-y-1 pt-2 border-t border-slate-800/60">
-                  <button
-                    type="button"
-                    onClick={() => setSecondaryOpen(!secondaryOpen)}
-                    id="toggle-secondary-nav"
-                    aria-expanded={secondaryOpen}
-                    aria-controls="secondary-nav-items"
-                    className="w-full flex items-center justify-between px-3 py-1.5 text-[10px] font-bold text-slate-400 hover:text-slate-200 uppercase tracking-wider transition-colors rounded-md hover:bg-slate-800/40 focus:outline-hidden focus:ring-2 focus:ring-indigo-400"
-                  >
-                    <div className="flex items-center gap-1.5">
-                      <span>{section.title}</span>
-                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-slate-800 text-slate-400 normal-case font-normal">
-                        Secondary
-                      </span>
-                    </div>
-                    <ChevronDown
-                      className={`w-3.5 h-3.5 transition-transform duration-200 ${
-                        secondaryOpen ? 'rotate-180' : ''
-                      }`}
-                    />
-                  </button>
+        {/* Six Authoritative Hubs Navigation */}
+        <nav
+          id="sidebar-hub-navigation"
+          className="flex-1 px-3 py-3 overflow-y-auto space-y-5 scrollbar-thin scrollbar-thumb-slate-800"
+          aria-label="Application Hubs"
+        >
+          {AUTHORITATIVE_HUBS.map((hub) => {
+            // Filter visible items for this hub based on user capabilities
+            const visibleItems = hub.items.filter((item) =>
+              item.capability ? hasNavigationCapability(user?.role, item.capability) : true
+            );
 
-                  {secondaryOpen && (
-                    <div id="secondary-nav-items" className="space-y-0.5 mt-1">
-                      {section.items.map(renderNavItem)}
-                    </div>
-                  )}
-                </div>
-              );
+            // If no items in this hub are visible to the current role, do not render the hub section
+            if (visibleItems.length === 0) {
+              return null;
             }
 
             return (
-              <div key={section.title} className="space-y-1">
-                <div className="px-3">
+              <div key={hub.id} id={hub.id} className="space-y-1">
+                <div className="px-3 pt-1">
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                    {section.title}
+                    {hub.title}
                   </p>
-                  {section.subtitle && (
+                  {hub.subtitle && (
                     <p className="text-[10px] text-indigo-400 font-medium tracking-normal mt-0.5">
-                      {section.subtitle}
+                      {hub.subtitle}
                     </p>
                   )}
                 </div>
-                <div className="space-y-0.5 mt-1.5">
-                  {section.items.map(renderNavItem)}
+                <div className="space-y-0.5 mt-1">
+                  {visibleItems.map(renderNavItem)}
                 </div>
               </div>
             );
           })}
         </nav>
 
-        {/* Footer Admin Status Badge */}
-        <div className="p-3 border-t border-slate-800/80 bg-slate-950/30 shrink-0">
-          <div className="flex items-center justify-between p-2 rounded-lg bg-slate-800/60 border border-slate-700/50 text-xs">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <div className="flex flex-col">
-                <span className="font-semibold text-slate-200 text-[11px] leading-tight">
-                  {user ? `${user.role} Active` : 'Production System'}
+        {/* User Identity & Canonical Role Footer */}
+        <div
+          id="sidebar-user-footer"
+          className="p-3 border-t border-slate-800/80 bg-slate-950/40 shrink-0"
+        >
+          <div className="flex items-center justify-between p-2.5 rounded-lg bg-slate-800/60 border border-slate-700/50 text-xs">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+              <div className="flex flex-col min-w-0">
+                <span className="font-semibold text-slate-200 text-[12px] truncate leading-tight">
+                  {user?.name || 'Authorized Member'}
                 </span>
-                <span className="text-[10px] text-emerald-400/90 font-mono">15-Step Studio</span>
+                <span className="text-[10px] text-indigo-300 font-medium truncate">
+                  {userRoleDisplayName}
+                </span>
               </div>
             </div>
-            <span className="text-[10px] text-slate-500 font-mono">v1.0.0</span>
+            {canonicalRole === 'ADMIN' ? (
+              <ShieldAlert className="w-3.5 h-3.5 text-rose-400 shrink-0" aria-label="System Administrator" />
+            ) : (
+              <ChevronRight className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+            )}
           </div>
         </div>
       </aside>

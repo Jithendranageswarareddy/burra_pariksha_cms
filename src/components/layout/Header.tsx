@@ -1,29 +1,33 @@
 import React from 'react';
-import { Menu, Plus, Sparkles } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Menu, Sparkles } from 'lucide-react';
 import { GlobalSearchBar } from '../dashboard/GlobalSearchBar';
 import { UserProfileMenu } from './UserProfileMenu';
 import { NotificationsMenu } from './NotificationsMenu';
 import { SystemHealthIndicator } from './SystemHealthIndicator';
-import { Button } from '../../design-system/components/Button';
+import { useLocation } from 'react-router-dom';
+import { inferBreadcrumbs } from '../../design-system/components/AppBreadcrumbs';
 
 export interface HeaderProps {
   onOpenMobileMenu: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
+  const location = useLocation();
+  const breadcrumbs = inferBreadcrumbs(location.pathname, location.search);
+  const currentPageTitle = breadcrumbs.length > 0 ? breadcrumbs[breadcrumbs.length - 1].label : 'Overview';
+
   return (
     <header
       id="app-top-header"
       className="sticky top-0 z-30 flex items-center justify-between h-16 px-4 sm:px-6 bg-white border-b border-slate-200"
     >
-      {/* Left: Mobile Toggle & Brand Context */}
+      {/* Left: Mobile Toggle & Page Context */}
       <div className="flex items-center gap-3">
         <button
           type="button"
           onClick={onOpenMobileMenu}
           className="p-2 text-slate-500 rounded-lg lg:hidden hover:bg-slate-100 hover:text-slate-800 shrink-0 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
-          aria-label="Open sidebar"
+          aria-label="Open navigation drawer"
         >
           <Menu className="w-5 h-5" />
         </button>
@@ -38,8 +42,17 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
           </span>
         </div>
 
+        {/* Current Hub/Page Indicator on Desktop */}
+        <div className="hidden lg:flex items-center gap-2">
+          <h1 className="text-base font-bold text-slate-900 tracking-tight">
+            {currentPageTitle}
+          </h1>
+        </div>
+
         {/* Clean System Health status */}
-        <SystemHealthIndicator />
+        <div className="hidden sm:block">
+          <SystemHealthIndicator />
+        </div>
       </div>
 
       {/* Center: Global Search Bar */}
@@ -47,20 +60,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
         <GlobalSearchBar id="header-global-search" className="relative w-full max-w-md" />
       </div>
 
-      {/* Right: Quick Action, Notifications & User Profile */}
+      {/* Right: Notifications & User Profile */}
       <div className="flex items-center gap-2 sm:gap-3">
-        {/* Quick Action: Step 01 Generate Question */}
-        <Link to="/studio" id="header-generate-question-btn" className="hidden sm:inline-flex">
-          <Button
-            variant="primary"
-            size="sm"
-            className="flex items-center gap-1.5 font-semibold text-xs"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Generate Question</span>
-          </Button>
-        </Link>
-
         {/* Notifications */}
         <NotificationsMenu id="top-notifications-menu" />
 

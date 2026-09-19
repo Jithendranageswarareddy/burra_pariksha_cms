@@ -9,146 +9,193 @@ export interface AppBreadcrumbsProps {
   className?: string;
 }
 
+/**
+ * Infer authoritative breadcrumbs matching the frozen 6-Hub IA:
+ * 1. HOME
+ * 2. QUESTIONS
+ * 3. PRODUCTION
+ * 4. PUBLISHING
+ * 5. ANALYTICS
+ * 6. MANAGEMENT & SYSTEM
+ */
 export function inferBreadcrumbs(pathname: string, search: string): BreadcrumbItem[] {
   const params = new URLSearchParams(search);
   const status = params.get('status');
   const tab = params.get('tab');
-  const stage = params.get('stage');
 
-  // 1. Studio 01
-  if (pathname === '/studio' || pathname === '/generate') {
+  // ==========================================
+  // 1. HOME HUB
+  // ==========================================
+  if (pathname === '/dashboard' || pathname === '/') {
     return [
-      { label: 'Content Studio', href: '/studio' },
-      { label: '01 Generate Question' },
+      { label: 'Home', href: '/dashboard' },
+      { label: 'Overview' },
     ];
   }
 
-  // 2. Questions 02 - 04
-  if (pathname === '/questions') {
-    if (status === 'DRAFT') {
-      return [
-        { label: 'Content Studio', href: '/studio' },
-        { label: '03 Improve Question' },
-      ];
-    }
-    if (status === 'GENERATED') {
-      return [
-        { label: 'Content Studio', href: '/studio' },
-        { label: '04 Verify & Approve' },
-      ];
-    }
+  if (pathname === '/my-work') {
     return [
-      { label: 'Content Studio', href: '/studio' },
-      { label: '02 Question Library' },
+      { label: 'Home', href: '/dashboard' },
+      { label: 'My Work' },
+    ];
+  }
+
+  // ==========================================
+  // 2. QUESTIONS HUB
+  // ==========================================
+  if (pathname === '/questions') {
+    return [
+      { label: 'Questions', href: '/questions' },
+      { label: 'Question Library' },
+    ];
+  }
+
+  if (pathname === '/studio' || pathname === '/generate' || pathname === '/questions/new') {
+    return [
+      { label: 'Questions', href: '/questions' },
+      { label: 'Question Studio' },
+    ];
+  }
+
+  if (pathname.includes('/improve')) {
+    return [
+      { label: 'Questions', href: '/questions' },
+      { label: 'Question Studio', href: '/studio' },
+      { label: 'Improve Question' },
+    ];
+  }
+
+  if (pathname.includes('/verify')) {
+    return [
+      { label: 'Questions', href: '/questions' },
+      { label: 'Question Studio', href: '/studio' },
+      { label: 'Verify & Approve' },
     ];
   }
 
   if (pathname.startsWith('/questions/')) {
     return [
-      { label: 'Content Studio', href: '/studio' },
-      { label: 'Question Library', href: '/questions' },
+      { label: 'Questions', href: '/questions' },
       { label: 'Question Details' },
     ];
   }
 
-  // 3. Queue 07
+  // ==========================================
+  // 3. PRODUCTION HUB
+  // ==========================================
   if (pathname === '/queue') {
     return [
-      { label: 'Content Studio', href: '/studio' },
-      { label: '07 Record Video' },
-    ];
-  }
-
-  // 4. Production 05, 06, 08, 09, 10, 11
-  if (pathname === '/production') {
-    if (status === 'SCRIPT_REQUIRED') {
-      return [
-        { label: 'Content Studio', href: '/studio' },
-        { label: '05 Create Script' },
-      ];
-    }
-    if (status === 'SCRIPT_READY') {
-      return [
-        { label: 'Content Studio', href: '/studio' },
-        { label: '06 Review Script' },
-      ];
-    }
-    if (status === 'EDITING') {
-      return [
-        { label: 'Content Studio', href: '/studio' },
-        { label: '08 Edit Video' },
-      ];
-    }
-    if (status === 'FINAL_REVIEW') {
-      return [
-        { label: 'Content Studio', href: '/studio' },
-        { label: '09 Final Video' },
-      ];
-    }
-    if (status === 'READY_TO_UPLOAD') {
-      return [
-        { label: 'Content Studio', href: '/studio' },
-        { label: '10 Create Thumbnail' },
-      ];
-    }
-    if (status === 'UPLOADED') {
-      return [
-        { label: 'Content Studio', href: '/studio' },
-        { label: '11 Pinned Comment' },
-      ];
-    }
-    return [
-      { label: 'Content Studio', href: '/studio' },
-      { label: 'Production Workboard' },
-    ];
-  }
-
-  if (pathname.startsWith('/production/') || pathname.startsWith('/videos/')) {
-    return [
-      { label: 'Content Studio', href: '/studio' },
       { label: 'Production', href: '/production' },
-      { label: 'Current Video' },
+      { label: 'Recording Queue' },
     ];
   }
 
-  // 5. Social Review 12, 13
-  if (pathname === '/social-review') {
-    if (tab === 'platforms') {
-      return [
-        { label: 'Content Studio', href: '/studio' },
-        { label: '13 Platform Packages' },
-      ];
-    }
+  if (pathname === '/production' || pathname === '/production-tracker' || pathname === '/production-board') {
     return [
-      { label: 'Content Studio', href: '/studio' },
-      { label: '12 Social Review' },
+      { label: 'Production', href: '/production' },
+      { label: 'Production Pipeline' },
     ];
   }
 
-  if (pathname.startsWith('/social-review/')) {
+  // Video Production contextual sub-workspaces
+  if (pathname.includes('/create-script')) {
     return [
-      { label: 'Content Studio', href: '/studio' },
-      { label: 'Social Review', href: '/social-review' },
-      { label: 'Review Package' },
+      { label: 'Production', href: '/production' },
+      { label: 'Video Production', href: '/production' },
+      { label: 'Scriptwriting' },
     ];
   }
 
-  // 6. Publishing 14, 15
-  if (pathname === '/publishing') {
-    if (stage === 'package') {
-      return [
-        { label: 'Content Studio', href: '/studio' },
-        { label: '14 Publishing Package' },
-      ];
-    }
+  if (pathname.includes('/review-script')) {
     return [
-      { label: 'Content Studio', href: '/studio' },
-      { label: '15 Publish' },
+      { label: 'Production', href: '/production' },
+      { label: 'Video Production', href: '/production' },
+      { label: 'Script Review' },
     ];
   }
 
-  // 7. Analytics
-  if (pathname.startsWith('/analytics') || pathname === '/social-analytics' || pathname.startsWith('/social-analytics/')) {
+  if (pathname.includes('/record')) {
+    return [
+      { label: 'Production', href: '/production' },
+      { label: 'Recording Queue', href: '/queue' },
+      { label: 'Studio Recording' },
+    ];
+  }
+
+  if (pathname.includes('/edit-video')) {
+    return [
+      { label: 'Production', href: '/production' },
+      { label: 'Video Production', href: '/production' },
+      { label: 'Editing' },
+    ];
+  }
+
+  if (pathname.includes('/final-video')) {
+    return [
+      { label: 'Production', href: '/production' },
+      { label: 'Video Production', href: '/production' },
+      { label: 'Final QC Review' },
+    ];
+  }
+
+  if (pathname.includes('/thumbnail')) {
+    return [
+      { label: 'Production', href: '/production' },
+      { label: 'Video Production', href: '/production' },
+      { label: 'Thumbnail Design' },
+    ];
+  }
+
+  if (pathname.includes('/pinned-comment')) {
+    return [
+      { label: 'Production', href: '/production' },
+      { label: 'Video Production', href: '/production' },
+      { label: 'Pinned Comment' },
+    ];
+  }
+
+  if (pathname.startsWith('/videos/') || pathname.startsWith('/production/')) {
+    return [
+      { label: 'Production', href: '/production' },
+      { label: 'Video Details' },
+    ];
+  }
+
+  // ==========================================
+  // 4. PUBLISHING HUB
+  // ==========================================
+  if (pathname.startsWith('/social-review')) {
+    return [
+      { label: 'Publishing', href: '/publishing' },
+      { label: 'Quality Signoff' },
+    ];
+  }
+
+  if (pathname.startsWith('/platform-packages')) {
+    return [
+      { label: 'Publishing', href: '/publishing' },
+      { label: 'Platform Packages' },
+    ];
+  }
+
+  if (pathname.startsWith('/publishing-package')) {
+    return [
+      { label: 'Publishing', href: '/publishing' },
+      { label: 'Publishing Package' },
+    ];
+  }
+
+  if (pathname.startsWith('/publishing')) {
+    return [
+      { label: 'Publishing', href: '/publishing' },
+      { label: 'Publishing Manager' },
+    ];
+  }
+
+  // ==========================================
+  // 5. ANALYTICS HUB
+  // ==========================================
+  if (pathname.startsWith('/analytics') || pathname.startsWith('/social-analytics')) {
     const sub = pathname.replace('/analytics/', '').replace('/social-analytics/', '');
     let label = 'Analytics Overview';
     if (sub === 'video') label = 'Video Performance';
@@ -160,7 +207,7 @@ export function inferBreadcrumbs(pathname: string, search: string): BreadcrumbIt
     else if (sub === 'retention') label = 'Retention';
     else if (sub === 'intelligence') label = 'AI Insights';
     else if (sub === 'strategy') label = 'Content Strategy';
-    else if (pathname === '/social-analytics') label = 'Snapshot Entry & Log';
+    else if (pathname.includes('social-analytics')) label = 'Snapshot Entry & Log';
 
     return [
       { label: 'Analytics', href: '/analytics/overview' },
@@ -168,67 +215,47 @@ export function inferBreadcrumbs(pathname: string, search: string): BreadcrumbIt
     ];
   }
 
-  // 8. Workspace
-  if (pathname === '/my-work') {
-    return [
-      { label: 'Workspace', href: '/my-work' },
-      { label: 'My Work' },
-    ];
-  }
-
-  // 9. System
-  if (pathname === '/settings') {
-    return [
-      { label: 'System', href: '/settings' },
-      { label: 'Settings' },
-    ];
-  }
-
-  if (pathname === '/recovery' || pathname === '/admin') {
-    return [
-      { label: 'System', href: '/recovery' },
-      { label: 'Admin & Recovery' },
-    ];
-  }
-
-  // 10. Management Secondary
-  if (pathname === '/dashboard' || pathname === '/') {
-    return [
-      { label: 'Management', href: '/dashboard' },
-      { label: 'Pipeline Overview' },
-    ];
-  }
-
+  // ==========================================
+  // 6. MANAGEMENT & SYSTEM HUB
+  // ==========================================
   if (pathname === '/planning') {
     return [
-      { label: 'Management', href: '/planning' },
+      { label: 'Management & System', href: '/planning' },
       { label: 'Planning & Batches' },
-    ];
-  }
-
-  if (pathname === '/production-board') {
-    return [
-      { label: 'Management', href: '/production-board' },
-      { label: 'Production Board' },
-    ];
-  }
-
-  if (pathname.startsWith('/content-masters')) {
-    return [
-      { label: 'Management', href: '/content-masters' },
-      { label: 'Content Masters' },
     ];
   }
 
   if (pathname === '/team' || pathname === '/team-work') {
     return [
-      { label: 'Management', href: '/team' },
-      { label: 'Team Operations' },
+      { label: 'Management & System', href: '/team' },
+      { label: 'Team Workload' },
     ];
   }
 
+  if (pathname.startsWith('/content-masters')) {
+    return [
+      { label: 'Management & System', href: '/content-masters' },
+      { label: 'Content Explorer' },
+    ];
+  }
+
+  if (pathname === '/settings') {
+    return [
+      { label: 'Management & System', href: '/settings' },
+      { label: 'System Health' },
+    ];
+  }
+
+  if (pathname === '/recovery' || pathname === '/admin') {
+    return [
+      { label: 'Management & System', href: '/recovery' },
+      { label: 'Disaster Recovery' },
+    ];
+  }
+
+  // Clean fallback
   return [
-    { label: 'Content Studio', href: '/studio' },
+    { label: 'Home', href: '/dashboard' },
     { label: pathname.replace('/', '').replace(/-/g, ' ') || 'Overview' },
   ];
 }
@@ -239,9 +266,8 @@ export const AppBreadcrumbs: React.FC<AppBreadcrumbsProps> = ({
   className = '',
 }) => {
   const location = useLocation();
-  const breadcrumbList = items && items.length > 0
-    ? items
-    : inferBreadcrumbs(location.pathname, location.search);
+  const breadcrumbList =
+    items && items.length > 0 ? items : inferBreadcrumbs(location.pathname, location.search);
 
   if (breadcrumbList.length === 0) return null;
 
@@ -252,8 +278,8 @@ export const AppBreadcrumbs: React.FC<AppBreadcrumbsProps> = ({
       className={`flex items-center gap-1.5 text-xs text-slate-500 overflow-x-auto py-1 whitespace-nowrap scrollbar-none ${className}`}
     >
       <Link
-        to="/studio"
-        title="Burra Pariksha Studio"
+        to="/dashboard"
+        title="Burra Pariksha Home"
         className="text-slate-400 hover:text-indigo-600 transition-colors p-0.5 rounded focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
       >
         <Home className="w-3.5 h-3.5" />

@@ -365,10 +365,15 @@ class ApiClient {
     });
   }
 
-  public async checkDuplicate(text: string, excludeId?: string): Promise<{ isDuplicate: boolean; matches: any[] }> {
+  public async checkDuplicate(
+    text: string,
+    excludeId?: string,
+    options?: { signal?: AbortSignal }
+  ): Promise<{ isDuplicate: boolean; matches: any[] }> {
     return this.request('/questions/check-duplicate', {
       method: 'POST',
       body: JSON.stringify({ text, excludeId }),
+      signal: options?.signal,
     });
   }
 

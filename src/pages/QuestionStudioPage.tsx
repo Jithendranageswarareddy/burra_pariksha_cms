@@ -189,9 +189,14 @@ export const QuestionStudioPage: React.FC = () => {
   // Suppress marking validation stale during initial generation load
   const isInternalUpdateRef = useRef<boolean>(false);
 
+  // FIX-PERF-001: Question Studio duplicate-check debounce refs & sequence tracker
+  const duplicateCheckTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const duplicateAbortControllerRef = useRef<AbortController | null>(null);
+  const duplicateRequestIdRef = useRef<number>(0);
 
-
-  // 3. Initial Load: Configuration, Taxonomy & AI Status
+  // FIX-PERF-002: Question Studio validation decoupling refs & sequence tracker
+  const validationTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const validationRequestIdRef = useRef<number>(0);
   const loadStudioConfig = useCallback(async (isRefresh = false) => {
     try {
       setLoadingConfig(true);
@@ -376,24 +381,134 @@ export const QuestionStudioPage: React.FC = () => {
     }
   };
 
-  // 4. Duplicate Check
-  const triggerDuplicateCheck = useCallback(async (text: string) => {
+  // 4. Duplicate Check (FIX-PERF-001: 400ms debounce with AbortController)
+  const triggerDuplicateCheck = useCallback(async (text: string, immediate = false) => {
+    // Clear any pending debounced duplicate check timer
+    if (duplicateCheckTimerRef.current) {
+      clearTimeout(duplicateCheckTimerRef.current);
+      duplicateCheckTimerRef.current = null;
+    }
+
     if (!text || text.trim().length < 15) {
+      // Abort any ongoing in-flight duplicate check request
+      if (duplicateAbortControllerRef.current) {
+        duplicateAbortControllerRef.current.abort();
+        duplicateAbortControllerRef.current = null;
+      }
       setDuplicateMatches([]);
       setHasCheckedDuplicate(false);
+      setIsCheckingDuplicate(false);
       return;
     }
-    setIsCheckingDuplicate(true);
-    setHasCheckedDuplicate(false);
-    try {
-      const res = await apiClient.checkDuplicate(text);
-      setDuplicateMatches(res.matches || []);
-      setHasCheckedDuplicate(true);
-    } catch (err) {
-      console.warn('Duplicate check error:', err);
-    } finally {
-      setIsCheckingDuplicate(false);
+
+    const executeCheck = async () => {
+      // Abort previous in-flight request
+      if (duplicateAbortControllerRef.current) {
+        duplicateAbortControllerRef.current.abort();
+      }
+
+      const controller = new AbortController();
+      duplicateAbortControllerRef.current = controller;
+      const currentRequestId = ++duplicateRequestIdRef.current;
+
+      setIsCheckingDuplicate(true);
+      setHasCheckedDuplicate(false);
+
+      try {
+        const res = await apiClient.checkDuplicate(text, undefined, { signal: controller.signal });
+        // Only update state if this is still the most recent request
+        if (currentRequestId === duplicateRequestIdRef.current) {
+          setDuplicateMatches(res.matches || []);
+          setHasCheckedDuplicate(true);
+        }
+      } catch (err: any) {
+        if (err?.name === 'AbortError' || err?.message?.includes('aborted')) {
+          // Request was intentionally cancelled, ignore
+          return;
+        }
+        console.warn('Duplicate check error:', err);
+      } finally {
+        if (currentRequestId === duplicateRequestIdRef.current) {
+          setIsCheckingDuplicate(false);
+          duplicateAbortControllerRef.current = null;
+        }
+      }
+    };
+
+    if (immediate) {
+      await executeCheck();
+    } else {
+      duplicateCheckTimerRef.current = setTimeout(executeCheck, 400);
     }
+  }, []);
+
+  // FIX-PERF-002: Validation Decoupling Effect (250ms debounce)
+  useEffect(() => {
+    // If no candidate exists or problem statement is empty, reset validation report
+    if (!hasCandidate || !candidate.questionText.trim()) {
+      setClientReport(null);
+      return;
+    }
+
+    const currentRequestId = ++validationRequestIdRef.current;
+    if (validationTimerRef.current) {
+      clearTimeout(validationTimerRef.current);
+    }
+
+    validationTimerRef.current = setTimeout(() => {
+      const candidateForVal: Partial<QuestionCandidate> & { mathematicalVerification?: MathVerificationResult } = {
+        content: candidate.questionText,
+        option_a: candidate.optionA,
+        option_b: candidate.optionB,
+        option_c: candidate.optionC,
+        option_d: candidate.optionD,
+        correct_answer: candidate.correctAnswer,
+        explanation: candidate.explanation,
+        language: candidate.language,
+        question_style: questionStyle,
+        real_world_context: candidate.realLifeContext,
+        mathematicalVerification: candidate.mathematicalVerification,
+      };
+
+      const report = CandidateValidator.validate(candidateForVal);
+      if (currentRequestId === validationRequestIdRef.current) {
+        setClientReport(report);
+      }
+    }, 250);
+
+    return () => {
+      if (validationTimerRef.current) {
+        clearTimeout(validationTimerRef.current);
+      }
+    };
+  }, [
+    hasCandidate,
+    candidate.questionText,
+    candidate.optionA,
+    candidate.optionB,
+    candidate.optionC,
+    candidate.optionD,
+    candidate.correctAnswer,
+    candidate.explanation,
+    candidate.language,
+    candidate.realLifeContext,
+    candidate.mathematicalVerification,
+    questionStyle,
+  ]);
+
+  // Clean up duplicate check timers and abort controllers on unmount
+  useEffect(() => {
+    return () => {
+      if (duplicateCheckTimerRef.current) {
+        clearTimeout(duplicateCheckTimerRef.current);
+      }
+      if (duplicateAbortControllerRef.current) {
+        duplicateAbortControllerRef.current.abort();
+      }
+      if (validationTimerRef.current) {
+        clearTimeout(validationTimerRef.current);
+      }
+    };
   }, []);
 
   const updateCandidateField = (field: keyof StudioCandidate, value: any) => {
@@ -401,31 +516,17 @@ export const QuestionStudioPage: React.FC = () => {
     setCandidate((prev) => {
       const updated = { ...prev, [field]: value };
 
-      const candidateForVal: Partial<QuestionCandidate> & { mathematicalVerification?: MathVerificationResult } = {
-        content: updated.questionText,
-        option_a: updated.optionA,
-        option_b: updated.optionB,
-        option_c: updated.optionC,
-        option_d: updated.optionD,
-        correct_answer: updated.correctAnswer,
-        explanation: updated.explanation,
-        language: updated.language,
-        question_style: questionStyle,
-        real_world_context: updated.realLifeContext,
-        mathematicalVerification: updated.mathematicalVerification,
-      };
-      setClientReport(CandidateValidator.validate(candidateForVal));
-
-      if (field === 'questionText') {
-        triggerDuplicateCheck(value);
-      }
-
       if (!isInternalUpdateRef.current && serverValidationResult) {
         setIsValidationStale(true);
       }
 
       return updated;
     });
+
+    if (field === 'questionText') {
+      triggerDuplicateCheck(value);
+    }
+
     setHasCandidate(true);
   };
 
@@ -720,6 +821,21 @@ export const QuestionStudioPage: React.FC = () => {
         return;
       }
     }
+
+    if (duplicateCheckTimerRef.current) {
+      clearTimeout(duplicateCheckTimerRef.current);
+      duplicateCheckTimerRef.current = null;
+    }
+    if (duplicateAbortControllerRef.current) {
+      duplicateAbortControllerRef.current.abort();
+      duplicateAbortControllerRef.current = null;
+    }
+    if (validationTimerRef.current) {
+      clearTimeout(validationTimerRef.current);
+      validationTimerRef.current = null;
+    }
+    duplicateRequestIdRef.current++;
+    validationRequestIdRef.current++;
 
     setCandidate({
       questionText: '',

@@ -1,9 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { LogOut, Settings, UserCheck, Shield, ChevronDown } from 'lucide-react';
+import { LogOut, Settings, RotateCcw, ChevronDown, Check, User as UserIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { APP_CONFIG } from '../../config/constants';
-import { UserRole } from '../../types';
+import {
+  getRoleDisplayName,
+  CANONICAL_ROLE_DESCRIPTORS,
+  resolveCanonicalRole,
+} from '../../config/roles';
 
 export interface UserProfileMenuProps {
   id?: string;
@@ -19,9 +23,11 @@ export const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
   const menuRef = useRef<HTMLDivElement>(null);
 
   const userName = user?.name || APP_CONFIG.adminUser.name;
-  const userRole = user?.role || APP_CONFIG.adminUser.role;
   const userEmail = user?.email || APP_CONFIG.adminUser.email;
-  const isAdmin = userRole === UserRole.ADMIN || userRole === 'ADMIN';
+  const canonicalRole = resolveCanonicalRole(user?.role);
+  const roleDescriptor = CANONICAL_ROLE_DESCRIPTORS[canonicalRole];
+  const userRoleDisplayName = getRoleDisplayName(user?.role);
+  const isAdmin = canonicalRole === 'ADMIN';
 
   const getInitials = (name?: string) => {
     if (!name) return 'BP';
@@ -64,24 +70,25 @@ export const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
         onClick={() => setIsOpen(!isOpen)}
         aria-haspopup="menu"
         aria-expanded={isOpen}
-        aria-label={`User profile for ${userName}`}
+        aria-label={`User profile for ${userName} (${userRoleDisplayName})`}
         className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-slate-100 transition-colors focus:outline-hidden focus:ring-2 focus:ring-indigo-500 cursor-pointer"
       >
         <div className="flex items-center justify-center w-8 h-8 rounded-full bg-indigo-100 border border-indigo-200 text-indigo-800 font-bold text-xs shrink-0">
           {getInitials(userName)}
         </div>
-        <div className="hidden sm:flex flex-col text-left">
-          <span className="text-xs font-semibold text-slate-800 leading-tight">
+        <div className="hidden sm:flex flex-col text-left min-w-0">
+          <span className="text-xs font-semibold text-slate-800 leading-tight truncate">
             {userName}
           </span>
-          <span className="text-[10px] text-slate-500 font-medium tracking-wide">
-            {userRole}
+          <span className="text-[10px] text-slate-500 font-medium tracking-tight truncate">
+            {userRoleDisplayName}
           </span>
         </div>
         <ChevronDown
-          className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-150 ${
+          className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-150 shrink-0 ${
             isOpen ? 'rotate-180' : ''
           }`}
+          aria-hidden="true"
         />
       </button>
 
@@ -91,38 +98,44 @@ export const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
           role="menu"
           aria-orientation="vertical"
           aria-labelledby="user-profile-trigger"
-          className="absolute right-0 top-full mt-2 w-64 bg-white rounded-xl border border-slate-200 shadow-lg z-50 py-1.5 text-xs text-slate-700 focus:outline-hidden animate-in fade-in-50 duration-100"
+          className="absolute right-0 top-full mt-2 w-72 bg-white rounded-xl border border-slate-200 shadow-lg z-50 py-1.5 text-xs text-slate-700 focus:outline-hidden animate-in fade-in-50 duration-100"
         >
           {/* Header section with identity */}
           <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/50">
             <p className="font-semibold text-slate-900 text-sm">{userName}</p>
             <p className="text-[11px] text-slate-500 truncate">{userEmail}</p>
-            <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100">
-              <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-              <span>Role: {userRole}</span>
+            <div className="mt-2 flex items-center gap-1.5">
+              <span
+                className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold border ${roleDescriptor.badgeColor}`}
+              >
+                {userRoleDisplayName}
+              </span>
             </div>
+            <p className="text-[10px] text-slate-400 mt-1 leading-tight">
+              {roleDescriptor.description}
+            </p>
           </div>
 
-          {/* Navigation Links */}
+          {/* Core navigation links */}
           <div className="py-1">
             <Link
               to="/my-work"
               role="menuitem"
               onClick={() => setIsOpen(false)}
-              className="flex items-center gap-2.5 px-4 py-2 hover:bg-slate-50 text-slate-700 hover:text-indigo-600 transition-colors"
+              className="flex items-center gap-2.5 px-4 py-2 hover:bg-slate-50 text-slate-700 transition-colors"
             >
-              <UserCheck className="w-4 h-4 text-slate-400" />
-              <span>My Workboard</span>
+              <UserIcon className="w-4 h-4 text-slate-400" />
+              <span>My Work & Queue</span>
             </Link>
 
             <Link
               to="/settings"
               role="menuitem"
               onClick={() => setIsOpen(false)}
-              className="flex items-center gap-2.5 px-4 py-2 hover:bg-slate-50 text-slate-700 hover:text-indigo-600 transition-colors"
+              className="flex items-center gap-2.5 px-4 py-2 hover:bg-slate-50 text-slate-700 transition-colors"
             >
               <Settings className="w-4 h-4 text-slate-400" />
-              <span>System Settings</span>
+              <span>System Health & Config</span>
             </Link>
 
             {isAdmin && (
@@ -130,26 +143,26 @@ export const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
                 to="/recovery"
                 role="menuitem"
                 onClick={() => setIsOpen(false)}
-                className="flex items-center gap-2.5 px-4 py-2 hover:bg-slate-50 text-slate-700 hover:text-indigo-600 transition-colors"
+                className="flex items-center gap-2.5 px-4 py-2 hover:bg-slate-50 text-slate-700 transition-colors"
               >
-                <Shield className="w-4 h-4 text-slate-400" />
-                <span>Admin & System Health</span>
+                <RotateCcw className="w-4 h-4 text-rose-500" />
+                <span className="font-semibold text-rose-700">Disaster Recovery (Admin)</span>
               </Link>
             )}
           </div>
 
-          {/* Logout Action */}
+          {/* Logout Section */}
           <div className="pt-1 border-t border-slate-100">
             <button
               type="button"
               role="menuitem"
-              onClick={() => {
+              onClick={async () => {
                 setIsOpen(false);
-                logout();
+                await logout();
               }}
-              className="w-full flex items-center gap-2.5 px-4 py-2 text-rose-600 hover:bg-rose-50 transition-colors text-left font-medium cursor-pointer"
+              className="w-full flex items-center gap-2.5 px-4 py-2 hover:bg-rose-50 text-rose-600 transition-colors text-left font-medium cursor-pointer"
             >
-              <LogOut className="w-4 h-4 text-rose-500" />
+              <LogOut className="w-4 h-4" />
               <span>Sign Out</span>
             </button>
           </div>
