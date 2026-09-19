@@ -12,6 +12,8 @@ import {
   Save,
   FileQuestion,
   UploadCloud,
+  Maximize2,
+  X,
 } from 'lucide-react';
 import { Video, Script, VideoProductionStatus, AssignmentTaskType } from '../../types';
 import { apiClient } from '../../lib/api-client';
@@ -35,6 +37,7 @@ export const RecordingWorkspace: React.FC<RecordingWorkspaceProps> = ({
   const [isUpdating, setIsUpdating] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [isFullscreenTeleprompter, setIsFullscreenTeleprompter] = useState<boolean>(false);
 
   // Notes state
   const [recordingNotes, setRecordingNotes] = useState<string>(video.notes || '');
@@ -70,7 +73,14 @@ export const RecordingWorkspace: React.FC<RecordingWorkspaceProps> = ({
         onStatusChange();
       }
     } catch (err: any) {
-      setError(err?.message || 'Failed to upload video asset.');
+      const rawMsg = err?.message || '';
+      if (rawMsg.includes('invalid_grant')) {
+        setError(
+          'Google Drive connection error. Please ensure your Google Drive refresh token is configured in Secrets or set SKIP_DRIVE_SYNC=true in your environment for local testing.'
+        );
+      } else {
+        setError(rawMsg || 'Failed to upload video asset.');
+      }
     } finally {
       setIsUploadingFile(false);
     }
@@ -110,7 +120,14 @@ export const RecordingWorkspace: React.FC<RecordingWorkspaceProps> = ({
         onStatusChange();
       }
     } catch (err: any) {
-      setError(err?.message || 'Failed to update video status.');
+      const rawMsg = err?.message || '';
+      if (rawMsg.includes('invalid_grant')) {
+        setError(
+          'Google Drive connection error. Please ensure your Google Drive refresh token is configured in Secrets or set SKIP_DRIVE_SYNC=true in your environment for local testing.'
+        );
+      } else {
+        setError(rawMsg || 'Failed to update video status.');
+      }
     } finally {
       setIsUpdating(false);
     }
@@ -141,113 +158,92 @@ export const RecordingWorkspace: React.FC<RecordingWorkspaceProps> = ({
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      {/* Header Info Card */}
-      <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-xs space-y-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2.5">
-              <span className="font-mono text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
-                {video.id}
-              </span>
-              <VideoStatusBadge status={video.status} size="md" />
-              <span className={`text-xs px-2.5 py-0.5 rounded font-semibold ${priorityCfg.bg} ${priorityCfg.text}`}>
-                Priority: {priorityCfg.label}
-              </span>
-            </div>
-            <h2 className="text-base font-bold text-slate-900">{video.title}</h2>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {video.status === VideoProductionStatus.SCRIPT_READY && (
-              <Button
-                variant="primary"
-                size="sm"
-                disabled={isUpdating}
-                onClick={() => handleStatusTransition(VideoProductionStatus.RECORDING)}
-                className="text-xs"
-                icon={Play}
-              >
-                Start Recording (RECORDING)
-              </Button>
-            )}
-
-            {video.status === VideoProductionStatus.RECORDING && (
-              <Button
-                variant="primary"
-                size="sm"
-                disabled={isUpdating || !video.driveFileId}
-                onClick={() => handleStatusTransition(VideoProductionStatus.RECORDED)}
-                className="text-xs"
-                icon={CheckCircle2}
-                title={!video.driveFileId ? "A raw video file must be uploaded before marking as Recorded" : ""}
-              >
-                Mark Recorded (RECORDED)
-              </Button>
-            )}
+      {/* Action Bar & Notification Banners */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white rounded-xl border border-slate-200 p-4 shadow-xs">
+        <div className="flex items-center gap-2">
+          <VideoIcon className="w-5 h-5 text-indigo-600" />
+          <div>
+            <h3 className="text-sm font-bold text-slate-900">Recording Stage Controls</h3>
+            <p className="text-xs text-slate-500">Manage recording lifecycle, teleprompter, and raw asset ingestion</p>
           </div>
         </div>
 
-        {successMessage && (
-          <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-lg flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-            <span>{successMessage}</span>
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          {video.status === VideoProductionStatus.SCRIPT_READY && (
+            <Button
+              variant="primary"
+              size="sm"
+              disabled={isUpdating}
+              onClick={() => handleStatusTransition(VideoProductionStatus.RECORDING)}
+              className="text-xs"
+              icon={Play}
+            >
+              Start Recording
+            </Button>
+          )}
 
-        {error && (
-          <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-lg flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
-            <span>{error}</span>
-          </div>
-        )}
-
-        {/* Operational Metadata Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t border-slate-100 text-xs">
-          <div className="p-3 bg-slate-50 rounded-lg border border-slate-200/60 space-y-1">
-            <span className="text-slate-400 font-medium flex items-center gap-1.5">
-              <FileQuestion className="w-3.5 h-3.5 text-indigo-500" /> Linked Question ID
-            </span>
-            <span className="font-mono font-bold text-slate-800">{video.questionId}</span>
-          </div>
-
-          <div className="p-3 bg-slate-50 rounded-lg border border-slate-200/60 space-y-1">
-            <span className="text-slate-400 font-medium flex items-center gap-1.5">
-              <Calendar className="w-3.5 h-3.5 text-indigo-500" /> Scheduled Recording
-            </span>
-            <span className="font-medium text-slate-800">
-              {video.scheduledRecordingDate ? new Date(video.scheduledRecordingDate).toLocaleDateString() : 'Not scheduled'}
-            </span>
-          </div>
-
-          <div className="p-3 bg-slate-50 rounded-lg border border-slate-200/60 space-y-1">
-            <span className="text-slate-400 font-medium flex items-center gap-1.5">
-              <User className="w-3.5 h-3.5 text-indigo-500" /> Assigned Host / Speaker
-            </span>
-            <span className="font-medium text-slate-800">{video.assignedHost || 'Unassigned Host'}</span>
-          </div>
-
-          <div className="p-3 bg-slate-50 rounded-lg border border-slate-200/60 space-y-1">
-            <span className="text-slate-400 font-medium flex items-center gap-1.5">
-              <Clock className="w-3.5 h-3.5 text-indigo-500" /> Target Duration
-            </span>
-            <span className="font-mono font-medium text-slate-800">{video.targetDurationSeconds || 45} seconds</span>
-          </div>
+          {video.status === VideoProductionStatus.RECORDING && (
+            <Button
+              variant="primary"
+              size="sm"
+              disabled={isUpdating || !video.driveFileId}
+              onClick={() => handleStatusTransition(VideoProductionStatus.RECORDED)}
+              className="text-xs"
+              icon={CheckCircle2}
+              title={!video.driveFileId ? "A raw video file must be uploaded before marking as Recorded" : ""}
+            >
+              Mark as Recorded
+            </Button>
+          )}
         </div>
       </div>
+
+      {successMessage && (
+        <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-lg flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+          <span>{successMessage}</span>
+        </div>
+      )}
+
+      {error && (
+        <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-lg flex items-start gap-2.5">
+          <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+          <div className="flex-1">
+            {error.includes('invalid_grant') ? (
+              <span>
+                Google Drive connection error. Please ensure your Google Drive refresh token is configured in Secrets or set SKIP_DRIVE_SYNC=true in your environment for local testing.
+              </span>
+            ) : (
+              <span>{error}</span>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Main Content Grid: Approved Script & Recording Assignments */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left 2 Cols: Approved Script Teleprompter View */}
         <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 p-6 shadow-xs space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100 flex-wrap gap-2">
             <div className="flex items-center gap-2">
               <FileText className="w-4 h-4 text-indigo-600" />
               <h3 className="text-sm font-bold text-slate-900">Approved Script (Teleprompter View)</h3>
+              {script && (
+                <span className="font-mono text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded font-semibold border border-indigo-200">
+                  Version v{script.currentVersion}
+                </span>
+              )}
             </div>
             {script && (
-              <span className="font-mono text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded font-semibold border border-indigo-200">
-                Version v{script.currentVersion}
-              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsFullscreenTeleprompter(true)}
+                icon={Play}
+                className="text-xs text-indigo-700 border-indigo-200 hover:bg-indigo-50"
+              >
+                Launch Fullscreen Teleprompter
+              </Button>
             )}
           </div>
 
@@ -414,6 +410,80 @@ export const RecordingWorkspace: React.FC<RecordingWorkspaceProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Fullscreen Teleprompter Modal */}
+      {isFullscreenTeleprompter && script && (
+        <div className="fixed inset-0 z-50 bg-slate-950 text-white flex flex-col p-6 sm:p-10 overflow-y-auto animate-in fade-in duration-200">
+          <div className="flex items-center justify-between pb-6 border-b border-slate-800">
+            <div className="flex items-center gap-3">
+              <span className="font-mono text-sm px-2.5 py-1 rounded bg-indigo-900 text-indigo-200 font-bold border border-indigo-700">
+                {video.id}
+              </span>
+              <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white">{video.title}</h2>
+              <span className="font-mono text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-300">
+                v{script.currentVersion}
+              </span>
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsFullscreenTeleprompter(false)}
+              icon={X}
+              className="bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700"
+            >
+              Exit Teleprompter
+            </Button>
+          </div>
+
+          <div className="max-w-4xl mx-auto w-full py-12 space-y-10">
+            <div className="space-y-2 p-6 rounded-2xl bg-indigo-950/40 border border-indigo-900/60">
+              <span className="text-xs font-mono font-bold tracking-wider text-indigo-400 uppercase">
+                Hook (0 - 5s)
+              </span>
+              <p className="text-2xl sm:text-3xl font-medium leading-relaxed text-indigo-100">
+                {script.hookText}
+              </p>
+            </div>
+
+            <div className="space-y-2 p-6 rounded-2xl bg-slate-900/60 border border-slate-800">
+              <span className="text-xs font-mono font-bold tracking-wider text-slate-400 uppercase">
+                Problem Statement (5 - 15s)
+              </span>
+              <p className="text-2xl sm:text-3xl font-normal leading-relaxed text-slate-200">
+                {script.problemStatement}
+              </p>
+            </div>
+
+            <div className="space-y-2 p-6 rounded-2xl bg-slate-900/60 border border-slate-800">
+              <span className="text-xs font-mono font-bold tracking-wider text-slate-400 uppercase">
+                Step-by-Step Solution (15 - 35s)
+              </span>
+              <p className="text-2xl sm:text-3xl font-normal leading-relaxed text-slate-200 whitespace-pre-wrap">
+                {script.stepByStepSolution}
+              </p>
+            </div>
+
+            <div className="space-y-2 p-6 rounded-2xl bg-emerald-950/40 border border-emerald-900/60">
+              <span className="text-xs font-mono font-bold tracking-wider text-emerald-400 uppercase">
+                Speed Trick & Takeaway
+              </span>
+              <p className="text-2xl sm:text-3xl font-medium leading-relaxed text-emerald-100">
+                {script.speedTrickOrTakeaway}
+              </p>
+            </div>
+
+            <div className="space-y-2 p-6 rounded-2xl bg-amber-950/40 border border-amber-900/60">
+              <span className="text-xs font-mono font-bold tracking-wider text-amber-400 uppercase">
+                Call to Action
+              </span>
+              <p className="text-2xl sm:text-3xl font-medium leading-relaxed text-amber-100">
+                {script.callToAction}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
