@@ -244,7 +244,25 @@ export const VideoDetailPage: React.FC = () => {
       {/* 15-Stage Continuous Production Journey Orchestration Bar */}
       <ProductionJourneyBar
         showDetails
-        activeStage="TELEPROMPTER"
+        activeStage={
+          activeTab === 'script'
+            ? 'SCRIPTING'
+            : activeTab === 'recording'
+            ? 'TELEPROMPTER'
+            : activeTab === 'editing'
+            ? 'EDITING'
+            : activeTab === 'final-review'
+            ? 'FINAL_QC'
+            : activeTab === 'social'
+            ? 'SOCIAL_SIMULATOR'
+            : activeTab === 'thumbnail'
+            ? 'THUMBNAIL'
+            : activeTab === 'pinned-comment'
+            ? 'PINNED_COMMENT'
+            : activeTab === 'publishing'
+            ? 'PUBLISHING'
+            : 'EDITING'
+        }
         onNavigateTab={(tab) => handleTabChange(tab as any)}
       />
 
