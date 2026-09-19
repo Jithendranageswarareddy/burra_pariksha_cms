@@ -38,6 +38,7 @@ import { TeamOperationsPage } from './pages/TeamOperationsPage';
 import { ContentMasterPage } from './pages/ContentMasterPage';
 import { SocialReviewPage } from './pages/SocialReviewPage';
 import { NotFoundPage } from './pages/NotFoundPage';
+import { getDefaultLandingRoute } from './config/roles';
 
 function AppRoutes() {
   const { user, isLoading } = useAuth();
@@ -57,11 +58,13 @@ function AppRoutes() {
     return <LoginPage />;
   }
 
+  const landingRoute = getDefaultLandingRoute(user?.role);
+
   return (
     <Routes>
       <Route path="/" element={<Layout />}>
-        {/* Index Redirect to /dashboard */}
-        <Route index element={<Navigate to="/dashboard" replace />} />
+        {/* Dynamic Role-Based Landing Route Redirect */}
+        <Route index element={<Navigate to={landingRoute} replace />} />
         <Route path="dashboard" element={<DashboardPage />} />
 
         {/* Content Routes */}

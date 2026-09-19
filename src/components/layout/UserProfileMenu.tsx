@@ -76,12 +76,14 @@ export const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
         <div className="flex items-center justify-center w-8 h-8 rounded-full bg-indigo-100 border border-indigo-200 text-indigo-800 font-bold text-xs shrink-0">
           {getInitials(userName)}
         </div>
-        <div className="hidden sm:flex flex-col text-left min-w-0">
+        <div className="hidden sm:flex flex-col text-left min-w-0 items-start">
           <span className="text-xs font-semibold text-slate-800 leading-tight truncate">
             {userName}
           </span>
-          <span className="text-[10px] text-slate-500 font-medium tracking-tight truncate">
-            {userRoleDisplayName}
+          <span
+            className={`mt-0.5 inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-semibold border ${roleDescriptor.badgeColor} tracking-tight leading-none`}
+          >
+            {roleDescriptor.label}
           </span>
         </div>
         <ChevronDown

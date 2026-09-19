@@ -249,7 +249,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpenMobile = false, onCloseM
       <aside
         id="app-sidebar"
         aria-label="Main Navigation"
-        className={`fixed top-0 bottom-0 left-0 z-40 w-64 bg-slate-900 text-slate-300 flex flex-col border-r border-slate-800 transition-transform duration-200 ease-in-out lg:translate-x-0 ${
+        className={`fixed top-0 bottom-0 left-0 z-40 w-64 bg-slate-900 text-slate-300 flex flex-col border-r border-slate-800 transition-all duration-200 ease-in-out lg:translate-x-0 ${
           isOpenMobile ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -313,12 +313,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpenMobile = false, onCloseM
           <div className="flex items-center justify-between p-2.5 rounded-lg bg-slate-800/60 border border-slate-700/50 text-xs">
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-              <div className="flex flex-col min-w-0">
+              <div className="flex flex-col min-w-0 items-start">
                 <span className="font-semibold text-slate-200 text-[12px] truncate leading-tight">
                   {user?.name || 'Authorized Member'}
                 </span>
-                <span className="text-[10px] text-indigo-300 font-medium truncate">
-                  {userRoleDisplayName}
+                <span
+                  className={`mt-1 inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-semibold border ${roleDescriptor.badgeColor} tracking-tight leading-none truncate max-w-[150px]`}
+                >
+                  {roleDescriptor.label}
                 </span>
               </div>
             </div>

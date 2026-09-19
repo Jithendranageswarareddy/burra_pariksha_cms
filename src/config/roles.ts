@@ -317,3 +317,42 @@ export function hasNavigationCapability(
       return false;
   }
 }
+
+/**
+ * Returns the default landing route for a specific user role.
+ * - ADMIN & CONTENT_MANAGER: /dashboard
+ * - QUESTION_CREATOR / QUESTION_AUTHOR: /studio
+ * - VIDEO_EDITOR: /production
+ * - PRESENTER / STUDIO_PRESENTER: /queue
+ * - REVIEWER / PUBLISHING_MANAGER: /social-review
+ */
+export function getDefaultLandingRoute(rawRole?: UserRole | string | null): string {
+  const canonical = resolveCanonicalRole(rawRole);
+
+  switch (canonical) {
+    case CanonicalRole.ADMIN:
+    case CanonicalRole.CONTENT_LEAD:
+    case CanonicalRole.ANALYST:
+      return '/dashboard';
+
+    case CanonicalRole.QUESTION_AUTHOR:
+    case CanonicalRole.QUESTION_EDITOR:
+      return '/studio';
+
+    case CanonicalRole.VIDEO_EDITOR:
+    case CanonicalRole.DESIGNER:
+    case CanonicalRole.SCRIPTWRITER:
+      return '/production';
+
+    case CanonicalRole.PRESENTER:
+      return '/queue';
+
+    case CanonicalRole.QA_REVIEWER:
+    case CanonicalRole.PUBLISHING_LEAD:
+      return '/social-review';
+
+    default:
+      return '/dashboard';
+  }
+}
+
