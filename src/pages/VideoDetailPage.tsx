@@ -595,8 +595,10 @@ export const VideoDetailPage: React.FC = () => {
             <div className="bg-white border border-slate-200 rounded-2xl p-2 sm:p-4 shadow-xs">
               <SocialReviewWorkspace
                 questionId={video.questionId}
+                videoId={video.id}
                 driveFolderUrl={video.driveFolderUrl}
                 onReviewSubmitted={fetchVideoDetails}
+                onNavigateTab={(tab) => handleTabChange(tab as any)}
               />
             </div>
           )}

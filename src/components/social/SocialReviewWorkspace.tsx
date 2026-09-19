@@ -40,14 +40,18 @@ import {
 
 interface SocialReviewWorkspaceProps {
   questionId: string;
+  videoId?: string;
   driveFolderUrl?: string;
   onReviewSubmitted?: (bundle: SocialReviewPackageBundle) => void;
+  onNavigateTab?: (tab: 'script' | 'recording' | 'editing' | 'final-review' | 'social' | 'publishing') => void;
 }
 
 export const SocialReviewWorkspace: React.FC<SocialReviewWorkspaceProps> = ({
   questionId,
+  videoId,
   driveFolderUrl,
   onReviewSubmitted,
+  onNavigateTab,
 }) => {
   const [bundle, setBundle] = useState<SocialReviewPackageBundle | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -294,6 +298,37 @@ export const SocialReviewWorkspace: React.FC<SocialReviewWorkspaceProps> = ({
             </button>
           </div>
         </div>
+
+        {/* Celebratory Approval & Stage 08 Bridge Banner */}
+        {currentReviewStatus === SocialReviewStatus.APPROVED && (
+          <div className="mt-4 p-4 bg-gradient-to-r from-emerald-950 via-slate-900 to-indigo-950 border border-emerald-500/50 rounded-2xl text-white flex flex-col md:flex-row items-center justify-between gap-4 shadow-lg animate-in fade-in">
+            <div className="flex items-center gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center shrink-0">
+                <CheckCircle2 className="w-6 h-6 text-emerald-400" />
+              </div>
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <span className="font-extrabold text-xs sm:text-sm text-emerald-300 tracking-wide uppercase">
+                    ✓ SOCIAL PACKAGING APPROVED &amp; READY FOR RELEASE
+                  </span>
+                </div>
+                <p className="text-xs text-slate-300">
+                  All platform copy, tags, and 9:16 safe-zone assets are locked.
+                </p>
+              </div>
+            </div>
+
+            {onNavigateTab && (
+              <button
+                type="button"
+                onClick={() => onNavigateTab('publishing')}
+                className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs rounded-xl shadow-md transition-all flex items-center gap-2 shrink-0 cursor-pointer hover:scale-102"
+              >
+                <span>Proceed to Stage 08: Publishing &amp; Release Station →</span>
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Blockers Warning */}
         {blockers.length > 0 && (

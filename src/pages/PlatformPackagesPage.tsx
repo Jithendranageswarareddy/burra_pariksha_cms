@@ -622,14 +622,13 @@ export const PlatformPackagesPage: React.FC = () => {
             </Link>
 
             <div className="flex items-center gap-3">
-              <Link to={`/publishing-package?videoId=${encodeURIComponent(currentVideoId)}`}>
+              <Link to={currentVideoId ? `/videos/${encodeURIComponent(currentVideoId)}?tab=publishing` : '/publishing'}>
                 <Button
                   variant="primary"
                   size="sm"
-                  className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+                  className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold cursor-pointer"
                 >
-                  <span>Proceed to Pre-Publish Checklist</span>
-                  <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
+                  <span>Proceed to Stage 08: Publishing &amp; Release Station →</span>
                 </Button>
               </Link>
             </div>
