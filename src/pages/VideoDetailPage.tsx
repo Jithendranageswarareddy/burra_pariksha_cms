@@ -561,6 +561,7 @@ export const VideoDetailPage: React.FC = () => {
                 videoId={video.id}
                 video={video}
                 onStatusChange={fetchVideoDetails}
+                onNavigateTab={(tab) => handleTabChange(tab as any)}
               />
             </div>
           )}

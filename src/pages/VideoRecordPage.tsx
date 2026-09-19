@@ -23,10 +23,13 @@ import {
   FileText,
   Radio,
   Check,
+  Copy,
 } from 'lucide-react';
 import { Video, Script, Question, VideoProductionStatus } from '../types';
 import { apiClient } from '../lib/api-client';
 import { VideoWorkflowHeader } from '../components/video/VideoWorkflowHeader';
+import { ProductionJourneyBar } from '../components/production/ProductionJourneyBar';
+import { useProductionJourney } from '../contexts/ProductionJourneyContext';
 import { PageHeader } from '../design-system/components/PageHeader';
 import { Card } from '../design-system/components/Card';
 import { Button } from '../design-system/components/Button';
@@ -39,6 +42,7 @@ export const VideoRecordPage: React.FC = () => {
   const { videoId: routeVideoId } = useParams<{ videoId?: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { loadJourneyForVideo } = useProductionJourney();
 
   const videoId = routeVideoId || searchParams.get('videoId') || searchParams.get('id') || '';
 
@@ -47,6 +51,8 @@ export const VideoRecordPage: React.FC = () => {
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
   const [question, setQuestion] = useState<Question | null>(null);
   const [script, setScript] = useState<Script | null>(null);
+  const [copiedProof, setCopiedProof] = useState<boolean>(false);
+  const [showMathProof, setShowMathProof] = useState<boolean>(true);
 
   // Recording & Presenter State
   const [assignedHost, setAssignedHost] = useState<string>('');
@@ -75,6 +81,13 @@ export const VideoRecordPage: React.FC = () => {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
 
+  const handleCopyProof = (text: string) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    setCopiedProof(true);
+    setTimeout(() => setCopiedProof(false), 2000);
+  };
+
   const loadVideoList = async () => {
     try {
       setIsLoading(true);
@@ -95,6 +108,7 @@ export const VideoRecordPage: React.FC = () => {
       const vid = await apiClient.getVideoById(targetId);
       setSelectedVideo(vid);
       setAssignedHost(vid.assignedHost || '');
+      loadJourneyForVideo(targetId, vid);
 
       if (vid.questionId) {
         try {
@@ -259,7 +273,7 @@ export const VideoRecordPage: React.FC = () => {
       const updated = await apiClient.updateVideoStatus(
         targetId,
         newStatus,
-        `Stage advanced from Step 07 Recording Studio: Take #${recordingTake} - ${hostNotes || 'Take completed'}`
+        `Stage advanced from Stage 04 Recording Studio: Take #${recordingTake} - ${hostNotes || 'Take completed'}`
       );
       setSelectedVideo(updated);
       setSuccessMessage(`Production status transitioned to ${newStatus}.`);
@@ -483,11 +497,9 @@ export const VideoRecordPage: React.FC = () => {
 
     return (
       <div className="space-y-6 max-w-6xl mx-auto pb-16">
-        <VideoWorkflowHeader currentStep={7} />
-
         <PageHeader
-          title="Teleprompter & Recording"
-          description="Teleprompter studio view, host assignment, raw footage capture, and Drive intake"
+          title="Teleprompter & Recording Studio"
+          description="Stage 04: Teleprompter studio view, host assignment, raw footage capture, and Drive intake"
         />
 
         {error && (
@@ -556,11 +568,13 @@ export const VideoRecordPage: React.FC = () => {
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-16">
-      <VideoWorkflowHeader
-        currentStep={7}
-        videoId={videoId || selectedVideo?.id}
-        videoTitle={selectedVideo?.title}
-        videoStatus={selectedVideo?.status}
+      <ProductionJourneyBar
+        onNavigateTab={(tab) => {
+          const targetId = videoId || selectedVideo?.id;
+          if (targetId) {
+            navigate(`/videos/${encodeURIComponent(targetId)}?tab=${tab}`);
+          }
+        }}
       />
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -569,8 +583,11 @@ export const VideoRecordPage: React.FC = () => {
             <span className="text-xs text-indigo-600 font-mono font-semibold bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
               {selectedVideo?.id || videoId}
             </span>
+            <span className="text-xs font-semibold px-2 py-0.5 bg-red-100 text-red-800 rounded">
+              Stage 04 • Teleprompter &amp; Filming
+            </span>
           </div>
-          <h1 className="text-xl font-bold text-slate-900">Teleprompter & Recording</h1>
+          <h1 className="text-xl font-bold text-slate-900">Teleprompter &amp; Recording Studio</h1>
           <p className="text-xs text-slate-500">
             Film on-camera presenter delivery with high-readability Telugu teleprompter, manage takes, and upload raw footage.
           </p>
@@ -580,11 +597,11 @@ export const VideoRecordPage: React.FC = () => {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => navigate(`/videos/${encodeURIComponent(videoId || selectedVideo?.id || '')}/review-script`)}
+            onClick={() => navigate(`/videos/${encodeURIComponent(videoId || selectedVideo?.id || '')}?tab=script`)}
             icon={ArrowLeft}
             className="text-xs"
           >
-            Back to Script Review
+            Back to Scripting
           </Button>
           <Link to="/production">
             <Button variant="outline" size="sm" icon={Film} className="text-xs">
@@ -647,12 +664,12 @@ export const VideoRecordPage: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Left Column: Question Reference & Speed Trick Proof */}
             <div className="space-y-6">
-              {/* Question Reference Card */}
+              {/* Question Reference & Math Proof Reference Card */}
               <Card padding="md">
                 <div className="p-4 border-b border-slate-100 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <HelpCircle className="w-4 h-4 text-indigo-600" />
-                    <h3 className="text-sm font-bold text-slate-900">Question Reference & Answer Key</h3>
+                    <h3 className="text-sm font-bold text-slate-900">Question Reference &amp; Math Proof</h3>
                   </div>
                   {question && (
                     <Badge variant="active" size="sm" className="font-mono">
@@ -666,25 +683,27 @@ export const VideoRecordPage: React.FC = () => {
                     <div className="space-y-4">
                       <div>
                         <span className="text-[10px] font-mono font-bold text-slate-500 uppercase block mb-1">
-                          Problem Statement (Telugu)
+                          Problem Statement (Spoken Telugu Cue)
                         </span>
                         <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-telugu text-sm leading-relaxed font-medium">
-                          {question.questionText}
+                          {(question as any).statementTe || (question as any).statement || question.questionText}
                         </div>
                       </div>
 
                       {/* ABCD Options Grid */}
                       <div>
                         <span className="text-[10px] font-mono font-bold text-slate-500 uppercase block mb-2">
-                          Options & Correct Answer
+                          Options &amp; Correct Answer
                         </span>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                           {(['A', 'B', 'C', 'D'] as const).map((opt) => {
                             const optText =
                               (question.options as any)?.[opt.toLowerCase()] ||
+                              (question as any)[`option${opt}Te`] ||
                               (question as any)[`option${opt}`] ||
                               '';
-                            const isCorrect = String(question.correctAnswer).toUpperCase() === opt;
+                            const correctAns = String((question as any).correctOption || question.correctAnswer || '').toUpperCase();
+                            const isCorrect = correctAns === opt;
                             return (
                               <div
                                 key={opt}
@@ -711,14 +730,56 @@ export const VideoRecordPage: React.FC = () => {
                         </div>
                       </div>
 
+                      {/* Authoritative Math Proof Drawer */}
+                      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden text-white shadow-xs">
+                        <div className="p-3 bg-slate-950/80 border-b border-slate-800 flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-xs font-bold text-indigo-300">
+                            <Layers className="w-3.5 h-3.5 text-indigo-400" />
+                            <span>Reviewer Math Proof &amp; Steps</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleCopyProof((question as any).explanationTe || question.explanation || '')}
+                              className="text-[11px] text-slate-400 hover:text-white flex items-center gap-1 font-mono transition px-2 py-0.5 rounded hover:bg-slate-800"
+                              title="Copy Math Proof to Clipboard"
+                            >
+                              {copiedProof ? (
+                                <>
+                                  <Check className="w-3 h-3 text-emerald-400" />
+                                  <span className="text-emerald-400 font-semibold">Copied</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Copy className="w-3 h-3" />
+                                  <span>Copy</span>
+                                </>
+                              )}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setShowMathProof(!showMathProof)}
+                              className="text-[11px] text-slate-400 hover:text-white font-mono px-2 py-0.5 rounded bg-slate-800"
+                            >
+                              {showMathProof ? 'Hide' : 'Show'}
+                            </button>
+                          </div>
+                        </div>
+                        {showMathProof && (
+                          <div className="p-3.5 text-xs font-telugu text-slate-200 whitespace-pre-wrap leading-relaxed">
+                            {(question as any).explanationTe || question.explanation || 'Step-by-step mathematical proof.'}
+                          </div>
+                        )}
+                      </div>
+
                       {/* Burra Speed Trick & Math Proof */}
                       <div className="p-3.5 bg-amber-50/70 border border-amber-200 rounded-xl space-y-1.5">
                         <div className="flex items-center gap-1.5 text-xs font-bold text-amber-900">
                           <Sparkles className="w-4 h-4 text-amber-600" />
-                          <span>Burra Speed Trick & Math Proof</span>
+                          <span>Burra Speed Shortcut &amp; Exam Takeaway</span>
                         </div>
-                        <p className="text-xs text-amber-950 font-telugu leading-relaxed">
-                          {script?.speedTrickOrTakeaway || question.explanation || 'Exam shortcut trick verification.'}
+                        <p className="text-xs text-amber-950 font-telugu leading-relaxed font-semibold">
+                          {script?.speedTrickOrTakeaway || (question as any).explanationTe || question.explanation || 'Exam shortcut trick verification.'}
                         </p>
                       </div>
                     </div>
@@ -968,13 +1029,14 @@ export const VideoRecordPage: React.FC = () => {
                 </div>
               </Card>
 
-              {/* Next Step Action Box */}
+              {/* Next Stage Action Box */}
               <div className="bg-white rounded-xl border border-indigo-200 p-5 shadow-xs space-y-3">
                 <div className="flex items-center gap-2 text-indigo-700 font-bold text-xs">
-                  <span>Next: Video Editing</span>
+                  <Film className="w-4 h-4 text-indigo-600" />
+                  <span>Stage 05: Video Editing Bay</span>
                 </div>
                 <p className="text-xs text-slate-600">
-                  Raw recording captured? Proceed to the Video Editor workspace to sync Telugu motion graphics, countdown timers, and check 50–59s pacing.
+                  Raw recording captured? Proceed to the Video Editing Bay to sync Telugu motion graphics, countdown timers, and check 50–59s pacing.
                 </p>
 
                 <Button
@@ -982,12 +1044,12 @@ export const VideoRecordPage: React.FC = () => {
                   size="md"
                   onClick={() => {
                     const targetId = videoId || selectedVideo?.id;
-                    navigate(`/videos/${encodeURIComponent(targetId)}/edit-video`);
+                    navigate(`/videos/${encodeURIComponent(targetId)}?tab=editing`);
                   }}
                   icon={ArrowRight}
                   className="w-full text-xs justify-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
                 >
-                  Proceed to Video Editor
+                  Proceed to Stage 05: Video Editing Bay
                 </Button>
               </div>
             </div>
