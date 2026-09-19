@@ -23,6 +23,7 @@ export interface ProductionJourneyBarProps {
   className?: string;
   onNavigateTab?: (tab: string) => void;
   showDetails?: boolean;
+  activeStage?: string;
 }
 
 export const ProductionJourneyBar: React.FC<ProductionJourneyBarProps> = ({
