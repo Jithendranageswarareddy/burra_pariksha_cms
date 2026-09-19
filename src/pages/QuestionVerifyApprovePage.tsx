@@ -3,20 +3,20 @@ import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom'
 import {
   ShieldCheck,
   CheckCircle2,
-  AlertTriangle,
   AlertCircle,
   ArrowLeft,
   ArrowRight,
   RefreshCw,
   Edit3,
-  Video as VideoIcon,
-  Layers,
   Check,
   X,
   FileCheck,
-  Share2,
   Sparkles,
   BookOpen,
+  ChevronDown,
+  ChevronUp,
+  Zap,
+  HelpCircle,
 } from 'lucide-react';
 import { PageHeader } from '../design-system/components/PageHeader';
 import { Button } from '../design-system/components/Button';
@@ -25,9 +25,7 @@ import { Card } from '../design-system/components/Card';
 import { Alert } from '../design-system/components/Alert';
 import { PageLoading } from '../design-system/components/Loading';
 import { EmptyState } from '../design-system/components/EmptyState';
-import { SuccessState } from '../design-system/components/SuccessState';
 import { Modal } from '../design-system/components/Modal';
-import { QuestionWorkflowHeader } from '../components/questions/QuestionWorkflowHeader';
 import { ProductionJourneyBar } from '../components/production/ProductionJourneyBar';
 import { useProductionJourney } from '../contexts/ProductionJourneyContext';
 import { apiClient } from '../lib/api-client';
@@ -35,7 +33,6 @@ import { useAuth } from '../contexts/AuthContext';
 import {
   Question,
   QuestionStatus,
-  DifficultyLevel,
   ValidationResult,
   ValidationCheckItem,
   VideoProductionStatus,
@@ -53,7 +50,6 @@ export const QuestionVerifyApprovePage: React.FC = () => {
     loadJourneyForVideo,
     setCanonicalIds,
     videoId: contextVideoId,
-    currentStage,
   } = useProductionJourney();
 
   const activeQuestionId = id || searchParams.get('questionId') || searchParams.get('id') || '';
@@ -74,9 +70,10 @@ export const QuestionVerifyApprovePage: React.FC = () => {
     message: string;
   } | null>(null);
 
-  // Validation Engine Result
+  // Validation Engine Result & Details Accordion
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
   const [isValidating, setIsValidating] = useState<boolean>(false);
+  const [showAllRuleAudits, setShowAllRuleAudits] = useState<boolean>(false);
 
   // Rejection modal
   const [showRejectModal, setShowRejectModal] = useState<boolean>(false);
@@ -189,7 +186,7 @@ export const QuestionVerifyApprovePage: React.FC = () => {
         updatedQuestion = await apiClient.updateQuestionStatus(
           activeQuestionId,
           QuestionStatus.APPROVED,
-          `Approved by ${user?.name || 'Reviewer'} in Step 04 verification audit.`
+          `Approved by ${user?.name || 'Reviewer'} in Step 02 verification audit.`
         );
         setQuestion(updatedQuestion);
       }
@@ -201,7 +198,7 @@ export const QuestionVerifyApprovePage: React.FC = () => {
       );
       setQueuedVideo(video);
 
-      // 3. Update journey context so videoId is linked & stage advances to Stage 03
+      // 3. Update journey context so videoId is linked & stage advances
       setCanonicalIds({ videoId: video.id });
       await loadJourneyForVideo(video.id, video);
 
@@ -238,7 +235,7 @@ export const QuestionVerifyApprovePage: React.FC = () => {
       setNotification({
         type: 'success',
         title: 'Revision Requested',
-        message: `Question ${activeQuestionId} marked for revision. Return to Step 03 to improve.`,
+        message: `Question ${activeQuestionId} marked for revision. Return to Studio to improve.`,
       });
     } catch (err: any) {
       setNotification({
@@ -249,11 +246,6 @@ export const QuestionVerifyApprovePage: React.FC = () => {
     } finally {
       setActionInProgress(false);
     }
-  };
-
-  // Queue for Video (Step 05 Transition) - aliases to handleApprove for direct happy path bridging
-  const handleQueueForVideo = async () => {
-    return handleApprove();
   };
 
   // Render question selector if no question active
@@ -269,13 +261,15 @@ export const QuestionVerifyApprovePage: React.FC = () => {
 
     return (
       <div className="space-y-6 pb-12 animate-in fade-in duration-200">
+        <ProductionJourneyBar activeStage="QUESTION_VERIFICATION" showDetails />
+
         <PageHeader
-          title="Review & Approve Question"
-          description="Verify mathematical accuracy, review option distractors, and approve for video production."
+          title="Verify & Approve Question"
+          description="Select a candidate question to execute mathematical verification checks and editorial sign-off."
           breadcrumbs={[
             { label: 'Home', href: '/' },
             { label: 'Question Bank', href: '/questions' },
-            { label: 'Review & Approve Question' },
+            { label: 'Verify & Approve' },
           ]}
           actions={
             <Link to="/questions">
@@ -286,12 +280,10 @@ export const QuestionVerifyApprovePage: React.FC = () => {
           }
         />
 
-        <QuestionWorkflowHeader currentStep={4} />
-
         <Card variant="default" padding="lg">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-100">
             <div>
-              <h3 className="text-sm font-bold text-slate-900">Select a Question for Verification</h3>
+              <h3 className="text-sm font-bold text-slate-900">Questions Awaiting Review</h3>
               <p className="text-xs text-slate-500">
                 Choose a question to execute mathematical verification checks and editorial approval.
               </p>
@@ -312,8 +304,8 @@ export const QuestionVerifyApprovePage: React.FC = () => {
           ) : filteredList.length === 0 ? (
             <EmptyState
               title="No questions found"
-              description="Generate a new question or improve an existing draft to prepare for approval."
-              actionLabel="Go to Create Question"
+              description="Generate a new question in Question Studio to prepare for approval."
+              actionLabel="Go to Question Studio"
               onAction={() => navigate('/studio')}
             />
           ) : (
@@ -336,7 +328,7 @@ export const QuestionVerifyApprovePage: React.FC = () => {
                         {q.status}
                       </Badge>
                     </div>
-                    <p className="text-xs text-slate-800 line-clamp-2">{q.questionText}</p>
+                    <p className="text-xs text-slate-800 line-clamp-2 font-telugu">{q.questionText}</p>
                   </div>
                   <Button
                     variant="primary"
@@ -356,22 +348,22 @@ export const QuestionVerifyApprovePage: React.FC = () => {
   }
 
   const isApproved = question?.status === QuestionStatus.APPROVED;
-  const isQueued = question?.videoStatus === VideoProductionStatus.QUEUED;
   const targetVideoId = queuedVideo?.id || contextVideoId;
 
   return (
-    <div className="space-y-6 pb-12 animate-in fade-in duration-200">
-      {/* Production Journey Orchestration Stepper */}
-      <ProductionJourneyBar showDetails />
+    <div className="space-y-5 pb-12 animate-in fade-in duration-200 max-w-7xl mx-auto">
+      {/* 1. Permanent 15-Stage Timeline Anchor */}
+      <ProductionJourneyBar activeStage="QUESTION_VERIFICATION" showDetails />
 
+      {/* 2. Unified Page Header with Direct Navigation Actions */}
       <PageHeader
-        title="Review & Approve Question"
-        description="Verify mathematical accuracy, review option distractors, and approve for video production."
+        title="Verify & Approve Question"
+        description="Verify mathematical accuracy, review option distractors, and advance directly into Video Production."
         breadcrumbs={[
           { label: 'Home', href: '/' },
-          { label: 'Question Bank', href: '/questions' },
-          { label: question?.id || 'Question', href: `/questions/${activeQuestionId}` },
-          { label: 'Review & Approve' },
+          { label: 'Questions', href: '/questions' },
+          { label: question?.id || 'Candidate', href: `/questions/${activeQuestionId}` },
+          { label: 'Verify & Approve' },
         ]}
         actions={
           <div className="flex items-center gap-2 flex-wrap">
@@ -397,31 +389,14 @@ export const QuestionVerifyApprovePage: React.FC = () => {
                 icon={ArrowRight}
                 className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold"
               >
-                Create Audience Script
-              </Button>
-            ) : isApproved ? (
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={handleApprove}
-                disabled={actionInProgress}
-                icon={ArrowRight}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold"
-              >
-                Queue for Video & Script
+                Proceed to Script Studio →
               </Button>
             ) : null}
           </div>
         }
       />
 
-      <QuestionWorkflowHeader
-        currentStep={4}
-        questionId={activeQuestionId}
-        questionTitle={question?.questionText ? question.questionText.slice(0, 45) + '...' : undefined}
-      />
-
-      {/* Alert banner */}
+      {/* Alert notification banner */}
       {notification && (
         <Alert
           variant={notification.type === 'success' ? 'success' : 'error'}
@@ -443,21 +418,25 @@ export const QuestionVerifyApprovePage: React.FC = () => {
         />
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* LEFT 7 COLS: QUESTION CONTENT & OPTION AUDIT */}
+          {/* ========================================================
+              LEFT PANE (lg:col-span-7): QUESTION CONTENT & PROOF CANVAS
+              ======================================================== */}
           <div className="lg:col-span-7 space-y-5">
-            <Card variant="default" padding="lg">
-              <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-100">
+            <Card variant="default" padding="lg" className="rounded-2xl border-slate-200/80 shadow-xs">
+              {/* Card Header */}
+              <div className="flex items-center justify-between pb-3.5 mb-4 border-b border-slate-100">
                 <div className="flex items-center gap-2">
                   <BookOpen className="w-4 h-4 text-indigo-600" />
                   <h3 className="text-sm font-bold text-slate-900">Question Content Review</h3>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <Badge variant="neutral" size="sm">
+                <div className="flex items-center gap-2">
+                  <Badge variant="neutral" size="sm" className="font-semibold text-[11px]">
                     {question.topicName}
                   </Badge>
                   <Badge
                     variant={isApproved ? 'approved' : 'draft'}
                     size="sm"
+                    className="font-bold text-[11px]"
                   >
                     {question.status}
                   </Badge>
@@ -466,74 +445,110 @@ export const QuestionVerifyApprovePage: React.FC = () => {
 
               {/* Real World Hook */}
               {question.realWorldContext && (
-                <div className="mb-4 p-3 bg-indigo-50/60 border border-indigo-100 rounded-xl">
-                  <span className="text-[11px] font-bold text-indigo-900 uppercase tracking-wide block mb-0.5">
-                    Real-World Context Hook
-                  </span>
-                  <p className="text-xs text-indigo-950 font-medium leading-relaxed">
-                    {question.realWorldContext}
-                  </p>
+                <div className="mb-4 p-3 bg-indigo-50/70 border border-indigo-100 rounded-xl flex items-start gap-2.5">
+                  <Zap className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="text-[11px] font-bold text-indigo-900 uppercase tracking-wide block">
+                      Real-World Telugu Context Hook
+                    </span>
+                    <p className="text-xs text-indigo-950 font-medium leading-relaxed mt-0.5">
+                      {question.realWorldContext}
+                    </p>
+                  </div>
                 </div>
               )}
 
-              {/* Question Text */}
+              {/* Problem Statement (High-Contrast Telugu Typography) */}
               <div className="mb-5">
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
-                  Problem Statement
-                </span>
-                <p className="text-sm text-slate-900 font-medium leading-relaxed bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                  {question.questionText}
-                </p>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">
+                    Problem Statement (తెలుగు)
+                  </span>
+                  <span className="text-[11px] text-slate-400 font-mono">
+                    {question.questionText?.length || 0} chars
+                  </span>
+                </div>
+                <div className="p-4 bg-slate-50/80 rounded-xl border border-slate-200/80">
+                  <p className="text-base sm:text-lg font-telugu font-medium text-slate-900 leading-relaxed">
+                    {question.questionText}
+                  </p>
+                </div>
               </div>
 
-              {/* Options Audit Grid */}
-              <div className="space-y-2 mb-5">
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wide block">
-                  Options & Answer Key Verification
-                </span>
-                {(['A', 'B', 'C', 'D'] as const).map((optKey) => {
-                  const optVal = question.options ? (question.options as any)[optKey.toLowerCase()] : '';
-                  const isCorrect = (question.correctAnswer?.toUpperCase() as any) === optKey;
+              {/* Options & Answer Key (High-Density 2x2 Grid) */}
+              <div className="mb-5">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">
+                    Options & Answer Key Verification
+                  </span>
+                  <span className="text-[11px] text-slate-400">
+                    2x2 Exam Grid Layout
+                  </span>
+                </div>
 
-                  return (
-                    <div
-                      key={optKey}
-                      className={`flex items-center gap-3 p-3 rounded-xl border ${
-                        isCorrect
-                          ? 'bg-emerald-50/80 border-emerald-300 ring-1 ring-emerald-400/40'
-                          : 'bg-white border-slate-200'
-                      }`}
-                    >
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {(['A', 'B', 'C', 'D'] as const).map((optKey) => {
+                    const optVal = question.options ? (question.options as any)[optKey.toLowerCase()] : '';
+                    const isCorrect = (question.correctAnswer?.toUpperCase() as any) === optKey;
+
+                    const teluguOptionLabels: Record<string, string> = {
+                      A: 'ఎ',
+                      B: 'బి',
+                      C: 'సి',
+                      D: 'డి',
+                    };
+
+                    return (
                       <div
-                        className={`w-7 h-7 rounded-lg text-xs font-mono font-bold flex items-center justify-center shrink-0 ${
+                        key={optKey}
+                        className={`p-3.5 rounded-xl border transition-all duration-150 flex flex-col justify-between ${
                           isCorrect
-                            ? 'bg-emerald-600 text-white'
-                            : 'bg-slate-100 text-slate-600'
+                            ? 'bg-emerald-50/90 border-emerald-300 ring-2 ring-emerald-400/30 shadow-xs'
+                            : 'bg-white border-slate-200 hover:border-slate-300'
                         }`}
                       >
-                        {optKey}
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                          <div className="flex items-center gap-1.5">
+                            <span
+                              className={`w-6 h-6 rounded-md text-xs font-mono font-bold flex items-center justify-center shrink-0 ${
+                                isCorrect
+                                  ? 'bg-emerald-600 text-white'
+                                  : 'bg-slate-100 text-slate-700'
+                              }`}
+                            >
+                              {optKey}
+                            </span>
+                            <span className="text-xs font-telugu font-semibold text-slate-500">
+                              ({teluguOptionLabels[optKey]})
+                            </span>
+                          </div>
+
+                          {isCorrect && (
+                            <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded-md flex items-center gap-1">
+                              <Check className="w-3 h-3 text-emerald-700" />
+                              ✓ Correct Answer (సరైన సమాధానం)
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="font-telugu text-sm font-medium text-slate-900 leading-snug">
+                          {optVal || <span className="text-rose-500 italic">Missing option value</span>}
+                        </div>
                       </div>
-                      <div className="flex-1 text-xs font-medium text-slate-900">
-                        {optVal || <span className="text-rose-500 italic">Missing option value</span>}
-                      </div>
-                      {isCorrect && (
-                        <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md flex items-center gap-1">
-                          <Check className="w-3 h-3 text-emerald-700" />
-                          Correct Answer
-                        </span>
-                      )}
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
 
-              {/* Explanation */}
-              <div className="mb-4">
+              {/* Pedagogical Solution Breakdown & Speed Trick */}
+              <div>
                 <span className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
-                  Pedagogical Solution Breakdown
+                  Burra Speed Trick & Pedagogical Proof
                 </span>
-                <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 leading-relaxed">
-                  {question.explanation || (
+                <div className="p-4 bg-slate-50/80 border border-slate-200/80 rounded-xl font-telugu text-xs sm:text-sm text-slate-800 leading-relaxed space-y-2">
+                  {question.explanation ? (
+                    <p>{question.explanation}</p>
+                  ) : (
                     <span className="text-rose-500 italic">No explanation provided.</span>
                   )}
                 </div>
@@ -541,109 +556,33 @@ export const QuestionVerifyApprovePage: React.FC = () => {
             </Card>
           </div>
 
-          {/* RIGHT 5 COLS: VERIFICATION ENGINE & APPROVAL GATE */}
-          <div className="lg:col-span-5 space-y-5">
-            {/* VERIFICATION RESULTS CARD */}
-            <Card variant="default" padding="lg">
-              <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
-                <div className="flex items-center gap-2 text-slate-900">
-                  <ShieldCheck className="w-4 h-4 text-indigo-600" />
-                  <h3 className="text-sm font-bold">Verification Engine Results</h3>
-                </div>
-                {isValidating ? (
-                  <Badge variant="neutral" size="sm">
-                    <RefreshCw className="w-3 h-3 animate-spin mr-1" />
-                    Auditing...
-                  </Badge>
-                ) : (
-                  <Badge
-                    variant={
-                      validationResult?.status === QuestionValidationStatus.VALID
-                        ? 'approved'
-                        : 'draft'
-                    }
-                    size="sm"
-                  >
-                    {validationResult?.status || 'AUDITED'}
-                  </Badge>
-                )}
-              </div>
-
-              {/* Confidence Score & Quality checks */}
-              <div className="space-y-2.5 mb-4">
-                <div className="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl">
-                  <span className="text-xs text-slate-600">Mathematical Confidence</span>
-                  <span className="text-xs font-mono font-bold text-emerald-700">
-                    {validationResult?.confidenceScore
-                      ? `${Math.round(validationResult.confidenceScore * 100)}%`
-                      : '98%'}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl">
-                  <span className="text-xs text-slate-600">Single Unambiguous Answer</span>
-                  <span className="text-xs font-semibold text-emerald-700 flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Verified
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl">
-                  <span className="text-xs text-slate-600">Distractor Plausibility</span>
-                  <span className="text-xs font-semibold text-emerald-700 flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> High
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl">
-                  <span className="text-xs text-slate-600">Arithmetic Proof Check</span>
-                  <span className="text-xs font-semibold text-emerald-700 flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Passed
-                  </span>
-                </div>
-              </div>
-
-              {/* Detailed checks if available */}
-              {validationResult?.checks && validationResult.checks.length > 0 && (
-                <div className="space-y-1.5 pt-2 border-t border-slate-100">
-                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
-                    Individual Rule Audits
-                  </span>
-                  {validationResult.checks.map((chk: ValidationCheckItem, idx: number) => (
-                    <div
-                      key={idx}
-                      className="flex items-start gap-2 text-[11px] text-slate-700 py-1"
-                    >
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
-                      <div>
-                        <span className="font-semibold">{chk.name}:</span> {chk.message || 'Passed'}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Card>
-
-            {/* EDITORIAL APPROVAL GATE */}
-            <Card variant="elevated" padding="lg">
-              <div className="pb-3 mb-3 border-b border-indigo-100">
-                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+          {/* ========================================================
+              RIGHT PANE (lg:col-span-5): EDITORIAL APPROVAL & ENGINE VITALS
+              ======================================================== */}
+          <div className="lg:col-span-5 space-y-5 lg:sticky lg:top-6">
+            {/* 1. TOP CARD: EDITORIAL APPROVAL GATE (PRIMARY ACTION STATION) */}
+            <Card
+              variant="elevated"
+              padding="lg"
+              className="rounded-2xl border-indigo-100 shadow-md bg-white relative overflow-hidden"
+            >
+              <div className="pb-3.5 mb-4 border-b border-indigo-100/80 flex items-center justify-between">
+                <div className="flex items-center gap-2">
                   <FileCheck className="w-4 h-4 text-indigo-600" />
-                  Editorial Approval Gate
-                </h3>
-                <p className="text-xs text-slate-600 mt-1">
-                  Approving advances this question into the official production pool for YouTube Shorts scripting and recording.
-                </p>
+                  <h3 className="text-sm font-bold text-slate-900">Editorial Approval Gate</h3>
+                </div>
+                <Badge
+                  variant={isApproved ? 'approved' : 'draft'}
+                  size="sm"
+                  className="font-bold text-[11px]"
+                >
+                  {isApproved ? 'APPROVED' : 'PENDING REVIEW'}
+                </Badge>
               </div>
 
               {isApproved && targetVideoId ? (
                 <div className="space-y-4 animate-in fade-in duration-200">
-                  {/* Celebratory Green Badge */}
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold tracking-wide bg-emerald-100 text-emerald-800 border border-emerald-300">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>✓ QUESTION APPROVED & QUEUED FOR VIDEO</span>
-                  </div>
-
-                  <div className="p-3.5 bg-emerald-50/80 border border-emerald-200 rounded-xl space-y-2 text-xs text-emerald-950">
+                  <div className="p-3.5 bg-emerald-50/90 border border-emerald-200 rounded-xl space-y-2 text-xs text-emerald-950">
                     <div className="flex items-center justify-between">
                       <span className="font-semibold text-emerald-900">Linked Video Record:</span>
                       <span className="font-mono font-bold text-indigo-700 bg-white px-2.5 py-0.5 rounded-md border border-emerald-200 shadow-2xs">
@@ -655,31 +594,24 @@ export const QuestionVerifyApprovePage: React.FC = () => {
                     </p>
                   </div>
 
-                  {/* Production Journey Progress Bar */}
-                  <div className="pt-1">
-                    <ProductionJourneyBar showDetails={false} />
-                  </div>
+                  {/* ONE Primary Large Action Button */}
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    onClick={() => navigate(`/videos/${targetVideoId}/create-script`)}
+                    icon={ArrowRight}
+                    className="w-full justify-center bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-bold py-3.5 shadow-md hover:shadow-lg transition-all text-sm group"
+                  >
+                    <span>Proceed to Step 03: Audience Script Studio →</span>
+                  </Button>
 
-                  {/* ONE large, prominent primary action button */}
-                  <div className="pt-2">
-                    <Button
-                      variant="primary"
-                      size="lg"
-                      onClick={() => navigate(`/videos/${targetVideoId}/create-script`)}
-                      icon={ArrowRight}
-                      className="w-full justify-center bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-bold py-3.5 shadow-md hover:shadow-lg transition-all text-sm group"
-                    >
-                      <span>Create Audience Script</span>
-                    </Button>
-                  </div>
-
-                  <div className="pt-2 flex items-center justify-between text-xs text-slate-500">
+                  <div className="pt-2 flex items-center justify-between text-xs text-slate-500 border-t border-slate-100">
                     <Link
                       to="/studio"
                       className="inline-flex items-center gap-1 text-slate-600 hover:text-indigo-600 font-medium transition-colors"
                     >
                       <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
-                      <span>Create Next Question</span>
+                      <span>+ Create Next Question</span>
                     </Link>
                     <Link
                       to={`/videos/${targetVideoId}`}
@@ -693,7 +625,7 @@ export const QuestionVerifyApprovePage: React.FC = () => {
                 <div className="space-y-4">
                   <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2 text-xs font-semibold text-emerald-900">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>This question is approved. Click below to connect directly into Video Production.</span>
+                    <span>This question is approved. Connect to Video Production to proceed.</span>
                   </div>
 
                   <Button
@@ -708,15 +640,19 @@ export const QuestionVerifyApprovePage: React.FC = () => {
                   </Button>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
+                <div className="space-y-3.5">
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    Approving locks the mathematical proof and automatically queues this question into the YouTube Shorts production pipeline.
+                  </p>
+
+                  <div className="flex items-center gap-2.5">
                     <Button
                       variant="primary"
                       size="md"
                       onClick={handleApprove}
                       disabled={actionInProgress}
                       icon={Check}
-                      className="flex-1 justify-center bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                      className="flex-1 justify-center bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 shadow-sm"
                     >
                       {actionInProgress ? 'Approving & Queuing...' : 'Approve & Mark Ready'}
                     </Button>
@@ -727,7 +663,7 @@ export const QuestionVerifyApprovePage: React.FC = () => {
                       onClick={() => setShowRejectModal(true)}
                       disabled={actionInProgress}
                       icon={X}
-                      className="text-rose-600 hover:bg-rose-50 border-rose-200"
+                      className="text-rose-600 hover:bg-rose-50 border-rose-200 py-2.5"
                     >
                       Request Revision
                     </Button>
@@ -735,10 +671,109 @@ export const QuestionVerifyApprovePage: React.FC = () => {
 
                   <Link
                     to={`/questions/${encodeURIComponent(activeQuestionId)}/improve`}
-                    className="block text-center text-xs font-semibold text-indigo-600 hover:underline pt-1"
+                    className="block text-center text-xs font-medium text-slate-500 hover:text-indigo-600 hover:underline pt-1"
                   >
-                    ← Need to modify formulas or options? Edit Question
+                    ← Need to adjust formulas or options? Edit in Studio
                   </Link>
+                </div>
+              )}
+            </Card>
+
+            {/* 2. BOTTOM CARD: VERIFICATION ENGINE HEALTH & ACCORDION RULE AUDITS */}
+            <Card variant="default" padding="lg" className="rounded-2xl border-slate-200/80 shadow-xs">
+              <div className="flex items-center justify-between pb-3 mb-3.5 border-b border-slate-100">
+                <div className="flex items-center gap-2 text-slate-900">
+                  <ShieldCheck className="w-4 h-4 text-indigo-600" />
+                  <h3 className="text-sm font-bold">Verification Engine Health</h3>
+                </div>
+                {isValidating ? (
+                  <Badge variant="neutral" size="sm">
+                    <RefreshCw className="w-3 h-3 animate-spin mr-1" />
+                    Auditing...
+                  </Badge>
+                ) : (
+                  <Badge
+                    variant={
+                      validationResult?.status === QuestionValidationStatus.VALID
+                        ? 'approved'
+                        : 'draft'
+                    }
+                    size="sm"
+                    className="font-bold text-[11px]"
+                  >
+                    {validationResult?.status || 'AUDITED'}
+                  </Badge>
+                )}
+              </div>
+
+              {/* 4-Item Compact Metric Bento */}
+              <div className="grid grid-cols-2 gap-2 mb-3.5">
+                <div className="p-2.5 bg-slate-50/80 rounded-xl border border-slate-100">
+                  <span className="text-[11px] text-slate-500 block">Confidence</span>
+                  <span className="text-xs font-mono font-bold text-emerald-700">
+                    {validationResult?.confidenceScore
+                      ? `${Math.round(validationResult.confidenceScore * 100)}%`
+                      : '98%'}
+                  </span>
+                </div>
+
+                <div className="p-2.5 bg-slate-50/80 rounded-xl border border-slate-100">
+                  <span className="text-[11px] text-slate-500 block">Unambiguous</span>
+                  <span className="text-xs font-semibold text-emerald-700 flex items-center gap-1 mt-0.5">
+                    <CheckCircle2 className="w-3 h-3" /> Verified
+                  </span>
+                </div>
+
+                <div className="p-2.5 bg-slate-50/80 rounded-xl border border-slate-100">
+                  <span className="text-[11px] text-slate-500 block">Distractors</span>
+                  <span className="text-xs font-semibold text-emerald-700 flex items-center gap-1 mt-0.5">
+                    <CheckCircle2 className="w-3 h-3" /> High Quality
+                  </span>
+                </div>
+
+                <div className="p-2.5 bg-slate-50/80 rounded-xl border border-slate-100">
+                  <span className="text-[11px] text-slate-500 block">Math Proof</span>
+                  <span className="text-xs font-semibold text-emerald-700 flex items-center gap-1 mt-0.5">
+                    <CheckCircle2 className="w-3 h-3" /> Passed
+                  </span>
+                </div>
+              </div>
+
+              {/* Collapsible Accordion for Individual Rule Audits */}
+              {validationResult?.checks && validationResult.checks.length > 0 && (
+                <div className="pt-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setShowAllRuleAudits((prev) => !prev)}
+                    className="w-full flex items-center justify-between py-1.5 text-xs font-semibold text-slate-700 hover:text-indigo-600 transition-colors"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>{validationResult.checks.length} Automated Rule Audits Passed</span>
+                    </span>
+                    {showAllRuleAudits ? (
+                      <ChevronUp className="w-4 h-4 text-slate-400" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-slate-400" />
+                    )}
+                  </button>
+
+                  {showAllRuleAudits && (
+                    <div className="space-y-1.5 mt-2 pt-2 border-t border-slate-100 max-h-60 overflow-y-auto pr-1 animate-in fade-in duration-150">
+                      {validationResult.checks.map((chk: ValidationCheckItem, idx: number) => (
+                        <div
+                          key={idx}
+                          className="flex items-start gap-2 text-[11px] text-slate-700 py-1 border-b border-slate-50 last:border-0"
+                        >
+                          <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0 mt-0.5" />
+                          <div>
+                            <span className="font-semibold text-slate-800">{chk.name}:</span>{' '}
+                            <span className="text-slate-600">{chk.message || 'Passed'}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </Card>
@@ -746,7 +781,7 @@ export const QuestionVerifyApprovePage: React.FC = () => {
         </div>
       )}
 
-      {/* Reject Modal */}
+      {/* Reject / Revision Modal */}
       {showRejectModal && (
         <Modal
           isOpen={showRejectModal}
@@ -755,7 +790,7 @@ export const QuestionVerifyApprovePage: React.FC = () => {
         >
           <div className="space-y-4">
             <p className="text-xs text-slate-600 leading-relaxed">
-              Specify what needs improvement (e.g., formula ambiguity, unrealistic context, distractor error). The author will see these notes when editing.
+              Specify what needs improvement (e.g., formula ambiguity, unrealistic context, distractor error). The author will see these notes in Studio.
             </p>
             <textarea
               value={rejectReason}
