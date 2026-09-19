@@ -31,7 +31,7 @@ import {
   ChevronDown,
   ChevronUp,
 } from 'lucide-react';
-import { Video, Script, VideoProductionStatus, AssignmentTaskType } from '../../types';
+import { Video, Script, VideoProductionStatus, AssignmentTaskType, MediaAsset } from '../../types';
 import { apiClient } from '../../lib/api-client';
 import { Button } from '../common/Button';
 import { VideoStatusBadge } from '../common/StatusBadge';
@@ -76,6 +76,18 @@ export const RecordingWorkspace: React.FC<RecordingWorkspaceProps> = ({
   const [driveUrlInput, setDriveUrlInput] = useState<string>('');
   const [isUploadingFile, setIsUploadingFile] = useState<boolean>(false);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [rawAssets, setRawAssets] = useState<MediaAsset[]>([]);
+
+  const fetchHistory = async () => {
+    try {
+      const history = await apiClient.getVideoProductionHistory(videoId);
+      if (history.rawAssets) {
+        setRawAssets(history.rawAssets);
+      }
+    } catch (err) {
+      console.warn('Failed to fetch raw assets history:', err);
+    }
+  };
 
   // Reviewer Math Proof Reference State
   const [questionData, setQuestionData] = useState<any | null>(null);
@@ -143,6 +155,7 @@ export const RecordingWorkspace: React.FC<RecordingWorkspaceProps> = ({
 
   useEffect(() => {
     fetchScript();
+    fetchHistory();
     setPresenterName(video.assignedHost || '');
     setTakeNotes(video.notes || '');
 
@@ -195,6 +208,7 @@ export const RecordingWorkspace: React.FC<RecordingWorkspaceProps> = ({
       if (fileInput) {
         fileInput.value = '';
       }
+      await fetchHistory();
       if (onStatusChange) {
         onStatusChange();
       }
@@ -648,6 +662,33 @@ export const RecordingWorkspace: React.FC<RecordingWorkspaceProps> = ({
                   </p>
                 </div>
               ) : null}
+
+              {/* Ingested Raw Assets List */}
+              {rawAssets.length > 0 && (
+                <div className="space-y-1.5 pt-1">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                    Ingested Takes ({rawAssets.length})
+                  </span>
+                  <div className="space-y-1 max-h-36 overflow-y-auto pr-1">
+                    {rawAssets.map((asset, idx) => (
+                      <div
+                        key={asset.id || idx}
+                        className="p-2 rounded-lg bg-slate-50 border border-slate-200 text-[11px] font-mono flex items-center justify-between gap-2"
+                      >
+                        <div className="truncate">
+                          <span className="font-bold text-indigo-700">Take #{asset.version || idx + 1}:</span>{' '}
+                          <span className="text-slate-800">{asset.fileName || `raw_take_${idx + 1}.mp4`}</span>
+                        </div>
+                        {asset.fileSize && (
+                          <span className="text-[10px] text-slate-500 shrink-0">
+                            {(asset.fileSize / (1024 * 1024)).toFixed(1)} MB
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* File Upload Button */}
               <div className="space-y-1">

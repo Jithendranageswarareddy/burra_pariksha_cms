@@ -512,7 +512,7 @@ export const ProductionJourneyProvider: React.FC<{ children: React.ReactNode }> 
         case 1: // 01 Question
           isCompleted = isQCompleted;
           isBlocked = false;
-          route = questionId ? `/questions/${questionId}` : '/questions';
+          route = questionId ? `/studio?id=${questionId}` : '/studio';
           break;
 
         case 2: // 02 Verification
@@ -526,7 +526,7 @@ export const ProductionJourneyProvider: React.FC<{ children: React.ReactNode }> 
           isCompleted = isScriptCompleted;
           isBlocked = !question || question.status !== QuestionStatus.APPROVED;
           blockerReason = isBlocked ? 'Question must be approved before creating audience script.' : undefined;
-          route = videoId ? `/videos/${videoId}?tab=script` : (questionId ? `/questions/${questionId}` : '/queue');
+          route = videoId ? `/videos/${videoId}?tab=script` : (questionId ? `/studio?id=${questionId}` : '/studio');
           tab = 'script';
           break;
 

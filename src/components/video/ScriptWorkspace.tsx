@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   FileText,
@@ -22,10 +22,19 @@ import {
   ExternalLink,
   ChevronDown,
   ChevronUp,
+  Zap,
+  GraduationCap,
+  Pin,
+  ToggleLeft,
+  ToggleRight,
+  Wand2,
 } from 'lucide-react';
 import { Script, ScriptVersion, VideoProductionStatus, Question } from '../../types';
 import { apiClient } from '../../lib/api-client';
-import { Button } from '../common/Button';
+import { Button } from '../../design-system/components/Button';
+import { Badge } from '../../design-system/components/Badge';
+import { Card } from '../../design-system/components/Card';
+import { Alert } from '../../design-system/components/Alert';
 
 export interface ScriptWorkspaceProps {
   videoId: string;
@@ -41,20 +50,30 @@ export const ScriptWorkspace: React.FC<ScriptWorkspaceProps> = ({
   onNavigateTab,
 }) => {
   const navigate = useNavigate();
+
+  // Core Data
   const [script, setScript] = useState<Script | null>(null);
   const [sourceQuestion, setSourceQuestion] = useState<Question | null>(null);
   const [versions, setVersions] = useState<ScriptVersion[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isSaving, setIsSaving] = useState<boolean>(false);
-  const [isGenerating, setIsGenerating] = useState<boolean>(false);
+  const [isGeneratingAi, setIsGeneratingAi] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [copiedTeleprompter, setCopiedTeleprompter] = useState<boolean>(false);
-  const [copiedTelugu, setCopiedTelugu] = useState<boolean>(false);
-  const [showMathProofDrawer, setShowMathProofDrawer] = useState<boolean>(false);
-  const [isJustMarkedReady, setIsJustMarkedReady] = useState<boolean>(false);
 
-  // Form Fields
+  // Format Switcher State
+  const [scriptFormat, setScriptFormat] = useState<'VIRAL_CHALLENGE' | 'SOLUTION_BREAKDOWN'>('VIRAL_CHALLENGE');
+
+  // Format 1: Viral Challenge Fields
+  const [viralHook, setViralHook] = useState<string>('');
+  const [viralQuestion, setViralQuestion] = useState<string>('');
+  const [viralOptions, setViralOptions] = useState<string>('');
+  const [includeOptionsInVideo, setIncludeOptionsInVideo] = useState<boolean>(true);
+  const [viralCta, setViralCta] = useState<string>('');
+  const [pinnedCommentText, setPinnedCommentText] = useState<string>('');
+  const [pinnedCopied, setPinnedCopied] = useState<boolean>(false);
+
+  // Format 2: Full Solution Breakdown Fields
   const [hookText, setHookText] = useState<string>('');
   const [problemStatement, setProblemStatement] = useState<string>('');
   const [stepByStepSolution, setStepByStepSolution] = useState<string>('');
@@ -62,10 +81,48 @@ export const ScriptWorkspace: React.FC<ScriptWorkspaceProps> = ({
   const [callToAction, setCallToAction] = useState<string>('');
   const [notes, setNotes] = useState<string>('');
 
+  // AI Prompter & Guidance Controls
+  const [showAiPrompter, setShowAiPrompter] = useState<boolean>(false);
+  const [tone, setTone] = useState<'ENERGETIC_EXAM_COACH' | 'CLEAR_CONCEPTUAL' | 'EXAM_TRICK_FOCUSED'>('ENERGETIC_EXAM_COACH');
+  const [targetDurationSeconds, setTargetDurationSeconds] = useState<number>(20);
+  const [customGuidance, setCustomGuidance] = useState<string>('');
+
   // Versioning state
   const [showVersionModal, setShowVersionModal] = useState<boolean>(false);
   const [changeSummary, setChangeSummary] = useState<string>('');
   const [selectedVersionForDiff, setSelectedVersionForDiff] = useState<ScriptVersion | null>(null);
+  const [copied, setCopied] = useState<boolean>(false);
+  const [showMathProofDrawer, setShowMathProofDrawer] = useState<boolean>(false);
+
+  const customPromptInputRef = useRef<HTMLInputElement>(null);
+
+  const autoResizeTextarea = (element: HTMLTextAreaElement | null) => {
+    if (!element) return;
+    element.style.height = 'auto';
+    element.style.height = `${element.scrollHeight}px`;
+  };
+
+  const generateOptionsTextFromQuestion = (q: any): string => {
+    if (!q) return '';
+    const opts = q.options || q.optionsTe;
+    if (opts && typeof opts === 'object') {
+      const a = opts.a || opts.A || '';
+      const b = opts.b || opts.B || '';
+      const c = opts.c || opts.C || '';
+      const d = opts.d || opts.D || '';
+      return `Option A: ${a}\nOption B: ${b}\nOption C: ${c}\nOption D: ${d}`;
+    }
+    return 'Option A: ...\nOption B: ...\nOption C: ...\nOption D: ...';
+  };
+
+  const generatePinnedCommentFromQuestion = (q: any): string => {
+    if (!q) return '📌 Correct Answer & Explanation:\nCheck back for official solution!';
+    const correctOpt = String(q.correctAnswer || q.correctOption || 'A').toUpperCase();
+    const explanation = q.explanationTe || q.explanation || '';
+    const proTip = q.shortcutTe || q.speedTrick || 'Check units digit for rapid zero-elimination!';
+
+    return `📌 [ Official Answer & Burra Trick ]\n✅ Correct Option: ${correctOpt}\n\n💡 Solution:\n${explanation}\n\n⚡ Burra Speed Shortcut:\n${proTip}`;
+  };
 
   const fetchScriptData = async () => {
     try {
@@ -99,930 +156,835 @@ export const ScriptWorkspace: React.FC<ScriptWorkspaceProps> = ({
         const vid = await apiClient.getVideoById(videoId);
         if (vid?.question) {
           setSourceQuestion(vid.question);
+          setViralQuestion((vid.question as any).statementTe || vid.question.questionText || '');
+          setViralOptions(generateOptionsTextFromQuestion(vid.question));
+          setPinnedCommentText(generatePinnedCommentFromQuestion(vid.question));
+
+          // Set initial viral defaults
+          setViralHook('ఈ క్వశ్చన్ ని 5 సెకన్లలో సాల్వ్ చేస్తే నువ్వు నిజంగా జీనియస్!');
+          setViralCta('మీ ఆన్సర్ ఏంటో వెంటనే కామెంట్ చేయండి! సరైన సమాధానం పిన్డ్ కామెంట్లో ఉంది.');
         } else if (vid?.questionId) {
           const q = await apiClient.getQuestionById(vid.questionId);
-          setSourceQuestion(q);
+          if (q) {
+            setSourceQuestion(q);
+            setViralQuestion((q as any).statementTe || q.questionText || '');
+            setViralOptions(generateOptionsTextFromQuestion(q));
+            setPinnedCommentText(generatePinnedCommentFromQuestion(q));
+            setViralHook('ఈ క్వశ్చన్ ని 5 సెకన్లలో సాల్వ్ చేస్తే నువ్వు నిజంగా జీనియస్!');
+            setViralCta('మీ ఆన్సర్ ఏంటో వెంటనే కామెంట్ చేయండి! సరైన సమాధానం పిన్డ్ కామెంట్లో ఉంది.');
+          }
         }
-      } catch (vErr) {
-        console.warn('Could not load source question for math proof:', vErr);
+      } catch (err) {
+        console.warn('Non-fatal: could not load source question for script:', err);
       }
     } catch (err: any) {
-      setError(err?.message || 'Failed to load script data');
+      setError(err?.message || 'Failed to load script workspace data');
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchScriptData();
+    if (videoId) {
+      fetchScriptData();
+    }
   }, [videoId]);
 
-  // Teleprompter / Pacing Calculations (Standard fast short-form pacing: ~140 wpm)
-  const combinedScriptText = `${hookText}\n\n${problemStatement}\n\n${stepByStepSolution}\n\n${speedTrickOrTakeaway}\n\n${callToAction}`;
-  const pureTeluguNarration = [hookText, problemStatement, stepByStepSolution, speedTrickOrTakeaway, callToAction]
-    .filter(Boolean)
-    .join('\n\n');
-  const totalWords = combinedScriptText
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean).length;
-  const estimatedSeconds = Math.round((totalWords / 140) * 60);
-
-  // Color-coded pacing: Green (<= 45s), Amber (46-55s), Red (> 55s warning)
-  const getPacingConfig = (seconds: number) => {
-    if (seconds <= 45) {
-      return {
-        badgeBg: 'bg-emerald-50 text-emerald-800 border-emerald-300',
-        textColor: 'text-emerald-700',
-        dotColor: 'bg-emerald-500',
-        label: 'Optimal (≤45s)',
-        status: 'OPTIMAL',
-        tip: 'Snappy & high retention for vertical Reels/Shorts',
-      };
+  const handleFormatChange = (fmt: 'VIRAL_CHALLENGE' | 'SOLUTION_BREAKDOWN') => {
+    setScriptFormat(fmt);
+    if (fmt === 'VIRAL_CHALLENGE') {
+      setTargetDurationSeconds(20);
+    } else {
+      setTargetDurationSeconds(45);
     }
-    if (seconds <= 55) {
-      return {
-        badgeBg: 'bg-amber-50 text-amber-800 border-amber-300',
-        textColor: 'text-amber-700',
-        dotColor: 'bg-amber-500',
-        label: 'Acceptable (46–55s)',
-        status: 'ACCEPTABLE',
-        tip: 'Pacing is fine; trim unnecessary words for maximum retention',
-      };
-    }
-    return {
-      badgeBg: 'bg-rose-50 text-rose-800 border-rose-300',
-      textColor: 'text-rose-700',
-      dotColor: 'bg-rose-500',
-      label: 'Pacing Warning (>55s)',
-      status: 'WARNING',
-      tip: 'Over 55s! Risk of viewer drop-off or exceeding 60s hard ceiling',
-    };
   };
 
-  const pacing = getPacingConfig(estimatedSeconds);
+  const handleSelectPreset = (presetText: string) => {
+    setCustomGuidance(presetText);
+    if (customPromptInputRef.current) {
+      customPromptInputRef.current.focus();
+    }
+  };
 
-  const handleSave = async (createNewVersion: boolean) => {
+  const handleGenerateScriptWithAi = async () => {
+    try {
+      setIsGeneratingAi(true);
+      setError(null);
+      const res = await apiClient.generateTeluguScript(videoId);
+      if (res) {
+        const generated = res.script || res;
+        if (scriptFormat === 'VIRAL_CHALLENGE') {
+          setViralHook(generated.hookText || 'ఈ క్వశ్చన్ ని 5 సెకన్లలో సాల్వ్ చేస్తే నువ్వు నిజంగా జీనియస్!');
+          setViralQuestion(generated.problemStatement || (sourceQuestion as any)?.statementTe || sourceQuestion?.questionText || '');
+          setViralCta(generated.callToAction || 'మీ ఆన్సర్ ఏంటో వెంటనే కామెంట్ చేయండి!');
+        } else {
+          setHookText(generated.hookText || '');
+          setProblemStatement(generated.problemStatement || '');
+          setStepByStepSolution(generated.stepByStepSolution || '');
+          setSpeedTrickOrTakeaway(generated.speedTrickOrTakeaway || '');
+          setCallToAction(generated.callToAction || '');
+          setNotes(generated.notes || '');
+        }
+        setSuccessMessage('AI script auto-drafted successfully!');
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Failed to generate AI script draft');
+    } finally {
+      setIsGeneratingAi(false);
+    }
+  };
+
+  const handleSaveDraft = async () => {
     try {
       setIsSaving(true);
       setError(null);
-      setSuccessMessage(null);
 
       const payload = {
-        hookText,
-        problemStatement,
-        stepByStepSolution,
-        speedTrickOrTakeaway,
-        callToAction,
+        scriptFormat,
+        hookText: scriptFormat === 'VIRAL_CHALLENGE' ? viralHook : hookText,
+        problemStatement: scriptFormat === 'VIRAL_CHALLENGE' ? viralQuestion : problemStatement,
+        stepByStepSolution: scriptFormat === 'VIRAL_CHALLENGE' ? (includeOptionsInVideo ? viralOptions : '[Options Skipped]') : stepByStepSolution,
+        speedTrickOrTakeaway: scriptFormat === 'VIRAL_CHALLENGE' ? pinnedCommentText : speedTrickOrTakeaway,
+        callToAction: scriptFormat === 'VIRAL_CHALLENGE' ? viralCta : callToAction,
         notes,
-        createNewVersion,
-        changeSummary: createNewVersion ? changeSummary || 'Script content revision' : undefined,
       };
 
       const res = await apiClient.saveScript(videoId, payload);
-      setScript(res.script);
-
       if (res.script) {
-        const vers = await apiClient.getScriptVersions(res.script.id);
-        setVersions(vers);
+        setScript(res.script);
+      }
+      setSuccessMessage('Script draft saved successfully!');
+      if (onStatusChange) onStatusChange();
+    } catch (err: any) {
+      setError(err?.message || 'Failed to save script draft');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSaveAndProceed = async () => {
+    try {
+      await handleSaveDraft();
+      // Auto-advance script ready if needed or proceed directly
+      if (videoStatus === VideoProductionStatus.SCRIPT_REQUIRED || videoStatus === VideoProductionStatus.QUEUED) {
+        try {
+          await apiClient.markScriptReady(videoId, 'Script finalized via Audience Engagement Script Engine');
+        } catch (e) {
+          console.warn('Status transition notice:', e);
+        }
       }
 
-      setSuccessMessage(
-        createNewVersion
-          ? `Successfully saved as new Version ${res.script.currentVersion}!`
-          : 'Script draft saved successfully in-place.'
-      );
-      setShowVersionModal(false);
-      setChangeSummary('');
-      setTimeout(() => setSuccessMessage(null), 4000);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to save script');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleRevert = async (versionNumber: number) => {
-    if (!script) return;
-    if (!window.confirm(`Are you sure you want to revert active script content to Version ${versionNumber}?`)) {
-      return;
-    }
-
-    try {
-      setIsSaving(true);
-      setError(null);
-      const reverted = await apiClient.revertScript(script.id, versionNumber);
-      setScript(reverted);
-      setHookText(reverted.hookText || '');
-      setProblemStatement(reverted.problemStatement || '');
-      setStepByStepSolution(reverted.stepByStepSolution || '');
-      setSpeedTrickOrTakeaway(reverted.speedTrickOrTakeaway || '');
-      setCallToAction(reverted.callToAction || '');
-      setNotes(reverted.notes || '');
-
-      setSuccessMessage(`Active script reverted to content from Version ${versionNumber}.`);
-      setSelectedVersionForDiff(null);
-      setTimeout(() => setSuccessMessage(null), 4000);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to rollback version');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleMarkReady = async () => {
-    try {
-      setIsSaving(true);
-      setError(null);
-      await apiClient.markScriptReady(videoId, 'Script reviewed, timed, and marked ready for production');
-      setIsJustMarkedReady(true);
-      setSuccessMessage('Script locked & marked READY! Moving to Stage 04: Teleprompter & Filming.');
-      if (onStatusChange) onStatusChange();
-      setTimeout(() => setSuccessMessage(null), 5000);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to mark script ready');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleProceedToRecording = () => {
-    if (onNavigateTab) {
-      onNavigateTab('recording');
-    } else {
-      navigate(`/videos/${encodeURIComponent(videoId)}?tab=recording`);
-    }
-  };
-
-  const handleLaunchFullscreenPrompter = () => {
-    if (onNavigateTab) {
-      onNavigateTab('recording');
-    } else {
-      navigate(`/videos/${encodeURIComponent(videoId)}?tab=recording&teleprompter=true`);
-    }
-  };
-
-  const handleGenerateTeluguAI = async () => {
-    try {
-      setIsGenerating(true);
-      setError(null);
-      const res = await apiClient.generateTeluguScript(videoId);
-      if (res.scriptPayload) {
-        setHookText(res.scriptPayload.hookText || '');
-        setProblemStatement(res.scriptPayload.problemStatement || '');
-        setStepByStepSolution(res.scriptPayload.stepByStepSolution || '');
-        setSpeedTrickOrTakeaway(res.scriptPayload.speedTrickOrTakeaway || '');
-        setCallToAction(res.scriptPayload.callToAction || '');
-        setNotes(res.scriptPayload.notes || '');
-        setSuccessMessage('AI Telugu teleprompter narration generated! Review and save to persist.');
-        setTimeout(() => setSuccessMessage(null), 5000);
+      if (onNavigateTab) {
+        onNavigateTab('recording');
+      } else {
+        navigate(`/videos/${encodeURIComponent(videoId)}?tab=recording`);
       }
     } catch (err: any) {
-      setError(err?.message || 'Failed to generate Telugu script');
-    } finally {
-      setIsGenerating(false);
+      setError(err?.message || 'Error proceeding to Teleprompter stage');
     }
   };
 
-  const handleReturnToEditing = async () => {
-    try {
-      setIsSaving(true);
-      setError(null);
-      await apiClient.returnScriptToEditing(videoId, 'Script returned for revision');
-      setIsJustMarkedReady(false);
-      setSuccessMessage('Script returned to SCRIPT_REQUIRED for revision.');
-      if (onStatusChange) onStatusChange();
-      setTimeout(() => setSuccessMessage(null), 4000);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to return script');
-    } finally {
-      setIsSaving(false);
+  const handleCopyAll = () => {
+    const fullText = scriptFormat === 'VIRAL_CHALLENGE'
+      ? `⚡ [VIRAL CHALLENGE SCRIPT]\n1. HOOK: ${viralHook}\n2. QUESTION: ${viralQuestion}\n3. OPTIONS: ${includeOptionsInVideo ? viralOptions : '[Skipped]'}\n4. CTA: ${viralCta}\n\n📌 PINNED COMMENT:\n${pinnedCommentText}`
+      : `🎓 [FULL SOLUTION SCRIPT]\n1. HOOK: ${hookText}\n2. PROBLEM: ${problemStatement}\n3. SOLUTION: ${stepByStepSolution}\n4. TRICK: ${speedTrickOrTakeaway}\n5. CTA: ${callToAction}`;
+
+    navigator.clipboard.writeText(fullText);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleCopyPinnedComment = () => {
+    navigator.clipboard.writeText(pinnedCommentText);
+    setPinnedCopied(true);
+    setTimeout(() => setPinnedCopied(false), 2000);
+  };
+
+  // Word count & duration calculation
+  const getFullTextToCount = () => {
+    if (scriptFormat === 'VIRAL_CHALLENGE') {
+      return `${viralHook} ${viralQuestion} ${includeOptionsInVideo ? viralOptions : ''} ${viralCta}`;
     }
+    return `${hookText} ${problemStatement} ${stepByStepSolution} ${speedTrickOrTakeaway} ${callToAction}`;
   };
 
-  const handleCopyTeleprompter = () => {
-    const formatted = `=== BURRA PARIKSHA AUDIENCE TELEPROMPTER SCRIPT ===
-Target Duration: ~${estimatedSeconds}s (${totalWords} words @ 140 wpm)
-
-[1. HOOK & ATTENTION GRABBER (0–5s)]
-${hookText}
-
-[2. QUESTION & PROBLEM STATEMENT (5–15s)]
-${problemStatement}
-
-[3. SPOKEN SOLUTION & INTUITION (15–35s) • Conversational Explanation]
-${stepByStepSolution}
-
-[4. BURRA SPEED SHORTCUT / TAKEAWAY (35–45s) • High-Retention Exam Trick]
-${speedTrickOrTakeaway}
-
-[5. CALL TO ACTION (45–50s)]
-${callToAction}
-${notes ? `\n[PRODUCTION / PROMPTER NOTES]\n${notes}\n` : ''}`;
-    navigator.clipboard.writeText(formatted);
-    setCopiedTeleprompter(true);
-    setTimeout(() => setCopiedTeleprompter(false), 2000);
-  };
-
-  const handleCopyTeluguScript = () => {
-    navigator.clipboard.writeText(pureTeluguNarration);
-    setCopiedTelugu(true);
-    setTimeout(() => setCopiedTelugu(false), 2000);
-  };
-
-  const getOptionText = (q: Question | null, key: 'a' | 'b' | 'c' | 'd') => {
-    if (!q) return '';
-    if (Array.isArray(q.options)) {
-      const found = q.options.find(
-        (o: any) => o.id?.toLowerCase() === key || o.key?.toLowerCase() === key
-      );
-      return found ? (found.textTe || found.text || found.label || '') : '';
-    }
-    if (q.options && typeof q.options === 'object') {
-      return (q.options as any)[key] || (q.options as any)[key.toUpperCase()] || '';
-    }
-    const keyUpper = key.toUpperCase() as 'A' | 'B' | 'C' | 'D';
-    return (q as any)[`option${keyUpper}`] || '';
-  };
-
-  if (isLoading) {
-    return (
-      <div className="bg-white rounded-xl border border-slate-200 p-12 text-center text-slate-500">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-3" />
-        <p className="text-xs">Loading script workspace & version history...</p>
-      </div>
-    );
-  }
+  const totalWords = getFullTextToCount().trim() ? getFullTextToCount().trim().split(/\s+/).length : 0;
+  const estimatedSeconds = Math.round(totalWords / 2.5); // ~150 WPM = 2.5 words per sec
 
   return (
-    <div className="space-y-6">
-      {/* Alert Notifications */}
-      {error && (
-        <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-xs flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-            <span>{error}</span>
-          </div>
-          <button onClick={() => setError(null)} className="text-rose-500 hover:text-rose-700 font-bold">×</button>
+    <div className="space-y-4 max-w-7xl mx-auto pb-10">
+      {/* 1. COMPACT 36PX SEGMENTED FORMAT SWITCHER */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-200/80">
+          <button
+            type="button"
+            onClick={() => handleFormatChange('VIRAL_CHALLENGE')}
+            className={`h-8 px-3 text-xs flex items-center gap-1.5 rounded-lg transition-all cursor-pointer font-medium ${
+              scriptFormat === 'VIRAL_CHALLENGE'
+                ? 'bg-white shadow-xs text-indigo-700 font-bold'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Zap className="w-3.5 h-3.5 text-amber-500 fill-amber-400" />
+            <span>⚡ Viral Challenge (15–25s) [Default]</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleFormatChange('SOLUTION_BREAKDOWN')}
+            className={`h-8 px-3 text-xs flex items-center gap-1.5 rounded-lg transition-all cursor-pointer font-medium ${
+              scriptFormat === 'SOLUTION_BREAKDOWN'
+                ? 'bg-white shadow-xs text-indigo-700 font-bold'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <GraduationCap className="w-3.5 h-3.5 text-indigo-600" />
+            <span>🎓 Full Solution (45–60s)</span>
+          </button>
         </div>
+
+        {/* Quick Version History Modal Button */}
+        {versions.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setShowVersionModal(true)}
+            className="text-xs text-slate-600 hover:text-indigo-600 flex items-center gap-1.5 font-medium px-2.5 py-1 rounded-lg border border-slate-200 bg-white shadow-2xs"
+          >
+            <History className="w-3.5 h-3.5 text-slate-500" />
+            <span>Version History ({versions.length})</span>
+          </button>
+        )}
+      </div>
+
+      {error && (
+        <Alert variant="error" title="Script Engine Notice" onDismiss={() => setError(null)}>
+          {error}
+        </Alert>
       )}
 
       {successMessage && (
-        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-            <span>{successMessage}</span>
-          </div>
-          <button onClick={() => setSuccessMessage(null)} className="text-emerald-500 hover:text-emerald-700 font-bold">×</button>
-        </div>
+        <Alert variant="success" title="Success" onDismiss={() => setSuccessMessage(null)}>
+          {successMessage}
+        </Alert>
       )}
 
-      {/* Celebratory Ready State & Bridge to Filming */}
-      {(videoStatus === VideoProductionStatus.SCRIPT_READY || isJustMarkedReady) && (
-        <div className="bg-emerald-50 border-2 border-emerald-300 rounded-xl p-4 sm:p-5 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-              <CheckCircle2 className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
-                  ✓ AUDIENCE SCRIPT READY & LOCKED
-                </span>
-                <span className="text-xs text-emerald-800 font-semibold font-mono">Stage 03 Complete</span>
-              </div>
-              <p className="text-xs text-emerald-950 mt-1 font-medium leading-relaxed max-w-xl">
-                Spoken Telugu teleprompter narration is reviewed, paced at ~{estimatedSeconds}s, and verified against the reviewer math proof. Ready for Stage 04 Teleprompter & Host Filming.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto shrink-0">
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={handleProceedToRecording}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2.5 flex items-center gap-2 shadow-xs"
-            >
-              <span>Open Teleprompter & Filming</span>
-              <ArrowRight className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleLaunchFullscreenPrompter}
-              className="text-xs bg-white text-indigo-700 border-indigo-200 hover:bg-indigo-50 flex items-center gap-1.5"
-            >
-              <Maximize2 className="w-3.5 h-3.5" />
-              <span>Launch Fullscreen Teleprompter</span>
-            </Button>
-          </div>
+      {isLoading ? (
+        <div className="p-8 text-center bg-white rounded-2xl border border-slate-200">
+          <Sparkles className="w-6 h-6 text-indigo-600 animate-spin mx-auto mb-2" />
+          <p className="text-xs text-slate-600 font-medium">Loading Audience Engagement Script Engine...</p>
         </div>
-      )}
-
-      {/* Reviewer Math Proof & Reference Drawer */}
-      {showMathProofDrawer && (
-        <div className="bg-slate-900 text-slate-100 rounded-xl border border-slate-700 p-5 shadow-xl space-y-4 animate-in fade-in duration-200">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center border border-indigo-500/30">
-                <BookOpen className="w-4 h-4" />
-              </div>
-              <div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+          {/* ========================================================
+              LEFT PANE (lg:col-span-7): COMPACT SCRIPT EDITOR + INLINE AI TOOLBAR
+              ======================================================== */}
+          <div className="lg:col-span-7 space-y-3">
+            <Card variant="default" padding="md" className="rounded-2xl border-slate-200/80 shadow-xs space-y-3">
+              {/* INLINE AI GENERATOR TOOLBAR + HEADER ACTIONS */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-slate-100">
                 <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-bold text-white">Reviewer Mathematical Proof & Reference</h3>
-                  {sourceQuestion?.id && (
-                    <span className="text-[11px] font-mono bg-slate-800 text-indigo-300 px-2 py-0.5 rounded border border-slate-700">
-                      ID: {sourceQuestion.id}
-                    </span>
-                  )}
+                  <div
+                    className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border ${
+                      scriptFormat === 'VIRAL_CHALLENGE'
+                        ? 'bg-amber-50 border-amber-200 text-amber-600'
+                        : 'bg-indigo-50 border-indigo-100 text-indigo-600'
+                    }`}
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-bold text-slate-900">
+                      {scriptFormat === 'VIRAL_CHALLENGE'
+                        ? 'Viral Challenge Draft (4-Part)'
+                        : '5-Part Deep Dive Draft'}
+                    </h3>
+                  </div>
                 </div>
-                <p className="text-[11px] text-slate-400">
-                  Authoritative mathematical truth, options, and step-by-step proof for script cross-checking
-                </p>
+
+                {/* Inline AI Controls & Action Buttons */}
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setShowAiPrompter(!showAiPrompter)}
+                    className={`text-[11px] font-medium px-2 py-1 rounded-lg border transition-all flex items-center gap-1 cursor-pointer ${
+                      showAiPrompter || customGuidance
+                        ? 'bg-amber-50 text-amber-900 border-amber-300 font-bold'
+                        : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    <Wand2 className="w-3 h-3 text-amber-600" />
+                    <span>Prompter &amp; Presets</span>
+                    <ChevronDown className={`w-3 h-3 transition-transform ${showAiPrompter ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  <select
+                    value={tone}
+                    onChange={(e: any) => setTone(e.target.value)}
+                    className="text-[11px] px-2 py-1 border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:outline-hidden"
+                  >
+                    <option value="ENERGETIC_EXAM_COACH">Energetic</option>
+                    <option value="CLEAR_CONCEPTUAL">Conceptual</option>
+                    <option value="EXAM_TRICK_FOCUSED">Shortcut</option>
+                  </select>
+
+                  <select
+                    value={targetDurationSeconds}
+                    onChange={(e) => setTargetDurationSeconds(Number(e.target.value))}
+                    className="text-[11px] px-2 py-1 border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:outline-hidden font-mono"
+                  >
+                    {scriptFormat === 'VIRAL_CHALLENGE' ? (
+                      <>
+                        <option value={15}>15s</option>
+                        <option value={20}>20s</option>
+                        <option value={25}>25s</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value={30}>30s</option>
+                        <option value={45}>45s</option>
+                        <option value={60}>60s</option>
+                      </>
+                    )}
+                  </select>
+
+                  <button
+                    type="button"
+                    disabled={isGeneratingAi}
+                    onClick={handleGenerateScriptWithAi}
+                    className={`py-1.5 px-3 text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg transition-all flex items-center gap-1 shadow-xs cursor-pointer ${
+                      isGeneratingAi ? 'opacity-70' : ''
+                    }`}
+                  >
+                    <Sparkles className="w-3 h-3" />
+                    <span>{isGeneratingAi ? 'Drafting...' : '✦ Auto-Draft'}</span>
+                  </button>
+
+                  <div className="h-4 w-px bg-slate-200 mx-0.5" />
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleCopyAll}
+                    icon={copied ? Check : Copy}
+                    className="text-[11px] py-1 px-2 h-7"
+                  >
+                    {copied ? 'Copied' : 'Copy'}
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    disabled={isSaving}
+                    onClick={handleSaveDraft}
+                    icon={Save}
+                    className="text-[11px] py-1 px-2.5 h-7 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold"
+                  >
+                    {isSaving ? 'Saving...' : 'Save'}
+                  </Button>
+                </div>
               </div>
-            </div>
-            <div className="flex items-center gap-2">
+
+              {/* COLLAPSIBLE AI PROMPTER & PRESETS RIBBON */}
+              {showAiPrompter && (
+                <div className="p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl space-y-2 mb-3 animate-in fade-in duration-150">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-slate-700 flex items-center gap-1">
+                      <Sparkles className="w-3 h-3 text-amber-500" />
+                      AI Guidance Presets ({scriptFormat === 'VIRAL_CHALLENGE' ? 'Curiosity Challenge' : 'Full Solution'})
+                    </span>
+                    {customGuidance && (
+                      <button
+                        type="button"
+                        onClick={() => setCustomGuidance('')}
+                        className="text-[10px] text-slate-400 hover:text-slate-600 underline cursor-pointer"
+                      >
+                        Clear guidance
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Quick-Click Recommendation Chips */}
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {scriptFormat === 'VIRAL_CHALLENGE' ? (
+                      <>
+                        {[
+                          { label: '🔥 99% Fail Challenge', text: 'Make the hook a 99% fail challenge to provoke viewers to prove themselves.' },
+                          { label: '⏱️ 5-Sec Speed Test', text: 'Challenge viewers to solve mentally in 5 seconds without pen and paper.' },
+                          { label: '🧠 Genius IQ Test', text: 'Pose this as a genius-level brain test.' },
+                          { label: '🛍️ Real-Life Scenario', text: 'Connect to a relatable everyday Telugu shopping/commute dilemma.' },
+                        ].map((preset) => (
+                          <button
+                            key={preset.label}
+                            type="button"
+                            onClick={() => handleSelectPreset(preset.text)}
+                            className={`text-[11px] px-2 py-0.5 rounded-lg border transition-all cursor-pointer font-medium ${
+                              customGuidance === preset.text
+                                ? 'bg-amber-100 text-amber-900 border-amber-300 font-bold shadow-2xs'
+                                : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                            }`}
+                          >
+                            {preset.label}
+                          </button>
+                        ))}
+                      </>
+                    ) : (
+                      <>
+                        {[
+                          { label: '⚡ Burra Speed Trick Focus', text: 'Emphasize the rapid zero-elimination mental shortcut on camera.' },
+                          { label: '📚 Beginner Friendly', text: 'Explain step-by-step from first principles.' },
+                          { label: '🎯 Distractor Trap Warning', text: 'Explain why Option A is a trap distractor.' },
+                        ].map((preset) => (
+                          <button
+                            key={preset.label}
+                            type="button"
+                            onClick={() => handleSelectPreset(preset.text)}
+                            className={`text-[11px] px-2 py-0.5 rounded-lg border transition-all cursor-pointer font-medium ${
+                              customGuidance === preset.text
+                                ? 'bg-indigo-100 text-indigo-900 border-indigo-300 font-bold shadow-2xs'
+                                : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                            }`}
+                          >
+                            {preset.label}
+                          </button>
+                        ))}
+                      </>
+                    )}
+                  </div>
+
+                  {/* Custom Prompt Input */}
+                  <div className="pt-0.5 flex items-center gap-2">
+                    <input
+                      ref={customPromptInputRef}
+                      type="text"
+                      value={customGuidance}
+                      onChange={(e) => setCustomGuidance(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleGenerateScriptWithAi()}
+                      placeholder="Custom AI prompt: e.g. Make it energetic and challenge students preparing for APPSC..."
+                      className="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg bg-white text-slate-800 focus:outline-hidden focus:border-indigo-500"
+                    />
+                    <button
+                      type="button"
+                      disabled={isGeneratingAi}
+                      onClick={handleGenerateScriptWithAi}
+                      className="px-3 py-1.5 text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg transition-all flex items-center gap-1 shrink-0 shadow-xs cursor-pointer"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>{isGeneratingAi ? 'Drafting...' : '✦ Generate Script'}</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* SCRIPT EDITOR FIELDS */}
+              {scriptFormat === 'VIRAL_CHALLENGE' ? (
+                /* MODE 1: VIRAL CHALLENGE (4 PARTS) */
+                <div className="space-y-2.5">
+                  {/* Part 1: Scroll-Stopping Hook */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                        <span className="w-4 h-4 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center text-[10px] font-mono font-bold">
+                          1
+                        </span>
+                        1. Scroll-Stopping Hook (0–3s)
+                      </label>
+                      <span className="text-[10px] text-slate-400 font-mono">~8–12 words</span>
+                    </div>
+                    <textarea
+                      ref={autoResizeTextarea}
+                      onInput={(e) => autoResizeTextarea(e.currentTarget)}
+                      value={viralHook}
+                      onChange={(e) => setViralHook(e.target.value)}
+                      placeholder="e.g. ఈ లెక్కని 5 సెకన్లలో సాల్వ్ చేస్తే నువ్వు నిజంగా జీనియస్!"
+                      className="w-full text-sm font-telugu text-slate-900 leading-relaxed p-2.5 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:border-amber-500 focus:outline-hidden resize-none overflow-hidden min-h-[56px] transition-[height] duration-100"
+                    />
+                  </div>
+
+                  {/* Part 2: Question Narration */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                        <span className="w-4 h-4 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center text-[10px] font-mono font-bold">
+                          2
+                        </span>
+                        2. Question Narration (3–10s)
+                      </label>
+                      <span className="text-[10px] text-slate-400 font-mono">~15–25 words</span>
+                    </div>
+                    <textarea
+                      ref={autoResizeTextarea}
+                      onInput={(e) => autoResizeTextarea(e.currentTarget)}
+                      value={viralQuestion}
+                      onChange={(e) => setViralQuestion(e.target.value)}
+                      placeholder="Clear Telugu problem statement to be read aloud..."
+                      className="w-full text-sm font-telugu text-slate-900 leading-relaxed p-2.5 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:border-amber-500 focus:outline-hidden resize-none overflow-hidden min-h-[56px] transition-[height] duration-100"
+                    />
+                  </div>
+
+                  {/* Part 3: Options Delivery with Inline Toggle */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                        <span className="w-4 h-4 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center text-[10px] font-mono font-bold">
+                          3
+                        </span>
+                        3. Options Delivery (10–16s)
+                      </label>
+
+                      {/* Inline Toggle */}
+                      <button
+                        type="button"
+                        onClick={() => setIncludeOptionsInVideo(!includeOptionsInVideo)}
+                        className={`flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md transition-all cursor-pointer border ${
+                          includeOptionsInVideo
+                            ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
+                            : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
+                        }`}
+                      >
+                        {includeOptionsInVideo ? (
+                          <>
+                            <ToggleRight className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>✓ Include Options</span>
+                          </>
+                        ) : (
+                          <>
+                            <ToggleLeft className="w-3.5 h-3.5 text-slate-500" />
+                            <span>Skip Options</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    {includeOptionsInVideo ? (
+                      <textarea
+                        ref={autoResizeTextarea}
+                        onInput={(e) => autoResizeTextarea(e.currentTarget)}
+                        value={viralOptions}
+                        onChange={(e) => setViralOptions(e.target.value)}
+                        placeholder="Option A: ...&#10;Option B: ...&#10;Option C: ...&#10;Option D: ..."
+                        className="w-full text-sm font-telugu text-slate-900 leading-relaxed p-2.5 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:border-amber-500 focus:outline-hidden resize-none overflow-hidden min-h-[56px] transition-[height] duration-100"
+                      />
+                    ) : (
+                      <div className="p-2 bg-amber-50/80 border border-amber-200/80 rounded-xl text-xs text-amber-900 flex items-center gap-2">
+                        <Zap className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                        <span>⚡ <strong>Options Skipped</strong> (Direct mental math challenge)</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Part 4: Comment Challenge & Outro */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                        <span className="w-4 h-4 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center text-[10px] font-mono font-bold">
+                          4
+                        </span>
+                        4. Comment Challenge &amp; Outro (16–22s)
+                      </label>
+                      <span className="text-[10px] text-slate-400 font-mono">~10–15 words</span>
+                    </div>
+                    <textarea
+                      ref={autoResizeTextarea}
+                      onInput={(e) => autoResizeTextarea(e.currentTarget)}
+                      value={viralCta}
+                      onChange={(e) => setViralCta(e.target.value)}
+                      placeholder="మీ ఆన్సర్ ఏంటో వెంటనే కామెంట్ చేయండి! సరైన సమాధానం పిన్డ్ కామెంట్లో ఉంది."
+                      className="w-full text-sm font-telugu text-slate-900 leading-relaxed p-2.5 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:border-amber-500 focus:outline-hidden resize-none overflow-hidden min-h-[56px] transition-[height] duration-100"
+                    />
+                  </div>
+                </div>
+              ) : (
+                /* MODE 2: FULL SOLUTION BREAKDOWN (5 PARTS) */
+                <div className="space-y-2.5">
+                  {/* Part 1: Hook */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                        <span className="w-4 h-4 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[10px] font-mono font-bold">
+                          1
+                        </span>
+                        1. Hook (0–5s)
+                      </label>
+                      <span className="text-[10px] text-slate-400 font-mono">~10-15 words</span>
+                    </div>
+                    <textarea
+                      ref={autoResizeTextarea}
+                      onInput={(e) => autoResizeTextarea(e.currentTarget)}
+                      value={hookText}
+                      onChange={(e) => setHookText(e.target.value)}
+                      placeholder="e.g. ఈ క్వశ్చన్ ని 10 సెకన్లలో సాల్వ్ చేయగలరా?"
+                      className="w-full text-sm font-telugu text-slate-900 leading-relaxed p-2.5 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:border-indigo-500 focus:outline-hidden resize-none overflow-hidden min-h-[56px] transition-[height] duration-100"
+                    />
+                  </div>
+
+                  {/* Part 2: Problem Statement */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                        <span className="w-4 h-4 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[10px] font-mono font-bold">
+                          2
+                        </span>
+                        2. Problem Statement (5–15s)
+                      </label>
+                      <span className="text-[10px] text-slate-400 font-mono">~25-35 words</span>
+                    </div>
+                    <textarea
+                      ref={autoResizeTextarea}
+                      onInput={(e) => autoResizeTextarea(e.currentTarget)}
+                      value={problemStatement}
+                      onChange={(e) => setProblemStatement(e.target.value)}
+                      placeholder="Telugu problem statement narration..."
+                      className="w-full text-sm font-telugu text-slate-900 leading-relaxed p-2.5 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:border-indigo-500 focus:outline-hidden resize-none overflow-hidden min-h-[56px] transition-[height] duration-100"
+                    />
+                  </div>
+
+                  {/* Part 3: Spoken Solution & Intuition */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                        <span className="w-4 h-4 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[10px] font-mono font-bold">
+                          3
+                        </span>
+                        3. Spoken Solution &amp; Intuition (15–35s)
+                      </label>
+                      <span className="text-[10px] text-slate-400 font-mono">~45-60 words</span>
+                    </div>
+                    <textarea
+                      ref={autoResizeTextarea}
+                      onInput={(e) => autoResizeTextarea(e.currentTarget)}
+                      value={stepByStepSolution}
+                      onChange={(e) => setStepByStepSolution(e.target.value)}
+                      placeholder="Spoken Telugu explanation of the intuitive steps..."
+                      className="w-full text-sm font-telugu text-slate-900 leading-relaxed p-2.5 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:border-indigo-500 focus:outline-hidden resize-none overflow-hidden min-h-[56px] transition-[height] duration-100"
+                    />
+                  </div>
+
+                  {/* Part 4: Burra Speed Shortcut */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                        <span className="w-4 h-4 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center text-[10px] font-mono font-bold">
+                          4
+                        </span>
+                        4. Burra Speed Shortcut (35–45s)
+                      </label>
+                      <span className="text-[10px] font-mono font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                        Exam Shortcut
+                      </span>
+                    </div>
+                    <textarea
+                      ref={autoResizeTextarea}
+                      onInput={(e) => autoResizeTextarea(e.currentTarget)}
+                      value={speedTrickOrTakeaway}
+                      onChange={(e) => setSpeedTrickOrTakeaway(e.target.value)}
+                      placeholder="Pro-Tip: Check the units digit to eliminate Options B and D instantly!"
+                      className="w-full text-sm font-telugu text-slate-900 leading-relaxed p-2.5 rounded-xl border border-amber-200 bg-amber-50/30 focus:bg-white focus:border-indigo-500 focus:outline-hidden resize-none overflow-hidden min-h-[56px] transition-[height] duration-100"
+                    />
+                  </div>
+
+                  {/* Part 5: Call to Action */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                        <span className="w-4 h-4 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center text-[10px] font-mono font-bold">
+                          5
+                        </span>
+                        5. Call to Action (45–50s)
+                      </label>
+                      <span className="text-[10px] text-slate-400 font-mono">~10 words</span>
+                    </div>
+                    <textarea
+                      ref={autoResizeTextarea}
+                      onInput={(e) => autoResizeTextarea(e.currentTarget)}
+                      value={callToAction}
+                      onChange={(e) => setCallToAction(e.target.value)}
+                      placeholder="e.g. మరిన్ని షార్ట్‌కట్స్ కోసం ఇప్పుడే Burra Pariksha ఛానెల్ ని Follow చేయండి!"
+                      className="w-full text-sm font-telugu text-slate-900 leading-relaxed p-2.5 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:border-indigo-500 focus:outline-hidden resize-none overflow-hidden min-h-[56px] transition-[height] duration-100"
+                    />
+                  </div>
+
+                  {/* Notes */}
+                  <div className="pt-2 border-t border-slate-100">
+                    <input
+                      type="text"
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      placeholder="Production Cues & Teleprompter Notes..."
+                      className="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg text-slate-700 bg-slate-50 focus:bg-white focus:outline-hidden"
+                    />
+                  </div>
+                </div>
+              )}
+            </Card>
+          </div>
+
+          {/* ========================================================
+              RIGHT PANE (lg:col-span-5): STICKY COMMAND STATION + PINNED COMMENT
+              ======================================================== */}
+          <div className="lg:col-span-5 lg:sticky lg:top-4 space-y-3">
+            {/* CARD 1 (TOP): UNIFIED TELEPROMPTER & PACING COMMAND STATION */}
+            <Card variant="elevated" padding="md" className="rounded-2xl border-indigo-100 shadow-xs bg-white space-y-2.5">
               <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  const q = sourceQuestion as any;
-                  const statementText = q?.statementTe || q?.statement || q?.questionText || 'N/A';
-                  const proofVal = q?.explanationTe || q?.explanation || 'N/A';
-                  const ans = q?.correctAnswer || q?.correctOption || 'N/A';
-                  const proofText = `SOURCE QUESTION:\n${statementText}\n\nOPTIONS:\nA: ${getOptionText(sourceQuestion, 'a')}\nB: ${getOptionText(sourceQuestion, 'b')}\nC: ${getOptionText(sourceQuestion, 'c')}\nD: ${getOptionText(sourceQuestion, 'd')}\n\nCORRECT ANSWER: Option ${String(ans).toUpperCase()}\n\nPROOF:\n${proofVal}`;
-                  navigator.clipboard.writeText(proofText);
-                }}
-                className="text-[11px] bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700 flex items-center gap-1.5"
+                variant="primary"
+                size="md"
+                onClick={handleSaveAndProceed}
+                disabled={isSaving}
+                icon={ArrowRight}
+                className="w-full justify-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 text-sm rounded-xl shadow-xs"
               >
-                <Copy className="w-3.5 h-3.5" />
-                <span>Copy Proof</span>
+                {isSaving ? 'Saving Draft...' : 'Save & Proceed to Step 04: Teleprompter →'}
               </Button>
+
+              {/* INLINE PACING METER */}
+              <div className="flex items-center justify-between gap-2 p-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs">
+                <div className="flex items-center gap-1.5 text-slate-600">
+                  <Clock className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                  <span>Words: <strong className="text-slate-900 font-mono">{totalWords}</strong></span>
+                  <span className="text-slate-300">|</span>
+                  <span>Duration: <strong className={`font-mono font-bold ${estimatedSeconds <= (scriptFormat === 'VIRAL_CHALLENGE' ? 25 : 50) ? 'text-emerald-600' : 'text-amber-600'}`}>~{estimatedSeconds}s</strong></span>
+                </div>
+                <Badge
+                  variant={estimatedSeconds <= (scriptFormat === 'VIRAL_CHALLENGE' ? 25 : 50) ? 'approved' : 'draft'}
+                  size="sm"
+                  className="text-[10px] py-0.5 px-2 font-bold shrink-0"
+                >
+                  {scriptFormat === 'VIRAL_CHALLENGE'
+                    ? (estimatedSeconds <= 25 ? 'Viral Sweet Spot (15–25s)' : 'Too Long')
+                    : (estimatedSeconds <= 50 ? 'Optimal Pace (45s)' : 'Exceeds 50s')}
+                </Badge>
+              </div>
+            </Card>
+
+            {/* CARD 2: "📌 Official Pinned Comment (Solution & Speed Trick)" */}
+            <Card variant="default" padding="md" className="rounded-2xl border-amber-200 bg-amber-50/20 shadow-xs space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <Pin className="w-3.5 h-3.5 text-amber-700" />
+                  <h4 className="text-xs font-bold text-slate-900">📌 Official Pinned Comment</h4>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCopyPinnedComment}
+                  className="py-1 px-2.5 text-xs bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1"
+                >
+                  {pinnedCopied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                  <span>{pinnedCopied ? 'Copied!' : '📋 Copy'}</span>
+                </button>
+              </div>
+
+              <textarea
+                ref={autoResizeTextarea}
+                onInput={(e) => autoResizeTextarea(e.currentTarget)}
+                value={pinnedCommentText}
+                onChange={(e) => setPinnedCommentText(e.target.value)}
+                className="w-full text-xs font-telugu text-slate-900 leading-relaxed p-2.5 rounded-xl border border-amber-300 bg-white focus:outline-hidden focus:border-amber-500 resize-none overflow-hidden min-h-[80px] transition-[height] duration-100"
+              />
+              <p className="text-[10px] text-slate-500 italic">
+                Pin on Shorts/Reels to convert answer checks into high comment engagement.
+              </p>
+            </Card>
+
+            {/* CARD 3: "Reviewer Math Proof" (Collapsible Drawer) */}
+            {sourceQuestion && (
+              <div className="bg-slate-900 text-slate-100 rounded-2xl border border-slate-800 p-3 shadow-xs space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <BookOpen className="w-3.5 h-3.5 text-indigo-400" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-300">
+                      Reviewer Math Proof
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowMathProofDrawer(!showMathProofDrawer)}
+                    className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 font-medium cursor-pointer"
+                  >
+                    <span>{showMathProofDrawer ? 'Collapse' : 'Expand'}</span>
+                    {showMathProofDrawer ? (
+                      <ChevronUp className="w-3 h-3" />
+                    ) : (
+                      <ChevronDown className="w-3 h-3" />
+                    )}
+                  </button>
+                </div>
+
+                {showMathProofDrawer && (
+                  <div className="space-y-2 text-xs pt-2 border-t border-slate-800 animate-in fade-in duration-150">
+                    <div>
+                      <span className="text-[10px] font-semibold text-indigo-400 block mb-0.5 uppercase tracking-wider">
+                        Problem Statement
+                      </span>
+                      <p className="text-slate-200 text-xs leading-relaxed font-telugu">
+                        {(sourceQuestion as any).statementTe || (sourceQuestion as any).statement || sourceQuestion.questionText}
+                      </p>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                          Authoritative Math Proof
+                        </span>
+                        <span className="text-[10px] text-emerald-400 font-bold bg-emerald-950 px-1.5 py-0.5 rounded border border-emerald-800">
+                          Option {String(sourceQuestion.correctAnswer || (sourceQuestion as any).correctOption || '').toUpperCase()}
+                        </span>
+                      </div>
+                      <div className="text-slate-300 font-telugu text-[11px] bg-black/60 p-2 rounded-xl border border-slate-800 max-h-36 overflow-y-auto whitespace-pre-wrap leading-relaxed">
+                        {(sourceQuestion as any).explanationTe || sourceQuestion.explanation || 'No proof text available on record.'}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1 border-t border-slate-800">
+                      <span>ID: <strong className="font-mono text-indigo-300">{sourceQuestion.id}</strong></span>
+                      <span>Topic: <strong className="text-slate-300">{sourceQuestion.topicName || (sourceQuestion as any).topic || sourceQuestion.topicId || 'General'}</strong></span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* VERSION HISTORY MODAL */}
+      {showVersionModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
+            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+              <div className="flex items-center gap-2">
+                <History className="w-4 h-4 text-indigo-600" />
+                <h3 className="text-sm font-bold text-slate-900">Script Version History</h3>
+              </div>
               <button
-                onClick={() => setShowMathProofDrawer(false)}
-                className="p-1 rounded-md text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-                title="Close Reference"
+                type="button"
+                onClick={() => setShowVersionModal(false)}
+                className="text-slate-400 hover:text-slate-600 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
-          </div>
 
-          {sourceQuestion ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-              <div className="space-y-3 bg-slate-800/60 p-3.5 rounded-lg border border-slate-700/60">
-                <div>
-                  <span className="text-[11px] font-semibold text-indigo-400 uppercase tracking-wider block mb-1">
-                    Question Statement (Telugu / English)
-                  </span>
-                  <p className="text-slate-200 leading-relaxed font-sans text-xs">
-                    {(sourceQuestion as any).statementTe || (sourceQuestion as any).statement || sourceQuestion.questionText}
-                  </p>
-                  {(sourceQuestion as any).statementTe && (sourceQuestion as any).statement && (
-                    <p className="text-slate-400 text-[11px] mt-2 italic border-t border-slate-700/50 pt-1.5 font-sans">
-                      EN: {(sourceQuestion as any).statement}
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1.5">
-                    Options & Correct Answer
-                  </span>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {(['a', 'b', 'c', 'd'] as const).map((optKey) => {
-                      const correctChoice = (sourceQuestion.correctAnswer || (sourceQuestion as any).correctOption || '').toLowerCase();
-                      const isCorrect = correctChoice === optKey;
-                      const text = getOptionText(sourceQuestion, optKey);
-                      return (
-                        <div
-                          key={optKey}
-                          className={`p-2 rounded border text-xs flex items-start gap-1.5 ${
-                            isCorrect
-                              ? 'bg-emerald-950/70 border-emerald-500 text-emerald-200 font-bold shadow-xs'
-                              : 'bg-slate-900/70 border-slate-700 text-slate-300'
-                          }`}
-                        >
-                          <span className="uppercase text-[10px] px-1 py-0.5 rounded bg-black/40 text-slate-400 font-mono">
-                            {optKey}
-                          </span>
-                          <span className="font-sans break-words flex-1">{text || `Option ${optKey.toUpperCase()}`}</span>
-                          {isCorrect && (
-                            <span className="text-[10px] bg-emerald-500 text-black px-1.5 py-0.2 rounded font-bold shrink-0">
-                              ✓ CORRECT
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-3 bg-slate-800/60 p-3.5 rounded-lg border border-slate-700/60">
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-[11px] font-semibold text-indigo-400 uppercase tracking-wider">
-                      Authoritative Math Proof / Explanation
-                    </span>
-                    <span className="text-[10px] text-emerald-400 font-bold bg-emerald-950 px-2 py-0.5 rounded border border-emerald-700/50">
-                      Answer: Option {String(sourceQuestion.correctAnswer || (sourceQuestion as any).correctOption || 'Verified').toUpperCase()}
-                    </span>
-                  </div>
-                  <div className="text-slate-200 text-xs leading-relaxed whitespace-pre-wrap font-mono bg-black/50 p-3 rounded border border-slate-800 max-h-56 overflow-y-auto">
-                    {(sourceQuestion as any).explanationTe || sourceQuestion.explanation || 'No proof text available on record.'}
-                  </div>
-                </div>
-
-                {(sourceQuestion.topicName || sourceQuestion.topicId || (sourceQuestion as any).topic) && (
-                  <div className="flex items-center gap-2 text-[11px] text-slate-400">
-                    <span className="font-medium text-slate-300">Topic:</span> {sourceQuestion.topicName || (sourceQuestion as any).topic || sourceQuestion.topicId}
-                    {(sourceQuestion.subtopicName || (sourceQuestion as any).subtopic || sourceQuestion.subtopicId) && (
-                      <span>• {sourceQuestion.subtopicName || (sourceQuestion as any).subtopic || sourceQuestion.subtopicId}</span>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          ) : (
-            <div className="p-4 bg-slate-800/40 rounded-lg text-center text-xs text-slate-400">
-              Source question mathematical reference loading...
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Script Header Bar */}
-      <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs flex flex-col xl:flex-row xl:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-bold shrink-0">
-            <FileText className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-base font-bold text-slate-900">Audience Engagement Script Engine</h2>
-              {script ? (
-                <span className="font-mono text-xs font-bold bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded">
-                  v{script.currentVersion}
-                </span>
+            <div className="p-4 overflow-y-auto space-y-3 flex-1">
+              {versions.length === 0 ? (
+                <p className="text-xs text-slate-500 italic text-center py-6">No previous script versions recorded.</p>
               ) : (
-                <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-semibold">
-                  Draft Proposal
-                </span>
+                versions.map((ver) => (
+                  <div key={ver.id} className="p-3 border border-slate-200 rounded-xl bg-slate-50/50 space-y-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-bold text-slate-900">Version #{ver.versionNumber}</span>
+                      <span className="text-[10px] text-slate-400 font-mono">{new Date(ver.createdAt).toLocaleString()}</span>
+                    </div>
+                    {ver.changeSummary && (
+                      <p className="text-xs text-slate-600 font-medium">{ver.changeSummary}</p>
+                    )}
+                    <div className="text-[11px] text-slate-700 font-telugu bg-white p-2 rounded-lg border border-slate-200 line-clamp-3">
+                      {(ver as any).hookText || (ver as any).problemStatement || (ver as any).stepByStepSolution || ver.changeSummary || `Version #${ver.versionNumber}`}
+                    </div>
+                  </div>
+                ))
               )}
             </div>
-            <p className="text-xs text-slate-500">
-              Stage 03 • Spoken Telugu Teleprompter Narration vs. Mathematical Proof
-            </p>
-          </div>
-        </div>
 
-        {/* Real-time Pacing Gauge & Action Controls */}
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Real-Time Pacing Gauge */}
-          <div className="flex items-center gap-2.5 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs">
-            <span className="font-medium text-slate-600">
-              Words: <strong className="text-slate-900 font-mono">{totalWords}</strong>
-            </span>
-            <span className="text-slate-300">|</span>
-            <div className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded border text-[11px] font-bold ${pacing.badgeBg}`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${pacing.dotColor}`} />
-              <span>~{estimatedSeconds}s</span>
-              <span className="font-medium hidden sm:inline">• {pacing.label}</span>
-            </div>
-          </div>
-
-          {/* Reviewer Math Proof Reference Toggle */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowMathProofDrawer(!showMathProofDrawer)}
-            className={`text-xs flex items-center gap-1.5 border ${
-              showMathProofDrawer
-                ? 'bg-slate-900 text-white border-slate-800'
-                : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
-            }`}
-          >
-            <BookOpen className="w-3.5 h-3.5 text-indigo-600" />
-            <span>Reviewer Math Proof</span>
-            {showMathProofDrawer ? <ChevronUp className="w-3 h-3 ml-0.5" /> : <ChevronDown className="w-3 h-3 ml-0.5" />}
-          </Button>
-
-          {/* Copy Teleprompter Formatted */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleCopyTeleprompter}
-            className="text-xs flex items-center gap-1.5"
-            title="Copy formatted with timing milestones and section cues"
-          >
-            {copiedTeleprompter ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-            <span>{copiedTeleprompter ? 'Copied Prompter!' : 'Copy Formatted'}</span>
-          </Button>
-
-          {/* Copy Pure Telugu Narration */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleCopyTeluguScript}
-            className="text-xs flex items-center gap-1.5"
-            title="Copy pure Telugu speech text without metadata"
-          >
-            {copiedTelugu ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-slate-500" />}
-            <span>{copiedTelugu ? 'Copied Telugu!' : 'Copy Telugu Script'}</span>
-          </Button>
-
-          {/* AI Telugu Generator */}
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={isGenerating || isSaving}
-            onClick={handleGenerateTeluguAI}
-            className="text-xs text-indigo-700 border-indigo-200 bg-indigo-50/60 hover:bg-indigo-100 flex items-center gap-1.5"
-          >
-            <Sparkles className={`w-3.5 h-3.5 ${isGenerating ? 'animate-spin text-indigo-600' : 'text-indigo-600'}`} />
-            <span>{isGenerating ? 'Generating...' : 'Generate Telugu (AI)'}</span>
-          </Button>
-
-          {/* Stage Progression Buttons */}
-          {videoStatus === VideoProductionStatus.SCRIPT_REQUIRED && (
-            <Button
-              variant="primary"
-              size="sm"
-              disabled={isSaving}
-              onClick={handleMarkReady}
-              className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1.5 font-bold shadow-xs"
-            >
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>Mark Script Ready</span>
-            </Button>
-          )}
-
-          {(videoStatus === VideoProductionStatus.SCRIPT_READY || isJustMarkedReady) && (
-            <div className="flex items-center gap-1.5">
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={handleProceedToRecording}
-                className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-1.5 font-bold shadow-xs"
-              >
-                <span>Open Filming →</span>
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={isSaving}
-                onClick={handleReturnToEditing}
-                className="text-xs text-amber-700 border-amber-300 hover:bg-amber-50 flex items-center gap-1.5"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-                <span>Revise</span>
-              </Button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Main Workspace Split Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left 2 Cols: Form Editor */}
-        <div className="lg:col-span-2 space-y-5">
-          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-4">
-            {/* Part 1: Hook */}
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                  <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[11px]">1</span>
-                  1. Hook & Attention Grabber (0–5s) • High-Retention Opener
-                </label>
-                <span className="text-[11px] text-slate-400 font-mono">
-                  {hookText.length} chars
-                </span>
-              </div>
-              <textarea
-                value={hookText}
-                onChange={(e) => setHookText(e.target.value)}
-                rows={2}
-                placeholder="e.g., 90% of students make this mistake in Time & Work! Can you solve it in 20 seconds?"
-                className="w-full text-xs p-3 border border-slate-300 rounded-lg focus:ring-1 focus:ring-indigo-500 font-medium"
-              />
-            </div>
-
-            {/* Part 2: Problem Statement */}
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                  <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[11px]">2</span>
-                  2. Question & Problem Statement (5–15s) • Clear Spoken Delivery
-                </label>
-                <span className="text-[11px] text-slate-400 font-mono">
-                  {problemStatement.length} chars
-                </span>
-              </div>
-              <textarea
-                value={problemStatement}
-                onChange={(e) => setProblemStatement(e.target.value)}
-                rows={3}
-                placeholder="The exact exam question clearly stated in spoken Telugu with 4 options..."
-                className="w-full text-xs p-3 border border-slate-300 rounded-lg focus:ring-1 focus:ring-indigo-500 font-sans"
-              />
-            </div>
-
-            {/* Part 3: Spoken Solution & Intuition */}
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                  <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[11px]">3</span>
-                  3. Spoken Solution & Intuition (15–35s) • Conversational Explanation
-                </label>
-                <span className="text-[11px] text-slate-400 font-mono">
-                  {stepByStepSolution.length} chars
-                </span>
-              </div>
-              <div className="p-2 mb-2 bg-indigo-50/70 border border-indigo-100 rounded-lg text-[11px] text-indigo-900 leading-relaxed">
-                💡 <strong>Conversational Narration Guidance:</strong> Equations should be spoken naturally with intuitive logic (like explaining to a student in person). Do <em>not</em> recite mechanical textbook formulas!
-              </div>
-              <textarea
-                value={stepByStepSolution}
-                onChange={(e) => setStepByStepSolution(e.target.value)}
-                rows={4}
-                placeholder="Spoken Telugu explanation of the intuitive steps..."
-                className="w-full text-xs p-3 border border-slate-300 rounded-lg focus:ring-1 focus:ring-indigo-500 font-sans"
-              />
-            </div>
-
-            {/* Part 4: Speed Trick or Takeaway */}
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                  <span className="w-5 h-5 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center text-[11px]">4</span>
-                  4. Burra Speed Shortcut / Takeaway (35–45s) • High-Retention Exam Trick
-                </label>
-                <span className="text-[11px] text-slate-400 font-mono">
-                  {speedTrickOrTakeaway.length} chars
-                </span>
-              </div>
-              <div className="p-2 mb-2 bg-amber-50 border border-amber-200 rounded-lg text-[11px] text-amber-900 leading-relaxed">
-                ⚡ <strong>High-Retention Exam Trick:</strong> Deliver the core mental math shortcut, unit-digit elimination rule, or ratio trick that saves 40+ seconds on the actual exam.
-              </div>
-              <textarea
-                value={speedTrickOrTakeaway}
-                onChange={(e) => setSpeedTrickOrTakeaway(e.target.value)}
-                rows={2}
-                placeholder="Pro-Tip: In the actual exam, check the units digit to eliminate Options B and D instantly!"
-                className="w-full text-xs p-3 border border-slate-300 rounded-lg focus:ring-1 focus:ring-indigo-500 font-sans bg-amber-50/20"
-              />
-            </div>
-
-            {/* Part 5: Call to Action */}
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                  <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center text-[11px]">5</span>
-                  5. Call to Action (CTA) (45–50s) • Outro & Follow Hook
-                </label>
-                <span className="text-[11px] text-slate-400 font-mono">
-                  {callToAction.length} chars
-                </span>
-              </div>
-              <input
-                type="text"
-                value={callToAction}
-                onChange={(e) => setCallToAction(e.target.value)}
-                placeholder="Save this reel & follow @BurraPariksha for daily shortcuts!"
-                className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:ring-1 focus:ring-indigo-500"
-              />
-            </div>
-
-            {/* Internal Notes */}
-            <div className="pt-2 border-t border-slate-100">
-              <label className="block text-xs font-medium text-slate-500 mb-1">
-                Internal Production Notes (Prompter cues, graphic overlays, audio stingers)
-              </label>
-              <input
-                type="text"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="e.g. Flash red buzzer on Option B, pop celebratory bell on Option C"
-                className="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg text-slate-600 bg-slate-50"
-              />
-            </div>
-
-            {/* Save Buttons Bar */}
-            <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
-              <div className="text-xs text-slate-400">
-                {script ? `Last synced with Google Sheets: ${new Date(script.updatedAt).toLocaleTimeString()}` : 'Unsaved Draft'}
-              </div>
-
-              <div className="flex items-center gap-2.5">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={isSaving}
-                  onClick={() => handleSave(false)}
-                  className="text-xs flex items-center gap-1.5"
-                >
-                  <Save className="w-3.5 h-3.5" />
-                  <span>Save Draft In-Place</span>
-                </Button>
-
-                <Button
-                  variant="primary"
-                  size="sm"
-                  disabled={isSaving}
-                  onClick={() => setShowVersionModal(true)}
-                  className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-1.5"
-                >
-                  <GitBranch className="w-3.5 h-3.5" />
-                  <span>Save as New Version</span>
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Col: Version History & Comparison */}
-        <div className="space-y-5">
-          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <History className="w-4 h-4 text-indigo-600" />
-                <h3 className="text-sm font-bold text-slate-900">Version History</h3>
-              </div>
-              <span className="text-[11px] font-mono text-slate-400">SCRIPT_VERSIONS</span>
-            </div>
-
-            {versions.length === 0 ? (
-              <div className="p-4 text-center text-slate-400 text-xs bg-slate-50 rounded-lg">
-                No versions committed yet. Click "Save as New Version" to snapshot your first revision.
-              </div>
-            ) : (
-              <div className="space-y-2.5 max-h-96 overflow-y-auto pr-1">
-                {versions.map((ver) => {
-                  const isCurrent = script?.currentVersion === ver.versionNumber;
-                  const isSelected = selectedVersionForDiff?.id === ver.id;
-
-                  return (
-                    <div
-                      key={ver.id}
-                      className={`p-3 rounded-lg border text-xs transition-all ${
-                        isCurrent
-                          ? 'bg-indigo-50/70 border-indigo-300'
-                          : isSelected
-                          ? 'bg-slate-100 border-slate-400'
-                          : 'bg-white border-slate-200 hover:border-slate-300'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-bold text-slate-900">Version {ver.versionNumber}</span>
-                          {isCurrent && (
-                            <span className="text-[10px] bg-indigo-600 text-white px-1.5 py-0.2 rounded font-semibold">
-                              ACTIVE
-                            </span>
-                          )}
-                        </div>
-                        <span className="text-[10px] text-slate-400">
-                          {new Date(ver.createdAt).toLocaleDateString()}
-                        </span>
-                      </div>
-
-                      <p className="text-slate-600 text-[11px] line-clamp-2 mb-2">
-                        {ver.changeSummary || 'Version commit snapshot'}
-                      </p>
-
-                      <div className="flex items-center justify-between pt-1 border-t border-slate-100/80">
-                        <span className="text-[10px] text-slate-400 font-mono">By: {ver.editedBy}</span>
-
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setSelectedVersionForDiff(isSelected ? null : ver)}
-                            className="text-[11px] text-indigo-600 hover:underline font-medium"
-                          >
-                            {isSelected ? 'Close' : 'View'}
-                          </button>
-
-                          {!isCurrent && (
-                            <button
-                              type="button"
-                              onClick={() => handleRevert(ver.versionNumber)}
-                              className="text-[11px] text-rose-600 hover:underline font-medium"
-                            >
-                              Revert
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Selected Version Snapshot Inspector */}
-          {selectedVersionForDiff && (
-            <div className="bg-slate-900 text-white rounded-xl p-4 text-xs space-y-3 shadow-md">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                <div className="flex items-center gap-1.5">
-                  <Layers className="w-4 h-4 text-indigo-400" />
-                  <span className="font-bold">Snapshot: v{selectedVersionForDiff.versionNumber}</span>
-                </div>
-                <button
-                  onClick={() => setSelectedVersionForDiff(null)}
-                  className="text-slate-400 hover:text-white"
-                >
-                  ✕
-                </button>
-              </div>
-
-              {(() => {
-                const parsed =
-                  selectedVersionForDiff.contentJson ||
-                  (selectedVersionForDiff.content ? JSON.parse(selectedVersionForDiff.content) : {});
-                return (
-                  <div className="space-y-2 text-[11px] text-slate-300 max-h-60 overflow-y-auto">
-                    <div>
-                      <strong className="text-indigo-300 block">Hook:</strong>
-                      <p>{parsed.hookText || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <strong className="text-indigo-300 block">Problem:</strong>
-                      <p>{parsed.problemStatement || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <strong className="text-indigo-300 block">Solution:</strong>
-                      <p>{parsed.stepByStepSolution || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <strong className="text-indigo-300 block">Trick:</strong>
-                      <p>{parsed.speedTrickOrTakeaway || 'N/A'}</p>
-                    </div>
-                  </div>
-                );
-              })()}
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleRevert(selectedVersionForDiff.versionNumber)}
-                className="w-full text-xs border-indigo-400 text-indigo-200 hover:bg-slate-800"
-              >
-                Restore this version to editor
-              </Button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Save as New Version Modal */}
-      {showVersionModal && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl border border-slate-200 p-6 max-w-md w-full shadow-2xl space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <GitBranch className="w-5 h-5 text-indigo-600" />
-                <h3 className="text-sm font-bold text-slate-900">Save as New Version</h3>
-              </div>
-              <button onClick={() => setShowVersionModal(false)} className="text-slate-400 hover:text-slate-600">✕</button>
-            </div>
-
-            <p className="text-xs text-slate-600">
-              This will increment the script to <strong>Version {(script?.currentVersion || 1) + 1}</strong> and write an immutable snapshot into the <code>SCRIPT_VERSIONS</code> worksheet.
-            </p>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Change Summary / Revision Remarks
-              </label>
-              <textarea
-                value={changeSummary}
-                onChange={(e) => setChangeSummary(e.target.value)}
-                placeholder="e.g. Shortened hook to 4 seconds, added visual cue for formula trick..."
-                rows={3}
-                className="w-full text-xs p-3 border border-slate-300 rounded-lg focus:ring-1 focus:ring-indigo-500"
-              />
-            </div>
-
-            <div className="flex items-center justify-end gap-2 pt-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowVersionModal(false)}
-                className="text-xs"
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="primary"
-                size="sm"
-                disabled={isSaving}
-                onClick={() => handleSave(true)}
-                className="text-xs bg-indigo-600 text-white"
-              >
-                {isSaving ? 'Saving...' : 'Commit Version Snapshot'}
+            <div className="p-3 border-t border-slate-100 bg-slate-50 flex justify-end">
+              <Button variant="outline" size="sm" onClick={() => setShowVersionModal(false)}>
+                Close
               </Button>
             </div>
           </div>
@@ -1031,3 +993,5 @@ ${notes ? `\n[PRODUCTION / PROMPTER NOTES]\n${notes}\n` : ''}`;
     </div>
   );
 };
+
+export default ScriptWorkspace;

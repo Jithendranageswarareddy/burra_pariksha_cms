@@ -2561,22 +2561,102 @@ apiRouter.get('/phase16/script/:scriptId/versions', requireAuth, async (req: Req
 // Video Production Workflow Endpoints (Phase 17)
 // ----------------------------------------------------
 
-apiRouter.post('/phase17/video/raw', requireAuth, async (req: Request, res: Response) => {
+const handleRawVideoUploadRoute = async (req: Request, res: Response) => {
   try {
     const actor = getRequestActor(req);
-    const { scriptId, expectedContentId, fileName, mimeType, binaryBase64 } = req.body || {};
+    const videoIdParam = req.params.videoId;
 
-    if (!scriptId || !fileName || !mimeType || !binaryBase64) {
+    let targetScriptId = req.body?.scriptId || (req.query.scriptId as string | undefined);
+    let targetContentId = req.body?.expectedContentId || (req.query.expectedContentId as string | undefined);
+
+    // If videoIdParam is provided, look up script/video record
+    if (videoIdParam && !targetScriptId) {
+      const vid = await videosRepository.findById(videoIdParam);
+      if (vid) {
+        if (!targetContentId) targetContentId = vid.contentId;
+        const scriptRes = await scriptService.getScriptByVideoId(videoIdParam);
+        if (scriptRes?.script) {
+          targetScriptId = scriptRes.script.id;
+        }
+      }
+    }
+
+    const isMultipart = req.headers['content-type']?.includes('multipart/form-data');
+
+    if (isMultipart) {
+      const bb = busboy({ headers: req.headers });
+      let uploadedFile: { buffer: Buffer; filename: string; mimeType: string } | null = null;
+
+      bb.on('field', (name, val) => {
+        if (name === 'scriptId') targetScriptId = val;
+        if (name === 'expectedContentId') targetContentId = val;
+      });
+
+      bb.on('file', (name, fileStream, info) => {
+        const chunks: Buffer[] = [];
+        fileStream.on('data', (chunk) => chunks.push(chunk));
+        fileStream.on('end', () => {
+          uploadedFile = {
+            buffer: Buffer.concat(chunks),
+            filename: info.filename,
+            mimeType: info.mimeType,
+          };
+        });
+      });
+
+      bb.on('finish', async () => {
+        try {
+          if (!uploadedFile) {
+            return res.status(400).json({ error: 'No video file provided in multipart upload body.' });
+          }
+          if (!targetScriptId) {
+            // Fallback: If script doesn't exist yet, fetch or create basic script for video
+            if (videoIdParam) {
+              const vid = await videosRepository.findById(videoIdParam);
+              if (vid?.questionId) {
+                const s = await scriptsRepository.findByQuestionId(vid.questionId);
+                if (s) targetScriptId = s.id;
+              }
+            }
+          }
+          if (!targetScriptId) {
+            return res.status(400).json({ error: 'scriptId or valid videoId with associated script is required.' });
+          }
+
+          const result = await phase17VideoProductionService.initializeRawVideo(
+            {
+              scriptId: targetScriptId,
+              expectedContentId: targetContentId,
+              rawBinaryBuffer: uploadedFile.buffer,
+              fileName: uploadedFile.filename,
+              mimeType: uploadedFile.mimeType,
+            },
+            actor
+          );
+          res.status(200).json(result);
+        } catch (err: any) {
+          res.status(400).json({ error: err?.message || 'Failed to upload raw video' });
+        }
+      });
+
+      req.pipe(bb);
+      return;
+    }
+
+    const { scriptId, expectedContentId, fileName, mimeType, binaryBase64 } = req.body || {};
+    const finalScriptId = scriptId || targetScriptId;
+
+    if (!finalScriptId || !fileName || !mimeType || !binaryBase64) {
       return res.status(400).json({
-        error: 'scriptId, fileName, mimeType, and binaryBase64 are required to initialize raw video.',
+        error: 'scriptId (or valid videoId), fileName, mimeType, and binaryBase64 are required to initialize raw video.',
       });
     }
 
     const rawBinaryBuffer = Buffer.from(binaryBase64, 'base64');
     const result = await phase17VideoProductionService.initializeRawVideo(
       {
-        scriptId,
-        expectedContentId,
+        scriptId: finalScriptId,
+        expectedContentId: expectedContentId || targetContentId,
         rawBinaryBuffer,
         fileName,
         mimeType,
@@ -2587,7 +2667,10 @@ apiRouter.post('/phase17/video/raw', requireAuth, async (req: Request, res: Resp
   } catch (err: any) {
     res.status(400).json({ error: err?.message || 'Failed to initialize raw video' });
   }
-});
+};
+
+apiRouter.post('/phase17/video/raw', requireAuth, handleRawVideoUploadRoute);
+apiRouter.post('/phase17/video/:videoId/raw', requireAuth, handleRawVideoUploadRoute);
 
 apiRouter.post('/phase17/video/:videoId/transition-editing', requireAuth, async (req: Request, res: Response) => {
   try {

@@ -417,14 +417,40 @@ export const EditingWorkspace: React.FC<EditingWorkspaceProps> = ({
               </Button>
             </div>
 
-            {latestEditedAsset && (
-              <div className="p-2.5 bg-emerald-50/70 border border-emerald-200 rounded-xl text-emerald-950 font-mono text-[11px] flex items-center justify-between">
-                <div className="truncate max-w-[300px]">
-                  <strong>Active Cut:</strong> {latestEditedAsset.fileName}
-                </div>
-                <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded">
-                  v{latestEditedAsset.version || 1}
+            {editedAssets.length > 0 && (
+              <div className="space-y-1.5 pt-1">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                  Master Cut Versions ({editedAssets.length})
                 </span>
+                <div className="space-y-1 max-h-36 overflow-y-auto pr-1">
+                  {editedAssets.map((asset, idx) => (
+                    <div
+                      key={asset.id || idx}
+                      className={`p-2 rounded-xl text-[11px] font-mono flex items-center justify-between gap-2 border ${
+                        idx === 0
+                          ? 'bg-emerald-50/80 border-emerald-300 text-emerald-950 font-bold'
+                          : 'bg-slate-50 border-slate-200 text-slate-700'
+                      }`}
+                    >
+                      <div className="truncate">
+                        <span className="text-indigo-600 font-bold">v{asset.version || editedAssets.length - idx}:</span>{' '}
+                        <span>{asset.fileName || `master_cut_v${asset.version || idx + 1}.mp4`}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {asset.fileSize && (
+                          <span className="text-[10px] text-slate-500">
+                            {(asset.fileSize / (1024 * 1024)).toFixed(1)} MB
+                          </span>
+                        )}
+                        {idx === 0 && (
+                          <span className="text-[9px] bg-emerald-600 text-white font-bold px-1.5 py-0.2 rounded">
+                            ACTIVE
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>

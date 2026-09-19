@@ -379,8 +379,23 @@ export class Phase17VideoProductionService {
       );
     }
 
-    // State machine check: Video must be in EDITING (or EDITED for new revision)
-    const currentState = this.getWorkflowState(video);
+    // Auto-Advance Guard: If video is in RAW/RECORDED/SCRIPT_READY/QUEUED state, automatically transition to EDITING
+    let currentState = this.getWorkflowState(video);
+    if (
+      currentState === 'RAW' ||
+      video.status === VideoProductionStatus.RECORDED ||
+      video.status === VideoProductionStatus.SCRIPT_READY ||
+      video.status === VideoProductionStatus.QUEUED ||
+      video.status === VideoProductionStatus.SCRIPT_REQUIRED
+    ) {
+      await videosRepository.updateRecord(videoId, {
+        status: VideoProductionStatus.EDITING,
+        updatedAt: new Date().toISOString(),
+      });
+      video.status = VideoProductionStatus.EDITING;
+      currentState = 'EDITING';
+    }
+
     if (currentState !== 'EDITING' && currentState !== 'EDITED') {
       throw new ValidationError(
         `Illegal transition to EDITED: Video "${videoId}" is currently in state "${currentState}". Video must be in "EDITING" stage to upload edited video.`
