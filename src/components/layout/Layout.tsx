@@ -55,18 +55,16 @@ export const Layout: React.FC = () => {
           {/* Shell Footer */}
           <footer
             id="shell-footer"
-            className="px-6 py-4 border-t border-slate-200 bg-white text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-2"
+            className="px-6 py-4 border-t border-slate-200 bg-white text-xs text-slate-400 flex flex-col sm:flex-row items-center justify-between gap-2"
           >
             <div className="flex items-center gap-2">
               <span className="font-semibold text-slate-700">Burra Pariksha CMS</span>
               <span>•</span>
-              <span>Operations Hub</span>
-              <span>•</span>
-              <span className="font-mono text-[11px] text-indigo-600">6 Core Hubs</span>
+              <span>Creator Studio</span>
             </div>
             <div className="flex items-center gap-2 text-[11px] text-slate-400">
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              <span>Authoritative Persistence: Google Sheets DB (Topic → Subtopic)</span>
+              <span>All systems operational</span>
             </div>
           </footer>
         </div>

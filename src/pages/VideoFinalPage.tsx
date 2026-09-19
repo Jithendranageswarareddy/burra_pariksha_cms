@@ -202,9 +202,8 @@ export const VideoFinalPage: React.FC = () => {
         <VideoWorkflowHeader currentStep={9} />
 
         <PageHeader
-          title="09 Final Review & QC"
+          title="Video Review & Signoff"
           description="Audio-video QC verification matrix, Telugu subtitle check, and publishing gatekeeper"
-          badge={<Badge variant="active" size="sm" className="font-mono">STEP 09</Badge>}
         />
 
         {error && (
@@ -285,14 +284,11 @@ export const VideoFinalPage: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <Badge variant="active" size="sm" className="font-mono">
-              STEP 09
-            </Badge>
-            <span className="text-xs text-slate-400 font-mono">
+            <span className="text-xs text-indigo-600 font-mono font-semibold bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
               {selectedVideo?.id || videoId}
             </span>
           </div>
-          <h1 className="text-xl font-bold text-slate-900">09 Final Review & Quality Control</h1>
+          <h1 className="text-xl font-bold text-slate-900">Video Review & Signoff</h1>
           <p className="text-xs text-slate-500">
             Publish readiness audit, audio-video quality gates, pedagogical answer verification, and release lock.
           </p>
@@ -306,7 +302,7 @@ export const VideoFinalPage: React.FC = () => {
             icon={ArrowLeft}
             className="text-xs"
           >
-            Back to Step 08
+            Back to Video Editor
           </Button>
           <Link to="/production">
             <Button variant="outline" size="sm" icon={Film} className="text-xs">
@@ -643,7 +639,7 @@ export const VideoFinalPage: React.FC = () => {
                   icon={ArrowRight}
                   className="w-full text-xs justify-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
                 >
-                  Continue to Social Review (Phase 8H)
+                  Proceed to Social Review
                 </Button>
               </div>
             </div>
@@ -657,7 +653,7 @@ export const VideoFinalPage: React.FC = () => {
           <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-xl space-y-4">
             <div className="flex items-center gap-2 text-rose-700 font-bold text-base">
               <RotateCcw className="w-5 h-5" />
-              <span>Return Video to Editing (Step 08)</span>
+              <span>Return Video for Revisions</span>
             </div>
             <p className="text-xs text-slate-600">
               Please specify the revisions required by the video editor (e.g. fix spelling in Option B, reduce background music volume).

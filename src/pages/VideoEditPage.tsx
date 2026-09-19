@@ -292,9 +292,8 @@ export const VideoEditPage: React.FC = () => {
         <VideoWorkflowHeader currentStep={8} />
 
         <PageHeader
-          title="08 Edit Video (Post-Production)"
+          title="Video Editor"
           description="Sync Telugu on-screen graphics, add countdown timer, trim pacing, and render vertical 9:16 Shorts"
-          badge={<Badge variant="active" size="sm" className="font-mono">STEP 08</Badge>}
         />
 
         {error && (
@@ -373,14 +372,11 @@ export const VideoEditPage: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <Badge variant="active" size="sm" className="font-mono">
-              STEP 08
-            </Badge>
-            <span className="text-xs text-slate-400 font-mono">
+            <span className="text-xs text-indigo-600 font-mono font-semibold bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
               {selectedVideo?.id || videoId}
             </span>
           </div>
-          <h1 className="text-xl font-bold text-slate-900">08 Edit Video (Post-Production)</h1>
+          <h1 className="text-xl font-bold text-slate-900">Video Editor</h1>
           <p className="text-xs text-slate-500">
             Sync Telugu typography overlays, 10s countdown sound cue, and verify 50–59s pacing compliance.
           </p>
@@ -394,7 +390,7 @@ export const VideoEditPage: React.FC = () => {
             icon={ArrowLeft}
             className="text-xs"
           >
-            Back to Step 07
+            Back to Recording
           </Button>
           <Link to="/production">
             <Button variant="outline" size="sm" icon={Film} className="text-xs">
@@ -812,10 +808,7 @@ export const VideoEditPage: React.FC = () => {
               {/* Next Step Action Box */}
               <div className="bg-white rounded-xl border border-indigo-200 p-5 shadow-xs space-y-3">
                 <div className="flex items-center gap-2 text-indigo-700 font-bold text-xs">
-                  <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[10px] font-mono">
-                    09
-                  </span>
-                  <span>Next: Final Review & Quality Control</span>
+                  <span>Next: Video Review & Signoff</span>
                 </div>
                 <p className="text-xs text-slate-600">
                   Render complete? Pass video to the Publishing Manager for final audio-video QC, Telugu subtitle check, and one-click approval.
@@ -831,7 +824,7 @@ export const VideoEditPage: React.FC = () => {
                   icon={ArrowRight}
                   className="w-full text-xs justify-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
                 >
-                  Continue to Final Review (Step 09)
+                  Proceed to Final Review
                 </Button>
               </div>
             </div>

@@ -893,20 +893,10 @@ export const QuestionStudioPage: React.FC = () => {
   return (
     <div className="space-y-6 pb-12 animate-in fade-in duration-200">
       <PageHeader
-        title="01 Generate Question"
-        description="Select Topic & Subtopic taxonomy, generate structured question candidates with AI, and review before saving."
-        breadcrumbs={[
-          { label: 'Home', href: '/' },
-          { label: '01 Generate Question' },
-        ]}
+        title="Create Question"
+        description="Generate new aptitude questions with AI, craft real-world scenarios, and verify math."
         actions={
           <div className="flex items-center gap-3 flex-wrap">
-            {/* AI Model Indicator Pill */}
-            <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 border border-slate-200 rounded-lg text-[11px] font-mono text-slate-700">
-              <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
-              <span>AI Engine: {aiStatus.model}</span>
-            </div>
-
             <Button
               variant="outline"
               size="sm"
@@ -927,12 +917,6 @@ export const QuestionStudioPage: React.FC = () => {
             )}
           </div>
         }
-      />
-
-      <QuestionWorkflowHeader
-        currentStep={1}
-        questionId={savedSuccessInfo?.id}
-        questionTitle={savedSuccessInfo ? `Saved Question ${savedSuccessInfo.id}` : undefined}
       />
 
       {/* Global Error Alert Banner */}

@@ -486,9 +486,8 @@ export const VideoRecordPage: React.FC = () => {
         <VideoWorkflowHeader currentStep={7} />
 
         <PageHeader
-          title="07 Record Video"
+          title="Teleprompter & Recording"
           description="Teleprompter studio view, host assignment, raw footage capture, and Drive intake"
-          badge={<Badge variant="active" size="sm" className="font-mono">STEP 07</Badge>}
         />
 
         {error && (
@@ -567,14 +566,11 @@ export const VideoRecordPage: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <Badge variant="active" size="sm" className="font-mono">
-              STEP 07
-            </Badge>
-            <span className="text-xs text-slate-400 font-mono">
+            <span className="text-xs text-indigo-600 font-mono font-semibold bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
               {selectedVideo?.id || videoId}
             </span>
           </div>
-          <h1 className="text-xl font-bold text-slate-900">07 Record Video (Studio Deck)</h1>
+          <h1 className="text-xl font-bold text-slate-900">Teleprompter & Recording</h1>
           <p className="text-xs text-slate-500">
             Film on-camera presenter delivery with high-readability Telugu teleprompter, manage takes, and upload raw footage.
           </p>
@@ -588,7 +584,7 @@ export const VideoRecordPage: React.FC = () => {
             icon={ArrowLeft}
             className="text-xs"
           >
-            Back to Step 06
+            Back to Script Review
           </Button>
           <Link to="/production">
             <Button variant="outline" size="sm" icon={Film} className="text-xs">
@@ -975,10 +971,7 @@ export const VideoRecordPage: React.FC = () => {
               {/* Next Step Action Box */}
               <div className="bg-white rounded-xl border border-indigo-200 p-5 shadow-xs space-y-3">
                 <div className="flex items-center gap-2 text-indigo-700 font-bold text-xs">
-                  <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[10px] font-mono">
-                    08
-                  </span>
-                  <span>Next: Edit Video (Post-Production)</span>
+                  <span>Next: Video Editing</span>
                 </div>
                 <p className="text-xs text-slate-600">
                   Raw recording captured? Proceed to the Video Editor workspace to sync Telugu motion graphics, countdown timers, and check 50–59s pacing.
@@ -994,7 +987,7 @@ export const VideoRecordPage: React.FC = () => {
                   icon={ArrowRight}
                   className="w-full text-xs justify-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
                 >
-                  Continue to Edit Video (Step 08)
+                  Proceed to Video Editor
                 </Button>
               </div>
             </div>

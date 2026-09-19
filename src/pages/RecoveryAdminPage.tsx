@@ -371,8 +371,8 @@ export const RecoveryAdminPage: React.FC = () => {
     return (
       <div className="space-y-6" id="recovery-unauthorized">
         <PageHeader
-          title="Recovery Administration"
-          description="System recovery status, backup capabilities & safety verification"
+          title="System Recovery & Backup"
+          description="Snapshot backups, point-in-time restores, and system data verification."
         />
         <div className="p-8 bg-slate-900 border border-slate-800 rounded-xl flex flex-col items-center justify-center text-center">
           <div className="w-16 h-16 rounded-full bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 mb-4">
@@ -395,8 +395,8 @@ export const RecoveryAdminPage: React.FC = () => {
     return (
       <div className="space-y-6" id="recovery-loading">
         <PageHeader
-          title="Recovery Administration"
-          description="System recovery status, backup capabilities & safety verification"
+          title="System Recovery & Backup"
+          description="Snapshot backups, point-in-time restores, and system data verification."
         />
         <div className="p-12 bg-slate-900 border border-slate-800 rounded-xl flex flex-col items-center justify-center text-center">
           <div className="w-10 h-10 border-3 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4" />
@@ -412,8 +412,8 @@ export const RecoveryAdminPage: React.FC = () => {
     return (
       <div className="space-y-6" id="recovery-error">
         <PageHeader
-          title="Recovery Administration"
-          description="System recovery status, backup capabilities & safety verification"
+          title="System Recovery & Backup"
+          description="Snapshot backups, point-in-time restores, and system data verification."
         />
         <div className="p-8 bg-slate-900 border border-rose-900/50 rounded-xl flex flex-col items-center text-center">
           <div className="w-12 h-12 rounded-full bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 mb-4">
@@ -434,8 +434,8 @@ export const RecoveryAdminPage: React.FC = () => {
   return (
     <div className="space-y-6" id="recovery-admin-dashboard">
       <PageHeader
-        title="Recovery Administration"
-        description="System recovery status, backup capabilities & safety verification"
+        title="System Recovery & Backup"
+        description="Snapshot backups, point-in-time restores, and system data verification."
         actions={
           <Button variant="outline" size="sm" onClick={handleRefreshAll}>
             <RefreshCw className="w-4 h-4 mr-1.5" />

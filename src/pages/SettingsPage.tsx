@@ -468,14 +468,14 @@ export const SettingsPage: React.FC = () => {
   };
 
   const rawTabs = [
-    { id: 'recovery', label: 'Reliability & Recovery (Phase 8B)', icon: Wrench, highlight: true },
-    { id: 'integrity', label: 'Data Integrity & Diagnostics', icon: ShieldCheck },
-    { id: 'sheets', label: 'Google Sheets Database', icon: Database },
-    { id: 'taxonomy', label: 'Content Taxonomy', icon: Layers },
-    { id: 'app', label: 'Application', icon: Settings },
-    { id: 'ai', label: 'AI Generation (Gemini)', icon: Cpu },
-    { id: 'drive', label: 'Google Drive (Storage)', icon: HardDrive },
-    { id: 'publishing', label: 'Publishing Rules', icon: Share2 },
+    { id: 'recovery', label: 'System Recovery', icon: Wrench, highlight: true },
+    { id: 'integrity', label: 'Data Diagnostics', icon: ShieldCheck },
+    { id: 'sheets', label: 'Google Sheets', icon: Database },
+    { id: 'taxonomy', label: 'Topics & Taxonomy', icon: Layers },
+    { id: 'app', label: 'App Settings', icon: Settings },
+    { id: 'ai', label: 'AI Configuration', icon: Cpu },
+    { id: 'drive', label: 'Cloud Storage', icon: HardDrive },
+    { id: 'publishing', label: 'Publishing Settings', icon: Share2 },
   ] as const;
 
   const tabs = rawTabs.filter((tab) => {
@@ -509,8 +509,8 @@ export const SettingsPage: React.FC = () => {
     <div className="space-y-6 max-w-6xl mx-auto animate-in fade-in duration-200 pb-16">
       {/* Header */}
       <PageHeader
-        title="System Settings & Operational Intelligence"
-        description="Monitor Google Sheets database integrity, examine referential health, run automated diagnostics, and configure settings."
+        title="Settings & Integrations"
+        description="Database connections, AI prompts, Google Drive storage, and system health."
         actions={
           <div className="flex items-center gap-2">
             <Button

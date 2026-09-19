@@ -533,13 +533,10 @@ export const PlanningPage: React.FC = () => {
           <div>
             <div className="flex items-center gap-2 mb-1">
               <Compass className="w-6 h-6 text-indigo-400" />
-              <h1 className="text-2xl font-bold text-white tracking-tight">Content Planning & Batch Intelligence</h1>
-              <span className="bg-indigo-500/20 text-indigo-300 text-xs px-2.5 py-0.5 rounded-full border border-indigo-500/30 font-medium">
-                Phase 9
-              </span>
+              <h1 className="text-2xl font-bold text-white tracking-tight">Content Planning & Batches</h1>
             </div>
             <p className="text-slate-400 text-sm max-w-3xl">
-              Strategic syllabus sprints, multi-stage production batches, curriculum coverage heatmaps, duplicate detection radar, and Gemini AI planning assistance.
+              Curriculum coverage, batch production schedules, and topic planning.
             </p>
           </div>
 

@@ -219,14 +219,8 @@ export const ContentMasterPage: React.FC = () => {
       <div className="space-y-6 max-w-7xl mx-auto pb-12">
         <PageHeader
           id="content-masters-list-header"
-          title="Content Library Explorer"
-          description="Content lifecycle records connecting questions, scripts, video production, assets, and publishing."
-          badge={
-            <span className="px-2.5 py-0.5 bg-purple-100 text-purple-800 border border-purple-300 rounded text-xs font-mono font-bold flex items-center gap-1.5">
-              <Layers className="w-3.5 h-3.5 text-purple-600" />
-              Phase 14.4
-            </span>
-          }
+          title="Content Master Archive"
+          description="Cross-module content records connecting questions, video productions, and social releases."
         />
 
         {/* Directory Controls */}
