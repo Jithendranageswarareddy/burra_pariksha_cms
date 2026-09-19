@@ -20,7 +20,7 @@ export enum AiRefinementAction {
 }
 
 export interface GenerateCandidateInput {
-  categoryId: string;
+  categoryId?: string;
   categoryName?: string;
   topicId: string;
   topicName?: string;

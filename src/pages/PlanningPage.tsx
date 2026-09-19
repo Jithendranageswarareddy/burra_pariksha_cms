@@ -124,7 +124,6 @@ export const PlanningPage: React.FC = () => {
   const [selectedBatchForLinking, setSelectedBatchForLinking] = useState<ContentBatch | null>(null);
   const [selectedQuestionIdsToLink, setSelectedQuestionIdsToLink] = useState<string[]>([]);
   const [questionSearchQuery, setQuestionSearchQuery] = useState('');
-  const [linkQuestionCategoryFilter, setLinkQuestionCategoryFilter] = useState('ALL');
   const [linkQuestionDifficultyFilter, setLinkQuestionDifficultyFilter] = useState('ALL');
   const [linkQuestionStatusFilter, setLinkQuestionStatusFilter] = useState('ALL');
   const [linkOnlyMatchingSubtopic, setLinkOnlyMatchingSubtopic] = useState(false);

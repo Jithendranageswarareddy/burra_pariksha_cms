@@ -44,7 +44,6 @@ import { ProductionJourneyBar } from '../components/production/ProductionJourney
 import { useProductionJourney } from '../contexts/ProductionJourneyContext';
 import { apiClient } from '../lib/api-client';
 import {
-  Category,
   DifficultyLevel,
   Question,
   QuestionLanguage,
@@ -80,7 +79,7 @@ export interface StudioCandidate {
   optionD: string;
   correctAnswer: 'A' | 'B' | 'C' | 'D';
   explanation: string;
-  categoryId: string;
+  categoryId?: string;
   topicId: string;
   subtopicId: string;
   difficulty: string;
@@ -104,7 +103,6 @@ export const QuestionStudioPage: React.FC = () => {
   const { loadJourneyForQuestion } = useProductionJourney();
 
   // Deep-linking URL Parameters
-  const queryCategory = searchParams.get('categoryId') || searchParams.get('category') || searchParams.get('cat');
   const queryTopic = searchParams.get('topicId') || searchParams.get('topic');
   const querySubtopic = searchParams.get('subtopicId') || searchParams.get('subtopic');
   const queryDifficulty = searchParams.get('difficulty');
@@ -114,7 +112,6 @@ export const QuestionStudioPage: React.FC = () => {
 
   // 1. System & Taxonomy State
   const [taxonomyTree, setTaxonomyTree] = useState<any[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
   const [aiStatus, setAiStatus] = useState<{ isConfigured: boolean; model: string }>({
     isConfigured: false,
     model: 'gemini-3.1-flash-lite',
@@ -122,7 +119,6 @@ export const QuestionStudioPage: React.FC = () => {
   const [loadingTaxonomy, setLoadingTaxonomy] = useState(true);
 
   // Configuration State
-  const [selectedCategory, setSelectedCategory] = useState<string>(queryCategory || '');
   const [selectedTopic, setSelectedTopic] = useState<string>(queryTopic || 'BP-TOP-001');
   const [selectedSubtopic, setSelectedSubtopic] = useState<string>(querySubtopic || 'BP-SUB-0001');
   const [difficulty, setDifficulty] = useState<string>(queryDifficulty || 'Intermediate');
@@ -166,7 +162,6 @@ export const QuestionStudioPage: React.FC = () => {
     optionD: '',
     correctAnswer: 'A',
     explanation: '',
-    categoryId: selectedCategory || undefined,
     topicId: selectedTopic,
     subtopicId: selectedSubtopic,
     difficulty: difficulty || 'Intermediate',
@@ -290,19 +285,7 @@ export const QuestionStudioPage: React.FC = () => {
           apiClient.getAiStatus().catch(() => ({ isConfigured: false, model: 'gemini-3.1-flash-lite' })),
         ]);
 
-        let topicsList: any[] = pureTree;
-        if (!topicsList || topicsList.length === 0) {
-          const legacyTree = await apiClient.getTaxonomyTree().catch(() => []);
-          const flattened: any[] = [];
-          legacyTree.forEach((cat: any) => {
-            if (cat.topics) {
-              cat.topics.forEach((top: any) => {
-                flattened.push({ ...top, categoryId: cat.id, categoryName: cat.name });
-              });
-            }
-          });
-          topicsList = flattened;
-        }
+        const topicsList: any[] = pureTree || [];
 
         setTaxonomyTree(topicsList);
         setAiStatus(aiInfo);
@@ -562,7 +545,6 @@ export const QuestionStudioPage: React.FC = () => {
     const startTime = Date.now();
     try {
       const payload: GenerateCandidateInput = {
-        categoryId: selectedCategory || undefined,
         topicId: selectedTopic,
         subtopicId: selectedSubtopic,
         difficulty: difficulty as any,
@@ -585,7 +567,6 @@ export const QuestionStudioPage: React.FC = () => {
         optionD: generated.option_d,
         correctAnswer: generated.correct_answer,
         explanation: generated.explanation,
-        categoryId: selectedCategory || undefined,
         topicId: selectedTopic,
         subtopicId: selectedSubtopic,
         difficulty: formatDifficultyForUi(generated.difficulty || difficulty),
@@ -799,7 +780,6 @@ export const QuestionStudioPage: React.FC = () => {
 
       const created = await apiClient.createQuestionCanonical({
         creationMode: 'ai',
-        ...(candidate.categoryId || selectedCategory ? { categoryId: candidate.categoryId || selectedCategory } : {}),
         topicId: selectedTopic,
         subtopicId: selectedSubtopic,
         difficulty: candidate.difficulty,
@@ -865,7 +845,6 @@ export const QuestionStudioPage: React.FC = () => {
       optionD: '',
       correctAnswer: 'A',
       explanation: '',
-      categoryId: selectedCategory || undefined,
       topicId: selectedTopic,
       subtopicId: selectedSubtopic,
       difficulty,
@@ -911,7 +890,6 @@ export const QuestionStudioPage: React.FC = () => {
       optionD: '',
       correctAnswer: 'A',
       explanation: '',
-      categoryId: selectedCategory || undefined,
       topicId: selectedTopic,
       subtopicId: selectedSubtopic,
       difficulty,

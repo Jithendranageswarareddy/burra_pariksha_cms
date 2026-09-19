@@ -402,13 +402,13 @@ export class FullSnapshotRestorePlanService {
   private getParentDependenciesForEntityType(entityType: string): string[] {
     switch (entityType) {
       case 'TOPICS':
-        return ['CATEGORIES'];
+        return [];
       case 'SUBTOPICS':
         return ['TOPICS'];
       case 'CONTENT_BATCHES':
         return ['CONTENT_PLANS'];
       case 'QUESTIONS':
-        return ['CATEGORIES', 'TOPICS', 'SUBTOPICS'];
+        return ['TOPICS', 'SUBTOPICS'];
       case 'VIDEOS':
         return ['QUESTIONS'];
       case 'SCRIPT':
@@ -435,14 +435,11 @@ export class FullSnapshotRestorePlanService {
   private extractParentDependencies(entityType: string, payload: Record<string, any>): Array<{ entityType: string; recordId: string }> {
     const deps: Array<{ entityType: string; recordId: string }> = [];
 
-    if (entityType === 'TOPICS' && payload.categoryId) {
-      deps.push({ entityType: 'CATEGORIES', recordId: String(payload.categoryId) });
-    } else if (entityType === 'SUBTOPICS' && payload.topicId) {
+    if (entityType === 'SUBTOPICS' && payload.topicId) {
       deps.push({ entityType: 'TOPICS', recordId: String(payload.topicId) });
     } else if (entityType === 'CONTENT_BATCHES' && payload.planId) {
       deps.push({ entityType: 'CONTENT_PLANS', recordId: String(payload.planId) });
     } else if (entityType === 'QUESTIONS') {
-      if (payload.categoryId) deps.push({ entityType: 'CATEGORIES', recordId: String(payload.categoryId) });
       if (payload.topicId) deps.push({ entityType: 'TOPICS', recordId: String(payload.topicId) });
       if (payload.subtopicId) deps.push({ entityType: 'SUBTOPICS', recordId: String(payload.subtopicId) });
     } else if (entityType === 'VIDEOS' && payload.questionId) {
