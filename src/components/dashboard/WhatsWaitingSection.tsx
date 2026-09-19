@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileCheck, Scissors, Film, CheckSquare, UploadCloud, ArrowUpRight, CheckCircle2 } from 'lucide-react';
+import { FileCheck, Scissors, Film, CheckSquare, UploadCloud, ArrowUpRight, CheckCircle2, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Card } from '../../design-system/components/Card';
 import { Badge } from '../../design-system/components/Badge';
@@ -39,185 +39,205 @@ export const WhatsWaitingSection: React.FC<WhatsWaitingSectionProps> = ({
     return allowed.includes(userRole as any);
   };
 
-  const categories = [
+  const stages = [
     {
-      id: 'waiting-questions-review',
-      label: 'Questions to Review',
+      id: 'gauge-questions-review',
+      label: 'Questions in Review',
       stepNumber: '04',
       count: counts.questionsToReview,
       icon: FileCheck,
       targetUrl: '/questions?status=GENERATED',
       authorized: true,
       description: 'Candidate verification & approval',
+      colorClass: 'text-emerald-700 bg-emerald-50 border-emerald-200',
+      pillClass: 'bg-emerald-500 text-white',
+      badgeBg: 'bg-emerald-100 text-emerald-800',
+      dotColor: 'bg-emerald-500',
     },
     {
-      id: 'waiting-scripts-review',
-      label: 'Scripts to Review',
+      id: 'gauge-scripts-review',
+      label: 'Ready for Teleprompter',
       stepNumber: '06',
       count: counts.scriptsToReview,
       icon: CheckSquare,
       targetUrl: '/production?status=SCRIPT_READY',
       authorized: true,
-      description: 'Teleprompter scripts ready for signoff',
+      description: 'Presenter teleprompter scripts',
+      colorClass: 'text-amber-700 bg-amber-50 border-amber-200',
+      pillClass: 'bg-amber-500 text-white',
+      badgeBg: 'bg-amber-100 text-amber-800',
+      dotColor: 'bg-amber-500',
     },
     {
-      id: 'waiting-videos-edit',
-      label: 'Videos to Edit',
+      id: 'gauge-videos-edit',
+      label: 'Videos in Post-Production',
       stepNumber: '08',
       count: counts.videosToEdit,
       icon: Scissors,
       targetUrl: '/production?status=EDITING',
       authorized: true,
-      description: 'Raw recorded footage requiring edit & cuts',
+      description: 'Raw recorded footage editing',
+      colorClass: 'text-purple-700 bg-purple-50 border-purple-200',
+      pillClass: 'bg-purple-500 text-white',
+      badgeBg: 'bg-purple-100 text-purple-800',
+      dotColor: 'bg-purple-500',
     },
     {
-      id: 'waiting-social-reviews',
-      label: 'Social Reviews',
+      id: 'gauge-social-reviews',
+      label: 'Social Reviews Pending',
       stepNumber: '12',
       count: counts.socialReviews,
       icon: Film,
       targetUrl: '/social-review',
       authorized: isAuthorizedForSocialReviews(),
-      description: 'Pre-publish social package evaluation',
+      description: '9:16 simulator & copy checks',
+      colorClass: 'text-blue-700 bg-blue-50 border-blue-200',
+      pillClass: 'bg-blue-500 text-white',
+      badgeBg: 'bg-blue-100 text-blue-800',
+      dotColor: 'bg-blue-500',
     },
     {
-      id: 'waiting-ready-publish',
-      label: 'Ready to Publish',
+      id: 'gauge-ready-publish',
+      label: 'Ready for Distribution',
       stepNumber: '15',
       count: counts.readyToPublish,
       icon: UploadCloud,
       targetUrl: '/publishing',
       authorized: true,
-      description: 'Complete assets queued for distribution',
+      description: 'Final packages ready for release',
+      colorClass: 'text-indigo-700 bg-indigo-50 border-indigo-200',
+      pillClass: 'bg-indigo-600 text-white',
+      badgeBg: 'bg-indigo-100 text-indigo-800',
+      dotColor: 'bg-indigo-600',
     },
   ];
 
+  const totalInPipeline =
+    counts.questionsToReview +
+    counts.scriptsToReview +
+    counts.videosToEdit +
+    counts.socialReviews +
+    counts.readyToPublish;
+
   return (
-    <section id="dashboard-whats-waiting-section" className="space-y-3">
-      <div className="flex items-center justify-between">
+    <section id="dashboard-pipeline-gauge-section" className="space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div className="space-y-0.5">
-          <h2 className="text-base font-bold text-slate-900 tracking-tight">
-            What's Waiting
+          <h2 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
+            <span>5-Stage Pipeline Throughput Gauge</span>
+            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 font-mono border border-slate-200">
+              {totalInPipeline} Active Items
+            </span>
           </h2>
           <p className="text-xs text-slate-500">
-            Actionable items across the 15-step production pipeline
+            Real-time visual pipeline tracking workload flow across production stages
           </p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
-        {categories.map((cat) => {
-          const Icon = cat.icon;
-          const hasWork = cat.count > 0;
+      {/* Connected 5-Stage Pipeline Container */}
+      <div className="bg-white rounded-xl border border-slate-200 p-3 sm:p-4 shadow-xs">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-3 relative">
+          {stages.map((stage, idx) => {
+            const Icon = stage.icon;
+            const hasItems = stage.count > 0;
 
-          if (isLoading) {
-            return (
-              <Card
-                key={cat.id}
-                id={`${cat.id}-loading`}
-                className="p-4 bg-white border border-slate-200 animate-pulse space-y-3"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="w-8 h-8 rounded-lg bg-slate-200" />
-                  <div className="w-8 h-6 bg-slate-200 rounded" />
+            if (isLoading) {
+              return (
+                <div
+                  key={stage.id}
+                  className="p-4 rounded-xl border border-slate-100 bg-slate-50/60 animate-pulse space-y-3"
+                >
+                  <div className="h-4 w-20 bg-slate-200 rounded" />
+                  <div className="h-8 w-12 bg-slate-200 rounded" />
+                  <div className="h-3 w-28 bg-slate-100 rounded" />
                 </div>
-                <div className="h-4 w-24 bg-slate-200 rounded" />
-              </Card>
-            );
-          }
+              );
+            }
 
-          const cardContent = (
-            <Card
-              id={cat.id}
-              className={`p-4 h-full flex flex-col justify-between transition-all duration-150 border ${
-                hasWork
-                  ? 'border-slate-200 bg-white hover:border-indigo-300 hover:shadow-sm'
-                  : 'border-slate-200/80 bg-slate-50/70 opacity-90'
-              }`}
-            >
-              <div>
-                {/* Card Top: Icon & Count Badge */}
-                <div className="flex items-center justify-between gap-2 mb-3">
-                  <div
-                    className={`p-2 rounded-lg ${
-                      hasWork
-                        ? 'bg-indigo-50 text-indigo-600 border border-indigo-100'
-                        : 'bg-slate-100 text-slate-400'
-                    }`}
-                  >
-                    <Icon className="w-4 h-4" />
+            const itemCard = (
+              <div
+                className={`p-3.5 sm:p-4 rounded-xl border transition-all h-full flex flex-col justify-between relative group ${
+                  hasItems
+                    ? `${stage.colorClass} shadow-2xs hover:shadow-xs`
+                    : 'bg-slate-50/50 border-slate-200/70 text-slate-400'
+                }`}
+              >
+                <div>
+                  {/* Stage Top: Number, Icon, & Count */}
+                  <div className="flex items-center justify-between gap-2 mb-2.5">
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-white/80 border border-current/20 font-mono">
+                      Step {stage.stepNumber}
+                    </span>
+
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        className={`font-mono text-xl font-black ${
+                          hasItems ? 'text-slate-900' : 'text-slate-400'
+                        }`}
+                      >
+                        {stage.count}
+                      </span>
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-1.5">
-                    {hasWork ? (
-                      <span className="font-mono text-xl font-bold text-slate-900">
-                        {cat.count}
+                  {/* Stage Label & Details */}
+                  <div className="space-y-1">
+                    <h3
+                      className={`text-xs font-bold leading-tight ${
+                        hasItems ? 'text-slate-900' : 'text-slate-600'
+                      }`}
+                    >
+                      {stage.label}
+                    </h3>
+                    <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed">
+                      {stage.description}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Bottom Action / Status */}
+                <div className="mt-3 pt-2 border-t border-current/10 flex items-center justify-between text-[11px]">
+                  {hasItems ? (
+                    stage.authorized ? (
+                      <span className="inline-flex items-center gap-1 font-bold text-indigo-700 group-hover:underline">
+                        <span>Open Stage</span>
+                        <ArrowUpRight className="w-3 h-3 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
                       </span>
                     ) : (
-                      <Badge variant="neutral" size="sm">
-                        0
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-
-                {/* Card Title & Step Ref */}
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-mono text-[10px] font-bold text-slate-400">
-                      Step {cat.stepNumber}
-                    </span>
-                  </div>
-                  <h3 className="text-sm font-bold text-slate-800 tracking-tight leading-snug">
-                    {cat.label}
-                  </h3>
-                  <p className="text-[11px] text-slate-500 line-clamp-2">
-                    {cat.description}
-                  </p>
-                </div>
-              </div>
-
-              {/* Bottom Action Hint */}
-              <div className="mt-4 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs">
-                {hasWork ? (
-                  cat.authorized ? (
-                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700">
-                      <span>View queue</span>
-                      <ArrowUpRight className="w-3.5 h-3.5" />
-                    </span>
+                      <span className="text-slate-400 italic">Restricted</span>
+                    )
                   ) : (
-                    <span className="text-[11px] text-slate-400 italic">Restricted</span>
-                  )
-                ) : (
-                  <span className="inline-flex items-center gap-1 text-[11px] text-slate-400 font-medium">
-                    <CheckCircle2 className="w-3 h-3 text-emerald-500" />
-                    <span>Clear</span>
-                  </span>
-                )}
+                    <span className="inline-flex items-center gap-1 text-slate-400 font-medium">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                      <span>Pipeline Clear</span>
+                    </span>
+                  )}
+                </div>
               </div>
-            </Card>
-          );
-
-          if (hasWork && cat.authorized) {
-            return (
-              <Link
-                key={cat.id}
-                to={cat.targetUrl}
-                id={`${cat.id}-link`}
-                className="block h-full group focus:outline-hidden focus:ring-2 focus:ring-indigo-500 rounded-xl"
-                aria-label={`${cat.label}: ${cat.count} waiting items. Open queue.`}
-              >
-                {cardContent}
-              </Link>
             );
-          }
 
-          return (
-            <div key={cat.id} className="h-full">
-              {cardContent}
-            </div>
-          );
-        })}
+            if (hasItems && stage.authorized) {
+              return (
+                <Link
+                  key={stage.id}
+                  to={stage.targetUrl}
+                  id={`${stage.id}-link`}
+                  className="block h-full group focus:outline-hidden focus:ring-2 focus:ring-indigo-500 rounded-xl"
+                  aria-label={`${stage.label}: ${stage.count} waiting items. Open queue.`}
+                >
+                  {itemCard}
+                </Link>
+              );
+            }
+
+            return (
+              <div key={stage.id} className="h-full">
+                {itemCard}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </section>
   );
