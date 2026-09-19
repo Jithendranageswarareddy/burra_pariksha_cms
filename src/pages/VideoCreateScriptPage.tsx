@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import {
   FileText,
@@ -80,6 +80,22 @@ export const VideoCreateScriptPage: React.FC = () => {
   const [showAiPrompter, setShowAiPrompter] = useState<boolean>(false);
   const [isGeneratingAi, setIsGeneratingAi] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
+
+  // Ref & Helper for Auto-Expanding Textareas & Custom Prompt Input
+  const customPromptInputRef = useRef<HTMLInputElement | null>(null);
+
+  const autoResizeTextarea = (el: HTMLTextAreaElement | null) => {
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  };
+
+  const handleSelectPreset = (text: string) => {
+    setCustomGuidance(text);
+    if (customPromptInputRef.current) {
+      customPromptInputRef.current.focus();
+    }
+  };
 
   // UI State
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -198,6 +214,27 @@ export const VideoCreateScriptPage: React.FC = () => {
       loadVideoList();
     }
   }, [videoId]);
+
+  // Auto-resize all textareas whenever script fields change or view switches
+  useEffect(() => {
+    const textareas = document.querySelectorAll<HTMLTextAreaElement>('textarea');
+    textareas.forEach((ta) => autoResizeTextarea(ta));
+  }, [
+    viralHook,
+    viralQuestion,
+    viralOptions,
+    viralCta,
+    pinnedCommentText,
+    hookText,
+    problemStatement,
+    stepByStepSolution,
+    speedTrickOrTakeaway,
+    callToAction,
+    scriptFormat,
+    includeOptionsInVideo,
+    showMathProofDrawer,
+    isLoading,
+  ]);
 
   // Adjust target duration default on format switch
   const handleFormatChange = (newFormat: 'VIRAL_CHALLENGE' | 'SOLUTION_BREAKDOWN') => {
@@ -691,7 +728,7 @@ export const VideoCreateScriptPage: React.FC = () => {
                           <button
                             key={preset.label}
                             type="button"
-                            onClick={() => setCustomGuidance(preset.text)}
+                            onClick={() => handleSelectPreset(preset.text)}
                             className={`text-[11px] px-2 py-0.5 rounded-lg border transition-all cursor-pointer font-medium ${
                               customGuidance === preset.text
                                 ? 'bg-amber-100 text-amber-900 border-amber-300 font-bold shadow-2xs'
@@ -712,7 +749,7 @@ export const VideoCreateScriptPage: React.FC = () => {
                           <button
                             key={preset.label}
                             type="button"
-                            onClick={() => setCustomGuidance(preset.text)}
+                            onClick={() => handleSelectPreset(preset.text)}
                             className={`text-[11px] px-2 py-0.5 rounded-lg border transition-all cursor-pointer font-medium ${
                               customGuidance === preset.text
                                 ? 'bg-indigo-100 text-indigo-900 border-indigo-300 font-bold shadow-2xs'
@@ -726,15 +763,26 @@ export const VideoCreateScriptPage: React.FC = () => {
                     )}
                   </div>
 
-                  {/* Custom Asking Input */}
-                  <div className="pt-0.5">
+                  {/* Custom Asking Input + Direct Action Button */}
+                  <div className="pt-0.5 flex items-center gap-2">
                     <input
+                      ref={customPromptInputRef}
                       type="text"
                       value={customGuidance}
                       onChange={(e) => setCustomGuidance(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleGenerateScriptWithAi()}
                       placeholder="Custom AI prompt: e.g. Make it energetic and challenge students preparing for APPSC..."
                       className="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg bg-white text-slate-800 focus:outline-hidden focus:border-indigo-500"
                     />
+                    <button
+                      type="button"
+                      disabled={isGeneratingAi}
+                      onClick={handleGenerateScriptWithAi}
+                      className="px-3 py-1.5 text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg transition-all flex items-center gap-1 shrink-0 shadow-xs cursor-pointer"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>{isGeneratingAi ? 'Drafting...' : '✦ Generate Script'}</span>
+                    </button>
                   </div>
                 </div>
               )}
@@ -755,11 +803,12 @@ export const VideoCreateScriptPage: React.FC = () => {
                       <span className="text-[10px] text-slate-400 font-mono">~8–12 words</span>
                     </div>
                     <textarea
+                      ref={autoResizeTextarea}
+                      onInput={(e) => autoResizeTextarea(e.currentTarget)}
                       value={viralHook}
                       onChange={(e) => setViralHook(e.target.value)}
                       placeholder="e.g. ఈ లెక్కని 5 సెకన్లలో సాల్వ్ చేస్తే నువ్వు నిజంగా జీనియస్!"
-                      rows={2}
-                      className="w-full text-sm font-telugu text-slate-900 leading-relaxed p-2.5 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:border-amber-500 focus:outline-hidden"
+                      className="w-full text-sm font-telugu text-slate-900 leading-relaxed p-2.5 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:border-amber-500 focus:outline-hidden resize-none overflow-hidden min-h-[56px] transition-[height] duration-100"
                     />
                   </div>
 
@@ -775,11 +824,12 @@ export const VideoCreateScriptPage: React.FC = () => {
                       <span className="text-[10px] text-slate-400 font-mono">~15–25 words</span>
                     </div>
                     <textarea
+                      ref={autoResizeTextarea}
+                      onInput={(e) => autoResizeTextarea(e.currentTarget)}
                       value={viralQuestion}
                       onChange={(e) => setViralQuestion(e.target.value)}
                       placeholder="Clear Telugu problem statement to be read aloud..."
-                      rows={2}
-                      className="w-full text-sm font-telugu text-slate-900 leading-relaxed p-2.5 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:border-amber-500 focus:outline-hidden"
+                      className="w-full text-sm font-telugu text-slate-900 leading-relaxed p-2.5 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:border-amber-500 focus:outline-hidden resize-none overflow-hidden min-h-[56px] transition-[height] duration-100"
                     />
                   </div>
 
@@ -819,11 +869,12 @@ export const VideoCreateScriptPage: React.FC = () => {
 
                     {includeOptionsInVideo ? (
                       <textarea
+                        ref={autoResizeTextarea}
+                        onInput={(e) => autoResizeTextarea(e.currentTarget)}
                         value={viralOptions}
                         onChange={(e) => setViralOptions(e.target.value)}
                         placeholder="Option A: ...&#10;Option B: ...&#10;Option C: ...&#10;Option D: ..."
-                        rows={2}
-                        className="w-full text-sm font-telugu text-slate-900 leading-relaxed p-2.5 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:border-amber-500 focus:outline-hidden"
+                        className="w-full text-sm font-telugu text-slate-900 leading-relaxed p-2.5 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:border-amber-500 focus:outline-hidden resize-none overflow-hidden min-h-[56px] transition-[height] duration-100"
                       />
                     ) : (
                       <div className="p-2 bg-amber-50/80 border border-amber-200/80 rounded-xl text-xs text-amber-900 flex items-center gap-2">
@@ -845,11 +896,12 @@ export const VideoCreateScriptPage: React.FC = () => {
                       <span className="text-[10px] text-slate-400 font-mono">~10–15 words</span>
                     </div>
                     <textarea
+                      ref={autoResizeTextarea}
+                      onInput={(e) => autoResizeTextarea(e.currentTarget)}
                       value={viralCta}
                       onChange={(e) => setViralCta(e.target.value)}
                       placeholder="మీ ఆన్సర్ ఏంటో వెంటనే కామెంట్ చేయండి! సరైన సమాధానం పిన్డ్ కామెంట్లో ఉంది."
-                      rows={2}
-                      className="w-full text-sm font-telugu text-slate-900 leading-relaxed p-2.5 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:border-amber-500 focus:outline-hidden"
+                      className="w-full text-sm font-telugu text-slate-900 leading-relaxed p-2.5 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:border-amber-500 focus:outline-hidden resize-none overflow-hidden min-h-[56px] transition-[height] duration-100"
                     />
                   </div>
                 </div>
@@ -868,11 +920,12 @@ export const VideoCreateScriptPage: React.FC = () => {
                       <span className="text-[10px] text-slate-400 font-mono">~10-15 words</span>
                     </div>
                     <textarea
+                      ref={autoResizeTextarea}
+                      onInput={(e) => autoResizeTextarea(e.currentTarget)}
                       value={hookText}
                       onChange={(e) => setHookText(e.target.value)}
                       placeholder="e.g. ఈ క్వశ్చన్ ని 10 సెకన్లలో సాల్వ్ చేయగలరా?"
-                      rows={2}
-                      className="w-full text-sm font-telugu text-slate-900 leading-relaxed p-2.5 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:border-indigo-500 focus:outline-hidden"
+                      className="w-full text-sm font-telugu text-slate-900 leading-relaxed p-2.5 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:border-indigo-500 focus:outline-hidden resize-none overflow-hidden min-h-[56px] transition-[height] duration-100"
                     />
                   </div>
 
@@ -888,11 +941,12 @@ export const VideoCreateScriptPage: React.FC = () => {
                       <span className="text-[10px] text-slate-400 font-mono">~25-35 words</span>
                     </div>
                     <textarea
+                      ref={autoResizeTextarea}
+                      onInput={(e) => autoResizeTextarea(e.currentTarget)}
                       value={problemStatement}
                       onChange={(e) => setProblemStatement(e.target.value)}
                       placeholder="Telugu problem statement narration..."
-                      rows={2}
-                      className="w-full text-sm font-telugu text-slate-900 leading-relaxed p-2.5 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:border-indigo-500 focus:outline-hidden"
+                      className="w-full text-sm font-telugu text-slate-900 leading-relaxed p-2.5 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:border-indigo-500 focus:outline-hidden resize-none overflow-hidden min-h-[56px] transition-[height] duration-100"
                     />
                   </div>
 
@@ -908,11 +962,12 @@ export const VideoCreateScriptPage: React.FC = () => {
                       <span className="text-[10px] text-slate-400 font-mono">~45-60 words</span>
                     </div>
                     <textarea
+                      ref={autoResizeTextarea}
+                      onInput={(e) => autoResizeTextarea(e.currentTarget)}
                       value={stepByStepSolution}
                       onChange={(e) => setStepByStepSolution(e.target.value)}
                       placeholder="Spoken Telugu explanation of the intuitive steps..."
-                      rows={2}
-                      className="w-full text-sm font-telugu text-slate-900 leading-relaxed p-2.5 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:border-indigo-500 focus:outline-hidden"
+                      className="w-full text-sm font-telugu text-slate-900 leading-relaxed p-2.5 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:border-indigo-500 focus:outline-hidden resize-none overflow-hidden min-h-[56px] transition-[height] duration-100"
                     />
                   </div>
 
@@ -930,11 +985,12 @@ export const VideoCreateScriptPage: React.FC = () => {
                       </span>
                     </div>
                     <textarea
+                      ref={autoResizeTextarea}
+                      onInput={(e) => autoResizeTextarea(e.currentTarget)}
                       value={speedTrickOrTakeaway}
                       onChange={(e) => setSpeedTrickOrTakeaway(e.target.value)}
                       placeholder="Pro-Tip: Check the units digit to eliminate Options B and D instantly!"
-                      rows={2}
-                      className="w-full text-sm font-telugu text-slate-900 leading-relaxed p-2.5 rounded-xl border border-amber-200 bg-amber-50/30 focus:bg-white focus:border-indigo-500 focus:outline-hidden"
+                      className="w-full text-sm font-telugu text-slate-900 leading-relaxed p-2.5 rounded-xl border border-amber-200 bg-amber-50/30 focus:bg-white focus:border-indigo-500 focus:outline-hidden resize-none overflow-hidden min-h-[56px] transition-[height] duration-100"
                     />
                   </div>
 
@@ -950,11 +1006,12 @@ export const VideoCreateScriptPage: React.FC = () => {
                       <span className="text-[10px] text-slate-400 font-mono">~10 words</span>
                     </div>
                     <textarea
+                      ref={autoResizeTextarea}
+                      onInput={(e) => autoResizeTextarea(e.currentTarget)}
                       value={callToAction}
                       onChange={(e) => setCallToAction(e.target.value)}
                       placeholder="e.g. మరిన్ని షార్ట్‌కట్స్ కోసం ఇప్పుడే Burra Pariksha ఛానెల్ ని Follow చేయండి!"
-                      rows={2}
-                      className="w-full text-sm font-telugu text-slate-900 leading-relaxed p-2.5 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:border-indigo-500 focus:outline-hidden"
+                      className="w-full text-sm font-telugu text-slate-900 leading-relaxed p-2.5 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:border-indigo-500 focus:outline-hidden resize-none overflow-hidden min-h-[56px] transition-[height] duration-100"
                     />
                   </div>
 
@@ -1028,10 +1085,11 @@ export const VideoCreateScriptPage: React.FC = () => {
               </div>
 
               <textarea
+                ref={autoResizeTextarea}
+                onInput={(e) => autoResizeTextarea(e.currentTarget)}
                 value={pinnedCommentText}
                 onChange={(e) => setPinnedCommentText(e.target.value)}
-                rows={3}
-                className="w-full text-xs font-telugu text-slate-900 leading-relaxed p-2.5 rounded-xl border border-amber-300 bg-white focus:outline-hidden focus:border-amber-500"
+                className="w-full text-xs font-telugu text-slate-900 leading-relaxed p-2.5 rounded-xl border border-amber-300 bg-white focus:outline-hidden focus:border-amber-500 resize-none overflow-hidden min-h-[80px] transition-[height] duration-100"
               />
               <p className="text-[10px] text-slate-500 italic">
                 Pin on Shorts/Reels to convert answer checks into high comment engagement.
