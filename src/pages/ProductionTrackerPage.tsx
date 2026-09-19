@@ -14,6 +14,8 @@ import {
   CheckCircle2,
   Clock,
   Layers,
+  Scissors,
+  UserCheck,
 } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { Button } from '../components/common/Button';
@@ -22,9 +24,11 @@ import { ProductionKanban } from '../components/production/ProductionKanban';
 import { ProductionTable } from '../components/production/ProductionTable';
 import { EmptyState } from '../components/common/EmptyState';
 import { apiClient } from '../lib/api-client';
+import { useAuth } from '../contexts/AuthContext';
 import { PriorityLevel, ProductionStats, Video, VideoProductionStatus } from '../types';
 
 export const ProductionTrackerPage: React.FC = () => {
+  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
 
   // URL search parameter synchronization (Phase 14.3)
@@ -32,6 +36,7 @@ export const ProductionTrackerPage: React.FC = () => {
   const selectedStatus = searchParams.get('status') || '';
   const selectedPriority = searchParams.get('priority') || '';
   const selectedAssignee = searchParams.get('assignee') || '';
+  const [myCutsOnly, setMyCutsOnly] = useState(false);
 
   const [viewMode, setViewMode] = useState<'kanban' | 'table'>('kanban');
   const [videos, setVideos] = useState<Video[]>([]);
@@ -82,6 +87,7 @@ export const ProductionTrackerPage: React.FC = () => {
 
   const resetFilters = () => {
     setSearchInput('');
+    setMyCutsOnly(false);
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.delete('searchQuery');
@@ -125,6 +131,16 @@ export const ProductionTrackerPage: React.FC = () => {
 
   const filteredVideos = useMemo(() => {
     return videos.filter((v) => {
+      // My Cuts Only filter (Editor assignment)
+      if (myCutsOnly && user) {
+        const isMyCut =
+          v.assignedEditor === user.name ||
+          v.assignedEditor === user.id ||
+          v.assignedHost === user.name ||
+          v.assignedHost === user.id;
+        if (!isMyCut) return false;
+      }
+
       if (selectedStatus && v.status !== selectedStatus) return false;
       if (selectedPriority) {
         if (selectedPriority === PriorityLevel.NORMAL) {
@@ -147,9 +163,10 @@ export const ProductionTrackerPage: React.FC = () => {
       }
       return true;
     });
-  }, [videos, selectedStatus, selectedPriority, selectedAssignee, searchInput, urlSearchQuery]);
+  }, [videos, myCutsOnly, user, selectedStatus, selectedPriority, selectedAssignee, searchInput, urlSearchQuery]);
 
   const activeFiltersCount = [
+    myCutsOnly ? 'my-cuts' : '',
     selectedStatus,
     selectedPriority,
     selectedAssignee,
@@ -384,6 +401,23 @@ export const ProductionTrackerPage: React.FC = () => {
             <option value={PriorityLevel.NORMAL}>Normal / Medium</option>
             <option value={PriorityLevel.LOW}>Low</option>
           </select>
+
+          {/* My Cuts Only Toggle for Video Editors */}
+          <button
+            type="button"
+            onClick={() => setMyCutsOnly(!myCutsOnly)}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border cursor-pointer ${
+              myCutsOnly
+                ? 'bg-indigo-50 border-indigo-400 text-indigo-800 ring-2 ring-indigo-200 shadow-xs'
+                : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+            }`}
+          >
+            <Scissors className={`w-3.5 h-3.5 ${myCutsOnly ? 'text-indigo-600' : 'text-slate-500'}`} />
+            <span>My Cuts Only</span>
+            {myCutsOnly && (
+              <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></span>
+            )}
+          </button>
 
           {/* Staff Assignee Selector */}
           {assigneesList.length > 0 && (

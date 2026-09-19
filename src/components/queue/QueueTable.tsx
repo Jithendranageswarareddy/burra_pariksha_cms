@@ -1,10 +1,10 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { PlayCircle, FileText, ArrowRight, Video as VideoIcon } from 'lucide-react';
+import { PlayCircle, FileText, ArrowRight, ExternalLink, Video as VideoIcon } from 'lucide-react';
 import { DifficultyBadge } from '../common/DifficultyBadge';
 import { VideoStatusBadge } from '../common/StatusBadge';
 import { PRIORITY_CONFIG } from '../../config/constants';
-import { DifficultyLevel, PriorityLevel, Video } from '../../types';
+import { DifficultyLevel, PriorityLevel, Video, VideoProductionStatus } from '../../types';
 
 interface QueueTableProps {
   videos: Video[];
@@ -121,13 +121,42 @@ export const QueueTable: React.FC<QueueTableProps> = ({ videos, onSelectVideo })
                   {/* Actions */}
                   <td className="py-3 px-4 whitespace-nowrap text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1.5">
+                      {/* Teleprompter / Recording Action */}
+                      {(item.status === VideoProductionStatus.SCRIPT_READY || item.status === VideoProductionStatus.RECORDING) ? (
+                        <Link
+                          to={`/videos/${item.id}/record`}
+                          className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-lg shadow-xs transition-colors cursor-pointer"
+                          title="Open Teleprompter & Recording Studio"
+                        >
+                          <PlayCircle className="w-3.5 h-3.5" />
+                          <span>Record / Teleprompter</span>
+                        </Link>
+                      ) : (item.status === VideoProductionStatus.QUEUED || item.status === VideoProductionStatus.SCRIPT_REQUIRED) ? (
+                        <Link
+                          to={`/videos/${item.id}/review-script`}
+                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-700 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer"
+                          title="Review Teleprompter Script"
+                        >
+                          <FileText className="w-3.5 h-3.5 text-indigo-600" />
+                          <span>Review Script</span>
+                        </Link>
+                      ) : (
+                        <Link
+                          to={`/production/${item.id}`}
+                          className="inline-flex items-center gap-1 text-xs font-semibold text-slate-700 hover:text-indigo-600 bg-slate-100 hover:bg-slate-200 px-2.5 py-1.5 rounded-lg transition-colors"
+                        >
+                          <span>Manage</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </Link>
+                      )}
+
+                      {/* Subtle Secondary Workspace Link */}
                       <Link
                         to={`/production/${item.id}`}
-                        className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-md transition-colors"
-                        title="Open Production Workspace"
+                        className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md transition-colors"
+                        title="Open Full Production Workspace"
                       >
-                        <span>Workspace</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
+                        <ExternalLink className="w-3.5 h-3.5" />
                       </Link>
                     </div>
                   </td>

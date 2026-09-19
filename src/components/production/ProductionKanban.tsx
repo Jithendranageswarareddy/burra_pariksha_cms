@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Clock, User, ArrowRight, ExternalLink, PauseCircle, Film } from 'lucide-react';
+import { Clock, User, ArrowRight, ExternalLink, PauseCircle, Film, Scissors, CheckCircle2 } from 'lucide-react';
 import { PriorityLevel, Video, VideoProductionStatus } from '../../types';
 import { PRIORITY_CONFIG, VIDEO_STATUS_CONFIG } from '../../config/constants';
 import { formatDisplayId } from '../../utils/formatters';
@@ -65,6 +65,20 @@ export const ProductionKanban: React.FC<ProductionKanbanProps> = ({
     });
   };
 
+  const getPriorityBorderClass = (priority: PriorityLevel) => {
+    switch (priority) {
+      case PriorityLevel.URGENT:
+        return 'border-l-4 border-l-rose-500';
+      case PriorityLevel.HIGH:
+        return 'border-l-4 border-l-amber-500';
+      case PriorityLevel.NORMAL:
+      case PriorityLevel.MEDIUM:
+        return 'border-l-4 border-l-blue-500';
+      default:
+        return 'border-l-4 border-l-slate-300';
+    }
+  };
+
   return (
     <div className="flex gap-4 overflow-x-auto pb-4 pt-1 items-start min-h-[580px]">
       {KANBAN_COLUMNS.map((col) => {
@@ -101,6 +115,7 @@ export const ProductionKanban: React.FC<ProductionKanbanProps> = ({
                 columnVideos.map((video) => {
                   const priorityConfig =
                     PRIORITY_CONFIG[video.priority] || PRIORITY_CONFIG[PriorityLevel.NORMAL];
+                  const priorityBorder = getPriorityBorderClass(video.priority);
 
                   return (
                     <div
@@ -113,7 +128,7 @@ export const ProductionKanban: React.FC<ProductionKanbanProps> = ({
                           navigate(targetTab ? `/production/${video.id}?tab=${targetTab}` : `/production/${video.id}`);
                         }
                       }}
-                      className="bg-white p-3.5 rounded-lg border border-slate-200 hover:border-indigo-400 hover:shadow-xs transition-all cursor-pointer space-y-2.5 group"
+                      className={`bg-white p-3.5 rounded-lg border border-slate-200 hover:border-indigo-400 hover:shadow-xs transition-all cursor-pointer space-y-2.5 group ${priorityBorder}`}
                     >
                       {/* Top IDs & Priority Badge */}
                       <div className="flex items-start justify-between gap-2">
@@ -153,12 +168,39 @@ export const ProductionKanban: React.FC<ProductionKanbanProps> = ({
                         </div>
                       )}
 
+                      {/* Role-Specific Quick Action Buttons */}
+                      {(video.status === VideoProductionStatus.RECORDED || video.status === VideoProductionStatus.EDITING || video.status === VideoProductionStatus.EDITED) && (
+                        <div className="pt-1" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/production/${video.id}?tab=editing`)}
+                            className="w-full inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 hover:text-indigo-900 border border-indigo-200 rounded-md text-[11px] font-bold transition-colors shadow-2xs cursor-pointer"
+                          >
+                            <Scissors className="w-3.5 h-3.5 text-indigo-600" />
+                            <span>Open Video Editor</span>
+                          </button>
+                        </div>
+                      )}
+
+                      {video.status === VideoProductionStatus.FINAL_REVIEW && (
+                        <div className="pt-1" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/production/${video.id}?tab=final-review`)}
+                            className="w-full inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 hover:text-purple-900 border border-purple-200 rounded-md text-[11px] font-bold transition-colors shadow-2xs cursor-pointer"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5 text-purple-600" />
+                            <span>Final QC Lock</span>
+                          </button>
+                        </div>
+                      )}
+
                       {/* Metadata Footer */}
                       <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
                         <div className="flex items-center gap-1 truncate max-w-[120px]">
                           <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                           <span className="truncate">
-                            {video.assignedHost || video.assignedEditor || 'Unassigned'}
+                            {video.assignedEditor || video.assignedHost || 'Unassigned'}
                           </span>
                         </div>
 

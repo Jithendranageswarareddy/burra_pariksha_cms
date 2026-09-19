@@ -12,6 +12,9 @@ import {
   RefreshCw,
   SlidersHorizontal,
   Film,
+  UserCheck,
+  PlayCircle,
+  FileText,
 } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { Button } from '../components/common/Button';
@@ -19,6 +22,7 @@ import { StatCard } from '../components/common/StatCard';
 import { QueueTable } from '../components/queue/QueueTable';
 import { EmptyState } from '../components/common/EmptyState';
 import { apiClient } from '../lib/api-client';
+import { useAuth } from '../contexts/AuthContext';
 import {
   DifficultyLevel,
   PriorityLevel,
@@ -28,12 +32,15 @@ import {
 } from '../types';
 
 export const QueuePage: React.FC = () => {
+  const { user } = useAuth();
   const [videos, setVideos] = useState<VideoType[]>([]);
   const [stats, setStats] = useState<ProductionStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   // Filters State
   const [searchQuery, setSearchQuery] = useState('');
+  const [quickStage, setQuickStage] = useState<'all' | 'ready_to_film' | 'needs_script'>('all');
+  const [myTasksOnly, setMyTasksOnly] = useState(false);
   const [priorityFilter, setPriorityFilter] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [difficultyFilter, setDifficultyFilter] = useState<string>('');
@@ -62,6 +69,27 @@ export const QueuePage: React.FC = () => {
   const filteredAndSortedVideos = useMemo(() => {
     return videos
       .filter((v) => {
+        // Quick Stage Pills
+        if (quickStage === 'ready_to_film') {
+          if (v.status !== VideoProductionStatus.SCRIPT_READY && v.status !== VideoProductionStatus.RECORDING) {
+            return false;
+          }
+        } else if (quickStage === 'needs_script') {
+          if (v.status !== VideoProductionStatus.SCRIPT_REQUIRED && v.status !== VideoProductionStatus.QUEUED) {
+            return false;
+          }
+        }
+
+        // My Assigned Tasks filter (Presenter / Host)
+        if (myTasksOnly && user) {
+          const isAssigned =
+            v.assignedHost === user.name ||
+            v.assignedHost === user.id ||
+            v.assignedEditor === user.name ||
+            v.assignedEditor === user.id;
+          if (!isAssigned) return false;
+        }
+
         // Priority filter
         if (priorityFilter) {
           if (priorityFilter === PriorityLevel.NORMAL) {
@@ -73,7 +101,7 @@ export const QueuePage: React.FC = () => {
           }
         }
 
-        // Status filter
+        // Status filter (dropdown)
         if (statusFilter && v.status !== statusFilter) return false;
 
         // Difficulty filter
@@ -111,9 +139,11 @@ export const QueuePage: React.FC = () => {
         if (diff !== 0) return diff;
         return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
       });
-  }, [videos, priorityFilter, statusFilter, difficultyFilter, searchQuery, sortBy]);
+  }, [videos, quickStage, myTasksOnly, user, priorityFilter, statusFilter, difficultyFilter, searchQuery, sortBy]);
 
   const activeFiltersCount = [
+    quickStage !== 'all' ? quickStage : '',
+    myTasksOnly ? 'my-tasks' : '',
     priorityFilter,
     statusFilter,
     difficultyFilter,
@@ -205,6 +235,80 @@ export const QueuePage: React.FC = () => {
 
       {/* Filter & Search Bar */}
       <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs space-y-3">
+        {/* Quick Status Pills & My Assigned Tasks Toggle */}
+        <div className="flex flex-wrap items-center justify-between gap-2.5 pb-2.5 border-b border-slate-100">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mr-1">
+              Workflow View:
+            </span>
+
+            <button
+              type="button"
+              onClick={() => setQuickStage('all')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                quickStage === 'all'
+                  ? 'bg-slate-900 text-white shadow-xs'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              All Items ({videos.length})
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setQuickStage('ready_to_film')}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                quickStage === 'ready_to_film'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200/60'
+              }`}
+            >
+              <PlayCircle className="w-3.5 h-3.5" />
+              <span>Ready to Film</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                quickStage === 'ready_to_film' ? 'bg-indigo-700 text-white' : 'bg-indigo-200/70 text-indigo-900'
+              }`}>
+                {videos.filter((v) => v.status === VideoProductionStatus.SCRIPT_READY || v.status === VideoProductionStatus.RECORDING).length}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setQuickStage('needs_script')}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                quickStage === 'needs_script'
+                  ? 'bg-amber-600 text-white shadow-xs'
+                  : 'bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200/60'
+              }`}
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>Needs Script</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                quickStage === 'needs_script' ? 'bg-amber-700 text-white' : 'bg-amber-200/70 text-amber-900'
+              }`}>
+                {videos.filter((v) => v.status === VideoProductionStatus.SCRIPT_REQUIRED || v.status === VideoProductionStatus.QUEUED).length}
+              </span>
+            </button>
+          </div>
+
+          {/* My Assigned Tasks Toggle */}
+          <button
+            type="button"
+            onClick={() => setMyTasksOnly(!myTasksOnly)}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border cursor-pointer ${
+              myTasksOnly
+                ? 'bg-emerald-50 border-emerald-400 text-emerald-800 ring-2 ring-emerald-200 shadow-xs'
+                : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            <UserCheck className={`w-3.5 h-3.5 ${myTasksOnly ? 'text-emerald-600' : 'text-slate-500'}`} />
+            <span>My Assigned Tasks</span>
+            {myTasksOnly && (
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            )}
+          </button>
+        </div>
+
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
           {/* Search Input */}
           <div className="relative flex-1">
@@ -289,6 +393,8 @@ export const QueuePage: React.FC = () => {
               variant="ghost"
               size="sm"
               onClick={() => {
+                setQuickStage('all');
+                setMyTasksOnly(false);
                 setPriorityFilter('');
                 setStatusFilter('');
                 setDifficultyFilter('');
