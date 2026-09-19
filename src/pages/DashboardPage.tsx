@@ -3,16 +3,21 @@ import { RefreshCw } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../lib/api-client';
-import { PageHeader } from '../design-system/components/PageHeader';
 import { Button } from '../design-system/components/Button';
 import { Alert } from '../design-system/components/Alert';
 import { ErrorState } from '../design-system/components/ErrorState';
-import { ContinueProductionCard, ActionableProductionItem } from '../components/dashboard/ContinueProductionCard';
-import { WhatsWaitingSection, WaitingCounts } from '../components/dashboard/WhatsWaitingSection';
-import { ChannelPerformanceSection } from '../components/dashboard/ChannelPerformanceSection';
+
+import { ExecutiveHeroBanner } from '../components/dashboard/ExecutiveHeroBanner';
+import { ExecutiveVitalsBento } from '../components/dashboard/ExecutiveVitalsBento';
+import { ConveyorBeltVisualizer, ConveyorStageCounts } from '../components/dashboard/ConveyorBeltVisualizer';
+import { OperationalDispatch } from '../components/dashboard/OperationalDispatch';
+import { RecentAuditFeed } from '../components/dashboard/RecentAuditFeed';
+import { ActionableProductionItem } from '../components/dashboard/ContinueProductionCard';
+import { WaitingCounts } from '../components/dashboard/WhatsWaitingSection';
+
 import {
+  AuditLog,
   DashboardOverviewData,
-  SocialAnalyticsSummary,
   Question,
   Video,
   UserRole,
@@ -25,7 +30,7 @@ export const DashboardPage: React.FC = () => {
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Core Presentation Data State
+  // Core Data States
   const [continueItem, setContinueItem] = useState<ActionableProductionItem | null>(null);
   const [waitingCounts, setWaitingCounts] = useState<WaitingCounts>({
     questionsToReview: 0,
@@ -34,24 +39,30 @@ export const DashboardPage: React.FC = () => {
     socialReviews: 0,
     readyToPublish: 0,
   });
-  const [analyticsSummary, setAnalyticsSummary] = useState<SocialAnalyticsSummary | null>(null);
-  const [analyticsUnavailable, setAnalyticsUnavailable] = useState<boolean>(false);
 
-  /**
-   * Deterministic resolution of current actionable production item:
-   * Rule 1: Check user's assigned active tasks from getMyWork().
-   * Rule 2: Check system-wide todaysWork from getDashboardOverview().
-   * Rule 3: Check in-flight videos from getVideos() in stage order.
-   * Rule 4: Check in-flight questions from getQuestions().
-   * Rule 5: If none, return null (renders "No production in progress").
-   */
-  const resolveDeterministicContinueItem = (
+  const [conveyorCounts, setConveyorCounts] = useState<ConveyorStageCounts>({
+    draftQuestions: 0,
+    generatedQuestions: 0,
+    scriptRequiredVideos: 0,
+    scriptReadyVideos: 0,
+    editingVideos: 0,
+    qcLockVideos: 0,
+    socialSimVideos: 0,
+    liveVideos: 0,
+  });
+
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [producedTodayCount, setProducedTodayCount] = useState<number>(0);
+  const [totalInFlightCount, setTotalInFlightCount] = useState<number>(0);
+
+  // Deterministic resolution of current actionable production item
+  const resolveContinueItem = (
     overviewData: DashboardOverviewData | null,
     myWorkData: any | null,
     inFlightVideos: Video[],
     inFlightQuestions: Question[]
   ): ActionableProductionItem | null => {
-    // 1. Check user personal assignments (highest urgency first)
+    // 1. Check user personal assignments
     if (myWorkData) {
       const activeAssignments = [
         ...(myWorkData.overdue || []),
@@ -62,211 +73,77 @@ export const DashboardPage: React.FC = () => {
 
       if (activeAssignments.length > 0) {
         const topTask = activeAssignments[0];
-        // Resolve target step based on entity and task type
         if (topTask.entityType === 'QUESTION' || topTask.questionId) {
           const qId = topTask.questionId || topTask.entityId;
-          const stepInfo = mapQuestionStatusToStep('GENERATED', qId);
           return {
             id: qId,
             title: topTask.title || `Question Task: ${topTask.type || 'Review'}`,
-            stepNumber: stepInfo.number,
-            stepName: stepInfo.name,
+            stepNumber: '02',
+            stepName: 'Review & Approve',
             stageCategory: 'QUESTION',
             priority: topTask.priority || 'HIGH',
             reason: topTask.description || 'Assigned to your queue',
-            targetUrl: stepInfo.url,
+            targetUrl: `/questions/${qId}/verify`,
           };
         } else if (topTask.entityType === 'VIDEO' || topTask.videoId) {
           const vId = topTask.videoId || topTask.entityId;
           const status = topTask.stage || topTask.status || 'EDITING';
-          const stepInfo = mapVideoStatusToStep(status, vId);
           return {
             id: vId,
-            title: topTask.title || `Video Production: ${stepInfo.name}`,
-            stepNumber: stepInfo.number,
-            stepName: stepInfo.name,
+            title: topTask.title || 'Video Production Item',
+            stepNumber: '05',
+            stepName: 'Video Editing Bay',
             stageCategory: 'VIDEO',
             priority: topTask.priority || 'HIGH',
             reason: topTask.description || 'Assigned production item',
-            targetUrl: stepInfo.url,
+            targetUrl: `/videos/${vId}?tab=editing`,
           };
         }
       }
     }
 
-    // 2. Check system-wide todaysWork from overview
-    if (overviewData?.todaysWork && overviewData.todaysWork.length > 0) {
-      // Deterministically sort by priority weight then age
-      const priorityWeights: Record<string, number> = {
-        URGENT: 4,
-        HIGH: 3,
-        MEDIUM: 2,
-        LOW: 1,
-        NORMAL: 1,
-      };
-
-      const sorted = [...overviewData.todaysWork].sort((a, b) => {
-        const pDiff = (priorityWeights[b.priority] || 0) - (priorityWeights[a.priority] || 0);
-        if (pDiff !== 0) return pDiff;
-        return (b.ageDays || 0) - (a.ageDays || 0);
-      });
-
-      const topItem = sorted[0];
-      const isVideo = topItem.entityType === 'VIDEO';
-      const stepInfo = isVideo
-        ? mapVideoStatusToStep(topItem.currentStatus, topItem.id)
-        : mapQuestionStatusToStep(topItem.currentStatus, topItem.id);
-
-      return {
-        id: topItem.id,
-        title: topItem.title || 'In-Progress Production Batch',
-        stepNumber: stepInfo.number,
-        stepName: stepInfo.name,
-        stageCategory: isVideo ? 'VIDEO' : 'QUESTION',
-        topic: topItem.topic,
-        priority: topItem.priority,
-        ageDays: topItem.ageDays,
-        reason: topItem.reason || topItem.recommendedAction,
-        targetUrl: topItem.actionUrl || stepInfo.url,
-      };
-    }
-
-    // 3. Check active in-flight videos (Stage precedence: Edit > Script > Record > Final Review > Upload)
+    // 2. Check in-flight videos (highest priority first)
     const activeVideos = (inFlightVideos || []).filter(
-      (v) =>
-        v.status &&
-        !['PUBLISHED', 'ARCHIVED', 'CANCELLED', 'ON_HOLD'].includes(v.status as string)
+      (v) => v.status && !['PUBLISHED', 'ARCHIVED', 'CANCELLED', 'ON_HOLD'].includes(v.status as string)
     );
 
     if (activeVideos.length > 0) {
-      // Stage ranking priority: items closer to release first
-      const stageRank: Record<string, number> = {
-        FINAL_REVIEW: 7,
-        EDITING: 6,
-        RECORDED: 5,
-        RECORDING: 4,
-        SCRIPT_READY: 3,
-        SCRIPT_REQUIRED: 2,
-        QUEUED: 1,
-        READY_TO_UPLOAD: 8,
-        UPLOADED: 9,
-      };
-
-      const sortedVideos = [...activeVideos].sort((a, b) => {
-        const rDiff = (stageRank[b.status] || 0) - (stageRank[a.status] || 0);
-        if (rDiff !== 0) return rDiff;
-        return new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime();
-      });
-
-      const v = sortedVideos[0];
-      const stepInfo = mapVideoStatusToStep(v.status, v.id);
+      const v = activeVideos[0];
       return {
         id: v.id,
         title: v.title || `Video ${v.id}`,
-        stepNumber: stepInfo.number,
-        stepName: stepInfo.name,
+        stepNumber: v.status === 'SCRIPT_READY' ? '04' : '05',
+        stepName: v.status === 'SCRIPT_READY' ? 'Teleprompter & Filming' : 'Video Editing Bay',
         stageCategory: 'VIDEO',
         topic: v.question?.topicId || 'Aptitude',
-        subtopic: v.question?.subtopicId,
         priority: v.priority || 'HIGH',
-        targetUrl: stepInfo.url,
+        targetUrl: v.status === 'SCRIPT_READY' ? `/videos/${v.id}?tab=recording` : `/videos/${v.id}?tab=editing`,
       };
     }
 
-    // 4. Check active in-flight questions
+    // 3. Check in-flight questions
     const pendingQuestions = (inFlightQuestions || []).filter(
       (q) => q.status === 'GENERATED' || q.status === 'DRAFT'
     );
 
     if (pendingQuestions.length > 0) {
       const q = pendingQuestions[0];
-      const stepInfo = mapQuestionStatusToStep(q.status, q.id);
       return {
         id: q.id,
         title: q.questionText || `Question ${q.id}`,
-        stepNumber: stepInfo.number,
-        stepName: stepInfo.name,
+        stepNumber: q.status === 'DRAFT' ? '01' : '02',
+        stepName: q.status === 'DRAFT' ? 'Question Studio' : 'Review & Approve',
         stageCategory: 'QUESTION',
         topic: q.topicId || 'Aptitude',
-        subtopic: q.subtopicId,
         priority: 'MEDIUM',
-        targetUrl: stepInfo.url,
+        targetUrl: q.status === 'DRAFT' ? `/questions/${q.id}` : `/questions/${q.id}/verify`,
       };
     }
 
-    // 5. Zero work in flight
     return null;
   };
 
-  const mapVideoStatusToStep = (status: string, videoId?: string) => {
-    switch (status) {
-      case 'SCRIPT_REQUIRED':
-        return {
-          number: '03',
-          name: 'Audience Script',
-          url: videoId ? `/videos/${videoId}?tab=script` : '/production?status=SCRIPT_REQUIRED',
-        };
-      case 'SCRIPT_READY':
-      case 'RECORDING':
-        return {
-          number: '04',
-          name: 'Teleprompter & Filming',
-          url: videoId ? `/videos/${videoId}?tab=recording` : '/production?status=SCRIPT_READY',
-        };
-      case 'RECORDED':
-      case 'EDITING':
-        return {
-          number: '05',
-          name: 'Video Editing Bay',
-          url: videoId ? `/videos/${videoId}?tab=editing` : '/production?status=EDITING',
-        };
-      case 'EDITED':
-      case 'FINAL_REVIEW':
-        return {
-          number: '06',
-          name: 'Final QC Lock',
-          url: videoId ? `/videos/${videoId}?tab=final-review` : '/production?status=FINAL_REVIEW',
-        };
-      case 'READY_TO_UPLOAD':
-        return {
-          number: '07',
-          name: 'Social Simulator',
-          url: videoId ? `/videos/${videoId}?tab=social` : '/production?status=READY_TO_UPLOAD',
-        };
-      case 'UPLOADED':
-        return {
-          number: '08',
-          name: 'Release Station',
-          url: videoId ? `/videos/${videoId}?tab=publishing` : '/production?status=UPLOADED',
-        };
-      default:
-        return {
-          number: '05',
-          name: 'Video Editing Bay',
-          url: videoId ? `/videos/${videoId}?tab=editing` : '/production',
-        };
-    }
-  };
-
-  const mapQuestionStatusToStep = (status: string, questionId?: string) => {
-    switch (status) {
-      case 'DRAFT':
-        return {
-          number: '01',
-          name: 'Question Studio',
-          url: questionId ? `/questions/${questionId}` : '/studio',
-        };
-      case 'GENERATED':
-      default:
-        return {
-          number: '02',
-          name: 'Review & Approve',
-          url: questionId ? `/questions/${questionId}/verify` : '/questions?status=GENERATED',
-        };
-    }
-  };
-
-  // Load authoritative data
+  // Load Authoritative Data
   const loadDashboardData = useCallback(async (isManualRefresh = false) => {
     if (isManualRefresh) {
       setIsRefreshing(true);
@@ -276,97 +153,83 @@ export const DashboardPage: React.FC = () => {
     setErrorMessage(null);
 
     try {
-      // 1. Fetch overview metrics & today's work
-      let overview: DashboardOverviewData | null = null;
-      try {
-        overview = await apiClient.getDashboardOverview();
-      } catch (err: any) {
-        console.warn('Dashboard overview fetch error:', err?.message);
-      }
+      // 1. Parallel fetch of overview, myWork, questions, videos, audit logs, social reviews
+      const [
+        overviewRes,
+        myWorkRes,
+        qRes,
+        vRes,
+        auditRes,
+        socialReviewRes,
+      ] = await Promise.all([
+        apiClient.getDashboardOverview().catch(() => null),
+        user?.id ? apiClient.getMyWork(user.id).catch(() => null) : Promise.resolve(null),
+        apiClient.getQuestions().catch(() => []),
+        apiClient.getVideos().catch(() => []),
+        apiClient.getAuditLogs().catch(() => []),
+        apiClient.getSocialReviewsList().catch(() => ({ success: false, data: [] })),
+      ]);
 
-      // 2. Fetch my work assignments for current user
-      let myWork: any = null;
-      if (user?.id) {
-        try {
-          myWork = await apiClient.getMyWork(user.id);
-        } catch {
-          // Graceful fallback if no personal queue
-        }
-      }
+      const questions: Question[] = qRes || [];
+      const videos: Video[] = vRes || [];
+      const logs: AuditLog[] = auditRes || [];
+      const reviews = socialReviewRes?.data || [];
 
-      // 3. Fetch in-flight questions & videos for deterministic item check & counts
-      let questions: Question[] = [];
-      let videos: Video[] = [];
-      try {
-        const [qRes, vRes] = await Promise.all([
-          apiClient.getQuestions().catch(() => []),
-          apiClient.getVideos().catch(() => []),
-        ]);
-        questions = qRes || [];
-        videos = vRes || [];
-      } catch {
-        // Fallback to empty arrays
-      }
+      setAuditLogs(logs);
 
-      // 4. Fetch social review pending count
-      let pendingSocialReviewsCount = 0;
-      try {
-        const res = await apiClient.getSocialReviewsList().catch(() => ({ success: false, data: [] }));
-        const reviews = res?.data || [];
-        pendingSocialReviewsCount = reviews.filter(
-          (r: any) => r.decision === 'PENDING_REVIEW' || r.status === 'SUBMITTED' || r.decision === 'DRAFT'
-        ).length;
-      } catch {
-        pendingSocialReviewsCount = 0;
-      }
+      // Compute Today's Production Count (videos created or updated today)
+      const todayStr = new Date().toDateString();
+      const producedToday = videos.filter(
+        (v) =>
+          (v.createdAt && new Date(v.createdAt).toDateString() === todayStr) ||
+          (v.status === 'UPLOADED' && v.updatedAt && new Date(v.updatedAt).toDateString() === todayStr)
+      ).length;
+      setProducedTodayCount(producedToday);
 
-      // Compute What's Waiting counts from authoritative data
-      const qReviewCount =
-        overview?.metrics?.questions?.generated ??
-        questions.filter((q) => q.status === 'GENERATED').length;
+      // Compute Stage Counts for Conveyor Belt
+      const draftQ = questions.filter((q) => q.status === 'DRAFT').length;
+      const genQ = questions.filter((q) => q.status === 'GENERATED').length;
+      const scriptReqV = videos.filter((v) => v.status === 'SCRIPT_REQUIRED').length;
+      const scriptReadyV = videos.filter((v) => v.status === 'SCRIPT_READY').length;
+      const editingV = videos.filter((v) => v.status === 'EDITING').length;
+      const qcLockV = videos.filter((v) => v.status === 'FINAL_REVIEW' || v.status === 'EDITED').length;
+      const socialSimV = videos.filter((v) => v.status === 'READY_TO_UPLOAD').length;
+      const liveV = videos.filter((v) => v.status === 'UPLOADED').length;
 
-      const sReviewCount =
-        overview?.metrics?.videos?.scriptReady ??
-        videos.filter((v) => v.status === 'SCRIPT_READY').length;
-
-      const vEditCount =
-        overview?.metrics?.videos?.editing ??
-        videos.filter((v) => v.status === 'EDITING').length;
-
-      const readyPublishCount =
-        overview?.metrics?.videos?.readyToUpload ??
-        overview?.metrics?.publishing?.ready ??
-        videos.filter((v) => v.status === 'READY_TO_UPLOAD').length;
-
-      setWaitingCounts({
-        questionsToReview: Math.max(0, qReviewCount),
-        scriptsToReview: Math.max(0, sReviewCount),
-        videosToEdit: Math.max(0, vEditCount),
-        socialReviews: Math.max(0, pendingSocialReviewsCount),
-        readyToPublish: Math.max(0, readyPublishCount),
+      setConveyorCounts({
+        draftQuestions: draftQ,
+        generatedQuestions: genQ,
+        scriptRequiredVideos: scriptReqV,
+        scriptReadyVideos: scriptReadyV,
+        editingVideos: editingV,
+        qcLockVideos: qcLockV,
+        socialSimVideos: socialSimV,
+        liveVideos: liveV,
       });
 
-      // Compute deterministic continue production item
-      const resolvedItem = resolveDeterministicContinueItem(overview, myWork, videos, questions);
-      setContinueItem(resolvedItem);
+      // Total in-flight count
+      const activeQ = questions.filter((q) => q.status === 'DRAFT' || q.status === 'GENERATED' || q.status === 'EDITING').length;
+      const activeV = videos.filter((v) => v.status && !['PUBLISHED', 'ARCHIVED', 'CANCELLED', 'ON_HOLD'].includes(v.status as string)).length;
+      setTotalInFlightCount(activeQ + activeV);
 
-      // 5. Fetch separate Analytics data layer
-      try {
-        const res = await apiClient.getSocialAnalyticsSummary();
-        const analytics = res?.summary;
-        if (analytics && analytics.totalRecords > 0) {
-          setAnalyticsSummary(analytics);
-          setAnalyticsUnavailable(false);
-        } else {
-          setAnalyticsSummary(null);
-          setAnalyticsUnavailable(true);
-        }
-      } catch {
-        setAnalyticsSummary(null);
-        setAnalyticsUnavailable(true);
-      }
+      // What's Waiting Counts
+      const pendingSocialCount = reviews.filter(
+        (r: any) => r.decision === 'PENDING_REVIEW' || r.status === 'SUBMITTED' || r.decision === 'DRAFT'
+      ).length;
+
+      setWaitingCounts({
+        questionsToReview: genQ,
+        scriptsToReview: scriptReadyV,
+        videosToEdit: editingV,
+        socialReviews: pendingSocialCount,
+        readyToPublish: socialSimV,
+      });
+
+      // Resolve Continue Item
+      const resolved = resolveContinueItem(overviewRes, myWorkRes, videos, questions);
+      setContinueItem(resolved);
     } catch (err: any) {
-      setErrorMessage(err?.message || 'Failed to load dashboard data. Please check connection and try again.');
+      setErrorMessage(err?.message || 'Failed to load executive dashboard data.');
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -377,13 +240,13 @@ export const DashboardPage: React.FC = () => {
     loadDashboardData();
   }, [loadDashboardData]);
 
-  if (errorMessage && !continueItem && !waitingCounts) {
+  if (errorMessage && !conveyorCounts) {
     return (
       <div className="py-8">
         <ErrorState
-          title="Dashboard Unavailable"
+          title="Executive Dashboard Unavailable"
           message={errorMessage}
-          retryLabel="Try Again"
+          retryLabel="Retry Connection"
           onRetry={() => loadDashboardData(true)}
         />
       </div>
@@ -391,73 +254,87 @@ export const DashboardPage: React.FC = () => {
   }
 
   return (
-    <div id="dashboard-home-container" className="space-y-8 animate-in fade-in-50 duration-150">
-      {/* Page Header */}
-      <PageHeader
-        title="Dashboard"
-        description="Your production control center. Review active work, queues, and channel performance."
-        breadcrumbs={[
-          { label: 'Home', href: '/dashboard' },
-          { label: 'Dashboard' },
-        ]}
-        actions={
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => loadDashboardData(true)}
-            disabled={isRefreshing || isLoading}
-            className="flex items-center gap-1.5 font-medium text-xs text-slate-700 bg-white"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
-            <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
-          </Button>
-        }
-      />
+    <div id="executive-dashboard-container" className="space-y-6 animate-in fade-in-50 duration-200 pb-8">
+      {/* Top Controls Bar */}
+      <div className="flex items-center justify-between gap-4 bg-white p-3 rounded-xl border border-slate-200/80 shadow-2xs">
+        <div className="flex items-center gap-2">
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+            Burra Pariksha Executive Studio Control
+          </span>
+        </div>
 
-      {/* Optional Warning Banner if non-fatal partial error occurred */}
-      {errorMessage && (
-        <Alert
-          variant="warning"
-          title="Notice"
-          onDismiss={() => setErrorMessage(null)}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => loadDashboardData(true)}
+          disabled={isRefreshing || isLoading}
+          className="flex items-center gap-1.5 font-semibold text-xs text-slate-700 bg-white shadow-2xs"
         >
+          <RefreshCw className={`w-3.5 h-3.5 text-slate-600 ${isRefreshing ? 'animate-spin' : ''}`} />
+          <span>{isRefreshing ? 'Refreshing...' : 'Refresh Command Center'}</span>
+        </Button>
+      </div>
+
+      {/* Optional Warning Banner if non-fatal error */}
+      {errorMessage && (
+        <Alert variant="warning" title="Notice" onDismiss={() => setErrorMessage(null)}>
           {errorMessage}
         </Alert>
       )}
 
-      {/* SECTION A: CONTINUE PRODUCTION (What do I need to do?) */}
-      <section id="section-continue-production" aria-label="Continue Production">
-        <ContinueProductionCard
-          item={continueItem}
+      {/* 1. EXECUTIVE HERO BANNER */}
+      <section id="section-executive-hero" aria-label="Executive Hero Banner">
+        <ExecutiveHeroBanner
+          user={user}
+          producedTodayCount={producedTodayCount}
+          dailyGoal={3}
+        />
+      </section>
+
+      {/* 2. EXECUTIVE VITALS BENTO GRID */}
+      <section id="section-vitals-bento" aria-label="Executive Vitals Bento Grid">
+        <ExecutiveVitalsBento
+          totalTopics={100}
+          totalSubtopics={100}
+          saturationPct={0}
+          activeInFlightCount={totalInFlightCount}
           isLoading={isLoading}
         />
       </section>
 
-      {/* SECTION B: WHAT'S WAITING (What's waiting?) */}
-      <section id="section-whats-waiting" aria-label="What's Waiting">
-        <WhatsWaitingSection
-          counts={waitingCounts}
-          userRole={user?.role}
+      {/* 3. LIVE PRODUCTION CONVEYOR BELT */}
+      <section id="section-conveyor-belt" aria-label="Live Production Conveyor Belt">
+        <ConveyorBeltVisualizer
+          counts={conveyorCounts}
           isLoading={isLoading}
         />
       </section>
 
-      {/* SECTION C: HOW IS THE CHANNEL PERFORMING? (How is the channel performing?) */}
-      <section id="section-channel-performance" aria-label="Channel Performance">
-        <ChannelPerformanceSection
-          summary={analyticsSummary}
+      {/* 4. TWO-COLUMN OPERATIONAL DISPATCH (65% / 35% Split) */}
+      <section id="section-operational-dispatch" aria-label="Operational Dispatch">
+        <OperationalDispatch
+          continueItem={continueItem}
+          waitingCounts={waitingCounts}
           isLoading={isLoading}
-          isUnavailable={analyticsUnavailable}
         />
       </section>
 
-      {/* Subtle Secondary Operations Quicklinks for Managers/Admins */}
+      {/* 5. RECENT ACTIVITY & AUDIT FEED */}
+      <section id="section-recent-audit" aria-label="Recent Audit Feed">
+        <RecentAuditFeed
+          logs={auditLogs}
+          isLoading={isLoading}
+        />
+      </section>
+
+      {/* 6. SECONDARY MANAGEMENT DISPATCH FOOTER */}
       <div
         id="dashboard-secondary-links"
         className="pt-4 border-t border-slate-200/80 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500"
       >
         <div className="flex items-center gap-2">
-          <span className="font-semibold text-slate-700">Secondary Management:</span>
+          <span className="font-semibold text-slate-700">Quick Operations Jump:</span>
           <Link
             to="/planning"
             className="text-indigo-600 hover:text-indigo-700 hover:underline font-medium"
@@ -485,7 +362,7 @@ export const DashboardPage: React.FC = () => {
         </div>
 
         <span className="text-[11px] text-slate-400 font-mono">
-          Authoritative Persistence: Google Sheets DB
+          Authoritative Engine: Google Sheets DB & Gemini AI Studio
         </span>
       </div>
     </div>
