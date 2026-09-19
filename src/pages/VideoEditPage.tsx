@@ -23,6 +23,8 @@ import {
 import { Video, Script, Question, VideoProductionStatus, MediaAsset } from '../types';
 import { apiClient } from '../lib/api-client';
 import { VideoWorkflowHeader } from '../components/video/VideoWorkflowHeader';
+import { ProductionJourneyBar } from '../components/production/ProductionJourneyBar';
+import { useProductionJourney } from '../contexts/ProductionJourneyContext';
 import { PageHeader } from '../design-system/components/PageHeader';
 import { Card } from '../design-system/components/Card';
 import { Button } from '../design-system/components/Button';
@@ -37,6 +39,8 @@ export const VideoEditPage: React.FC = () => {
   const navigate = useNavigate();
 
   const videoId = routeVideoId || searchParams.get('videoId') || searchParams.get('id') || '';
+
+  const { loadJourneyForVideo } = useProductionJourney();
 
   // State
   const [videoList, setVideoList] = useState<Video[]>([]);
@@ -97,6 +101,7 @@ export const VideoEditPage: React.FC = () => {
 
       const vid = await apiClient.getVideoById(targetId);
       setSelectedVideo(vid);
+      loadJourneyForVideo(targetId, vid);
       setAssignedEditor(vid.assignedEditor || '');
       if (vid.actualDurationSeconds || vid.targetDurationSeconds) {
         setRenderDurationSeconds(Number(vid.actualDurationSeconds || vid.targetDurationSeconds) || 54);
@@ -266,7 +271,7 @@ export const VideoEditPage: React.FC = () => {
       const updated = await apiClient.updateVideoStatus(
         targetId,
         VideoProductionStatus.FINAL_REVIEW,
-        `Stage advanced from Step 08 Video Editing: ${editorNotes || 'Cut finalized'}`
+        `Stage advanced from Stage 05 Video Editing: ${editorNotes || 'Cut finalized'}`
       );
       setSelectedVideo(updated);
       setSuccessMessage('Production status transitioned to FINAL_REVIEW.');
@@ -367,6 +372,16 @@ export const VideoEditPage: React.FC = () => {
         videoId={videoId || selectedVideo?.id}
         videoTitle={selectedVideo?.title}
         videoStatus={selectedVideo?.status}
+      />
+
+      {/* Unified Production Journey Architecture Stage Bar */}
+      <ProductionJourneyBar
+        onNavigateTab={(tab) => {
+          const targetId = videoId || selectedVideo?.id;
+          if (targetId) {
+            navigate(`/videos/${encodeURIComponent(targetId)}?tab=${tab}`);
+          }
+        }}
       />
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -472,7 +487,7 @@ export const VideoEditPage: React.FC = () => {
                   <div className="p-3 bg-red-50/70 border border-red-200 rounded-xl space-y-1">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-mono font-bold text-red-700 uppercase">
-                        01 Hook Graphic Overlay (00:00 – 00:05)
+                        Hook Graphic Overlay (00:00 – 00:05)
                       </span>
                       <span className="text-[10px] bg-red-200 text-red-900 px-1.5 py-0.2 rounded font-mono">
                         Bold Center Pop
@@ -487,7 +502,7 @@ export const VideoEditPage: React.FC = () => {
                   <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-mono font-bold text-slate-700 uppercase">
-                        02 Question & 4-Box Options (00:05 – 00:15)
+                        Question &amp; 4-Box Options (00:05 – 00:15)
                       </span>
                       <span className="text-[10px] bg-slate-200 text-slate-800 px-1.5 py-0.2 rounded font-mono">
                         Lower-Third Grid
@@ -497,15 +512,17 @@ export const VideoEditPage: React.FC = () => {
                     {question ? (
                       <>
                         <div className="p-2.5 bg-white border border-slate-200 rounded-lg text-xs font-telugu text-slate-900 font-medium leading-relaxed">
-                          {question.questionText}
+                          {(question as any).statementTe || (question as any).statement || question.questionText}
                         </div>
                         <div className="grid grid-cols-2 gap-2">
                           {(['A', 'B', 'C', 'D'] as const).map((opt) => {
                             const optText =
                               (question.options as any)?.[opt.toLowerCase()] ||
+                              (question as any)[`option${opt}Te`] ||
                               (question as any)[`option${opt}`] ||
                               '';
-                            const isCorrect = String(question.correctAnswer).toUpperCase() === opt;
+                            const correctAns = String((question as any).correctOption || question.correctAnswer || '').toUpperCase();
+                            const isCorrect = correctAns === opt;
                             return (
                               <div
                                 key={opt}
@@ -532,14 +549,14 @@ export const VideoEditPage: React.FC = () => {
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-mono font-bold text-amber-800 uppercase flex items-center gap-1">
                         <Clock className="w-3 h-3 text-amber-600" />
-                        03 10-Second Radial Countdown Cue (00:15 – 00:25)
+                        10-Second Radial Countdown Cue (00:15 – 00:25)
                       </span>
                       <span className="text-[10px] bg-amber-200 text-amber-900 px-1.5 py-0.2 rounded font-mono">
                         SFX: Ticking Clock
                       </span>
                     </div>
                     <p className="text-xs text-amber-950">
-                      Sync circular countdown animation with subtle audio ticking. Highlight Option <strong>{question?.correctAnswer || 'A'}</strong> at 00:25.
+                      Sync circular countdown animation with subtle audio ticking. Highlight Option <strong>{String((question as any)?.correctOption || question?.correctAnswer || 'A').toUpperCase()}</strong> at 00:25.
                     </p>
                   </div>
 
@@ -548,7 +565,7 @@ export const VideoEditPage: React.FC = () => {
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-mono font-bold text-indigo-800 uppercase flex items-center gap-1">
                         <Sparkles className="w-3 h-3 text-indigo-600" />
-                        04 Burra Speed Formula Graphic (00:35 – 00:45)
+                        Burra Speed Formula Graphic (00:35 – 00:45)
                       </span>
                       <span className="text-[10px] bg-indigo-200 text-indigo-900 px-1.5 py-0.2 rounded font-mono">
                         Gold Highlight Box
@@ -819,7 +836,7 @@ export const VideoEditPage: React.FC = () => {
                   size="md"
                   onClick={() => {
                     const targetId = videoId || selectedVideo?.id;
-                    navigate(`/videos/${encodeURIComponent(targetId)}/final-video`);
+                    navigate(`/videos/${encodeURIComponent(targetId)}?tab=final-review`);
                   }}
                   icon={ArrowRight}
                   className="w-full text-xs justify-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold"

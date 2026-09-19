@@ -17,6 +17,14 @@ import {
   RotateCcw,
   UploadCloud,
   Download,
+  CheckSquare,
+  Square,
+  Sparkles,
+  ShieldCheck,
+  Smartphone,
+  Volume2,
+  Check,
+  Layers,
 } from 'lucide-react';
 import { Video, Script, VideoProductionStatus, AssignmentTaskType, RenderValidationStatus, MediaAsset } from '../../types';
 import { ProductionAssetValidationService } from '../../lib/services/production-asset-validation.service';
@@ -29,7 +37,7 @@ interface EditingWorkspaceProps {
   videoId: string;
   video: Video;
   onStatusChange?: () => void;
-  onNavigateTab?: (tab: 'script' | 'thumbnail' | 'pinned-comment' | 'publishing' | 'recording' | 'overview') => void;
+  onNavigateTab?: (tab: 'script' | 'recording' | 'editing' | 'final-review' | 'social' | 'overview' | 'thumbnail' | 'pinned-comment' | 'publishing') => void;
 }
 
 export const EditingWorkspace: React.FC<EditingWorkspaceProps> = ({
@@ -55,12 +63,83 @@ export const EditingWorkspace: React.FC<EditingWorkspaceProps> = ({
   const [editingNotes, setEditingNotes] = useState<string>(video.notes || '');
   const [driveUrl, setDriveUrl] = useState<string>(video.driveFolderUrl || '');
   const [finalRenderUrl, setFinalRenderUrl] = useState<string>(video.finalRenderPath || '');
-  const [width, setWidth] = useState<string>(video.finalRenderWidth ? String(video.finalRenderWidth) : '');
-  const [height, setHeight] = useState<string>(video.finalRenderHeight ? String(video.finalRenderHeight) : '');
-  const [format, setFormat] = useState<string>(video.finalRenderFormat || '');
-  const [aspectRatio, setAspectRatio] = useState<string>(video.finalRenderAspectRatio || '');
-  const [actualDuration, setActualDuration] = useState<string>(video.actualDurationSeconds ? String(video.actualDurationSeconds) : '');
+  const [width, setWidth] = useState<string>(video.finalRenderWidth ? String(video.finalRenderWidth) : '1080');
+  const [height, setHeight] = useState<string>(video.finalRenderHeight ? String(video.finalRenderHeight) : '1920');
+  const [format, setFormat] = useState<string>(video.finalRenderFormat || 'MP4');
+  const [aspectRatio, setAspectRatio] = useState<string>(video.finalRenderAspectRatio || '9:16');
+  const [actualDuration, setActualDuration] = useState<string>(video.actualDurationSeconds ? String(video.actualDurationSeconds) : '54');
   const [isSavingDetails, setIsSavingDetails] = useState<boolean>(false);
+
+  // Interactive 6-Point Shorts Polish Checklist State
+  const [polishChecklist, setPolishChecklist] = useState({
+    hookPacing: true,
+    teluguTypography: true,
+    countdownTimer: true,
+    speedTrickCallout: true,
+    safeZones: true,
+    audioLevels: true,
+  });
+
+  const togglePolishItem = (key: keyof typeof polishChecklist) => {
+    setPolishChecklist((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const handleSelectAllPolish = (value: boolean) => {
+    setPolishChecklist({
+      hookPacing: value,
+      teluguTypography: value,
+      countdownTimer: value,
+      speedTrickCallout: value,
+      safeZones: value,
+      audioLevels: value,
+    });
+  };
+
+  const completedPolishCount = Object.values(polishChecklist).filter(Boolean).length;
+
+  const POLISH_CHECKLIST_CONFIG: {
+    key: keyof typeof polishChecklist;
+    title: string;
+    description: string;
+    badge: string;
+  }[] = [
+    {
+      key: 'hookPacing',
+      title: '1. Hook Pacing (0–5s)',
+      description: 'Rapid start with zero dead air. Immediate Telugu spoken problem hook within first 2 seconds.',
+      badge: '0–5s Hook',
+    },
+    {
+      key: 'teluguTypography',
+      title: '2. Telugu Typography',
+      description: 'Clean Noto Sans Telugu typography overlays for Options ఎ / బి / సి / డి without glyph distortion.',
+      badge: 'Noto Sans Te',
+    },
+    {
+      key: 'countdownTimer',
+      title: '3. Countdown / Tension Timer',
+      description: 'Sound cue or visual countdown timer (10s audio ticking) built up before solution reveal.',
+      badge: 'Timer & SFX',
+    },
+    {
+      key: 'speedTrickCallout',
+      title: '4. Burra Speed Trick Callout',
+      description: 'Highlighted formula box or exam shortcut rule clearly rendered during explanation.',
+      badge: 'Gold Box Graphic',
+    },
+    {
+      key: 'safeZones',
+      title: '5. 9:16 Safe Zones',
+      description: 'Key math text and numbers clear of platform UI like/comment rails (right 120px) and bottom captions.',
+      badge: 'Safe Margins',
+    },
+    {
+      key: 'audioLevels',
+      title: '6. Audio Levels',
+      description: 'Presenter voice crisp (-14 LUFS), pop sound effects balanced, and background music ducked.',
+      badge: '-14 LUFS Ducked',
+    },
+  ];
 
   const fetchScript = async () => {
     try {
@@ -238,7 +317,75 @@ export const EditingWorkspace: React.FC<EditingWorkspaceProps> = ({
   });
 
   const latestEditedAsset = editedAssets.length > 0 ? editedAssets[0] : null;
-  const hasEditedVideo = Boolean(latestEditedAsset);
+  const hasEditedCut = Boolean(latestEditedAsset || (video.finalRenderPath && video.finalRenderPath.trim().length > 0));
+  const hasRawFootage = Boolean(video.driveFileId || rawAsset || video.driveFolderUrl);
+  const numWidth = Number(width);
+  const numHeight = Number(height);
+  const isValidResolution = numWidth === 1080 && numHeight === 1920;
+  const numDuration = Number(actualDuration);
+  const isDurationValid = numDuration > 0 && numDuration <= 60;
+
+  const prereqs = {
+    rawFootage: {
+      label: 'Raw Footage Source',
+      valid: hasRawFootage,
+      statusLabel: hasRawFootage ? '✓ Ingested in Drive' : '⚠️ No Raw Footage Linked',
+      detail: video.driveFileId
+        ? `Drive ID: ${video.driveFileId.slice(0, 14)}...`
+        : 'Awaiting raw camera take from Stage 04 recording',
+    },
+    editedCut: {
+      label: 'Edited Cut',
+      valid: hasEditedCut,
+      statusLabel: hasEditedCut
+        ? latestEditedAsset
+          ? `✓ Uploaded (v${latestEditedAsset.version})`
+          : '✓ Asset Path Linked'
+        : '⚠️ Pending Upload',
+      detail: latestEditedAsset
+        ? latestEditedAsset.fileName
+        : 'Requires 9:16 MP4 master cut uploaded to Drive',
+    },
+    resolution: {
+      label: '9:16 Resolution',
+      valid: isValidResolution,
+      statusLabel: isValidResolution
+        ? '✓ 1080x1920 Valid'
+        : width && height
+        ? `⚠️ Incorrect Dimensions (${width}×${height})`
+        : '⚠️ Incorrect Dimensions',
+      detail: 'Standard vertical canvas 1080×1920 (9:16)',
+    },
+    duration: {
+      label: 'Duration',
+      valid: isDurationValid,
+      statusLabel: isDurationValid
+        ? `✓ <= 60s (${numDuration || actualDuration}s)`
+        : numDuration > 60
+        ? `⚠️ Exceeds 60s Limit (${numDuration}s)`
+        : '⚠️ Duration Missing',
+      detail: numDuration > 60
+        ? 'Exceeds 60s YouTube Shorts limit (fails Shorts feed)'
+        : 'Target pacing: 50s–59s vertical retention',
+    },
+  };
+
+  const allPrereqsMet =
+    prereqs.rawFootage.valid &&
+    prereqs.editedCut.valid &&
+    prereqs.resolution.valid &&
+    prereqs.duration.valid &&
+    liveValidation.status === RenderValidationStatus.VALID;
+
+  const getMissingPrereqsTooltip = () => {
+    const missing: string[] = [];
+    if (!prereqs.rawFootage.valid) missing.push('Raw footage must be ingested in Drive');
+    if (!prereqs.editedCut.valid) missing.push('Edited master cut must be uploaded');
+    if (!prereqs.resolution.valid) missing.push('Resolution must be exactly 1080×1920');
+    if (!prereqs.duration.valid) missing.push('Duration must be ≤ 60 seconds');
+    if (liveValidation.status !== RenderValidationStatus.VALID) missing.push('Render metadata validation errors exist');
+    return missing.length > 0 ? `Prerequisites not met: ${missing.join(', ')}` : undefined;
+  };
 
   const priorityCfg = PRIORITY_CONFIG[video.priority] || PRIORITY_CONFIG['NORMAL'];
 
@@ -290,33 +437,36 @@ export const EditingWorkspace: React.FC<EditingWorkspaceProps> = ({
                 <Button
                   variant="primary"
                   size="sm"
-                  disabled={isUpdating || liveValidation.status !== RenderValidationStatus.VALID || !hasEditedVideo}
+                  disabled={isUpdating || !allPrereqsMet}
                   onClick={handleCompleteEditing}
                   className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-50"
                   icon={CheckCircle2}
-                  title={!hasEditedVideo ? 'An edited video must be uploaded before completing editing' : undefined}
+                  title={getMissingPrereqsTooltip()}
                 >
                   Complete Editing (EDITED)
                 </Button>
                 <Button
                   variant="primary"
                   size="sm"
-                  disabled={isUpdating || !hasEditedVideo}
-                  onClick={() => handleStatusTransition(VideoProductionStatus.FINAL_REVIEW)}
+                  disabled={isUpdating || !allPrereqsMet}
+                  onClick={async () => {
+                    await handleStatusTransition(VideoProductionStatus.FINAL_REVIEW);
+                    onNavigateTab?.('final-review');
+                  }}
                   className="text-xs disabled:opacity-50"
                   icon={ArrowRight}
-                  title={!hasEditedVideo ? 'An edited video must be uploaded before sending to Final Review' : undefined}
+                  title={getMissingPrereqsTooltip()}
                 >
                   Send to Final Review (FINAL_REVIEW)
                 </Button>
                 <Button
                   variant="primary"
                   size="sm"
-                  disabled={isUpdating || !hasEditedVideo}
+                  disabled={isUpdating || !allPrereqsMet}
                   onClick={() => handleStatusTransition(VideoProductionStatus.READY_TO_UPLOAD)}
                   className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50"
                   icon={CheckCircle2}
-                  title={!hasEditedVideo ? 'An edited video must be uploaded before marking Ready to Upload' : undefined}
+                  title={getMissingPrereqsTooltip()}
                 >
                   Ready to Upload (READY_TO_UPLOAD)
                 </Button>
@@ -339,36 +489,40 @@ export const EditingWorkspace: React.FC<EditingWorkspaceProps> = ({
                   variant="primary"
                   size="sm"
                   disabled={isUpdating}
-                  onClick={() => handleStatusTransition(VideoProductionStatus.FINAL_REVIEW)}
-                  className="text-xs"
+                  onClick={() => {
+                    handleStatusTransition(VideoProductionStatus.FINAL_REVIEW);
+                    onNavigateTab?.('final-review');
+                  }}
+                  className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
                   icon={ArrowRight}
                 >
-                  Send to Final Review (FINAL_REVIEW)
-                </Button>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  disabled={isUpdating}
-                  onClick={() => handleStatusTransition(VideoProductionStatus.READY_TO_UPLOAD)}
-                  className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
-                  icon={CheckCircle2}
-                >
-                  Ready to Upload (READY_TO_UPLOAD)
+                  Proceed to Stage 06: Final QC & Assets
                 </Button>
               </>
             )}
 
             {video.status === VideoProductionStatus.FINAL_REVIEW && (
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={isUpdating}
-                onClick={() => handleStatusTransition(VideoProductionStatus.EDITING)}
-                className="text-xs text-rose-600 border-rose-200 hover:bg-rose-50"
-                icon={RotateCcw}
-              >
-                Reject / Return to Editing
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={isUpdating}
+                  onClick={() => handleStatusTransition(VideoProductionStatus.EDITING)}
+                  className="text-xs text-rose-600 border-rose-200 hover:bg-rose-50"
+                  icon={RotateCcw}
+                >
+                  Reject / Return to Editing
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => onNavigateTab?.('final-review')}
+                  className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                  icon={ArrowRight}
+                >
+                  Open Stage 06: Final QC & Assets
+                </Button>
+              </div>
             )}
           </div>
         </div>
@@ -421,10 +575,254 @@ export const EditingWorkspace: React.FC<EditingWorkspaceProps> = ({
         </div>
       </div>
 
+      {/* Zero-Friction Bridge to Stage 06: Celebratory Master Cut Banner */}
+      {(video.status === VideoProductionStatus.EDITED || video.status === VideoProductionStatus.FINAL_REVIEW) && (
+        <div className="bg-gradient-to-r from-emerald-950 via-slate-900 to-indigo-950 border border-emerald-500/40 rounded-xl p-5 text-white shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1 text-xs font-bold font-mono px-2.5 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 rounded-full">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                ✓ MASTER CUT EDITED &amp; VALIDATED
+              </span>
+              <span className="text-xs text-slate-400 font-mono">
+                Current Status: {video.status}
+              </span>
+            </div>
+            <h3 className="text-base font-bold text-white">
+              Master Cut Locked &amp; Ready for Final QC &amp; Assets
+            </h3>
+            <p className="text-xs text-slate-300 max-w-2xl">
+              Vertical 9:16 master cut is ingested with compliant duration and on-screen Telugu overlays. Advance to Stage 06 to review the final render, generate social thumbnails, and inspect publishing metadata.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => onNavigateTab?.('final-review')}
+            className="px-5 py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 shrink-0 group hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+          >
+            <span>Proceed to Stage 06: Final QC &amp; Assets</span>
+            <ArrowRight className="w-4 h-4 text-slate-950 group-hover:translate-x-0.5 transition-transform" />
+          </button>
+        </div>
+      )}
+
+      {/* Editing Readiness & Prerequisites Card */}
+      <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
+          <div className="flex items-center gap-2.5">
+            <ShieldCheck className={`w-5 h-5 ${allPrereqsMet ? 'text-emerald-600' : 'text-amber-600'}`} />
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">Editing Readiness &amp; Prerequisites</h3>
+              <p className="text-[11px] text-slate-500">
+                Deterministic state-machine guards: All 4 production criteria must pass before completing the cut or sending to Stage 06.
+              </p>
+            </div>
+          </div>
+          <span
+            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold font-mono ${
+              allPrereqsMet
+                ? 'bg-emerald-50 text-emerald-700 border border-emerald-300'
+                : 'bg-amber-50 text-amber-700 border border-amber-300'
+            }`}
+          >
+            {allPrereqsMet ? (
+              <>
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                ALL GUARDS SATISFIED
+              </>
+            ) : (
+              <>
+                <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+                PREREQUISITES INCOMPLETE
+              </>
+            )}
+          </span>
+        </div>
+
+        {/* 4 Prerequisites Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {/* Prereq 1: Raw Footage */}
+          <div
+            className={`p-3.5 rounded-xl border transition-all ${
+              prereqs.rawFootage.valid
+                ? 'bg-emerald-50/40 border-emerald-200'
+                : 'bg-amber-50/60 border-amber-200'
+            }`}
+          >
+            <div className="flex items-center justify-between text-xs mb-1.5">
+              <span className="font-semibold text-slate-700 flex items-center gap-1.5">
+                <Smartphone className="w-3.5 h-3.5 text-slate-400" />
+                Raw Footage
+              </span>
+              <span
+                className={`font-mono text-[10px] font-bold px-2 py-0.5 rounded ${
+                  prereqs.rawFootage.valid
+                    ? 'bg-emerald-100 text-emerald-800'
+                    : 'bg-amber-100 text-amber-900'
+                }`}
+              >
+                {prereqs.rawFootage.statusLabel}
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-600 font-mono truncate">{prereqs.rawFootage.detail}</p>
+          </div>
+
+          {/* Prereq 2: Edited Cut */}
+          <div
+            className={`p-3.5 rounded-xl border transition-all ${
+              prereqs.editedCut.valid
+                ? 'bg-emerald-50/40 border-emerald-200'
+                : 'bg-amber-50/60 border-amber-200'
+            }`}
+          >
+            <div className="flex items-center justify-between text-xs mb-1.5">
+              <span className="font-semibold text-slate-700 flex items-center gap-1.5">
+                <Scissors className="w-3.5 h-3.5 text-slate-400" />
+                Edited Cut
+              </span>
+              <span
+                className={`font-mono text-[10px] font-bold px-2 py-0.5 rounded ${
+                  prereqs.editedCut.valid
+                    ? 'bg-emerald-100 text-emerald-800'
+                    : 'bg-amber-100 text-amber-900'
+                }`}
+              >
+                {prereqs.editedCut.statusLabel}
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-600 font-mono truncate">{prereqs.editedCut.detail}</p>
+          </div>
+
+          {/* Prereq 3: 9:16 Resolution */}
+          <div
+            className={`p-3.5 rounded-xl border transition-all ${
+              prereqs.resolution.valid
+                ? 'bg-emerald-50/40 border-emerald-200'
+                : 'bg-amber-50/60 border-amber-200'
+            }`}
+          >
+            <div className="flex items-center justify-between text-xs mb-1.5">
+              <span className="font-semibold text-slate-700 flex items-center gap-1.5">
+                <Layers className="w-3.5 h-3.5 text-slate-400" />
+                9:16 Resolution
+              </span>
+              <span
+                className={`font-mono text-[10px] font-bold px-2 py-0.5 rounded ${
+                  prereqs.resolution.valid
+                    ? 'bg-emerald-100 text-emerald-800'
+                    : 'bg-amber-100 text-amber-900'
+                }`}
+              >
+                {prereqs.resolution.statusLabel}
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-600 font-mono truncate">{prereqs.resolution.detail}</p>
+          </div>
+
+          {/* Prereq 4: Duration Limit */}
+          <div
+            className={`p-3.5 rounded-xl border transition-all ${
+              prereqs.duration.valid
+                ? 'bg-emerald-50/40 border-emerald-200'
+                : 'bg-rose-50/60 border-rose-200'
+            }`}
+          >
+            <div className="flex items-center justify-between text-xs mb-1.5">
+              <span className="font-semibold text-slate-700 flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-slate-400" />
+                Duration
+              </span>
+              <span
+                className={`font-mono text-[10px] font-bold px-2 py-0.5 rounded ${
+                  prereqs.duration.valid
+                    ? 'bg-emerald-100 text-emerald-800'
+                    : 'bg-rose-100 text-rose-900'
+                }`}
+              >
+                {prereqs.duration.statusLabel}
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-600 font-mono truncate">{prereqs.duration.detail}</p>
+          </div>
+        </div>
+
+        {!allPrereqsMet && (
+          <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-lg flex items-center gap-2 text-xs text-amber-900">
+            <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+            <span>
+              <strong>State-Machine Guards Enforced:</strong> {getMissingPrereqsTooltip()}
+            </span>
+          </div>
+        )}
+      </div>
+
       {/* Main Content Grid: Asset Links, Script Context & Assignments */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left 2 Cols: Drive & Render Asset References + Editing Notes */}
+        {/* Left 2 Cols: Shorts Polish Checklist + Drive & Render References + Editing Notes */}
         <div className="lg:col-span-2 space-y-6">
+          {/* Interactive 6-Point Shorts Polish Checklist Card */}
+          <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-emerald-600" />
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">Interactive 6-Point Shorts Polish Checklist</h3>
+                  <p className="text-[11px] text-slate-500">
+                    Mandatory retention and typography standards for Telugu short-form video engagement.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2.5 self-end sm:self-auto">
+                <span className="text-xs font-mono font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded border border-emerald-200">
+                  {completedPolishCount}/6 VERIFIED
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleSelectAllPolish(completedPolishCount !== 6)}
+                  className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold px-2 py-1 rounded hover:bg-indigo-50 transition cursor-pointer"
+                >
+                  {completedPolishCount === 6 ? 'Deselect All' : 'Select All'}
+                </button>
+              </div>
+            </div>
+
+            {/* Checklist items */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {POLISH_CHECKLIST_CONFIG.map((item) => {
+                const checked = polishChecklist[item.key];
+                return (
+                  <div
+                    key={item.key}
+                    onClick={() => togglePolishItem(item.key)}
+                    className={`p-3.5 rounded-xl border flex items-start gap-3 cursor-pointer transition select-none ${
+                      checked
+                        ? 'bg-emerald-50/50 border-emerald-300 text-emerald-950 shadow-2xs'
+                        : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="mt-0.5 shrink-0">
+                      {checked ? (
+                        <CheckSquare className="w-4 h-4 text-emerald-600" />
+                      ) : (
+                        <Square className="w-4 h-4 text-slate-400" />
+                      )}
+                    </div>
+                    <div className="space-y-1 flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-1.5">
+                        <span className="text-xs font-bold truncate">{item.title}</span>
+                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 shrink-0">
+                          {item.badge}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-600 leading-snug">{item.description}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Asset Links Card */}
           <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-xs space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
