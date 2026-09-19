@@ -107,8 +107,8 @@ export const QuestionStudioPage: React.FC = () => {
 
   // Configuration State
   const [selectedCategory, setSelectedCategory] = useState<string>(queryCategory || 'CAT-QA');
-  const [selectedTopic, setSelectedTopic] = useState<string>(queryTopic || 'TOP-QA-01');
-  const [selectedSubtopic, setSelectedSubtopic] = useState<string>(querySubtopic || 'SUB-02');
+  const [selectedTopic, setSelectedTopic] = useState<string>(queryTopic || 'BP-TOP-001');
+  const [selectedSubtopic, setSelectedSubtopic] = useState<string>(querySubtopic || 'BP-SUB-0001');
   const [difficulty, setDifficulty] = useState<string>(queryDifficulty || 'Intermediate');
   const [challengeType, setChallengeType] = useState<string>('ABCD');
   const [presentationType, setPresentationType] = useState<string>('Text');
