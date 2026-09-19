@@ -608,7 +608,7 @@ export const VideoCreateScriptPage: React.FC = () => {
                   icon={ArrowRight}
                   className="w-full text-xs justify-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
                 >
-                  Continue to Review Script (Step 06)
+                  Continue to Review Script
                 </Button>
               </div>
             </div>

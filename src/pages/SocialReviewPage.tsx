@@ -354,8 +354,8 @@ export const SocialReviewPage: React.FC = () => {
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">
               {isPlatformsMode ? 'Platform Packages' : 'Social Content Review Workspace'}
             </h1>
-            <span className="text-xs font-mono font-semibold px-2.5 py-0.5 rounded-full bg-violet-50 text-violet-700 border border-violet-200">
-              {isPlatformsMode ? 'Step 13 • Platform Packages' : 'Step 12 • Social Review'}
+            <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-violet-50 text-violet-700 border border-violet-200">
+              {isPlatformsMode ? 'Platform Packages' : 'Social Review'}
             </span>
           </div>
           <p className="text-xs text-slate-500">

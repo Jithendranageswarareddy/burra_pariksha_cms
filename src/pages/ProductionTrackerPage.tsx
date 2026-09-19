@@ -196,37 +196,37 @@ export const ProductionTrackerPage: React.FC = () => {
     switch (selectedStatus) {
       case VideoProductionStatus.SCRIPT_REQUIRED:
         return {
-          stepBadge: 'Step 05 • Create Script',
+          stepBadge: 'Script Drafting',
           title: 'Create Script',
           description: 'Draft teleprompter scripts, attention hooks, Telugu translations, and timing breakdowns for queued aptitude questions.',
         };
       case VideoProductionStatus.SCRIPT_READY:
         return {
-          stepBadge: 'Step 06 • Review Script',
+          stepBadge: 'Script Review',
           title: 'Review Script',
           description: 'Verify host timing, teleprompter readiness, and pedagogical clarity before studio recording.',
         };
       case VideoProductionStatus.EDITING:
         return {
-          stepBadge: 'Step 08 • Edit Video',
+          stepBadge: 'Video Editing',
           title: 'Edit Video',
           description: 'Video post-production, motion graphics cuts, and final short video asset assembly.',
         };
       case VideoProductionStatus.FINAL_REVIEW:
         return {
-          stepBadge: 'Step 09 • Final Video',
+          stepBadge: 'Final Review',
           title: 'Final Video',
           description: 'Quality control signoff, duration compliance, and final video render lock.',
         };
       case VideoProductionStatus.READY_TO_UPLOAD:
         return {
-          stepBadge: 'Step 10 • Create Thumbnail',
+          stepBadge: 'Thumbnail',
           title: 'Create Thumbnail',
           description: 'Custom thumbnail asset design, Google Drive upload, and approval for YouTube Shorts.',
         };
       case VideoProductionStatus.UPLOADED:
         return {
-          stepBadge: 'Step 11 • Pinned Comment',
+          stepBadge: 'Pinned Comment',
           title: 'Pinned Comment',
           description: 'Design, review, and approve audience challenge questions and pinned solution comments.',
         };

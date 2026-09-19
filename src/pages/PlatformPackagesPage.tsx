@@ -618,7 +618,7 @@ export const PlatformPackagesPage: React.FC = () => {
               className="text-xs font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-1.5"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Back to Step 12 Social Review</span>
+              <span>Back to Social Review</span>
             </Link>
 
             <div className="flex items-center gap-3">
@@ -628,7 +628,7 @@ export const PlatformPackagesPage: React.FC = () => {
                   size="sm"
                   className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
                 >
-                  <span>Proceed to Step 14 • Publishing Package</span>
+                  <span>Proceed to Pre-Publish Checklist</span>
                   <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
                 </Button>
               </Link>

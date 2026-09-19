@@ -770,7 +770,7 @@ export const VideoRecordPage: React.FC = () => {
                     </>
                   ) : (
                     <div className="p-6 text-center text-slate-400 text-xs">
-                      No script approved yet. Please review in Step 06.
+                      No script approved yet. Please review and approve the script first.
                     </div>
                   )}
                 </div>

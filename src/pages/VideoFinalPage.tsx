@@ -369,7 +369,7 @@ export const VideoFinalPage: React.FC = () => {
                 icon={CheckCircle2}
                 className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-lg disabled:opacity-50"
               >
-                {isApproved ? 'Master Video Approved' : 'Approve & Release (Step 10)'}
+                {isApproved ? 'Master Video Approved' : 'Approve & Release'}
               </Button>
             </div>
           </div>
@@ -611,7 +611,7 @@ export const VideoFinalPage: React.FC = () => {
                       icon={CheckCircle2}
                       className="w-full text-xs justify-center bg-emerald-600 hover:bg-emerald-700 text-white font-bold disabled:opacity-50"
                     >
-                      {isApproved ? 'Master Video Signoff Granted' : 'Approve & Release to Publishing (Step 10)'}
+                      {isApproved ? 'Master Video Signoff Granted' : 'Approve & Release'}
                     </Button>
                   </div>
                 </div>

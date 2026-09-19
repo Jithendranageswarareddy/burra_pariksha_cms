@@ -292,7 +292,7 @@ export const PublishingPackagePage: React.FC = () => {
               const isReady = r?.status === 'READY';
               return (
                 <option key={v.id} value={v.id}>
-                  {v.id} • {v.title ? v.title.slice(0, 40) : 'Untitled'} [{isReady ? 'READY' : 'GATE D'}]
+                  {v.id} • {v.title ? v.title.slice(0, 40) : 'Untitled'} [{isReady ? 'READY' : 'PENDING'}]
                 </option>
               );
             })}
@@ -458,7 +458,7 @@ export const PublishingPackagePage: React.FC = () => {
                     to={`/videos/${encodeURIComponent(currentVideoId)}/final-video`}
                     className="text-[10px] text-indigo-600 hover:underline font-semibold block"
                   >
-                    Open Step 09 Final Video →
+                    Open Final Video Review →
                   </Link>
                 )}
               </div>
@@ -484,7 +484,7 @@ export const PublishingPackagePage: React.FC = () => {
                     to={`/videos/${encodeURIComponent(currentVideoId)}/thumbnail`}
                     className="text-[10px] text-indigo-600 hover:underline font-semibold block"
                   >
-                    Open Step 10 Thumbnail →
+                    Open Thumbnail Studio →
                   </Link>
                 )}
               </div>
@@ -510,7 +510,7 @@ export const PublishingPackagePage: React.FC = () => {
                     to={`/videos/${encodeURIComponent(currentVideoId)}/pinned-comment`}
                     className="text-[10px] text-indigo-600 hover:underline font-semibold block"
                   >
-                    Open Step 11 Pinned Comment →
+                    Open Pinned Comment Studio →
                   </Link>
                 )}
               </div>
@@ -779,7 +779,7 @@ export const PublishingPackagePage: React.FC = () => {
               className="text-xs font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-1.5"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Back to Step 13 Platform Packages</span>
+              <span>Back to Platform Packages</span>
             </Link>
 
             <Link to={`/publishing?videoId=${encodeURIComponent(currentVideoId)}`}>
@@ -788,7 +788,7 @@ export const PublishingPackagePage: React.FC = () => {
                 size="sm"
                 className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
               >
-                <span>Proceed to Step 15 • Publish</span>
+                <span>Proceed to Publish & Release</span>
                 <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
               </Button>
             </Link>

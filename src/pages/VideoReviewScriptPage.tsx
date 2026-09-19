@@ -467,7 +467,7 @@ export const VideoReviewScriptPage: React.FC = () => {
                   icon={RotateCcw}
                   className="text-xs text-amber-700 border-amber-300 hover:bg-amber-50"
                 >
-                  Return to Step 05
+                  Return to Script Drafting
                 </Button>
               )}
             </div>
@@ -681,7 +681,7 @@ export const VideoReviewScriptPage: React.FC = () => {
                   icon={ArrowRight}
                   className="w-full text-xs justify-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
                 >
-                  Continue to Record Video (Step 07)
+                  Continue to Teleprompter & Recording
                 </Button>
               </div>
             </div>

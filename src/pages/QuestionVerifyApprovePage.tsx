@@ -403,7 +403,7 @@ export const QuestionVerifyApprovePage: React.FC = () => {
         <EmptyState
           title="Question Not Found"
           description={`The question "${activeQuestionId}" could not be retrieved from the authoritative repository.`}
-          actionLabel="Return to Library (Step 02)"
+          actionLabel="Return to Question Bank"
           onAction={() => navigate('/questions')}
         />
       ) : (
@@ -616,7 +616,7 @@ export const QuestionVerifyApprovePage: React.FC = () => {
                       icon={Video}
                       className="w-full justify-center"
                     >
-                      {isQueued ? '✓ In Video Production Queue' : 'Add to Video Queue (Step 05)'}
+                      {isQueued ? '✓ In Video Production Queue' : 'Add to Video Queue'}
                     </Button>
 
                     <Link to="/studio">
@@ -626,7 +626,7 @@ export const QuestionVerifyApprovePage: React.FC = () => {
                         icon={Sparkles}
                         className="w-full justify-center mt-2"
                       >
-                        Generate Next Question (Step 01)
+                        Create Next Question
                       </Button>
                     </Link>
                   </div>
@@ -661,7 +661,7 @@ export const QuestionVerifyApprovePage: React.FC = () => {
                     to={`/questions/${encodeURIComponent(activeQuestionId)}/improve`}
                     className="block text-center text-xs font-semibold text-indigo-600 hover:underline pt-1"
                   >
-                    ← Need to modify formulas or options? Improve in Step 03
+                    ← Need to modify formulas or options? Edit Question
                   </Link>
                 </div>
               )}
@@ -679,7 +679,7 @@ export const QuestionVerifyApprovePage: React.FC = () => {
         >
           <div className="space-y-4">
             <p className="text-xs text-slate-600 leading-relaxed">
-              Specify what needs improvement (e.g., formula ambiguity, unrealistic context, distractor error). The author will see these notes in Step 03.
+              Specify what needs improvement (e.g., formula ambiguity, unrealistic context, distractor error). The author will see these notes when editing.
             </p>
             <textarea
               value={rejectReason}

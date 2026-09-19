@@ -957,7 +957,7 @@ export const QuestionStudioPage: React.FC = () => {
               onClick={() => navigate('/questions')}
               className="bg-white hover:bg-emerald-100 border-emerald-300 text-emerald-900"
             >
-              Question Library (Step 02)
+              Question Bank
             </Button>
             <Button
               variant="outline"
@@ -965,7 +965,7 @@ export const QuestionStudioPage: React.FC = () => {
               onClick={() => navigate(`/questions/${savedSuccessInfo.id}/improve`)}
               className="bg-white hover:bg-emerald-100 border-emerald-300 text-emerald-900"
             >
-              Improve Question (Step 03)
+              Edit Question
             </Button>
             <Button
               variant="primary"
@@ -974,23 +974,20 @@ export const QuestionStudioPage: React.FC = () => {
               icon={ArrowRight}
               className="bg-emerald-600 hover:bg-emerald-700 text-white"
             >
-              Verify & Approve (Step 04)
+              Review & Approve
             </Button>
           </div>
         </div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-        {/* LEFT COLUMN: SHARED PEDAGOGICAL CONFIGURATION */}
+        {/* LEFT COLUMN: SHARED QUESTION SETUP */}
         <div className="lg:col-span-5 h-full flex flex-col space-y-5 bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
           <div className="flex items-center justify-between pb-3 border-b border-slate-100">
             <div className="flex items-center gap-2 text-slate-900">
               <Sliders className="w-4 h-4 text-indigo-600" />
-              <h3 className="text-sm font-bold">Pedagogical Configuration</h3>
+              <h3 className="text-sm font-bold">Question Setup</h3>
             </div>
-            <span className="text-[10px] font-mono font-semibold px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded-full">
-              Shared Model
-            </span>
           </div>
 
           {/* Taxonomy Selection (Topic -> Subtopic Only) */}

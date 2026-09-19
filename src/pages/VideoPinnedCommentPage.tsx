@@ -564,12 +564,12 @@ export const VideoPinnedCommentPage: React.FC = () => {
               <div className="p-4 space-y-3">
                 <div className="flex items-center gap-2 text-indigo-700 font-bold text-xs">
                   <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[10px] font-mono">
-                    12
+                    ✓
                   </span>
                   <span>Next Step: Social Review</span>
                 </div>
                 <p className="text-xs text-slate-600">
-                  Thumbnail and pinned comment complete. Assemble and review the complete social package in Step 12.
+                  Thumbnail and pinned comment complete. Assemble and review the complete social package in Social Review.
                 </p>
                 <Link to={socialReviewLink}>
                   <Button
@@ -578,7 +578,7 @@ export const VideoPinnedCommentPage: React.FC = () => {
                     icon={ArrowRight}
                     className="w-full text-xs justify-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
                   >
-                    Proceed to 12 Social Review
+                    Proceed to Social Review
                   </Button>
                 </Link>
               </div>
