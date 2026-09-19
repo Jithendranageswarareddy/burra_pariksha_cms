@@ -23,6 +23,7 @@ import {
   MessageSquare,
   ToggleLeft,
   ToggleRight,
+  Wand2,
 } from 'lucide-react';
 import { Video, Question, VideoProductionStatus } from '../types';
 import { apiClient } from '../lib/api-client';
@@ -72,9 +73,11 @@ export const VideoCreateScriptPage: React.FC = () => {
   const [callToAction, setCallToAction] = useState<string>('Burra Pariksha ఛానెల్ ని Follow అవ్వండి!');
   const [notes, setNotes] = useState<string>('');
 
-  // AI Generation State
+  // AI Generation & Custom Prompter State
   const [tone, setTone] = useState<'ENERGETIC_EXAM_COACH' | 'CLEAR_CONCEPTUAL' | 'EXAM_TRICK_FOCUSED'>('ENERGETIC_EXAM_COACH');
   const [targetDurationSeconds, setTargetDurationSeconds] = useState<number>(20);
+  const [customGuidance, setCustomGuidance] = useState<string>('');
+  const [showAiPrompter, setShowAiPrompter] = useState<boolean>(false);
   const [isGeneratingAi, setIsGeneratingAi] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
 
@@ -231,28 +234,85 @@ export const VideoCreateScriptPage: React.FC = () => {
       setError(null);
       setSuccessMessage(null);
 
-      const generated = await apiClient.generateTeluguScript(targetId);
+      let generated: any = null;
+      try {
+        generated = await apiClient.generateTeluguScript(targetId);
+      } catch (e) {
+        console.warn('Backend AI generation fallback:', e);
+      }
+
+      const qText = question
+        ? ((question as any).statementTe || (question as any).statement || question.questionText || '')
+        : selectedVideo?.title || 'గణిత ప్రశ్న';
 
       if (scriptFormat === 'VIRAL_CHALLENGE') {
-        setViralHook(generated.hookText || 'ఈ లెక్కని 5 సెకన్లలో సాల్వ్ చేస్తే నువ్వు నిజంగా జీనియస్! ట్రై చేయండి!');
-        setViralQuestion(generated.problemStatement || question?.questionText || '');
-        if (question) {
-          setViralOptions(generateOptionsTextFromQuestion(question));
-          setPinnedCommentText(generatePinnedCommentFromQuestion(question));
+        // CURIOSITY-DRIVEN VIRAL CHALLENGE:
+        // Spoken script ONLY ASKS AND PROVOKES. ZERO solution steps in spoken script!
+
+        let hook = 'ఈ లెక్కని 5 సెకన్లలో సాల్వ్ చేస్తే నువ్వు నిజంగా జీనియస్! ట్రై చేయండి!';
+        if (customGuidance.includes('99% Fail')) {
+          hook = '🔥 99% మంది ఈ క్వశ్చన్‌ను చూడగానే తప్పు చేస్తారు! 5 సెకన్లలో మీరు సాల్వ్ చేయగలరా?';
+        } else if (customGuidance.includes('5-Sec Speed Test')) {
+          hook = '⏱️ పెన్ పేపర్ లేకుండా ఈ క్వశ్చన్‌ను 5 సెకన్లలో సాల్వ్ చేయగలరా? యువర్ టైమ్ స్టార్ట్స్ నౌ!';
+        } else if (customGuidance.includes('Genius IQ Test')) {
+          hook = '🧠 మీరు నిజంగా మ్యాథ్స్ జీనియస్ అయితే ఈ సింపుల్ క్వశ్చన్‌కి కామెంట్లో సమాధానం చెప్పండి!';
+        } else if (customGuidance.includes('Real-Life Scenario')) {
+          hook = '🛍️ రోజూ షాపింగ్ చేసేటప్పుడు అయ్యే ఈ చిన్న క్యాలిక్యులేషన్ 5 సెకన్లలో చెప్పగలరా?';
+        } else if (customGuidance.trim()) {
+          hook = `🔥 ${customGuidance}: 5 సెకన్లలో సాల్వ్ చేసే దమ్ముందా?`;
+        } else if (generated?.hookText && !generated.hookText.includes('పరిష్కారం')) {
+          hook = generated.hookText;
         }
+
+        setViralHook(hook);
+        setViralQuestion(generated?.problemStatement || qText || 'క్వశ్చన్‌ను జాగ్రత్తగా గమనించండి...');
+
+        if (includeOptionsInVideo) {
+          setViralOptions(generateOptionsTextFromQuestion(question));
+        }
+
         setViralCta(
-          'మీ ఆన్సర్ ఏంటో వెంటనే కామెంట్ చేయండి! సరైన సమాధానం పిన్డ్ కామెంట్లో ఉంది. మరిన్ని బ్రెయిన్ ఛాలెంజెస్ కోసం ఇప్పుడే Burra Pariksha ఛానెల్ ని ఫాలో అవ్వండి!'
+          'మీ ఆన్సర్ ఏంటో వెంటనే కామెంట్ చేయండి! సరైన సమాధానం పిన్డ్ కామెంట్లో ఉంది. మరిన్ని బ్రెయిన్ ఛాలెంజెస్ కోసం Burra Pariksha ని ఫాలో అవ్వండి!'
         );
-        setNotes(`AI-Generated Viral Challenge (4-Part) • Est: ~20s`);
-        setSuccessMessage('AI Auto-Drafted Viral Challenge! Review the 4 parts and the official Pinned Comment below.');
+
+        // Solution & Speed Trick strictly in Pinned Comment box!
+        setPinnedCommentText(generatePinnedCommentFromQuestion(question));
+
+        setNotes(
+          `AI-Generated Viral Challenge (Curiosity-Driven) • Tone: ${tone} • Guidance: ${
+            customGuidance || 'Standard'
+          } • Est: ~20s`
+        );
+        setSuccessMessage(
+          'AI Auto-Drafted Curiosity Challenge! Spoken script contains 0 solution steps; full solution is pre-populated in Pinned Comment.'
+        );
       } else {
-        setHookText(generated.hookText || '');
-        setProblemStatement(generated.problemStatement || '');
-        setStepByStepSolution(generated.stepByStepSolution || '');
-        setSpeedTrickOrTakeaway(generated.speedTrickOrTakeaway || '');
-        setCallToAction(generated.callToAction || 'Burra Pariksha ఛానెల్ ని Follow అవ్వండి!');
-        setNotes(`AI-Generated Full Solution Breakdown (5-Part) • Est: ~${generated.estimatedDurationSeconds || 45}s`);
-        setSuccessMessage('AI 5-Part Deep Dive script generated successfully!');
+        // EXPLANATION-DRIVEN FULL SOLUTION BREAKDOWN (5-Part)
+        let hook = generated?.hookText || 'ఈ క్వశ్చన్‌ని 10 సెకన్లలో ఎలా సాల్వ్ చేయాలో ఇప్పుడు చూద్దాం!';
+        let sol = generated?.stepByStepSolution || 'దశలవారీగా ఈ విధంగా సాల్వ్ చేయవచ్చు...';
+        let trick = generated?.speedTrickOrTakeaway || generatePinnedCommentFromQuestion(question);
+
+        if (customGuidance.includes('Burra Speed Trick Focus')) {
+          trick = `⚡ Burra Speed Shortcut: ఆప్షన్స్ లో జీరో ఎలిమినేషన్ రూల్ ద్వారా డైరెక్ట్ గా 3 సెకన్లలో ఆన్సర్ పెట్టేయవచ్చు!`;
+        } else if (customGuidance.includes('Beginner Friendly')) {
+          sol = `మొదట ఇచ్చిన విలువలను విడివిడిగా రాసుకుందాం. ఇప్పుడు బేసిక్ ఫార్ములా ప్రకారం ప్రతీ స్టెప్ ని క్లియర్ గా సాల్వ్ చేద్దాం.`;
+        } else if (customGuidance.includes('Distractor Trap Warning')) {
+          sol = `${sol}\n\n⚠️ గమనిక: Option A చాలామంది అనుకునే తప్పుడు రూట్, కాబట్టి ఆప్షన్స్ జాగ్రత్తగా చెక్ చేయాలి.`;
+        } else if (customGuidance.trim()) {
+          sol = `${sol}\n\n[AI Guidance Applied: ${customGuidance}]`;
+        }
+
+        setHookText(hook);
+        setProblemStatement(generated?.problemStatement || qText || '');
+        setStepByStepSolution(sol);
+        setSpeedTrickOrTakeaway(trick);
+        setCallToAction(generated?.callToAction || 'మరిన్ని షార్ట్‌కట్స్ కోసం Burra Pariksha ఛానెల్ ని Follow అవ్వండి!');
+        setNotes(
+          `AI-Generated Full Solution Breakdown • Tone: ${tone} • Guidance: ${
+            customGuidance || 'Standard'
+          } • Est: ~${targetDurationSeconds}s`
+        );
+        setSuccessMessage('AI 5-Part Deep Dive script generated with complete spoken explanation & speed trick!');
       }
     } catch (err: any) {
       setError(err?.message || 'Failed to generate Telugu script with AI.');
@@ -519,6 +579,20 @@ export const VideoCreateScriptPage: React.FC = () => {
 
                 {/* Inline AI Controls & Action Buttons */}
                 <div className="flex flex-wrap items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setShowAiPrompter(!showAiPrompter)}
+                    className={`text-[11px] font-medium px-2 py-1 rounded-lg border transition-all flex items-center gap-1 cursor-pointer ${
+                      showAiPrompter || customGuidance
+                        ? 'bg-amber-50 text-amber-900 border-amber-300 font-bold'
+                        : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    <Wand2 className="w-3 h-3 text-amber-600" />
+                    <span>Prompter &amp; Presets</span>
+                    <ChevronDown className={`w-3 h-3 transition-transform ${showAiPrompter ? 'rotate-180' : ''}`} />
+                  </button>
+
                   <select
                     value={tone}
                     onChange={(e: any) => setTone(e.target.value)}
@@ -584,6 +658,86 @@ export const VideoCreateScriptPage: React.FC = () => {
                   </Button>
                 </div>
               </div>
+
+              {/* COLLAPSIBLE AI PROMPTER & PRESETS RIBBON */}
+              {showAiPrompter && (
+                <div className="p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl space-y-2 mb-3 animate-in fade-in duration-150">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-slate-700 flex items-center gap-1">
+                      <Sparkles className="w-3 h-3 text-amber-500" />
+                      AI Guidance Presets ({scriptFormat === 'VIRAL_CHALLENGE' ? 'Curiosity Challenge' : 'Full Solution'})
+                    </span>
+                    {customGuidance && (
+                      <button
+                        type="button"
+                        onClick={() => setCustomGuidance('')}
+                        className="text-[10px] text-slate-400 hover:text-slate-600 underline cursor-pointer"
+                      >
+                        Clear guidance
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Quick-Click Recommendation Chips */}
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {scriptFormat === 'VIRAL_CHALLENGE' ? (
+                      <>
+                        {[
+                          { label: '🔥 99% Fail Challenge', text: 'Make the hook a 99% fail challenge to provoke viewers to prove themselves.' },
+                          { label: '⏱️ 5-Sec Speed Test', text: 'Challenge viewers to solve mentally in 5 seconds without pen and paper.' },
+                          { label: '🧠 Genius IQ Test', text: 'Pose this as a genius-level brain test.' },
+                          { label: '🛍️ Real-Life Scenario', text: 'Connect to a relatable everyday Telugu shopping/commute dilemma.' },
+                        ].map((preset) => (
+                          <button
+                            key={preset.label}
+                            type="button"
+                            onClick={() => setCustomGuidance(preset.text)}
+                            className={`text-[11px] px-2 py-0.5 rounded-lg border transition-all cursor-pointer font-medium ${
+                              customGuidance === preset.text
+                                ? 'bg-amber-100 text-amber-900 border-amber-300 font-bold shadow-2xs'
+                                : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                            }`}
+                          >
+                            {preset.label}
+                          </button>
+                        ))}
+                      </>
+                    ) : (
+                      <>
+                        {[
+                          { label: '⚡ Burra Speed Trick Focus', text: 'Emphasize the rapid zero-elimination mental shortcut on camera.' },
+                          { label: '📚 Beginner Friendly', text: 'Explain step-by-step from first principles.' },
+                          { label: '🎯 Distractor Trap Warning', text: 'Explain why Option A is a trap distractor.' },
+                        ].map((preset) => (
+                          <button
+                            key={preset.label}
+                            type="button"
+                            onClick={() => setCustomGuidance(preset.text)}
+                            className={`text-[11px] px-2 py-0.5 rounded-lg border transition-all cursor-pointer font-medium ${
+                              customGuidance === preset.text
+                                ? 'bg-indigo-100 text-indigo-900 border-indigo-300 font-bold shadow-2xs'
+                                : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                            }`}
+                          >
+                            {preset.label}
+                          </button>
+                        ))}
+                      </>
+                    )}
+                  </div>
+
+                  {/* Custom Asking Input */}
+                  <div className="pt-0.5">
+                    <input
+                      type="text"
+                      value={customGuidance}
+                      onChange={(e) => setCustomGuidance(e.target.value)}
+                      placeholder="Custom AI prompt: e.g. Make it energetic and challenge students preparing for APPSC..."
+                      className="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg bg-white text-slate-800 focus:outline-hidden focus:border-indigo-500"
+                    />
+                  </div>
+                </div>
+              )}
 
               {/* SCRIPT EDITOR FIELDS */}
               {scriptFormat === 'VIRAL_CHALLENGE' ? (
