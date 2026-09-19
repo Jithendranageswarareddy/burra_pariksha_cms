@@ -33,14 +33,20 @@ import {
   Loader2,
   Check,
   Sparkle,
+  CheckCircle2,
+  PlusCircle,
+  FileText,
 } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { Button } from '../components/common/Button';
 import { QuestionWorkflowHeader } from '../components/questions/QuestionWorkflowHeader';
+import { ProductionJourneyBar } from '../components/production/ProductionJourneyBar';
+import { useProductionJourney } from '../contexts/ProductionJourneyContext';
 import { apiClient } from '../lib/api-client';
 import {
   Category,
   DifficultyLevel,
+  Question,
   QuestionLanguage,
   QuestionConfigEntry,
   ValidationResult,
@@ -95,6 +101,7 @@ export interface StudioCandidate {
 export const QuestionStudioPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { loadJourneyForQuestion } = useProductionJourney();
 
   // Deep-linking URL Parameters
   const queryCategory = searchParams.get('categoryId') || searchParams.get('category') || searchParams.get('cat');
@@ -193,6 +200,7 @@ export const QuestionStudioPage: React.FC = () => {
   // Save States
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [savedSuccessInfo, setSavedSuccessInfo] = useState<{ id: string; status: string } | null>(null);
+  const [savedQuestion, setSavedQuestion] = useState<Question | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Suppress marking validation stale during initial generation load
@@ -816,8 +824,10 @@ export const QuestionStudioPage: React.FC = () => {
         mathematicalVerification: candidate.mathematicalVerification || clientReport?.mathematicalVerification,
       });
 
+      setSavedQuestion(created);
       setSavedSuccessInfo({ id: created.id, status: created.status });
       setIsDirty(false);
+      loadJourneyForQuestion(created.id, created);
     } catch (err: any) {
       setErrorMessage(err?.message || 'Failed to save question to library.');
     } finally {
@@ -873,6 +883,53 @@ export const QuestionStudioPage: React.FC = () => {
     setDuplicateMatches([]);
     setHasCheckedDuplicate(false);
     setSavedSuccessInfo(null);
+    setSavedQuestion(null);
+    setErrorMessage(null);
+  };
+
+  const handleCreateAnotherQuestion = () => {
+    if (duplicateCheckTimerRef.current) {
+      clearTimeout(duplicateCheckTimerRef.current);
+      duplicateCheckTimerRef.current = null;
+    }
+    if (duplicateAbortControllerRef.current) {
+      duplicateAbortControllerRef.current.abort();
+      duplicateAbortControllerRef.current = null;
+    }
+    if (validationTimerRef.current) {
+      clearTimeout(validationTimerRef.current);
+      validationTimerRef.current = null;
+    }
+    duplicateRequestIdRef.current++;
+    validationRequestIdRef.current++;
+
+    setCandidate({
+      questionText: '',
+      optionA: '',
+      optionB: '',
+      optionC: '',
+      optionD: '',
+      correctAnswer: 'A',
+      explanation: '',
+      categoryId: selectedCategory || undefined,
+      topicId: selectedTopic,
+      subtopicId: selectedSubtopic,
+      difficulty,
+      challengeType,
+      presentationType,
+      language,
+      realLifeContext,
+      tags: ['Aptitude', 'SpeedMath'],
+    });
+    setHasCandidate(false);
+    setIsDirty(false);
+    setClientReport(null);
+    setServerValidationResult(null);
+    setIsValidationStale(false);
+    setDuplicateMatches([]);
+    setHasCheckedDuplicate(false);
+    setSavedSuccessInfo(null);
+    setSavedQuestion(null);
     setErrorMessage(null);
   };
 
@@ -897,22 +954,23 @@ export const QuestionStudioPage: React.FC = () => {
         description="Generate new aptitude questions with AI, craft real-world scenarios, and verify math."
         actions={
           <div className="flex items-center gap-3 flex-wrap">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleResetStudio}
-              icon={RotateCcw}
-            >
-              Reset Workspace
-            </Button>
-            {savedSuccessInfo && (
+            {savedQuestion ? (
               <Button
-                variant="primary"
+                variant="outline"
                 size="sm"
-                onClick={() => navigate(`/questions/${savedSuccessInfo.id}`)}
-                icon={ArrowRight}
+                onClick={handleCreateAnotherQuestion}
+                icon={PlusCircle}
               >
-                View Saved Question ({savedSuccessInfo.id})
+                Create Another Question
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleResetStudio}
+                icon={RotateCcw}
+              >
+                Reset Workspace
               </Button>
             )}
           </div>
@@ -937,50 +995,137 @@ export const QuestionStudioPage: React.FC = () => {
         </div>
       )}
 
-      {/* Global Success Banner */}
-      {savedSuccessInfo && (
-        <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 animate-in slide-in-from-top-2">
-          <div className="flex items-center gap-3">
-            <CheckCircle className="w-6 h-6 text-emerald-600 shrink-0" />
-            <div>
-              <h4 className="text-sm font-bold text-emerald-950">Question Saved to Library</h4>
-              <p className="text-xs text-emerald-700">
-                Assigned ID: <span className="font-mono font-bold">{savedSuccessInfo.id}</span> | Status:{' '}
-                <span className="font-semibold">{savedSuccessInfo.status}</span>
+      {/* When Question is Saved: Prominent Happy Path Production Journey View */}
+      {savedQuestion ? (
+        <div className="space-y-6 animate-in fade-in duration-200">
+          {/* Production Journey Orchestration Stepper */}
+          <ProductionJourneyBar showDetails />
+
+          {/* Prominent Happy Path Success Card */}
+          <div className="bg-white rounded-2xl border border-emerald-200 shadow-sm p-6 sm:p-8 space-y-6">
+            {/* Card Header with Green Badge */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-100">
+              <div className="space-y-1.5">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold tracking-wide bg-emerald-100 text-emerald-800 border border-emerald-300">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  <span>✓ QUESTION GENERATED</span>
+                </div>
+                <h3 className="text-xl font-bold text-slate-900 tracking-tight">
+                  Question Ready for Verification
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Question candidate saved to canonical storage and attached to the continuous production journey.
+                </p>
+              </div>
+
+              {/* Metadata Badges: ID & Topic */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 border border-slate-200 text-xs">
+                  <span className="text-slate-400 font-medium">Question ID:</span>
+                  <span className="font-mono font-bold text-slate-900">{savedQuestion.id}</span>
+                </div>
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 border border-indigo-200 text-xs">
+                  <span className="text-indigo-400 font-medium">Topic:</span>
+                  <span className="font-semibold text-indigo-700">
+                    {savedQuestion.topicName || currentTopicData?.name || savedQuestion.topicId}
+                  </span>
+                </div>
+                {savedQuestion.subtopicName && (
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs">
+                    <span className="text-slate-400 font-medium">Subtopic:</span>
+                    <span className="font-medium text-slate-700">{savedQuestion.subtopicName}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Telugu Problem Statement Snippet Display */}
+            <div className="p-5 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <Languages className="w-3.5 h-3.5 text-indigo-500" />
+                  <span>Telugu Problem Statement</span>
+                </div>
+                <span className="text-[11px] font-mono font-medium text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-200">
+                  {savedQuestion.difficulty || 'MEDIUM'} • {savedQuestion.language || 'TELUGU'}
+                </span>
+              </div>
+              <p className="text-base sm:text-lg text-slate-900 font-medium leading-relaxed font-telugu">
+                {savedQuestion.questionText}
               </p>
+
+              {/* Options Preview */}
+              {savedQuestion.options && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-3 border-t border-slate-200/80">
+                  {(['a', 'b', 'c', 'd'] as const).map((optKey) => {
+                    const optVal = (savedQuestion.options as any)?.[optKey] || (savedQuestion as any)[`option${optKey.toUpperCase()}`];
+                    const isCorrect = savedQuestion.correctAnswer?.toLowerCase() === optKey;
+                    return (
+                      <div
+                        key={optKey}
+                        className={`p-2.5 rounded-lg text-xs flex items-center gap-2 border transition-all ${
+                          isCorrect
+                            ? 'bg-emerald-50/90 border-emerald-300 text-emerald-900 font-semibold'
+                            : 'bg-white border-slate-200 text-slate-700'
+                        }`}
+                      >
+                        <span
+                          className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] uppercase shrink-0 ${
+                            isCorrect ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600'
+                          }`}
+                        >
+                          {optKey}
+                        </span>
+                        <span className="truncate">{optVal || '—'}</span>
+                        {isCorrect && (
+                          <span className="ml-auto text-[10px] bg-emerald-600 text-white px-1.5 py-0.5 rounded font-bold uppercase">
+                            Correct
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Action Bar: Primary Next-Action + Secondary Batch Generate */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-slate-100">
+              {/* ONE Large, Primary Next-Action Button */}
+              <button
+                type="button"
+                onClick={() => navigate(`/questions/verify?questionId=${savedQuestion.id}`)}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-bold text-sm shadow-md hover:shadow-lg transition-all group cursor-pointer"
+              >
+                <span>Continue to Verification</span>
+                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              </button>
+
+              {/* Secondary Batch Actions */}
+              <div className="flex items-center gap-3 flex-wrap">
+                <button
+                  type="button"
+                  onClick={handleCreateAnotherQuestion}
+                  className="inline-flex items-center gap-2 text-xs font-semibold text-slate-700 hover:text-indigo-600 transition-colors py-2.5 px-3.5 rounded-xl hover:bg-slate-100 border border-slate-200 bg-white cursor-pointer shadow-2xs"
+                >
+                  <PlusCircle className="w-4 h-4 text-indigo-600" />
+                  <span>Create Another Question</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSavedQuestion(null)}
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-800 transition-colors py-2 px-2.5 rounded-lg hover:bg-slate-50 cursor-pointer"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Edit in Studio</span>
+                </button>
+              </div>
             </div>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate('/questions')}
-              className="bg-white hover:bg-emerald-100 border-emerald-300 text-emerald-900"
-            >
-              Question Bank
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate(`/questions/${savedSuccessInfo.id}/improve`)}
-              className="bg-white hover:bg-emerald-100 border-emerald-300 text-emerald-900"
-            >
-              Edit Question
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => navigate(`/questions/${savedSuccessInfo.id}/verify`)}
-              icon={ArrowRight}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white"
-            >
-              Review & Approve
-            </Button>
-          </div>
         </div>
-      )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
         {/* LEFT COLUMN: SHARED QUESTION SETUP */}
         <div className="lg:col-span-5 h-full flex flex-col space-y-5 bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
           <div className="flex items-center justify-between pb-3 border-b border-slate-100">
@@ -1932,6 +2077,7 @@ export const QuestionStudioPage: React.FC = () => {
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 };

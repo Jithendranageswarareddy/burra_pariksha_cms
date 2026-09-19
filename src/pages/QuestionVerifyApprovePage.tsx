@@ -46,7 +46,7 @@ export const QuestionVerifyApprovePage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const activeQuestionId = id || searchParams.get('id') || '';
+  const activeQuestionId = id || searchParams.get('questionId') || searchParams.get('id') || '';
 
   // Questions selector list state (if no active question ID)
   const [candidateList, setCandidateList] = useState<Question[]>([]);
