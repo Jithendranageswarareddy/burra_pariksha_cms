@@ -9,7 +9,7 @@ import {
   ArrowRight,
   RefreshCw,
   Edit3,
-  Video,
+  Video as VideoIcon,
   Layers,
   Check,
   X,
@@ -28,6 +28,8 @@ import { EmptyState } from '../design-system/components/EmptyState';
 import { SuccessState } from '../design-system/components/SuccessState';
 import { Modal } from '../design-system/components/Modal';
 import { QuestionWorkflowHeader } from '../components/questions/QuestionWorkflowHeader';
+import { ProductionJourneyBar } from '../components/production/ProductionJourneyBar';
+import { useProductionJourney } from '../contexts/ProductionJourneyContext';
 import { apiClient } from '../lib/api-client';
 import { useAuth } from '../contexts/AuthContext';
 import {
@@ -38,6 +40,7 @@ import {
   ValidationCheckItem,
   VideoProductionStatus,
   QuestionValidationStatus,
+  Video,
 } from '../types';
 
 export const QuestionVerifyApprovePage: React.FC = () => {
@@ -45,6 +48,13 @@ export const QuestionVerifyApprovePage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const {
+    loadJourneyForQuestion,
+    loadJourneyForVideo,
+    setCanonicalIds,
+    videoId: contextVideoId,
+    currentStage,
+  } = useProductionJourney();
 
   const activeQuestionId = id || searchParams.get('questionId') || searchParams.get('id') || '';
 
@@ -55,6 +65,7 @@ export const QuestionVerifyApprovePage: React.FC = () => {
 
   // Active question state
   const [question, setQuestion] = useState<Question | null>(null);
+  const [queuedVideo, setQueuedVideo] = useState<Video | null>(null);
   const [loadingQuestion, setLoadingQuestion] = useState<boolean>(false);
   const [actionInProgress, setActionInProgress] = useState<boolean>(false);
   const [notification, setNotification] = useState<{
@@ -97,6 +108,21 @@ export const QuestionVerifyApprovePage: React.FC = () => {
       const q = await apiClient.getQuestionById(qId);
       setQuestion(q);
 
+      // Attach question to continuous production journey
+      await loadJourneyForQuestion(qId, q);
+
+      // Check if video production record is already attached/queued
+      try {
+        const videos = await apiClient.getVideos();
+        const matchedVideo = videos.find((v) => v.questionId === qId);
+        if (matchedVideo) {
+          setQueuedVideo(matchedVideo);
+          setCanonicalIds({ videoId: matchedVideo.id });
+        }
+      } catch {
+        // ignore background video check error
+      }
+
       // Run authoritative validation check
       setIsValidating(true);
       try {
@@ -118,7 +144,7 @@ export const QuestionVerifyApprovePage: React.FC = () => {
     } finally {
       setLoadingQuestion(false);
     }
-  }, []);
+  }, [loadJourneyForQuestion, setCanonicalIds]);
 
   useEffect(() => {
     if (activeQuestionId) {
@@ -151,28 +177,44 @@ export const QuestionVerifyApprovePage: React.FC = () => {
     }
   };
 
-  // Approve Question
+  // Approve Question & Bridge directly into Video Production
   const handleApprove = async () => {
     if (!activeQuestionId || !question) return;
     setActionInProgress(true);
     setNotification(null);
     try {
-      const updated = await apiClient.updateQuestionStatus(
+      // 1. Ensure question status is APPROVED
+      let updatedQuestion = question;
+      if (question.status !== QuestionStatus.APPROVED) {
+        updatedQuestion = await apiClient.updateQuestionStatus(
+          activeQuestionId,
+          QuestionStatus.APPROVED,
+          `Approved by ${user?.name || 'Reviewer'} in Step 04 verification audit.`
+        );
+        setQuestion(updatedQuestion);
+      }
+
+      // 2. Automatically ensure video production record is created/queued
+      const video = await apiClient.queueQuestionForVideo(
         activeQuestionId,
-        QuestionStatus.APPROVED,
-        `Approved by ${user?.name || 'Reviewer'} in Step 04 verification audit.`
+        `Auto-queued from verification audit by ${user?.name || 'Reviewer'}`
       );
-      setQuestion(updated);
+      setQueuedVideo(video);
+
+      // 3. Update journey context so videoId is linked & stage advances to Stage 03
+      setCanonicalIds({ videoId: video.id });
+      await loadJourneyForVideo(video.id, video);
+
       setNotification({
         type: 'success',
-        title: 'Question Approved',
-        message: `Question ${activeQuestionId} is approved and eligible for video production.`,
+        title: 'Question Approved & Queued',
+        message: `Question ${activeQuestionId} approved and connected to Video Production (${video.id}).`,
       });
     } catch (err: any) {
       setNotification({
         type: 'error',
-        title: 'Approval Failed',
-        message: err?.message || 'Failed to approve question.',
+        title: 'Approval & Queueing Failed',
+        message: err?.message || 'Failed to approve question and queue video.',
       });
     } finally {
       setActionInProgress(false);
@@ -209,31 +251,9 @@ export const QuestionVerifyApprovePage: React.FC = () => {
     }
   };
 
-  // Queue for Video (Step 05 Transition)
+  // Queue for Video (Step 05 Transition) - aliases to handleApprove for direct happy path bridging
   const handleQueueForVideo = async () => {
-    if (!activeQuestionId || !question) return;
-    setActionInProgress(true);
-    setNotification(null);
-    try {
-      const updated = await apiClient.queueQuestion(
-        activeQuestionId,
-        'Queued from Step 04 Verify & Approve'
-      );
-      setQuestion(updated);
-      setNotification({
-        type: 'success',
-        title: 'Queued for Production',
-        message: `Question ${activeQuestionId} added to Video Production Queue (Step 07/05).`,
-      });
-    } catch (err: any) {
-      setNotification({
-        type: 'error',
-        title: 'Queue Failed',
-        message: err?.message || 'Failed to add question to video queue.',
-      });
-    } finally {
-      setActionInProgress(false);
-    }
+    return handleApprove();
   };
 
   // Render question selector if no question active
@@ -337,9 +357,13 @@ export const QuestionVerifyApprovePage: React.FC = () => {
 
   const isApproved = question?.status === QuestionStatus.APPROVED;
   const isQueued = question?.videoStatus === VideoProductionStatus.QUEUED;
+  const targetVideoId = queuedVideo?.id || contextVideoId;
 
   return (
     <div className="space-y-6 pb-12 animate-in fade-in duration-200">
+      {/* Production Journey Orchestration Stepper */}
+      <ProductionJourneyBar showDetails />
+
       <PageHeader
         title="Review & Approve Question"
         description="Verify mathematical accuracy, review option distractors, and approve for video production."
@@ -365,17 +389,28 @@ export const QuestionVerifyApprovePage: React.FC = () => {
             >
               {isValidating ? 'Validating...' : 'Re-run Validation'}
             </Button>
-            {isApproved && (
+            {targetVideoId ? (
               <Button
                 variant="primary"
                 size="sm"
-                onClick={handleQueueForVideo}
-                disabled={actionInProgress || isQueued}
-                icon={Video}
+                onClick={() => navigate(`/videos/${targetVideoId}/create-script`)}
+                icon={ArrowRight}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold"
               >
-                {isQueued ? 'In Video Queue' : 'Add to Video Queue'}
+                Create Audience Script
               </Button>
-            )}
+            ) : isApproved ? (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleApprove}
+                disabled={actionInProgress}
+                icon={ArrowRight}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold"
+              >
+                Queue for Video & Script
+              </Button>
+            ) : null}
           </div>
         }
       />
@@ -600,36 +635,77 @@ export const QuestionVerifyApprovePage: React.FC = () => {
                 </p>
               </div>
 
-              {isApproved ? (
-                <div className="space-y-3">
-                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2 text-xs font-semibold text-emerald-900">
+              {isApproved && targetVideoId ? (
+                <div className="space-y-4 animate-in fade-in duration-200">
+                  {/* Celebratory Green Badge */}
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold tracking-wide bg-emerald-100 text-emerald-800 border border-emerald-300">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>This question has been approved for YouTube Shorts production.</span>
+                    <span>✓ QUESTION APPROVED & QUEUED FOR VIDEO</span>
                   </div>
 
-                  <div className="space-y-2 pt-2">
+                  <div className="p-3.5 bg-emerald-50/80 border border-emerald-200 rounded-xl space-y-2 text-xs text-emerald-950">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-emerald-900">Linked Video Record:</span>
+                      <span className="font-mono font-bold text-indigo-700 bg-white px-2.5 py-0.5 rounded-md border border-emerald-200 shadow-2xs">
+                        {targetVideoId}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-emerald-800 leading-normal">
+                      Question verified and immediately connected to the continuous YouTube Shorts production pipeline.
+                    </p>
+                  </div>
+
+                  {/* Production Journey Progress Bar */}
+                  <div className="pt-1">
+                    <ProductionJourneyBar showDetails={false} />
+                  </div>
+
+                  {/* ONE large, prominent primary action button */}
+                  <div className="pt-2">
                     <Button
                       variant="primary"
-                      size="md"
-                      onClick={handleQueueForVideo}
-                      disabled={actionInProgress || isQueued}
-                      icon={Video}
-                      className="w-full justify-center"
+                      size="lg"
+                      onClick={() => navigate(`/videos/${targetVideoId}/create-script`)}
+                      icon={ArrowRight}
+                      className="w-full justify-center bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-bold py-3.5 shadow-md hover:shadow-lg transition-all text-sm group"
                     >
-                      {isQueued ? '✓ In Video Production Queue' : 'Add to Video Queue'}
+                      <span>Create Audience Script</span>
                     </Button>
+                  </div>
 
-                    <Link to="/studio">
-                      <Button
-                        variant="outline"
-                        size="md"
-                        icon={Sparkles}
-                        className="w-full justify-center mt-2"
-                      >
-                        Create Next Question
-                      </Button>
+                  <div className="pt-2 flex items-center justify-between text-xs text-slate-500">
+                    <Link
+                      to="/studio"
+                      className="inline-flex items-center gap-1 text-slate-600 hover:text-indigo-600 font-medium transition-colors"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+                      <span>Create Next Question</span>
+                    </Link>
+                    <Link
+                      to={`/videos/${targetVideoId}`}
+                      className="text-indigo-600 hover:underline font-medium"
+                    >
+                      View Video Details →
                     </Link>
                   </div>
+                </div>
+              ) : isApproved && !targetVideoId ? (
+                <div className="space-y-4">
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2 text-xs font-semibold text-emerald-900">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>This question is approved. Click below to connect directly into Video Production.</span>
+                  </div>
+
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    onClick={handleApprove}
+                    disabled={actionInProgress}
+                    icon={ArrowRight}
+                    className="w-full justify-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 text-sm"
+                  >
+                    {actionInProgress ? 'Connecting Video Record...' : 'Connect to Video Production →'}
+                  </Button>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -640,9 +716,9 @@ export const QuestionVerifyApprovePage: React.FC = () => {
                       onClick={handleApprove}
                       disabled={actionInProgress}
                       icon={Check}
-                      className="flex-1 justify-center bg-emerald-600 hover:bg-emerald-700 text-white"
+                      className="flex-1 justify-center bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
                     >
-                      {actionInProgress ? 'Approving...' : 'Approve Question'}
+                      {actionInProgress ? 'Approving & Queuing...' : 'Approve & Mark Ready'}
                     </Button>
 
                     <Button

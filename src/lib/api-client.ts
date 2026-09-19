@@ -449,6 +449,23 @@ class ApiClient {
     });
   }
 
+  public async queueQuestionForVideo(questionId: string, remarks?: string): Promise<Video> {
+    try {
+      return await this.queueVideo({
+        questionId,
+        notes: remarks || 'Queued from verification audit',
+      });
+    } catch (err: any) {
+      // If already queued, find existing video for this question
+      const videos = await this.getVideos();
+      const existing = videos.find((v) => v.questionId === questionId);
+      if (existing) {
+        return existing;
+      }
+      throw err;
+    }
+  }
+
   public async updateVideoStatus(
     id: string,
     status: string,
