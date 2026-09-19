@@ -36,3 +36,4 @@ export * from './phase20-social-reviews.repository';
 export * from './platform-adaptations.repository';
 export * from './intelligence.repository';
 export * from './strategy-recommendation.repository';
+export * from './analytics.repository';

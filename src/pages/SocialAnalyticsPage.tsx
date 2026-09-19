@@ -541,7 +541,7 @@ export const SocialAnalyticsPage: React.FC = () => {
                   <span className="text-slate-600 font-medium">Topic: {verifiedMaster.topicId}</span>
                 )}
                 <Link
-                  to={`/videos/${encodeURIComponent(verifiedMaster.videoId || verifiedMaster.id)}`}
+                  to={`/videos/${encodeURIComponent(verifiedMaster.primaryQuestionId || verifiedMaster.id)}`}
                   className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-indigo-600 hover:bg-indigo-700 text-white font-bold transition shadow-xs cursor-pointer ml-1"
                 >
                   <Film className="w-3 h-3" />

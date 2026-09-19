@@ -35,8 +35,8 @@ export class AnalyticsRepository extends BaseRepository<SocialAnalyticsRecord> {
    * If unconfigured, returns sentinel 'UNCONFIGURED_ANALYTICS_SPREADSHEET' to prevent
    * accidental fallback to production GOOGLE_SHEETS_ID.
    */
-  protected getTargetSpreadsheetId(): string | undefined {
-    return process.env.ANALYTICS_SPREADSHEET_ID || 'UNCONFIGURED_ANALYTICS_SPREADSHEET';
+  protected override getTargetSpreadsheetId(): string | undefined {
+    return process.env.ANALYTICS_SPREADSHEET_ID || undefined;
   }
 
   /**
