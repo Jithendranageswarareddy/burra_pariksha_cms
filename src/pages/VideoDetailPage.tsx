@@ -52,7 +52,6 @@ import { PublishingWorkspace } from '../components/video/PublishingWorkspace';
 import { RecordingWorkspace } from '../components/video/RecordingWorkspace';
 import { EditingWorkspace } from '../components/video/EditingWorkspace';
 import { FinalReviewWorkspace } from '../components/video/FinalReviewWorkspace';
-import { VideoWorkflowHeader } from '../components/video/VideoWorkflowHeader';
 import { SocialReviewWorkspace } from '../components/social/SocialReviewWorkspace';
 import { ProductionJourneyBar } from '../components/production/ProductionJourneyBar';
 import { useProductionJourney } from '../contexts/ProductionJourneyContext';
@@ -240,97 +239,25 @@ export const VideoDetailPage: React.FC = () => {
   const allowedNextTransitions = VALID_VIDEO_TRANSITIONS[video.status] || [];
   const priorityConfig = PRIORITY_CONFIG[video.priority] || PRIORITY_CONFIG[PriorityLevel.NORMAL];
 
-  const workflowStep: 5 | 6 | 7 | 8 | 9 =
-    activeTab === 'script'
-      ? 5
-      : activeTab === 'recording'
-      ? 6
-      : activeTab === 'editing'
-      ? 7
-      : activeTab === 'final-review'
-      ? 8
-      : activeTab === 'social'
-      ? 9
-      : video.status === VideoProductionStatus.RECORDING || video.status === VideoProductionStatus.RECORDED
-      ? 6
-      : video.status === VideoProductionStatus.EDITING
-      ? 7
-      : video.status === VideoProductionStatus.FINAL_REVIEW || video.status === VideoProductionStatus.READY_TO_UPLOAD || video.status === VideoProductionStatus.UPLOADED
-      ? 8
-      : 5;
-
-  const handleStepSelect = (stepNumber: 5 | 6 | 7 | 8 | 9) => {
-    const stageMap: Record<number, typeof activeTab> = {
-      5: 'script',
-      6: 'recording',
-      7: 'editing',
-      8: 'final-review',
-      9: 'social',
-    };
-    const target = stageMap[stepNumber] || 'script';
-    setActiveTab(target);
-    navigate(`/videos/${encodeURIComponent(video.id)}?tab=${target}`, { replace: true });
-  };
-
   return (
     <div className="space-y-6 max-w-7xl mx-auto animate-in fade-in duration-200 pb-16">
       {/* 15-Stage Continuous Production Journey Orchestration Bar */}
       <ProductionJourneyBar
+        showDetails
+        activeStage="TELEPROMPTER"
         onNavigateTab={(tab) => handleTabChange(tab as any)}
       />
 
-      {/* 5-Step Video Pipeline Stepper Header */}
-      <VideoWorkflowHeader
-        currentStep={workflowStep}
-        videoId={video.id}
-        videoTitle={video.title}
-        videoStatus={video.status}
-        onStepSelect={handleStepSelect}
-        activeStageTab={activeTab}
-      />
-
-      {/* Top Breadcrumb & Navigation */}
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div className="flex items-center gap-2 text-xs text-slate-500">
-          <Link to="/production" className="hover:text-slate-900 font-medium flex items-center gap-1">
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Production Tracker</span>
-          </Link>
-          <ChevronRight className="w-3 h-3 text-slate-400" />
-          <span className="font-mono text-indigo-600 font-semibold">{video.id}</span>
-        </div>
-
-        <div className="flex items-center gap-2 flex-wrap">
-          {video.questionId && (
-            <Link to={`/social-review/${encodeURIComponent(video.questionId)}`}>
-              <Button variant="outline" size="sm" icon={Share2} className="text-xs">
-                Standalone Review
-              </Button>
-            </Link>
-          )}
-          <Link to="/queue">
-            <Button variant="outline" size="sm" className="text-xs">
-              Video Queue
-            </Button>
-          </Link>
-          <Link to={`/questions/${video.questionId}`}>
-            <Button variant="outline" size="sm" icon={FileQuestion} className="text-xs">
-              View Question Record
-            </Button>
-          </Link>
-        </div>
-      </div>
-
       {/* Notifications / Alerts */}
       {notification && (
-        <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl flex items-center gap-2.5 animate-in fade-in">
+        <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl flex items-center gap-2 animate-in fade-in">
           <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
           <span>{notification}</span>
         </div>
       )}
 
       {errorMessage && (
-        <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-xl flex items-start gap-2.5 animate-in fade-in">
+        <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-xl flex items-start gap-2 animate-in fade-in">
           <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
           <div>
             <p className="font-semibold">Operation Error</p>
@@ -339,203 +266,146 @@ export const VideoDetailPage: React.FC = () => {
         </div>
       )}
 
-      {/* Main Header Card */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
-        <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-          <div className="space-y-1.5 flex-1">
-            <div className="flex flex-wrap items-center gap-2.5">
-              <span className="font-mono text-sm font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-200">
-                {video.id}
-              </span>
-              {video.contentMasterId ? (
-                <Link
-                  to={`/content-masters/${encodeURIComponent(video.contentMasterId)}`}
-                  className="font-mono text-xs font-bold text-purple-800 hover:text-purple-950 bg-purple-100 hover:bg-purple-200 px-2.5 py-1 rounded-lg border border-purple-300 transition-colors inline-flex items-center gap-1"
-                  title="View Content Master Explorer"
-                >
-                  Master: {video.contentMasterId}
-                </Link>
-              ) : (
-                <span className="text-xs font-mono bg-slate-100 text-slate-500 px-2.5 py-1 rounded-lg">
-                  Master: Not linked
-                </span>
-              )}
-              <VideoStatusBadge status={video.status} size="md" />
-              <span className={`text-xs px-2.5 py-1 rounded-lg font-semibold ${priorityConfig.bg} ${priorityConfig.text}`}>
-                Priority: {priorityConfig.label}
-              </span>
-              {video.actualDurationSeconds ? (
-                <span className="text-xs font-mono bg-slate-100 text-slate-700 px-2 py-1 rounded-lg font-medium">
-                  {video.actualDurationSeconds}s (Actual Duration)
-                </span>
-              ) : (
-                <span className="text-xs font-mono bg-slate-100 text-slate-500 px-2 py-1 rounded-lg">
-                  {video.targetDurationSeconds || 45}s Target
-                </span>
-              )}
-            </div>
-            <h1 className="text-lg font-bold text-slate-900 leading-tight pt-1">{video.title}</h1>
-            <p className="text-xs text-slate-500 flex items-center gap-2 flex-wrap">
-              <span>Ref Question:</span>
-              <Link
-                to={`/questions/${video.questionId}`}
-                className="font-mono text-indigo-600 hover:underline font-semibold"
-              >
-                {video.questionId}
-              </Link>
-              <span>• Created: {new Date(video.createdAt).toLocaleDateString()}</span>
-              <span>• Updated: {new Date(video.updatedAt).toLocaleTimeString()}</span>
-            </p>
-          </div>
+      {/* Condensed 40px Executive Strip */}
+      <div className="bg-white rounded-xl border border-slate-200 px-3.5 py-2 shadow-2xs flex items-center justify-between flex-wrap gap-2.5">
+        <div className="flex items-center gap-2 flex-wrap text-xs">
+          <Link
+            to="/production"
+            className="p-1 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-slate-800 transition-colors"
+            title="Back to Production Tracker"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </Link>
 
-          {/* Quick Priority & Action Bar */}
-          <div className="flex items-center gap-2 shrink-0">
-            <label className="text-xs font-medium text-slate-500">Priority:</label>
+          <span className="font-mono text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-200">
+            {video.id}
+          </span>
+
+          {video.contentMasterId ? (
+            <Link
+              to={`/content-masters/${encodeURIComponent(video.contentMasterId)}`}
+              className="font-mono text-[11px] font-semibold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-md border border-purple-200 hover:bg-purple-100 transition-colors"
+              title="View Content Master Explorer"
+            >
+              Master: {video.contentMasterId}
+            </Link>
+          ) : (
+            <span className="text-[11px] font-mono bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md">
+              Master: Not linked
+            </span>
+          )}
+
+          <VideoStatusBadge status={video.status} size="sm" />
+
+          <div className="flex items-center gap-1">
+            <span className="text-[11px] text-slate-400 font-medium">Priority:</span>
             <select
               value={video.priority}
               onChange={(e) => handlePriorityChange(e.target.value as PriorityLevel)}
               disabled={isUpdating || video.status === VideoProductionStatus.CANCELLED || video.status === VideoProductionStatus.UPLOADED}
-              className="text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white font-medium text-slate-800 focus:ring-indigo-500 cursor-pointer"
+              className="text-[11px] border border-slate-200 rounded-md px-1.5 py-0.5 bg-slate-50 font-semibold text-slate-800 focus:outline-hidden cursor-pointer"
             >
               <option value={PriorityLevel.LOW}>Low</option>
-              <option value={PriorityLevel.NORMAL}>Normal / Medium</option>
+              <option value={PriorityLevel.NORMAL}>Normal</option>
               <option value={PriorityLevel.HIGH}>High</option>
               <option value={PriorityLevel.URGENT}>Urgent</option>
             </select>
           </div>
+
+          <span className="text-slate-300">|</span>
+
+          <span className="text-slate-800 font-semibold truncate max-w-[260px]" title={video.title}>
+            {video.title}
+          </span>
+
+          <Link
+            to={`/questions/${video.questionId}`}
+            className="font-mono text-[11px] text-indigo-600 hover:underline flex items-center gap-1 font-semibold ml-1"
+          >
+            <FileQuestion className="w-3.5 h-3.5" />
+            <span>Ref: {video.questionId}</span>
+          </Link>
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          {video.questionId && (
+            <Link to={`/social-review/${encodeURIComponent(video.questionId)}`}>
+              <button
+                type="button"
+                className="px-2.5 py-1 text-xs border border-slate-200 rounded-lg bg-white text-slate-700 hover:bg-slate-50 font-semibold transition-all cursor-pointer flex items-center gap-1 shadow-2xs"
+              >
+                <Share2 className="w-3.5 h-3.5 text-slate-500" />
+                <span>Standalone Review</span>
+              </button>
+            </Link>
+          )}
+          <Link to={`/questions/${video.questionId}`}>
+            <button
+              type="button"
+              className="px-2.5 py-1 text-xs border border-slate-200 rounded-lg bg-white text-slate-700 hover:bg-slate-50 font-semibold transition-all cursor-pointer flex items-center gap-1 shadow-2xs"
+            >
+              <ExternalLink className="w-3.5 h-3.5 text-slate-500" />
+              <span>View Question</span>
+            </button>
+          </Link>
         </div>
       </div>
 
-      {/* Production Journey Orchestration Stepper */}
-      <ProductionJourneyBar
-        showDetails
-        onNavigateTab={(tab) => {
-          if (['script', 'recording', 'editing', 'final-review', 'social', 'overview', 'thumbnail', 'pinned-comment', 'publishing'].includes(tab)) {
-            setActiveTab(tab as any);
-          }
-        }}
-      />
+      {/* Compact 36px Stage Navigation Bar */}
+      <div className="flex border border-slate-200/90 gap-1 text-xs font-semibold overflow-x-auto bg-white p-1 rounded-xl shadow-2xs items-center min-h-[38px]">
+        {[
+          { id: 'script', label: '1. Scripting', icon: Edit3 },
+          { id: 'recording', label: '2. Teleprompter & Filming', icon: Mic },
+          { id: 'editing', label: '3. Editing Bay', icon: Scissors },
+          { id: 'final-review', label: '4. Final QC Lock', icon: ShieldCheck },
+          { id: 'social', label: '5. Social Simulator', icon: Share2 },
+        ].map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all shrink-0 cursor-pointer text-xs ${
+                isActive
+                  ? 'bg-indigo-600 text-white font-bold shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+              }`}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
 
-      {/* Unified 5-Stage Studio Navigation Bar */}
-      <div className="flex border-b border-slate-200 gap-1.5 text-xs font-semibold overflow-x-auto bg-white p-1.5 rounded-2xl border shadow-2xs">
-        <button
-          type="button"
-          onClick={() => setActiveTab('script')}
-          className={`px-4 py-2.5 rounded-xl flex items-center gap-2 transition-all shrink-0 cursor-pointer ${
-            activeTab === 'script'
-              ? 'bg-indigo-600 text-white font-bold shadow-xs'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-          }`}
-        >
-          <Edit3 className="w-4 h-4" />
-          <span>1. Scripting</span>
-        </button>
+        <div className="h-4 w-px bg-slate-200 mx-1 shrink-0" />
 
-        <button
-          type="button"
-          onClick={() => setActiveTab('recording')}
-          className={`px-4 py-2.5 rounded-xl flex items-center gap-2 transition-all shrink-0 cursor-pointer ${
-            activeTab === 'recording'
-              ? 'bg-indigo-600 text-white font-bold shadow-xs'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-          }`}
-        >
-          <Mic className="w-4 h-4" />
-          <span>2. Teleprompter &amp; Filming</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('editing')}
-          className={`px-4 py-2.5 rounded-xl flex items-center gap-2 transition-all shrink-0 cursor-pointer ${
-            activeTab === 'editing'
-              ? 'bg-indigo-600 text-white font-bold shadow-xs'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-          }`}
-        >
-          <Scissors className="w-4 h-4" />
-          <span>3. Editing Bay</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('final-review')}
-          className={`px-4 py-2.5 rounded-xl flex items-center gap-2 transition-all shrink-0 cursor-pointer ${
-            activeTab === 'final-review'
-              ? 'bg-indigo-600 text-white font-bold shadow-xs'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-          }`}
-        >
-          <ShieldCheck className="w-4 h-4" />
-          <span>4. Final QC Lock</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('social')}
-          className={`px-4 py-2.5 rounded-xl flex items-center gap-2 transition-all shrink-0 cursor-pointer ${
-            activeTab === 'social'
-              ? 'bg-indigo-600 text-white font-bold shadow-xs'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-          }`}
-        >
-          <Share2 className="w-4 h-4" />
-          <span>5. Social Packaging &amp; Simulator</span>
-        </button>
-
-        <div className="h-6 w-px bg-slate-200 self-center mx-1 shrink-0" />
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('overview')}
-          className={`px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 transition-all shrink-0 cursor-pointer ${
-            activeTab === 'overview'
-              ? 'bg-slate-800 text-white font-bold shadow-xs'
-              : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
-          }`}
-        >
-          <Film className="w-3.5 h-3.5" />
-          <span>Stage Flow &amp; State Logs</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('thumbnail')}
-          className={`px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 transition-all shrink-0 cursor-pointer ${
-            activeTab === 'thumbnail'
-              ? 'bg-slate-800 text-white font-bold shadow-xs'
-              : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
-          }`}
-        >
-          <Sparkles className="w-3.5 h-3.5" />
-          <span>Thumbnail Asset</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('pinned-comment')}
-          className={`px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 transition-all shrink-0 cursor-pointer ${
-            activeTab === 'pinned-comment'
-              ? 'bg-slate-800 text-white font-bold shadow-xs'
-              : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
-          }`}
-        >
-          <Activity className="w-3.5 h-3.5" />
-          <span>Pinned Comment</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('publishing')}
-          className={`px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 transition-all shrink-0 cursor-pointer ${
-            activeTab === 'publishing'
-              ? 'bg-slate-800 text-white font-bold shadow-xs'
-              : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
-          }`}
-        >
-          <UploadCloud className="w-3.5 h-3.5" />
-          <span>Manual Publishing</span>
-        </button>
+        {/* Secondary Workflow Tabs */}
+        {[
+          { id: 'overview', label: 'Flow & Logs', icon: Film },
+          { id: 'thumbnail', label: 'Thumbnail', icon: Sparkles },
+          { id: 'pinned-comment', label: 'Pinned Comment', icon: Activity },
+          { id: 'publishing', label: 'Publishing', icon: UploadCloud },
+        ].map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`px-2.5 py-1 rounded-lg flex items-center gap-1 transition-all shrink-0 cursor-pointer text-[11px] ${
+                isActive
+                  ? 'bg-slate-800 text-white font-bold shadow-xs'
+                  : 'text-slate-400 hover:text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <Icon className="w-3 h-3" />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Main Studio Grid: Active Stage Surface (Left) + Persistent Question & Math Proof Rail (Right) */}

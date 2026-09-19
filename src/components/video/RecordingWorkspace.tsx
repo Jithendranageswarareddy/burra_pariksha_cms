@@ -27,6 +27,9 @@ import {
   Copy,
   Check,
   Film,
+  Brain,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { Video, Script, VideoProductionStatus, AssignmentTaskType } from '../../types';
 import { apiClient } from '../../lib/api-client';
@@ -73,6 +76,10 @@ export const RecordingWorkspace: React.FC<RecordingWorkspaceProps> = ({
   const [driveUrlInput, setDriveUrlInput] = useState<string>('');
   const [isUploadingFile, setIsUploadingFile] = useState<boolean>(false);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
+
+  // Reviewer Math Proof Reference State
+  const [questionData, setQuestionData] = useState<any | null>(null);
+  const [isMathProofOpen, setIsMathProofOpen] = useState<boolean>(false);
 
   // Spacebar toggle & Escape key listener for fullscreen teleprompter
   useEffect(() => {
@@ -138,6 +145,10 @@ export const RecordingWorkspace: React.FC<RecordingWorkspaceProps> = ({
     fetchScript();
     setPresenterName(video.assignedHost || '');
     setTakeNotes(video.notes || '');
+
+    if (video.questionId) {
+      apiClient.getQuestionById(video.questionId).then((q) => setQuestionData(q)).catch(() => {});
+    }
   }, [videoId, video]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -288,128 +299,56 @@ export const RecordingWorkspace: React.FC<RecordingWorkspaceProps> = ({
     Boolean(video.driveFileId);
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-200">
-      {/* Action Bar & Notification Banners */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white rounded-xl border border-slate-200 p-4 shadow-xs">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-red-50 border border-red-200 flex items-center justify-center text-red-600">
-            <Radio className="w-5 h-5 animate-pulse" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="text-sm font-bold text-slate-900">Stage 04: Teleprompter &amp; Raw Video Intake</h3>
-              <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-700">
-                TAKE #{recordingTake}
-              </span>
-            </div>
-            <p className="text-xs text-slate-500">Film on-camera presenter delivery, track takes, and upload raw footage to Drive</p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 flex-wrap">
-          {script && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsFullscreenTeleprompter(true)}
-              icon={Maximize2}
-              className="text-xs bg-slate-900 text-white hover:bg-slate-800 border-slate-700 font-semibold"
-            >
-              Launch Teleprompter
-            </Button>
-          )}
-
-          {video.status === VideoProductionStatus.SCRIPT_READY && (
-            <Button
-              variant="primary"
-              size="sm"
-              disabled={isUpdating}
-              onClick={() => handleStatusTransition(VideoProductionStatus.RECORDING)}
-              className="text-xs bg-red-600 hover:bg-red-700 text-white font-bold"
-              icon={Play}
-            >
-              Start Recording
-            </Button>
-          )}
-
-          {video.status === VideoProductionStatus.RECORDING && (
-            <Button
-              variant="primary"
-              size="sm"
-              disabled={isUpdating || !video.driveFileId}
-              onClick={() => handleStatusTransition(VideoProductionStatus.RECORDED)}
-              className="text-xs"
-              icon={CheckCircle2}
-              title={!video.driveFileId ? 'A raw video file must be uploaded before marking as Recorded' : ''}
-            >
-              Mark as Recorded
-            </Button>
-          )}
-
-          {isRawFootageRecorded && onNavigateTab && (
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => onNavigateTab('editing')}
-              icon={ArrowRight}
-              className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
-            >
-              Go to Editing Bay →
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {/* Celebratory Zero-Friction Bridge to Stage 05 */}
+    <div className="space-y-4 animate-in fade-in duration-200">
+      {/* Celebratory Zero-Friction Bridge to Stage 05 (if recorded) */}
       {isRawFootageRecorded && (
-        <div className="p-4 bg-emerald-50 border-2 border-emerald-300 text-emerald-900 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0">
-              <Check className="w-5 h-5" />
+        <div className="p-3 bg-emerald-50 border border-emerald-300 text-emerald-900 rounded-xl flex items-center justify-between gap-3 shadow-2xs">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0">
+              <Check className="w-3.5 h-3.5" />
             </div>
-            <div>
-              <div className="flex items-center gap-2 font-bold text-xs text-emerald-950 uppercase tracking-wide">
-                <span>✓ Raw Footage Recorded &amp; Secured in Drive</span>
-                {video.driveFileId && (
-                  <span className="font-mono text-[10px] text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-200">
-                    File ID: {video.driveFileId}
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-emerald-800 mt-0.5">
-                On-camera capture complete. Ready for Telugu motion graphics, countdown timers, and pacing verification in Stage 05.
-              </p>
+            <div className="text-xs">
+              <span className="font-bold text-emerald-950 uppercase tracking-wider">
+                ✓ Raw Footage Ingested &amp; Secured in Drive
+              </span>
+              {video.driveFileId && (
+                <span className="font-mono text-[10px] text-emerald-800 bg-emerald-100 px-1.5 py-0.5 rounded ml-2 border border-emerald-200">
+                  ID: {video.driveFileId}
+                </span>
+              )}
             </div>
           </div>
 
-          {onNavigateTab && (
-            <Button
-              variant="primary"
-              size="md"
-              onClick={() => onNavigateTab('editing')}
-              icon={ArrowRight}
-              className="text-xs bg-emerald-700 hover:bg-emerald-800 text-white font-bold whitespace-nowrap py-2.5 px-4 shadow-xs"
-            >
-              Proceed to Stage 05: Video Editing Bay →
-            </Button>
-          )}
+          <button
+            type="button"
+            onClick={() => {
+              if (onNavigateTab) {
+                onNavigateTab('editing');
+              } else {
+                window.location.href = `/videos/${encodeURIComponent(videoId)}?tab=editing`;
+              }
+            }}
+            className="text-xs bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-1.5 px-3 rounded-lg shadow-2xs transition-all flex items-center gap-1 cursor-pointer whitespace-nowrap"
+          >
+            <span>Proceed to Editing Bay →</span>
+          </button>
         </div>
       )}
 
       {successMessage && (
-        <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-lg flex items-center gap-2">
+        <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
           <span>{successMessage}</span>
         </div>
       )}
 
       {error && (
-        <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-lg flex items-start gap-2.5">
+        <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-xl flex items-start gap-2">
           <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
           <div className="flex-1">
             {error.includes('invalid_grant') ? (
               <span>
-                Google Drive connection error. Please ensure your Google Drive refresh token is configured in Secrets or set SKIP_DRIVE_SYNC=true in your environment for local testing.
+                Google Drive connection error. Please ensure your Google Drive refresh token is configured in Secrets or set SKIP_DRIVE_SYNC=true in environment.
               </span>
             ) : (
               <span>{error}</span>
@@ -418,328 +357,389 @@ export const RecordingWorkspace: React.FC<RecordingWorkspaceProps> = ({
         </div>
       )}
 
-      {/* Main Content Grid: Approved Script Teleprompter & Multi-Take Intake */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left 2 Cols: Approved Script Teleprompter View */}
-        <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 p-6 shadow-xs space-y-4">
+      {/* Main Dual-Pane Studio Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+        {/* LEFT PANE (lg:col-span-7 / Teleprompter Canvas) */}
+        <div className="lg:col-span-7 bg-white rounded-2xl border border-slate-200 p-5 shadow-xs space-y-4">
+          {/* Card Header */}
           <div className="flex items-center justify-between pb-3 border-b border-slate-100 flex-wrap gap-2">
             <div className="flex items-center gap-2">
               <FileText className="w-4 h-4 text-indigo-600" />
               <h3 className="text-sm font-bold text-slate-900">Approved Teleprompter Narration</h3>
               {script && (
-                <span className="font-mono text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded font-semibold border border-indigo-200">
+                <span className="font-mono text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-lg font-bold border border-indigo-200">
                   v{script.currentVersion}
                 </span>
               )}
             </div>
+
             {script && (
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsFullscreenTeleprompter(true)}
-                  icon={Maximize2}
-                  className="text-xs text-red-700 border-red-200 hover:bg-red-50 font-bold"
-                >
-                  Launch Fullscreen Studio Prompter
-                </Button>
-              </div>
+              <button
+                type="button"
+                onClick={() => setIsFullscreenTeleprompter(true)}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-2 px-3.5 rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+              >
+                <Maximize2 className="w-3.5 h-3.5" />
+                <span>↗ Launch Fullscreen Prompter (Spacebar to Scroll)</span>
+              </button>
             )}
           </div>
 
+          {/* Teleprompter Script Blocks */}
           {isLoadingScript ? (
             <div className="py-12 text-center text-xs text-slate-400 font-mono">Loading approved script...</div>
           ) : script ? (
-            <div className="space-y-3.5 text-xs">
+            <div className="space-y-3">
               {/* Part 1: Hook */}
-              <div className="p-3.5 bg-red-50/50 border border-red-200 rounded-lg space-y-1">
+              <div className="p-3.5 bg-amber-50/60 border border-amber-200/80 rounded-xl space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-red-900 uppercase tracking-wider text-[10px] flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse" />
-                    01 • Hook (00:00 – 00:05) • Max Energy
+                  <span className="font-bold text-amber-900 uppercase tracking-wider text-[10px] bg-amber-200/70 text-amber-950 px-2 py-0.5 rounded-md flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-amber-600 animate-pulse" />
+                    Hook • Max Energy (00:00 – 00:05)
                   </span>
-                  <span className="font-mono text-[10px] text-red-700">~15 words</span>
+                  <span className="font-mono text-[10px] text-amber-800 font-semibold">~15 words</span>
                 </div>
-                <p className="text-slate-900 font-telugu leading-relaxed font-semibold text-sm">
+                <p className="font-telugu text-base sm:text-lg font-bold text-slate-900 leading-relaxed p-3 rounded-xl bg-white border border-amber-200/60 shadow-2xs">
                   {script.hookText}
                 </p>
               </div>
 
-              {/* Part 2: Problem Statement */}
-              <div className="p-3.5 bg-indigo-50/40 border border-indigo-100 rounded-lg space-y-1">
+              {/* Part 2: Question Narration */}
+              <div className="p-3.5 bg-indigo-50/50 border border-indigo-200/80 rounded-xl space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-indigo-900 uppercase tracking-wider text-[10px]">
-                    02 • Problem Statement &amp; Options (00:05 – 00:15) • Clear Enunciation
+                  <span className="font-bold text-indigo-900 uppercase tracking-wider text-[10px] bg-indigo-200/70 text-indigo-950 px-2 py-0.5 rounded-md">
+                    Question Narration • Clear Enunciation (00:05 – 00:15)
                   </span>
-                  <span className="font-mono text-[10px] text-indigo-700">~25 words</span>
+                  <span className="font-mono text-[10px] text-indigo-800 font-semibold">~25 words</span>
                 </div>
-                <p className="text-slate-800 font-telugu leading-relaxed text-xs">
+                <p className="font-telugu text-base sm:text-lg font-bold text-slate-900 leading-relaxed p-3 rounded-xl bg-white border border-indigo-200/60 shadow-2xs">
                   {script.problemStatement}
                 </p>
               </div>
 
-              {/* Part 3: Spoken Solution & Intuition */}
-              <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-lg space-y-1">
+              {/* Part 3: Spoken Solution / Options Delivery */}
+              <div className="p-3.5 bg-slate-100/70 border border-slate-200 rounded-xl space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-700 uppercase tracking-wider text-[10px]">
-                    03 • Spoken Solution &amp; Intuition (00:15 – 00:35) • Explanatory Pace
+                  <span className="font-bold text-slate-800 uppercase tracking-wider text-[10px] bg-slate-200 text-slate-900 px-2 py-0.5 rounded-md">
+                    Spoken Explanation / Options (00:15 – 00:35)
                   </span>
-                  <span className="font-mono text-[10px] text-slate-500">~45–60 words</span>
+                  <span className="font-mono text-[10px] text-slate-600 font-semibold">~45–60 words</span>
                 </div>
-                <p className="text-slate-800 font-telugu leading-relaxed whitespace-pre-wrap text-xs">
+                <p className="font-telugu text-base sm:text-lg font-bold text-slate-900 leading-relaxed p-3 rounded-xl bg-white border border-slate-200 shadow-2xs whitespace-pre-wrap">
                   {script.stepByStepSolution}
                 </p>
               </div>
 
-              {/* Part 4: Speed Trick */}
-              <div className="p-3.5 bg-amber-50/70 border border-amber-200 rounded-lg space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-amber-900 uppercase tracking-wider text-[10px] flex items-center gap-1">
-                    <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                    04 • Burra Speed Shortcut (00:35 – 00:45) • High-Retention Exam Trick
-                  </span>
-                  <span className="font-mono text-[10px] text-amber-800 font-bold">Exam Secret</span>
+              {/* Part 4: Speed Trick or Comment Challenge */}
+              {script.speedTrickOrTakeaway && (
+                <div className="p-3.5 bg-emerald-50/60 border border-emerald-200/80 rounded-xl space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-emerald-900 uppercase tracking-wider text-[10px] bg-emerald-200/70 text-emerald-950 px-2 py-0.5 rounded-md flex items-center gap-1">
+                      <Sparkles className="w-3 h-3 text-emerald-700" />
+                      Burra Speed Trick / Challenge (00:35 – 00:45)
+                    </span>
+                    <span className="font-mono text-[10px] text-emerald-800 font-bold">Exam Secret</span>
+                  </div>
+                  <p className="font-telugu text-base sm:text-lg font-bold text-slate-900 leading-relaxed p-3 rounded-xl bg-white border border-emerald-200/60 shadow-2xs">
+                    {script.speedTrickOrTakeaway}
+                  </p>
                 </div>
-                <p className="text-amber-950 font-telugu leading-relaxed font-bold text-xs">
-                  {script.speedTrickOrTakeaway}
-                </p>
-              </div>
+              )}
 
-              {/* Part 5: Call to Action */}
-              <div className="p-3.5 bg-purple-50/60 border border-purple-200 rounded-lg space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-purple-900 uppercase tracking-wider text-[10px]">
-                    05 • Call to Action &amp; Outro (00:45 – 00:50) • Follow Prompt
-                  </span>
-                  <span className="font-mono text-[10px] text-purple-700">~15 words</span>
+              {/* Part 5: CTA */}
+              {script.callToAction && (
+                <div className="p-3.5 bg-purple-50/60 border border-purple-200/80 rounded-xl space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-purple-900 uppercase tracking-wider text-[10px] bg-purple-200/70 text-purple-950 px-2 py-0.5 rounded-md">
+                      Outro &amp; Follow CTA (00:45 – 00:50)
+                    </span>
+                    <span className="font-mono text-[10px] text-purple-800 font-semibold">~15 words</span>
+                  </div>
+                  <p className="font-telugu text-base sm:text-lg font-bold text-slate-900 leading-relaxed p-3 rounded-xl bg-white border border-purple-200/60 shadow-2xs">
+                    {script.callToAction}
+                  </p>
                 </div>
-                <p className="text-purple-950 font-telugu leading-relaxed text-xs">
-                  {script.callToAction}
-                </p>
-              </div>
+              )}
             </div>
           ) : (
-            <div className="p-8 text-center bg-slate-50 rounded-lg border border-slate-200 text-slate-500 text-xs">
+            <div className="p-8 text-center bg-slate-50 rounded-xl border border-slate-200 text-slate-500 text-xs">
               No approved script found for this video yet. Please navigate to the Script Workspace first to generate or approve the Telugu script.
             </div>
           )}
         </div>
 
-        {/* Right Col: Multi-Take Manager & Raw Footage Intake */}
-        <div className="space-y-6">
-          {/* Multi-Take Manager Card */}
-          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-3">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+        {/* RIGHT PANE (lg:col-span-5 / Sticky Recording & Intake Rail) */}
+        <div className="lg:col-span-5 lg:sticky lg:top-4 space-y-3">
+          {/* CARD 1 (TOP ACTION STATION): "Proceed to Editing" */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs space-y-3">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
               <div className="flex items-center gap-2">
-                <Radio className="w-4 h-4 text-red-600 animate-pulse" />
-                <h3 className="text-sm font-bold text-slate-900">Multi-Take Manager</h3>
+                <div className="w-7 h-7 rounded-lg bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-600">
+                  <Radio className="w-4 h-4 animate-pulse text-indigo-600" />
+                </div>
+                <div>
+                  <h3 className="text-xs font-bold text-slate-900">Stage 04: Filming Station</h3>
+                  <p className="text-[10px] text-slate-500">Filming &amp; Raw Ingestion</p>
+                </div>
               </div>
-              <span className="font-mono text-xs font-bold text-red-700 bg-red-50 border border-red-200 px-2 py-0.5 rounded">
+              <span className="font-mono text-[10px] font-bold text-red-700 bg-red-50 border border-red-200 px-2 py-0.5 rounded-md">
                 TAKE #{recordingTake}
               </span>
             </div>
 
-            <div className="space-y-3 text-xs">
-              {/* Take Selector Buttons */}
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Take Selector
-                </label>
-                <div className="flex items-center gap-1.5">
-                  {[1, 2, 3, 4, 5].map((takeNum) => (
-                    <button
-                      key={takeNum}
-                      type="button"
-                      onClick={() => setRecordingTake(takeNum)}
-                      className={`flex-1 py-1.5 rounded-lg text-xs font-mono font-bold border transition ${
-                        recordingTake === takeNum
-                          ? 'bg-red-600 border-red-700 text-white shadow-xs'
-                          : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-                      }`}
-                    >
-                      #{takeNum}
-                    </button>
-                  ))}
-                </div>
-              </div>
+            <button
+              type="button"
+              onClick={() => {
+                if (onNavigateTab) {
+                  onNavigateTab('editing');
+                } else {
+                  window.location.href = `/videos/${encodeURIComponent(videoId)}?tab=editing`;
+                }
+              }}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-4 w-full text-sm rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <span>Save Footage &amp; Proceed to Step 05: Editing Bay →</span>
+            </button>
 
-              {/* On-Camera Presenter Input */}
+            {/* Quick Status Transition Actions */}
+            <div className="flex items-center gap-1.5 pt-1 border-t border-slate-100">
+              {video.status === VideoProductionStatus.SCRIPT_READY && (
+                <button
+                  type="button"
+                  disabled={isUpdating}
+                  onClick={() => handleStatusTransition(VideoProductionStatus.RECORDING)}
+                  className="flex-1 py-1.5 px-2 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 font-bold text-[11px] rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                >
+                  <Play className="w-3 h-3 text-red-600" />
+                  <span>Start Recording</span>
+                </button>
+              )}
+
+              {video.status === VideoProductionStatus.RECORDING && (
+                <button
+                  type="button"
+                  disabled={isUpdating || !video.driveFileId}
+                  onClick={() => handleStatusTransition(VideoProductionStatus.RECORDED)}
+                  className="flex-1 py-1.5 px-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 font-bold text-[11px] rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                  title={!video.driveFileId ? 'Upload raw footage first' : ''}
+                >
+                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                  <span>Mark as Recorded</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* CARD 2: "Multi-Take Manager & Raw Footage Intake" */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs space-y-3">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div className="flex items-center gap-1.5">
+                <UploadCloud className="w-4 h-4 text-indigo-600" />
+                <h3 className="text-xs font-bold text-slate-900">Multi-Take Manager &amp; Raw Footage</h3>
+              </div>
+              {video.driveFileId && (
+                <span className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-md">
+                  Secured
+                </span>
+              )}
+            </div>
+
+            {/* Take Selector */}
+            <div className="space-y-1">
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                Take Selector
+              </label>
+              <div className="flex items-center gap-1">
+                {[1, 2, 3, 4, 5].map((takeNum) => (
+                  <button
+                    key={takeNum}
+                    type="button"
+                    onClick={() => setRecordingTake(takeNum)}
+                    className={`flex-1 py-1 rounded-lg text-xs font-mono font-bold border transition-colors cursor-pointer ${
+                      recordingTake === takeNum
+                        ? 'bg-red-600 border-red-700 text-white shadow-xs'
+                        : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    #{takeNum}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Presenter & Take Notes Inputs */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
               <div>
-                <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  On-Camera Presenter
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">
+                  Presenter
                 </label>
                 <input
                   type="text"
                   value={presenterName}
                   onChange={(e) => setPresenterName(e.target.value)}
-                  placeholder="e.g. Ramesh Kumar / Presenter 1"
-                  className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:ring-1 focus:ring-indigo-500 text-slate-800"
+                  placeholder="e.g. Ramesh Kumar"
+                  className="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg focus:outline-hidden focus:border-indigo-500 text-slate-800 bg-slate-50/50"
                 />
               </div>
-
-              {/* Director & Presenter Take Remarks */}
               <div>
-                <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Director Remarks &amp; Take Notes
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">
+                  Take Notes
                 </label>
-                <textarea
-                  rows={3}
+                <input
+                  type="text"
                   value={takeNotes}
                   onChange={(e) => setTakeNotes(e.target.value)}
-                  placeholder="e.g. Take 2 has best energy on the hook; clear Telugu pronunciation on Option B"
-                  className="w-full text-xs p-2.5 border border-slate-300 rounded-lg focus:ring-1 focus:ring-indigo-500 text-slate-800"
+                  placeholder="e.g. Take 2 best hook energy"
+                  className="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg focus:outline-hidden focus:border-indigo-500 text-slate-800 bg-slate-50/50"
                 />
               </div>
-
-              <div className="flex justify-end pt-1">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={isSavingTakeMeta}
-                  onClick={handleSaveTakeMeta}
-                  className="text-xs w-full justify-center"
-                  icon={Save}
-                >
-                  {isSavingTakeMeta ? 'Saving in Sheets...' : 'Save Presenter & Take Remarks'}
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          {/* Raw Footage Intake Card (Google Drive Direct Upload & URL Link) */}
-          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-3">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <UploadCloud className="w-4 h-4 text-indigo-600" />
-                <h3 className="text-sm font-bold text-slate-900">Raw Footage Intake</h3>
-              </div>
-              {video.driveFileId && (
-                <span className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
-                  Drive Ingested
-                </span>
-              )}
             </div>
 
-            <div className="space-y-3 text-xs">
+            <div className="flex justify-end">
+              <button
+                type="button"
+                disabled={isSavingTakeMeta}
+                onClick={handleSaveTakeMeta}
+                className="text-[11px] font-semibold text-slate-700 hover:text-slate-900 border border-slate-200 hover:bg-slate-50 px-2.5 py-1 rounded-lg transition-colors w-full flex items-center justify-center gap-1 cursor-pointer"
+              >
+                <Save className="w-3 h-3 text-slate-500" />
+                <span>{isSavingTakeMeta ? 'Saving...' : 'Save Presenter & Take Notes'}</span>
+              </button>
+            </div>
+
+            {/* Raw Footage Ingestion Section */}
+            <div className="pt-2 border-t border-slate-100 space-y-2 text-xs">
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                Raw Footage Ingestion
+              </label>
+
               {video.driveFileId ? (
-                <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg space-y-1">
+                <div className="p-2.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl space-y-1 text-[11px]">
                   <div className="flex items-center gap-1.5 font-semibold text-emerald-900">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                     <span>Raw Video Secured in Google Drive</span>
                   </div>
-                  <div className="font-mono text-[10px] text-emerald-700 break-all space-y-0.5">
-                    <p><strong>File ID:</strong> {video.driveFileId}</p>
-                    {video.driveFolderUrl && <p><strong>Drive URL:</strong> {video.driveFolderUrl}</p>}
-                  </div>
+                  <p className="font-mono text-[10px] text-emerald-700 truncate">
+                    ID: {video.driveFileId}
+                  </p>
                 </div>
-              ) : (
-                <div className="p-2.5 bg-amber-50 border border-amber-200 text-amber-900 rounded-lg text-[11px] leading-snug">
-                  Upload raw camera file (.mp4, .mov) directly or paste an existing Google Drive share link.
-                </div>
-              )}
+              ) : null}
 
-              {/* Direct File Upload */}
-              <div className="space-y-1.5">
-                <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider">
-                  1. Direct Video File Upload
-                </label>
+              {/* File Upload Button */}
+              <div className="space-y-1">
                 <input
                   id="raw-video-file-input"
                   type="file"
                   accept="video/*"
                   onChange={handleFileChange}
                   disabled={isUploadingFile}
-                  className="w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 border border-slate-200 rounded-lg p-1.5 focus:outline-none"
+                  className="w-full text-[11px] text-slate-500 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-[11px] file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 border border-slate-200 rounded-lg p-1 focus:outline-hidden"
                 />
               </div>
 
               {selectedFile && (
-                <div className="text-[11px] text-slate-600 space-y-1 bg-slate-50 p-2 rounded-lg border border-slate-100">
-                  <p className="truncate font-medium"><strong>File:</strong> {selectedFile.name}</p>
-                  <p><strong>Size:</strong> {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB</p>
-                </div>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  className="w-full text-xs justify-center py-1.5"
+                  disabled={isUploadingFile}
+                  onClick={handleUploadFile}
+                  icon={UploadCloud}
+                >
+                  {isUploadingFile ? `Uploading (${uploadProgress}%)...` : 'Upload Video File to Drive'}
+                </Button>
               )}
 
-              {isUploadingFile && (
-                <div className="space-y-1">
-                  <div className="flex justify-between text-[11px] font-mono text-indigo-700">
-                    <span>Uploading raw video to Drive...</span>
-                    <span>{uploadProgress}%</span>
-                  </div>
-                  <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
-                    <div
-                      className="bg-indigo-600 h-full transition-all duration-300"
-                      style={{ width: `${uploadProgress}%` }}
-                    />
-                  </div>
-                </div>
-              )}
-
-              <Button
-                variant="primary"
-                size="sm"
-                className="w-full text-xs justify-center"
-                disabled={!selectedFile || isUploadingFile}
-                onClick={handleUploadFile}
-                icon={UploadCloud}
-              >
-                {isUploadingFile ? 'Uploading to Drive...' : 'Upload Video File to Drive'}
-              </Button>
-
-              {/* Or Direct Google Drive URL */}
-              <div className="pt-2 border-t border-slate-100 space-y-2">
-                <div className="text-[10px] font-mono text-slate-400 uppercase text-center">
-                  — OR LINK GOOGLE DRIVE URL —
-                </div>
+              {/* Link Drive URL Input */}
+              <div className="flex items-center gap-1.5 pt-1">
                 <input
                   type="url"
                   value={driveUrlInput}
                   onChange={(e) => setDriveUrlInput(e.target.value)}
-                  placeholder="https://drive.google.com/file/d/.../view"
+                  placeholder="Paste Drive Share URL..."
                   disabled={isUploadingFile}
-                  className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:ring-1 focus:ring-indigo-500"
+                  className="flex-1 text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg focus:outline-hidden focus:border-indigo-500 bg-slate-50/50"
                 />
-                <Button
-                  variant="outline"
-                  size="sm"
+                <button
+                  type="button"
                   disabled={!driveUrlInput.trim() || isUploadingFile}
                   onClick={handleLinkDriveUrl}
-                  className="w-full text-xs justify-center text-slate-700"
-                  icon={LinkIcon}
+                  className="px-2.5 py-1.5 text-xs bg-slate-800 hover:bg-slate-900 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 cursor-pointer whitespace-nowrap"
                 >
-                  Link Drive URL &amp; Advance
-                </Button>
+                  Link Drive URL
+                </button>
               </div>
             </div>
           </div>
 
-          {/* Recording Assignment Card */}
-          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-3">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+          {/* CARD 3: "Reviewer Math Proof" (Collapsible dark reference drawer) */}
+          <div className="bg-slate-900 text-slate-100 rounded-2xl p-4 border border-slate-800 shadow-md space-y-2">
+            <button
+              type="button"
+              onClick={() => setIsMathProofOpen(!isMathProofOpen)}
+              className="w-full flex items-center justify-between text-xs font-bold text-slate-200 hover:text-white transition-colors cursor-pointer"
+            >
               <div className="flex items-center gap-2">
-                <User className="w-4 h-4 text-indigo-600" />
-                <h3 className="text-sm font-bold text-slate-900">Studio Staff Assignment</h3>
+                <Brain className="w-4 h-4 text-purple-400" />
+                <span>Reviewer Math Proof &amp; Reference</span>
               </div>
-            </div>
+              {isMathProofOpen ? (
+                <ChevronUp className="w-4 h-4 text-slate-400" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-slate-400" />
+              )}
+            </button>
 
-            {recordingAssignments.length > 0 ? (
-              <div className="space-y-2">
-                {recordingAssignments.map((assignment) => (
-                  <div key={assignment.id} className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-slate-800">{assignment.assigneeName}</span>
-                      <span className="font-mono text-[10px] bg-indigo-100 text-indigo-800 px-1.5 py-0.5 rounded">
-                        {assignment.taskType}
+            {isMathProofOpen && (
+              <div className="pt-2 border-t border-slate-800 text-xs space-y-2.5 animate-in fade-in">
+                {questionData ? (
+                  <>
+                    <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-1">
+                      <span className="text-[10px] font-mono uppercase text-purple-400 font-semibold block">
+                        Question Text:
                       </span>
+                      <p className="text-slate-200 font-telugu text-xs leading-relaxed">
+                        {questionData.questionTelugu || questionData.textEnglish || 'Question record linked.'}
+                      </p>
                     </div>
-                    <p className="text-slate-500">Status: <span className="font-medium text-slate-700">{assignment.status}</span></p>
-                    {assignment.notes && <p className="text-slate-600 italic">"{assignment.notes}"</p>}
+
+                    {questionData.options && (
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {questionData.options.map((opt: any, idx: number) => {
+                          const isCorrect = idx === questionData.correctOptionIndex || opt.isCorrect;
+                          return (
+                            <div
+                              key={idx}
+                              className={`p-2 rounded-lg text-[11px] font-telugu border ${
+                                isCorrect
+                                  ? 'bg-emerald-950/80 border-emerald-600 text-emerald-200 font-bold'
+                                  : 'bg-slate-950 border-slate-800 text-slate-400'
+                              }`}
+                            >
+                              <span className="font-mono text-[10px] mr-1">[{String.fromCharCode(65 + idx)}]</span>
+                              {opt.textTelugu || opt.textEnglish || opt}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {(questionData.solutionTelugu || questionData.solutionEnglish) && (
+                      <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-1">
+                        <span className="text-[10px] font-mono uppercase text-amber-400 font-semibold block">
+                          Mathematical Proof &amp; Solution:
+                        </span>
+                        <p className="text-slate-300 font-telugu text-xs leading-relaxed whitespace-pre-wrap">
+                          {questionData.solutionTelugu || questionData.solutionEnglish}
+                        </p>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-[11px] text-slate-400 italic">
+                    Loading linked question reference and solution proof for {video.questionId || 'this video'}...
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className="p-3.5 bg-slate-50 rounded-lg border border-slate-200 text-center text-xs text-slate-500">
-                Presenter: <strong>{video.assignedHost || presenterName || 'Unassigned'}</strong>
+                )}
               </div>
             )}
           </div>
