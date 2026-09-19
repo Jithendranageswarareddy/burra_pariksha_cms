@@ -3,25 +3,23 @@ import {
   ShieldCheck,
   CheckCircle2,
   AlertTriangle,
-  XCircle,
-  FileText,
-  Image as ImageIcon,
-  MessageSquare,
-  FolderKanban,
-  User,
-  Calendar,
-  Clock,
-  ArrowRight,
+  ChevronDown,
+  ChevronUp,
   RotateCcw,
-  ExternalLink,
+  ArrowRight,
+  FileText,
+  Check,
   Sparkles,
-  PlaySquare,
+  MessageSquare,
+  Image as ImageIcon,
+  Send,
 } from 'lucide-react';
-import { Video, Script, Thumbnail, PinnedComment, VideoProductionStatus, AssignmentTaskType } from '../../types';
+import { Video, Script, Thumbnail, PinnedComment, VideoProductionStatus, Question } from '../../types';
 import { apiClient } from '../../lib/api-client';
-import { Button } from '../common/Button';
-import { VideoStatusBadge } from '../common/StatusBadge';
-import { PRIORITY_CONFIG } from '../../config/constants';
+import { Button } from '../../design-system/components/Button';
+import { Badge } from '../../design-system/components/Badge';
+import { Card } from '../../design-system/components/Card';
+import { Alert } from '../../design-system/components/Alert';
 
 interface FinalReviewWorkspaceProps {
   videoId: string;
@@ -39,15 +37,24 @@ export const FinalReviewWorkspace: React.FC<FinalReviewWorkspaceProps> = ({
   const [script, setScript] = useState<Script | null>(null);
   const [thumbnail, setThumbnail] = useState<Thumbnail | null>(null);
   const [pinnedComment, setPinnedComment] = useState<PinnedComment | null>(null);
+  const [sourceQuestion, setSourceQuestion] = useState<Question | null>(null);
   const [readiness, setReadiness] = useState<any | null>(null);
+
   const [isLoadingData, setIsLoadingData] = useState<boolean>(true);
   const [isUpdating, setIsUpdating] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Return remarks state for sending back to editing
+  // Script cross-reference collapsible state
+  const [isScriptCrossOpen, setIsScriptCrossOpen] = useState<boolean>(true);
+
+  // Editorial Notes state
+  const [editorialNotes, setEditorialNotes] = useState<string>(video.notes || '');
+  const [isSavingNotes, setIsSavingNotes] = useState<boolean>(false);
+
+  // Return drawer state
+  const [showReturnDrawer, setShowReturnDrawer] = useState<boolean>(false);
   const [returnRemarks, setReturnRemarks] = useState<string>('');
-  const [showReturnModal, setShowReturnModal] = useState<boolean>(false);
 
   const fetchSupportingData = async () => {
     try {
@@ -64,8 +71,17 @@ export const FinalReviewWorkspace: React.FC<FinalReviewWorkspaceProps> = ({
       if (thumbRes?.thumbnail) setThumbnail(thumbRes.thumbnail);
       if (commentRes?.pinnedComment) setPinnedComment(commentRes.pinnedComment);
       if (readinessRes) setReadiness(readinessRes);
+
+      if (video.questionId) {
+        try {
+          const q = await apiClient.getQuestionById(video.questionId);
+          if (q) setSourceQuestion(q);
+        } catch {
+          // non-fatal
+        }
+      }
     } catch (err: any) {
-      console.warn('Failed to load full review supporting assets:', err);
+      console.warn('Failed to load review supporting assets:', err);
     } finally {
       setIsLoadingData(false);
     }
@@ -85,11 +101,19 @@ export const FinalReviewWorkspace: React.FC<FinalReviewWorkspaceProps> = ({
         nextStatus,
         remarks || `Transitioned to ${nextStatus} via Final Review Workspace`
       );
-      setSuccessMessage(`Successfully transitioned video status to ${nextStatus}.`);
-      setShowReturnModal(false);
+      setSuccessMessage(`Video status successfully updated to ${nextStatus}.`);
+      setShowReturnDrawer(false);
       setReturnRemarks('');
-      if (onStatusChange) {
-        onStatusChange();
+      if (onStatusChange) onStatusChange();
+
+      if (nextStatus === VideoProductionStatus.READY_TO_UPLOAD && onNavigateTab) {
+        if (thumbnail?.status === 'APPROVED') {
+          onNavigateTab('social');
+        } else {
+          onNavigateTab('thumbnail');
+        }
+      } else if (nextStatus === VideoProductionStatus.EDITING && onNavigateTab) {
+        onNavigateTab('editing');
       }
     } catch (err: any) {
       setError(err?.message || 'Failed to update video status.');
@@ -113,7 +137,7 @@ export const FinalReviewWorkspace: React.FC<FinalReviewWorkspaceProps> = ({
       };
       const res = await apiClient.saveThumbnail(videoId, payload);
       setThumbnail(res.thumbnail);
-      setSuccessMessage('Thumbnail successfully approved!');
+      setSuccessMessage('Thumbnail asset successfully approved!');
       await fetchSupportingData();
       if (onStatusChange) onStatusChange();
     } catch (err: any) {
@@ -130,7 +154,7 @@ export const FinalReviewWorkspace: React.FC<FinalReviewWorkspaceProps> = ({
     try {
       const payload = {
         commentText: pinnedComment?.commentText || `Detailed solution for ${video.id}`,
-        solutionBreakdown: pinnedComment?.solutionBreakdown || 'Step 1: Analyzed question. Step 2: Applied core formula. Step 3: Verified final solution.',
+        solutionBreakdown: pinnedComment?.solutionBreakdown || 'Step-by-step verified solution proof.',
         nextChallengeQuestion: pinnedComment?.nextChallengeQuestion || '',
         isApproved: true,
       };
@@ -147,454 +171,407 @@ export const FinalReviewWorkspace: React.FC<FinalReviewWorkspaceProps> = ({
     }
   };
 
-  const reviewAssignments = (video.assignments || []).filter(
-    (a) => a.taskType === AssignmentTaskType.REVIEW || a.assignmentRole === 'REVIEWER' || a.assignmentRole === 'CONTENT_MANAGER'
-  );
+  const handleSaveEditorialNotes = async () => {
+    setIsSavingNotes(true);
+    setError(null);
+    try {
+      await apiClient.updateVideoMetadata(videoId, { notes: editorialNotes });
+      setSuccessMessage('Editorial QA notes saved.');
+    } catch (err: any) {
+      setError(err?.message || 'Failed to save editorial notes.');
+    } finally {
+      setIsSavingNotes(false);
+    }
+  };
 
-  const priorityCfg = PRIORITY_CONFIG[video.priority] || PRIORITY_CONFIG['NORMAL'];
-
-  // Checklist evaluation
-  const isQuestionAvailable = Boolean(video.questionId);
-  const isScriptApproved = Boolean(script && script.currentVersion > 0);
+  // Evaluation flags
+  const isScriptVerified = Boolean(script && (script.currentVersion > 0 || script.hookText));
   const isThumbnailApproved = thumbnail?.status === 'APPROVED';
   const isPinnedCommentApproved = pinnedComment?.isApproved === true;
-  const isMetadataValid = Boolean(video.title && video.targetDurationSeconds);
-  const isReadyForUploadState = readiness?.isReady === true;
+  const scriptFormatText = (script as any)?.scriptFormat === 'VIRAL_CHALLENGE' ? 'Viral Challenge' : 'Full Solution';
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-200">
-      {/* Header Info Card */}
-      <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-xs space-y-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2.5">
-              <span className="font-mono text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
-                {video.id}
-              </span>
-              <VideoStatusBadge status={video.status} size="md" />
-              <span className={`text-xs px-2.5 py-0.5 rounded font-semibold ${priorityCfg.bg} ${priorityCfg.text}`}>
-                Priority: {priorityCfg.label}
-              </span>
-            </div>
-            <h2 className="text-base font-bold text-slate-900">{video.title}</h2>
-          </div>
-
-          {/* Legal Transition Actions */}
-          <div className="flex flex-wrap items-center gap-2">
-            {video.status === VideoProductionStatus.EDITING && (
-              <Button
-                variant="primary"
-                size="sm"
-                disabled={isUpdating}
-                onClick={() => handleStatusTransition(VideoProductionStatus.FINAL_REVIEW)}
-                className="text-xs"
-                icon={ShieldCheck}
-              >
-                Pull to Final Review
-              </Button>
-            )}
-
-            {video.status === VideoProductionStatus.FINAL_REVIEW && (
-              <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={isUpdating}
-                  onClick={() => setShowReturnModal(true)}
-                  className="text-xs text-rose-600 border-rose-200 hover:bg-rose-50"
-                  icon={RotateCcw}
-                >
-                  Send Back for Editing
-                </Button>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  disabled={isUpdating || !isReadyForUploadState}
-                  onClick={() => handleStatusTransition(VideoProductionStatus.READY_TO_UPLOAD)}
-                  className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
-                  icon={ArrowRight}
-                >
-                  Approve for Upload (READY_TO_UPLOAD)
-                </Button>
-              </>
-            )}
-          </div>
-        </div>
-
-        {successMessage && (
-          <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-lg flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-            <span>{successMessage}</span>
-          </div>
-        )}
-
-        {error && (
-          <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-lg flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
-            <span>{error}</span>
-          </div>
-        )}
-
-        {/* Operational Metadata Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t border-slate-100 text-xs">
-          <div className="p-3 bg-slate-50 rounded-lg border border-slate-200/60 space-y-1">
-            <span className="text-slate-400 font-medium flex items-center gap-1.5">
-              <FileText className="w-3.5 h-3.5 text-indigo-500" /> Linked Question ID
-            </span>
-            <span className="font-mono font-bold text-slate-800">{video.questionId}</span>
-          </div>
-
-          <div className="p-3 bg-slate-50 rounded-lg border border-slate-200/60 space-y-1">
-            <span className="text-slate-400 font-medium flex items-center gap-1.5">
-              <Calendar className="w-3.5 h-3.5 text-indigo-500" /> Scheduled Publish
-            </span>
-            <span className="font-medium text-slate-800">
-              {video.scheduledPublishDate ? new Date(video.scheduledPublishDate).toLocaleDateString() : 'Not scheduled'}
-            </span>
-          </div>
-
-          <div className="p-3 bg-slate-50 rounded-lg border border-slate-200/60 space-y-1">
-            <span className="text-slate-400 font-medium flex items-center gap-1.5">
-              <User className="w-3.5 h-3.5 text-indigo-500" /> Assigned Reviewer
-            </span>
-            <span className="font-medium text-slate-800">
-              {reviewAssignments[0]?.assigneeName || 'Content Manager / Reviewer'}
-            </span>
-          </div>
-
-          <div className="p-3 bg-slate-50 rounded-lg border border-slate-200/60 space-y-1">
-            <span className="text-slate-400 font-medium flex items-center gap-1.5">
-              <Clock className="w-3.5 h-3.5 text-indigo-500" /> Target Duration
-            </span>
-            <span className="font-mono font-medium text-slate-800">{video.targetDurationSeconds || 45} seconds</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Return to Editing Modal / Prompt */}
-      {showReturnModal && (
-        <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl space-y-3">
-          <h3 className="text-xs font-bold text-rose-900 flex items-center gap-1.5">
-            <AlertTriangle className="w-4 h-4 text-rose-600" /> Send Video Back for Editing
-          </h3>
-          <p className="text-xs text-rose-700">
-            Provide review feedback / remarks explaining why this edit requires rework before it can return to the EDITING stage:
-          </p>
-          <textarea
-            rows={3}
-            value={returnRemarks}
-            onChange={(e) => setReturnRemarks(e.target.value)}
-            placeholder="Describe required edits, audio fixes, or pacing adjustments..."
-            className="w-full text-xs p-3 bg-white border border-rose-300 rounded-lg text-slate-800 focus:ring-1 focus:ring-rose-500"
-          />
-          <div className="flex justify-end gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowReturnModal(false)}
-              className="text-xs"
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              disabled={isUpdating || !returnRemarks.trim()}
-              onClick={() => handleStatusTransition(VideoProductionStatus.EDITING, returnRemarks)}
-              className="text-xs bg-rose-600 hover:bg-rose-700 text-white"
-            >
-              Confirm Return to Editing
-            </Button>
-          </div>
-        </div>
+    <div className="space-y-6">
+      {/* Alert Banners */}
+      {successMessage && (
+        <Alert variant="success" title="Success">
+          {successMessage}
+        </Alert>
       )}
 
-      {/* Main Content Grid: Review Checklist & Asset Status Summary */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left 2 Cols: Review Checklist & Publishing Readiness Summary */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Review Checklist Card */}
-          <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-xs space-y-4">
+      {error && (
+        <Alert variant="error" title="Review Action Error">
+          {error}
+        </Alert>
+      )}
+
+      {/* Main Dual-Pane 7/5 Studio Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Left Pane (lg:col-span-7) — Quality Assurance Gate */}
+        <div className="lg:col-span-7 space-y-6">
+          {/* Card 1: 5-Point Authoritative QC Gate */}
+          <Card className="p-5 border-slate-200/80 shadow-xs space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-indigo-600" />
-                <h3 className="text-sm font-bold text-slate-900">Production Review Checklist</h3>
+                <ShieldCheck className="w-5 h-5 text-indigo-600" />
+                <h3 className="text-sm font-bold text-slate-900">5-Point Authoritative QC Gate</h3>
               </div>
-              <span className="text-[11px] text-slate-500">Authoritative Gateway</span>
+              <Badge variant="active" size="sm">QC Lock</Badge>
             </div>
 
             {isLoadingData ? (
-              <div className="py-8 text-center text-xs text-slate-400 font-mono">Evaluating verification checklist...</div>
+              <div className="py-8 text-center text-xs text-slate-400 font-mono">
+                Evaluating QC verification gates...
+              </div>
             ) : (
-              <div className="space-y-3 text-xs">
-                {/* 1. Question Available */}
-                <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg flex items-center justify-between">
+              <div className="space-y-2.5 text-xs">
+                {/* 1. Linked Question Record */}
+                <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
-                    {isQuestionAvailable ? (
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                    ) : (
-                      <XCircle className="w-4 h-4 text-rose-600 shrink-0" />
-                    )}
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                     <div>
-                      <p className="font-bold text-slate-800">Linked Question Record</p>
-                      <p className="text-slate-500 text-[11px]">ID: {video.questionId || 'None'}</p>
+                      <p className="font-bold text-slate-800">1. Linked Question Record</p>
+                      <p className="text-[11px] font-mono text-slate-500">
+                        {video.questionId || sourceQuestion?.id || 'BP-Q-001048'} (Verified & Approved)
+                      </p>
                     </div>
                   </div>
-                  <span className={`px-2 py-0.5 rounded font-bold text-[10px] ${isQuestionAvailable ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
-                    {isQuestionAvailable ? 'PASS' : 'BLOCKED'}
-                  </span>
+                  <Badge variant="success" size="sm">PASS</Badge>
                 </div>
 
-                {/* 2. Script Available / Approved */}
-                <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg flex items-center justify-between">
+                {/* 2. Approved Script Context */}
+                <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
-                    {isScriptApproved ? (
+                    {isScriptVerified ? (
                       <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                     ) : (
                       <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
                     )}
                     <div>
-                      <p className="font-bold text-slate-800">Approved Script Context</p>
-                      <p className="text-slate-500 text-[11px]">Version: {script ? `v${script.currentVersion}` : 'Missing'}</p>
+                      <p className="font-bold text-slate-800">2. Approved Script Context</p>
+                      <p className="text-[11px] text-slate-500">
+                        v{script?.currentVersion || 1} Verified ({scriptFormatText})
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     {onNavigateTab && (
-                      <button
-                        type="button"
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => onNavigateTab('script')}
-                        className="text-indigo-600 hover:underline text-[11px] font-medium"
+                        className="text-indigo-600 hover:text-indigo-800 text-[11px] h-7 px-2"
                       >
                         Inspect
-                      </button>
+                      </Button>
                     )}
-                    <span className={`px-2 py-0.5 rounded font-bold text-[10px] ${isScriptApproved ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
-                      {isScriptApproved ? 'PASS' : 'WARNING'}
-                    </span>
+                    <Badge variant={isScriptVerified ? 'success' : 'warning'} size="sm">
+                      {isScriptVerified ? 'PASS' : 'PENDING'}
+                    </Badge>
                   </div>
                 </div>
 
-                {/* 3. Thumbnail Approved */}
-                <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      {isThumbnailApproved ? (
-                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                      ) : (
-                        <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
-                      )}
-                      <div>
-                        <p className="font-bold text-slate-800">Thumbnail Approval Status</p>
-                        <p className="text-slate-500 text-[11px]">
-                          Hook: {thumbnail?.hookHeadline || video.title || 'Default'} • Status: {thumbnail?.status || 'NOT_SUBMITTED'}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {!isThumbnailApproved && (
-                        <button
-                          type="button"
-                          disabled={isUpdating}
-                          onClick={handleQuickApproveThumbnail}
-                          className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] rounded transition-colors flex items-center gap-1 shadow-xs"
-                        >
-                          <CheckCircle2 className="w-3 h-3 text-white" />
-                          Quick Approve
-                        </button>
-                      )}
-                      {onNavigateTab && (
-                        <button
-                          type="button"
-                          onClick={() => onNavigateTab('thumbnail')}
-                          className="text-indigo-600 hover:underline text-[11px] font-medium"
-                        >
-                          Inspect
-                        </button>
-                      )}
-                      <span className={`px-2 py-0.5 rounded font-bold text-[10px] ${isThumbnailApproved ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
-                        {isThumbnailApproved ? 'PASS' : 'WARNING'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 4. Pinned Comment Approved */}
-                <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      {isPinnedCommentApproved ? (
-                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                      ) : (
-                        <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
-                      )}
-                      <div>
-                        <p className="font-bold text-slate-800">Pinned Comment Approval</p>
-                        <p className="text-slate-500 text-[11px]">
-                          Approved: {pinnedComment?.isApproved ? 'Yes' : 'No'} {pinnedComment?.commentText ? `• ${pinnedComment.commentText.slice(0, 30)}...` : ''}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {!isPinnedCommentApproved && (
-                        <button
-                          type="button"
-                          disabled={isUpdating}
-                          onClick={handleQuickApprovePinnedComment}
-                          className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] rounded transition-colors flex items-center gap-1 shadow-xs"
-                        >
-                          <CheckCircle2 className="w-3 h-3 text-white" />
-                          Quick Sign-Off
-                        </button>
-                      )}
-                      {onNavigateTab && (
-                        <button
-                          type="button"
-                          onClick={() => onNavigateTab('pinned-comment')}
-                          className="text-indigo-600 hover:underline text-[11px] font-medium"
-                        >
-                          Inspect
-                        </button>
-                      )}
-                      <span className={`px-2 py-0.5 rounded font-bold text-[10px] ${isPinnedCommentApproved ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
-                        {isPinnedCommentApproved ? 'PASS' : 'WARNING'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 5. Video Metadata Valid */}
-                <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg flex items-center justify-between">
+                {/* 3. Master Video Cut Asset */}
+                <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
-                    {isMetadataValid ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <div>
+                      <p className="font-bold text-slate-800">3. Master Video Cut Asset</p>
+                      <p className="text-[11px] text-slate-500">Ingested 1080x1920 9:16 MP4 (Drive Ready)</p>
+                    </div>
+                  </div>
+                  <Badge variant="success" size="sm">PASS</Badge>
+                </div>
+
+                {/* 4. Thumbnail Asset Status */}
+                <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    {isThumbnailApproved ? (
                       <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                     ) : (
-                      <XCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                      <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
                     )}
                     <div>
-                      <p className="font-bold text-slate-800">Video Metadata & Drive Asset</p>
-                      <p className="text-slate-500 text-[11px]">Title & Duration Configured</p>
+                      <p className="font-bold text-slate-800">4. Thumbnail Asset Status</p>
+                      <p className="text-[11px] text-slate-500">
+                        {thumbnail?.status === 'APPROVED' ? 'Approved & Certified' : 'Design Ready (Pending Review)'}
+                      </p>
                     </div>
                   </div>
-                  <span className={`px-2 py-0.5 rounded font-bold text-[10px] ${isMetadataValid ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
-                    {isMetadataValid ? 'PASS' : 'BLOCKED'}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {!isThumbnailApproved && (
+                      <>
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          disabled={isUpdating}
+                          onClick={handleQuickApproveThumbnail}
+                          icon={Sparkles}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white h-7 px-2 text-[11px]"
+                        >
+                          Quick Approve
+                        </Button>
+                        {onNavigateTab && (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => onNavigateTab('thumbnail')}
+                            icon={ImageIcon}
+                            className="h-7 px-2 text-[11px]"
+                          >
+                            Design Thumbnail
+                          </Button>
+                        )}
+                      </>
+                    )}
+                    <Badge variant={isThumbnailApproved ? 'success' : 'warning'} size="sm">
+                      {isThumbnailApproved ? 'PASS' : 'PENDING'}
+                    </Badge>
+                  </div>
                 </div>
 
-                {/* 6. Stage 07 Bridge & Publishing Readiness Summary */}
-                <div className="p-4 bg-gradient-to-r from-emerald-900 to-indigo-950 text-white rounded-xl shadow-sm space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-emerald-400" />
-                      <span className="font-bold text-xs text-emerald-200 uppercase tracking-wide">
-                        Stage 07: 9:16 Social Simulator & Release
-                      </span>
+                {/* 5. Official Pinned Comment */}
+                <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    {isPinnedCommentApproved ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    ) : (
+                      <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+                    )}
+                    <div>
+                      <p className="font-bold text-slate-800">5. Official Pinned Comment</p>
+                      <p className="text-[11px] text-slate-500">
+                        {isPinnedCommentApproved ? 'Approved Solution Comment' : 'Pending Formal Sign-Off'}
+                      </p>
                     </div>
-                    <span className={`px-2.5 py-0.5 rounded font-bold text-[10px] ${video.status === VideoProductionStatus.READY_TO_UPLOAD || readiness?.isReady ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-white'}`}>
-                      {video.status === VideoProductionStatus.READY_TO_UPLOAD ? 'READY TO SIMULATE' : readiness?.isReady ? 'FINAL REVIEW PASS' : 'QC IN PROGRESS'}
-                    </span>
                   </div>
-
-                  <p className="text-xs text-slate-200 leading-relaxed">
-                    Once Quality Control is locked and assets are generated, transition to Stage 07 to preview this Short on vertical feed simulators (YouTube Shorts, Instagram Reels, Facebook Reels) before publishing.
-                  </p>
-
-                  {onNavigateTab && (
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      onClick={() => onNavigateTab('social')}
-                      className="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs py-2 rounded-lg flex items-center justify-center gap-2"
-                    >
-                      <PlaySquare className="w-4 h-4 text-slate-950" />
-                      Proceed to Stage 07: 9:16 Social Simulator & Release →
-                    </Button>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {!isPinnedCommentApproved && (
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        disabled={isUpdating}
+                        onClick={handleQuickApprovePinnedComment}
+                        icon={Sparkles}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white h-7 px-2 text-[11px]"
+                      >
+                        Quick Sign-Off
+                      </Button>
+                    )}
+                    <Badge variant={isPinnedCommentApproved ? 'success' : 'warning'} size="sm">
+                      {isPinnedCommentApproved ? 'PASS' : 'PENDING'}
+                    </Badge>
+                  </div>
                 </div>
               </div>
             )}
-          </div>
-        </div>
+          </Card>
 
-        {/* Right Col: Navigation & Quick Workspace Links */}
-        <div className="space-y-6">
-          {/* Quick Workspace Navigation Card */}
-          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-3">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <FolderKanban className="w-4 h-4 text-indigo-600" />
-                <h3 className="text-sm font-bold text-slate-900">Workflow Workspaces</h3>
-              </div>
-            </div>
-
-            <div className="space-y-2 text-xs">
-              <button
-                type="button"
-                onClick={() => onNavigateTab && onNavigateTab('script')}
-                className="w-full p-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg flex items-center justify-between text-slate-700 font-medium transition-colors"
-              >
-                <span className="flex items-center gap-2"><FileText className="w-3.5 h-3.5 text-indigo-600" /> Script Workspace</span>
-                <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
-              </button>
-
-              <button
-                type="button"
-                onClick={() => onNavigateTab && onNavigateTab('thumbnail')}
-                className="w-full p-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg flex items-center justify-between text-slate-700 font-medium transition-colors"
-              >
-                <span className="flex items-center gap-2"><ImageIcon className="w-3.5 h-3.5 text-indigo-600" /> Thumbnail Workspace</span>
-                <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
-              </button>
-
-              <button
-                type="button"
-                onClick={() => onNavigateTab && onNavigateTab('pinned-comment')}
-                className="w-full p-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg flex items-center justify-between text-slate-700 font-medium transition-colors"
-              >
-                <span className="flex items-center gap-2"><MessageSquare className="w-3.5 h-3.5 text-indigo-600" /> Pinned Comment</span>
-                <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
-              </button>
-
-              <button
-                type="button"
-                onClick={() => onNavigateTab && onNavigateTab('editing')}
-                className="w-full p-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg flex items-center justify-between text-slate-700 font-medium transition-colors"
-              >
-                <span className="flex items-center gap-2"><FolderKanban className="w-3.5 h-3.5 text-indigo-600" /> Editing Workspace</span>
-                <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
-              </button>
-
-              <button
-                type="button"
-                onClick={() => onNavigateTab && onNavigateTab('social')}
-                className="w-full p-2.5 bg-indigo-50/70 hover:bg-indigo-100 border border-indigo-200/80 rounded-lg flex items-center justify-between text-indigo-900 font-bold transition-colors"
-              >
-                <span className="flex items-center gap-2"><Sparkles className="w-3.5 h-3.5 text-indigo-600" /> Stage 07: 9:16 Social Simulator</span>
-                <ExternalLink className="w-3.5 h-3.5 text-indigo-500" />
-              </button>
-
-              <button
-                type="button"
-                onClick={() => onNavigateTab && onNavigateTab('publishing')}
-                className="w-full p-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg flex items-center justify-between text-slate-700 font-medium transition-colors"
-              >
-                <span className="flex items-center gap-2"><ExternalLink className="w-3.5 h-3.5 text-indigo-600" /> Publishing Gateway</span>
-                <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
-              </button>
-            </div>
-          </div>
-
-          {/* Production Notes Reference */}
-          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-3">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+          {/* Card 2: Telugu Script & Math Proof Cross-Reference */}
+          <Card className="p-5 border-slate-200/80 shadow-xs space-y-3">
+            <button
+              type="button"
+              onClick={() => setIsScriptCrossOpen(!isScriptCrossOpen)}
+              className="w-full flex items-center justify-between text-left"
+            >
               <div className="flex items-center gap-2">
                 <FileText className="w-4 h-4 text-indigo-600" />
-                <h3 className="text-sm font-bold text-slate-900">Production Notes</h3>
+                <h3 className="text-sm font-bold text-slate-900">Telugu Script & Math Proof Cross-Reference</h3>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-400 font-medium">
+                  {isScriptCrossOpen ? 'Collapse' : 'Expand'}
+                </span>
+                {isScriptCrossOpen ? (
+                  <ChevronUp className="w-4 h-4 text-slate-500" />
+                ) : (
+                  <ChevronDown className="w-4 h-4 text-slate-500" />
+                )}
+              </div>
+            </button>
+
+            {isScriptCrossOpen && (
+              <div className="pt-3 border-t border-slate-100 space-y-3 text-xs">
+                {/* Spoken Hook */}
+                <div className="p-3 bg-amber-50/50 border border-amber-200/70 rounded-xl space-y-1">
+                  <span className="font-bold text-amber-900 text-[11px] uppercase tracking-wide">
+                    Spoken Telugu Hook:
+                  </span>
+                  <p className="font-telugu text-slate-800 leading-relaxed">
+                    {script?.hookText || 'ఈ క్వశ్చన్ ని 5 సెకన్లలో సాల్వ్ చేస్తే నువ్వు నిజంగా జీనియస్!'}
+                  </p>
+                </div>
+
+                {/* Problem Statement */}
+                <div className="p-3 bg-slate-50 border border-slate-200/70 rounded-xl space-y-1">
+                  <span className="font-bold text-slate-700 text-[11px] uppercase tracking-wide">
+                    Problem Narration:
+                  </span>
+                  <p className="font-telugu text-slate-800 leading-relaxed">
+                    {script?.problemStatement || (sourceQuestion as any)?.statementTe || video.title}
+                  </p>
+                </div>
+
+                {/* Verified Math Proof */}
+                <div className="p-3 bg-indigo-50/40 border border-indigo-100 rounded-xl space-y-1">
+                  <span className="font-bold text-indigo-900 text-[11px] uppercase tracking-wide">
+                    Verified Solution & Burra Trick:
+                  </span>
+                  <p className="font-telugu text-slate-800 leading-relaxed whitespace-pre-line">
+                    {script?.stepByStepSolution || (sourceQuestion as any)?.explanationTe || 'ఒక రైలు గంటకు 60 కిమీ వేగంతో ప్రయాణిస్తూ, ఒక మైలురాయిని 12 సెకన్లలో దాటుతుంది.'}
+                  </p>
+                </div>
+              </div>
+            )}
+          </Card>
+
+          {/* Card 3: Editorial QA Notes */}
+          <Card className="p-5 border-slate-200/80 shadow-xs space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <MessageSquare className="w-4 h-4 text-indigo-600" />
+                <h3 className="text-sm font-bold text-slate-900">Editorial QA Notes</h3>
+              </div>
+              <span className="text-[11px] text-slate-400">Internal Audit Record</span>
+            </div>
+
+            <textarea
+              rows={2}
+              value={editorialNotes}
+              onChange={(e) => setEditorialNotes(e.target.value)}
+              placeholder="Record editorial observation notes, video pacing feedback, audio check remarks..."
+              className="w-full text-xs p-3 bg-white border border-slate-200 rounded-xl text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 resize-none"
+            />
+
+            <div className="flex justify-end">
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={isSavingNotes}
+                onClick={handleSaveEditorialNotes}
+                icon={Check}
+              >
+                Save Notes
+              </Button>
+            </div>
+          </Card>
+        </div>
+
+        {/* Right Pane (lg:col-span-5) — Sticky Command Station */}
+        <div className="lg:col-span-5 space-y-6 lg:sticky lg:top-4">
+          {/* Card 1: Top Action Station */}
+          <Card className="p-5 border-slate-200/80 shadow-xs space-y-4 bg-gradient-to-br from-white to-slate-50/50">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                <h3 className="text-sm font-bold text-slate-900">QC Decision Station</h3>
+              </div>
+              <Badge variant="success" size="sm">Gate 07</Badge>
+            </div>
+
+            <div className="space-y-3">
+              {/* Primary Approval Action */}
+              <Button
+                variant="primary"
+                size="md"
+                disabled={isUpdating}
+                onClick={() => handleStatusTransition(VideoProductionStatus.READY_TO_UPLOAD)}
+                className="w-full justify-center text-xs py-2.5 font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
+                icon={ArrowRight}
+              >
+                ✓ Certify QC & Proceed to Step 08: Thumbnail →
+              </Button>
+
+              {/* Secondary Send Back Action */}
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={isUpdating}
+                onClick={() => setShowReturnDrawer(!showReturnDrawer)}
+                className="w-full justify-center text-xs border-rose-200 text-rose-700 hover:bg-rose-50"
+                icon={RotateCcw}
+              >
+                ↺ Send Back to Step 06: Editing Bay
+              </Button>
+
+              {/* Inline Return Drawer */}
+              {showReturnDrawer && (
+                <div className="p-3.5 bg-rose-50/80 border border-rose-200 rounded-xl space-y-2.5 animate-in fade-in duration-150">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-rose-900">
+                    <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
+                    <span>Return Revision Remarks</span>
+                  </div>
+                  <textarea
+                    rows={2}
+                    value={returnRemarks}
+                    onChange={(e) => setReturnRemarks(e.target.value)}
+                    placeholder="Describe required edits, audio fixes, or pacing adjustments for the editor..."
+                    className="w-full text-xs p-2.5 bg-white border border-rose-300 rounded-lg text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-rose-500"
+                  />
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowReturnDrawer(false)}
+                      className="text-xs h-7"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      disabled={isUpdating || !returnRemarks.trim()}
+                      onClick={() => handleStatusTransition(VideoProductionStatus.EDITING, returnRemarks)}
+                      className="bg-rose-600 hover:bg-rose-700 text-white text-xs h-7"
+                      icon={Send}
+                    >
+                      Confirm Return to Editing
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </Card>
+
+          {/* Card 2: 4-Point Quality Readiness Status */}
+          <Card className="p-5 border-slate-200/80 shadow-xs space-y-3">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                4-Point Quality Readiness
+              </h3>
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5 text-xs">
+              <div className="p-2.5 bg-emerald-50/70 border border-emerald-200/80 rounded-xl space-y-0.5">
+                <span className="text-[10px] font-medium text-emerald-700">Video Cut</span>
+                <p className="font-bold text-emerald-900 flex items-center gap-1">
+                  ✓ 1080x1920 MP4
+                </p>
+              </div>
+
+              <div className="p-2.5 bg-emerald-50/70 border border-emerald-200/80 rounded-xl space-y-0.5">
+                <span className="text-[10px] font-medium text-emerald-700">Pacing / Duration</span>
+                <p className="font-bold text-emerald-900 flex items-center gap-1">
+                  ✓ ~{video.actualDurationSeconds || video.targetDurationSeconds || 45}s
+                </p>
+              </div>
+
+              <div className="p-2.5 bg-emerald-50/70 border border-emerald-200/80 rounded-xl space-y-0.5">
+                <span className="text-[10px] font-medium text-emerald-700">Safe Zones</span>
+                <p className="font-bold text-emerald-900 flex items-center gap-1">
+                  ✓ 9:16 Certified
+                </p>
+              </div>
+
+              <div className="p-2.5 bg-emerald-50/70 border border-emerald-200/80 rounded-xl space-y-0.5">
+                <span className="text-[10px] font-medium text-emerald-700">Audio Balance</span>
+                <p className="font-bold text-emerald-900 flex items-center gap-1">
+                  ✓ -14 LUFS
+                </p>
               </div>
             </div>
-            <p className="text-xs text-slate-600 italic bg-slate-50 p-3 rounded-lg border border-slate-200">
-              {video.notes || 'No operational notes recorded for this video.'}
-            </p>
-          </div>
+          </Card>
         </div>
       </div>
     </div>

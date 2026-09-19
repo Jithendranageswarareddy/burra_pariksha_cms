@@ -2596,9 +2596,11 @@ const handleRawVideoUploadRoute = async (req: Request, res: Response) => {
         const chunks: Buffer[] = [];
         fileStream.on('data', (chunk) => chunks.push(chunk));
         fileStream.on('end', () => {
+          const rawFilename = info.filename || 'uploaded-file.mp4';
+          const decodedFilename = Buffer.from(rawFilename, 'latin1').toString('utf8');
           uploadedFile = {
             buffer: Buffer.concat(chunks),
-            filename: info.filename,
+            filename: decodedFilename,
             mimeType: info.mimeType,
           };
         });
@@ -2727,9 +2729,11 @@ apiRouter.post(
           const chunks: Buffer[] = [];
           fileStream.on('data', (chunk) => chunks.push(chunk));
           fileStream.on('end', () => {
+            const rawFilename = info.filename || 'edited-video.mp4';
+            const decodedFilename = Buffer.from(rawFilename, 'latin1').toString('utf8');
             uploadedFile = {
               buffer: Buffer.concat(chunks),
-              filename: info.filename,
+              filename: decodedFilename,
               mimeType: info.mimeType,
             };
           });
@@ -3067,9 +3071,11 @@ const handleThumbnailUploadRoute = async (req: Request, res: Response) => {
       });
       fileStream.on('end', () => {
         const buffer = Buffer.concat(chunks);
+        const rawFilename = info.filename || 'thumbnail.png';
+        const decodedFilename = Buffer.from(rawFilename, 'latin1').toString('utf8');
         uploadedFile = {
           stream: buffer,
-          filename: info.filename,
+          filename: decodedFilename,
           mimeType: info.mimeType,
         };
       });
