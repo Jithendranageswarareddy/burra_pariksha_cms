@@ -65,20 +65,21 @@ export const DashboardPage: React.FC = () => {
         // Resolve target step based on entity and task type
         if (topTask.entityType === 'QUESTION' || topTask.questionId) {
           const qId = topTask.questionId || topTask.entityId;
+          const stepInfo = mapQuestionStatusToStep('GENERATED', qId);
           return {
             id: qId,
             title: topTask.title || `Question Task: ${topTask.type || 'Review'}`,
-            stepNumber: '04',
-            stepName: 'Verify & Approve',
+            stepNumber: stepInfo.number,
+            stepName: stepInfo.name,
             stageCategory: 'QUESTION',
             priority: topTask.priority || 'HIGH',
             reason: topTask.description || 'Assigned to your queue',
-            targetUrl: `/questions?status=GENERATED`,
+            targetUrl: stepInfo.url,
           };
         } else if (topTask.entityType === 'VIDEO' || topTask.videoId) {
           const vId = topTask.videoId || topTask.entityId;
           const status = topTask.stage || topTask.status || 'EDITING';
-          const stepInfo = mapVideoStatusToStep(status);
+          const stepInfo = mapVideoStatusToStep(status, vId);
           return {
             id: vId,
             title: topTask.title || `Video Production: ${stepInfo.name}`,
@@ -113,8 +114,8 @@ export const DashboardPage: React.FC = () => {
       const topItem = sorted[0];
       const isVideo = topItem.entityType === 'VIDEO';
       const stepInfo = isVideo
-        ? mapVideoStatusToStep(topItem.currentStatus)
-        : mapQuestionStatusToStep(topItem.currentStatus);
+        ? mapVideoStatusToStep(topItem.currentStatus, topItem.id)
+        : mapQuestionStatusToStep(topItem.currentStatus, topItem.id);
 
       return {
         id: topItem.id,
@@ -158,7 +159,7 @@ export const DashboardPage: React.FC = () => {
       });
 
       const v = sortedVideos[0];
-      const stepInfo = mapVideoStatusToStep(v.status);
+      const stepInfo = mapVideoStatusToStep(v.status, v.id);
       return {
         id: v.id,
         title: v.title || `Video ${v.id}`,
@@ -168,7 +169,7 @@ export const DashboardPage: React.FC = () => {
         topic: v.question?.topicId || 'Aptitude',
         subtopic: v.question?.subtopicId,
         priority: v.priority || 'HIGH',
-        targetUrl: `/production/${v.id}`,
+        targetUrl: stepInfo.url,
       };
     }
 
@@ -179,7 +180,7 @@ export const DashboardPage: React.FC = () => {
 
     if (pendingQuestions.length > 0) {
       const q = pendingQuestions[0];
-      const stepInfo = mapQuestionStatusToStep(q.status);
+      const stepInfo = mapQuestionStatusToStep(q.status, q.id);
       return {
         id: q.id,
         title: q.questionText || `Question ${q.id}`,
@@ -197,37 +198,71 @@ export const DashboardPage: React.FC = () => {
     return null;
   };
 
-  const mapVideoStatusToStep = (status: string) => {
+  const mapVideoStatusToStep = (status: string, videoId?: string) => {
     switch (status) {
       case 'SCRIPT_REQUIRED':
-        return { number: '05', name: 'Create Script', url: '/production?status=SCRIPT_REQUIRED' };
+        return {
+          number: '03',
+          name: 'Audience Script',
+          url: videoId ? `/videos/${videoId}?tab=script` : '/production?status=SCRIPT_REQUIRED',
+        };
       case 'SCRIPT_READY':
-        return { number: '06', name: 'Review Script', url: '/production?status=SCRIPT_READY' };
-      case 'QUEUED':
       case 'RECORDING':
+        return {
+          number: '04',
+          name: 'Teleprompter & Filming',
+          url: videoId ? `/videos/${videoId}?tab=recording` : '/production?status=SCRIPT_READY',
+        };
       case 'RECORDED':
-        return { number: '07', name: 'Record Video', url: '/production?status=RECORDING' };
       case 'EDITING':
+        return {
+          number: '05',
+          name: 'Video Editing Bay',
+          url: videoId ? `/videos/${videoId}?tab=editing` : '/production?status=EDITING',
+        };
       case 'EDITED':
-        return { number: '08', name: 'Edit Video', url: '/production?status=EDITING' };
       case 'FINAL_REVIEW':
-        return { number: '09', name: 'Final Video', url: '/production?status=FINAL_REVIEW' };
+        return {
+          number: '06',
+          name: 'Final QC Lock',
+          url: videoId ? `/videos/${videoId}?tab=final-review` : '/production?status=FINAL_REVIEW',
+        };
       case 'READY_TO_UPLOAD':
-        return { number: '10', name: 'Create Thumbnail', url: '/production?status=READY_TO_UPLOAD' };
+        return {
+          number: '07',
+          name: 'Social Simulator',
+          url: videoId ? `/videos/${videoId}?tab=social` : '/production?status=READY_TO_UPLOAD',
+        };
       case 'UPLOADED':
-        return { number: '11', name: 'Pinned Comment', url: '/production?status=UPLOADED' };
+        return {
+          number: '08',
+          name: 'Release Station',
+          url: videoId ? `/videos/${videoId}?tab=publishing` : '/production?status=UPLOADED',
+        };
       default:
-        return { number: '08', name: 'Video Production', url: '/production' };
+        return {
+          number: '05',
+          name: 'Video Editing Bay',
+          url: videoId ? `/videos/${videoId}?tab=editing` : '/production',
+        };
     }
   };
 
-  const mapQuestionStatusToStep = (status: string) => {
+  const mapQuestionStatusToStep = (status: string, questionId?: string) => {
     switch (status) {
       case 'DRAFT':
-        return { number: '03', name: 'Improve Question', url: '/questions?status=DRAFT' };
+        return {
+          number: '01',
+          name: 'Question Studio',
+          url: questionId ? `/questions/${questionId}` : '/studio',
+        };
       case 'GENERATED':
       default:
-        return { number: '04', name: 'Verify & Approve', url: '/questions?status=GENERATED' };
+        return {
+          number: '02',
+          name: 'Review & Approve',
+          url: questionId ? `/questions/${questionId}/verify` : '/questions?status=GENERATED',
+        };
     }
   };
 

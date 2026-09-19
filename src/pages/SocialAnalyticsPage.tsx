@@ -9,7 +9,7 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
+import { useParams, useSearchParams, useNavigate, Link } from 'react-router-dom';
 import {
   BarChart2,
   Youtube,
@@ -32,6 +32,9 @@ import {
   Calendar,
   FileText,
   Percent,
+  Film,
+  PlusCircle,
+  ArrowRight,
 } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { Button } from '../components/common/Button';
@@ -396,18 +399,38 @@ export const SocialAnalyticsPage: React.FC = () => {
           </span>
         }
         actions={
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              if (selectedContentId) loadSnapshotsForContent(selectedContentId);
-            }}
-            disabled={!selectedContentId || isLoadingSnapshots}
-            className="flex items-center gap-1.5"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isLoadingSnapshots ? 'animate-spin' : ''}`} />
-            <span>Refresh Snapshots</span>
-          </Button>
+          <div className="flex items-center gap-2 flex-wrap">
+            {selectedContentId && (
+              <>
+                <Link
+                  to={`/videos/${encodeURIComponent(selectedContentId)}`}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition shadow-xs cursor-pointer"
+                >
+                  <Film className="w-3.5 h-3.5" />
+                  <span>View in Video Studio →</span>
+                </Link>
+                <Link
+                  to={verifiedMaster?.topicId ? `/studio?topic=${encodeURIComponent(verifiedMaster.topicId)}` : '/studio'}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-xs cursor-pointer"
+                >
+                  <PlusCircle className="w-3.5 h-3.5" />
+                  <span>+ Create Question on this Topic</span>
+                </Link>
+              </>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                if (selectedContentId) loadSnapshotsForContent(selectedContentId);
+              }}
+              disabled={!selectedContentId || isLoadingSnapshots}
+              className="flex items-center gap-1.5"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isLoadingSnapshots ? 'animate-spin' : ''}`} />
+              <span>Refresh Snapshots</span>
+            </Button>
+          </div>
         }
       />
 
@@ -510,13 +533,27 @@ export const SocialAnalyticsPage: React.FC = () => {
                   <span className="italic">{verifiedMaster.title}</span>
                 </div>
               </div>
-              <div className="flex items-center gap-3 text-[11px]">
+              <div className="flex items-center gap-2 flex-wrap text-[11px]">
                 <span className="px-2 py-0.5 rounded bg-emerald-100 font-semibold text-emerald-800 uppercase">
                   {verifiedMaster.status}
                 </span>
                 {verifiedMaster.topicId && (
                   <span className="text-slate-600 font-medium">Topic: {verifiedMaster.topicId}</span>
                 )}
+                <Link
+                  to={`/videos/${encodeURIComponent(verifiedMaster.videoId || verifiedMaster.id)}`}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-indigo-600 hover:bg-indigo-700 text-white font-bold transition shadow-xs cursor-pointer ml-1"
+                >
+                  <Film className="w-3 h-3" />
+                  <span>View in Video Studio →</span>
+                </Link>
+                <Link
+                  to={verifiedMaster.topicId ? `/studio?topic=${encodeURIComponent(verifiedMaster.topicId)}` : '/studio'}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-emerald-700 hover:bg-emerald-800 text-white font-bold transition shadow-xs cursor-pointer"
+                >
+                  <PlusCircle className="w-3 h-3" />
+                  <span>+ Create Question on this Topic</span>
+                </Link>
               </div>
             </div>
           ) : verificationError ? (

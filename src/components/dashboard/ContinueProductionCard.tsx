@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowRight, Sparkles, Clock, AlertCircle, PlayCircle, Film, FileText, CheckCircle2, ChevronRight, Zap } from 'lucide-react';
+import { ArrowRight, Sparkles, Clock, AlertCircle, PlayCircle, Film, FileText, CheckCircle2, ChevronRight, Zap, PlusCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Card } from '../../design-system/components/Card';
 import { Button } from '../../design-system/components/Button';
@@ -70,9 +70,9 @@ export const ContinueProductionCard: React.FC<ContinueProductionCardProps> = ({ 
             </div>
           </div>
           <Link to="/studio" id="continue-production-start-btn" className="shrink-0 w-full sm:w-auto">
-            <Button variant="primary" size="md" className="w-full sm:w-auto flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-xs">
-              <Sparkles className="w-4 h-4 text-amber-300" />
-              <span>Create New Question in Studio</span>
+            <Button variant="primary" size="md" className="w-full sm:w-auto flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-xs cursor-pointer">
+              <PlusCircle className="w-4 h-4 text-white" />
+              <span>+ Create New Question in Studio</span>
             </Button>
           </Link>
         </div>
