@@ -21,6 +21,9 @@ import {
   ExternalLink,
   CheckCircle2,
   AlertCircle,
+  AlertTriangle,
+  FolderGit2,
+  Smartphone,
 } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { Button } from '../components/common/Button';
@@ -41,9 +44,6 @@ export const PlatformPackagesPage: React.FC = () => {
 
   const queryVideoId = searchParams.get('videoId') || '';
   const currentVideoId = routeVideoId || queryVideoId;
-
-  const [activePlatform, setActivePlatform] = useState<PlatformType>('youtube');
-  const [activeTab, setActiveTab] = useState<'adaptation' | 'diff' | 'all'>('adaptation');
 
   // Video list state
   const [videos, setVideos] = useState<Video[]>([]);
@@ -168,65 +168,6 @@ export const PlatformPackagesPage: React.FC = () => {
     }
   };
 
-  const getActivePackage = (): PlatformPackageProjection | null => {
-    switch (activePlatform.toLowerCase()) {
-      case 'youtube':
-        return youtubePkg;
-      case 'instagram':
-        return instagramPkg;
-      case 'facebook':
-        return facebookPkg;
-      default:
-        return youtubePkg;
-    }
-  };
-
-  const formatFullPackage = (pkg: PlatformPackageProjection): string => {
-    const lines: string[] = [];
-    lines.push(`====================================================`);
-    lines.push(`BURRA PARIKSHA — ${pkg.platform.toUpperCase()} DISTRIBUTION PACKAGE`);
-    lines.push(`Approved Version Hash: ${pkg.versionHash}`);
-    lines.push(`Video ID: ${pkg.videoId} | ${pkg.videoTitle}`);
-    lines.push(`====================================================\n`);
-
-    if (pkg.title) {
-      lines.push(`[TITLE / HEADLINE]`);
-      lines.push(`${pkg.title}\n`);
-    }
-
-    if (pkg.caption) {
-      lines.push(`[CAPTION / DESCRIPTION]`);
-      lines.push(`${pkg.caption}\n`);
-    }
-
-    if (pkg.hashtags && pkg.hashtags.length > 0) {
-      lines.push(`[HASHTAGS]`);
-      lines.push(`${pkg.hashtags.join(' ')}\n`);
-    }
-
-    if (pkg.tags && pkg.tags.length > 0) {
-      lines.push(`[TAGS / SEARCH KEYWORDS]`);
-      lines.push(`${pkg.tags.join(', ')}\n`);
-    }
-
-    if (pkg.cta) {
-      lines.push(`[CALL TO ACTION]`);
-      lines.push(`${pkg.cta}\n`);
-    }
-
-    if (pkg.pinnedComment) {
-      lines.push(`[PINNED COMMENT]`);
-      lines.push(`${pkg.pinnedComment}\n`);
-    }
-
-    if (pkg.finalRenderAssetPath) {
-      lines.push(`[FINAL RENDER ASSET]`);
-      lines.push(`${pkg.finalRenderAssetPath}\n`);
-    }
-
-    return lines.join('\n');
-  };
-
   const filteredVideos = videos.filter((v) => {
     if (!searchFilter.trim()) return true;
     const q = searchFilter.toLowerCase();
@@ -237,17 +178,35 @@ export const PlatformPackagesPage: React.FC = () => {
     );
   });
 
-  const activePkg = getActivePackage();
+  // Effective Google Drive folder link
+  const effectiveDriveUrl = selectedVideo?.driveFolderUrl || 'https://drive.google.com';
+  const effectiveQuestionId = selectedVideo?.questionId || youtubePkg?.questionId || instagramPkg?.questionId || '';
+
+  // YouTube calculations
+  const ytTitleText = youtubePkg?.title || selectedVideo?.title || 'Telugu Speed Maths Challenge #Shorts #TeluguGK #BurraPariksha';
+  const isYtTitleLong = ytTitleText.length > 100;
+  const ytDescText = youtubePkg?.caption || `${selectedVideo?.title || ''}\n\n🔥 Solve APPSC & TSPSC Questions in 15 Seconds!\nSubscribe to @BurraPariksha for daily Telugu GK & Speed Tricks.\n\n#BurraPariksha #TeluguGK #Shorts #APPSC #TSPSC`;
+  const ytPinnedCommentText = youtubePkg?.pinnedComment || `✅ సరైన సమాధానం: Option ${reviewBundle?.question?.correctAnswer?.toUpperCase() || 'A'}!\n\n⚡ Burra Speed Trick: ${reviewBundle?.question?.explanation || 'పూర్తి వివరణ కోసం మా ఛానెల్ సబ్‌స్క్రైబ్ చేయండి.'}\n\n#BurraPariksha #TeluguGK #SpeedMaths`;
+
+  // Instagram calculations
+  const igHookText = reviewBundle?.hook?.text || reviewBundle?.question?.questionText || selectedVideo?.title || '🧠 15 సెకన్లలో సమాధానం చెప్పగలరా?';
+  const igCaptionText = instagramPkg?.caption || `🧠 బర్ర పరీక్ష డైలీ ఛాలెంజ్!\n\n${reviewBundle?.question?.questionText || selectedVideo?.title || ''}\n\nమీ సమాధానం కామెంట్ చేయండి (A, B, C, D) 👇\n\n#BurraPariksha #TeluguGK #Reels #APPSC #TSPSC #TeluguQuiz #Education`;
+  const igHashtags = instagramPkg?.hashtags && instagramPkg.hashtags.length > 0
+    ? instagramPkg.hashtags
+    : ['BurraPariksha', 'TeluguGK', 'Reels', 'APPSC', 'TSPSC', 'TeluguEducation', 'DailyQuiz', 'Shorts', 'SpeedMaths', 'TeluguCurrentAffairs', 'Group2', 'Group1', 'SIConstable', 'BrainChallenge', 'TeluguTrending'];
+
+  // Facebook calculations
+  const fbCaptionText = facebookPkg?.caption || `🔥 బర్ర పరీక్ష డైలీ ఛాలెంజ్! APPSC / TSPSC పరీక్షలకు ప్రిపేర్ అయ్యే విద్యార్థుల కోసం స్పీడ్ మ్యాథ్స్ షార్ట్‌కట్.\n\n${reviewBundle?.question?.questionText || selectedVideo?.title || ''}\n\nసరైన సమాధానం కామెంట్ చేయండి 👇`;
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-200">
+    <div className="space-y-6 animate-in fade-in duration-200 max-w-7xl mx-auto pb-16">
       {/* Page Header */}
       <PageHeader
         title="13 Platform Packages"
-        description="Multi-platform adaptations, channel formatting, invariance validation & copy actions for YouTube Shorts, Instagram Reels, and Facebook Video."
+        description="Side-by-side multi-platform adaptation studio: Tailored distribution packages for YouTube Shorts, Instagram Reels, and Facebook Video with character limits and one-click copy."
         badge={
           <span className="text-xs font-mono font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-            Step 13 • Platform Packages
+            Step 13 • Multi-Platform Adaptation Studio
           </span>
         }
       />
@@ -256,24 +215,24 @@ export const PlatformPackagesPage: React.FC = () => {
       <PublishingWorkflowHeader
         currentStep={13}
         videoId={currentVideoId || undefined}
-        videoTitle={selectedVideo?.title || activePkg?.videoTitle}
+        videoTitle={selectedVideo?.title || youtubePkg?.videoTitle}
         videoStatus={selectedVideo?.status}
-        questionId={selectedVideo?.questionId || activePkg?.questionId}
+        questionId={selectedVideo?.questionId || youtubePkg?.questionId}
       />
 
       {/* Video Selection Hub & Switcher */}
-      <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs flex flex-col md:flex-row items-center justify-between gap-3">
+      <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs flex flex-col md:flex-row items-center justify-between gap-3">
         <div className="flex items-center gap-3 w-full md:w-auto">
           <label className="text-xs font-bold text-slate-700 uppercase tracking-wider shrink-0 flex items-center gap-1.5">
-            <Sliders className="w-3.5 h-3.5 text-emerald-600" />
+            <Sliders className="w-3.5 h-3.5 text-indigo-600" />
             Select Video:
           </label>
           <select
             value={currentVideoId}
             onChange={(e) => handleSelectVideo(e.target.value)}
-            className="text-xs font-medium border border-slate-300 rounded-lg px-3 py-1.5 bg-white text-slate-800 focus:ring-2 focus:ring-emerald-500 outline-hidden w-full md:w-96"
+            className="text-xs font-medium border border-slate-300 rounded-xl px-3 py-2 bg-white text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-hidden w-full md:w-96 cursor-pointer"
           >
-            <option value="">-- Choose a video to view platform packages --</option>
+            <option value="">-- Choose a video to inspect platform adaptations --</option>
             {videos.map((v) => (
               <option key={v.id} value={v.id}>
                 {v.id} • {v.title ? v.title.slice(0, 45) : 'Untitled'} ({v.status})
@@ -289,13 +248,13 @@ export const PlatformPackagesPage: React.FC = () => {
             value={searchFilter}
             onChange={(e) => setSearchFilter(e.target.value)}
             placeholder="Filter video selector..."
-            className="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-hidden"
+            className="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-hidden"
           />
         </div>
       </div>
 
       {error && (
-        <div className="p-4 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs flex items-center gap-2">
+        <div className="p-4 bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl text-xs flex items-center gap-2">
           <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
           <span>{error}</span>
         </div>
@@ -303,14 +262,14 @@ export const PlatformPackagesPage: React.FC = () => {
 
       {!currentVideoId ? (
         /* Empty State: Prompt User to Select a Video */
-        <div className="bg-white rounded-xl border border-slate-200 p-12 text-center space-y-4 shadow-xs">
-          <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto border border-emerald-100 shadow-2xs">
+        <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center space-y-4 shadow-xs">
+          <div className="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto border border-indigo-100 shadow-2xs">
             <Share2 className="w-7 h-7" />
           </div>
           <div className="max-w-md mx-auto space-y-1">
             <h3 className="text-base font-bold text-slate-900">Select a Production Video</h3>
             <p className="text-xs text-slate-500 leading-relaxed">
-              Choose an approved video from your production pipeline to inspect channel-specific projections for YouTube Shorts, Instagram Reels, and Facebook Video.
+              Choose an approved video from your production pipeline to inspect side-by-side platform packages tailored for YouTube Shorts, Instagram Reels, and Facebook Video.
             </p>
           </div>
 
@@ -319,10 +278,10 @@ export const PlatformPackagesPage: React.FC = () => {
               <button
                 key={vid.id}
                 onClick={() => handleSelectVideo(vid.id)}
-                className="p-3 rounded-lg border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/40 text-left transition-all group"
+                className="p-3.5 rounded-xl border border-slate-200 hover:border-indigo-500 hover:bg-indigo-50/40 text-left transition-all group cursor-pointer"
               >
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs font-mono font-bold text-slate-800 group-hover:text-emerald-700">
+                  <span className="text-xs font-mono font-bold text-slate-800 group-hover:text-indigo-700">
                     {vid.id}
                   </span>
                   <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
@@ -336,493 +295,326 @@ export const PlatformPackagesPage: React.FC = () => {
         </div>
       ) : isLoadingPackages ? (
         /* Loading State */
-        <div className="bg-white rounded-xl border border-slate-200 p-16 text-center space-y-3">
-          <RefreshCw className="w-8 h-8 text-emerald-600 animate-spin mx-auto" />
+        <div className="bg-white rounded-2xl border border-slate-200 p-16 text-center space-y-3">
+          <RefreshCw className="w-8 h-8 text-indigo-600 animate-spin mx-auto" />
           <p className="text-xs font-medium text-slate-600">
-            Generating platform adaptation packages for {currentVideoId}...
+            Generating side-by-side platform adaptation packages for {currentVideoId}...
           </p>
         </div>
       ) : (
-        /* Workspace when Video is Loaded */
+        /* Workspace: Side-by-Side Platform Deck */
         <div className="space-y-6">
-          {/* Top Bar: Invariance Fingerprint & Action Buttons */}
-          <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs flex flex-wrap items-center justify-between gap-4">
+          {/* Master Asset & Simulator Navigation Bar */}
+          <div className="bg-slate-900 text-white rounded-2xl p-4 sm:p-5 border border-slate-800 shadow-md flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-emerald-50 text-emerald-700 rounded-lg border border-emerald-200">
-                <ShieldCheck className="w-5 h-5" />
+              <div className="p-2.5 bg-indigo-600/30 text-indigo-400 rounded-xl border border-indigo-500/30">
+                <ShieldCheck className="w-5 h-5 text-indigo-300" />
               </div>
               <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-slate-900 uppercase">
-                    Invariance Locked
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-bold text-slate-100 uppercase tracking-wider">
+                    Master Assets &amp; Simulator
                   </span>
-                  {activePkg?.versionHash && (
-                    <span className="text-[10px] font-mono bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200 font-semibold">
-                      SHA: {activePkg.versionHash.slice(0, 16)}...
-                    </span>
-                  )}
+                  <span className="text-[10px] font-mono bg-slate-800 text-indigo-300 px-2 py-0.5 rounded border border-slate-700 font-semibold">
+                    {currentVideoId}
+                  </span>
                 </div>
-                <p className="text-[11px] text-slate-500">
-                  Platform adaptations are derived deterministically from the approved Step 12 Social Review signoff.
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  Direct master cut access and interactive safe-zone preview for publishing operators.
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  copyToClipboard(
-                    'all-platforms',
-                    `--- YOUTUBE ---\n${youtubePkg ? formatFullPackage(youtubePkg) : ''}\n\n--- INSTAGRAM ---\n${instagramPkg ? formatFullPackage(instagramPkg) : ''}\n\n--- FACEBOOK ---\n${facebookPkg ? formatFullPackage(facebookPkg) : ''}`
-                  )
-                }
-                icon={copiedKey === 'all-platforms' ? Check : Copy}
-                className="text-xs"
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <a
+                href={effectiveDriveUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="px-3.5 py-2 bg-white hover:bg-slate-100 text-slate-900 text-xs font-bold rounded-xl flex items-center gap-1.5 transition shadow-sm cursor-pointer"
               >
-                {copiedKey === 'all-platforms' ? 'Copied All Channels!' : 'Copy All 3 Channels'}
-              </Button>
+                <FolderGit2 className="w-3.5 h-3.5 text-indigo-600" />
+                <span>Open Final Cut in Google Drive</span>
+                <ExternalLink className="w-3 h-3 text-slate-400" />
+              </a>
 
-              <Link to={`/publishing-package?videoId=${encodeURIComponent(currentVideoId)}`}>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
-                >
-                  <span>Proceed to Step 14 Package</span>
-                  <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
-                </Button>
+              <Link
+                to={`/videos/${encodeURIComponent(currentVideoId)}?tab=social`}
+                className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition shadow-sm cursor-pointer"
+              >
+                <Smartphone className="w-3.5 h-3.5" />
+                <span>Open 9:16 Simulator</span>
               </Link>
             </div>
           </div>
 
-          {/* Platform Switcher & Workspace Tabs */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-2">
-            {/* 3 Platform Channel Pills */}
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setActivePlatform('youtube')}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all border ${
-                  activePlatform.toLowerCase() === 'youtube'
-                    ? 'bg-red-600 text-white border-red-700 shadow-xs'
-                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                }`}
-              >
-                <Youtube className="w-4 h-4 text-white" />
-                <span>YouTube Shorts</span>
-                {youtubePkg && <span className="text-[10px] opacity-80 font-mono">9:16</span>}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActivePlatform('instagram')}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all border ${
-                  activePlatform.toLowerCase() === 'instagram'
-                    ? 'bg-pink-600 text-white border-pink-700 shadow-xs'
-                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                }`}
-              >
-                <Instagram className="w-4 h-4 text-white" />
-                <span>Instagram Reels</span>
-                {instagramPkg && <span className="text-[10px] opacity-80 font-mono">9:16</span>}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActivePlatform('facebook')}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all border ${
-                  activePlatform.toLowerCase() === 'facebook'
-                    ? 'bg-blue-600 text-white border-blue-700 shadow-xs'
-                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                }`}
-              >
-                <Facebook className="w-4 h-4 text-white" />
-                <span>Facebook Video</span>
-                {facebookPkg && <span className="text-[10px] opacity-80 font-mono">Reels/Feed</span>}
-              </button>
-            </div>
-
-            {/* View Mode: Single Platform vs Diff Comparison Matrix */}
-            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200 self-start sm:self-auto">
-              <button
-                type="button"
-                onClick={() => setActiveTab('adaptation')}
-                className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${
-                  activeTab === 'adaptation'
-                    ? 'bg-white text-slate-900 shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Adaptation Editor
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab('diff')}
-                className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${
-                  activeTab === 'diff'
-                    ? 'bg-white text-slate-900 shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Multi-Platform Diff Matrix
-              </button>
-            </div>
-          </div>
-
-          {/* TAB 1: Single Platform Adaptation View */}
-          {activeTab === 'adaptation' && activePkg && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Left Column: Platform Content Cards */}
-              <div className="lg:col-span-2 space-y-4">
-                {/* 1. Title / Headline Card */}
-                <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                      <FileText className="w-3.5 h-3.5 text-indigo-600" />
-                      Platform Title / Headline
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] font-mono text-slate-500">
-                        {activePkg.title?.length || 0} characters
-                      </span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => copyToClipboard('title', activePkg.title || '')}
-                        icon={copiedKey === 'title' ? Check : Copy}
-                        className="text-xs text-indigo-600 hover:text-indigo-800 py-0.5 h-7"
-                      >
-                        {copiedKey === 'title' ? 'Copied' : 'Copy'}
-                      </Button>
+          {/* 3-Column Side-by-Side Platform Deck */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+            {/* COLUMN 1: YouTube Shorts Card (Red Accent) */}
+            <div className="bg-white rounded-2xl border-2 border-red-200/90 shadow-xs flex flex-col justify-between overflow-hidden">
+              <div className="p-5 space-y-4">
+                {/* Header */}
+                <div className="flex items-center justify-between pb-3 border-b border-red-100">
+                  <div className="flex items-center gap-2 text-red-600 font-bold text-sm">
+                    <div className="w-7 h-7 rounded-lg bg-red-50 flex items-center justify-center border border-red-200">
+                      <Youtube className="w-4 h-4 text-red-600" />
                     </div>
+                    <span>YouTube Shorts</span>
                   </div>
-                  <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-sm font-semibold text-slate-900 font-sans">
-                    {activePkg.title || '(No specific title required for this platform)'}
-                  </div>
+                  <span className="text-[10px] font-mono bg-red-50 text-red-700 px-2 py-0.5 rounded-full font-bold border border-red-200">
+                    9:16 Vertical
+                  </span>
                 </div>
 
-                {/* 2. Caption / Description Card */}
-                <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs space-y-2.5">
+                {/* 1. Title with Character Counter */}
+                <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-                      Optimized Caption & Spoken Problem Summary
+                    <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1">
+                      <span>Title</span>
+                      {isYtTitleLong && (
+                        <span className="text-[10px] text-amber-600 font-semibold flex items-center gap-0.5">
+                          <AlertTriangle className="w-3 h-3" /> Exceeds 100
+                        </span>
+                      )}
                     </label>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] font-mono text-slate-500">
-                        {activePkg.caption?.length || 0} chars
-                      </span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => copyToClipboard('caption', activePkg.caption || '')}
-                        icon={copiedKey === 'caption' ? Check : Copy}
-                        className="text-xs text-indigo-600 hover:text-indigo-800 py-0.5 h-7"
-                      >
-                        {copiedKey === 'caption' ? 'Copied' : 'Copy'}
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="p-3.5 bg-slate-50 rounded-lg border border-slate-200 text-xs text-slate-800 font-sans leading-relaxed whitespace-pre-line">
-                    {activePkg.caption}
-                  </div>
-                </div>
-
-                {/* 3. Hashtags & Tags */}
-                <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs space-y-3">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                      <Hash className="w-3.5 h-3.5 text-indigo-600" />
-                      Distribution Hashtags ({activePkg.hashtags?.length || 0})
-                    </label>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => copyToClipboard('hashtags', (activePkg.hashtags || []).join(' '))}
-                      icon={copiedKey === 'hashtags' ? Check : Copy}
-                      className="text-xs text-indigo-600 hover:text-indigo-800 py-0.5 h-7"
+                    <span
+                      className={`text-[10px] font-mono font-bold ${
+                        isYtTitleLong ? 'text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded' : 'text-slate-400'
+                      }`}
                     >
-                      {copiedKey === 'hashtags' ? 'Copied' : 'Copy All'}
-                    </Button>
+                      {ytTitleText.length} / 100 chars
+                    </span>
                   </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {activePkg.hashtags?.map((h, i) => (
+
+                  <div className="p-3 bg-red-50/40 rounded-xl border border-red-100 font-telugu text-xs font-bold text-slate-900 leading-relaxed">
+                    {ytTitleText}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard('yt_title', ytTitleText)}
+                    className={`w-full py-1.5 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                      copiedKey === 'yt_title'
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-white hover:bg-red-50 text-slate-700 hover:text-red-700 border border-slate-200'
+                    }`}
+                  >
+                    {copiedKey === 'yt_title' ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedKey === 'yt_title' ? 'Copied Title!' : 'Copy Title'}</span>
+                  </button>
+                </div>
+
+                {/* 2. SEO Description & Keywords */}
+                <div className="space-y-1.5 pt-2 border-t border-slate-100">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                      SEO Description (APPSC/TSPSC)
+                    </label>
+                    <span className="text-[10px] font-mono text-slate-400 font-medium">Keywords Included</span>
+                  </div>
+
+                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 font-telugu text-xs text-slate-800 leading-relaxed whitespace-pre-line max-h-36 overflow-y-auto">
+                    {ytDescText}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard('yt_desc', ytDescText)}
+                    className={`w-full py-1.5 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                      copiedKey === 'yt_desc'
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-white hover:bg-red-50 text-slate-700 hover:text-red-700 border border-slate-200'
+                    }`}
+                  >
+                    {copiedKey === 'yt_desc' ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedKey === 'yt_desc' ? 'Copied Description!' : 'Copy Description'}</span>
+                  </button>
+                </div>
+
+                {/* 3. Pinned Solution Comment with Telugu Speed Trick */}
+                <div className="space-y-1.5 pt-2 border-t border-slate-100">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-bold text-amber-800 uppercase tracking-wider flex items-center gap-1">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                      Pinned Solution Comment
+                    </label>
+                    <span className="text-[10px] font-mono text-amber-700 font-bold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                      Speed Trick
+                    </span>
+                  </div>
+
+                  <div className="p-3 bg-amber-50/70 rounded-xl border border-amber-200 font-telugu text-xs text-amber-950 leading-relaxed max-h-28 overflow-y-auto">
+                    {ytPinnedCommentText}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard('yt_pinned', ytPinnedCommentText)}
+                    className={`w-full py-1.5 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                      copiedKey === 'yt_pinned'
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-white hover:bg-amber-100 text-amber-900 border border-amber-300'
+                    }`}
+                  >
+                    {copiedKey === 'yt_pinned' ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedKey === 'yt_pinned' ? 'Copied Pinned Comment!' : 'Copy Pinned Comment'}</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-3.5 bg-red-50/60 border-t border-red-100 text-[11px] text-red-900 flex items-center justify-between font-mono">
+                <span>Upload Target: YouTube Studio</span>
+                <span className="font-bold">Max 59s</span>
+              </div>
+            </div>
+
+            {/* COLUMN 2: Instagram Reels Card (Pink/Purple Gradient Accent) */}
+            <div className="bg-white rounded-2xl border-2 border-pink-200/90 shadow-xs flex flex-col justify-between overflow-hidden">
+              <div className="p-5 space-y-4">
+                {/* Header */}
+                <div className="flex items-center justify-between pb-3 border-b border-pink-100">
+                  <div className="flex items-center gap-2 text-pink-600 font-bold text-sm">
+                    <div className="w-7 h-7 rounded-lg bg-pink-50 flex items-center justify-center border border-pink-200">
+                      <Instagram className="w-4 h-4 text-pink-600" />
+                    </div>
+                    <span>Instagram Reels</span>
+                  </div>
+                  <span className="text-[10px] font-mono bg-pink-50 text-pink-700 px-2 py-0.5 rounded-full font-bold border border-pink-200">
+                    Viral Audio Sync
+                  </span>
+                </div>
+
+                {/* 1. Visual Hook Statement */}
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
+                    Visual Hook Statement
+                  </label>
+                  <div className="p-3 bg-gradient-to-r from-pink-50/70 to-purple-50/70 rounded-xl border border-pink-200 font-telugu text-xs font-bold text-pink-950 leading-relaxed">
+                    {igHookText}
+                  </div>
+                </div>
+
+                {/* 2. Instagram Caption with CTA */}
+                <div className="space-y-1.5 pt-2 border-t border-slate-100">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                      Reels Caption &amp; Call-to-Action
+                    </label>
+                    <span className="text-[10px] font-mono text-pink-600 font-bold">Comment A, B, C, D</span>
+                  </div>
+
+                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 font-telugu text-xs text-slate-800 leading-relaxed whitespace-pre-line max-h-36 overflow-y-auto">
+                    {igCaptionText}
+                  </div>
+                </div>
+
+                {/* 3. Curated 15-Hashtag Block */}
+                <div className="space-y-1.5 pt-2 border-t border-slate-100">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1">
+                      <Hash className="w-3.5 h-3.5 text-pink-600" />
+                      Curated 15-Hashtag Block
+                    </label>
+                    <span className="text-[10px] font-mono text-slate-400 font-bold">
+                      {igHashtags.length} Tags
+                    </span>
+                  </div>
+
+                  <div className="p-2.5 bg-pink-50/30 rounded-xl border border-pink-100 flex flex-wrap gap-1 max-h-24 overflow-y-auto">
+                    {igHashtags.map((h, i) => (
                       <span
                         key={i}
-                        className="text-xs font-mono font-medium px-2.5 py-1 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200"
+                        className="text-[10px] font-mono font-medium px-2 py-0.5 rounded-md bg-white text-pink-700 border border-pink-200"
                       >
-                        {h.startsWith('#') ? h : `#${h}`}
+                        #{h.replace('#', '')}
                       </span>
                     ))}
                   </div>
 
-                  {activePkg.tags && activePkg.tags.length > 0 && (
-                    <div className="pt-2 border-t border-slate-100 space-y-1.5">
-                      <div className="flex items-center justify-between text-xs text-slate-500">
-                        <span>Search Tags (Keywords):</span>
-                        <button
-                          type="button"
-                          onClick={() => copyToClipboard('tags', activePkg.tags?.join(', ') || '')}
-                          className="text-indigo-600 hover:underline text-[11px] font-medium"
-                        >
-                          {copiedKey === 'tags' ? 'Copied' : 'Copy Tags'}
-                        </button>
-                      </div>
-                      <div className="text-xs font-mono text-slate-600 bg-slate-50 p-2 rounded border border-slate-200">
-                        {activePkg.tags.join(', ')}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* 4. Pinned Comment Card */}
-                <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                      <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
-                      Pinned Engagement & Solution Comment
-                    </label>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => copyToClipboard('pinned', activePkg.pinnedComment || '')}
-                      icon={copiedKey === 'pinned' ? Check : Copy}
-                      className="text-xs text-emerald-600 hover:text-emerald-800 py-0.5 h-7"
-                    >
-                      {copiedKey === 'pinned' ? 'Copied' : 'Copy'}
-                    </Button>
-                  </div>
-                  <div className="p-3.5 bg-emerald-50/50 rounded-lg border border-emerald-200 text-xs text-slate-800 font-sans leading-relaxed whitespace-pre-line">
-                    {activePkg.pinnedComment}
-                  </div>
-                </div>
-              </div>
-
-              {/* Right Column: Platform Specifications & Copy Bundle */}
-              <div className="space-y-4">
-                {/* Channel Spec Card */}
-                <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs space-y-3">
-                  <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-100 pb-2">
-                    <Layers className="w-3.5 h-3.5 text-slate-600" />
-                    Channel Rules & Specifications
-                  </h4>
-
-                  <div className="space-y-2.5 text-xs">
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500">Aspect Ratio:</span>
-                      <span className="font-mono font-bold text-slate-800">9:16 Vertical</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500">Duration Target:</span>
-                      <span className="font-mono font-bold text-slate-800">&lt; 60 seconds</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500">Resolution:</span>
-                      <span className="font-mono font-bold text-slate-800">1080 x 1920 px</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500">Pinned Comment:</span>
-                      <span className="font-semibold text-emerald-700">Supported</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500">Audio Sync:</span>
-                      <span className="font-semibold text-indigo-700">Native Telugu</span>
-                    </div>
-                  </div>
-
-                  {activePkg.cta && (
-                    <div className="pt-2 border-t border-slate-100 space-y-1">
-                      <span className="text-[11px] font-bold text-slate-500 uppercase">
-                        Audience Call To Action:
-                      </span>
-                      <p className="text-xs font-semibold text-indigo-900 bg-indigo-50 p-2 rounded border border-indigo-100">
-                        {activePkg.cta}
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {/* One-Click Full Package Copier */}
-                <div className="bg-slate-900 text-white rounded-xl p-4 border border-slate-800 shadow-xs space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <Copy className="w-4 h-4 text-emerald-400" />
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-slate-100">
-                        {activePlatform.toUpperCase()} Bundle
-                      </h4>
-                    </div>
-                    <span className="text-[10px] font-mono text-emerald-400 font-bold bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800">
-                      READY TO UPLOAD
-                    </span>
-                  </div>
-
-                  <p className="text-xs text-slate-400 leading-relaxed">
-                    Copy the complete formatted distribution text bundle ready to paste directly into your channel creator dashboard.
-                  </p>
-
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={() => copyToClipboard('full-pkg', formatFullPackage(activePkg))}
-                    icon={copiedKey === 'full-pkg' ? Check : Copy}
-                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold py-2"
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard('ig_caption_full', `${igCaptionText}\n\n${igHashtags.map((h) => `#${h.replace('#', '')}`).join(' ')}`)}
+                    className={`w-full py-2 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                      copiedKey === 'ig_caption_full'
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white shadow-2xs'
+                    }`}
                   >
-                    {copiedKey === 'full-pkg'
-                      ? `Copied ${activePlatform.toUpperCase()} Package!`
-                      : `Copy ${activePlatform.toUpperCase()} Package Bundle`}
-                  </Button>
+                    {copiedKey === 'ig_caption_full' ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedKey === 'ig_caption_full' ? 'Copied Full Reels Caption!' : 'Copy Reels Caption & Tags'}</span>
+                  </button>
                 </div>
               </div>
-            </div>
-          )}
 
-          {/* TAB 2: Multi-Platform Diff Matrix */}
-          {activeTab === 'diff' && (
-            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
-              <div className="p-4 bg-slate-50 border-b border-slate-200">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
-                  Cross-Platform Adaptation Diff Matrix
-                </h3>
-                <p className="text-[11px] text-slate-500 mt-0.5">
-                  Comparison of channel tailoring, title styling, hashtag density, and tone adaptation.
-                </p>
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs text-left">
-                  <thead>
-                    <tr className="bg-slate-100/80 text-slate-700 font-bold border-b border-slate-200">
-                      <th className="py-3 px-4 w-44">Platform Dimension</th>
-                      <th className="py-3 px-4 w-1/3">
-                        <div className="flex items-center gap-1.5 text-red-600">
-                          <Youtube className="w-4 h-4" />
-                          <span>YouTube Shorts</span>
-                        </div>
-                      </th>
-                      <th className="py-3 px-4 w-1/3">
-                        <div className="flex items-center gap-1.5 text-pink-600">
-                          <Instagram className="w-4 h-4" />
-                          <span>Instagram Reels</span>
-                        </div>
-                      </th>
-                      <th className="py-3 px-4 w-1/3">
-                        <div className="flex items-center gap-1.5 text-blue-600">
-                          <Facebook className="w-4 h-4" />
-                          <span>Facebook Video</span>
-                        </div>
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {/* Row 1: Title / Headline */}
-                    <tr>
-                      <td className="py-3 px-4 font-bold text-slate-700 bg-slate-50/50 align-top">
-                        Title / Headline
-                      </td>
-                      <td className="py-3 px-4 text-slate-900 font-semibold align-top">
-                        {youtubePkg?.title || '—'}
-                      </td>
-                      <td className="py-3 px-4 text-slate-900 font-semibold align-top">
-                        {instagramPkg?.title || '(Uses caption hook)'}
-                      </td>
-                      <td className="py-3 px-4 text-slate-900 font-semibold align-top">
-                        {facebookPkg?.title || '—'}
-                      </td>
-                    </tr>
-
-                    {/* Row 2: Caption & Description */}
-                    <tr>
-                      <td className="py-3 px-4 font-bold text-slate-700 bg-slate-50/50 align-top">
-                        Caption & Summary
-                      </td>
-                      <td className="py-3 px-4 text-slate-700 align-top leading-relaxed whitespace-pre-line">
-                        {youtubePkg?.caption || '—'}
-                      </td>
-                      <td className="py-3 px-4 text-slate-700 align-top leading-relaxed whitespace-pre-line">
-                        {instagramPkg?.caption || '—'}
-                      </td>
-                      <td className="py-3 px-4 text-slate-700 align-top leading-relaxed whitespace-pre-line">
-                        {facebookPkg?.caption || '—'}
-                      </td>
-                    </tr>
-
-                    {/* Row 3: Hashtags */}
-                    <tr>
-                      <td className="py-3 px-4 font-bold text-slate-700 bg-slate-50/50 align-top">
-                        Hashtags
-                      </td>
-                      <td className="py-3 px-4 align-top">
-                        <div className="flex flex-wrap gap-1">
-                          {youtubePkg?.hashtags?.map((h, i) => (
-                            <span key={i} className="px-1.5 py-0.5 rounded bg-red-50 text-red-700 font-mono text-[11px]">
-                              {h}
-                            </span>
-                          ))}
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 align-top">
-                        <div className="flex flex-wrap gap-1">
-                          {instagramPkg?.hashtags?.map((h, i) => (
-                            <span key={i} className="px-1.5 py-0.5 rounded bg-pink-50 text-pink-700 font-mono text-[11px]">
-                              {h}
-                            </span>
-                          ))}
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 align-top">
-                        <div className="flex flex-wrap gap-1">
-                          {facebookPkg?.hashtags?.map((h, i) => (
-                            <span key={i} className="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 font-mono text-[11px]">
-                              {h}
-                            </span>
-                          ))}
-                        </div>
-                      </td>
-                    </tr>
-
-                    {/* Row 4: Call To Action */}
-                    <tr>
-                      <td className="py-3 px-4 font-bold text-slate-700 bg-slate-50/50 align-top">
-                        Call to Action
-                      </td>
-                      <td className="py-3 px-4 text-slate-800 font-medium align-top">
-                        {youtubePkg?.cta || '—'}
-                      </td>
-                      <td className="py-3 px-4 text-slate-800 font-medium align-top">
-                        {instagramPkg?.cta || '—'}
-                      </td>
-                      <td className="py-3 px-4 text-slate-800 font-medium align-top">
-                        {facebookPkg?.cta || '—'}
-                      </td>
-                    </tr>
-
-                    {/* Row 5: Pinned Comment */}
-                    <tr>
-                      <td className="py-3 px-4 font-bold text-slate-700 bg-slate-50/50 align-top">
-                        Pinned Comment
-                      </td>
-                      <td className="py-3 px-4 text-slate-700 align-top leading-relaxed whitespace-pre-line">
-                        {youtubePkg?.pinnedComment || '—'}
-                      </td>
-                      <td className="py-3 px-4 text-slate-700 align-top leading-relaxed whitespace-pre-line">
-                        {instagramPkg?.pinnedComment || '—'}
-                      </td>
-                      <td className="py-3 px-4 text-slate-700 align-top leading-relaxed whitespace-pre-line">
-                        {facebookPkg?.pinnedComment || '—'}
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
+              <div className="p-3.5 bg-pink-50/60 border-t border-pink-100 text-[11px] text-pink-900 flex items-center justify-between font-mono">
+                <span>Upload Target: Meta Creator Studio</span>
+                <span className="font-bold">Cover Frame Clean</span>
               </div>
             </div>
-          )}
+
+            {/* COLUMN 3: Facebook Reels Card (Blue Accent) */}
+            <div className="bg-white rounded-2xl border-2 border-blue-200/90 shadow-xs flex flex-col justify-between overflow-hidden">
+              <div className="p-5 space-y-4">
+                {/* Header */}
+                <div className="flex items-center justify-between pb-3 border-b border-blue-100">
+                  <div className="flex items-center gap-2 text-blue-600 font-bold text-sm">
+                    <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center border border-blue-200">
+                      <Facebook className="w-4 h-4 text-blue-600" />
+                    </div>
+                    <span>Facebook Reels / Video</span>
+                  </div>
+                  <span className="text-[10px] font-mono bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-bold border border-blue-200">
+                    Watch Feed
+                  </span>
+                </div>
+
+                {/* 1. Punchy Context Caption */}
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
+                    Punchy Context Caption
+                  </label>
+                  <div className="p-3.5 bg-blue-50/40 rounded-xl border border-blue-100 font-telugu text-xs text-slate-900 leading-relaxed whitespace-pre-line min-h-[140px]">
+                    {fbCaptionText}
+                  </div>
+                </div>
+
+                {/* 2. Facebook Page CTA */}
+                <div className="space-y-1.5 pt-2 border-t border-slate-100">
+                  <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
+                    Audience Engagement CTA
+                  </label>
+                  <p className="text-xs font-telugu font-semibold text-blue-950 bg-blue-50 p-2.5 rounded-xl border border-blue-200">
+                    {facebookPkg?.cta || 'ఈ వీడియోను మీ స్నేహితులతో షేర్ చేయండి & పేజీని లైక్ చేయండి! 👍'}
+                  </p>
+                </div>
+
+                {/* 3. One-Click Copy Facebook Post */}
+                <div className="pt-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard('fb_post', `${fbCaptionText}\n\n#BurraPariksha #TeluguGK #Shorts #APPSC #TSPSC`)}
+                    className={`w-full py-2 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                      copiedKey === 'fb_post'
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-blue-600 hover:bg-blue-700 text-white shadow-2xs'
+                    }`}
+                  >
+                    {copiedKey === 'fb_post' ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedKey === 'fb_post' ? 'Copied Facebook Post!' : 'Copy Facebook Post'}</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-3.5 bg-blue-50/60 border-t border-blue-100 text-[11px] text-blue-900 flex items-center justify-between font-mono">
+                <span>Upload Target: Facebook Page Video</span>
+                <span className="font-bold">Public Post</span>
+              </div>
+            </div>
+          </div>
 
           {/* Workflow Footer Navigation Bar */}
-          <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-xs flex items-center justify-between">
+          <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between flex-wrap gap-3">
             <Link
-              to={selectedVideo?.id ? `/videos/${encodeURIComponent(selectedVideo.id)}/social-review` : '/social-review'}
+              to={effectiveQuestionId ? `/social-review/${encodeURIComponent(effectiveQuestionId)}` : '/social-review'}
               className="text-xs font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-1.5"
             >
               <ArrowLeft className="w-3.5 h-3.5" />

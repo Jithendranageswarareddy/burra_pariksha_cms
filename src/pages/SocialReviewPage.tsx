@@ -24,6 +24,8 @@ import {
   Sparkles,
   ExternalLink,
   ChevronRight,
+  Smartphone,
+  Share2,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../lib/api-client';
@@ -146,45 +148,45 @@ export const SocialReviewPage: React.FC = () => {
     });
   }, [reviewsList, statusFilter, searchQuery]);
 
-  // Helper badge for status
+  // Helper badge for status chips
   const getStatusBadge = (decision?: string | null) => {
     switch (decision) {
       case SocialReviewStatus.APPROVED:
         return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300">
-            <CheckCircle2 className="w-3 h-3 mr-1" /> Approved
+          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-300">
+            <CheckCircle2 className="w-3.5 h-3.5 mr-1 text-emerald-600" /> Approved
           </span>
         );
       case SocialReviewStatus.CHANGES_REQUESTED:
         return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-300">
-            <AlertTriangle className="w-3 h-3 mr-1" /> Changes Requested
+          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-300">
+            <AlertTriangle className="w-3.5 h-3.5 mr-1 text-amber-600" /> Changes Requested
           </span>
         );
       case SocialReviewStatus.REJECTED:
         return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-100 text-rose-800 border border-rose-300">
-            <XCircle className="w-3 h-3 mr-1" /> Rejected
+          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-300">
+            <XCircle className="w-3.5 h-3.5 mr-1 text-rose-600" /> Rejected
           </span>
         );
       case SocialReviewStatus.STALE_REVISION_REQUIRED:
         return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-800 border border-purple-300">
-            <ShieldAlert className="w-3 h-3 mr-1" /> Stale (Revision Req)
+          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-purple-50 text-purple-700 border border-purple-300">
+            <ShieldAlert className="w-3.5 h-3.5 mr-1 text-purple-600" /> Stale (Revision Req)
           </span>
         );
       case SocialReviewStatus.PENDING_REVIEW:
       default:
         return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 border border-blue-300">
-            <Clock className="w-3 h-3 mr-1" /> Pending Review
+          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-300">
+            <Clock className="w-3.5 h-3.5 mr-1 text-blue-600" /> Pending Review
           </span>
         );
     }
   };
 
   // -------------------------------------------------------------
-  // VIEW: Specific Review Requested
+  // VIEW: Specific Review Requested (Workspace)
   // -------------------------------------------------------------
   if (activeId) {
     if (isLoadingItem) {
@@ -273,7 +275,7 @@ export const SocialReviewPage: React.FC = () => {
 
     // Authorized Workspace Render
     return (
-      <div className="space-y-6 max-w-7xl mx-auto pb-16">
+      <div className="space-y-6 max-w-7xl mx-auto pb-16 animate-in fade-in duration-200">
         <AssetWorkflowHeader
           currentStep={12}
           videoId={resolvedVideoId || undefined}
@@ -324,10 +326,10 @@ export const SocialReviewPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Existing Phase 8H SocialReviewWorkspace Component */}
+        {/* Phase 8H SocialReviewWorkspace Component with 9:16 Simulator & One-Click Copy Bar */}
         <SocialReviewWorkspace
           questionId={resolvedQuestionId}
-          onReviewSubmitted={(updated) => {
+          onReviewSubmitted={() => {
             if (activeId) {
               loadReviewItem(activeId);
             }
@@ -341,7 +343,7 @@ export const SocialReviewPage: React.FC = () => {
   // VIEW: Global / Assigned Social Review Queue (/social-review)
   // -------------------------------------------------------------
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-16">
+    <div className="space-y-6 max-w-7xl mx-auto pb-16 animate-in fade-in duration-200">
       {/* Header Banner */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-5">
         <div>
@@ -359,7 +361,7 @@ export const SocialReviewPage: React.FC = () => {
           <p className="text-xs text-slate-500">
             {isPlatformsMode
               ? 'Multi-platform social distribution packages: YouTube Shorts, Instagram Reels, and Facebook Video adaptations.'
-              : 'Phase 8H human review, invariance validation, platform adaptations, and quality assurance.'}
+              : 'Human review queue, AI quality assurance scores, safe-zone simulator, and one-click copy bundles.'}
           </p>
         </div>
 
@@ -382,7 +384,7 @@ export const SocialReviewPage: React.FC = () => {
       </div>
 
       {/* Queue Filters & Search */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
@@ -390,7 +392,7 @@ export const SocialReviewPage: React.FC = () => {
             placeholder="Search review ID, question ID, or reviewer..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:bg-white text-slate-800"
+            className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 focus:bg-white text-slate-800"
           />
         </div>
 
@@ -402,7 +404,7 @@ export const SocialReviewPage: React.FC = () => {
             <button
               key={st}
               onClick={() => setStatusFilter(st)}
-              className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors ${
+              className={`px-3 py-1 text-xs font-semibold rounded-xl transition-all cursor-pointer ${
                 statusFilter === st
                   ? 'bg-violet-600 text-white shadow-xs'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -416,21 +418,21 @@ export const SocialReviewPage: React.FC = () => {
 
       {/* Reviews Queue List */}
       {isLoadingList ? (
-        <div className="p-12 text-center text-slate-500 text-xs flex flex-col items-center gap-2">
-          <div className="w-6 h-6 border-2 border-violet-600 border-t-transparent rounded-full animate-spin" />
-          <span>Loading authorized social review records...</span>
+        <div className="p-16 bg-white rounded-2xl border border-slate-200 text-center text-slate-500 text-xs flex flex-col items-center gap-2 shadow-xs">
+          <div className="w-8 h-8 border-3 border-violet-600 border-t-transparent rounded-full animate-spin" />
+          <span className="font-medium">Loading authorized social review records...</span>
         </div>
       ) : listError ? (
-        <div className="p-6 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs flex items-center gap-3">
+        <div className="p-6 bg-rose-50 border border-rose-200 rounded-2xl text-rose-700 text-xs flex items-center gap-3">
           <AlertCircle className="w-5 h-5 shrink-0" />
           <span>{listError}</span>
         </div>
       ) : filteredReviews.length === 0 ? (
-        <div className="bg-white border border-slate-200 rounded-xl p-12 text-center space-y-3">
-          <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
-            <CheckCheck className="w-5 h-5" />
+        <div className="bg-white border border-slate-200 rounded-2xl p-16 text-center space-y-3 shadow-xs">
+          <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
+            <CheckCheck className="w-6 h-6" />
           </div>
-          <h3 className="text-sm font-semibold text-slate-800">No Social Review Records Found</h3>
+          <h3 className="text-sm font-bold text-slate-800">No Social Review Records Found</h3>
           <p className="text-xs text-slate-500 max-w-sm mx-auto">
             {reviewsList.length === 0
               ? 'There are currently no assigned or open social reviews available for your account.'
@@ -438,18 +440,17 @@ export const SocialReviewPage: React.FC = () => {
           </p>
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
+        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs text-slate-600">
-              <thead className="bg-slate-50 text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
+              <thead className="bg-slate-50/80 text-[11px] font-bold text-slate-700 uppercase tracking-wider border-b border-slate-200">
                 <tr>
-                  <th className="px-4 py-3">Review ID</th>
-                  <th className="px-4 py-3">Question ID</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Quality Score</th>
-                  <th className="px-4 py-3">Reviewer</th>
-                  <th className="px-4 py-3">Created / Updated</th>
-                  <th className="px-4 py-3 text-right">Action</th>
+                  <th className="px-5 py-3.5">Review / Question ID</th>
+                  <th className="px-5 py-3.5">Status Chip</th>
+                  <th className="px-5 py-3.5">AI Quality Score</th>
+                  <th className="px-5 py-3.5">Assigned Reviewer</th>
+                  <th className="px-5 py-3.5">Updated</th>
+                  <th className="px-5 py-3.5 text-right">Simulator &amp; Review Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -458,45 +459,84 @@ export const SocialReviewPage: React.FC = () => {
                     ? `/social-review/${encodeURIComponent(rev.id)}?tab=platforms`
                     : `/social-review/${encodeURIComponent(rev.id)}`;
 
+                  const qualityScore = rev.overallQualityScoreAtReview;
+                  const isHighQuality = qualityScore !== undefined && qualityScore !== null && qualityScore >= 85;
+                  const isMediumQuality = qualityScore !== undefined && qualityScore !== null && qualityScore >= 70 && qualityScore < 85;
+
                   return (
                     <tr
                       key={rev.id}
                       onClick={() => navigate(targetReviewUrl)}
-                      className="hover:bg-violet-50/50 cursor-pointer transition-colors group"
+                      className="hover:bg-violet-50/40 cursor-pointer transition-colors group"
                     >
-                      <td className="px-4 py-3 font-mono font-bold text-slate-900 group-hover:text-violet-700">
-                        {rev.id}
+                      <td className="px-5 py-4">
+                        <div className="space-y-0.5">
+                          <span className="font-mono font-bold text-slate-900 group-hover:text-violet-700 block">
+                            {rev.id}
+                          </span>
+                          <span className="font-mono text-[11px] text-slate-500">
+                            Question: {rev.questionId}
+                          </span>
+                        </div>
                       </td>
-                      <td className="px-4 py-3 font-mono text-slate-700">
-                        {rev.questionId}
-                      </td>
-                      <td className="px-4 py-3">
+
+                      <td className="px-5 py-4">
                         {getStatusBadge(rev.decision)}
                       </td>
-                      <td className="px-4 py-3">
-                        {rev.overallQualityScoreAtReview !== undefined && rev.overallQualityScoreAtReview !== null ? (
-                          <span className="font-semibold text-emerald-600 font-mono">
-                            {rev.overallQualityScoreAtReview}/100
-                          </span>
+
+                      <td className="px-5 py-4">
+                        {qualityScore !== undefined && qualityScore !== null ? (
+                          <div className="flex items-center gap-1.5">
+                            <span
+                              className={`font-bold font-mono text-xs px-2 py-0.5 rounded-md border ${
+                                isHighQuality
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                                  : isMediumQuality
+                                  ? 'bg-amber-50 text-amber-700 border-amber-300'
+                                  : 'bg-rose-50 text-rose-700 border-rose-300'
+                              }`}
+                            >
+                              {qualityScore}/100
+                            </span>
+                            {isHighQuality && (
+                              <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                            )}
+                          </div>
                         ) : (
-                          <span className="text-slate-400">N/A</span>
+                          <span className="text-slate-400 font-mono text-xs">Pending Score</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-slate-600">
-                        {rev.reviewerName || rev.reviewerId || 'Unassigned'}
+
+                      <td className="px-5 py-4 font-medium text-slate-700">
+                        {rev.reviewerName || rev.reviewerId || (
+                          <span className="text-slate-400 italic">Unassigned</span>
+                        )}
                       </td>
-                      <td className="px-4 py-3 text-slate-500 font-mono text-[11px]">
+
+                      <td className="px-5 py-4 text-slate-500 font-mono text-[11px]">
                         {rev.reviewedAt ? new Date(rev.reviewedAt).toLocaleDateString() : '—'}
                       </td>
-                      <td className="px-4 py-3 text-right">
-                        <Link
-                          to={targetReviewUrl}
-                          onClick={(e) => e.stopPropagation()}
-                          className="inline-flex items-center gap-1 font-semibold text-violet-600 hover:text-violet-800 transition-colors"
-                        >
-                          <span>{isPlatformsMode ? 'Open Platform Packages' : 'Open Workspace'}</span>
-                          <ChevronRight className="w-3.5 h-3.5" />
-                        </Link>
+
+                      <td className="px-5 py-4 text-right">
+                        <div className="inline-flex items-center gap-2">
+                          <Link
+                            to={`/videos/${encodeURIComponent(rev.questionId)}?tab=social`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="p-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 transition"
+                            title="Open 9:16 Simulator"
+                          >
+                            <Smartphone className="w-3.5 h-3.5" />
+                          </Link>
+
+                          <Link
+                            to={targetReviewUrl}
+                            onClick={(e) => e.stopPropagation()}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-semibold text-xs transition shadow-2xs"
+                          >
+                            <span>{isPlatformsMode ? 'Platform Packages' : 'Review Workspace'}</span>
+                            <ChevronRight className="w-3.5 h-3.5" />
+                          </Link>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -509,4 +549,5 @@ export const SocialReviewPage: React.FC = () => {
     </div>
   );
 };
+
 export default SocialReviewPage;
