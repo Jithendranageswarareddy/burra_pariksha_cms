@@ -14,6 +14,8 @@ import {
   ArrowRight,
   RotateCcw,
   ExternalLink,
+  Sparkles,
+  PlaySquare,
 } from 'lucide-react';
 import { Video, Script, Thumbnail, PinnedComment, VideoProductionStatus, AssignmentTaskType } from '../../types';
 import { apiClient } from '../../lib/api-client';
@@ -25,7 +27,7 @@ interface FinalReviewWorkspaceProps {
   videoId: string;
   video: Video;
   onStatusChange?: () => void;
-  onNavigateTab?: (tab: 'script' | 'thumbnail' | 'pinned-comment' | 'editing' | 'publishing' | 'recording' | 'overview') => void;
+  onNavigateTab?: (tab: 'script' | 'thumbnail' | 'pinned-comment' | 'editing' | 'publishing' | 'recording' | 'overview' | 'social') => void;
 }
 
 export const FinalReviewWorkspace: React.FC<FinalReviewWorkspaceProps> = ({
@@ -91,6 +93,55 @@ export const FinalReviewWorkspace: React.FC<FinalReviewWorkspaceProps> = ({
       }
     } catch (err: any) {
       setError(err?.message || 'Failed to update video status.');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleQuickApproveThumbnail = async () => {
+    setIsUpdating(true);
+    setError(null);
+    setSuccessMessage(null);
+    try {
+      const payload = {
+        hookHeadline: thumbnail?.hookHeadline || video.title || 'Thumbnail Headline',
+        driveAssetUrl: thumbnail?.driveAssetUrl || '',
+        previewUrl: thumbnail?.previewUrl || '',
+        status: 'APPROVED',
+        createNewVersion: false,
+        designerNotes: 'Quick approved in Final QC Command Station',
+      };
+      const res = await apiClient.saveThumbnail(videoId, payload);
+      setThumbnail(res.thumbnail);
+      setSuccessMessage('Thumbnail successfully approved!');
+      await fetchSupportingData();
+      if (onStatusChange) onStatusChange();
+    } catch (err: any) {
+      setError(err?.message || 'Failed to approve thumbnail.');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleQuickApprovePinnedComment = async () => {
+    setIsUpdating(true);
+    setError(null);
+    setSuccessMessage(null);
+    try {
+      const payload = {
+        commentText: pinnedComment?.commentText || `Detailed solution for ${video.id}`,
+        solutionBreakdown: pinnedComment?.solutionBreakdown || 'Step 1: Analyzed question. Step 2: Applied core formula. Step 3: Verified final solution.',
+        nextChallengeQuestion: pinnedComment?.nextChallengeQuestion || '',
+        isApproved: true,
+      };
+      const saved = await apiClient.savePinnedComment(videoId, payload);
+      const record = saved?.pinnedComment || saved;
+      setPinnedComment(record);
+      setSuccessMessage('Pinned solution comment approved!');
+      await fetchSupportingData();
+      if (onStatusChange) onStatusChange();
+    } catch (err: any) {
+      setError(err?.message || 'Failed to approve pinned comment.');
     } finally {
       setIsUpdating(false);
     }
@@ -324,60 +375,90 @@ export const FinalReviewWorkspace: React.FC<FinalReviewWorkspaceProps> = ({
                 </div>
 
                 {/* 3. Thumbnail Approved */}
-                <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    {isThumbnailApproved ? (
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                    ) : (
-                      <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
-                    )}
-                    <div>
-                      <p className="font-bold text-slate-800">Thumbnail Approval Status</p>
-                      <p className="text-slate-500 text-[11px]">Status: {thumbnail?.status || 'NOT_SUBMITTED'}</p>
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      {isThumbnailApproved ? (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      ) : (
+                        <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+                      )}
+                      <div>
+                        <p className="font-bold text-slate-800">Thumbnail Approval Status</p>
+                        <p className="text-slate-500 text-[11px]">
+                          Hook: {thumbnail?.hookHeadline || video.title || 'Default'} • Status: {thumbnail?.status || 'NOT_SUBMITTED'}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {onNavigateTab && (
-                      <button
-                        type="button"
-                        onClick={() => onNavigateTab('thumbnail')}
-                        className="text-indigo-600 hover:underline text-[11px] font-medium"
-                      >
-                        Inspect
-                      </button>
-                    )}
-                    <span className={`px-2 py-0.5 rounded font-bold text-[10px] ${isThumbnailApproved ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
-                      {isThumbnailApproved ? 'PASS' : 'WARNING'}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      {!isThumbnailApproved && (
+                        <button
+                          type="button"
+                          disabled={isUpdating}
+                          onClick={handleQuickApproveThumbnail}
+                          className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] rounded transition-colors flex items-center gap-1 shadow-xs"
+                        >
+                          <CheckCircle2 className="w-3 h-3 text-white" />
+                          Quick Approve
+                        </button>
+                      )}
+                      {onNavigateTab && (
+                        <button
+                          type="button"
+                          onClick={() => onNavigateTab('thumbnail')}
+                          className="text-indigo-600 hover:underline text-[11px] font-medium"
+                        >
+                          Inspect
+                        </button>
+                      )}
+                      <span className={`px-2 py-0.5 rounded font-bold text-[10px] ${isThumbnailApproved ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                        {isThumbnailApproved ? 'PASS' : 'WARNING'}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
                 {/* 4. Pinned Comment Approved */}
-                <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    {isPinnedCommentApproved ? (
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                    ) : (
-                      <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
-                    )}
-                    <div>
-                      <p className="font-bold text-slate-800">Pinned Comment Approval</p>
-                      <p className="text-slate-500 text-[11px]">Approved: {pinnedComment?.isApproved ? 'Yes' : 'No'}</p>
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      {isPinnedCommentApproved ? (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      ) : (
+                        <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+                      )}
+                      <div>
+                        <p className="font-bold text-slate-800">Pinned Comment Approval</p>
+                        <p className="text-slate-500 text-[11px]">
+                          Approved: {pinnedComment?.isApproved ? 'Yes' : 'No'} {pinnedComment?.commentText ? `• ${pinnedComment.commentText.slice(0, 30)}...` : ''}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {onNavigateTab && (
-                      <button
-                        type="button"
-                        onClick={() => onNavigateTab('pinned-comment')}
-                        className="text-indigo-600 hover:underline text-[11px] font-medium"
-                      >
-                        Inspect
-                      </button>
-                    )}
-                    <span className={`px-2 py-0.5 rounded font-bold text-[10px] ${isPinnedCommentApproved ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
-                      {isPinnedCommentApproved ? 'PASS' : 'WARNING'}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      {!isPinnedCommentApproved && (
+                        <button
+                          type="button"
+                          disabled={isUpdating}
+                          onClick={handleQuickApprovePinnedComment}
+                          className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] rounded transition-colors flex items-center gap-1 shadow-xs"
+                        >
+                          <CheckCircle2 className="w-3 h-3 text-white" />
+                          Quick Sign-Off
+                        </button>
+                      )}
+                      {onNavigateTab && (
+                        <button
+                          type="button"
+                          onClick={() => onNavigateTab('pinned-comment')}
+                          className="text-indigo-600 hover:underline text-[11px] font-medium"
+                        >
+                          Inspect
+                        </button>
+                      )}
+                      <span className={`px-2 py-0.5 rounded font-bold text-[10px] ${isPinnedCommentApproved ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                        {isPinnedCommentApproved ? 'PASS' : 'WARNING'}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
@@ -399,33 +480,34 @@ export const FinalReviewWorkspace: React.FC<FinalReviewWorkspaceProps> = ({
                   </span>
                 </div>
 
-                {/* 6. Publishing Readiness Summary */}
-                <div className="p-3.5 bg-indigo-50/50 border border-indigo-200 rounded-lg space-y-2">
+                {/* 6. Stage 07 Bridge & Publishing Readiness Summary */}
+                <div className="p-4 bg-gradient-to-r from-emerald-900 to-indigo-950 text-white rounded-xl shadow-sm space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="font-bold text-indigo-900">Publishing Readiness (Backend Gateway)</span>
-                    <span className={`px-2 py-0.5 rounded font-bold text-[10px] ${readiness?.isReady ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
-                      {readiness?.isReady ? 'READY (PASS)' : 'BLOCKED / WARNINGS'}
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-emerald-400" />
+                      <span className="font-bold text-xs text-emerald-200 uppercase tracking-wide">
+                        Stage 07: 9:16 Social Simulator & Release
+                      </span>
+                    </div>
+                    <span className={`px-2.5 py-0.5 rounded font-bold text-[10px] ${video.status === VideoProductionStatus.READY_TO_UPLOAD || readiness?.isReady ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-white'}`}>
+                      {video.status === VideoProductionStatus.READY_TO_UPLOAD ? 'READY TO SIMULATE' : readiness?.isReady ? 'FINAL REVIEW PASS' : 'QC IN PROGRESS'}
                     </span>
                   </div>
-                  {readiness?.blockers && readiness.blockers.length > 0 && (
-                    <div className="space-y-1">
-                      <p className="text-[11px] font-semibold text-rose-700">Blockers:</p>
-                      <ul className="list-disc list-inside text-[11px] text-rose-600">
-                        {readiness.blockers.map((b: string, i: number) => (
-                          <li key={i}>{b}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  {readiness?.warnings && readiness.warnings.length > 0 && (
-                    <div className="space-y-1">
-                      <p className="text-[11px] font-semibold text-amber-700">Warnings:</p>
-                      <ul className="list-disc list-inside text-[11px] text-amber-600">
-                        {readiness.warnings.map((w: string, i: number) => (
-                          <li key={i}>{w}</li>
-                        ))}
-                      </ul>
-                    </div>
+
+                  <p className="text-xs text-slate-200 leading-relaxed">
+                    Once Quality Control is locked and assets are generated, transition to Stage 07 to preview this Short on vertical feed simulators (YouTube Shorts, Instagram Reels, Facebook Reels) before publishing.
+                  </p>
+
+                  {onNavigateTab && (
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() => onNavigateTab('social')}
+                      className="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs py-2 rounded-lg flex items-center justify-center gap-2"
+                    >
+                      <PlaySquare className="w-4 h-4 text-slate-950" />
+                      Proceed to Stage 07: 9:16 Social Simulator & Release →
+                    </Button>
                   )}
                 </div>
               </div>
@@ -479,6 +561,15 @@ export const FinalReviewWorkspace: React.FC<FinalReviewWorkspaceProps> = ({
               >
                 <span className="flex items-center gap-2"><FolderKanban className="w-3.5 h-3.5 text-indigo-600" /> Editing Workspace</span>
                 <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onNavigateTab && onNavigateTab('social')}
+                className="w-full p-2.5 bg-indigo-50/70 hover:bg-indigo-100 border border-indigo-200/80 rounded-lg flex items-center justify-between text-indigo-900 font-bold transition-colors"
+              >
+                <span className="flex items-center gap-2"><Sparkles className="w-3.5 h-3.5 text-indigo-600" /> Stage 07: 9:16 Social Simulator</span>
+                <ExternalLink className="w-3.5 h-3.5 text-indigo-500" />
               </button>
 
               <button
