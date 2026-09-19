@@ -358,8 +358,8 @@ export const RecordingWorkspace: React.FC<RecordingWorkspaceProps> = ({
       )}
 
       {/* Main Dual-Pane Studio Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-        {/* LEFT PANE (lg:col-span-7 / Teleprompter Canvas) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* LEFT PANE (lg:col-span-7 / Prompter Stage) */}
         <div className="lg:col-span-7 bg-white rounded-2xl border border-slate-200 p-5 shadow-xs space-y-4">
           {/* Card Header */}
           <div className="flex items-center justify-between pb-3 border-b border-slate-100 flex-wrap gap-2">
@@ -391,7 +391,7 @@ export const RecordingWorkspace: React.FC<RecordingWorkspaceProps> = ({
           ) : script ? (
             <div className="space-y-3">
               {/* Part 1: Hook */}
-              <div className="p-3.5 bg-amber-50/60 border border-amber-200/80 rounded-xl space-y-1.5">
+              <div className="p-3.5 bg-amber-50/60 border border-amber-200/80 rounded-xl space-y-1.5 mb-3">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-amber-900 uppercase tracking-wider text-[10px] bg-amber-200/70 text-amber-950 px-2 py-0.5 rounded-md flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-amber-600 animate-pulse" />
@@ -399,48 +399,48 @@ export const RecordingWorkspace: React.FC<RecordingWorkspaceProps> = ({
                   </span>
                   <span className="font-mono text-[10px] text-amber-800 font-semibold">~15 words</span>
                 </div>
-                <p className="font-telugu text-base sm:text-lg font-bold text-slate-900 leading-relaxed p-3 rounded-xl bg-white border border-amber-200/60 shadow-2xs">
+                <p className="font-telugu text-base sm:text-lg font-bold text-slate-900 leading-relaxed p-3.5 rounded-xl bg-slate-50/80 border border-slate-200/80">
                   {script.hookText}
                 </p>
               </div>
 
               {/* Part 2: Question Narration */}
-              <div className="p-3.5 bg-indigo-50/50 border border-indigo-200/80 rounded-xl space-y-1.5">
+              <div className="p-3.5 bg-indigo-50/50 border border-indigo-200/80 rounded-xl space-y-1.5 mb-3">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-indigo-900 uppercase tracking-wider text-[10px] bg-indigo-200/70 text-indigo-950 px-2 py-0.5 rounded-md">
                     Question Narration • Clear Enunciation (00:05 – 00:15)
                   </span>
                   <span className="font-mono text-[10px] text-indigo-800 font-semibold">~25 words</span>
                 </div>
-                <p className="font-telugu text-base sm:text-lg font-bold text-slate-900 leading-relaxed p-3 rounded-xl bg-white border border-indigo-200/60 shadow-2xs">
+                <p className="font-telugu text-base sm:text-lg font-bold text-slate-900 leading-relaxed p-3.5 rounded-xl bg-slate-50/80 border border-slate-200/80">
                   {script.problemStatement}
                 </p>
               </div>
 
               {/* Part 3: Spoken Solution / Options Delivery */}
-              <div className="p-3.5 bg-slate-100/70 border border-slate-200 rounded-xl space-y-1.5">
+              <div className="p-3.5 bg-slate-100/70 border border-slate-200 rounded-xl space-y-1.5 mb-3">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-slate-800 uppercase tracking-wider text-[10px] bg-slate-200 text-slate-900 px-2 py-0.5 rounded-md">
                     Spoken Explanation / Options (00:15 – 00:35)
                   </span>
                   <span className="font-mono text-[10px] text-slate-600 font-semibold">~45–60 words</span>
                 </div>
-                <p className="font-telugu text-base sm:text-lg font-bold text-slate-900 leading-relaxed p-3 rounded-xl bg-white border border-slate-200 shadow-2xs whitespace-pre-wrap">
+                <p className="font-telugu text-base sm:text-lg font-bold text-slate-900 leading-relaxed p-3.5 rounded-xl bg-slate-50/80 border border-slate-200/80 whitespace-pre-wrap">
                   {script.stepByStepSolution}
                 </p>
               </div>
 
               {/* Part 4: Speed Trick or Comment Challenge */}
               {script.speedTrickOrTakeaway && (
-                <div className="p-3.5 bg-emerald-50/60 border border-emerald-200/80 rounded-xl space-y-1.5">
+                <div className="p-3.5 bg-amber-50/60 border border-amber-200/80 rounded-xl space-y-1.5 mb-3">
                   <div className="flex items-center justify-between">
-                    <span className="font-bold text-emerald-900 uppercase tracking-wider text-[10px] bg-emerald-200/70 text-emerald-950 px-2 py-0.5 rounded-md flex items-center gap-1">
-                      <Sparkles className="w-3 h-3 text-emerald-700" />
+                    <span className="font-bold text-amber-900 uppercase tracking-wider text-[10px] bg-amber-200/70 text-amber-950 px-2 py-0.5 rounded-md flex items-center gap-1">
+                      <Sparkles className="w-3 h-3 text-amber-700" />
                       Burra Speed Trick / Challenge (00:35 – 00:45)
                     </span>
-                    <span className="font-mono text-[10px] text-emerald-800 font-bold">Exam Secret</span>
+                    <span className="font-mono text-[10px] text-amber-800 font-bold">Exam Secret</span>
                   </div>
-                  <p className="font-telugu text-base sm:text-lg font-bold text-slate-900 leading-relaxed p-3 rounded-xl bg-white border border-emerald-200/60 shadow-2xs">
+                  <p className="font-telugu text-base sm:text-lg font-bold text-slate-900 leading-relaxed p-3.5 rounded-xl bg-slate-50/80 border border-slate-200/80">
                     {script.speedTrickOrTakeaway}
                   </p>
                 </div>
@@ -448,14 +448,14 @@ export const RecordingWorkspace: React.FC<RecordingWorkspaceProps> = ({
 
               {/* Part 5: CTA */}
               {script.callToAction && (
-                <div className="p-3.5 bg-purple-50/60 border border-purple-200/80 rounded-xl space-y-1.5">
+                <div className="p-3.5 bg-emerald-50/60 border border-emerald-200/80 rounded-xl space-y-1.5 mb-3">
                   <div className="flex items-center justify-between">
-                    <span className="font-bold text-purple-900 uppercase tracking-wider text-[10px] bg-purple-200/70 text-purple-950 px-2 py-0.5 rounded-md">
+                    <span className="font-bold text-emerald-900 uppercase tracking-wider text-[10px] bg-emerald-200/70 text-emerald-950 px-2 py-0.5 rounded-md">
                       Outro &amp; Follow CTA (00:45 – 00:50)
                     </span>
-                    <span className="font-mono text-[10px] text-purple-800 font-semibold">~15 words</span>
+                    <span className="font-mono text-[10px] text-emerald-800 font-semibold">~15 words</span>
                   </div>
-                  <p className="font-telugu text-base sm:text-lg font-bold text-slate-900 leading-relaxed p-3 rounded-xl bg-white border border-purple-200/60 shadow-2xs">
+                  <p className="font-telugu text-base sm:text-lg font-bold text-slate-900 leading-relaxed p-3.5 rounded-xl bg-slate-50/80 border border-slate-200/80">
                     {script.callToAction}
                   </p>
                 </div>
@@ -468,9 +468,9 @@ export const RecordingWorkspace: React.FC<RecordingWorkspaceProps> = ({
           )}
         </div>
 
-        {/* RIGHT PANE (lg:col-span-5 / Sticky Recording & Intake Rail) */}
-        <div className="lg:col-span-5 lg:sticky lg:top-4 space-y-3">
-          {/* CARD 1 (TOP ACTION STATION): "Proceed to Editing" */}
+        {/* RIGHT PANE (lg:col-span-5 / Sticky Recording Station) */}
+        <div className="lg:col-span-5 lg:sticky lg:top-4 space-y-4">
+          {/* CARD 1 (PRIMARY ACTION STATION - TOP) */}
           <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs space-y-3">
             <div className="flex items-center justify-between pb-2 border-b border-slate-100">
               <div className="flex items-center gap-2">
@@ -483,7 +483,7 @@ export const RecordingWorkspace: React.FC<RecordingWorkspaceProps> = ({
                 </div>
               </div>
               <span className="font-mono text-[10px] font-bold text-red-700 bg-red-50 border border-red-200 px-2 py-0.5 rounded-md">
-                TAKE #{recordingTake}
+                TAKE: #{recordingTake}
               </span>
             </div>
 
@@ -496,7 +496,7 @@ export const RecordingWorkspace: React.FC<RecordingWorkspaceProps> = ({
                   window.location.href = `/videos/${encodeURIComponent(videoId)}?tab=editing`;
                 }
               }}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-4 w-full text-sm rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 w-full text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               <span>Save Footage &amp; Proceed to Step 05: Editing Bay →</span>
             </button>
@@ -530,7 +530,7 @@ export const RecordingWorkspace: React.FC<RecordingWorkspaceProps> = ({
             </div>
           </div>
 
-          {/* CARD 2: "Multi-Take Manager & Raw Footage Intake" */}
+          {/* CARD 2: MULTI-TAKE & RAW FOOTAGE INGESTION */}
           <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs space-y-3">
             <div className="flex items-center justify-between pb-2 border-b border-slate-100">
               <div className="flex items-center gap-1.5">
@@ -571,7 +571,7 @@ export const RecordingWorkspace: React.FC<RecordingWorkspaceProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
               <div>
                 <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">
-                  Presenter
+                  Presenter Name
                 </label>
                 <input
                   type="text"
@@ -672,7 +672,7 @@ export const RecordingWorkspace: React.FC<RecordingWorkspaceProps> = ({
             </div>
           </div>
 
-          {/* CARD 3: "Reviewer Math Proof" (Collapsible dark reference drawer) */}
+          {/* CARD 3: MATH PROOF REFERENCE */}
           <div className="bg-slate-900 text-slate-100 rounded-2xl p-4 border border-slate-800 shadow-md space-y-2">
             <button
               type="button"
