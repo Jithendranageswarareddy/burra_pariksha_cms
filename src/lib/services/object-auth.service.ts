@@ -533,7 +533,12 @@ export class ObjectAuthorizationService {
     if (!video) return false;
 
     // Self-approval protection: Reviewer cannot be host/editor/creator of video/question
-    if (video.assignedHost === actor.id || video.assignedEditor === actor.id) return false;
+    if (
+      video.assignedHost === actor.id || video.assignedHost === actor.name ||
+      video.assignedEditor === actor.id || video.assignedEditor === actor.name
+    ) {
+      return false;
+    }
 
     if (video.questionId) {
       const question = await questionsRepository.findById(video.questionId);
