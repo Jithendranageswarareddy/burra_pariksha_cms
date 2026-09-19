@@ -1,5 +1,5 @@
 import React from 'react';
-import { Menu, Sparkles } from 'lucide-react';
+import { Menu, Sparkles, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { GlobalSearchBar } from '../dashboard/GlobalSearchBar';
 import { UserProfileMenu } from './UserProfileMenu';
 import { NotificationsMenu } from './NotificationsMenu';
@@ -9,9 +9,15 @@ import { inferBreadcrumbs } from '../../design-system/components/AppBreadcrumbs'
 
 export interface HeaderProps {
   onOpenMobileMenu: () => void;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
+export const Header: React.FC<HeaderProps> = ({
+  onOpenMobileMenu,
+  isCollapsed = false,
+  onToggleCollapse,
+}) => {
   const location = useLocation();
   const breadcrumbs = inferBreadcrumbs(location.pathname, location.search);
   const currentPageTitle = breadcrumbs.length > 0 ? breadcrumbs[breadcrumbs.length - 1].label : 'Overview';
@@ -31,6 +37,19 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
         >
           <Menu className="w-5 h-5" />
         </button>
+
+        {/* Desktop Sidebar Collapse / Expand Toggle Button */}
+        {onToggleCollapse && (
+          <button
+            type="button"
+            onClick={onToggleCollapse}
+            className="hidden lg:flex items-center justify-center p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors focus:outline-hidden focus:ring-2 focus:ring-indigo-500 shrink-0"
+            title={isCollapsed ? 'Expand sidebar (Ctrl+B)' : 'Collapse sidebar (Ctrl+B)'}
+            aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {isCollapsed ? <PanelLeftOpen className="w-5 h-5" /> : <PanelLeftClose className="w-5 h-5" />}
+          </button>
+        )}
 
         {/* Studio Identity (visible on mobile/tablet when sidebar is collapsed) */}
         <div className="flex items-center gap-2 lg:hidden">

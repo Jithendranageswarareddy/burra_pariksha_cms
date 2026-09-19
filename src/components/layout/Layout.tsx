@@ -7,6 +7,25 @@ import { AppBreadcrumbs } from '../../design-system/components/AppBreadcrumbs';
 
 export const Layout: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('burra_sidebar_collapsed') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleSidebarCollapse = () => {
+    setIsSidebarCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('burra_sidebar_collapsed', String(next));
+      } catch {
+        // ignore localStorage errors
+      }
+      return next;
+    });
+  };
 
   return (
     <ErrorBoundary>
@@ -23,12 +42,22 @@ export const Layout: React.FC = () => {
         <Sidebar
           isOpenMobile={mobileMenuOpen}
           onCloseMobile={() => setMobileMenuOpen(false)}
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapse={toggleSidebarCollapse}
         />
 
         {/* Main Content Area */}
-        <div className="flex-1 flex flex-col min-w-0 lg:pl-64">
+        <div
+          className={`flex-1 flex flex-col min-w-0 transition-[padding] duration-300 ease-in-out ${
+            isSidebarCollapsed ? 'lg:pl-16' : 'lg:pl-64'
+          }`}
+        >
           {/* Top Bar Header */}
-          <Header onOpenMobileMenu={() => setMobileMenuOpen(true)} />
+          <Header
+            onOpenMobileMenu={() => setMobileMenuOpen(true)}
+            isCollapsed={isSidebarCollapsed}
+            onToggleCollapse={toggleSidebarCollapse}
+          />
 
           {/* Breadcrumbs Sub-Header Bar (Frozen 6-Hub IA) */}
           <div

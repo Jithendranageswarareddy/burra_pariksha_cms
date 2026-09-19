@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -18,6 +18,8 @@ import {
   GraduationCap,
   ChevronRight,
   ShieldAlert,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react';
 import { AUTHORITATIVE_HUBS, HubNavItem } from '../../config/navigation';
 import { APP_CONFIG } from '../../config/constants';
@@ -51,11 +53,22 @@ const iconMap: Record<string, React.ElementType> = {
 export interface SidebarProps {
   isOpenMobile?: boolean;
   onCloseMobile?: () => void;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ isOpenMobile = false, onCloseMobile }) => {
+export const Sidebar: React.FC<SidebarProps> = ({
+  isOpenMobile = false,
+  onCloseMobile,
+  isCollapsed = false,
+  onToggleCollapse,
+}) => {
   const { user } = useAuth();
   const location = useLocation();
+  const [isHovered, setIsHovered] = useState(false);
+
+  // Expanded mode is active if sidebar is NOT collapsed OR currently hovered while collapsed
+  const isExpanded = !isCollapsed || isHovered;
 
   // Keyboard accessibility for mobile drawer
   useEffect(() => {
@@ -194,6 +207,32 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpenMobile = false, onCloseM
     const Icon = iconMap[item.iconName] || Layers;
     const active = isCurrentActive(item.href);
 
+    if (!isExpanded) {
+      // Collapsed Mini Icon View
+      return (
+        <NavLink
+          key={item.id}
+          to={item.href}
+          id={`nav-link-${item.id}`}
+          onClick={onCloseMobile}
+          aria-current={active ? 'page' : undefined}
+          title={`${item.name} • ${item.description}`}
+          className={`flex items-center justify-center p-2.5 my-0.5 rounded-lg transition-all focus:outline-hidden focus:ring-2 focus:ring-indigo-400 ${
+            active
+              ? 'bg-indigo-600 text-white shadow-xs font-semibold'
+              : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/70'
+          }`}
+        >
+          <Icon
+            className={`w-5 h-5 shrink-0 transition-colors ${
+              active ? 'text-white' : 'text-slate-400 hover:text-slate-200'
+            }`}
+            aria-hidden="true"
+          />
+        </NavLink>
+      );
+    }
+
     return (
       <NavLink
         key={item.id}
@@ -249,29 +288,58 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpenMobile = false, onCloseM
       <aside
         id="app-sidebar"
         aria-label="Main Navigation"
-        className={`fixed top-0 bottom-0 left-0 z-40 w-64 bg-slate-900 text-slate-300 flex flex-col border-r border-slate-800 transition-all duration-200 ease-in-out lg:translate-x-0 ${
-          isOpenMobile ? 'translate-x-0' : '-translate-x-full'
+        onMouseEnter={() => {
+          if (isCollapsed) setIsHovered(true);
+        }}
+        onMouseLeave={() => {
+          setIsHovered(false);
+        }}
+        className={`fixed top-0 bottom-0 left-0 z-40 bg-slate-900 text-slate-300 flex flex-col border-r border-slate-800 transition-all duration-300 ease-in-out lg:translate-x-0 ${
+          isOpenMobile ? 'translate-x-0 w-64' : '-translate-x-full'
+        } ${
+          isCollapsed && !isHovered
+            ? 'lg:w-16'
+            : isCollapsed && isHovered
+            ? 'lg:w-64 lg:shadow-2xl lg:z-40'
+            : 'lg:w-64'
         }`}
       >
         {/* Brand Header */}
-        <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-800/80 bg-slate-950/40 shrink-0">
-          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-600 text-white shadow-inner font-bold text-base shrink-0">
-            <GraduationCap className="w-4 h-4" />
+        <div className="flex items-center justify-between px-4 py-4 border-b border-slate-800/80 bg-slate-950/40 shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-600 text-white shadow-inner font-bold text-base shrink-0">
+              <GraduationCap className="w-4 h-4" />
+            </div>
+            {isExpanded && (
+              <div className="flex flex-col min-w-0">
+                <span className="text-sm font-bold text-white tracking-tight uppercase truncate">
+                  {APP_CONFIG.name}
+                </span>
+                <span className="text-[11px] text-indigo-400 font-medium tracking-wide truncate">
+                  Burra Pariksha CMS
+                </span>
+              </div>
+            )}
           </div>
-          <div className="flex flex-col min-w-0">
-            <span className="text-sm font-bold text-white tracking-tight uppercase truncate">
-              {APP_CONFIG.name}
-            </span>
-            <span className="text-[11px] text-indigo-400 font-medium tracking-wide truncate">
-              Burra Pariksha CMS
-            </span>
-          </div>
+
+          {/* Desktop Pin / Unpin Button */}
+          {isExpanded && onToggleCollapse && (
+            <button
+              type="button"
+              onClick={onToggleCollapse}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors focus:outline-hidden focus:ring-2 focus:ring-indigo-500 shrink-0"
+              title={isCollapsed ? 'Pin sidebar open' : 'Collapse sidebar (enable auto-hide)'}
+              aria-label={isCollapsed ? 'Pin sidebar' : 'Collapse sidebar'}
+            >
+              {isCollapsed ? <PanelLeftOpen className="w-4 h-4 text-indigo-400" /> : <PanelLeftClose className="w-4 h-4" />}
+            </button>
+          )}
         </div>
 
         {/* Six Authoritative Hubs Navigation */}
         <nav
           id="sidebar-hub-navigation"
-          className="flex-1 px-3 py-3 overflow-y-auto space-y-5 scrollbar-thin scrollbar-thumb-slate-800"
+          className="flex-1 px-2.5 py-3 overflow-y-auto space-y-4 scrollbar-thin scrollbar-thumb-slate-800"
           aria-label="Application Hubs"
         >
           {AUTHORITATIVE_HUBS.map((hub) => {
@@ -287,16 +355,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpenMobile = false, onCloseM
 
             return (
               <div key={hub.id} id={hub.id} className="space-y-1">
-                <div className="px-3 pt-1">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                    {hub.title}
-                  </p>
-                  {hub.subtitle && (
-                    <p className="text-[10px] text-indigo-400 font-medium tracking-normal mt-0.5">
-                      {hub.subtitle}
+                {isExpanded ? (
+                  <div className="px-3 pt-1">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                      {hub.title}
                     </p>
-                  )}
-                </div>
+                    {hub.subtitle && (
+                      <p className="text-[10px] text-indigo-400 font-medium tracking-normal mt-0.5">
+                        {hub.subtitle}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="my-2 border-t border-slate-800/60 mx-2" />
+                )}
                 <div className="space-y-0.5 mt-1">
                   {visibleItems.map(renderNavItem)}
                 </div>
@@ -308,30 +380,43 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpenMobile = false, onCloseM
         {/* User Identity & Canonical Role Footer */}
         <div
           id="sidebar-user-footer"
-          className="p-3 border-t border-slate-800/80 bg-slate-950/40 shrink-0"
+          className="p-2.5 border-t border-slate-800/80 bg-slate-950/40 shrink-0"
         >
-          <div className="flex items-center justify-between p-2.5 rounded-lg bg-slate-800/60 border border-slate-700/50 text-xs">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-              <div className="flex flex-col min-w-0 items-start">
-                <span className="font-semibold text-slate-200 text-[12px] truncate leading-tight">
-                  {user?.name || 'Authorized Member'}
-                </span>
-                <span
-                  className={`mt-1 inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-semibold border ${roleDescriptor.badgeColor} tracking-tight leading-none truncate max-w-[150px]`}
-                >
-                  {roleDescriptor.label}
-                </span>
+          {isExpanded ? (
+            <div className="flex items-center justify-between p-2.5 rounded-lg bg-slate-800/60 border border-slate-700/50 text-xs">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                <div className="flex flex-col min-w-0 items-start">
+                  <span className="font-semibold text-slate-200 text-[12px] truncate leading-tight">
+                    {user?.name || 'Authorized Member'}
+                  </span>
+                  <span
+                    className={`mt-1 inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-semibold border ${roleDescriptor.badgeColor} tracking-tight leading-none truncate max-w-[150px]`}
+                  >
+                    {roleDescriptor.label}
+                  </span>
+                </div>
+              </div>
+              {canonicalRole === 'ADMIN' ? (
+                <ShieldAlert className="w-3.5 h-3.5 text-rose-400 shrink-0" aria-label="System Administrator" />
+              ) : (
+                <ChevronRight className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+              )}
+            </div>
+          ) : (
+            <div
+              className="flex justify-center items-center py-2 text-xs"
+              title={`${user?.name || 'Authorized Member'} (${roleDescriptor.label})`}
+            >
+              <div className="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700/60 flex items-center justify-center text-xs font-bold text-slate-200 relative">
+                <span>{(user?.name || 'A').charAt(0).toUpperCase()}</span>
+                <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-slate-900" />
               </div>
             </div>
-            {canonicalRole === 'ADMIN' ? (
-              <ShieldAlert className="w-3.5 h-3.5 text-rose-400 shrink-0" aria-label="System Administrator" />
-            ) : (
-              <ChevronRight className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-            )}
-          </div>
+          )}
         </div>
       </aside>
     </>
   );
 };
+
