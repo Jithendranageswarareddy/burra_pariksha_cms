@@ -15,10 +15,14 @@ import {
   Copy,
   Check,
   Film,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { Video, Question, VideoProductionStatus } from '../types';
 import { apiClient } from '../lib/api-client';
 import { VideoWorkflowHeader } from '../components/video/VideoWorkflowHeader';
+import { ProductionJourneyBar } from '../components/production/ProductionJourneyBar';
+import { useProductionJourney } from '../contexts/ProductionJourneyContext';
 import { PageHeader } from '../design-system/components/PageHeader';
 import { Card } from '../design-system/components/Card';
 import { Button } from '../design-system/components/Button';
@@ -31,6 +35,7 @@ export const VideoCreateScriptPage: React.FC = () => {
   const { videoId: routeVideoId } = useParams<{ videoId?: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { loadJourneyForVideo } = useProductionJourney();
 
   const videoId = routeVideoId || searchParams.get('videoId') || searchParams.get('id') || '';
 
@@ -38,6 +43,7 @@ export const VideoCreateScriptPage: React.FC = () => {
   const [videoList, setVideoList] = useState<Video[]>([]);
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
   const [question, setQuestion] = useState<Question | null>(null);
+  const [showMathProofDrawer, setShowMathProofDrawer] = useState<boolean>(true);
 
   // Script Draft Form State
   const [hookText, setHookText] = useState<string>('');
@@ -81,6 +87,7 @@ export const VideoCreateScriptPage: React.FC = () => {
 
       const vid = await apiClient.getVideoById(targetId);
       setSelectedVideo(vid);
+      loadJourneyForVideo(targetId, vid);
 
       if (vid.questionId) {
         try {
@@ -183,7 +190,7 @@ export const VideoCreateScriptPage: React.FC = () => {
       };
 
       await apiClient.saveScript(targetId, payload);
-      setSuccessMessage('Script draft saved successfully! You can now proceed to Step 06 Review Script.');
+      setSuccessMessage('Script draft saved successfully! Audience teleprompter narration is ready for review or filming.');
       setTimeout(() => setSuccessMessage(null), 4000);
     } catch (err: any) {
       setError(err?.message || 'Failed to save script draft.');
@@ -282,6 +289,15 @@ export const VideoCreateScriptPage: React.FC = () => {
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-16">
+      <ProductionJourneyBar
+        onNavigateTab={(tab) => {
+          const targetId = videoId || selectedVideo?.id;
+          if (targetId) {
+            navigate(`/videos/${encodeURIComponent(targetId)}?tab=${tab}`);
+          }
+        }}
+      />
+
       <VideoWorkflowHeader
         currentStep={5}
         videoId={videoId || selectedVideo?.id}
@@ -295,10 +311,13 @@ export const VideoCreateScriptPage: React.FC = () => {
             <span className="text-xs text-indigo-600 font-mono font-semibold bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
               {selectedVideo?.id || videoId}
             </span>
+            <span className="text-xs font-semibold px-2 py-0.5 bg-indigo-100 text-indigo-800 rounded">
+              Stage 03 • Audience Script
+            </span>
           </div>
-          <h1 className="text-xl font-bold text-slate-900">Draft Script</h1>
+          <h1 className="text-xl font-bold text-slate-900">Audience Engagement Script Engine</h1>
           <p className="text-xs text-slate-500">
-            Generate and draft high-retention Telugu scripts structured for 45-second vertical videos.
+            Telugu teleprompter narration vs. mathematical proof • 5-part high-retention structure (~45s)
           </p>
         </div>
 
@@ -461,21 +480,24 @@ export const VideoCreateScriptPage: React.FC = () => {
                     />
                   </div>
 
-                  {/* Part 3: Step-by-Step Solution */}
+                  {/* Part 3: Spoken Solution & Intuition */}
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                         <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[11px] font-mono font-bold">3</span>
-                        Step-by-Step Solution (15–35s) • Core Concept & Math
+                        3. Spoken Solution & Intuition (15–35s) • Conversational Explanation
                       </label>
                       <span className="text-[11px] text-slate-400">Target: ~45-60 words</span>
+                    </div>
+                    <div className="p-2 mb-2 bg-indigo-50/70 border border-indigo-100 rounded-lg text-[11px] text-indigo-900 leading-relaxed">
+                      💡 <strong>Conversational Narration Guidance:</strong> Spoken Telugu should explain the solution intuitively like coaching a friend. Avoid reading textbook algebraic equations mechanically!
                     </div>
                     <textarea
                       value={stepByStepSolution}
                       onChange={(e) => setStepByStepSolution(e.target.value)}
-                      placeholder="e.g. ముందుగా km/h ని m/s లోకి మార్చుకుందాం: 60 × 5/18 = 50/3 m/s. మొత్తం దూరం = వేగం × సమయం..."
+                      placeholder="Spoken Telugu explanation of the intuitive steps..."
                       rows={4}
-                      className="w-full text-xs p-3 border border-slate-300 rounded-lg focus:ring-1 focus:ring-indigo-500"
+                      className="w-full text-xs p-3 border border-slate-300 rounded-lg focus:ring-1 focus:ring-indigo-500 font-sans"
                     />
                   </div>
 
@@ -484,16 +506,19 @@ export const VideoCreateScriptPage: React.FC = () => {
                     <div className="flex items-center justify-between mb-1">
                       <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                         <span className="w-5 h-5 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center text-[11px] font-mono font-bold">4</span>
-                        Speed Shortcut / Takeaway (35–45s) • Exam Super Trick
+                        4. Burra Speed Shortcut / Takeaway (35–45s) • High-Retention Exam Trick
                       </label>
                       <span className="text-[11px] text-slate-400 font-mono text-amber-700">Exam Shortcut</span>
+                    </div>
+                    <div className="p-2 mb-2 bg-amber-50 border border-amber-200 rounded-lg text-[11px] text-amber-900 leading-relaxed">
+                      ⚡ <strong>High-Retention Exam Trick:</strong> Deliver the core mental math shortcut, unit-digit elimination rule, or ratio trick that saves 40+ seconds on the actual exam.
                     </div>
                     <textarea
                       value={speedTrickOrTakeaway}
                       onChange={(e) => setSpeedTrickOrTakeaway(e.target.value)}
-                      placeholder="e.g. సూపర్ ట్రిక్: ఎప్పుడైనా ట్రైన్ పొడవు కనుక్కోవాలంటే (Speed × Time) - Platform Length!"
+                      placeholder="Pro-Tip: In the actual exam, check the units digit to eliminate Options B and D instantly!"
                       rows={2}
-                      className="w-full text-xs p-3 border border-slate-300 rounded-lg focus:ring-1 focus:ring-indigo-500 bg-amber-50/40"
+                      className="w-full text-xs p-3 border border-slate-300 rounded-lg focus:ring-1 focus:ring-indigo-500 bg-amber-50/40 font-sans"
                     />
                   </div>
 
@@ -562,54 +587,98 @@ export const VideoCreateScriptPage: React.FC = () => {
                 </p>
               </div>
 
-              {/* Source Question Snapshot */}
+              {/* Question & Reviewer Math Proof Reference Card */}
               {question && (
-                <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-3">
+                <div className="bg-slate-900 text-slate-100 rounded-xl border border-slate-700 p-5 shadow-xs space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                      Source Question
-                    </span>
-                    <span className="font-mono text-xs font-bold text-indigo-600">
-                      {question.id}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <BookOpen className="w-4 h-4 text-indigo-400" />
+                      <span className="text-xs font-bold uppercase tracking-wider text-slate-300">
+                        Reviewer Math Proof
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowMathProofDrawer(!showMathProofDrawer)}
+                      className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 font-medium"
+                    >
+                      <span>{showMathProofDrawer ? 'Collapse' : 'Expand'}</span>
+                      {showMathProofDrawer ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                    </button>
                   </div>
 
-                  <p className="text-xs text-slate-800 font-medium line-clamp-3">
-                    {question.questionText}
-                  </p>
+                  {showMathProofDrawer && (
+                    <div className="space-y-3 text-xs pt-2 border-t border-slate-800 animate-in fade-in">
+                      <div>
+                        <span className="text-[11px] font-semibold text-indigo-400 block mb-1 uppercase tracking-wider">
+                          Problem Statement
+                        </span>
+                        <p className="text-slate-200 text-xs leading-relaxed font-sans">
+                          {(question as any).statementTe || (question as any).statement || question.questionText}
+                        </p>
+                      </div>
 
-                  <div className="pt-2 border-t border-slate-100 text-[11px] space-y-1 text-slate-500">
-                    <div>Topic: <strong className="text-slate-700">{question.topicId || 'General'}</strong></div>
-                    <div>Difficulty: <strong className="text-slate-700">{question.difficulty}</strong></div>
-                    <div>Correct Answer: <strong className="text-emerald-700">Option {question.correctAnswer}</strong></div>
-                  </div>
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                            Authoritative Math Proof
+                          </span>
+                          <span className="text-[10px] text-emerald-400 font-bold bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800">
+                            Option {String(question.correctAnswer || (question as any).correctOption || '').toUpperCase()}
+                          </span>
+                        </div>
+                        <div className="text-slate-300 font-mono text-[11px] bg-black/60 p-2.5 rounded border border-slate-800 max-h-44 overflow-y-auto whitespace-pre-wrap">
+                          {(question as any).explanationTe || question.explanation || 'No proof text available on record.'}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1.5 border-t border-slate-800">
+                        <span>ID: <strong className="font-mono text-indigo-300">{question.id}</strong></span>
+                        <span>Topic: <strong className="text-slate-300">{question.topicName || (question as any).topic || question.topicId || 'General'}</strong></span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
-              {/* Next Step Action Card */}
-              <div className="bg-white rounded-xl border border-indigo-200 p-5 shadow-xs space-y-3">
+              {/* Next Step Action Card - Teleprompter & Filming Bridge */}
+              <div className="bg-white rounded-xl border-2 border-indigo-200 p-5 shadow-xs space-y-3">
                 <div className="flex items-center gap-2 text-indigo-700 font-bold text-xs">
                   <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[10px] font-mono">
-                    06
+                    04
                   </span>
-                  <span>Next: Review Script</span>
+                  <span>Next Stage: Teleprompter &amp; Filming</span>
                 </div>
-                <p className="text-xs text-slate-600">
-                  Ready to verify word counts, test teleprompter timing, and approve the script?
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Telugu spoken narration drafted? Move immediately into filming with the host teleprompter tool.
                 </p>
 
-                <Button
-                  variant="primary"
-                  size="md"
-                  onClick={() => {
-                    const targetId = videoId || selectedVideo?.id;
-                    navigate(`/videos/${encodeURIComponent(targetId)}/review-script`);
-                  }}
-                  icon={ArrowRight}
-                  className="w-full text-xs justify-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
-                >
-                  Continue to Review Script
-                </Button>
+                <div className="space-y-2 pt-1">
+                  <Button
+                    variant="primary"
+                    size="md"
+                    onClick={() => {
+                      const targetId = videoId || selectedVideo?.id;
+                      navigate(`/videos/${encodeURIComponent(targetId)}?tab=recording`);
+                    }}
+                    icon={ArrowRight}
+                    className="w-full text-xs justify-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 shadow-xs"
+                  >
+                    Open Teleprompter &amp; Filming →
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const targetId = videoId || selectedVideo?.id;
+                      navigate(`/videos/${encodeURIComponent(targetId)}?tab=script`);
+                    }}
+                    className="w-full text-xs justify-center text-slate-700 hover:bg-slate-50"
+                  >
+                    Open in Studio Workspace
+                  </Button>
+                </div>
               </div>
             </div>
           </div>

@@ -70,6 +70,11 @@ export const VideoDetailPage: React.FC = () => {
   const [notification, setNotification] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'script' | 'recording' | 'editing' | 'final-review' | 'social' | 'overview' | 'thumbnail' | 'pinned-comment' | 'publishing'>('script');
 
+  const handleTabChange = (tab: 'script' | 'recording' | 'editing' | 'final-review' | 'social' | 'overview' | 'thumbnail' | 'pinned-comment' | 'publishing') => {
+    setActiveTab(tab);
+    navigate(`?tab=${tab}`, { replace: true });
+  };
+
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const tabParam = params.get('tab');
@@ -269,6 +274,11 @@ export const VideoDetailPage: React.FC = () => {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto animate-in fade-in duration-200 pb-16">
+      {/* 15-Stage Continuous Production Journey Orchestration Bar */}
+      <ProductionJourneyBar
+        onNavigateTab={(tab) => handleTabChange(tab as any)}
+      />
+
       {/* 5-Step Video Pipeline Stepper Header */}
       <VideoWorkflowHeader
         currentStep={workflowStep}
@@ -539,6 +549,7 @@ export const VideoDetailPage: React.FC = () => {
                 videoId={video.id}
                 videoStatus={video.status}
                 onStatusChange={fetchVideoDetails}
+                onNavigateTab={handleTabChange}
               />
             </div>
           )}

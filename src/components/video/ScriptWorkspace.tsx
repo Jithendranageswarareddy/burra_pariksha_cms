@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   FileText,
   Save,
@@ -13,30 +14,45 @@ import {
   Layers,
   ArrowRight,
   Edit3,
+  BookOpen,
+  Calculator,
+  Clock,
+  Maximize2,
+  X,
+  ExternalLink,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
-import { Script, ScriptVersion, VideoProductionStatus } from '../../types';
+import { Script, ScriptVersion, VideoProductionStatus, Question } from '../../types';
 import { apiClient } from '../../lib/api-client';
 import { Button } from '../common/Button';
 
-interface ScriptWorkspaceProps {
+export interface ScriptWorkspaceProps {
   videoId: string;
   videoStatus: VideoProductionStatus;
   onStatusChange?: () => void;
+  onNavigateTab?: (tab: 'script' | 'recording' | 'editing' | 'final-review' | 'social') => void;
 }
 
 export const ScriptWorkspace: React.FC<ScriptWorkspaceProps> = ({
   videoId,
   videoStatus,
   onStatusChange,
+  onNavigateTab,
 }) => {
+  const navigate = useNavigate();
   const [script, setScript] = useState<Script | null>(null);
+  const [sourceQuestion, setSourceQuestion] = useState<Question | null>(null);
   const [versions, setVersions] = useState<ScriptVersion[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [copied, setCopied] = useState<boolean>(false);
+  const [copiedTeleprompter, setCopiedTeleprompter] = useState<boolean>(false);
+  const [copiedTelugu, setCopiedTelugu] = useState<boolean>(false);
+  const [showMathProofDrawer, setShowMathProofDrawer] = useState<boolean>(false);
+  const [isJustMarkedReady, setIsJustMarkedReady] = useState<boolean>(false);
 
   // Form Fields
   const [hookText, setHookText] = useState<string>('');
@@ -77,6 +93,19 @@ export const ScriptWorkspace: React.FC<ScriptWorkspaceProps> = ({
         setCallToAction(res.draftProposal.callToAction || '');
         setNotes(res.draftProposal.notes || '');
       }
+
+      // Fetch linked video & question for math proof cross-reference
+      try {
+        const vid = await apiClient.getVideoById(videoId);
+        if (vid?.question) {
+          setSourceQuestion(vid.question);
+        } else if (vid?.questionId) {
+          const q = await apiClient.getQuestionById(vid.questionId);
+          setSourceQuestion(q);
+        }
+      } catch (vErr) {
+        console.warn('Could not load source question for math proof:', vErr);
+      }
     } catch (err: any) {
       setError(err?.message || 'Failed to load script data');
     } finally {
@@ -88,14 +117,50 @@ export const ScriptWorkspace: React.FC<ScriptWorkspaceProps> = ({
     fetchScriptData();
   }, [videoId]);
 
-  // Teleprompter / Pacing Calculations
+  // Teleprompter / Pacing Calculations (Standard fast short-form pacing: ~140 wpm)
   const combinedScriptText = `${hookText}\n\n${problemStatement}\n\n${stepByStepSolution}\n\n${speedTrickOrTakeaway}\n\n${callToAction}`;
+  const pureTeluguNarration = [hookText, problemStatement, stepByStepSolution, speedTrickOrTakeaway, callToAction]
+    .filter(Boolean)
+    .join('\n\n');
   const totalWords = combinedScriptText
     .trim()
     .split(/\s+/)
     .filter(Boolean).length;
-  // Estimated reading time at standard fast short-form pacing (~140 wpm)
   const estimatedSeconds = Math.round((totalWords / 140) * 60);
+
+  // Color-coded pacing: Green (<= 45s), Amber (46-55s), Red (> 55s warning)
+  const getPacingConfig = (seconds: number) => {
+    if (seconds <= 45) {
+      return {
+        badgeBg: 'bg-emerald-50 text-emerald-800 border-emerald-300',
+        textColor: 'text-emerald-700',
+        dotColor: 'bg-emerald-500',
+        label: 'Optimal (≤45s)',
+        status: 'OPTIMAL',
+        tip: 'Snappy & high retention for vertical Reels/Shorts',
+      };
+    }
+    if (seconds <= 55) {
+      return {
+        badgeBg: 'bg-amber-50 text-amber-800 border-amber-300',
+        textColor: 'text-amber-700',
+        dotColor: 'bg-amber-500',
+        label: 'Acceptable (46–55s)',
+        status: 'ACCEPTABLE',
+        tip: 'Pacing is fine; trim unnecessary words for maximum retention',
+      };
+    }
+    return {
+      badgeBg: 'bg-rose-50 text-rose-800 border-rose-300',
+      textColor: 'text-rose-700',
+      dotColor: 'bg-rose-500',
+      label: 'Pacing Warning (>55s)',
+      status: 'WARNING',
+      tip: 'Over 55s! Risk of viewer drop-off or exceeding 60s hard ceiling',
+    };
+  };
+
+  const pacing = getPacingConfig(estimatedSeconds);
 
   const handleSave = async (createNewVersion: boolean) => {
     try {
@@ -170,13 +235,30 @@ export const ScriptWorkspace: React.FC<ScriptWorkspaceProps> = ({
       setIsSaving(true);
       setError(null);
       await apiClient.markScriptReady(videoId, 'Script reviewed, timed, and marked ready for production');
-      setSuccessMessage('Script marked READY! Production stage updated to SCRIPT_READY.');
+      setIsJustMarkedReady(true);
+      setSuccessMessage('Script locked & marked READY! Moving to Stage 04: Teleprompter & Filming.');
       if (onStatusChange) onStatusChange();
-      setTimeout(() => setSuccessMessage(null), 4000);
+      setTimeout(() => setSuccessMessage(null), 5000);
     } catch (err: any) {
       setError(err?.message || 'Failed to mark script ready');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleProceedToRecording = () => {
+    if (onNavigateTab) {
+      onNavigateTab('recording');
+    } else {
+      navigate(`/videos/${encodeURIComponent(videoId)}?tab=recording`);
+    }
+  };
+
+  const handleLaunchFullscreenPrompter = () => {
+    if (onNavigateTab) {
+      onNavigateTab('recording');
+    } else {
+      navigate(`/videos/${encodeURIComponent(videoId)}?tab=recording&teleprompter=true`);
     }
   };
 
@@ -207,6 +289,7 @@ export const ScriptWorkspace: React.FC<ScriptWorkspaceProps> = ({
       setIsSaving(true);
       setError(null);
       await apiClient.returnScriptToEditing(videoId, 'Script returned for revision');
+      setIsJustMarkedReady(false);
       setSuccessMessage('Script returned to SCRIPT_REQUIRED for revision.');
       if (onStatusChange) onStatusChange();
       setTimeout(() => setSuccessMessage(null), 4000);
@@ -218,10 +301,48 @@ export const ScriptWorkspace: React.FC<ScriptWorkspaceProps> = ({
   };
 
   const handleCopyTeleprompter = () => {
-    const formatted = `=== BURRA PARIKSHA TELEPROMPTER SCRIPT ===\n\n[HOOK (3-5s)]\n${hookText}\n\n[QUESTION / PROBLEM]\n${problemStatement}\n\n[STEP-BY-STEP SOLUTION]\n${stepByStepSolution}\n\n[SPEED TRICK / TAKEAWAY]\n${speedTrickOrTakeaway}\n\n[CALL TO ACTION]\n${callToAction}\n`;
+    const formatted = `=== BURRA PARIKSHA AUDIENCE TELEPROMPTER SCRIPT ===
+Target Duration: ~${estimatedSeconds}s (${totalWords} words @ 140 wpm)
+
+[1. HOOK & ATTENTION GRABBER (0–5s)]
+${hookText}
+
+[2. QUESTION & PROBLEM STATEMENT (5–15s)]
+${problemStatement}
+
+[3. SPOKEN SOLUTION & INTUITION (15–35s) • Conversational Explanation]
+${stepByStepSolution}
+
+[4. BURRA SPEED SHORTCUT / TAKEAWAY (35–45s) • High-Retention Exam Trick]
+${speedTrickOrTakeaway}
+
+[5. CALL TO ACTION (45–50s)]
+${callToAction}
+${notes ? `\n[PRODUCTION / PROMPTER NOTES]\n${notes}\n` : ''}`;
     navigator.clipboard.writeText(formatted);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setCopiedTeleprompter(true);
+    setTimeout(() => setCopiedTeleprompter(false), 2000);
+  };
+
+  const handleCopyTeluguScript = () => {
+    navigator.clipboard.writeText(pureTeluguNarration);
+    setCopiedTelugu(true);
+    setTimeout(() => setCopiedTelugu(false), 2000);
+  };
+
+  const getOptionText = (q: Question | null, key: 'a' | 'b' | 'c' | 'd') => {
+    if (!q) return '';
+    if (Array.isArray(q.options)) {
+      const found = q.options.find(
+        (o: any) => o.id?.toLowerCase() === key || o.key?.toLowerCase() === key
+      );
+      return found ? (found.textTe || found.text || found.label || '') : '';
+    }
+    if (q.options && typeof q.options === 'object') {
+      return (q.options as any)[key] || (q.options as any)[key.toUpperCase()] || '';
+    }
+    const keyUpper = key.toUpperCase() as 'A' | 'B' | 'C' | 'D';
+    return (q as any)[`option${keyUpper}`] || '';
   };
 
   if (isLoading) {
@@ -256,15 +377,191 @@ export const ScriptWorkspace: React.FC<ScriptWorkspaceProps> = ({
         </div>
       )}
 
+      {/* Celebratory Ready State & Bridge to Filming */}
+      {(videoStatus === VideoProductionStatus.SCRIPT_READY || isJustMarkedReady) && (
+        <div className="bg-emerald-50 border-2 border-emerald-300 rounded-xl p-4 sm:p-5 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+              <CheckCircle2 className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
+                  ✓ AUDIENCE SCRIPT READY & LOCKED
+                </span>
+                <span className="text-xs text-emerald-800 font-semibold font-mono">Stage 03 Complete</span>
+              </div>
+              <p className="text-xs text-emerald-950 mt-1 font-medium leading-relaxed max-w-xl">
+                Spoken Telugu teleprompter narration is reviewed, paced at ~{estimatedSeconds}s, and verified against the reviewer math proof. Ready for Stage 04 Teleprompter & Host Filming.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto shrink-0">
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleProceedToRecording}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2.5 flex items-center gap-2 shadow-xs"
+            >
+              <span>Open Teleprompter & Filming</span>
+              <ArrowRight className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleLaunchFullscreenPrompter}
+              className="text-xs bg-white text-indigo-700 border-indigo-200 hover:bg-indigo-50 flex items-center gap-1.5"
+            >
+              <Maximize2 className="w-3.5 h-3.5" />
+              <span>Launch Fullscreen Teleprompter</span>
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Reviewer Math Proof & Reference Drawer */}
+      {showMathProofDrawer && (
+        <div className="bg-slate-900 text-slate-100 rounded-xl border border-slate-700 p-5 shadow-xl space-y-4 animate-in fade-in duration-200">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center border border-indigo-500/30">
+                <BookOpen className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-white">Reviewer Mathematical Proof & Reference</h3>
+                  {sourceQuestion?.id && (
+                    <span className="text-[11px] font-mono bg-slate-800 text-indigo-300 px-2 py-0.5 rounded border border-slate-700">
+                      ID: {sourceQuestion.id}
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  Authoritative mathematical truth, options, and step-by-step proof for script cross-checking
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const q = sourceQuestion as any;
+                  const statementText = q?.statementTe || q?.statement || q?.questionText || 'N/A';
+                  const proofVal = q?.explanationTe || q?.explanation || 'N/A';
+                  const ans = q?.correctAnswer || q?.correctOption || 'N/A';
+                  const proofText = `SOURCE QUESTION:\n${statementText}\n\nOPTIONS:\nA: ${getOptionText(sourceQuestion, 'a')}\nB: ${getOptionText(sourceQuestion, 'b')}\nC: ${getOptionText(sourceQuestion, 'c')}\nD: ${getOptionText(sourceQuestion, 'd')}\n\nCORRECT ANSWER: Option ${String(ans).toUpperCase()}\n\nPROOF:\n${proofVal}`;
+                  navigator.clipboard.writeText(proofText);
+                }}
+                className="text-[11px] bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700 flex items-center gap-1.5"
+              >
+                <Copy className="w-3.5 h-3.5" />
+                <span>Copy Proof</span>
+              </Button>
+              <button
+                onClick={() => setShowMathProofDrawer(false)}
+                className="p-1 rounded-md text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                title="Close Reference"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {sourceQuestion ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+              <div className="space-y-3 bg-slate-800/60 p-3.5 rounded-lg border border-slate-700/60">
+                <div>
+                  <span className="text-[11px] font-semibold text-indigo-400 uppercase tracking-wider block mb-1">
+                    Question Statement (Telugu / English)
+                  </span>
+                  <p className="text-slate-200 leading-relaxed font-sans text-xs">
+                    {(sourceQuestion as any).statementTe || (sourceQuestion as any).statement || sourceQuestion.questionText}
+                  </p>
+                  {(sourceQuestion as any).statementTe && (sourceQuestion as any).statement && (
+                    <p className="text-slate-400 text-[11px] mt-2 italic border-t border-slate-700/50 pt-1.5 font-sans">
+                      EN: {(sourceQuestion as any).statement}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1.5">
+                    Options & Correct Answer
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {(['a', 'b', 'c', 'd'] as const).map((optKey) => {
+                      const correctChoice = (sourceQuestion.correctAnswer || (sourceQuestion as any).correctOption || '').toLowerCase();
+                      const isCorrect = correctChoice === optKey;
+                      const text = getOptionText(sourceQuestion, optKey);
+                      return (
+                        <div
+                          key={optKey}
+                          className={`p-2 rounded border text-xs flex items-start gap-1.5 ${
+                            isCorrect
+                              ? 'bg-emerald-950/70 border-emerald-500 text-emerald-200 font-bold shadow-xs'
+                              : 'bg-slate-900/70 border-slate-700 text-slate-300'
+                          }`}
+                        >
+                          <span className="uppercase text-[10px] px-1 py-0.5 rounded bg-black/40 text-slate-400 font-mono">
+                            {optKey}
+                          </span>
+                          <span className="font-sans break-words flex-1">{text || `Option ${optKey.toUpperCase()}`}</span>
+                          {isCorrect && (
+                            <span className="text-[10px] bg-emerald-500 text-black px-1.5 py-0.2 rounded font-bold shrink-0">
+                              ✓ CORRECT
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3 bg-slate-800/60 p-3.5 rounded-lg border border-slate-700/60">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[11px] font-semibold text-indigo-400 uppercase tracking-wider">
+                      Authoritative Math Proof / Explanation
+                    </span>
+                    <span className="text-[10px] text-emerald-400 font-bold bg-emerald-950 px-2 py-0.5 rounded border border-emerald-700/50">
+                      Answer: Option {String(sourceQuestion.correctAnswer || (sourceQuestion as any).correctOption || 'Verified').toUpperCase()}
+                    </span>
+                  </div>
+                  <div className="text-slate-200 text-xs leading-relaxed whitespace-pre-wrap font-mono bg-black/50 p-3 rounded border border-slate-800 max-h-56 overflow-y-auto">
+                    {(sourceQuestion as any).explanationTe || sourceQuestion.explanation || 'No proof text available on record.'}
+                  </div>
+                </div>
+
+                {(sourceQuestion.topicName || sourceQuestion.topicId || (sourceQuestion as any).topic) && (
+                  <div className="flex items-center gap-2 text-[11px] text-slate-400">
+                    <span className="font-medium text-slate-300">Topic:</span> {sourceQuestion.topicName || (sourceQuestion as any).topic || sourceQuestion.topicId}
+                    {(sourceQuestion.subtopicName || (sourceQuestion as any).subtopic || sourceQuestion.subtopicId) && (
+                      <span>• {sourceQuestion.subtopicName || (sourceQuestion as any).subtopic || sourceQuestion.subtopicId}</span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="p-4 bg-slate-800/40 rounded-lg text-center text-xs text-slate-400">
+              Source question mathematical reference loading...
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Script Header Bar */}
-      <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs flex flex-col xl:flex-row xl:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-bold">
+          <div className="w-10 h-10 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-bold shrink-0">
             <FileText className="w-5 h-5" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-base font-bold text-slate-900">Teleprompter & Reel Script</h2>
+              <h2 className="text-base font-bold text-slate-900">Audience Engagement Script Engine</h2>
               {script ? (
                 <span className="font-mono text-xs font-bold bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded">
                   v{script.currentVersion}
@@ -276,36 +573,67 @@ export const ScriptWorkspace: React.FC<ScriptWorkspaceProps> = ({
               )}
             </div>
             <p className="text-xs text-slate-500">
-              Short-form pacing • ~140 wpm • 5-Part Viral Exam Hook Structure
+              Stage 03 • Spoken Telugu Teleprompter Narration vs. Mathematical Proof
             </p>
           </div>
         </div>
 
-        {/* Teleprompter Metrics & Action Controls */}
-        <div className="flex flex-wrap items-center gap-2.5">
-          <div className="flex items-center gap-3 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs">
+        {/* Real-time Pacing Gauge & Action Controls */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Real-Time Pacing Gauge */}
+          <div className="flex items-center gap-2.5 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs">
             <span className="font-medium text-slate-600">
-              Words: <strong className="text-slate-900">{totalWords}</strong>
+              Words: <strong className="text-slate-900 font-mono">{totalWords}</strong>
             </span>
             <span className="text-slate-300">|</span>
-            <span className="font-medium text-slate-600">
-              Est. Duration:{' '}
-              <strong className={estimatedSeconds > 60 ? 'text-rose-600' : 'text-emerald-600'}>
-                ~{estimatedSeconds}s
-              </strong>
-            </span>
+            <div className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded border text-[11px] font-bold ${pacing.badgeBg}`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${pacing.dotColor}`} />
+              <span>~{estimatedSeconds}s</span>
+              <span className="font-medium hidden sm:inline">• {pacing.label}</span>
+            </div>
           </div>
 
+          {/* Reviewer Math Proof Reference Toggle */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowMathProofDrawer(!showMathProofDrawer)}
+            className={`text-xs flex items-center gap-1.5 border ${
+              showMathProofDrawer
+                ? 'bg-slate-900 text-white border-slate-800'
+                : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+            }`}
+          >
+            <BookOpen className="w-3.5 h-3.5 text-indigo-600" />
+            <span>Reviewer Math Proof</span>
+            {showMathProofDrawer ? <ChevronUp className="w-3 h-3 ml-0.5" /> : <ChevronDown className="w-3 h-3 ml-0.5" />}
+          </Button>
+
+          {/* Copy Teleprompter Formatted */}
           <Button
             variant="outline"
             size="sm"
             onClick={handleCopyTeleprompter}
             className="text-xs flex items-center gap-1.5"
+            title="Copy formatted with timing milestones and section cues"
           >
-            {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-            <span>{copied ? 'Copied!' : 'Copy Formatted'}</span>
+            {copiedTeleprompter ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+            <span>{copiedTeleprompter ? 'Copied Prompter!' : 'Copy Formatted'}</span>
           </Button>
 
+          {/* Copy Pure Telugu Narration */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleCopyTeluguScript}
+            className="text-xs flex items-center gap-1.5"
+            title="Copy pure Telugu speech text without metadata"
+          >
+            {copiedTelugu ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-slate-500" />}
+            <span>{copiedTelugu ? 'Copied Telugu!' : 'Copy Telugu Script'}</span>
+          </Button>
+
+          {/* AI Telugu Generator */}
           <Button
             variant="outline"
             size="sm"
@@ -314,33 +642,44 @@ export const ScriptWorkspace: React.FC<ScriptWorkspaceProps> = ({
             className="text-xs text-indigo-700 border-indigo-200 bg-indigo-50/60 hover:bg-indigo-100 flex items-center gap-1.5"
           >
             <Sparkles className={`w-3.5 h-3.5 ${isGenerating ? 'animate-spin text-indigo-600' : 'text-indigo-600'}`} />
-            <span>{isGenerating ? 'Generating AI Telugu...' : 'Generate Telugu (AI)'}</span>
+            <span>{isGenerating ? 'Generating...' : 'Generate Telugu (AI)'}</span>
           </Button>
 
+          {/* Stage Progression Buttons */}
           {videoStatus === VideoProductionStatus.SCRIPT_REQUIRED && (
             <Button
               variant="primary"
               size="sm"
               disabled={isSaving}
               onClick={handleMarkReady}
-              className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1.5"
+              className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1.5 font-bold shadow-xs"
             >
               <CheckCircle2 className="w-3.5 h-3.5" />
               <span>Mark Script Ready</span>
             </Button>
           )}
 
-          {videoStatus === VideoProductionStatus.SCRIPT_READY && (
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={isSaving}
-              onClick={handleReturnToEditing}
-              className="text-xs text-amber-700 border-amber-300 hover:bg-amber-50 flex items-center gap-1.5"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>Return to Editing</span>
-            </Button>
+          {(videoStatus === VideoProductionStatus.SCRIPT_READY || isJustMarkedReady) && (
+            <div className="flex items-center gap-1.5">
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleProceedToRecording}
+                className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-1.5 font-bold shadow-xs"
+              >
+                <span>Open Filming →</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={isSaving}
+                onClick={handleReturnToEditing}
+                className="text-xs text-amber-700 border-amber-300 hover:bg-amber-50 flex items-center gap-1.5"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Revise</span>
+              </Button>
+            </div>
           )}
         </div>
       </div>
@@ -355,7 +694,7 @@ export const ScriptWorkspace: React.FC<ScriptWorkspaceProps> = ({
               <div className="flex items-center justify-between mb-1">
                 <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                   <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[11px]">1</span>
-                  Hook & Attention Grabber (0-5s)
+                  1. Hook & Attention Grabber (0–5s) • High-Retention Opener
                 </label>
                 <span className="text-[11px] text-slate-400 font-mono">
                   {hookText.length} chars
@@ -375,7 +714,7 @@ export const ScriptWorkspace: React.FC<ScriptWorkspaceProps> = ({
               <div className="flex items-center justify-between mb-1">
                 <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                   <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[11px]">2</span>
-                  Question & Problem Statement (5-15s)
+                  2. Question & Problem Statement (5–15s) • Clear Spoken Delivery
                 </label>
                 <span className="text-[11px] text-slate-400 font-mono">
                   {problemStatement.length} chars
@@ -385,27 +724,30 @@ export const ScriptWorkspace: React.FC<ScriptWorkspaceProps> = ({
                 value={problemStatement}
                 onChange={(e) => setProblemStatement(e.target.value)}
                 rows={3}
-                placeholder="The exact exam question clearly stated with 4 options..."
+                placeholder="The exact exam question clearly stated in spoken Telugu with 4 options..."
                 className="w-full text-xs p-3 border border-slate-300 rounded-lg focus:ring-1 focus:ring-indigo-500 font-sans"
               />
             </div>
 
-            {/* Part 3: Step-by-Step Solution */}
+            {/* Part 3: Spoken Solution & Intuition */}
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                   <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[11px]">3</span>
-                  Step-by-Step Mathematical Solution (15-35s)
+                  3. Spoken Solution & Intuition (15–35s) • Conversational Explanation
                 </label>
                 <span className="text-[11px] text-slate-400 font-mono">
                   {stepByStepSolution.length} chars
                 </span>
               </div>
+              <div className="p-2 mb-2 bg-indigo-50/70 border border-indigo-100 rounded-lg text-[11px] text-indigo-900 leading-relaxed">
+                💡 <strong>Conversational Narration Guidance:</strong> Equations should be spoken naturally with intuitive logic (like explaining to a student in person). Do <em>not</em> recite mechanical textbook formulas!
+              </div>
               <textarea
                 value={stepByStepSolution}
                 onChange={(e) => setStepByStepSolution(e.target.value)}
                 rows={4}
-                placeholder="Step 1: Write equation... Step 2: Simplify..."
+                placeholder="Spoken Telugu explanation of the intuitive steps..."
                 className="w-full text-xs p-3 border border-slate-300 rounded-lg focus:ring-1 focus:ring-indigo-500 font-sans"
               />
             </div>
@@ -415,18 +757,21 @@ export const ScriptWorkspace: React.FC<ScriptWorkspaceProps> = ({
               <div className="flex items-center justify-between mb-1">
                 <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                   <span className="w-5 h-5 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center text-[11px]">4</span>
-                  Speed Exam Shortcut / Takeaway (35-45s)
+                  4. Burra Speed Shortcut / Takeaway (35–45s) • High-Retention Exam Trick
                 </label>
                 <span className="text-[11px] text-slate-400 font-mono">
                   {speedTrickOrTakeaway.length} chars
                 </span>
+              </div>
+              <div className="p-2 mb-2 bg-amber-50 border border-amber-200 rounded-lg text-[11px] text-amber-900 leading-relaxed">
+                ⚡ <strong>High-Retention Exam Trick:</strong> Deliver the core mental math shortcut, unit-digit elimination rule, or ratio trick that saves 40+ seconds on the actual exam.
               </div>
               <textarea
                 value={speedTrickOrTakeaway}
                 onChange={(e) => setSpeedTrickOrTakeaway(e.target.value)}
                 rows={2}
                 placeholder="Pro-Tip: In the actual exam, check the units digit to eliminate Options B and D instantly!"
-                className="w-full text-xs p-3 border border-slate-300 rounded-lg focus:ring-1 focus:ring-indigo-500 font-sans bg-amber-50/30"
+                className="w-full text-xs p-3 border border-slate-300 rounded-lg focus:ring-1 focus:ring-indigo-500 font-sans bg-amber-50/20"
               />
             </div>
 
@@ -435,7 +780,7 @@ export const ScriptWorkspace: React.FC<ScriptWorkspaceProps> = ({
               <div className="flex items-center justify-between mb-1">
                 <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                   <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center text-[11px]">5</span>
-                  Call to Action (CTA) (45-50s)
+                  5. Call to Action (CTA) (45–50s) • Outro & Follow Hook
                 </label>
                 <span className="text-[11px] text-slate-400 font-mono">
                   {callToAction.length} chars
