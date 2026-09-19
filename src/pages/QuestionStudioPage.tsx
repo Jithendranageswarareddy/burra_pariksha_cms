@@ -24,6 +24,15 @@ import {
   Trash2,
   Clock,
   ArrowRight,
+  ArrowUp,
+  ArrowDown,
+  Layers,
+  HelpCircle,
+  Languages,
+  PenTool,
+  Loader2,
+  Check,
+  Sparkle,
 } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { Button } from '../components/common/Button';
@@ -1301,246 +1310,474 @@ export const QuestionStudioPage: React.FC = () => {
                 )}
 
                 <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
-                  AI Candidate
+                  {candidate.language === QuestionLanguage.TELUGU || (candidate.language as string) === 'TELUGU'
+                    ? 'తెలుగు (Telugu)'
+                    : 'English'}{' '}
+                  • AI Candidate
                 </span>
               </div>
             </div>
 
             {/* AI Refinement Modifiers */}
-            {hasCandidate && (
-              <div className="p-3 bg-indigo-50/70 border border-indigo-100 rounded-xl space-y-2">
+            {hasCandidate && !isGenerating && (
+              <div className="p-3 bg-indigo-50/70 border border-indigo-100 rounded-xl space-y-2.5">
                 <div className="flex items-center justify-between text-xs font-semibold text-indigo-900">
                   <span className="flex items-center gap-1.5">
                     <Wand2 className="w-3.5 h-3.5 text-indigo-600" />
                     AI Refinement Modifiers
                   </span>
-                  {isRefining && <span className="text-[10px] text-indigo-600 animate-pulse">Refining candidate...</span>}
+                  {isRefining && (
+                    <span className="text-[10px] text-indigo-600 font-semibold flex items-center gap-1 animate-pulse">
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      Refining candidate...
+                    </span>
+                  )}
                 </div>
 
-                <div className="flex flex-wrap gap-1.5">
-                  <button
-                    type="button"
-                    disabled={isRefining}
-                    onClick={() => handleRefine(AiRefinementAction.INCREASE_DIFFICULTY)}
-                    className="text-[10px] font-semibold px-2.5 py-1 rounded-lg bg-white border border-indigo-200 text-indigo-800 hover:bg-indigo-600 hover:text-white transition-colors cursor-pointer"
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {/* Difficulty Group */}
+                  <div className="flex items-center gap-1.5 p-1.5 bg-white/80 border border-indigo-100/80 rounded-lg">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase px-1 shrink-0">Diff:</span>
+                    <button
+                      type="button"
+                      disabled={isRefining}
+                      onClick={() => handleRefine(AiRefinementAction.INCREASE_DIFFICULTY)}
+                      className="flex-1 flex items-center justify-center gap-1 text-[11px] font-semibold py-1 px-2 rounded-md bg-white border border-indigo-200 text-indigo-800 hover:bg-indigo-600 hover:text-white transition-colors disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+                    >
+                      <ArrowUp className="w-3 h-3" />
+                      Make Harder
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isRefining}
+                      onClick={() => handleRefine(AiRefinementAction.DECREASE_DIFFICULTY)}
+                      className="flex-1 flex items-center justify-center gap-1 text-[11px] font-semibold py-1 px-2 rounded-md bg-white border border-indigo-200 text-indigo-800 hover:bg-indigo-600 hover:text-white transition-colors disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+                    >
+                      <ArrowDown className="w-3 h-3" />
+                      Make Easier
+                    </button>
+                  </div>
+
+                  {/* Content & Language Group */}
+                  <div className="flex items-center gap-1.5 flex-wrap p-1.5 bg-white/80 border border-indigo-100/80 rounded-lg">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase px-1 shrink-0">Style:</span>
+                    <button
+                      type="button"
+                      disabled={isRefining}
+                      onClick={() => handleRefine(AiRefinementAction.IMPROVE_TELUGU)}
+                      className="text-[10px] font-semibold py-1 px-2 rounded-md bg-white border border-indigo-200 text-indigo-800 hover:bg-indigo-600 hover:text-white transition-colors disabled:opacity-50 disabled:pointer-events-none cursor-pointer flex items-center gap-1"
+                    >
+                      <Languages className="w-3 h-3" />
+                      Improve Telugu
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isRefining}
+                      onClick={() => handleRefine(AiRefinementAction.SIMPLIFY_LANGUAGE)}
+                      className="text-[10px] font-semibold py-1 px-2 rounded-md bg-white border border-indigo-200 text-indigo-800 hover:bg-indigo-600 hover:text-white transition-colors disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+                    >
+                      Simplify Language
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isRefining}
+                      onClick={() => handleRefine(AiRefinementAction.IMPROVE_OPTIONS)}
+                      className="text-[10px] font-semibold py-1 px-2 rounded-md bg-white border border-indigo-200 text-indigo-800 hover:bg-indigo-600 hover:text-white transition-colors disabled:opacity-50 disabled:pointer-events-none cursor-pointer flex items-center gap-1"
+                    >
+                      <Layers className="w-3 h-3" />
+                      Improve Options
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isRefining}
+                      onClick={() => handleRefine(AiRefinementAction.IMPROVE_EXPLANATION)}
+                      className="text-[10px] font-semibold py-1 px-2 rounded-md bg-white border border-indigo-200 text-indigo-800 hover:bg-indigo-600 hover:text-white transition-colors disabled:opacity-50 disabled:pointer-events-none cursor-pointer flex items-center gap-1"
+                    >
+                      <HelpCircle className="w-3 h-3" />
+                      Improve Solution
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isRefining}
+                      onClick={() => handleRefine(AiRefinementAction.MAKE_REALISTIC)}
+                      className="text-[10px] font-semibold py-1 px-2 rounded-md bg-white border border-indigo-200 text-indigo-800 hover:bg-indigo-600 hover:text-white transition-colors disabled:opacity-50 disabled:pointer-events-none cursor-pointer flex items-center gap-1"
+                    >
+                      <Sparkles className="w-3 h-3" />
+                      Make Realistic
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* AI GENERATION LOADING SKELETON */}
+            {isGenerating && (
+              <div className="space-y-5 animate-pulse p-4 rounded-xl border border-indigo-100 bg-indigo-50/30">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 text-indigo-600 animate-spin" />
+                    <span className="text-xs font-bold text-indigo-900">
+                      Gemini is generating high-yield aptitude candidate...
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-mono text-indigo-600 font-semibold bg-indigo-100/60 px-2 py-0.5 rounded-full">
+                    {candidate.language === QuestionLanguage.TELUGU || (candidate.language as string) === 'TELUGU'
+                      ? 'తెలుగు Prompting'
+                      : 'English Prompting'}
+                  </span>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="h-3 w-36 bg-slate-200 rounded"></div>
+                  <div className="h-24 bg-slate-200/80 rounded-xl"></div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="h-3 w-48 bg-slate-200 rounded"></div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="h-14 bg-slate-200/70 rounded-xl"></div>
+                    <div className="h-14 bg-slate-200/70 rounded-xl"></div>
+                    <div className="h-14 bg-slate-200/70 rounded-xl"></div>
+                    <div className="h-14 bg-slate-200/70 rounded-xl"></div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="h-3 w-40 bg-slate-200 rounded"></div>
+                  <div className="h-20 bg-slate-200/80 rounded-xl"></div>
+                </div>
+              </div>
+            )}
+
+            {/* EMPTY STATE HERO CARD */}
+            {!hasCandidate && !candidate.questionText.trim() && !isGenerating && (
+              <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-slate-50/70 border border-dashed border-slate-300 rounded-2xl space-y-4 my-auto">
+                <div className="w-14 h-14 rounded-2xl bg-indigo-100 border border-indigo-200 flex items-center justify-center text-indigo-600 shadow-xs">
+                  <Sparkles className="w-7 h-7 animate-pulse" />
+                </div>
+                <div className="max-w-sm space-y-1.5">
+                  <h4 className="text-base font-bold text-slate-900">Ready to Generate Question</h4>
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    Configure your Topic, Subtopic, and Scenario on the left, then click{' '}
+                    <span className="font-semibold text-indigo-700">&quot;Generate Question Candidate&quot;</span> to begin.
+                  </p>
+                </div>
+                <div className="pt-2 flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setHasCandidate(true);
+                      setIsDirty(true);
+                    }}
+                    icon={PenTool}
+                    className="text-xs font-semibold bg-white border-slate-300 hover:bg-slate-100 text-slate-700"
                   >
-                    Make Harder
-                  </button>
-                  <button
-                    type="button"
-                    disabled={isRefining}
-                    onClick={() => handleRefine(AiRefinementAction.DECREASE_DIFFICULTY)}
-                    className="text-[10px] font-semibold px-2.5 py-1 rounded-lg bg-white border border-indigo-200 text-indigo-800 hover:bg-indigo-600 hover:text-white transition-colors cursor-pointer"
-                  >
-                    Make Easier
-                  </button>
-                  <button
-                    type="button"
-                    disabled={isRefining}
-                    onClick={() => handleRefine(AiRefinementAction.IMPROVE_OPTIONS)}
-                    className="text-[10px] font-semibold px-2.5 py-1 rounded-lg bg-white border border-indigo-200 text-indigo-800 hover:bg-indigo-600 hover:text-white transition-colors cursor-pointer"
-                  >
-                    Improve Options
-                  </button>
-                  <button
-                    type="button"
-                    disabled={isRefining}
-                    onClick={() => handleRefine(AiRefinementAction.MAKE_REALISTIC)}
-                    className="text-[10px] font-semibold px-2.5 py-1 rounded-lg bg-white border border-indigo-200 text-indigo-800 hover:bg-indigo-600 hover:text-white transition-colors cursor-pointer"
-                  >
-                    Make Realistic
-                  </button>
-                  <button
-                    type="button"
-                    disabled={isRefining}
-                    onClick={() => handleRefine(AiRefinementAction.IMPROVE_EXPLANATION)}
-                    className="text-[10px] font-semibold px-2.5 py-1 rounded-lg bg-white border border-indigo-200 text-indigo-800 hover:bg-indigo-600 hover:text-white transition-colors cursor-pointer"
-                  >
-                    Improve Solution
-                  </button>
-                  <button
-                    type="button"
-                    disabled={isRefining}
-                    onClick={() => handleRefine(AiRefinementAction.IMPROVE_TELUGU)}
-                    className="text-[10px] font-semibold px-2.5 py-1 rounded-lg bg-white border border-indigo-200 text-indigo-800 hover:bg-indigo-600 hover:text-white transition-colors cursor-pointer"
-                  >
-                    Improve Telugu
-                  </button>
-                  <button
-                    type="button"
-                    disabled={isRefining}
-                    onClick={() => handleRefine(AiRefinementAction.SIMPLIFY_LANGUAGE)}
-                    className="text-[10px] font-semibold px-2.5 py-1 rounded-lg bg-white border border-indigo-200 text-indigo-800 hover:bg-indigo-600 hover:text-white transition-colors cursor-pointer"
-                  >
-                    Simplify Language
-                  </button>
+                    Or start from blank / manual entry
+                  </Button>
                 </div>
               </div>
             )}
 
             {/* Candidate Form Fields */}
-            <div className="space-y-4">
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs font-bold text-slate-800">
-                    Question Problem Statement <span className="text-rose-500">*</span>
-                  </label>
-                  <span className="text-[10px] font-mono text-slate-400">
-                    {candidate.questionText.length} characters
-                  </span>
+            {(hasCandidate || candidate.questionText.trim().length > 0) && !isGenerating && (
+              <div className="space-y-4">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                      <span>Question Problem Statement</span>
+                      <span className="text-rose-500">*</span>
+                      {(candidate.language === QuestionLanguage.TELUGU || (candidate.language as string) === 'TELUGU') && (
+                        <span className="text-[10px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.2 rounded font-telugu">
+                          తెలుగు
+                        </span>
+                      )}
+                    </label>
+                    <span className="text-[10px] font-mono text-slate-400">
+                      {candidate.questionText.length} characters
+                    </span>
+                  </div>
+                  <textarea
+                    value={candidate.questionText}
+                    onChange={(e) => updateCandidateField('questionText', e.target.value)}
+                    rows={4}
+                    placeholder={
+                      candidate.language === QuestionLanguage.TELUGU || (candidate.language as string) === 'TELUGU'
+                        ? 'స్పష్టమైన లెక్క మరియు సందర్భం ఇక్కడ రాయండి...'
+                        : 'Enter clear, realistic problem statement...'
+                    }
+                    className={`w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:bg-white focus:border-indigo-500 focus:outline-hidden font-medium transition-all ${
+                      candidate.language === QuestionLanguage.TELUGU || (candidate.language as string) === 'TELUGU'
+                        ? 'font-telugu leading-relaxed text-[13px]'
+                        : 'font-sans text-xs leading-normal'
+                    }`}
+                  />
                 </div>
-                <textarea
-                  value={candidate.questionText}
-                  onChange={(e) => updateCandidateField('questionText', e.target.value)}
-                  rows={4}
-                  placeholder="Enter clear, realistic problem statement..."
-                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 leading-relaxed placeholder-slate-400 focus:bg-white focus:border-indigo-500 focus:outline-hidden font-medium"
-                />
+
+                {/* Options A-D */}
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-800">
+                      Options & Declared Answer <span className="text-rose-500">*</span>
+                    </label>
+                    <span className="text-[10px] text-slate-500">
+                      Click option card or radio button to select correct answer
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {/* Option A */}
+                    <div
+                      onClick={() => updateCandidateField('correctAnswer', 'A')}
+                      className={`flex flex-col p-2.5 rounded-xl border transition-all cursor-pointer select-none ${
+                        candidate.correctAnswer === 'A'
+                          ? 'bg-emerald-50/80 border-emerald-400 ring-2 ring-emerald-200/60 shadow-xs'
+                          : 'bg-slate-50/80 border-slate-200 hover:border-slate-300 hover:bg-slate-100/50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1.5">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="radio"
+                            name="correctAnswer"
+                            checked={candidate.correctAnswer === 'A'}
+                            onChange={() => updateCandidateField('correctAnswer', 'A')}
+                            className="w-4 h-4 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                          />
+                          <span
+                            className={`text-xs font-extrabold ${
+                              candidate.correctAnswer === 'A' ? 'text-emerald-900' : 'text-slate-700'
+                            }`}
+                          >
+                            Option A
+                          </span>
+                        </div>
+                        {candidate.correctAnswer === 'A' && (
+                          <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-emerald-700 bg-emerald-100/80 border border-emerald-300 px-1.5 py-0.2 rounded-full">
+                            <Check className="w-3 h-3 stroke-[3]" /> Correct Answer
+                          </span>
+                        )}
+                      </div>
+                      <input
+                        type="text"
+                        value={candidate.optionA}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => updateCandidateField('optionA', e.target.value)}
+                        placeholder="Option A value"
+                        className={`w-full font-medium text-slate-900 bg-white px-2.5 py-1.5 rounded-lg border ${
+                          candidate.correctAnswer === 'A'
+                            ? 'border-emerald-300 focus:border-emerald-500'
+                            : 'border-slate-200 focus:border-indigo-500'
+                        } focus:outline-hidden transition-all ${
+                          candidate.language === QuestionLanguage.TELUGU || (candidate.language as string) === 'TELUGU'
+                            ? 'font-telugu leading-relaxed text-[13px]'
+                            : 'font-sans text-xs leading-normal'
+                        }`}
+                      />
+                    </div>
+
+                    {/* Option B */}
+                    <div
+                      onClick={() => updateCandidateField('correctAnswer', 'B')}
+                      className={`flex flex-col p-2.5 rounded-xl border transition-all cursor-pointer select-none ${
+                        candidate.correctAnswer === 'B'
+                          ? 'bg-emerald-50/80 border-emerald-400 ring-2 ring-emerald-200/60 shadow-xs'
+                          : 'bg-slate-50/80 border-slate-200 hover:border-slate-300 hover:bg-slate-100/50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1.5">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="radio"
+                            name="correctAnswer"
+                            checked={candidate.correctAnswer === 'B'}
+                            onChange={() => updateCandidateField('correctAnswer', 'B')}
+                            className="w-4 h-4 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                          />
+                          <span
+                            className={`text-xs font-extrabold ${
+                              candidate.correctAnswer === 'B' ? 'text-emerald-900' : 'text-slate-700'
+                            }`}
+                          >
+                            Option B
+                          </span>
+                        </div>
+                        {candidate.correctAnswer === 'B' && (
+                          <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-emerald-700 bg-emerald-100/80 border border-emerald-300 px-1.5 py-0.2 rounded-full">
+                            <Check className="w-3 h-3 stroke-[3]" /> Correct Answer
+                          </span>
+                        )}
+                      </div>
+                      <input
+                        type="text"
+                        value={candidate.optionB}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => updateCandidateField('optionB', e.target.value)}
+                        placeholder="Option B value"
+                        className={`w-full font-medium text-slate-900 bg-white px-2.5 py-1.5 rounded-lg border ${
+                          candidate.correctAnswer === 'B'
+                            ? 'border-emerald-300 focus:border-emerald-500'
+                            : 'border-slate-200 focus:border-indigo-500'
+                        } focus:outline-hidden transition-all ${
+                          candidate.language === QuestionLanguage.TELUGU || (candidate.language as string) === 'TELUGU'
+                            ? 'font-telugu leading-relaxed text-[13px]'
+                            : 'font-sans text-xs leading-normal'
+                        }`}
+                      />
+                    </div>
+
+                    {/* Option C */}
+                    {candidate.challengeType === 'TRUE_FALSE' || candidate.challengeType === 'YES_NO' ? (
+                      <div className="p-3 rounded-xl border border-slate-200 bg-slate-100/60 flex items-center justify-center text-center opacity-60">
+                        <span className="text-[11px] font-semibold text-slate-500">
+                          Option C: N/A for 2-Option ({candidate.challengeType}) Questions
+                        </span>
+                      </div>
+                    ) : (
+                      <div
+                        onClick={() => updateCandidateField('correctAnswer', 'C')}
+                        className={`flex flex-col p-2.5 rounded-xl border transition-all cursor-pointer select-none ${
+                          candidate.correctAnswer === 'C'
+                            ? 'bg-emerald-50/80 border-emerald-400 ring-2 ring-emerald-200/60 shadow-xs'
+                            : 'bg-slate-50/80 border-slate-200 hover:border-slate-300 hover:bg-slate-100/50'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1.5">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="radio"
+                              name="correctAnswer"
+                              checked={candidate.correctAnswer === 'C'}
+                              onChange={() => updateCandidateField('correctAnswer', 'C')}
+                              className="w-4 h-4 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                            />
+                            <span
+                              className={`text-xs font-extrabold ${
+                                candidate.correctAnswer === 'C' ? 'text-emerald-900' : 'text-slate-700'
+                              }`}
+                            >
+                              Option C
+                            </span>
+                          </div>
+                          {candidate.correctAnswer === 'C' && (
+                            <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-emerald-700 bg-emerald-100/80 border border-emerald-300 px-1.5 py-0.2 rounded-full">
+                              <Check className="w-3 h-3 stroke-[3]" /> Correct Answer
+                            </span>
+                          )}
+                        </div>
+                        <input
+                          type="text"
+                          value={candidate.optionC}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) => updateCandidateField('optionC', e.target.value)}
+                          placeholder="Option C value"
+                          className={`w-full font-medium text-slate-900 bg-white px-2.5 py-1.5 rounded-lg border ${
+                            candidate.correctAnswer === 'C'
+                              ? 'border-emerald-300 focus:border-emerald-500'
+                            : 'border-slate-200 focus:border-indigo-500'
+                          } focus:outline-hidden transition-all ${
+                            candidate.language === QuestionLanguage.TELUGU || (candidate.language as string) === 'TELUGU'
+                              ? 'font-telugu leading-relaxed text-[13px]'
+                              : 'font-sans text-xs leading-normal'
+                          }`}
+                        />
+                      </div>
+                    )}
+
+                    {/* Option D */}
+                    {candidate.challengeType === 'TRUE_FALSE' || candidate.challengeType === 'YES_NO' ? (
+                      <div className="p-3 rounded-xl border border-slate-200 bg-slate-100/60 flex items-center justify-center text-center opacity-60">
+                        <span className="text-[11px] font-semibold text-slate-500">
+                          Option D: N/A for 2-Option ({candidate.challengeType}) Questions
+                        </span>
+                      </div>
+                    ) : (
+                      <div
+                        onClick={() => updateCandidateField('correctAnswer', 'D')}
+                        className={`flex flex-col p-2.5 rounded-xl border transition-all cursor-pointer select-none ${
+                          candidate.correctAnswer === 'D'
+                            ? 'bg-emerald-50/80 border-emerald-400 ring-2 ring-emerald-200/60 shadow-xs'
+                            : 'bg-slate-50/80 border-slate-200 hover:border-slate-300 hover:bg-slate-100/50'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1.5">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="radio"
+                              name="correctAnswer"
+                              checked={candidate.correctAnswer === 'D'}
+                              onChange={() => updateCandidateField('correctAnswer', 'D')}
+                              className="w-4 h-4 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                            />
+                            <span
+                              className={`text-xs font-extrabold ${
+                                candidate.correctAnswer === 'D' ? 'text-emerald-900' : 'text-slate-700'
+                              }`}
+                            >
+                              Option D
+                            </span>
+                          </div>
+                          {candidate.correctAnswer === 'D' && (
+                            <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-emerald-700 bg-emerald-100/80 border border-emerald-300 px-1.5 py-0.2 rounded-full">
+                              <Check className="w-3 h-3 stroke-[3]" /> Correct Answer
+                            </span>
+                          )}
+                        </div>
+                        <input
+                          type="text"
+                          value={candidate.optionD}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) => updateCandidateField('optionD', e.target.value)}
+                          placeholder="Option D value"
+                          className={`w-full font-medium text-slate-900 bg-white px-2.5 py-1.5 rounded-lg border ${
+                            candidate.correctAnswer === 'D'
+                              ? 'border-emerald-300 focus:border-emerald-500'
+                            : 'border-slate-200 focus:border-indigo-500'
+                          } focus:outline-hidden transition-all ${
+                            candidate.language === QuestionLanguage.TELUGU || (candidate.language as string) === 'TELUGU'
+                              ? 'font-telugu leading-relaxed text-[13px]'
+                              : 'font-sans text-xs leading-normal'
+                          }`}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Explanation */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                      <span>Step-by-Step Explanation & Speed Trick</span>
+                      <span className="text-rose-500">*</span>
+                      {(candidate.language === QuestionLanguage.TELUGU || (candidate.language as string) === 'TELUGU') && (
+                        <span className="text-[10px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.2 rounded font-telugu">
+                          తెలుగు
+                        </span>
+                      )}
+                    </label>
+                    <span className="text-[10px] font-mono text-slate-400">
+                      {candidate.explanation.length} characters
+                    </span>
+                  </div>
+                  <textarea
+                    value={candidate.explanation}
+                    onChange={(e) => updateCandidateField('explanation', e.target.value)}
+                    rows={4}
+                    placeholder={
+                      candidate.language === QuestionLanguage.TELUGU || (candidate.language as string) === 'TELUGU'
+                        ? 'దశలవారీగా సాధన విధానం మరియు బుర్ర పరీక్ష స్పీడ్ ట్రిక్ ఇక్కడ రాయండి...'
+                        : 'Provide step-by-step math proof and a dedicated Burra Speed Trick...'
+                    }
+                    className={`w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:bg-white focus:border-indigo-500 focus:outline-hidden font-medium transition-all ${
+                      candidate.language === QuestionLanguage.TELUGU || (candidate.language as string) === 'TELUGU'
+                        ? 'font-telugu leading-relaxed text-[13px]'
+                        : 'font-sans text-xs leading-normal'
+                    }`}
+                  />
+                </div>
               </div>
-
-              {/* Options A-D */}
-              <div className="space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-slate-800">
-                    Options & Declared Answer <span className="text-rose-500">*</span>
-                  </label>
-                  <span className="text-[10px] text-slate-500">Select radio button for correct answer</span>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div
-                    className={`flex items-center gap-2 p-2 rounded-xl border transition-all ${
-                      candidate.correctAnswer === 'A'
-                        ? 'bg-emerald-50/60 border-emerald-300 ring-1 ring-emerald-200'
-                        : 'bg-slate-50 border-slate-200'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="correctAnswer"
-                      checked={candidate.correctAnswer === 'A'}
-                      onChange={() => updateCandidateField('correctAnswer', 'A')}
-                      className="w-4 h-4 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
-                    />
-                    <span className="text-xs font-bold text-slate-700 w-4">A:</span>
-                    <input
-                      type="text"
-                      value={candidate.optionA}
-                      onChange={(e) => updateCandidateField('optionA', e.target.value)}
-                      placeholder="Option A text"
-                      className="w-full text-xs font-medium text-slate-900 bg-transparent border-none focus:outline-hidden"
-                    />
-                  </div>
-
-                  <div
-                    className={`flex items-center gap-2 p-2 rounded-xl border transition-all ${
-                      candidate.correctAnswer === 'B'
-                        ? 'bg-emerald-50/60 border-emerald-300 ring-1 ring-emerald-200'
-                        : 'bg-slate-50 border-slate-200'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="correctAnswer"
-                      checked={candidate.correctAnswer === 'B'}
-                      onChange={() => updateCandidateField('correctAnswer', 'B')}
-                      className="w-4 h-4 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
-                    />
-                    <span className="text-xs font-bold text-slate-700 w-4">B:</span>
-                    <input
-                      type="text"
-                      value={candidate.optionB}
-                      onChange={(e) => updateCandidateField('optionB', e.target.value)}
-                      placeholder="Option B text"
-                      className="w-full text-xs font-medium text-slate-900 bg-transparent border-none focus:outline-hidden"
-                    />
-                  </div>
-
-                  <div
-                    className={`flex items-center gap-2 p-2 rounded-xl border transition-all ${
-                      candidate.challengeType === 'TRUE_FALSE' || candidate.challengeType === 'YES_NO'
-                        ? 'bg-slate-100 border-slate-200 opacity-50'
-                        : candidate.correctAnswer === 'C'
-                        ? 'bg-emerald-50/60 border-emerald-300 ring-1 ring-emerald-200'
-                        : 'bg-slate-50 border-slate-200'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="correctAnswer"
-                      disabled={candidate.challengeType === 'TRUE_FALSE' || candidate.challengeType === 'YES_NO'}
-                      checked={candidate.correctAnswer === 'C'}
-                      onChange={() => updateCandidateField('correctAnswer', 'C')}
-                      className="w-4 h-4 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
-                    />
-                    <span className="text-xs font-bold text-slate-700 w-4">C:</span>
-                    <input
-                      type="text"
-                      disabled={candidate.challengeType === 'TRUE_FALSE' || candidate.challengeType === 'YES_NO'}
-                      value={candidate.optionC}
-                      onChange={(e) => updateCandidateField('optionC', e.target.value)}
-                      placeholder={
-                        candidate.challengeType === 'TRUE_FALSE' || candidate.challengeType === 'YES_NO'
-                          ? 'Not required'
-                          : 'Option C text'
-                      }
-                      className="w-full text-xs font-medium text-slate-900 bg-transparent border-none focus:outline-hidden disabled:bg-transparent"
-                    />
-                  </div>
-
-                  <div
-                    className={`flex items-center gap-2 p-2 rounded-xl border transition-all ${
-                      candidate.challengeType === 'TRUE_FALSE' || candidate.challengeType === 'YES_NO'
-                        ? 'bg-slate-100 border-slate-200 opacity-50'
-                        : candidate.correctAnswer === 'D'
-                        ? 'bg-emerald-50/60 border-emerald-300 ring-1 ring-emerald-200'
-                        : 'bg-slate-50 border-slate-200'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="correctAnswer"
-                      disabled={candidate.challengeType === 'TRUE_FALSE' || candidate.challengeType === 'YES_NO'}
-                      checked={candidate.correctAnswer === 'D'}
-                      onChange={() => updateCandidateField('correctAnswer', 'D')}
-                      className="w-4 h-4 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
-                    />
-                    <span className="text-xs font-bold text-slate-700 w-4">D:</span>
-                    <input
-                      type="text"
-                      disabled={candidate.challengeType === 'TRUE_FALSE' || candidate.challengeType === 'YES_NO'}
-                      value={candidate.optionD}
-                      onChange={(e) => updateCandidateField('optionD', e.target.value)}
-                      placeholder={
-                        candidate.challengeType === 'TRUE_FALSE' || candidate.challengeType === 'YES_NO'
-                          ? 'Not required'
-                          : 'Option D text'
-                      }
-                      className="w-full text-xs font-medium text-slate-900 bg-transparent border-none focus:outline-hidden disabled:bg-transparent"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Explanation */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs font-bold text-slate-800">
-                    Step-by-Step Explanation & Speed Trick <span className="text-rose-500">*</span>
-                  </label>
-                  <span className="text-[10px] font-mono text-slate-400">
-                    {candidate.explanation.length} characters
-                  </span>
-                </div>
-                <textarea
-                  value={candidate.explanation}
-                  onChange={(e) => updateCandidateField('explanation', e.target.value)}
-                  rows={4}
-                  placeholder="Provide step-by-step math proof and a dedicated Burra Speed Trick..."
-                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 leading-relaxed placeholder-slate-400 focus:bg-white focus:border-indigo-500 focus:outline-hidden font-medium"
-                />
-              </div>
-            </div>
+            )}
 
             {/* Duplicate Matches Box */}
             {duplicateMatches.length > 0 && (
@@ -1569,107 +1806,110 @@ export const QuestionStudioPage: React.FC = () => {
             )}
 
             {/* UNIFIED VALIDATION STATUS STRIP */}
-            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
-              <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <ShieldCheck className="w-4 h-4 text-indigo-600 shrink-0" />
-                  <span className="font-bold text-slate-900">Validation:</span>
+            {(hasCandidate || candidate.questionText.trim().length > 0) && !isGenerating && (
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <ShieldCheck className="w-4 h-4 text-indigo-600 shrink-0" />
+                    <span className="font-bold text-slate-900">Validation:</span>
 
-                  {/* Client Sanity Badge */}
-                  {clientReport && (
-                    <span
-                      className={`font-bold text-[11px] px-2 py-0.5 rounded-full ${
-                        clientReport.isValid
-                          ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                          : 'bg-rose-100 text-rose-800 border border-rose-200'
-                      }`}
-                    >
-                      Client: {clientReport.isValid ? 'PASS' : 'FAIL'}
-                    </span>
-                  )}
+                    {/* Client Sanity Badge */}
+                    {clientReport && (
+                      <span
+                        className={`font-bold text-[11px] px-2 py-0.5 rounded-full ${
+                          clientReport.isValid
+                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                            : 'bg-rose-100 text-rose-800 border border-rose-200'
+                        }`}
+                      >
+                        Client: {clientReport.isValid ? 'PASS' : 'FAIL'}
+                      </span>
+                    )}
 
-                  {/* Mathematical Verification Status Badge */}
-                  {clientReport?.mathematicalVerification && (
-                    <span
-                      className={`font-bold text-[11px] px-2 py-0.5 rounded-full flex items-center gap-1 ${
-                        clientReport.mathematicalVerification.status === 'VERIFIED'
-                          ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
-                          : clientReport.mathematicalVerification.status === 'FAILED'
-                          ? 'bg-rose-100 text-rose-900 border border-rose-300'
-                          : clientReport.mathematicalVerification.status === 'UNVERIFIED'
-                          ? 'bg-amber-100 text-amber-900 border border-amber-300'
-                          : 'bg-slate-100 text-slate-700 border border-slate-300'
-                      }`}
-                      title={clientReport.mathematicalVerification.details || clientReport.mathematicalVerification.reason}
-                    >
-                      {clientReport.mathematicalVerification.status === 'VERIFIED' && 'Math: VERIFIED'}
-                      {clientReport.mathematicalVerification.status === 'FAILED' && 'Math: FAILED'}
-                      {clientReport.mathematicalVerification.status === 'UNVERIFIED' && (
-                        <>
-                          <AlertTriangle className="w-3 h-3 text-amber-700 shrink-0" />
-                          Math: UNVERIFIED (Review Required)
-                        </>
-                      )}
-                      {clientReport.mathematicalVerification.status === 'NOT_APPLICABLE' && 'Math: N/A'}
-                    </span>
-                  )}
+                    {/* Mathematical Verification Status Badge */}
+                    {clientReport?.mathematicalVerification && (
+                      <span
+                        className={`font-bold text-[11px] px-2 py-0.5 rounded-full flex items-center gap-1 ${
+                          clientReport.mathematicalVerification.status === 'VERIFIED'
+                            ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                            : clientReport.mathematicalVerification.status === 'FAILED'
+                            ? 'bg-rose-100 text-rose-900 border border-rose-300'
+                            : clientReport.mathematicalVerification.status === 'UNVERIFIED'
+                            ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                            : 'bg-slate-100 text-slate-700 border border-slate-300'
+                        }`}
+                        title={clientReport.mathematicalVerification.details || clientReport.mathematicalVerification.reason}
+                      >
+                        {clientReport.mathematicalVerification.status === 'VERIFIED' && 'Math: VERIFIED'}
+                        {clientReport.mathematicalVerification.status === 'FAILED' && 'Math: FAILED'}
+                        {clientReport.mathematicalVerification.status === 'UNVERIFIED' && (
+                          <>
+                            <AlertTriangle className="w-3 h-3 text-amber-700 shrink-0" />
+                            Math: UNVERIFIED (Review Required)
+                          </>
+                        )}
+                        {clientReport.mathematicalVerification.status === 'NOT_APPLICABLE' && 'Math: N/A'}
+                      </span>
+                    )}
 
-                  {/* Server Validation Badge */}
-                  {serverValidationResult && !isValidationStale ? (
-                    <span
-                      className={`font-bold text-[11px] px-2 py-0.5 rounded-full ${
-                        serverValidationResult.status === QuestionValidationStatus.VALID
-                          ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
-                          : serverValidationResult.status === QuestionValidationStatus.NEEDS_REVIEW
-                          ? 'bg-amber-100 text-amber-900 border border-amber-300'
-                          : 'bg-rose-100 text-rose-900 border border-rose-300'
-                      }`}
-                    >
-                      Server: {serverValidationResult.status} ({Math.round((serverValidationResult.confidenceScore || 0) * 100)}%)
-                    </span>
-                  ) : isValidationStale ? (
-                    <span className="font-semibold text-[11px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1">
-                      <AlertTriangle className="w-3 h-3 text-amber-600 shrink-0" />
-                      Re-Validation Required
-                    </span>
-                  ) : (
-                    <span className="text-[11px] text-slate-500 font-medium">Pending Server Check</span>
-                  )}
+                    {/* Server Validation Badge */}
+                    {serverValidationResult && !isValidationStale ? (
+                      <span
+                        className={`font-bold text-[11px] px-2 py-0.5 rounded-full ${
+                          serverValidationResult.status === QuestionValidationStatus.VALID
+                            ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                            : serverValidationResult.status === QuestionValidationStatus.NEEDS_REVIEW
+                            ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                            : 'bg-rose-100 text-rose-900 border border-rose-300'
+                        }`}
+                      >
+                        Server: {serverValidationResult.status} ({Math.round((serverValidationResult.confidenceScore || 0) * 100)}%)
+                      </span>
+                    ) : isValidationStale ? (
+                      <span className="font-semibold text-[11px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1">
+                        <AlertTriangle className="w-3 h-3 text-amber-600 shrink-0" />
+                        Re-Validation Required
+                      </span>
+                    ) : (
+                      <span className="text-[11px] text-slate-500 font-medium">Pending Server Check</span>
+                    )}
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleServerValidate}
+                    isLoading={isValidatingServer}
+                    icon={FileCheck}
+                    className="bg-white border-indigo-200 text-indigo-900 hover:bg-indigo-50 text-xs py-1 px-2.5"
+                  >
+                    {isValidationStale ? 'Re-Validate' : 'Run Validation'}
+                  </Button>
                 </div>
 
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleServerValidate}
-                  isLoading={isValidatingServer}
-                  icon={FileCheck}
-                  className="bg-white border-indigo-200 text-indigo-900 hover:bg-indigo-50 text-xs py-1 px-2.5"
-                >
-                  {isValidationStale ? 'Re-Validate' : 'Run Validation'}
-                </Button>
+                {/* Client Errors List if any */}
+                {clientReport && clientReport.errors.length > 0 && (
+                  <div className="pt-1 text-[11px] text-rose-800 font-medium space-y-0.5">
+                    {clientReport.errors.map((err, idx) => (
+                      <p key={idx} className="flex items-center gap-1.5">
+                        <AlertCircle className="w-3 h-3 text-rose-600 shrink-0" />
+                        {err}
+                      </p>
+                    ))}
+                  </div>
+                )}
               </div>
-
-              {/* Client Errors List if any */}
-              {clientReport && clientReport.errors.length > 0 && (
-                <div className="pt-1 text-[11px] text-rose-800 font-medium space-y-0.5">
-                  {clientReport.errors.map((err, idx) => (
-                    <p key={idx} className="flex items-center gap-1.5">
-                      <AlertCircle className="w-3 h-3 text-rose-600 shrink-0" />
-                      {err}
-                    </p>
-                  ))}
-                </div>
-              )}
-            </div>
+            )}
 
             {/* Footer Action Buttons */}
-            <div className="mt-auto flex items-center justify-between gap-3 pt-3 border-t border-slate-200">
+            <div className="mt-auto flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-200">
               <div className="flex items-center gap-2">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={handleResetStudio}
                   icon={Trash2}
+                  className="text-xs"
                 >
                   Clear / Discard Draft
                 </Button>
@@ -1689,8 +1929,9 @@ export const QuestionStudioPage: React.FC = () => {
 
               <div className="flex items-center gap-3">
                 {saveGateReason && (
-                  <span className="text-[11px] font-medium text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
-                    {saveGateReason}
+                  <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-amber-800 bg-amber-50 px-2.5 py-1.5 rounded-lg border border-amber-200 max-w-xs">
+                    <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                    <span>{saveGateReason}</span>
                   </span>
                 )}
 
@@ -1701,7 +1942,7 @@ export const QuestionStudioPage: React.FC = () => {
                   isLoading={isSaving}
                   disabled={Boolean(saveGateReason)}
                   icon={Save}
-                  className="bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-bold shadow-xs cursor-pointer"
+                  className="bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-bold shadow-xs cursor-pointer px-4"
                 >
                   Save Question to Library
                 </Button>
