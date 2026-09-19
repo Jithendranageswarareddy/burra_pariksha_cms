@@ -23,8 +23,8 @@ interface StepMeta {
 const QUESTION_STEPS: StepMeta[] = [
   {
     stepNumber: 1,
-    stepCode: '01',
-    label: 'Generate Question',
+    stepCode: 'Generate',
+    label: 'Generate',
     shortLabel: 'Generate',
     icon: Sparkles,
     path: '/studio',
@@ -32,8 +32,8 @@ const QUESTION_STEPS: StepMeta[] = [
   },
   {
     stepNumber: 2,
-    stepCode: '02',
-    label: 'Question Library',
+    stepCode: 'Library',
+    label: 'Library',
     shortLabel: 'Library',
     icon: BookOpen,
     path: '/questions',
@@ -41,8 +41,8 @@ const QUESTION_STEPS: StepMeta[] = [
   },
   {
     stepNumber: 3,
-    stepCode: '03',
-    label: 'Improve Question',
+    stepCode: 'Improve',
+    label: 'Improve',
     shortLabel: 'Improve',
     icon: Edit3,
     path: '/questions/improve',
@@ -50,9 +50,9 @@ const QUESTION_STEPS: StepMeta[] = [
   },
   {
     stepNumber: 4,
-    stepCode: '04',
-    label: 'Verify & Approve',
-    shortLabel: 'Verify',
+    stepCode: 'Approve',
+    label: 'Approve',
+    shortLabel: 'Approve',
     icon: ShieldCheck,
     path: '/questions/verify',
     description: 'Quality gate & validation review',
@@ -82,8 +82,8 @@ export const QuestionWorkflowHeader: React.FC<QuestionWorkflowHeaderProps> = ({
     >
       <div className="flex items-center justify-between gap-2 mb-3 pb-2.5 border-b border-slate-100 flex-wrap">
         <div className="flex items-center gap-2">
-          <Badge variant="neutral" size="sm" className="font-mono font-semibold">
-            PRODUCTION WORKFLOW: STEPS 01–04
+          <Badge variant="neutral" size="sm" className="font-semibold">
+            Question Pipeline
           </Badge>
           <span className="text-xs text-slate-500 hidden md:inline">
             From Topic selection to verified and approved question

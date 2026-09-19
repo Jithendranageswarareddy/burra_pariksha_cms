@@ -155,9 +155,9 @@ export const QueuePage: React.FC = () => {
       {/* Header */}
       <PageHeader
         title="Video Production Queue"
-        description="Prioritized intake and studio recording queue — backed by Google Sheets authoritative VIDEOS and SEQUENCES worksheets."
+        description="Prioritized intake and recording queue for all upcoming video assets."
         badge={
-          <span className="text-xs font-mono font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+          <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
             {filteredAndSortedVideos.length} Active Video Records
           </span>
         }
@@ -180,7 +180,7 @@ export const QueuePage: React.FC = () => {
             </Link>
             <Link to="/generate">
               <Button variant="primary" size="sm" icon={Sparkles}>
-                AI Question Studio
+                Create Question
               </Button>
             </Link>
           </div>

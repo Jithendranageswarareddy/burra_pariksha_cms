@@ -43,7 +43,6 @@ export const WhatsWaitingSection: React.FC<WhatsWaitingSectionProps> = ({
     {
       id: 'gauge-questions-review',
       label: 'Questions in Review',
-      stepNumber: '04',
       count: counts.questionsToReview,
       icon: FileCheck,
       targetUrl: '/questions?status=GENERATED',
@@ -57,7 +56,6 @@ export const WhatsWaitingSection: React.FC<WhatsWaitingSectionProps> = ({
     {
       id: 'gauge-scripts-review',
       label: 'Ready for Teleprompter',
-      stepNumber: '06',
       count: counts.scriptsToReview,
       icon: CheckSquare,
       targetUrl: '/production?status=SCRIPT_READY',
@@ -70,8 +68,7 @@ export const WhatsWaitingSection: React.FC<WhatsWaitingSectionProps> = ({
     },
     {
       id: 'gauge-videos-edit',
-      label: 'Videos in Post-Production',
-      stepNumber: '08',
+      label: 'Videos in Editing',
       count: counts.videosToEdit,
       icon: Scissors,
       targetUrl: '/production?status=EDITING',
@@ -85,12 +82,11 @@ export const WhatsWaitingSection: React.FC<WhatsWaitingSectionProps> = ({
     {
       id: 'gauge-social-reviews',
       label: 'Social Reviews Pending',
-      stepNumber: '12',
       count: counts.socialReviews,
       icon: Film,
       targetUrl: '/social-review',
       authorized: isAuthorizedForSocialReviews(),
-      description: '9:16 simulator & copy checks',
+      description: 'Preview simulation & copy checks',
       colorClass: 'text-blue-700 bg-blue-50 border-blue-200',
       pillClass: 'bg-blue-500 text-white',
       badgeBg: 'bg-blue-100 text-blue-800',
@@ -98,8 +94,7 @@ export const WhatsWaitingSection: React.FC<WhatsWaitingSectionProps> = ({
     },
     {
       id: 'gauge-ready-publish',
-      label: 'Ready for Distribution',
-      stepNumber: '15',
+      label: 'Ready for Publishing',
       count: counts.readyToPublish,
       icon: UploadCloud,
       targetUrl: '/publishing',
@@ -124,13 +119,13 @@ export const WhatsWaitingSection: React.FC<WhatsWaitingSectionProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div className="space-y-0.5">
           <h2 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
-            <span>5-Stage Pipeline Throughput Gauge</span>
+            <span>Content Pipeline Overview</span>
             <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 font-mono border border-slate-200">
               {totalInPipeline} Active Items
             </span>
           </h2>
           <p className="text-xs text-slate-500">
-            Real-time visual pipeline tracking workload flow across production stages
+            Real-time workload tracking across production stages
           </p>
         </div>
       </div>
@@ -164,11 +159,11 @@ export const WhatsWaitingSection: React.FC<WhatsWaitingSectionProps> = ({
                 }`}
               >
                 <div>
-                  {/* Stage Top: Number, Icon, & Count */}
+                  {/* Stage Top: Icon & Count */}
                   <div className="flex items-center justify-between gap-2 mb-2.5">
-                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-white/80 border border-current/20 font-mono">
-                      Step {stage.stepNumber}
-                    </span>
+                    <div className="p-1.5 rounded-lg bg-white/80 border border-current/20">
+                      <Icon className="w-4 h-4" />
+                    </div>
 
                     <div className="flex items-center gap-1.5">
                       <span

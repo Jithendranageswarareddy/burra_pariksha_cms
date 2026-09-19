@@ -250,17 +250,17 @@ export const QuestionVerifyApprovePage: React.FC = () => {
     return (
       <div className="space-y-6 pb-12 animate-in fade-in duration-200">
         <PageHeader
-          title="04 Verify & Approve"
-          description="Select a question to inspect mathematical correctness, verify options, and grant editorial approval."
+          title="Review & Approve Question"
+          description="Verify mathematical accuracy, review option distractors, and approve for video production."
           breadcrumbs={[
             { label: 'Home', href: '/' },
-            { label: 'Question Library', href: '/questions' },
-            { label: '04 Verify & Approve' },
+            { label: 'Question Bank', href: '/questions' },
+            { label: 'Review & Approve Question' },
           ]}
           actions={
             <Link to="/questions">
               <Button variant="outline" size="sm" icon={ArrowLeft}>
-                Back to Library (Step 02)
+                Back to Question Bank
               </Button>
             </Link>
           }
@@ -293,7 +293,7 @@ export const QuestionVerifyApprovePage: React.FC = () => {
             <EmptyState
               title="No questions found"
               description="Generate a new question or improve an existing draft to prepare for approval."
-              actionLabel="Go to Step 01: Generate Question"
+              actionLabel="Go to Create Question"
               onAction={() => navigate('/studio')}
             />
           ) : (
@@ -341,19 +341,19 @@ export const QuestionVerifyApprovePage: React.FC = () => {
   return (
     <div className="space-y-6 pb-12 animate-in fade-in duration-200">
       <PageHeader
-        title="04 Verify & Approve"
-        description="Authoritative mathematical safety verification, option distractor audit, and final editorial approval gate."
+        title="Review & Approve Question"
+        description="Verify mathematical accuracy, review option distractors, and approve for video production."
         breadcrumbs={[
           { label: 'Home', href: '/' },
-          { label: 'Question Library', href: '/questions' },
+          { label: 'Question Bank', href: '/questions' },
           { label: question?.id || 'Question', href: `/questions/${activeQuestionId}` },
-          { label: 'Verify & Approve' },
+          { label: 'Review & Approve' },
         ]}
         actions={
           <div className="flex items-center gap-2 flex-wrap">
             <Link to={`/questions/${encodeURIComponent(activeQuestionId)}/improve`}>
               <Button variant="outline" size="sm" icon={Edit3}>
-                Edit Question (Step 03)
+                Edit Question
               </Button>
             </Link>
             <Button
@@ -373,7 +373,7 @@ export const QuestionVerifyApprovePage: React.FC = () => {
                 disabled={actionInProgress || isQueued}
                 icon={Video}
               >
-                {isQueued ? 'In Video Queue' : 'Add to Video Queue (Step 05)'}
+                {isQueued ? 'In Video Queue' : 'Add to Video Queue'}
               </Button>
             )}
           </div>

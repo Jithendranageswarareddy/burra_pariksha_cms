@@ -32,8 +32,8 @@ interface StepMeta {
 export const ASSET_STEPS: StepMeta[] = [
   {
     stepNumber: 10,
-    stepCode: '10',
-    label: 'Create Thumbnail',
+    stepCode: 'Thumbnail',
+    label: 'Thumbnail',
     shortLabel: 'Thumbnail',
     icon: ImageIcon,
     path: '/videos/thumbnail',
@@ -41,7 +41,7 @@ export const ASSET_STEPS: StepMeta[] = [
   },
   {
     stepNumber: 11,
-    stepCode: '11',
+    stepCode: 'Pinned Comment',
     label: 'Pinned Comment',
     shortLabel: 'Pinned Comment',
     icon: MessageSquare,
@@ -50,7 +50,7 @@ export const ASSET_STEPS: StepMeta[] = [
   },
   {
     stepNumber: 12,
-    stepCode: '12',
+    stepCode: 'Social Review',
     label: 'Social Review',
     shortLabel: 'Social Review',
     icon: CheckCheck,
@@ -91,11 +91,16 @@ export const AssetWorkflowHeader: React.FC<AssetWorkflowHeaderProps> = ({
         <div className="bg-slate-900 text-white px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800">
           <div className="flex items-center gap-2.5 min-w-0">
             <span className="text-[10px] font-mono uppercase bg-indigo-950 text-indigo-300 px-2 py-0.5 rounded border border-indigo-800/80 font-bold shrink-0">
-              SOCIAL ASSET WORKFLOW
+              Asset Studio
             </span>
             {videoId && (
               <span className="text-xs font-mono font-bold text-slate-300 shrink-0">
                 {videoId}
+              </span>
+            )}
+            {questionId && (
+              <span className="text-xs font-mono text-slate-400 shrink-0">
+                [{questionId}]
               </span>
             )}
             {videoTitle && (
@@ -112,25 +117,25 @@ export const AssetWorkflowHeader: React.FC<AssetWorkflowHeaderProps> = ({
               </span>
             )}
 
-            {/* Link back to Step 09 Final Video */}
+            {/* Link back to Final Video */}
             {videoId && (
               <Link
                 to={`/videos/${encodeURIComponent(videoId)}/final-video`}
                 className="text-[11px] text-slate-400 hover:text-white transition-colors flex items-center gap-1 font-medium"
-                title="Return to Step 09 Final Video"
+                title="Return to Video Review"
               >
                 <Film className="w-3 h-3 text-indigo-400" />
-                <span>Step 09 Final Video</span>
+                <span>Video Review</span>
               </Link>
             )}
 
-            {/* Link forward to Step 13 Platform Packages */}
+            {/* Link forward to Platform Packages */}
             <Link
               to={videoId ? `/videos/${encodeURIComponent(videoId)}/platform-packages` : '/platform-packages'}
               className="text-[11px] text-indigo-300 hover:text-indigo-200 transition-colors flex items-center gap-1 font-medium"
-              title="Proceed to Step 13 Platform Packages"
+              title="Proceed to Platform Adaptations"
             >
-              <span>Step 13 Platforms</span>
+              <span>Platform Adaptations</span>
               <Share2 className="w-3 h-3 text-indigo-300" />
             </Link>
           </div>

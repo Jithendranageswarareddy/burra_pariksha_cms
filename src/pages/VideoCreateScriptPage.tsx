@@ -212,9 +212,8 @@ export const VideoCreateScriptPage: React.FC = () => {
         <VideoWorkflowHeader currentStep={5} />
 
         <PageHeader
-          title="05 Create Script"
+          title="Draft Script"
           description="Author, draft, and AI-generate 5-part video scripts for Telugu short-form educational videos"
-          badge={<Badge variant="active" size="sm" className="font-mono">STEP 05</Badge>}
         />
 
         {error && (
@@ -293,14 +292,11 @@ export const VideoCreateScriptPage: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <Badge variant="active" size="sm" className="font-mono">
-              STEP 05
-            </Badge>
-            <span className="text-xs text-slate-400 font-mono">
+            <span className="text-xs text-indigo-600 font-mono font-semibold bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
               {selectedVideo?.id || videoId}
             </span>
           </div>
-          <h1 className="text-xl font-bold text-slate-900">05 Create Script</h1>
+          <h1 className="text-xl font-bold text-slate-900">Draft Script</h1>
           <p className="text-xs text-slate-500">
             Generate and draft high-retention Telugu scripts structured for 45-second vertical videos.
           </p>

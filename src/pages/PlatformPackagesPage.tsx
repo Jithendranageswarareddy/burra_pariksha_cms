@@ -202,11 +202,11 @@ export const PlatformPackagesPage: React.FC = () => {
     <div className="space-y-6 animate-in fade-in duration-200 max-w-7xl mx-auto pb-16">
       {/* Page Header */}
       <PageHeader
-        title="13 Platform Packages"
+        title="Platform Packages"
         description="Side-by-side multi-platform adaptation studio: Tailored distribution packages for YouTube Shorts, Instagram Reels, and Facebook Video with character limits and one-click copy."
         badge={
-          <span className="text-xs font-mono font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-            Step 13 • Multi-Platform Adaptation Studio
+          <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+            Social Media Formats
           </span>
         }
       />

@@ -237,7 +237,7 @@ export const QuestionLibraryPage: React.FC = () => {
     <div className="space-y-6 animate-in fade-in duration-200 pb-16">
       {/* Header */}
       <PageHeader
-        title="02 Question Library"
+        title="Question Bank"
         description="Master inventory of generated, draft, and approved aptitude questions. Filter by topic, difficulty, and stage."
         badge={
           <span className="text-xs font-mono font-semibold px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
@@ -258,7 +258,7 @@ export const QuestionLibraryPage: React.FC = () => {
             </Button>
             <Link to="/studio">
               <Button variant="primary" size="sm" icon={Sparkles}>
-                + Generate Question (Step 01)
+                + Create Question
               </Button>
             </Link>
           </div>
@@ -315,7 +315,7 @@ export const QuestionLibraryPage: React.FC = () => {
           {/* 2-Tier Tier 1: Topic */}
           <div>
             <label className="block text-[11px] font-semibold text-slate-500 mb-1">
-              Tier 1: Topic (BP-TOP-001)
+              Topic
             </label>
             <select
               value={selectedTopic}
@@ -336,7 +336,7 @@ export const QuestionLibraryPage: React.FC = () => {
           {/* 2-Tier Tier 2: Subtopic */}
           <div>
             <label className="block text-[11px] font-semibold text-slate-500 mb-1">
-              Tier 2: Subtopic (BP-SUB-0001...)
+              Subtopic
             </label>
             <select
               value={selectedSubtopic}

@@ -198,9 +198,8 @@ export const VideoPinnedCommentPage: React.FC = () => {
         <AssetWorkflowHeader currentStep={11} />
 
         <PageHeader
-          title="11 Pinned Comment"
+          title="Pinned Comment Studio"
           description="Author top pinned solution comments, mathematical explanations, and algorithm-boosting engagement prompts"
-          badge={<Badge variant="active" size="sm" className="font-mono">STEP 11</Badge>}
         />
 
         {error && (
@@ -282,9 +281,8 @@ export const VideoPinnedCommentPage: React.FC = () => {
       />
 
       <PageHeader
-        title="11 Pinned Comment"
+        title="Pinned Comment Studio"
         description="Craft interactive sticky top comments with verified mathematical answers and community challenge questions"
-        badge={<Badge variant="active" size="sm" className="font-mono">STEP 11</Badge>}
         actions={
           <div className="flex items-center gap-2">
             <Link to={`/videos/${encodeURIComponent(videoId)}/thumbnail`}>
@@ -294,7 +292,7 @@ export const VideoPinnedCommentPage: React.FC = () => {
                 icon={ArrowLeft}
                 className="text-xs"
               >
-                Back to 10 Thumbnail
+                Back to Thumbnail
               </Button>
             </Link>
 
@@ -305,7 +303,7 @@ export const VideoPinnedCommentPage: React.FC = () => {
                 icon={ArrowRight}
                 className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
               >
-                Proceed to 12 Social Review
+                Proceed to Social Review
               </Button>
             </Link>
           </div>

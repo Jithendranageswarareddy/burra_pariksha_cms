@@ -35,7 +35,7 @@ export const VIDEO_STEPS: StepMeta[] = [
   {
     stepNumber: 5,
     stepCode: '01',
-    label: '1. Scripting',
+    label: 'Scripting',
     shortLabel: 'Scripting',
     stageKey: 'script',
     icon: FileText,
@@ -45,7 +45,7 @@ export const VIDEO_STEPS: StepMeta[] = [
   {
     stepNumber: 6,
     stepCode: '02',
-    label: '2. Teleprompter & Filming',
+    label: 'Filming',
     shortLabel: 'Filming',
     stageKey: 'recording',
     icon: VideoIcon,
@@ -55,7 +55,7 @@ export const VIDEO_STEPS: StepMeta[] = [
   {
     stepNumber: 7,
     stepCode: '03',
-    label: '3. Editing Bay',
+    label: 'Editing',
     shortLabel: 'Editing',
     stageKey: 'editing',
     icon: Scissors,
@@ -65,8 +65,8 @@ export const VIDEO_STEPS: StepMeta[] = [
   {
     stepNumber: 8,
     stepCode: '04',
-    label: '4. Final QC Lock',
-    shortLabel: 'QC Lock',
+    label: 'Review & QC',
+    shortLabel: 'Review',
     stageKey: 'final-review',
     icon: Film,
     path: '/videos/final-video',
@@ -75,12 +75,12 @@ export const VIDEO_STEPS: StepMeta[] = [
   {
     stepNumber: 9,
     stepCode: '05',
-    label: '5. Social Packaging & Simulator',
-    shortLabel: 'Social & Sim',
+    label: 'Social & Simulator',
+    shortLabel: 'Social',
     stageKey: 'social',
     icon: Share2,
     path: '/videos/social-packaging',
-    description: '9:16 smartphone simulator & one-click copy',
+    description: 'Preview simulation & one-click copy',
   },
 ];
 
@@ -107,11 +107,11 @@ export const VideoWorkflowHeader: React.FC<VideoWorkflowHeaderProps> = ({
     >
       <div className="flex items-center justify-between gap-2 mb-3 pb-2.5 border-b border-slate-100 flex-wrap">
         <div className="flex items-center gap-2">
-          <Badge variant="neutral" size="sm" className="font-mono font-semibold">
-            BURRA 5-STAGE VIDEO WORKSPACE
+          <Badge variant="neutral" size="sm" className="font-semibold">
+            Video Pipeline
           </Badge>
           <span className="text-xs text-slate-500 hidden md:inline">
-            End-to-End Shorts Production, Final Review & Social Simulation
+            Shorts Production, Quality Review & Social Simulation
           </span>
         </div>
 

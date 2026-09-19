@@ -315,9 +315,8 @@ export const VideoThumbnailPage: React.FC = () => {
         <AssetWorkflowHeader currentStep={10} />
 
         <PageHeader
-          title="10 Create Thumbnail"
+          title="Thumbnail Studio"
           description="Design high-CTR vertical thumbnail graphics, sync with Google Drive, and commit graphic versions"
-          badge={<Badge variant="active" size="sm" className="font-mono">STEP 10</Badge>}
         />
 
         {error && (
@@ -397,9 +396,8 @@ export const VideoThumbnailPage: React.FC = () => {
       />
 
       <PageHeader
-        title="10 Create Thumbnail"
+        title="Thumbnail Studio"
         description="Craft eye-catching hook text, upload vertical 9:16 graphics to Google Drive, and lock approved thumbnails"
-        badge={<Badge variant="active" size="sm" className="font-mono">STEP 10</Badge>}
         actions={
           <div className="flex items-center gap-2">
             <Link to={`/videos/${encodeURIComponent(videoId)}/pinned-comment`}>
@@ -409,7 +407,7 @@ export const VideoThumbnailPage: React.FC = () => {
                 icon={ArrowRight}
                 className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
               >
-                Proceed to 11 Pinned Comment
+                Proceed to Pinned Comment
               </Button>
             </Link>
           </div>

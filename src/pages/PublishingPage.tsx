@@ -332,11 +332,11 @@ export const PublishingPage: React.FC = () => {
     <div className="space-y-6 animate-in fade-in duration-200 max-w-7xl mx-auto pb-16">
       {/* Page Header */}
       <PageHeader
-        title="15 Release Station & Live Link Recorder"
+        title="Publish & Release"
         description="Rapid multi-platform distribution: YouTube Shorts & Instagram live URL verification, Google Drive master asset trigger, and one-click publication confirmation."
         badge={
-          <span className="text-xs font-mono font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-            Step 15 • Release Station
+          <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+            Release Station
           </span>
         }
       />

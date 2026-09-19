@@ -32,8 +32,8 @@ interface StepMeta {
 export const PUBLISHING_STEPS: StepMeta[] = [
   {
     stepNumber: 13,
-    stepCode: '13',
-    label: 'Platform Packages',
+    stepCode: 'Platform Adaptations',
+    label: 'Platform Adaptations',
     shortLabel: 'Platforms',
     icon: Share2,
     path: '/platform-packages',
@@ -41,17 +41,17 @@ export const PUBLISHING_STEPS: StepMeta[] = [
   },
   {
     stepNumber: 14,
-    stepCode: '14',
-    label: 'Publishing Package',
-    shortLabel: 'Package',
+    stepCode: 'Pre-Publish Check',
+    label: 'Pre-Publish Check',
+    shortLabel: 'Pre-Check',
     icon: CheckCircle2,
     path: '/publishing-package',
-    description: 'Gate D pre-flight checklist, asset bundles & readiness',
+    description: 'Pre-flight checklist, asset bundles & readiness',
   },
   {
     stepNumber: 15,
-    stepCode: '15',
-    label: 'Publish',
+    stepCode: 'Publish & Links',
+    label: 'Publish & Links',
     shortLabel: 'Publish',
     icon: UploadCloud,
     path: '/publishing',
@@ -88,7 +88,7 @@ export const PublishingWorkflowHeader: React.FC<PublishingWorkflowHeaderProps> =
         <div className="bg-slate-900 text-white px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800">
           <div className="flex items-center gap-2.5 min-w-0">
             <span className="text-[10px] font-mono uppercase bg-emerald-950 text-emerald-300 px-2 py-0.5 rounded border border-emerald-800/80 font-bold shrink-0">
-              PUBLISHING WORKFLOW
+              Publishing Pipeline
             </span>
             {videoId && (
               <span className="text-xs font-mono font-bold text-slate-300 shrink-0">
@@ -114,14 +114,14 @@ export const PublishingWorkflowHeader: React.FC<PublishingWorkflowHeaderProps> =
               </span>
             )}
 
-            {/* Link back to Step 12 Social Review */}
+            {/* Link back to Social Review */}
             <Link
               to={videoId ? `/videos/${encodeURIComponent(videoId)}/social-review` : '/social-review'}
               className="text-[11px] text-slate-400 hover:text-white transition-colors flex items-center gap-1 font-medium"
-              title="Return to Step 12 Social Review"
+              title="Return to Social Review"
             >
               <CheckCheck className="w-3 h-3 text-violet-400" />
-              <span>Step 12 Social Review</span>
+              <span>Social Review</span>
             </Link>
 
             {/* Next Step Shortcut */}
@@ -130,7 +130,7 @@ export const PublishingWorkflowHeader: React.FC<PublishingWorkflowHeaderProps> =
                 to={videoId ? `/videos/${encodeURIComponent(videoId)}/publishing-package` : '/publishing-package'}
                 className="text-[11px] text-emerald-300 hover:text-emerald-200 transition-colors flex items-center gap-1 font-medium"
               >
-                <span>Step 14 Package</span>
+                <span>Pre-Publish Check</span>
                 <ArrowRight className="w-3 h-3 text-emerald-300" />
               </Link>
             )}
@@ -139,7 +139,7 @@ export const PublishingWorkflowHeader: React.FC<PublishingWorkflowHeaderProps> =
                 to={videoId ? `/videos/${encodeURIComponent(videoId)}/publish` : '/publishing'}
                 className="text-[11px] text-emerald-300 hover:text-emerald-200 transition-colors flex items-center gap-1 font-medium"
               >
-                <span>Step 15 Publish</span>
+                <span>Publish</span>
                 <ArrowRight className="w-3 h-3 text-emerald-300" />
               </Link>
             )}

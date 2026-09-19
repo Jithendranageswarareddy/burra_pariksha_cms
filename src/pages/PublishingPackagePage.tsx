@@ -256,11 +256,11 @@ export const PublishingPackagePage: React.FC = () => {
     <div className="space-y-6 animate-in fade-in duration-200">
       {/* Page Header */}
       <PageHeader
-        title="14 Publishing Package"
-        description="Pre-flight channel checklist, Gate D asset verification, and platform package bundles ready for manual publishing."
+        title="Pre-Publish Checklist"
+        description="Pre-flight channel checklist, asset verification, and platform package bundles ready for manual publishing."
         badge={
-          <span className="text-xs font-mono font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-            Step 14 • Publishing Package
+          <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+            Pre-Flight Checklist
           </span>
         }
       />
@@ -327,7 +327,7 @@ export const PublishingPackagePage: React.FC = () => {
           <div className="max-w-md mx-auto space-y-1">
             <h3 className="text-base font-bold text-slate-900">Select a Production Package</h3>
             <p className="text-xs text-slate-500 leading-relaxed">
-              Verify Gate D pre-flight readiness (final video render, thumbnail asset, pinned comment, platform adaptations) before manual publication.
+              Verify pre-flight readiness (final video render, thumbnail asset, pinned comment, platform adaptations) before publication.
             </p>
           </div>
 
@@ -352,7 +352,7 @@ export const PublishingPackagePage: React.FC = () => {
                           : 'bg-slate-100 text-slate-600 border border-slate-200'
                       }`}
                     >
-                      {isReady ? 'GATE D READY' : 'PRE-FLIGHT'}
+                      {isReady ? 'READY' : 'PRE-FLIGHT'}
                     </span>
                   </div>
                   <p className="text-xs text-slate-600 font-medium truncate">{vid.title || 'Untitled Video'}</p>
@@ -366,13 +366,13 @@ export const PublishingPackagePage: React.FC = () => {
         <div className="bg-white rounded-xl border border-slate-200 p-16 text-center space-y-3">
           <RefreshCw className="w-8 h-8 text-emerald-600 animate-spin mx-auto" />
           <p className="text-xs font-medium text-slate-600">
-            Verifying Gate D pre-flight assets for {currentVideoId}...
+            Verifying pre-flight assets for {currentVideoId}...
           </p>
         </div>
       ) : (
         /* Video Package Assembled View */
         <div className="space-y-6">
-          {/* Gate D Pre-Flight Readiness Status Card */}
+          {/* Pre-Flight Readiness Status Card */}
           <div
             className={`rounded-xl border p-5 shadow-xs transition-all ${
               isGateDReady
@@ -395,8 +395,8 @@ export const PublishingPackagePage: React.FC = () => {
                   <div className="flex items-center gap-2">
                     <h3 className="text-sm font-bold uppercase tracking-wider">
                       {isGateDReady
-                        ? 'Gate D Readiness: Verified & Ready for Publishing'
-                        : 'Gate D Pre-Flight Check: Action Required'}
+                        ? 'Readiness: Verified & Ready for Publishing'
+                        : 'Pre-Flight Check: Action Required'}
                     </h3>
                     <span
                       className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold uppercase ${
@@ -405,13 +405,13 @@ export const PublishingPackagePage: React.FC = () => {
                           : 'bg-amber-200 text-amber-900 border border-amber-300'
                       }`}
                     >
-                      {isGateDReady ? 'READY' : 'BLOCKED'}
+                      {isGateDReady ? 'READY' : 'ACTION REQUIRED'}
                     </span>
                   </div>
                   <p className="text-xs text-slate-600 mt-0.5">
                     {isGateDReady
-                      ? 'All assets (final render, thumbnail, pinned comment, platform adaptations) are complete and invariant.'
-                      : 'One or more required assets are incomplete. Check the itemized verification matrix below.'}
+                      ? 'All assets (final render, thumbnail, pinned comment, platform adaptations) are complete.'
+                      : 'One or more required assets are incomplete. Check the checklist below.'}
                   </p>
                 </div>
               </div>
@@ -428,7 +428,7 @@ export const PublishingPackagePage: React.FC = () => {
                     size="sm"
                     className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
                   >
-                    <span>Proceed to Step 15 • Publish</span>
+                    <span>Proceed to Publish</span>
                     <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
                   </Button>
                 </Link>

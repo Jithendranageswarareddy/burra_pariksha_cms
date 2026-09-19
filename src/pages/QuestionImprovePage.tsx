@@ -410,17 +410,17 @@ export const QuestionImprovePage: React.FC = () => {
     return (
       <div className="space-y-6 pb-12 animate-in fade-in duration-200">
         <PageHeader
-          title="03 Improve Question"
+          title="Edit & Refine Question"
           description="Select a question to refine, improve formulas, enhance explanations, or apply optional AI suggestions."
           breadcrumbs={[
             { label: 'Home', href: '/' },
-            { label: 'Question Library', href: '/questions' },
-            { label: '03 Improve Question' },
+            { label: 'Question Bank', href: '/questions' },
+            { label: 'Edit & Refine Question' },
           ]}
           actions={
             <Link to="/questions">
               <Button variant="outline" size="sm" icon={ArrowLeft}>
-                Back to Library (Step 02)
+                Back to Question Bank
               </Button>
             </Link>
           }
@@ -453,7 +453,7 @@ export const QuestionImprovePage: React.FC = () => {
             <EmptyState
               title="No matching questions found"
               description="Generate a new question to start the improvement workflow."
-              actionLabel="Go to Step 01: Generate Question"
+              actionLabel="Go to Create Question"
               onAction={() => navigate('/studio')}
             />
           ) : (
@@ -499,13 +499,13 @@ export const QuestionImprovePage: React.FC = () => {
   return (
     <div className="space-y-6 pb-12 animate-in fade-in duration-200">
       <PageHeader
-        title="03 Improve Question"
+        title="Edit & Refine Question"
         description="Refine problem statements, correct options, format solutions, and optionally apply AI improvements."
         breadcrumbs={[
           { label: 'Home', href: '/' },
-          { label: 'Question Library', href: '/questions' },
+          { label: 'Question Bank', href: '/questions' },
           { label: question?.id || 'Question', href: `/questions/${activeQuestionId}` },
-          { label: 'Improve' },
+          { label: 'Edit & Refine' },
         ]}
         actions={
           <div className="flex items-center gap-2 flex-wrap">
@@ -515,7 +515,7 @@ export const QuestionImprovePage: React.FC = () => {
               onClick={() => navigate('/questions')}
               icon={ArrowLeft}
             >
-              Library (Step 02)
+              Back to Question Bank
             </Button>
             <Button
               variant="primary"
@@ -533,7 +533,7 @@ export const QuestionImprovePage: React.FC = () => {
               onClick={() => navigate(`/questions/${encodeURIComponent(activeQuestionId)}/verify`)}
               icon={ArrowRight}
             >
-              Continue to Verify (Step 04)
+              Continue to Review & Approve
             </Button>
           </div>
         }

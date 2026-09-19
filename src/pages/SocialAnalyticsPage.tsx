@@ -388,11 +388,11 @@ export const SocialAnalyticsPage: React.FC = () => {
       <PageHeader
         id="social-analytics-header"
         title="Social Analytics"
-        description="Manual entry and historical timeline for real social-media performance metrics (YouTube, Instagram, Facebook) linked to canonical Content IDs. ₹0 architecture, zero production mutation."
+        description="Track and log post-publishing performance metrics across YouTube Shorts, Instagram Reels, and Facebook."
         badge={
           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
             <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
-            Phase 27 • Data Isolation
+            Social Performance
           </span>
         }
         actions={
@@ -417,10 +417,10 @@ export const SocialAnalyticsPage: React.FC = () => {
           <div>
             <h3 className="text-sm font-bold text-slate-900 tracking-tight flex items-center gap-2">
               <Layers className="w-4 h-4 text-indigo-600" />
-              Canonical Content ID Verification
+              Select Content Item
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              Select or type an existing Content Master ID (<code className="font-mono text-indigo-600">BP-CNT-######</code>) to associate analytics.
+              Select or type a Content ID (<code className="font-mono text-indigo-600">BP-CNT-######</code>) to associate analytics.
             </p>
           </div>
 

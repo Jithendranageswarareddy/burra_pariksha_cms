@@ -276,17 +276,6 @@ export const ProductionBoardPage: React.FC = () => {
         }
       />
 
-      {/* Info Banner */}
-      <div className="bg-indigo-950/30 border border-indigo-800/40 rounded-xl p-4 flex items-start gap-3">
-        <ShieldCheck className="w-5 h-5 text-indigo-400 mt-0.5 shrink-0" />
-        <div className="text-xs text-indigo-200 space-y-1">
-          <p className="font-semibold text-indigo-100">Task 3E.2.4 Production Board Search & Filtering</p>
-          <p>
-            Filter production board records by status, priority, assignee, category, difficulty, and due date. All filtering is read-only and respects session authorization.
-          </p>
-        </div>
-      </div>
-
       {/* Search & Filter Controls Card */}
       <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
         <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">

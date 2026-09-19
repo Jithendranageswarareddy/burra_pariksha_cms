@@ -396,13 +396,13 @@ export const MyWorkPage: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold text-slate-900 tracking-tight">My Work & Operational Workbench</h1>
+            <h1 className="text-xl font-bold text-slate-900 tracking-tight">My Tasks</h1>
             <span className={`px-2 py-0.5 rounded-full text-xs font-semibold border ${roleDescriptor?.badgeColor || 'bg-slate-100 text-slate-700'}`}>
               {roleDisplayName}
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-1">
-            Personal operational queue, high-priority tasks, and real-time state machine transitions.
+            Personal task queue, priority assignments, and current workflow progress.
           </p>
         </div>
 
