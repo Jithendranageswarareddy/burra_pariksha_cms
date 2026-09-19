@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   UploadCloud,
   Share2,
@@ -14,6 +15,9 @@ import {
   FileCheck,
   Sparkles,
   RotateCcw,
+  Trophy,
+  BarChart3,
+  PlusCircle,
 } from 'lucide-react';
 import { Publishing, SocialPublishStatus, Video, VideoProductionStatus } from '../../types';
 import { apiClient } from '../../lib/api-client';
@@ -22,12 +26,15 @@ import { Button } from '../common/Button';
 interface PublishingWorkspaceProps {
   video: Video;
   onStatusChange?: () => void;
+  onNavigateTab?: (tab: string) => void;
 }
 
 export const PublishingWorkspace: React.FC<PublishingWorkspaceProps> = ({
   video,
   onStatusChange,
+  onNavigateTab,
 }) => {
+  const navigate = useNavigate();
   const [publishing, setPublishing] = useState<Publishing | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isSaving, setIsSaving] = useState<boolean>(false);
@@ -199,6 +206,52 @@ export const PublishingWorkspace: React.FC<PublishingWorkspaceProps> = ({
             <span>{successMessage}</span>
           </div>
           <button onClick={() => setSuccessMessage(null)} className="text-emerald-500 hover:text-emerald-700 font-bold">×</button>
+        </div>
+      )}
+
+      {/* Celebratory Completion Milestone Card */}
+      {(video.status === VideoProductionStatus.UPLOADED || isAllPublished) && (
+        <div className="bg-gradient-to-r from-emerald-950 via-slate-900 to-indigo-950 border-2 border-emerald-500/50 rounded-2xl p-6 text-white shadow-xl space-y-4 animate-in fade-in">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-emerald-800/50 pb-4">
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center shrink-0 shadow-inner">
+                <Trophy className="w-7 h-7 text-emerald-400" />
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-extrabold text-sm sm:text-base text-emerald-300 tracking-wide uppercase">
+                    🎉 CONTENT PRODUCTION JOURNEY COMPLETE &amp; LIVE!
+                  </span>
+                  <span className="text-[10px] font-mono font-bold bg-emerald-500 text-slate-950 px-2 py-0.5 rounded-full uppercase">
+                    RELEASED
+                  </span>
+                </div>
+                <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                  This content item (Question • Video • Script • Assets) has successfully completed all stages from generation to multi-platform release.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-end gap-3 pt-1">
+            <button
+              type="button"
+              onClick={() => navigate('/analytics')}
+              className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer hover:scale-102"
+            >
+              <BarChart3 className="w-4 h-4 text-indigo-200" />
+              <span>View Performance in Growth Analytics →</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => navigate('/studio')}
+              className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer hover:scale-102"
+            >
+              <PlusCircle className="w-4 h-4 text-slate-950" />
+              <span>+ Create Next Question in Studio</span>
+            </button>
+          </div>
         </div>
       )}
 

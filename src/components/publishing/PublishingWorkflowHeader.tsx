@@ -154,6 +154,7 @@ export const PublishingWorkflowHeader: React.FC<PublishingWorkflowHeaderProps> =
             const isCurrent = step.stepNumber === currentStep;
             const isPassed = step.stepNumber < currentStep;
             const targetUrl = getStepPath(step);
+            const StepIcon = step.icon;
 
             return (
               <Link
@@ -180,7 +181,7 @@ export const PublishingWorkflowHeader: React.FC<PublishingWorkflowHeaderProps> =
                   {isPassed ? (
                     <Check className="w-4 h-4 text-emerald-600" />
                   ) : (
-                    <span className="text-xs font-mono">{step.stepCode}</span>
+                    <StepIcon className="w-4 h-4" />
                   )}
                 </div>
 
