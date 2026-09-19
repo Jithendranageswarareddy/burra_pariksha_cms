@@ -18,6 +18,11 @@ import {
   Loader2,
   BookOpen,
   CheckCheck,
+  Lightbulb,
+  Share2,
+  Film,
+  Zap,
+  ArrowRight,
 } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { Button } from '../components/common/Button';
@@ -26,7 +31,16 @@ import { QuestionStatusBadge, VideoStatusBadge } from '../components/common/Stat
 import { DifficultyBadge } from '../components/common/DifficultyBadge';
 import { EntityAssignmentsSection } from '../components/assignments/EntityAssignmentsSection';
 import { apiClient } from '../lib/api-client';
-import { DifficultyLevel, Question, QuestionStatus, QuestionStyle, VideoProductionStatus, Workflow, AuditLog } from '../types';
+import {
+  DifficultyLevel,
+  Question,
+  QuestionLanguage,
+  QuestionStatus,
+  QuestionStyle,
+  VideoProductionStatus,
+  Workflow,
+  AuditLog,
+} from '../types';
 
 export const QuestionDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -34,7 +48,8 @@ export const QuestionDetailPage: React.FC = () => {
   const [question, setQuestion] = useState<Question | null>(null);
   const [workflowHistory, setWorkflowHistory] = useState<Workflow[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
-  const [taxonomyTree, setTaxonomyTree] = useState<any[]>([]);
+  const [topics, setTopics] = useState<any[]>([]);
+  const [subtopics, setSubtopics] = useState<any[]>([]);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
@@ -45,11 +60,12 @@ export const QuestionDetailPage: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [notification, setNotification] = useState<string | null>(null);
 
-  // Edit Form State
+  // Edit Form State (Strict 2-Tier: Topic -> Subtopic)
   const [editTopicId, setEditTopicId] = useState('');
   const [editSubtopicId, setEditSubtopicId] = useState('');
   const [editDifficulty, setEditDifficulty] = useState<DifficultyLevel>(DifficultyLevel.MEDIUM);
   const [editQuestionStyle, setEditQuestionStyle] = useState<QuestionStyle | string>(QuestionStyle.SPEED_MATH_TRICK);
+  const [editLanguage, setEditLanguage] = useState<QuestionLanguage>(QuestionLanguage.TELUGU);
   const [editQuestionText, setEditQuestionText] = useState('');
   const [editOptA, setEditOptA] = useState('');
   const [editOptB, setEditOptB] = useState('');
@@ -69,13 +85,15 @@ export const QuestionDetailPage: React.FC = () => {
     setIsLoading(true);
     setErrorMessage(null);
     try {
-      const [questionData, treeData] = await Promise.all([
+      const [questionData, topicsData, subtopicsData] = await Promise.all([
         apiClient.getQuestionById(id),
-        apiClient.getTaxonomyTree().catch(() => []),
+        apiClient.getTopics().catch(() => []),
+        apiClient.getSubtopics().catch(() => []),
       ]);
 
       setQuestion(questionData);
-      setTaxonomyTree(treeData);
+      setTopics(topicsData);
+      setSubtopics(subtopicsData);
       initEditForm(questionData);
 
       // Fetch workflow and audit history in parallel
@@ -97,17 +115,18 @@ export const QuestionDetailPage: React.FC = () => {
   };
 
   const initEditForm = (q: Question) => {
-    setEditTopicId(q.topicId);
-    setEditSubtopicId(q.subtopicId);
+    setEditTopicId(q.topicId || 'BP-TOP-001');
+    setEditSubtopicId(q.subtopicId || 'BP-SUB-0001');
     setEditDifficulty(q.difficulty as DifficultyLevel);
     setEditQuestionStyle(q.questionStyle || QuestionStyle.SPEED_MATH_TRICK);
-    setEditQuestionText(q.questionText);
+    setEditLanguage((q.language as QuestionLanguage) || QuestionLanguage.TELUGU);
+    setEditQuestionText(q.questionText || '');
     setEditOptA(q.options?.a || '');
     setEditOptB(q.options?.b || '');
     setEditOptC(q.options?.c || '');
     setEditOptD(q.options?.d || '');
-    setEditCorrectAnswer((q.correctAnswer?.toUpperCase() as any) || 'A');
-    setEditExplanation(q.explanation);
+    setEditCorrectAnswer(((q.correctAnswer?.toUpperCase() || 'A') as any));
+    setEditExplanation(q.explanation || '');
     setEditRealWorldContext(q.realWorldContext || '');
     setEditTags(q.tags ? q.tags.join(', ') : '');
     setDuplicateMatches([]);
@@ -116,6 +135,21 @@ export const QuestionDetailPage: React.FC = () => {
   useEffect(() => {
     fetchQuestionAndHistory();
   }, [id]);
+
+  // Filter available subtopics for currently selected topic in edit mode
+  const editAvailableSubtopics = editTopicId
+    ? subtopics.filter((s: any) => s.topicId === editTopicId)
+    : subtopics;
+
+  const handleTopicChange = (newTopicId: string) => {
+    setEditTopicId(newTopicId);
+    const sub = subtopics.find((s: any) => s.topicId === newTopicId);
+    if (sub) {
+      setEditSubtopicId(sub.id);
+    } else {
+      setEditSubtopicId('');
+    }
+  };
 
   // Debounced duplicate detection during editing
   useEffect(() => {
@@ -143,20 +177,6 @@ export const QuestionDetailPage: React.FC = () => {
     return () => clearTimeout(timer);
   }, [editQuestionText, isEditing, id]);
 
-  const allTopics = taxonomyTree.flatMap((c: any) => c.topics || (c.id && !c.topics ? [c] : []));
-  const currentTopic = allTopics.find((t: any) => t.id === editTopicId);
-  const availableSubtopics = currentTopic?.subtopics || [];
-
-  const handleTopicChange = (newTopicId: string) => {
-    setEditTopicId(newTopicId);
-    const top = allTopics.find((t: any) => t.id === newTopicId);
-    if (top && top.subtopics?.length > 0) {
-      setEditSubtopicId(top.subtopics[0].id);
-    } else {
-      setEditSubtopicId('');
-    }
-  };
-
   const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!id || !question) return;
@@ -170,13 +190,17 @@ export const QuestionDetailPage: React.FC = () => {
         .map((t) => t.trim())
         .filter(Boolean);
 
+      const topicObj = topics.find((t: any) => t.id === editTopicId);
+      const subtopicObj = subtopics.find((s: any) => s.id === editSubtopicId);
+
       const updated = await apiClient.updateQuestion(id, {
         topicId: editTopicId,
-        topicName: currentTopic?.name || question.topicName,
+        topicName: topicObj?.name || question.topicName,
         subtopicId: editSubtopicId,
-        subtopicName: availableSubtopics.find((s: any) => s.id === editSubtopicId)?.name || question.subtopicName,
+        subtopicName: subtopicObj?.name || question.subtopicName,
         difficulty: editDifficulty,
         questionStyle: editQuestionStyle,
+        language: editLanguage,
         questionText: editQuestionText.trim(),
         options: {
           a: editOptA.trim(),
@@ -192,7 +216,7 @@ export const QuestionDetailPage: React.FC = () => {
 
       setQuestion(updated);
       setIsEditing(false);
-      setNotification('Question content and taxonomy updated successfully.');
+      setNotification('Question content and 2-tier taxonomy updated successfully.');
       setTimeout(() => setNotification(null), 3500);
 
       // Refresh history
@@ -219,7 +243,6 @@ export const QuestionDetailPage: React.FC = () => {
       setNotification(`Question status transitioned to ${newStatus}.`);
       setTimeout(() => setNotification(null), 3500);
 
-      // Refresh history
       const [wfHistory, audits] = await Promise.all([
         apiClient.getWorkflowHistory('QUESTION', id).catch(() => []),
         apiClient.getAuditLogs('QUESTION', id).catch(() => []),
@@ -243,7 +266,6 @@ export const QuestionDetailPage: React.FC = () => {
       setNotification(`Question "${id}" successfully added to Video Production Queue.`);
       setTimeout(() => setNotification(null), 4000);
 
-      // Refresh history
       const [wfHistory, audits] = await Promise.all([
         apiClient.getWorkflowHistory('QUESTION', id).catch(() => []),
         apiClient.getAuditLogs('QUESTION', id).catch(() => []),
@@ -261,7 +283,7 @@ export const QuestionDetailPage: React.FC = () => {
     return (
       <div className="text-center py-20 space-y-4">
         <RefreshCw className="w-6 h-6 animate-spin text-indigo-600 mx-auto" />
-        <p className="text-xs text-slate-500 font-mono">Loading question record from database...</p>
+        <p className="text-xs text-slate-500 font-mono">Loading pedagogical question inspector...</p>
       </div>
     );
   }
@@ -272,7 +294,7 @@ export const QuestionDetailPage: React.FC = () => {
         <AlertCircle className="w-8 h-8 text-rose-500 mx-auto" />
         <h3 className="text-base font-bold text-slate-800">Question Record Not Found</h3>
         <p className="text-xs text-slate-500">
-          The requested question ID "{id}" does not exist in the authoritative QUESTIONS sheet.
+          The requested question ID "{id}" does not exist in the database.
         </p>
         <Link to="/questions">
           <Button variant="outline" size="sm">
@@ -295,7 +317,12 @@ export const QuestionDetailPage: React.FC = () => {
     VideoProductionStatus.UPLOADED,
   ].includes(question.videoStatus);
 
-  // Determine allowed next statuses based on workflow state machine
+  const isTelugu =
+    question.language === QuestionLanguage.TELUGU ||
+    question.language === ('TELUGU' as any) ||
+    /[\u0C00-\u0C7F]/.test(question.questionText || '');
+
+  // Determine allowed next statuses
   const getPermittedNextStatuses = (current: QuestionStatus): QuestionStatus[] => {
     switch (current) {
       case QuestionStatus.DRAFT:
@@ -316,7 +343,7 @@ export const QuestionDetailPage: React.FC = () => {
   const permittedStatuses = getPermittedNextStatuses(question.status);
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto animate-in fade-in duration-200">
+    <div className="space-y-6 max-w-6xl mx-auto animate-in fade-in duration-200 pb-16">
       {/* Top Navigation Bar */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <Link
@@ -324,19 +351,22 @@ export const QuestionDetailPage: React.FC = () => {
           className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>Back to Library (Step 02)</span>
+          <span>Back to Library</span>
         </Link>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <Link to={`/questions/${encodeURIComponent(question.id)}/improve`}>
-            <Button variant="outline" size="sm" icon={Edit3}>
-              Improve Question (Step 03)
-            </Button>
-          </Link>
+          <button
+            type="button"
+            onClick={() => setIsEditing(!isEditing)}
+            className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-2xs"
+          >
+            <Edit3 className="w-3.5 h-3.5 text-indigo-600" />
+            <span>{isEditing ? 'Cancel Edit' : 'Edit Question'}</span>
+          </button>
 
-          <Link to={`/questions/${encodeURIComponent(question.id)}/verify`}>
-            <Button variant="primary" size="sm" icon={ShieldCheck}>
-              Verify & Approve (Step 04)
+          <Link to={`/studio?topicId=${question.topicId || 'BP-TOP-001'}&subtopicId=${question.subtopicId || 'BP-SUB-0001'}`}>
+            <Button variant="outline" size="sm" icon={Zap}>
+              Open in Studio
             </Button>
           </Link>
 
@@ -354,11 +384,87 @@ export const QuestionDetailPage: React.FC = () => {
         </div>
       </div>
 
-      <QuestionWorkflowHeader
-        currentStep={question.status === QuestionStatus.APPROVED ? 4 : question.status === QuestionStatus.GENERATED ? 4 : 3}
-        questionId={question.id}
-        questionTitle={question.questionText?.slice(0, 45) + '...'}
-      />
+      {/* Workflow & Lineage Timeline */}
+      <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs">
+        <div className="flex items-center justify-between gap-2 overflow-x-auto text-xs pb-1">
+          {/* Step 1: Question Studio / Canonical */}
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 font-bold flex items-center justify-center text-[11px]">
+              01
+            </span>
+            <div>
+              <div className="font-bold text-slate-800">Question Studio</div>
+              <div className="text-[10px] text-slate-400 font-mono">Canonical Ready</div>
+            </div>
+          </div>
+
+          <ArrowRight className="w-4 h-4 text-slate-300 shrink-0" />
+
+          {/* Step 2: Verification */}
+          <div className="flex items-center gap-2 shrink-0">
+            <span
+              className={`w-6 h-6 rounded-full font-bold flex items-center justify-center text-[11px] ${
+                isApproved ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+              }`}
+            >
+              02
+            </span>
+            <div>
+              <div className="font-bold text-slate-800">Pedagogical Proof</div>
+              <div className="text-[10px] text-slate-500 font-mono">
+                {isApproved ? 'Approved & Solved' : 'Pending Verification'}
+              </div>
+            </div>
+          </div>
+
+          <ArrowRight className="w-4 h-4 text-slate-300 shrink-0" />
+
+          {/* Step 3: Script & Teleprompter */}
+          <div className="flex items-center gap-2 shrink-0">
+            <span
+              className={`w-6 h-6 rounded-full font-bold flex items-center justify-center text-[11px] ${
+                isQueued || isInProduction ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-400'
+              }`}
+            >
+              03
+            </span>
+            <div>
+              <div className="font-bold text-slate-800">Presenter Script</div>
+              <div className="text-[10px] text-slate-400 font-mono">Telugu Cues (Hook &bull; Trick)</div>
+            </div>
+          </div>
+
+          <ArrowRight className="w-4 h-4 text-slate-300 shrink-0" />
+
+          {/* Step 4: Video Production */}
+          <div className="flex items-center gap-2 shrink-0">
+            <span
+              className={`w-6 h-6 rounded-full font-bold flex items-center justify-center text-[11px] ${
+                isInProduction ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'
+              }`}
+            >
+              04
+            </span>
+            <div>
+              <div className="font-bold text-slate-800">Vertical Shorts</div>
+              <div className="text-[10px] text-slate-400 font-mono">{question.videoStatus}</div>
+            </div>
+          </div>
+
+          <ArrowRight className="w-4 h-4 text-slate-300 shrink-0" />
+
+          {/* Step 5: Social Review Package */}
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="w-6 h-6 rounded-full bg-slate-100 text-slate-400 font-bold flex items-center justify-center text-[11px]">
+              05
+            </span>
+            <div>
+              <div className="font-bold text-slate-800">Multi-Channel Dist</div>
+              <div className="text-[10px] text-slate-400 font-mono">Phase 8H Social Suite</div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {notification && (
         <div className="p-3.5 bg-emerald-50 border border-emerald-300 text-emerald-900 rounded-xl text-xs font-medium flex items-center gap-2 animate-in fade-in">
@@ -376,23 +482,13 @@ export const QuestionDetailPage: React.FC = () => {
 
       {/* Page Header */}
       <PageHeader
-        title={`${question.id} • ${question.topicName}`}
-        description={`${question.topicName} → ${question.subtopicName}`}
+        title={`${question.id} • ${question.topicId || 'BP-TOP-001'}`}
+        description={`${question.topicName || question.topicId} → ${question.subtopicName || question.subtopicId}`}
         badge={
           <div className="flex items-center gap-2">
-            {question.contentMasterId ? (
-              <Link
-                to={`/content-masters/${encodeURIComponent(question.contentMasterId)}`}
-                className="px-2 py-0.5 bg-purple-100 hover:bg-purple-200 text-purple-800 border border-purple-300 rounded text-xs font-mono font-bold transition-colors inline-flex items-center gap-1"
-                title="View Content Master Explorer"
-              >
-                Content Master: {question.contentMasterId}
-              </Link>
-            ) : (
-              <span className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded text-xs font-mono">
-                Master: Not linked
-              </span>
-            )}
+            <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded text-xs font-mono font-bold">
+              {question.topicId || 'BP-TOP-001'} &bull; {question.subtopicId || 'BP-SUB-0001'}
+            </span>
             <QuestionStatusBadge status={question.status} />
             <DifficultyBadge difficulty={question.difficulty as DifficultyLevel} />
             <VideoStatusBadge status={question.videoStatus} />
@@ -401,37 +497,36 @@ export const QuestionDetailPage: React.FC = () => {
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Column: Question Content & Editor (8 cols) */}
+        {/* Left Column: Pedagogical Inspector (8 cols) */}
         <div className="lg:col-span-8 space-y-6">
           {isEditing ? (
-            /* EDIT FORM */
+            /* 2-TIER IN-PLACE EDIT FORM */
             <form onSubmit={handleSaveEdit} className="bg-white rounded-xl border border-slate-200 p-6 shadow-xs space-y-5">
               <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                 <div className="flex items-center gap-2">
                   <Edit3 className="w-4 h-4 text-indigo-600" />
                   <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                    Edit Question Content & Taxonomy
+                    Edit Question Content (2-Tier Topic ➔ Subtopic)
                   </h3>
                 </div>
                 <span className="text-[10px] font-mono text-slate-400">ID: {question.id}</span>
               </div>
 
-              {/* Taxonomy Selectors */}
+              {/* 2-Tier Taxonomy Selectors */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                    Topic <span className="text-rose-500">*</span>
+                    Tier 1: Topic (BP-TOP-001) <span className="text-rose-500">*</span>
                   </label>
                   <select
                     value={editTopicId}
                     onChange={(e) => handleTopicChange(e.target.value)}
                     required
-                    disabled={allTopics.length === 0}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-xs text-slate-900 focus:ring-2 focus:ring-indigo-500"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-xs text-slate-900 focus:ring-2 focus:ring-indigo-500 font-mono"
                   >
-                    {allTopics.map((t: any) => (
+                    {topics.map((t: any) => (
                       <option key={t.id} value={t.id}>
-                        {t.name}
+                        {t.id}: {t.name}
                       </option>
                     ))}
                   </select>
@@ -439,26 +534,25 @@ export const QuestionDetailPage: React.FC = () => {
 
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                    Subtopic <span className="text-rose-500">*</span>
+                    Tier 2: Subtopic (BP-SUB-0001) <span className="text-rose-500">*</span>
                   </label>
                   <select
                     value={editSubtopicId}
                     onChange={(e) => setEditSubtopicId(e.target.value)}
                     required
-                    disabled={availableSubtopics.length === 0}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-xs text-slate-900 focus:ring-2 focus:ring-indigo-500"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-xs text-slate-900 focus:ring-2 focus:ring-indigo-500 font-mono"
                   >
-                    {availableSubtopics.map((s: any) => (
+                    {editAvailableSubtopics.map((s: any) => (
                       <option key={s.id} value={s.id}>
-                        {s.name}
+                        {s.id}: {s.name}
                       </option>
                     ))}
                   </select>
                 </div>
               </div>
 
-              {/* Difficulty & Style */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Difficulty, Language & Style */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-700 mb-1">Difficulty</label>
                   <select
@@ -469,6 +563,18 @@ export const QuestionDetailPage: React.FC = () => {
                     <option value={DifficultyLevel.EASY}>Easy</option>
                     <option value={DifficultyLevel.MEDIUM}>Medium</option>
                     <option value={DifficultyLevel.HARD}>Hard</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Language</label>
+                  <select
+                    value={editLanguage}
+                    onChange={(e) => setEditLanguage(e.target.value as any)}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-xs text-slate-900 focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value={QuestionLanguage.TELUGU}>Telugu (తెలుగు)</option>
+                    <option value={QuestionLanguage.ENGLISH}>English</option>
                   </select>
                 </div>
 
@@ -506,25 +612,13 @@ export const QuestionDetailPage: React.FC = () => {
                   required
                   value={editQuestionText}
                   onChange={(e) => setEditQuestionText(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-lg p-3 text-xs text-slate-900 focus:ring-2 focus:ring-indigo-500"
+                  className={`w-full bg-slate-50 border border-slate-300 rounded-lg p-3 text-slate-900 focus:ring-2 focus:ring-indigo-500 ${
+                    editLanguage === QuestionLanguage.TELUGU
+                      ? 'font-telugu leading-relaxed text-[13px]'
+                      : 'font-sans text-xs'
+                  }`}
                 />
               </div>
-
-              {/* Duplicate Warning Box in Editor */}
-              {duplicateMatches.length > 0 && (
-                <div className="p-3 bg-amber-50 border border-amber-300 rounded-lg space-y-1.5 animate-in fade-in">
-                  <div className="flex items-center gap-1.5 text-amber-900 font-semibold text-xs">
-                    <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
-                    <span>Duplicate Warning: {duplicateMatches.length} existing question(s) share high text similarity</span>
-                  </div>
-                  {duplicateMatches.slice(0, 2).map((m) => (
-                    <div key={m.questionId} className="text-[11px] bg-white/80 p-1.5 rounded border border-amber-200">
-                      <span className="font-mono font-bold text-indigo-700">{m.questionId}</span> ({Math.round(m.similarity * 100)}% match):{' '}
-                      <span className="text-slate-600 italic">"{m.questionText.slice(0, 70)}..."</span>
-                    </div>
-                  ))}
-                </div>
-              )}
 
               {/* Options */}
               <div className="space-y-1.5">
@@ -541,7 +635,9 @@ export const QuestionDetailPage: React.FC = () => {
                     <div
                       key={o.key}
                       className={`flex items-center gap-2 p-2 rounded-lg border text-xs ${
-                        editCorrectAnswer === o.key ? 'bg-emerald-50 border-emerald-400' : 'bg-slate-50 border-slate-200'
+                        editCorrectAnswer === o.key
+                          ? 'bg-emerald-50 border-emerald-400 ring-2 ring-emerald-200'
+                          : 'bg-slate-50 border-slate-200'
                       }`}
                     >
                       <input
@@ -560,7 +656,9 @@ export const QuestionDetailPage: React.FC = () => {
                         required
                         value={o.val}
                         onChange={(e) => o.setVal(e.target.value)}
-                        className="flex-1 bg-transparent border-0 text-xs text-slate-900 focus:outline-none"
+                        className={`flex-1 bg-transparent border-0 text-slate-900 focus:outline-hidden ${
+                          editLanguage === QuestionLanguage.TELUGU ? 'font-telugu text-[13px]' : 'font-sans text-xs'
+                        }`}
                       />
                     </div>
                   ))}
@@ -570,14 +668,18 @@ export const QuestionDetailPage: React.FC = () => {
               {/* Explanation */}
               <div className="space-y-1">
                 <label className="block text-[11px] font-semibold text-slate-700">
-                  Detailed Explanation & Speed Breakdown <span className="text-rose-500">*</span>
+                  Step-by-Step Proof & Speed Trick <span className="text-rose-500">*</span>
                 </label>
                 <textarea
                   rows={4}
                   required
                   value={editExplanation}
                   onChange={(e) => setEditExplanation(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-lg p-3 text-xs text-slate-900 focus:ring-2 focus:ring-indigo-500 font-mono"
+                  className={`w-full bg-slate-50 border border-slate-300 rounded-lg p-3 text-slate-900 focus:ring-2 focus:ring-indigo-500 font-mono ${
+                    editLanguage === QuestionLanguage.TELUGU
+                      ? 'font-telugu leading-relaxed text-[13px]'
+                      : 'text-xs'
+                  }`}
                 />
               </div>
 
@@ -614,41 +716,55 @@ export const QuestionDetailPage: React.FC = () => {
               </div>
             </form>
           ) : (
-            /* VIEW MODE: QUESTION CONTENT */
+            /* PEDAGOGICAL VIEW MODE */
             <>
-              {/* Question Statement Card */}
+              {/* Problem Statement Card */}
               <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-xs space-y-4">
                 <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                   <div className="flex items-center gap-2">
                     <BookOpen className="w-4 h-4 text-indigo-600" />
                     <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                      Question Statement
+                      Question Problem Statement
                     </span>
                   </div>
-                  {question.questionStyle && (
-                    <span className="text-[11px] font-mono px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded border border-indigo-100">
-                      {question.questionStyle}
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono px-2 py-0.5 bg-slate-100 text-slate-700 rounded font-semibold">
+                      {isTelugu ? 'TELUGU (తెలుగు)' : 'ENGLISH'}
                     </span>
-                  )}
+                    {question.questionStyle && (
+                      <span className="text-[10px] font-mono px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded border border-indigo-100 font-semibold">
+                        {question.questionStyle}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
-                <p className="text-sm font-medium text-slate-900 leading-relaxed">
+                <div
+                  className={`p-4 bg-slate-50/70 rounded-xl border border-slate-200/80 text-slate-900 ${
+                    isTelugu
+                      ? 'font-telugu leading-relaxed text-base font-semibold'
+                      : 'font-sans leading-normal text-sm font-semibold'
+                  }`}
+                >
                   {question.questionText}
-                </p>
+                </div>
 
                 {question.realWorldContext && (
-                  <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-xs text-slate-600">
-                    <span className="font-semibold text-slate-700">Real-World Scenario / Hook: </span>
-                    <span>{question.realWorldContext}</span>
+                  <div className="p-3 bg-amber-50/60 rounded-lg border border-amber-200/70 text-xs text-amber-900 flex items-start gap-2">
+                    <Zap className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-bold">Real-World Scenario / Reel Hook: </span>
+                      <span>{question.realWorldContext}</span>
+                    </div>
                   </div>
                 )}
 
-                {/* Options List */}
-                <div className="pt-2 space-y-2">
+                {/* 4-Option Grid (ABCD) */}
+                <div className="pt-2 space-y-2.5">
                   <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
                     Multiple Choice Options
                   </span>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {(['A', 'B', 'C', 'D'] as const).map((key) => {
                       const optVal = question.options[key.toLowerCase() as keyof typeof question.options];
                       const isCorrect = question.correctAnswer?.toUpperCase() === key;
@@ -656,25 +772,32 @@ export const QuestionDetailPage: React.FC = () => {
                       return (
                         <div
                           key={key}
-                          className={`p-3 rounded-lg border flex items-center justify-between text-xs ${
+                          className={`p-3.5 rounded-xl border flex items-center justify-between text-xs transition ${
                             isCorrect
-                              ? 'bg-emerald-50 border-emerald-300 text-emerald-900 ring-1 ring-emerald-300 font-semibold'
-                              : 'bg-slate-50 border-slate-200 text-slate-800'
+                              ? 'bg-emerald-50/80 border-emerald-400 ring-2 ring-emerald-200/70 shadow-xs'
+                              : 'bg-white border-slate-200 text-slate-800'
                           }`}
                         >
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-3">
                             <span
-                              className={`w-6 h-6 rounded flex items-center justify-center font-bold text-xs ${
-                                isCorrect ? 'bg-emerald-600 text-white' : 'bg-white border text-slate-600'
+                              className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs font-mono ${
+                                isCorrect ? 'bg-emerald-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 border border-slate-200'
                               }`}
                             >
                               {key}
                             </span>
-                            <span>{optVal}</span>
+                            <span
+                              className={`font-medium ${
+                                isTelugu ? 'font-telugu text-[13px]' : 'font-sans text-xs'
+                              } ${isCorrect ? 'text-emerald-950 font-bold' : 'text-slate-800'}`}
+                            >
+                              {optVal}
+                            </span>
                           </div>
+
                           {isCorrect && (
-                            <span className="text-[10px] uppercase font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded">
-                              Correct Answer
+                            <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded-full border border-emerald-300 font-mono flex items-center gap-1">
+                              ✓ Declared Answer
                             </span>
                           )}
                         </div>
@@ -684,102 +807,66 @@ export const QuestionDetailPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Solution Card */}
+              {/* Speed Trick & Math Proof Box */}
               <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-xs space-y-3">
                 <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                    Detailed Solution & Pedagogical Breakdown
+                  <div className="flex items-center gap-2">
+                    <Lightbulb className="w-4 h-4 text-amber-500" />
+                    <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                      Speed Trick & Mathematical Proof
+                    </span>
+                  </div>
+                  <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 font-bold border border-emerald-200">
+                    Math Verified
                   </span>
-                  <span className="text-xs text-indigo-600 font-medium">Author Solution</span>
                 </div>
 
-                <pre className="p-4 bg-slate-900 text-slate-100 rounded-lg text-xs leading-relaxed font-mono whitespace-pre-wrap overflow-x-auto">
+                <div
+                  className={`p-4 bg-slate-900 text-slate-100 rounded-xl text-xs leading-relaxed font-mono whitespace-pre-wrap overflow-x-auto ${
+                    isTelugu ? 'font-telugu text-[13px] leading-relaxed' : ''
+                  }`}
+                >
                   {question.explanation}
-                </pre>
+                </div>
               </div>
             </>
           )}
 
-          {/* Workflow & Lifecycle History Cards */}
-          <div className="space-y-4">
-            {/* Workflow Transitions Log */}
-            <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-3">
-              <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                <div className="flex items-center gap-2">
-                  <History className="w-4 h-4 text-indigo-600" />
-                  <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                    Workflow State History (WORKFLOW Sheet)
-                  </h4>
-                </div>
-                <span className="text-[11px] font-mono text-slate-400">{workflowHistory.length} events</span>
+          {/* Workflow Transitions Log */}
+          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-3">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <History className="w-4 h-4 text-indigo-600" />
+                <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                  Workflow State History
+                </h4>
               </div>
-
-              {workflowHistory.length === 0 ? (
-                <p className="text-xs text-slate-400 italic py-2">No workflow transitions recorded yet.</p>
-              ) : (
-                <div className="space-y-2 text-xs">
-                  {workflowHistory.map((wf) => (
-                    <div
-                      key={wf.id}
-                      className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-between gap-4"
-                    >
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-mono font-bold text-indigo-700">{wf.fromStatus}</span>
-                          <span className="text-slate-400">&rarr;</span>
-                          <span className="font-mono font-bold text-emerald-700">{wf.toStatus}</span>
-                          <span className="text-[10px] text-slate-400">({wf.entityType})</span>
-                        </div>
-                        {wf.remarks && <p className="text-[11px] text-slate-600 mt-0.5">{wf.remarks}</p>}
-                      </div>
-                      <div className="text-right text-[11px] text-slate-500 font-mono shrink-0">
-                        <div className="font-medium text-slate-700">{wf.triggeredBy}</div>
-                        <div>{new Date(wf.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <span className="text-[11px] font-mono text-slate-400">{workflowHistory.length} events</span>
             </div>
 
-            {/* Audit Log Entries */}
-            {auditLogs.length > 0 && (
-              <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-3">
-                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                  <div className="flex items-center gap-2">
-                    <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                    <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                      Audit Log Entries (AUDIT_LOG Sheet)
-                    </h4>
-                  </div>
-                  <span className="text-[11px] font-mono text-slate-400">{auditLogs.length} logs</span>
-                </div>
-
-                <div className="space-y-2 text-xs">
-                  {auditLogs.slice(0, 5).map((log) => (
-                    <div
-                      key={log.id}
-                      className="p-2 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-between text-[11px]"
-                    >
-                      <div className="space-y-0.5">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono font-semibold text-slate-800">{log.action}</span>
-                          <span className="text-slate-400">•</span>
-                          <span className="text-slate-600 font-mono">{log.entityType}:{log.entityId}</span>
-                        </div>
-                        {log.details && (
-                          <div className="text-[10px] text-slate-500 font-mono truncate max-w-md">
-                            {typeof log.details === 'object' ? JSON.stringify(log.details) : log.details}
-                          </div>
-                        )}
+            {workflowHistory.length === 0 ? (
+              <p className="text-xs text-slate-400 italic py-2">No workflow transitions recorded yet.</p>
+            ) : (
+              <div className="space-y-2 text-xs">
+                {workflowHistory.map((wf) => (
+                  <div
+                    key={wf.id}
+                    className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-between gap-4"
+                  >
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono font-bold text-indigo-700">{wf.fromStatus}</span>
+                        <span className="text-slate-400">&rarr;</span>
+                        <span className="font-mono font-bold text-emerald-700">{wf.toStatus}</span>
                       </div>
-                      <div className="text-right font-mono text-slate-400 shrink-0">
-                        <div>{log.actorName}</div>
-                        <div>{new Date(log.timestamp).toLocaleDateString()}</div>
-                      </div>
+                      {wf.remarks && <p className="text-[11px] text-slate-600 mt-0.5">{wf.remarks}</p>}
                     </div>
-                  ))}
-                </div>
+                    <div className="text-right text-[11px] text-slate-500 font-mono shrink-0">
+                      <div className="font-medium text-slate-700">{wf.triggeredBy}</div>
+                      <div>{new Date(wf.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -787,11 +874,11 @@ export const QuestionDetailPage: React.FC = () => {
 
         {/* Right Column: Workflow Controls & Metadata (4 cols) */}
         <div className="lg:col-span-4 space-y-5">
-          {/* Team Assignment Management (Phase 10) */}
+          {/* Team Assignment Management */}
           <EntityAssignmentsSection
             entityType="QUESTION"
             entityId={question.id}
-            title="Question Team Assignments"
+            title="Question Assignments"
             defaultTaskType="QUESTION_REVIEW"
           />
 
@@ -799,14 +886,14 @@ export const QuestionDetailPage: React.FC = () => {
           <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-4">
             <div className="pb-3 border-b border-slate-100 flex items-center justify-between">
               <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                Question Workflow State
+                Lifecycle State
               </h4>
               <QuestionStatusBadge status={question.status} size="sm" />
             </div>
 
             <div className="space-y-2">
               <label className="text-[11px] font-semibold text-slate-600 block">
-                Allowed Workflow Transitions:
+                Workflow Transitions:
               </label>
               <div className="flex flex-wrap gap-2">
                 {permittedStatuses.map((nextSt) => (
@@ -841,7 +928,7 @@ export const QuestionDetailPage: React.FC = () => {
               <div className="flex items-center gap-2">
                 <Video className="w-4 h-4 text-indigo-600" />
                 <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                  Video Production Status
+                  Video Pipeline
                 </h4>
               </div>
               <VideoStatusBadge status={question.videoStatus} size="sm" />
@@ -849,22 +936,22 @@ export const QuestionDetailPage: React.FC = () => {
 
             <div className="space-y-2.5 text-xs text-slate-600">
               <div className="flex items-center justify-between">
-                <span className="text-slate-500">Current Status:</span>
+                <span className="text-slate-500">Video Status:</span>
                 <span className="font-mono font-bold text-slate-800">{question.videoStatus}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-slate-500">Target Format:</span>
+                <span className="text-slate-500">Format:</span>
                 <span className="font-semibold text-slate-800">Vertical Shorts (9:16)</span>
               </div>
             </div>
 
-            {/* Add to Video Queue Action */}
+            {/* Direct Action: Queue for Video Production */}
             <div className="pt-2 border-t border-slate-100 space-y-2">
               <Button
                 variant={isApproved && !isQueued && !isInProduction ? 'primary' : 'outline'}
                 size="md"
                 className="w-full justify-center"
-                icon={Send}
+                icon={Film}
                 disabled={!isApproved || isQueued || isInProduction || isQueueing}
                 onClick={handleQueueForVideo}
               >
@@ -877,15 +964,15 @@ export const QuestionDetailPage: React.FC = () => {
                 ) : isInProduction ? (
                   'Active in Production'
                 ) : isApproved ? (
-                  'Add to Video Production Queue'
+                  'Queue for Video Production'
                 ) : (
-                  'Add to Video Queue (Approval Required)'
+                  'Queue for Video (Requires Approval)'
                 )}
               </Button>
 
               {!isApproved && (
                 <p className="text-[11px] text-amber-700 bg-amber-50 p-2 rounded-lg border border-amber-200 leading-relaxed">
-                  <strong>Notice:</strong> Only questions with <code>APPROVED</code> status can be queued for video production. Current status: <code>{question.status}</code>.
+                  <strong>Notice:</strong> Only questions with <code>APPROVED</code> status can be queued for video production.
                 </p>
               )}
 
@@ -903,68 +990,37 @@ export const QuestionDetailPage: React.FC = () => {
           {/* Database Persistence Metadata Card */}
           <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-3 text-xs">
             <h4 className="font-bold text-slate-900 pb-2 border-b border-slate-100 uppercase tracking-wider text-[11px]">
-              Database Record Metadata
+              Taxonomy & Database Record
             </h4>
 
             <div className="space-y-2 text-slate-600">
               <div className="flex items-center justify-between">
-                <span className="text-slate-400">Content Master:</span>
-                {question.contentMasterId ? (
-                  <Link
-                    to={`/content-masters/${encodeURIComponent(question.contentMasterId)}`}
-                    className="font-mono font-bold text-purple-700 hover:text-purple-900 bg-purple-50 hover:bg-purple-100 px-1.5 py-0.5 rounded border border-purple-200 transition-colors inline-flex items-center gap-1"
-                    title="View Content Master Explorer"
-                  >
-                    {question.contentMasterId}
-                  </Link>
-                ) : (
-                  <span className="text-slate-400 italic">Not linked</span>
-                )}
+                <span className="text-slate-400">Topic ID:</span>
+                <span className="font-mono font-bold text-indigo-700">{question.topicId || 'BP-TOP-001'}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">Subtopic ID:</span>
+                <span className="font-mono font-bold text-indigo-700">{question.subtopicId || 'BP-SUB-0001'}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-400">Permanent ID:</span>
-                <span className="font-mono font-bold text-indigo-700">{question.id}</span>
+                <span className="font-mono font-bold text-slate-800">{question.id}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">Language:</span>
+                <span className="font-mono text-slate-700">{question.language || 'TELUGU'}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-400">Created At:</span>
                 <span className="font-mono text-slate-700">
-                  {new Date(question.createdAt).toLocaleString()}
+                  {new Date(question.createdAt).toLocaleDateString()}
                 </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-400">Last Updated:</span>
-                <span className="font-mono text-slate-700">
-                  {question.updatedAt ? new Date(question.updatedAt).toLocaleString() : '-'}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-400">Author / Source:</span>
-                <span className="text-slate-700">{question.source || 'AI Generator Studio'}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-400">Author ID:</span>
-                <span className="font-mono text-slate-700">{question.authorId || 'USR-001'}</span>
               </div>
             </div>
-
-            {question.tags && question.tags.length > 0 && (
-              <div className="pt-2 border-t border-slate-100">
-                <span className="text-slate-400 block mb-1.5 text-[11px]">Tags:</span>
-                <div className="flex flex-wrap gap-1">
-                  {question.tags.map((t) => (
-                    <span
-                      key={t}
-                      className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] font-medium"
-                    >
-                      #{t}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>
     </div>
   );
 };
+export default QuestionDetailPage;

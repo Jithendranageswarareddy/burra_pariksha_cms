@@ -1438,6 +1438,36 @@ export const PlanningPage: React.FC = () => {
       {/* ============================================================================ */}
       {activeTab === 'coverage' && coverage && (
         <div className="space-y-6">
+          {/* 100 Topics x 100 Subtopics Curriculum Capacity Banner */}
+          <div className="bg-gradient-to-r from-indigo-950 via-slate-900 to-slate-900 border border-indigo-500/30 rounded-xl p-5 shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40">
+                  100 Topics &times; 100 Subtopics Master Matrix
+                </span>
+                <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> 100 Subtopics Active
+                </span>
+              </div>
+              <h3 className="text-lg font-bold text-white">
+                Comprehensive Syllabus Taxonomy Capacity: 10,000 Subtopics Planned
+              </h3>
+              <p className="text-xs text-slate-400 max-w-2xl">
+                Topic 1 (<code>BP-TOP-001</code>) active with 100 loaded subtopics (<code>BP-SUB-0001</code> to <code>BP-SUB-0100</code>). Direct deep-linking allows instant question drafting in Question Studio.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3 shrink-0">
+              <button
+                onClick={() => navigate('/studio?topicId=BP-TOP-001&subtopicId=BP-SUB-0001')}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl flex items-center gap-2 shadow-sm transition cursor-pointer"
+              >
+                <Wand2 className="w-3.5 h-3.5" />
+                <span>Launch in Studio</span>
+              </button>
+            </div>
+          </div>
+
           {/* Difficulty & Language Distribution Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Difficulty Breakdown */}
@@ -1574,14 +1604,24 @@ export const PlanningPage: React.FC = () => {
 
                               <div className="flex items-center justify-between text-[10px] text-slate-500 mt-2">
                                 <span>E:{sub.byDifficulty.easy} M:{sub.byDifficulty.medium} H:{sub.byDifficulty.hard}</span>
-                                {sub.isZeroCoverage && (
+                                <div className="flex items-center gap-2">
                                   <button
-                                    onClick={() => handleQuickCreatePlanForGap(sub.subtopicId)}
-                                    className="text-indigo-400 hover:text-indigo-300 font-semibold underline cursor-pointer"
+                                    onClick={() => navigate(`/studio?topicId=${top.topicId}&subtopicId=${sub.subtopicId}`)}
+                                    className="text-slate-400 hover:text-white font-medium flex items-center gap-0.5 cursor-pointer"
+                                    title="Launch Studio Editor for this Subtopic"
                                   >
-                                    + Plan
+                                    <Wand2 className="w-3 h-3 text-indigo-400" />
+                                    <span>Studio</span>
                                   </button>
-                                )}
+                                  {sub.isZeroCoverage && (
+                                    <button
+                                      onClick={() => handleQuickCreatePlanForGap(sub.subtopicId)}
+                                      className="text-indigo-400 hover:text-indigo-300 font-semibold underline cursor-pointer"
+                                    >
+                                      + Plan
+                                    </button>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           ))}

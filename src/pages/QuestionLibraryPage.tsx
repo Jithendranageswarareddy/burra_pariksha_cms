@@ -1,6 +1,20 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Sparkles, RotateCcw, BookOpen, RefreshCw, AlertCircle, ShieldCheck, Edit3 } from 'lucide-react';
+import {
+  Sparkles,
+  RotateCcw,
+  BookOpen,
+  RefreshCw,
+  AlertCircle,
+  ShieldCheck,
+  Edit3,
+  Film,
+  Download,
+  CheckCircle2,
+  ListOrdered,
+  Layers,
+  X,
+} from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { Button } from '../components/common/Button';
 import { SearchInput } from '../components/common/SearchInput';
@@ -16,8 +30,13 @@ export const QuestionLibraryPage: React.FC = () => {
   const [subtopics, setSubtopics] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [successBanner, setSuccessBanner] = useState<string | null>(null);
 
-  // URL search parameter synchronization (Phase 14.3)
+  // Bulk Selection State
+  const [selectedQuestionIds, setSelectedQuestionIds] = useState<string[]>([]);
+  const [isBulkQueueing, setIsBulkQueueing] = useState<boolean>(false);
+
+  // URL search parameter synchronization
   const [searchParams, setSearchParams] = useSearchParams();
 
   const urlSearch = searchParams.get('search') || searchParams.get('q') || '';
@@ -147,30 +166,75 @@ export const QuestionLibraryPage: React.FC = () => {
     Boolean(selectedQuestionStatus) ||
     Boolean(selectedVideoStatus);
 
-  const workflowMeta = useMemo(() => {
-    if (selectedQuestionStatus === QuestionStatus.DRAFT) {
-      return {
-        stepBadge: 'Step 03 • Improve Question',
-        title: 'Improve Question',
-        description: 'Review and refine draft questions, formulas, explanations, and real-world context before verification.',
-      };
+  // Checkbox Selection Helpers
+  const handleToggleSelectQuestion = (id: string) => {
+    setSelectedQuestionIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleToggleSelectAll = () => {
+    if (selectedQuestionIds.length === questions.length) {
+      setSelectedQuestionIds([]);
+    } else {
+      setSelectedQuestionIds(questions.map((q) => q.id));
     }
-    if (selectedQuestionStatus === QuestionStatus.GENERATED) {
-      return {
-        stepBadge: 'Step 04 • Verify & Approve',
-        title: 'Verify & Approve',
-        description: 'Perform mathematical verification, formula validation, and editorial approval on AI-generated questions.',
-      };
+  };
+
+  // Bulk Queue Action
+  const handleBulkQueue = async () => {
+    if (selectedQuestionIds.length === 0) return;
+    setIsBulkQueueing(true);
+    setError(null);
+    try {
+      let queuedCount = 0;
+      for (const qId of selectedQuestionIds) {
+        try {
+          await apiClient.queueVideo({ questionId: qId });
+          queuedCount++;
+        } catch {
+          // Continue with next
+        }
+      }
+      setSuccessBanner(`Successfully queued ${queuedCount} questions for video production.`);
+      setSelectedQuestionIds([]);
+      loadQuestions();
+      setTimeout(() => setSuccessBanner(null), 4000);
+    } catch (err: any) {
+      setError(err?.message || 'Failed to queue selected questions.');
+    } finally {
+      setIsBulkQueueing(false);
     }
-    return {
-      stepBadge: undefined,
-      title: 'Question Library',
-      description: 'Master repository of aptitude questions, solution scripts, and video production assignments.',
-    };
-  }, [selectedQuestionStatus]);
+  };
+
+  // Single Question Send to Queue
+  const handleSendToQueue = async (q: Question) => {
+    try {
+      await apiClient.queueVideo({ questionId: q.id, title: q.questionText.slice(0, 50) });
+      setSuccessBanner(`Question ${q.id} successfully sent to Video Production Queue.`);
+      loadQuestions();
+      setTimeout(() => setSuccessBanner(null), 3000);
+    } catch (err: any) {
+      setError(err?.message || `Failed to queue question ${q.id}.`);
+    }
+  };
+
+  // Bulk Export Action
+  const handleBulkExport = () => {
+    const selectedQuestions = questions.filter((q) => selectedQuestionIds.includes(q.id));
+    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(selectedQuestions, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute('href', dataStr);
+    downloadAnchor.setAttribute('download', `burra_questions_export_${Date.now()}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+    setSuccessBanner(`Exported ${selectedQuestions.length} questions as JSON.`);
+    setTimeout(() => setSuccessBanner(null), 3000);
+  };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-200">
+    <div className="space-y-6 animate-in fade-in duration-200 pb-16">
       {/* Header */}
       <PageHeader
         title="02 Question Library"
@@ -210,7 +274,19 @@ export const QuestionLibraryPage: React.FC = () => {
         </div>
       )}
 
-      {/* Filter Control Bar */}
+      {successBanner && (
+        <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-xl text-xs flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span className="font-medium">{successBanner}</span>
+          </div>
+          <button type="button" onClick={() => setSuccessBanner(null)} className="text-emerald-700 hover:text-emerald-900">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Filter Control Bar: 2-Tier Taxonomy Cascade */}
       <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs space-y-3">
         {/* Search & Top Actions */}
         <div className="flex flex-col sm:flex-row items-center gap-3">
@@ -218,7 +294,7 @@ export const QuestionLibraryPage: React.FC = () => {
             id="question-search-bar"
             value={searchInput}
             onChange={setSearchInput}
-            placeholder="Search by question text, formula, tag, ID..."
+            placeholder="Search across question text, topic, subtopic ID (e.g. BP-SUB-0001)..."
             className="flex-1 w-full"
           />
           {hasActiveFilters && (
@@ -236,37 +312,41 @@ export const QuestionLibraryPage: React.FC = () => {
 
         {/* Multi-Filter Dropdowns Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 pt-2 border-t border-slate-100 text-xs">
-          {/* Topic Filter */}
+          {/* 2-Tier Tier 1: Topic */}
           <div>
-            <label className="block text-[11px] font-semibold text-slate-500 mb-1">Topic</label>
+            <label className="block text-[11px] font-semibold text-slate-500 mb-1">
+              Tier 1: Topic (BP-TOP-001)
+            </label>
             <select
               value={selectedTopic}
               onChange={(e) => {
                 updateFilter('topicId', e.target.value, ['subtopicId']);
               }}
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-indigo-500"
             >
-              <option value="">All Topics</option>
+              <option value="">All Topics (BP-TOP-001...)</option>
               {topics.map((t: any) => (
                 <option key={t.id} value={t.id}>
-                  {t.name}
+                  {t.id}: {t.name}
                 </option>
               ))}
             </select>
           </div>
 
-          {/* Subtopic Filter */}
+          {/* 2-Tier Tier 2: Subtopic */}
           <div>
-            <label className="block text-[11px] font-semibold text-slate-500 mb-1">Subtopic</label>
+            <label className="block text-[11px] font-semibold text-slate-500 mb-1">
+              Tier 2: Subtopic (BP-SUB-0001...)
+            </label>
             <select
               value={selectedSubtopic}
               onChange={(e) => updateFilter('subtopicId', e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-indigo-500"
             >
               <option value="">All Subtopics</option>
               {availableSubtopics.map((s: any) => (
                 <option key={s.id} value={s.id}>
-                  {s.name}
+                  {s.id}: {s.name}
                 </option>
               ))}
             </select>
@@ -278,7 +358,7 @@ export const QuestionLibraryPage: React.FC = () => {
             <select
               value={selectedDifficulty}
               onChange={(e) => updateFilter('difficulty', e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-indigo-500"
             >
               <option value="">All Difficulties</option>
               <option value={DifficultyLevel.EASY}>Easy</option>
@@ -293,7 +373,7 @@ export const QuestionLibraryPage: React.FC = () => {
             <select
               value={selectedQuestionStatus}
               onChange={(e) => updateFilter('status', e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-indigo-500"
             >
               <option value="">All Statuses</option>
               {Object.values(QuestionStatus).map((st) => (
@@ -310,7 +390,7 @@ export const QuestionLibraryPage: React.FC = () => {
             <select
               value={selectedVideoStatus}
               onChange={(e) => updateFilter('videoStatus', e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-indigo-500"
             >
               <option value="">All Stages</option>
               {Object.values(VideoProductionStatus).map((vs) => (
@@ -338,8 +418,61 @@ export const QuestionLibraryPage: React.FC = () => {
           onAction={resetFilters}
         />
       ) : (
-        <QuestionTable questions={questions} />
+        <QuestionTable
+          questions={questions}
+          selectedQuestionIds={selectedQuestionIds}
+          onToggleSelectQuestion={handleToggleSelectQuestion}
+          onToggleSelectAll={handleToggleSelectAll}
+          onSendToQueue={handleSendToQueue}
+        />
+      )}
+
+      {/* Floating Bulk Action Bar */}
+      {selectedQuestionIds.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-slate-950 text-white px-6 py-3.5 rounded-2xl shadow-2xl border border-slate-800 flex items-center gap-6 animate-in slide-in-from-bottom-5">
+          <div className="flex items-center gap-2">
+            <span className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs font-mono font-bold">
+              {selectedQuestionIds.length}
+            </span>
+            <span className="text-xs font-semibold text-slate-200">
+              Questions Selected
+            </span>
+          </div>
+
+          <div className="h-4 w-px bg-slate-800" />
+
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleBulkQueue}
+              disabled={isBulkQueueing}
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl flex items-center gap-2 shadow-sm transition disabled:opacity-50"
+            >
+              <Film className="w-3.5 h-3.5" />
+              <span>{isBulkQueueing ? 'Queueing...' : 'Queue for Video Production'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleBulkExport}
+              className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl flex items-center gap-2 border border-slate-700 transition"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Export JSON</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSelectedQuestionIds([])}
+              className="p-1.5 text-slate-400 hover:text-white rounded-lg transition"
+              title="Clear selection"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
 };
+export default QuestionLibraryPage;
