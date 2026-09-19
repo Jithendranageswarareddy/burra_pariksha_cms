@@ -239,30 +239,22 @@ export const VideoDetailPage: React.FC = () => {
   const allowedNextTransitions = VALID_VIDEO_TRANSITIONS[video.status] || [];
   const priorityConfig = PRIORITY_CONFIG[video.priority] || PRIORITY_CONFIG[PriorityLevel.NORMAL];
 
+  const activeStageCode =
+    activeTab === 'script' ? 'AUDIENCE_SCRIPT' :
+    activeTab === 'recording' ? 'TELEPROMPTER' :
+    activeTab === 'editing' ? 'EDITING' :
+    activeTab === 'final-review' ? 'FINAL_QC' :
+    activeTab === 'social' ? 'SOCIAL_REVIEW' :
+    activeTab === 'thumbnail' ? 'THUMBNAIL' :
+    activeTab === 'publishing' ? 'PUBLISHING_SETUP' :
+    'EDITING';
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto animate-in fade-in duration-200 pb-16">
       {/* 15-Stage Continuous Production Journey Orchestration Bar */}
       <ProductionJourneyBar
         showDetails
-        activeStage={
-          activeTab === 'script'
-            ? 'SCRIPTING'
-            : activeTab === 'recording'
-            ? 'TELEPROMPTER'
-            : activeTab === 'editing'
-            ? 'EDITING'
-            : activeTab === 'final-review'
-            ? 'FINAL_QC'
-            : activeTab === 'social'
-            ? 'SOCIAL_SIMULATOR'
-            : activeTab === 'thumbnail'
-            ? 'THUMBNAIL'
-            : activeTab === 'pinned-comment'
-            ? 'PINNED_COMMENT'
-            : activeTab === 'publishing'
-            ? 'PUBLISHING'
-            : 'EDITING'
-        }
+        activeStage={activeStageCode}
         onNavigateTab={(tab) => handleTabChange(tab as any)}
       />
 
@@ -346,24 +338,13 @@ export const VideoDetailPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-1.5">
-          {video.questionId && (
-            <Link to={`/social-review/${encodeURIComponent(video.questionId)}`}>
-              <button
-                type="button"
-                className="px-2.5 py-1 text-xs border border-slate-200 rounded-lg bg-white text-slate-700 hover:bg-slate-50 font-semibold transition-all cursor-pointer flex items-center gap-1 shadow-2xs"
-              >
-                <Share2 className="w-3.5 h-3.5 text-slate-500" />
-                <span>Standalone Review</span>
-              </button>
-            </Link>
-          )}
           <Link to={`/questions/${video.questionId}`}>
             <button
               type="button"
               className="px-2.5 py-1 text-xs border border-slate-200 rounded-lg bg-white text-slate-700 hover:bg-slate-50 font-semibold transition-all cursor-pointer flex items-center gap-1 shadow-2xs"
             >
               <ExternalLink className="w-3.5 h-3.5 text-slate-500" />
-              <span>View Question</span>
+              <span>View Question Record</span>
             </button>
           </Link>
         </div>

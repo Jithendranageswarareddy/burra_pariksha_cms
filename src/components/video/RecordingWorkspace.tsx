@@ -239,6 +239,35 @@ export const RecordingWorkspace: React.FC<RecordingWorkspaceProps> = ({
     }
   };
 
+  const handleProceedToEditing = async () => {
+    setIsUpdating(true);
+    setError(null);
+    try {
+      if (
+        video.status === VideoProductionStatus.RECORDED ||
+        video.status === VideoProductionStatus.QUEUED ||
+        video.status === VideoProductionStatus.SCRIPT_READY ||
+        video.status === VideoProductionStatus.RECORDING
+      ) {
+        await apiClient.updateVideoStatus(
+          videoId,
+          VideoProductionStatus.EDITING,
+          'Raw footage secured, advancing to Editing stage'
+        );
+        if (onStatusChange) onStatusChange();
+      }
+      if (onNavigateTab) {
+        onNavigateTab('editing');
+      } else {
+        window.location.href = `/videos/${encodeURIComponent(videoId)}?tab=editing`;
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Failed to advance to Editing stage.');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
   const handleStatusTransition = async (nextStatus: VideoProductionStatus) => {
     setIsUpdating(true);
     setError(null);
@@ -489,14 +518,9 @@ export const RecordingWorkspace: React.FC<RecordingWorkspaceProps> = ({
 
             <button
               type="button"
-              onClick={() => {
-                if (onNavigateTab) {
-                  onNavigateTab('editing');
-                } else {
-                  window.location.href = `/videos/${encodeURIComponent(videoId)}?tab=editing`;
-                }
-              }}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 w-full text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+              disabled={isUpdating}
+              onClick={handleProceedToEditing}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 w-full text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
               <span>Save Footage &amp; Proceed to Step 05: Editing Bay →</span>
             </button>

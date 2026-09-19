@@ -30,6 +30,7 @@ export const ProductionJourneyBar: React.FC<ProductionJourneyBarProps> = ({
   className = '',
   onNavigateTab,
   showDetails = false,
+  activeStage,
 }) => {
   const {
     currentStage,
@@ -45,6 +46,29 @@ export const ProductionJourneyBar: React.FC<ProductionJourneyBarProps> = ({
   } = useProductionJourney();
 
   const [activeTooltipStage, setActiveTooltipStage] = useState<number | null>(null);
+
+  const stageCodeToNumber: Record<string, number> = {
+    QUESTION: 1,
+    VERIFICATION: 2,
+    AUDIENCE_SCRIPT: 3,
+    SCRIPTING: 3,
+    TELEPROMPTER: 4,
+    RAW_VIDEO: 5,
+    EDITING: 6,
+    FINAL_QC: 7,
+    THUMBNAIL: 8,
+    SOCIAL_REVIEW: 9,
+    SOCIAL_SIMULATOR: 9,
+    PINNED_COMMENT: 9,
+    PUBLISHING_SETUP: 10,
+    PUBLISHING: 10,
+    PUBLISHED: 11,
+  };
+
+  const effectiveCurrentStage =
+    activeStage && stageCodeToNumber[activeStage]
+      ? stageCodeToNumber[activeStage]
+      : currentStage;
 
   const handleStageClick = (stage: JourneyStage) => {
     if (stage.isBlocked) {
@@ -66,7 +90,7 @@ export const ProductionJourneyBar: React.FC<ProductionJourneyBarProps> = ({
     advanceToNextStage();
   };
 
-  const activeStageObj = stages.find((s) => s.stageNumber === currentStage) || stages[0];
+  const activeStageObj = stages.find((s) => s.stageNumber === effectiveCurrentStage) || stages[0];
 
   return (
     <div className={`bg-white rounded-xl border border-slate-200 shadow-xs p-4 space-y-4 ${className}`}>
@@ -83,7 +107,7 @@ export const ProductionJourneyBar: React.FC<ProductionJourneyBarProps> = ({
           {/* Active Stage Indicator */}
           <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-semibold">
             <span className="w-2 h-2 rounded-full bg-indigo-600 animate-pulse" />
-            <span>Stage {String(currentStage).padStart(2, '0')} / 15: {activeStageObj.shortLabel}</span>
+            <span>Stage {String(effectiveCurrentStage).padStart(2, '0')} / 15: {activeStageObj.shortLabel}</span>
           </div>
 
           {/* Canonical correlation identifiers */}
@@ -140,6 +164,7 @@ export const ProductionJourneyBar: React.FC<ProductionJourneyBarProps> = ({
           {stages.map((stage, index) => {
             const isLast = index === stages.length - 1;
             const isTooltipOpen = activeTooltipStage === stage.stageNumber;
+            const isNodeCurrent = stage.stageNumber === effectiveCurrentStage;
 
             return (
               <React.Fragment key={stage.id}>
@@ -153,7 +178,7 @@ export const ProductionJourneyBar: React.FC<ProductionJourneyBarProps> = ({
                   {/* Circle Indicator */}
                   <div
                     className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold font-mono transition-all select-none ${
-                      stage.isCurrent
+                      isNodeCurrent
                         ? 'bg-indigo-600 text-white border-2 border-white ring-4 ring-indigo-100 scale-110 shadow-sm z-10'
                         : stage.isCompleted
                         ? 'bg-emerald-600 text-white border border-emerald-500 hover:bg-emerald-700'
@@ -174,7 +199,7 @@ export const ProductionJourneyBar: React.FC<ProductionJourneyBarProps> = ({
                   {/* Stage Label */}
                   <span
                     className={`mt-1.5 text-[10px] tracking-tight whitespace-nowrap text-center transition-colors max-w-[80px] leading-tight select-none ${
-                      stage.isCurrent
+                      isNodeCurrent
                         ? 'text-indigo-700 font-bold'
                         : stage.isCompleted
                         ? 'text-slate-700 font-medium'

@@ -158,6 +158,22 @@ export const EditingWorkspace: React.FC<EditingWorkspaceProps> = ({
     setError(null);
     setSuccessMessage(null);
     try {
+      if (
+        video.status !== VideoProductionStatus.EDITING &&
+        video.status !== VideoProductionStatus.EDITED
+      ) {
+        try {
+          await apiClient.updateVideoStatus(
+            videoId,
+            VideoProductionStatus.EDITING,
+            'Auto-advancing to EDITING for master cut upload'
+          );
+          if (onStatusChange) onStatusChange();
+        } catch (e) {
+          console.warn('Pre-flight status update to EDITING skipped/failed:', e);
+        }
+      }
+
       const res = await apiClient.uploadEditedVideoFile(
         videoId,
         selectedEditedFile,
