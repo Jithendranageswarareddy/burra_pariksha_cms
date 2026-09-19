@@ -4,25 +4,28 @@
  * 
  * Source of truth for permanent, auto-incrementing domain entity IDs.
  * Prevents ID generation based on volatile row indices or array counts.
- * 
- * CONCURRENCY & LIMITATION NOTE:
- * Google Sheets does not provide database-level ACID transactions or atomic
- * compare-and-swap primitives over its REST API. For this initial single-admin
- * application, this repository uses in-process Promise queue serialization to
- * safely sequence ID allocations within the single Node.js runtime process.
- * 
- * Guarantees:
- * - Within a single Node server instance: ID allocations are queued and executed
- *   sequentially, preventing in-process race conditions.
- * - Source of truth is the SEQUENCES worksheet row for each entity_type.
- * 
- * Limitations:
- * - Does NOT provide multi-instance / distributed transactional atomicity across
- *   multiple separate server processes or external direct edits to the Google Sheet.
+ * Includes self-healing capability to prevent sequence drift and ID collisions.
  */
 
 import { BaseRepository } from './base.repository';
 import { ID_PREFIX_MAP, SEQUENCE_ENTITIES, SHEET_SCHEMAS, SHEET_TABS, SequenceEntityType } from '../schemas/google-sheets-schema';
+
+import { questionsRepository } from './questions.repository';
+import { videosRepository } from './videos.repository';
+import { scriptsRepository } from './scripts.repository';
+import { thumbnailsRepository } from './thumbnails.repository';
+import { pinnedCommentsRepository } from './pinned-comments.repository';
+import { categoriesRepository } from './categories.repository';
+import { topicsRepository } from './topics.repository';
+import { subtopicsRepository } from './subtopics.repository';
+import { usersRepository } from './users.repository';
+import { contentPlansRepository } from './content-plans.repository';
+import { contentBatchesRepository } from './content-batches.repository';
+import { assignmentsRepository } from './assignments.repository';
+import { contentMastersRepository } from './content-masters.repository';
+import { socialReviewsRepository } from './social-reviews.repository';
+import { analyticsRepository } from './analytics.repository';
+import { intelligenceRepository } from './intelligence.repository';
 
 export interface SequenceRecord {
   entityType: string;
@@ -73,8 +76,91 @@ export class SequencesRepository extends BaseRepository<SequenceRecord> {
   }
 
   /**
+   * Helper mapping from entityType to repository.
+   */
+  private getRepositoryForEntity(entityType: string): BaseRepository<any> | null {
+    switch (entityType) {
+      case SEQUENCE_ENTITIES.QUESTION:
+        return questionsRepository;
+      case SEQUENCE_ENTITIES.VIDEO:
+        return videosRepository;
+      case SEQUENCE_ENTITIES.SCRIPT:
+        return scriptsRepository;
+      case SEQUENCE_ENTITIES.THUMBNAIL:
+        return thumbnailsRepository;
+      case SEQUENCE_ENTITIES.PINNED_COMMENT:
+        return pinnedCommentsRepository;
+      case SEQUENCE_ENTITIES.CATEGORY:
+        return categoriesRepository;
+      case SEQUENCE_ENTITIES.TOPIC:
+        return topicsRepository;
+      case SEQUENCE_ENTITIES.SUBTOPIC:
+        return subtopicsRepository;
+      case SEQUENCE_ENTITIES.USER:
+        return usersRepository;
+      case SEQUENCE_ENTITIES.CONTENT_PLAN:
+        return contentPlansRepository;
+      case SEQUENCE_ENTITIES.CONTENT_BATCH:
+        return contentBatchesRepository;
+      case SEQUENCE_ENTITIES.ASSIGNMENT:
+        return assignmentsRepository;
+      case SEQUENCE_ENTITIES.CONTENT_MASTER:
+        return contentMastersRepository;
+      case SEQUENCE_ENTITIES.SOCIAL_REVIEW:
+        return socialReviewsRepository;
+      case SEQUENCE_ENTITIES.SOCIAL_ANALYTICS:
+        return analyticsRepository;
+      case SEQUENCE_ENTITIES.SOCIAL_PERFORMANCE_INTELLIGENCE:
+        return intelligenceRepository;
+      default:
+        return null;
+    }
+  }
+
+  /**
+   * Scans target entity's repository to determine maximum numeric ID currently present.
+   */
+  public async getMaxExistingId(entityType: string): Promise<number> {
+    try {
+      const repo = this.getRepositoryForEntity(entityType);
+      if (!repo) return 0;
+
+      const config = ID_PREFIX_MAP[entityType as SequenceEntityType];
+      const prefix = config ? config.prefix : '';
+
+      const records = await repo.findAll();
+      if (!records || records.length === 0) return 0;
+
+      let maxId = 0;
+      for (const record of records) {
+        if (!record) continue;
+        const rawId = record.id || record.contentId || record.contentMasterId || (record as any)[repo.getSchema().primaryKey];
+        if (!rawId || typeof rawId !== 'string') continue;
+
+        let num = 0;
+        if (prefix && rawId.startsWith(prefix)) {
+          const suffix = rawId.slice(prefix.length);
+          num = parseInt(suffix, 10);
+        } else {
+          const match = rawId.match(/(\d+)$/);
+          if (match) {
+            num = parseInt(match[1], 10);
+          }
+        }
+
+        if (!isNaN(num) && num > maxId) {
+          maxId = num;
+        }
+      }
+      return maxId;
+    } catch {
+      return 0;
+    }
+  }
+
+  /**
    * Allocates the next available number for an entity and increments the sequence.
-   * Serialized in-process via Promise chaining to prevent concurrent interleaving within the Node process.
+   * Includes self-healing to advance past any existing IDs in target repository.
    */
   public async allocateNextNumber(entityType: string): Promise<{ allocatedNumber: number; prefix: string; padLength: number }> {
     return new Promise<{ allocatedNumber: number; prefix: string; padLength: number }>((resolve, reject) => {
@@ -100,28 +186,40 @@ export class SequencesRepository extends BaseRepository<SequenceRecord> {
     let sequence = await this.getSequence(entityType);
     const config = ID_PREFIX_MAP[entityType as SequenceEntityType] || { prefix: 'BP-', padLength: 6 };
 
+    // Self-healing check: find highest allocated ID currently in repository
+    const maxExistingId = await this.getMaxExistingId(entityType);
+
     if (!sequence) {
-      // Record not yet present in SEQUENCES tab, initialize starting at 1
+      // Record not yet present in SEQUENCES tab, initialize starting past maxExistingId
+      const allocatedNumber = maxExistingId + 1;
       const initialRecord: SequenceRecord = {
         entityType,
-        nextNumber: 2, // 1 allocated, next is 2
+        nextNumber: allocatedNumber + 1,
         prefix: config.prefix,
         padLength: config.padLength,
         updatedAt: new Date().toISOString(),
       };
       await this.appendRecord(initialRecord);
       return {
-        allocatedNumber: 1,
+        allocatedNumber,
         prefix: config.prefix,
         padLength: config.padLength,
       };
     }
 
-    const currentNumber = Number(sequence.nextNumber) || 1;
+    let currentNumber = Number(sequence.nextNumber) || 1;
+
+    // If sequence.nextNumber <= maxExistingId, automatically advance nextNumber to maxExistingId + 1
+    if (currentNumber <= maxExistingId) {
+      currentNumber = maxExistingId + 1;
+    }
+
     const nextNumber = currentNumber + 1;
 
     await this.updateRecord(entityType, {
       nextNumber,
+      prefix: sequence.prefix || config.prefix,
+      padLength: Number(sequence.padLength) || config.padLength,
       updatedAt: new Date().toISOString(),
     });
 

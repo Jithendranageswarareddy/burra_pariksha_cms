@@ -269,17 +269,20 @@ async function purgeTestDataForProduction() {
   console.log('   ✅ Test data rows cleared across all pipeline sheets.');
 
   // --------------------------------------------------------------------------
-  // STEP 4: RESET SEQUENCES (Preserving Row Entities, Resetting to 1 / 000001)
+  // STEP 4: RESET SEQUENCES (Preserving Row Entities, Setting nextNumber = maxExistingId + 1)
   // --------------------------------------------------------------------------
-  console.log('\n🔹 STEP 4: Resetting Auto-Increment Sequences to 000001...');
+  console.log('\n🔹 STEP 4: Resetting Auto-Increment Sequences (Self-Healing Preserved Entities)...');
 
   const allSequenceEntities = Object.values(SEQUENCE_ENTITIES);
 
   for (const entity of allSequenceEntities) {
     const config = ID_PREFIX_MAP[entity as SequenceEntityType] || { prefix: 'BP-', padLength: 6 };
+    const maxExistingId = await sequencesRepository.getMaxExistingId(entity);
+    const targetNextNumber = maxExistingId > 0 ? maxExistingId + 1 : 1;
+
     const sequenceRecord = {
       entityType: entity,
-      nextNumber: 1, // Fresh production start: next allocated ID will be 000001
+      nextNumber: targetNextNumber,
       prefix: config.prefix,
       padLength: config.padLength,
       updatedAt: new Date().toISOString(),
@@ -289,12 +292,15 @@ async function purgeTestDataForProduction() {
       const existing = await sequencesRepository.findById(entity);
       if (existing) {
         await sequencesRepository.updateRecord(entity, {
-          nextNumber: 1,
+          nextNumber: targetNextNumber,
+          prefix: config.prefix,
+          padLength: config.padLength,
           updatedAt: new Date().toISOString(),
         });
       } else {
         await sequencesRepository.appendRecord(sequenceRecord);
       }
+      console.log(`   ⚙️ Sequence [${entity}]: nextNumber set to ${targetNextNumber} (maxExistingId: ${maxExistingId})`);
     } catch (err: any) {
       console.warn(`   ⚠️ Warning resetting sequence for entity '${entity}':`, err?.message || err);
     }
@@ -305,9 +311,11 @@ async function purgeTestDataForProduction() {
   if (seqStore) {
     for (const entity of allSequenceEntities) {
       const config = ID_PREFIX_MAP[entity as SequenceEntityType] || { prefix: 'BP-', padLength: 6 };
+      const maxExistingId = await sequencesRepository.getMaxExistingId(entity);
+      const targetNextNumber = maxExistingId > 0 ? maxExistingId + 1 : 1;
       seqStore.set(entity, {
         entityType: entity,
-        nextNumber: 1,
+        nextNumber: targetNextNumber,
         prefix: config.prefix,
         padLength: config.padLength,
         updatedAt: new Date().toISOString(),
@@ -315,7 +323,7 @@ async function purgeTestDataForProduction() {
     }
   }
 
-  console.log('   ✅ All auto-increment sequence counters reset to 1 (Fresh start at ID 000001).');
+  console.log('   ✅ Sequence counters synchronized (Cleared entities at 1, Preserved entities at maxExistingId + 1).');
 
   // --------------------------------------------------------------------------
   // STEP 5: POST-PURGE VERIFICATION & REPORT GENERATION
