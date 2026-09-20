@@ -9,18 +9,20 @@
 
 import { strategyRecommendationRepository } from '../repositories/strategy-recommendation.repository';
 import { socialPerformanceIntelligenceService } from './social-performance-intelligence.service';
+import { commentIntelligenceRepository } from '../repositories/comment-intelligence.repository';
 import { analyticsService } from './analytics.service';
 import { taxonomyService } from './taxonomy.service';
 import { contentPlansRepository } from '../repositories/content-plans.repository';
 import { auditLogRepository } from '../repositories/audit-log.repository';
 import { idService } from './id.service';
 import { phase24AIOrchestrator } from '../ai/phase24-orchestrator.service';
-import { ContentStrategyRecommendation, ContentPlan, RecommendationStatus, QuestionLanguage, PriorityLevel, ContentPlanStatus } from '../../types';
+import { ContentStrategyRecommendation, ContentPlan, RecommendationStatus, QuestionLanguage, PriorityLevel, ContentPlanStatus, CommentIntelligenceRecord } from '../../types';
 import { AIProvenance } from '../../types/phase24-ai';
 
 export class ContentStrategyService {
   private static instance: ContentStrategyService | null = null;
   private strategyRepo = strategyRecommendationRepository;
+  private commentIntelRepo = commentIntelligenceRepository;
   private planRepo = contentPlansRepository;
   private auditLogRepo = auditLogRepository;
 
@@ -34,11 +36,12 @@ export class ContentStrategyService {
   }
 
   /**
-   * Generates a new structured strategy recommendation based on Phase 28 Performance Intelligence.
+   * Generates a new structured strategy recommendation based on Phase 28 Performance Intelligence
+   * and Phase 30 / C3 Comment Intelligence (misconceptions, viewer questions, feedback loops).
    * Leverages Phase 24 Central AI Orchestrator with an optional deterministic rule fallback.
    */
   public async generateStrategyRecommendation(
-    input: { sourceReportId?: string; forceFallback?: boolean },
+    input: { sourceReportId?: string; sourceCommentIntelligenceId?: string; forceFallback?: boolean },
     actorId: string = 'USER',
     actorName: string = 'User'
   ): Promise<{ success: boolean; recommendation?: ContentStrategyRecommendation; error?: string; auditLogged: boolean }> {
@@ -54,6 +57,17 @@ export class ContentStrategyService {
         if (reports.length > 0) {
           intelligenceReport = reports[0];
           reportId = intelligenceReport.id;
+        }
+      }
+
+      // 2. Retrieve source comment intelligence / audience feedback reports (if available)
+      let commentIntelReport: CommentIntelligenceRecord | null = null;
+      if (input.sourceCommentIntelligenceId) {
+        commentIntelReport = await this.commentIntelRepo.findById(input.sourceCommentIntelligenceId);
+      } else {
+        const recentCommentIntels = await this.commentIntelRepo.getRecentIntelligence(3);
+        if (recentCommentIntels.length > 0) {
+          commentIntelReport = recentCommentIntels[0];
         }
       }
 
@@ -104,21 +118,53 @@ export class ContentStrategyService {
         recConfidence = intelligenceReport.recordCount >= 5 ? 'HIGH' : intelligenceReport.recordCount >= 3 ? 'MEDIUM' : 'LOW';
       }
 
-      if (isInsufficientData) {
+      // Incorporate Audience Comment Intelligence into evidence and fallback recommendations
+      let commentEvidenceSummary = '';
+      if (commentIntelReport) {
+        const topMisconceptions = (commentIntelReport.misconceptions || []).map((m) => m.misconception).slice(0, 2);
+        const topViewerQuestions = (commentIntelReport.viewerQuestions || []).map((q) => q.question).slice(0, 2);
+        const topRequests = (commentIntelReport.contentRequests || []).map((r) => r.requestedTopicOrFormat).slice(0, 2);
+
+        const parts: string[] = [];
+        if (topMisconceptions.length > 0) {
+          parts.push(`Audience Misconceptions: ${topMisconceptions.join('; ')}`);
+        }
+        if (topViewerQuestions.length > 0) {
+          parts.push(`Viewer Inquiries: ${topViewerQuestions.join('; ')}`);
+        }
+        if (topRequests.length > 0) {
+          parts.push(`Content Requests: ${topRequests.join('; ')}`);
+        }
+
+        if (parts.length > 0) {
+          commentEvidenceSummary = `Comment Intelligence (${commentIntelReport.id}): ${parts.join(' | ')}.`;
+          recEvidence = `${recEvidence} ${commentEvidenceSummary}`.trim();
+          if (topMisconceptions.length > 0) {
+            recHook = `Watch out for this common trap: ${topMisconceptions[0].slice(0, 80)}!`;
+            recContext = `Address verified audience misconceptions: ${topMisconceptions.join(', ')}.`;
+          }
+        }
+      }
+
+      if (isInsufficientData && !commentIntelReport) {
         recConfidence = 'INSUFFICIENT_DATA';
         recEvidence = `Dataset size is too small (${totalSamples} record(s)). Minimum 3 samples required. Defaulting to safe curriculum topics.`;
+      } else if (isInsufficientData && commentIntelReport) {
+        recConfidence = 'LOW';
+        recEvidence = `${recEvidence} (Derived primarily from qualitative comment intelligence due to small numerical dataset size: ${totalSamples}).`;
       }
 
       let generatedData: Partial<ContentStrategyRecommendation> | null = null;
-      const useAI = input.forceFallback !== true && !isInsufficientData;
+      const useAI = input.forceFallback !== true && (!isInsufficientData || Boolean(commentIntelReport));
 
       if (useAI) {
         // Build prompt for Phase 24 AI Provider Orchestrator
-        const prompt = `Based on the following performance intelligence and raw social analytics, generate a future content strategy recommendation.
+        const prompt = `Based on the following performance intelligence, raw social analytics, and audience comment intelligence feedback loop, generate a future content strategy recommendation.
 Intelligence Report:
 - ID: ${reportId || 'N/A'}
 - Sample Size: ${totalSamples}
 - Evidence Summary: ${recEvidence}
+${commentEvidenceSummary ? `- Audience Feedback & Misconceptions: ${commentEvidenceSummary}` : ''}
 
 Top Aggregates Found:
 - Suggested Topic ID: ${recTopicId}
@@ -132,14 +178,14 @@ Respond with a strictly formatted JSON object having these fields:
 - subtopicId (string, match suggested subtopic)
 - difficulty (string, must be "EASY", "MEDIUM", or "HARD")
 - questionStyle (string, style recommendation)
-- context (string, high-quality real-world presentation context)
+- context (string, high-quality real-world presentation context addressing student needs and misconceptions)
 - hook (string, high-retention hook question)
 - presentation (string, vertical format description)
 - platformConsiderations (string, optimized distribution details)
 - confidenceLevel (string, "HIGH", "MEDIUM" or "LOW")
-- evidence (string, precise evidence linking back to analytics metrics such as views, retention or CTR)`;
+- evidence (string, precise evidence linking back to analytics metrics and audience comment intelligence)`;
 
-        const systemInstruction = 'You are an advanced media content strategist specializing in competitive aptitude micro-learning content for Burra Pariksha. Keep suggestions actionable, grounded in evidence, and strictly structured in JSON format.';
+        const systemInstruction = 'You are an advanced media content strategist specializing in competitive aptitude micro-learning content for Burra Pariksha. Keep suggestions actionable, grounded in evidence from both performance analytics and audience comment intelligence, and strictly structured in JSON format.';
 
         const aiResponse = await phase24AIOrchestrator.executeTask({
           task: 'ANALYSIS',

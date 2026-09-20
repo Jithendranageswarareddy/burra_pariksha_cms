@@ -1531,6 +1531,91 @@ class ApiClient {
       method: 'POST',
     });
   }
+
+  // Phase 30: Audience Social Comments (Strictly in Analytics Workbook)
+  public async createSocialComment(
+    input: import('../types').CreateSocialCommentInput
+  ): Promise<{ success: boolean; record?: import('../types').SocialCommentRecord; isDuplicate?: boolean; error?: string }> {
+    return this.request('/social-comments', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  }
+
+  public async importSocialComments(
+    input: import('../types').ImportSocialCommentsInput
+  ): Promise<{
+    success: boolean;
+    importedCount: number;
+    duplicateCount: number;
+    failedCount: number;
+    createdIds: string[];
+    errors: string[];
+  }> {
+    return this.request('/social-comments/import', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  }
+
+  public async getSocialComments(
+    filters?: import('../types').SocialCommentQueryFilters
+  ): Promise<{ success: boolean; count: number; records: import('../types').SocialCommentRecord[] }> {
+    const params = new URLSearchParams();
+    if (filters?.contentId) params.append('contentId', filters.contentId);
+    if (filters?.videoId) params.append('videoId', filters.videoId);
+    if (filters?.publishingId) params.append('publishingId', filters.publishingId);
+    if (filters?.platform) params.append('platform', filters.platform);
+    if (filters?.platformPostId) params.append('platformPostId', filters.platformPostId);
+    if (filters?.platformCommentId) params.append('platformCommentId', filters.platformCommentId);
+    if (filters?.source) params.append('source', filters.source);
+    if (filters?.status) params.append('status', filters.status);
+    if (filters?.isReply !== undefined) params.append('isReply', String(filters.isReply));
+    if (filters?.startDate) params.append('startDate', filters.startDate);
+    if (filters?.endDate) params.append('endDate', filters.endDate);
+    const qs = params.toString();
+    return this.request(`/social-comments${qs ? `?${qs}` : ''}`);
+  }
+
+  public async getSocialCommentsForContent(
+    contentId: string
+  ): Promise<{ success: boolean; count: number; contentId: string; records: import('../types').SocialCommentRecord[] }> {
+    return this.request(`/social-comments/content/${encodeURIComponent(contentId)}`);
+  }
+
+  public async getSocialCommentById(
+    id: string
+  ): Promise<{ success: boolean; record?: import('../types').SocialCommentRecord; error?: string }> {
+    return this.request(`/social-comments/${encodeURIComponent(id)}`);
+  }
+
+  // Phase 30 / C3: AI Comment Intelligence & Misconception Engine
+  public async generateCommentIntelligence(
+    input: import('../types').GenerateCommentIntelligenceInput
+  ): Promise<{ success: boolean; record?: import('../types').CommentIntelligenceRecord; error?: string }> {
+    return this.request('/comment-intelligence/analyze', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  }
+
+  public async getCommentIntelligenceReports(
+    limit: number = 20
+  ): Promise<{ success: boolean; count: number; reports: import('../types').CommentIntelligenceRecord[] }> {
+    return this.request(`/comment-intelligence?limit=${limit}`);
+  }
+
+  public async getCommentIntelligenceForContent(
+    contentId: string
+  ): Promise<{ success: boolean; count: number; contentId: string; reports: import('../types').CommentIntelligenceRecord[] }> {
+    return this.request(`/comment-intelligence/content/${encodeURIComponent(contentId)}`);
+  }
+
+  public async getCommentIntelligenceById(
+    id: string
+  ): Promise<{ success: boolean; record?: import('../types').CommentIntelligenceRecord; error?: string }> {
+    return this.request(`/comment-intelligence/${encodeURIComponent(id)}`);
+  }
 }
 
 export const apiClient = new ApiClient();

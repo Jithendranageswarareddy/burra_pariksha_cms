@@ -97,23 +97,39 @@ export interface ProductionJourneyContextType {
   }>) => void;
 }
 
-const STAGE_DEFINITIONS = [
-  { stageNumber: 1, id: 'question', label: '01 Question', shortLabel: 'Question', description: 'Question creation and drafting' },
-  { stageNumber: 2, id: 'verification', label: '02 Verification', shortLabel: 'Verification', description: 'Pedagogical verification & solution proof' },
-  { stageNumber: 3, id: 'script', label: '03 Audience Script', shortLabel: 'Audience Script', description: 'Short-form script with hook and speed trick' },
-  { stageNumber: 4, id: 'recording', label: '04 Teleprompter & Filming', shortLabel: 'Teleprompter & Filming', description: 'Presenter filming and teleprompter recording' },
-  { stageNumber: 5, id: 'raw-video', label: '05 Raw Video', shortLabel: 'Raw Video', description: 'Raw video asset ingestion and verification' },
-  { stageNumber: 6, id: 'editing', label: '06 Editing', shortLabel: 'Editing', description: 'Editing bay, captions, graphics, and pacing' },
-  { stageNumber: 7, id: 'final-qc', label: '07 Final QC', shortLabel: 'Final QC', description: 'Final QC review and vertical aspect ratio check' },
-  { stageNumber: 8, id: 'thumbnail', label: '08 Thumbnail', shortLabel: 'Thumbnail', description: 'High-CTR curiosity framing thumbnail' },
-  { stageNumber: 9, id: 'social-review', label: '09 Social Review', shortLabel: 'Social Review', description: 'Social package, copy, hashtags, and pinned comment' },
-  { stageNumber: 10, id: 'publishing-setup', label: '10 Publishing Setup', shortLabel: 'Publishing Setup', description: 'Multi-platform scheduling and package configuration' },
-  { stageNumber: 11, id: 'published', label: '11 Published', shortLabel: 'Published', description: 'Live publication on primary video platforms' },
-  { stageNumber: 12, id: 'platform-sync', label: '12 Platform Sync', shortLabel: 'Platform Sync', description: 'Cross-platform sync verification across YouTube, IG, FB' },
-  { stageNumber: 13, id: 'analytics', label: '13 Analytics', shortLabel: 'Analytics', description: 'Audience retention and social analytics tracking' },
-  { stageNumber: 14, id: 'performance-review', label: '14 Performance Review', shortLabel: 'Performance Review', description: 'Editorial review of viewer feedback and answer curves' },
-  { stageNumber: 15, id: 'insights', label: '15 Insights', shortLabel: 'Insights', description: 'Pedagogical intelligence and next-question recommendations' },
+export const STAGE_DEFINITIONS = [
+  { stageNumber: 1, id: 'question', label: '01 Question', shortLabel: 'Question', description: 'Question creation and drafting', defaultRoute: '/studio' },
+  { stageNumber: 2, id: 'verification', label: '02 Verification', shortLabel: 'Verification', description: 'Pedagogical verification & solution proof', defaultRoute: '/questions/verify' },
+  { stageNumber: 3, id: 'script', label: '03 Audience Script', shortLabel: 'Audience Script', description: 'Short-form script with hook and speed trick', defaultRoute: '/studio' },
+  { stageNumber: 4, id: 'recording', label: '04 Teleprompter & Filming', shortLabel: 'Teleprompter & Filming', description: 'Presenter filming and teleprompter recording', defaultRoute: '/production' },
+  { stageNumber: 5, id: 'raw-video', label: '05 Raw Video', shortLabel: 'Raw Video', description: 'Raw video asset ingestion and verification', defaultRoute: '/production' },
+  { stageNumber: 6, id: 'editing', label: '06 Editing', shortLabel: 'Editing', description: 'Editing bay, captions, graphics, and pacing', defaultRoute: '/production' },
+  { stageNumber: 7, id: 'final-qc', label: '07 Final QC', shortLabel: 'Final QC', description: 'Final QC review and vertical aspect ratio check', defaultRoute: '/production' },
+  { stageNumber: 8, id: 'thumbnail', label: '08 Thumbnail', shortLabel: 'Thumbnail', description: 'High-CTR curiosity framing thumbnail', defaultRoute: '/production' },
+  { stageNumber: 9, id: 'social-review', label: '09 Social Review', shortLabel: 'Social Review', description: 'Social package, copy, hashtags, and pinned comment', defaultRoute: '/social-review' },
+  { stageNumber: 10, id: 'publishing-setup', label: '10 Publishing Setup', shortLabel: 'Publishing Setup', description: 'Multi-platform scheduling and package configuration', defaultRoute: '/publishing' },
+  { stageNumber: 11, id: 'published', label: '11 Published', shortLabel: 'Published', description: 'Live publication on primary video platforms', defaultRoute: '/publishing' },
+  { stageNumber: 12, id: 'platform-sync', label: '12 Platform Sync', shortLabel: 'Platform Sync', description: 'Cross-platform sync verification across YouTube, IG, FB', defaultRoute: '/platform-packages' },
+  { stageNumber: 13, id: 'analytics', label: '13 Analytics', shortLabel: 'Analytics', description: 'Audience retention and social analytics tracking', defaultRoute: '/social-analytics' },
+  { stageNumber: 14, id: 'performance-review', label: '14 Performance Review', shortLabel: 'Performance Review', description: 'Editorial review of viewer feedback and answer curves', defaultRoute: '/analytics/engagement' },
+  { stageNumber: 15, id: 'insights', label: '15 Insights', shortLabel: 'Insights', description: 'Pedagogical intelligence and next-question recommendations', defaultRoute: '/analytics/intelligence' },
 ];
+
+export const getJourneyStageById = (stageNum: number) => {
+  const found = STAGE_DEFINITIONS.find((s) => s.stageNumber === stageNum);
+  if (!found) return null;
+  return {
+    ...found,
+    id: found.stageNumber,
+    name: found.label,
+    route: found.defaultRoute,
+  };
+};
+
+export const getNextStage = (stageNum: number) => {
+  if (stageNum >= 15) return getJourneyStageById(1);
+  return getJourneyStageById(stageNum + 1);
+};
 
 const ProductionJourneyContext = createContext<ProductionJourneyContextType | undefined>(undefined);
 

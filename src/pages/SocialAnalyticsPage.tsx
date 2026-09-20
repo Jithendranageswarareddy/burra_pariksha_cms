@@ -35,6 +35,12 @@ import {
   Film,
   PlusCircle,
   ArrowRight,
+  Sparkles,
+  Zap,
+  HelpCircle,
+  AlertTriangle,
+  Lightbulb,
+  Send,
 } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { Button } from '../components/common/Button';
@@ -44,6 +50,8 @@ import {
   ContentMaster,
   CreateSocialAnalyticsInput,
   SocialAnalyticsRecord,
+  SocialCommentRecord,
+  CommentIntelligenceRecord,
 } from '../types';
 
 export const SocialAnalyticsPage: React.FC = () => {
@@ -80,6 +88,20 @@ export const SocialAnalyticsPage: React.FC = () => {
   const [snapshots, setSnapshots] = useState<SocialAnalyticsRecord[]>([]);
   const [isLoadingSnapshots, setIsLoadingSnapshots] = useState<boolean>(false);
   const [platformFilter, setPlatformFilter] = useState<'all' | 'youtube' | 'instagram' | 'facebook'>('all');
+
+  // Audience Comments & Comment Intelligence state (Phase 30 / C3 / C4)
+  const [comments, setComments] = useState<SocialCommentRecord[]>([]);
+  const [commentReports, setCommentReports] = useState<CommentIntelligenceRecord[]>([]);
+  const [isLoadingComments, setIsLoadingComments] = useState<boolean>(false);
+  const [isAnalyzingComments, setIsAnalyzingComments] = useState<boolean>(false);
+  const [commentFeedbackSuccess, setCommentFeedbackSuccess] = useState<string | null>(null);
+  const [commentFeedbackError, setCommentFeedbackError] = useState<string | null>(null);
+
+  // Quick Comment Entry form state
+  const [quickCommentText, setQuickCommentText] = useState<string>('');
+  const [quickCommentAuthor, setQuickCommentAuthor] = useState<string>('');
+  const [quickCommentPlatform, setQuickCommentPlatform] = useState<'youtube' | 'instagram' | 'facebook'>('youtube');
+  const [isSavingComment, setIsSavingComment] = useState<boolean>(false);
 
   // Form submission state
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -153,12 +175,15 @@ export const SocialAnalyticsPage: React.FC = () => {
         if (res.success && res.data && res.data.contentMaster) {
           setVerifiedMaster(res.data.contentMaster);
           setVerificationError(null);
-          // Load existing analytics snapshots for this Content ID
+          // Load existing analytics snapshots & comments for this Content ID
           loadSnapshotsForContent(trimmed);
+          loadCommentsAndIntelForContent(trimmed);
         } else {
           setVerifiedMaster(null);
           setVerificationError(`Content Master "${trimmed}" not found in production workbook. Only existing Content Masters can receive analytics.`);
           setSnapshots([]);
+          setComments([]);
+          setCommentReports([]);
         }
       })
       .catch((err) => {
@@ -169,10 +194,13 @@ export const SocialAnalyticsPage: React.FC = () => {
           setVerifiedMaster(found);
           setVerificationError(null);
           loadSnapshotsForContent(trimmed);
+          loadCommentsAndIntelForContent(trimmed);
         } else {
           setVerifiedMaster(null);
           setVerificationError(err?.message || `Failed to verify Content Master "${trimmed}". Ensure ID exists.`);
           setSnapshots([]);
+          setComments([]);
+          setCommentReports([]);
         }
       })
       .finally(() => {
@@ -208,12 +236,101 @@ export const SocialAnalyticsPage: React.FC = () => {
     }
   };
 
+  // Function to load comments & comment intelligence
+  const loadCommentsAndIntelForContent = async (cid: string) => {
+    setIsLoadingComments(true);
+    try {
+      const [cmtRes, intelRes] = await Promise.allSettled([
+        apiClient.getSocialCommentsForContent(cid),
+        apiClient.getCommentIntelligenceForContent(cid),
+      ]);
+
+      if (cmtRes.status === 'fulfilled' && cmtRes.value.success) {
+        setComments(cmtRes.value.records || []);
+      } else {
+        setComments([]);
+      }
+
+      if (intelRes.status === 'fulfilled' && intelRes.value.success) {
+        setCommentReports(intelRes.value.reports || []);
+      } else {
+        setCommentReports([]);
+      }
+    } catch (err) {
+      console.warn('Failed to load comments/intel for content:', err);
+    } finally {
+      setIsLoadingComments(false);
+    }
+  };
+
   const handleSelectContentId = (cid: string) => {
     setInputContentId(cid);
     setSelectedContentId(cid);
     setFormSuccessMessage(null);
     setFormErrorMessage(null);
+    setCommentFeedbackSuccess(null);
+    setCommentFeedbackError(null);
     setSearchParams(cid ? { contentId: cid } : {});
+  };
+
+  const handleAddSingleComment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedContentId || !quickCommentText.trim()) return;
+
+    setIsSavingComment(true);
+    setCommentFeedbackError(null);
+    setCommentFeedbackSuccess(null);
+
+    try {
+      const res = await apiClient.createSocialComment({
+        contentId: selectedContentId,
+        videoId: formVideoId || undefined,
+        publishingId: formPublishingId || undefined,
+        platform: quickCommentPlatform,
+        commentText: quickCommentText.trim(),
+        authorDisplayName: quickCommentAuthor.trim() || undefined,
+        source: 'MANUAL_PASTE',
+      });
+
+      if (res.success && res.record) {
+        setCommentFeedbackSuccess(`Comment recorded (${res.record.id}) in Analytics Workbook.`);
+        setQuickCommentText('');
+        setQuickCommentAuthor('');
+        await loadCommentsAndIntelForContent(selectedContentId);
+      } else {
+        setCommentFeedbackError(res.error || 'Failed to record comment.');
+      }
+    } catch (err: any) {
+      setCommentFeedbackError(err?.message || 'Error recording comment.');
+    } finally {
+      setIsSavingComment(false);
+    }
+  };
+
+  const handleAnalyzeAudienceComments = async () => {
+    if (!selectedContentId) return;
+
+    setIsAnalyzingComments(true);
+    setCommentFeedbackError(null);
+    setCommentFeedbackSuccess(null);
+
+    try {
+      const res = await apiClient.generateCommentIntelligence({
+        contentId: selectedContentId,
+        videoId: formVideoId || undefined,
+      });
+
+      if (res.success && res.record) {
+        setCommentFeedbackSuccess(`Audience Misconception Report (${res.record.id}) generated via Gemini.`);
+        await loadCommentsAndIntelForContent(selectedContentId);
+      } else {
+        setCommentFeedbackError(res.error || 'Failed to generate Comment Intelligence.');
+      }
+    } catch (err: any) {
+      setCommentFeedbackError(err?.message || 'Error running Comment Intelligence.');
+    } finally {
+      setIsAnalyzingComments(false);
+    }
   };
 
   const handleFormSubmit = async (e: React.FormEvent) => {
@@ -418,21 +535,28 @@ export const SocialAnalyticsPage: React.FC = () => {
         }
         actions={
           <div className="flex items-center gap-2 flex-wrap">
+            <Link
+              to="/analytics/engagement"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition shadow-xs cursor-pointer"
+            >
+              <ArrowRight className="w-3.5 h-3.5" />
+              <span>Stage 14: Performance Review →</span>
+            </Link>
             {selectedContentId && (
               <>
                 <Link
                   to={`/videos/${encodeURIComponent(selectedContentId)}`}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition shadow-xs cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold transition shadow-xs cursor-pointer"
                 >
                   <Film className="w-3.5 h-3.5" />
-                  <span>View in Video Studio →</span>
+                  <span>View in Video Studio</span>
                 </Link>
                 <Link
                   to={verifiedMaster?.topicId ? `/studio?topic=${encodeURIComponent(verifiedMaster.topicId)}` : '/studio'}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-xs cursor-pointer"
                 >
                   <PlusCircle className="w-3.5 h-3.5" />
-                  <span>+ Create Question on this Topic</span>
+                  <span>+ Create Question on Topic</span>
                 </Link>
               </>
             )}
@@ -440,13 +564,16 @@ export const SocialAnalyticsPage: React.FC = () => {
               variant="outline"
               size="sm"
               onClick={() => {
-                if (selectedContentId) loadSnapshotsForContent(selectedContentId);
+                if (selectedContentId) {
+                  loadSnapshotsForContent(selectedContentId);
+                  loadCommentsAndIntelForContent(selectedContentId);
+                }
               }}
-              disabled={!selectedContentId || isLoadingSnapshots}
+              disabled={!selectedContentId || isLoadingSnapshots || isLoadingComments}
               className="flex items-center gap-1.5"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${isLoadingSnapshots ? 'animate-spin' : ''}`} />
-              <span>Refresh Snapshots</span>
+              <RefreshCw className={`w-3.5 h-3.5 ${isLoadingSnapshots || isLoadingComments ? 'animate-spin' : ''}`} />
+              <span>Refresh</span>
             </Button>
           </div>
         }
@@ -1185,6 +1312,172 @@ export const SocialAnalyticsPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Audience Comments & Gemini Misconception Intelligence (Phase 30 / C3 / C4) */}
+      {selectedContentId && verifiedMaster && (
+        <div id="audience-comments-intelligence-panel" className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-100">
+                  <MessageSquare className="w-4 h-4" />
+                </span>
+                <h3 className="text-sm font-bold text-slate-900 tracking-tight">
+                  Audience Comments & Gemini Comment Intelligence
+                </h3>
+                <span className="text-[11px] font-mono font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                  {comments.length} comments
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-1">
+                Audience comments stored in isolated Analytics Workbook. Analyzed via Gemini to detect pedagogical misconceptions and confusion.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleAnalyzeAudienceComments}
+                disabled={isAnalyzingComments || comments.length === 0}
+                icon={Sparkles}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              >
+                {isAnalyzingComments ? 'Analyzing with Gemini...' : 'Analyze Comments with Gemini'}
+              </Button>
+              <Link
+                to="/analytics/intelligence"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold border border-indigo-200 transition cursor-pointer"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Stage 15: Pedagogical Insights →</span>
+              </Link>
+            </div>
+          </div>
+
+          {commentFeedbackSuccess && (
+            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs font-medium text-emerald-800 flex items-center justify-between">
+              <span>{commentFeedbackSuccess}</span>
+              <button onClick={() => setCommentFeedbackSuccess(null)} className="text-emerald-600 hover:text-emerald-800">✕</button>
+            </div>
+          )}
+
+          {commentFeedbackError && (
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs font-medium text-rose-800 flex items-center justify-between">
+              <span>{commentFeedbackError}</span>
+              <button onClick={() => setCommentFeedbackError(null)} className="text-rose-600 hover:text-rose-800">✕</button>
+            </div>
+          )}
+
+          {/* Quick Comment Manual Entry */}
+          <form onSubmit={handleAddSingleComment} className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                <Send className="w-3.5 h-3.5 text-indigo-600" />
+                Record Audience Comment (Manual Ingestion)
+              </h4>
+              <span className="text-[10px] text-slate-400 font-mono">Isolated to ANALYTICS_SPREADSHEET_ID</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-600 mb-1">Platform</label>
+                <select
+                  value={quickCommentPlatform}
+                  onChange={(e) => setQuickCommentPlatform(e.target.value as any)}
+                  className="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
+                >
+                  <option value="youtube">YouTube Shorts</option>
+                  <option value="instagram">Instagram Reels</option>
+                  <option value="facebook">Facebook Video</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-600 mb-1">Author Display Name (Optional)</label>
+                <input
+                  type="text"
+                  value={quickCommentAuthor}
+                  onChange={(e) => setQuickCommentAuthor(e.target.value)}
+                  placeholder="e.g. Student_2026"
+                  className="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
+                />
+              </div>
+
+              <div className="sm:col-span-3">
+                <label className="block text-[11px] font-semibold text-slate-600 mb-1">Comment Text *</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={quickCommentText}
+                    onChange={(e) => setQuickCommentText(e.target.value)}
+                    placeholder="e.g. 'Why did we take 1/2 in step 3? I got 45 instead of 90.'"
+                    className="flex-1 px-3 py-1.5 text-xs border border-slate-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500"
+                    required
+                  />
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    size="sm"
+                    disabled={isSavingComment || !quickCommentText.trim()}
+                    icon={Send}
+                  >
+                    {isSavingComment ? 'Saving...' : 'Add Comment'}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </form>
+
+          {/* Latest Gemini Comment Intelligence Output */}
+          {commentReports.length > 0 && (
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+                Latest Gemini Misconception Intelligence ({commentReports[0].id})
+              </h4>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {/* Sentiment & Overview */}
+                <div className="p-3.5 bg-purple-50/70 border border-purple-100 rounded-xl space-y-1.5 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-purple-900">Sentiment Verdict</span>
+                    <span className="font-mono text-[10px] font-semibold px-2 py-0.5 rounded bg-purple-200 text-purple-800">
+                      {commentReports[0].overallSentiment?.overallVerdict || 'POSITIVE'}
+                    </span>
+                  </div>
+                  <p className="text-purple-950 text-[11px] leading-relaxed">
+                    {commentReports[0].overallSentiment?.summary || 'Audience engaged positively with the solution.'}
+                  </p>
+                  <div className="text-[10px] text-purple-700 pt-1">
+                    Positive: {commentReports[0].overallSentiment?.positivePercentage || 0}% • Negative: {commentReports[0].overallSentiment?.negativePercentage || 0}%
+                  </div>
+                </div>
+
+                {/* Key Misconceptions */}
+                <div className="p-3.5 bg-rose-50/70 border border-rose-100 rounded-xl space-y-1.5 text-xs md:col-span-2">
+                  <span className="font-bold text-rose-900 flex items-center gap-1">
+                    <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
+                    Detected Student Misconceptions & Traps
+                  </span>
+                  {commentReports[0].misconceptions && commentReports[0].misconceptions.length > 0 ? (
+                    <ul className="space-y-1.5">
+                      {commentReports[0].misconceptions.map((m, idx) => (
+                        <li key={idx} className="bg-white p-2 rounded border border-rose-100 text-[11px]">
+                          <span className="font-semibold text-rose-900">{m.misconception}</span>
+                          <p className="text-slate-600 mt-0.5">{m.explanationNeeded}</p>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-slate-500 italic text-[11px]">No significant conceptual misconceptions detected.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
