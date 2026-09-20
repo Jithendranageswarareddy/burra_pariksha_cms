@@ -244,13 +244,26 @@ export const ScriptWorkspace: React.FC<ScriptWorkspaceProps> = ({
         hookText: scriptFormat === 'VIRAL_CHALLENGE' ? viralHook : hookText,
         problemStatement: scriptFormat === 'VIRAL_CHALLENGE' ? viralQuestion : problemStatement,
         stepByStepSolution: scriptFormat === 'VIRAL_CHALLENGE' ? (includeOptionsInVideo ? viralOptions : '[Options Skipped]') : stepByStepSolution,
-        speedTrickOrTakeaway: scriptFormat === 'VIRAL_CHALLENGE' ? pinnedCommentText : speedTrickOrTakeaway,
+        speedTrickOrTakeaway,
         callToAction: scriptFormat === 'VIRAL_CHALLENGE' ? viralCta : callToAction,
         notes,
       };
 
-      const res = await apiClient.saveScript(videoId, payload);
-      if (res.script) {
+      const savePromises: Promise<any>[] = [apiClient.saveScript(videoId, payload)];
+
+      if (pinnedCommentText && pinnedCommentText.trim()) {
+        savePromises.push(
+          apiClient.savePinnedComment(videoId, {
+            commentText: pinnedCommentText.trim(),
+            isApproved: true,
+          }).catch((err) => {
+            console.warn('Non-fatal: could not auto-sync pinned comment:', err);
+          })
+        );
+      }
+
+      const [res] = await Promise.all(savePromises);
+      if (res?.script) {
         setScript(res.script);
       }
       setSuccessMessage('Script draft saved successfully!');

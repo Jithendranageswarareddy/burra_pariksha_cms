@@ -103,28 +103,28 @@ function AppRoutes() {
         <Route path="videos/:videoId/create-script" element={<VideoTabRedirect tab="script" />} />
         <Route path="production/:videoId/create-script" element={<VideoTabRedirect tab="script" />} />
 
-        <Route path="videos/review-script" element={<VideoReviewScriptPage />} />
+        <Route path="videos/review-script" element={<Navigate to="/production?status=SCRIPT_READY" replace />} />
         <Route path="videos/:videoId/review-script" element={<VideoReviewScriptPage />} />
         <Route path="production/:videoId/review-script" element={<VideoReviewScriptPage />} />
 
-        <Route path="videos/record" element={<VideoRecordPage />} />
+        <Route path="videos/record" element={<Navigate to="/production?status=RECORDING" replace />} />
         <Route path="videos/:videoId/record" element={<VideoTabRedirect tab="recording" />} />
         <Route path="production/:videoId/record" element={<VideoTabRedirect tab="recording" />} />
 
-        <Route path="videos/edit-video" element={<VideoEditPage />} />
+        <Route path="videos/edit-video" element={<Navigate to="/production?status=EDITING" replace />} />
         <Route path="videos/:videoId/edit-video" element={<VideoTabRedirect tab="editing" />} />
         <Route path="production/:videoId/edit-video" element={<VideoTabRedirect tab="editing" />} />
 
-        <Route path="videos/final-video" element={<VideoFinalPage />} />
+        <Route path="videos/final-video" element={<Navigate to="/production?status=FINAL_REVIEW" replace />} />
         <Route path="videos/:videoId/final-video" element={<VideoTabRedirect tab="final-review" />} />
         <Route path="production/:videoId/final-video" element={<VideoTabRedirect tab="final-review" />} />
 
         {/* Asset & Social Review Workflow Routes (Phase 08) */}
-        <Route path="videos/thumbnail" element={<VideoThumbnailPage />} />
+        <Route path="videos/thumbnail" element={<Navigate to="/production?status=READY_TO_UPLOAD" replace />} />
         <Route path="videos/:videoId/thumbnail" element={<VideoTabRedirect tab="thumbnail" />} />
         <Route path="production/:videoId/thumbnail" element={<VideoTabRedirect tab="thumbnail" />} />
 
-        <Route path="videos/pinned-comment" element={<VideoPinnedCommentPage />} />
+        <Route path="videos/pinned-comment" element={<Navigate to="/production" replace />} />
         <Route path="videos/:videoId/pinned-comment" element={<VideoTabRedirect tab="social" />} />
         <Route path="production/:videoId/pinned-comment" element={<VideoTabRedirect tab="social" />} />
 
@@ -140,10 +140,10 @@ function AppRoutes() {
         <Route path="videos/:videoId/platform-packages" element={<PlatformPackagesPage />} />
         <Route path="production/:videoId/platform-packages" element={<PlatformPackagesPage />} />
 
-        <Route path="publishing-package" element={<PublishingPackagePage />} />
-        <Route path="videos/publishing-package" element={<PublishingPackagePage />} />
-        <Route path="videos/:videoId/publishing-package" element={<PublishingPackagePage />} />
-        <Route path="production/:videoId/publishing-package" element={<PublishingPackagePage />} />
+        <Route path="publishing-package" element={<Navigate to="/platform-packages" replace />} />
+        <Route path="videos/publishing-package" element={<Navigate to="/platform-packages" replace />} />
+        <Route path="videos/:videoId/publishing-package" element={<Navigate to="/platform-packages" replace />} />
+        <Route path="production/:videoId/publishing-package" element={<Navigate to="/platform-packages" replace />} />
 
         <Route path="publishing" element={<PublishingPage />} />
         <Route path="videos/:videoId/publish" element={<PublishingPage />} />
