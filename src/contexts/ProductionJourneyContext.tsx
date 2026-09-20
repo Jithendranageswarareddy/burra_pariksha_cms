@@ -610,9 +610,13 @@ export const ProductionJourneyProvider: React.FC<{ children: React.ReactNode }> 
           {
             const resolvedContentMasterId =
               contentMasterId || (video as any)?.contentMasterId || (video as any)?.contentId;
+            const params = new URLSearchParams();
+            if (videoId) params.set('videoId', videoId);
+            if (publishingId) params.set('publishingId', publishingId);
+            const qs = params.toString() ? `?${params.toString()}` : '';
             route = resolvedContentMasterId
-              ? `/social-analytics/${resolvedContentMasterId}`
-              : '/social-analytics';
+              ? `/social-analytics/${resolvedContentMasterId}${qs}`
+              : `/social-analytics${qs}`;
           }
           break;
 
@@ -845,12 +849,16 @@ export const ProductionJourneyProvider: React.FC<{ children: React.ReactNode }> 
         {
           const resolvedContentMasterId =
             contentMasterId || (video as any)?.contentMasterId || (video as any)?.contentId;
+          const params = new URLSearchParams();
+          if (videoId) params.set('videoId', videoId);
+          if (publishingId) params.set('publishingId', publishingId);
+          const qs = params.toString() ? `?${params.toString()}` : '';
           computedAction = {
             label: 'View Social Analytics',
             stageNumber: 13,
             route: resolvedContentMasterId
-              ? `/social-analytics/${resolvedContentMasterId}`
-              : '/social-analytics',
+              ? `/social-analytics/${resolvedContentMasterId}${qs}`
+              : `/social-analytics${qs}`,
             description: 'Track audience metrics and retention trends',
           };
         }

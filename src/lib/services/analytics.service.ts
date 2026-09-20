@@ -83,18 +83,19 @@ export class AnalyticsService {
       };
     }
 
-    // 2. Duplicate detection check (same contentId, platform, within 60 seconds)
+    // 2. Duplicate detection check (scoped to videoId when provided, or contentId, platform, within 60 seconds)
     const duplicate = await this.analyticsRepo.findDuplicateSnapshot(
       input.contentId,
       input.platform,
       input.postingTimestamp,
-      60
+      60,
+      input.videoId
     );
     if (duplicate) {
       return {
         success: true,
         record: duplicate,
-        error: `Existing snapshot for ${input.contentId} on ${input.platform} detected within recent timeframe. Returned existing snapshot to prevent duplicate contamination.`,
+        error: `Existing snapshot for ${input.contentId}${input.videoId ? ` (video: ${input.videoId})` : ''} on ${input.platform} detected within recent timeframe. Returned existing snapshot to prevent duplicate contamination.`,
       };
     }
 
@@ -106,6 +107,9 @@ export class AnalyticsService {
     const record: SocialAnalyticsRecord = {
       id,
       contentId: input.contentId,
+      videoId: input.videoId,
+      publishingId: input.publishingId,
+      platformPostId: input.platformPostId,
       platform: input.platform.toLowerCase(),
       postingTimestamp: input.postingTimestamp || now,
       views: Number(input.views) || 0,
@@ -136,7 +140,13 @@ export class AnalyticsService {
       'ANALYTICS_RECORD_CREATED',
       'SOCIAL_ANALYTICS',
       id,
-      { contentId: input.contentId, platform: input.platform, views: record.views }
+      {
+        contentId: input.contentId,
+        videoId: input.videoId,
+        publishingId: input.publishingId,
+        platform: input.platform,
+        views: record.views,
+      }
     );
 
     return { success: true, record: saved };

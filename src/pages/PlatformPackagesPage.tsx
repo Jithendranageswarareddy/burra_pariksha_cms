@@ -191,6 +191,24 @@ export const PlatformPackagesPage: React.FC = () => {
     selectedVideo?.contentId ||
     '';
 
+  // Find matching publishing record for the current video
+  const matchingPublishing = publishingRecords.find(
+    (p) => (currentVideoId && p.videoId === currentVideoId) || (selectedVideo?.id && p.videoId === selectedVideo.id)
+  );
+  const effectivePublishingId = matchingPublishing?.id || '';
+
+  const analyticsUrl = useMemo(() => {
+    const targetCid = effectiveContentMasterId || selectedVideo?.contentMasterId || selectedVideo?.contentId || '';
+    const params = new URLSearchParams();
+    if (currentVideoId) params.set('videoId', currentVideoId);
+    if (effectivePublishingId) params.set('publishingId', effectivePublishingId);
+    const queryString = params.toString() ? `?${params.toString()}` : '';
+
+    return targetCid
+      ? `/social-analytics/${encodeURIComponent(targetCid)}${queryString}`
+      : `/social-analytics${queryString}`;
+  }, [effectiveContentMasterId, selectedVideo, currentVideoId, effectivePublishingId]);
+
   // YouTube calculations
   const ytTitleText = youtubePkg?.title || selectedVideo?.title || 'Telugu Speed Maths Challenge #Shorts #TeluguGK #BurraPariksha';
   const isYtTitleLong = ytTitleText.length > 100;
@@ -625,7 +643,7 @@ export const PlatformPackagesPage: React.FC = () => {
             </Link>
 
             <div className="flex items-center gap-3">
-              <Link to={effectiveContentMasterId ? `/social-analytics/${encodeURIComponent(effectiveContentMasterId)}` : '/social-analytics'}>
+              <Link to={analyticsUrl}>
                 <Button
                   variant="primary"
                   size="sm"

@@ -53,6 +53,9 @@ export const SocialAnalyticsPage: React.FC = () => {
 
   // Content ID selection & verification state
   const initialContentId = paramContentId || searchParams.get('contentId') || '';
+  const initialVideoId = searchParams.get('videoId') || '';
+  const initialPublishingId = searchParams.get('publishingId') || '';
+
   const [inputContentId, setInputContentId] = useState<string>(initialContentId);
   const [selectedContentId, setSelectedContentId] = useState<string>(initialContentId);
   const [contentMasters, setContentMasters] = useState<ContentMaster[]>([]);
@@ -60,6 +63,18 @@ export const SocialAnalyticsPage: React.FC = () => {
   const [verifiedMaster, setVerifiedMaster] = useState<ContentMaster | null>(null);
   const [isVerifyingContentId, setIsVerifyingContentId] = useState<boolean>(false);
   const [verificationError, setVerificationError] = useState<string | null>(null);
+
+  // Canonical Identity state (Video ID, Publishing ID, Platform Post ID)
+  const [formVideoId, setFormVideoId] = useState<string>(initialVideoId);
+  const [formPublishingId, setFormPublishingId] = useState<string>(initialPublishingId);
+  const [formPlatformPostId, setFormPlatformPostId] = useState<string>('');
+
+  useEffect(() => {
+    const vid = searchParams.get('videoId');
+    const pubId = searchParams.get('publishingId');
+    if (vid) setFormVideoId(vid);
+    if (pubId) setFormPublishingId(pubId);
+  }, [searchParams]);
 
   // Snapshots & History state
   const [snapshots, setSnapshots] = useState<SocialAnalyticsRecord[]>([]);
@@ -250,6 +265,9 @@ export const SocialAnalyticsPage: React.FC = () => {
 
     const payload: CreateSocialAnalyticsInput = {
       contentId: trimmedId,
+      videoId: formVideoId.trim() || undefined,
+      publishingId: formPublishingId.trim() || undefined,
+      platformPostId: formPlatformPostId.trim() || undefined,
       platform: formPlatform,
       postingTimestamp: postingTimestampIso,
       capturedAt: formCapturedDate ? new Date(formCapturedDate).toISOString() : new Date().toISOString(),
@@ -674,6 +692,50 @@ export const SocialAnalyticsPage: React.FC = () => {
               />
             </div>
 
+            {/* Associated Video & Publishing IDs (Optional Canonical Identity) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Video ID <span className="text-slate-400 font-normal">(Optional)</span>
+                </label>
+                <input
+                  id="form-video-id"
+                  type="text"
+                  value={formVideoId}
+                  onChange={(e) => setFormVideoId(e.target.value.toUpperCase())}
+                  placeholder="e.g. BP-V-000001"
+                  className="w-full px-3 py-1.5 text-xs font-mono border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white uppercase"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Publishing ID <span className="text-slate-400 font-normal">(Optional)</span>
+                </label>
+                <input
+                  id="form-publishing-id"
+                  type="text"
+                  value={formPublishingId}
+                  onChange={(e) => setFormPublishingId(e.target.value.toUpperCase())}
+                  placeholder="e.g. BP-PUB-000001"
+                  className="w-full px-3 py-1.5 text-xs font-mono border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white uppercase"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Platform Post ID <span className="text-slate-400 font-normal">(Optional)</span>
+              </label>
+              <input
+                id="form-platform-post-id"
+                type="text"
+                value={formPlatformPostId}
+                onChange={(e) => setFormPlatformPostId(e.target.value)}
+                placeholder="e.g. dQw4w9WgXcQ or post identifier"
+                className="w-full px-3 py-1.5 text-xs font-mono border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+              />
+            </div>
+
             {/* Platform Selection */}
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5">
@@ -1026,9 +1088,24 @@ export const SocialAnalyticsPage: React.FC = () => {
                       >
                         {/* Top Snapshot Meta Header */}
                         <div className="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-slate-100 text-xs">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             {getPlatformBadge(snap.platform)}
                             <span className="font-mono text-[11px] text-slate-400">{snap.id}</span>
+                            {snap.videoId && (
+                              <span className="font-mono text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border border-slate-200">
+                                {snap.videoId}
+                              </span>
+                            )}
+                            {snap.publishingId && (
+                              <span className="font-mono text-[10px] bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded border border-indigo-200">
+                                {snap.publishingId}
+                              </span>
+                            )}
+                            {snap.platformPostId && (
+                              <span className="font-mono text-[10px] bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded border border-emerald-200">
+                                Post: {snap.platformPostId}
+                              </span>
+                            )}
                           </div>
                           <div className="flex items-center gap-3 text-[11px] text-slate-500">
                             <span className="flex items-center gap-1">
