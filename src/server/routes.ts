@@ -74,8 +74,10 @@ import {
   ImportSocialAnalyticsInputSchema,
   CreateSocialCommentInputSchema,
   ImportSocialCommentsInputSchema,
+  GenerateCommentIntelligenceInputSchema,
 } from '../lib/schemas/google-sheets-schema';
 import { socialCommentsService } from '../lib/services/social-comments.service';
+import { commentIntelligenceService } from '../lib/services/comment-intelligence.service';
 import helmet from 'helmet';
 import busboy from 'busboy';
 import { google } from 'googleapis';
@@ -6219,6 +6221,136 @@ apiRouter.get(
     }
   }
 );
+
+/**
+ * Phase 30 / C3: Generate AI Comment Intelligence & Misconception Analysis.
+ */
+apiRouter.post(
+  '/comment-intelligence/analyze',
+  requireAuth,
+  requireRole([
+    UserRole.ADMIN,
+    UserRole.CONTENT_MANAGER,
+    UserRole.COMMUNITY_MANAGER,
+    UserRole.ANALYTICS_VIEWER,
+    UserRole.CREATOR,
+    UserRole.PUBLISHING_MANAGER,
+  ]),
+  async (req: Request, res: Response) => {
+    try {
+      const parsed = GenerateCommentIntelligenceInputSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
+          success: false,
+          error: 'Validation failed for comment intelligence input',
+          details: parsed.error.format(),
+        });
+      }
+
+      const authReq = req as AuthenticatedRequest;
+      const actorId = authReq.user?.id || 'USR-ANL';
+      const actorName = authReq.user?.name || 'Analytics User';
+
+      const result = await commentIntelligenceService.analyzeComments(parsed.data, actorId, actorName);
+      if (!result.success) {
+        return res.status(400).json(result);
+      }
+
+      res.status(201).json(result);
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: 'Failed to generate comment intelligence', message: err?.message });
+    }
+  }
+);
+
+/**
+ * Phase 30 / C3: Query Comment Intelligence reports.
+ */
+apiRouter.get(
+  '/comment-intelligence',
+  requireAuth,
+  requireRole([
+    UserRole.ADMIN,
+    UserRole.CONTENT_MANAGER,
+    UserRole.COMMUNITY_MANAGER,
+    UserRole.ANALYTICS_VIEWER,
+    UserRole.CREATOR,
+    UserRole.PUBLISHING_MANAGER,
+  ]),
+  async (req: Request, res: Response) => {
+    try {
+      const limit = Number(req.query.limit) || 20;
+      const reports = await commentIntelligenceService.getRecentIntelligence(limit);
+      res.json({ success: true, count: reports.length, reports });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: 'Failed to fetch comment intelligence reports', message: err?.message });
+    }
+  }
+);
+
+/**
+ * Phase 30 / C3: Get Comment Intelligence reports for a specific Content Master.
+ */
+apiRouter.get(
+  '/comment-intelligence/content/:contentId',
+  requireAuth,
+  requireRole([
+    UserRole.ADMIN,
+    UserRole.CONTENT_MANAGER,
+    UserRole.COMMUNITY_MANAGER,
+    UserRole.ANALYTICS_VIEWER,
+    UserRole.CREATOR,
+    UserRole.PUBLISHING_MANAGER,
+  ]),
+  async (req: Request, res: Response) => {
+    try {
+      const { contentId } = req.params;
+      const reports = await commentIntelligenceService.getIntelligenceByContentId(contentId);
+      res.json({ success: true, count: reports.length, contentId, reports });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: 'Failed to fetch content comment intelligence', message: err?.message });
+    }
+  }
+);
+
+/**
+ * Phase 30 / C3: Get specific Comment Intelligence report by ID.
+ */
+apiRouter.get(
+  '/comment-intelligence/:id',
+  requireAuth,
+  requireRole([
+    UserRole.ADMIN,
+    UserRole.CONTENT_MANAGER,
+    UserRole.COMMUNITY_MANAGER,
+    UserRole.ANALYTICS_VIEWER,
+    UserRole.CREATOR,
+    UserRole.PUBLISHING_MANAGER,
+  ]),
+  async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const record = await commentIntelligenceService.getIntelligenceById(id);
+      if (!record) {
+        return res.status(404).json({ success: false, error: `Comment intelligence report '${id}' not found` });
+      }
+      res.json({ success: true, record });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: 'Failed to fetch comment intelligence report', message: err?.message });
+    }
+  }
+);
+
+// Phase 31 / C3: Comment Intelligence Verification Endpoint
+apiRouter.get('/tests/phase31', async (req: Request, res: Response) => {
+  try {
+    const { runPhase31Verification } = await import('../tests/run-phase31-comment-intelligence');
+    const result = await runPhase31Verification();
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message });
+  }
+});
 
 /**
  * Phase 28: Generate AI Social Performance Intelligence Report.
