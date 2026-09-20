@@ -1,0 +1,60 @@
+{
+  "id": "DEL-BAK-1789904168075-cd2feb91",
+  "backupTimestamp": "2026-09-20T11:36:08.075Z",
+  "sheetName": "SOCIAL_REVIEWS",
+  "entityId": "REV-TEST-P09-V-1789891450880",
+  "physicalRowIndex": 3,
+  "headers": [
+    "id",
+    "content_id",
+    "question_id",
+    "content_master_id",
+    "reviewed_version_hash",
+    "reviewer_id",
+    "reviewer_name",
+    "reviewer_role",
+    "decision",
+    "reason",
+    "feedback_categories",
+    "overall_quality_score_at_review",
+    "quality_status_at_review",
+    "is_admin_override",
+    "reviewed_at"
+  ],
+  "rawRow": [
+    "REV-TEST-P09-V-1789891450880",
+    "",
+    "TEST-P09-Q-1789891450880",
+    "",
+    "92c90c175811d4fbfc6ee372e9db07d5926bdf8c20e8ccc6f336214b91626171",
+    "USR-001",
+    "Admin",
+    "ADMIN",
+    "APPROVED",
+    "",
+    "",
+    95,
+    "EXCELLENT",
+    "",
+    "2026-09-20T08:04:23.280Z"
+  ],
+  "record": {
+    "id": "REV-TEST-P09-V-1789891450880",
+    "questionId": "TEST-P09-Q-1789891450880",
+    "reviewedVersionHash": "92c90c175811d4fbfc6ee372e9db07d5926bdf8c20e8ccc6f336214b91626171",
+    "reviewerId": "USR-001",
+    "reviewerName": "Admin",
+    "reviewerRole": "ADMIN",
+    "decision": "APPROVED",
+    "overallQualityScoreAtReview": 95,
+    "qualityStatusAtReview": "EXCELLENT",
+    "isAdminOverride": false,
+    "reviewedAt": "2026-09-20T08:04:23.280Z"
+  },
+  "checksum": "674bd05bdc1771815e2a1c712060e0e3ddc032237e386091647d3f8a65ccef9a",
+  "actor": {
+    "id": "USR-001",
+    "name": "System Administrator"
+  },
+  "reason": "Purge automated test artifacts to restore pristine production state"
+}

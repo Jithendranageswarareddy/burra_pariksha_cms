@@ -492,6 +492,16 @@ export abstract class BaseRepository<T extends Record<string, any>> {
   }
 
   /**
+   * Alias for deleteRecord ensuring standard repository contract compliance.
+   */
+  public async delete(
+    id: string,
+    options?: { actor?: { id: string; name: string }; reason?: string }
+  ): Promise<boolean> {
+    return this.deleteRecord(id, options);
+  }
+
+  /**
    * Records verified deletion audit entry with pre-deletion backup path and checksum.
    */
   protected async logDeletionAudit(

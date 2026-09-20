@@ -1,0 +1,56 @@
+{
+  "id": "DEL-BAK-1789904175560-b1f3a672",
+  "backupTimestamp": "2026-09-20T11:36:15.560Z",
+  "sheetName": "SCRIPT",
+  "entityId": "SCR-TEST-P09-V-1789891450880",
+  "physicalRowIndex": 3,
+  "headers": [
+    "id",
+    "content_id",
+    "video_id",
+    "question_id",
+    "hook_text",
+    "problem_statement",
+    "step_by_step_solution",
+    "speed_trick_or_takeaway",
+    "call_to_action",
+    "current_version",
+    "notes",
+    "created_at",
+    "updated_at"
+  ],
+  "rawRow": [
+    "SCR-TEST-P09-V-1789891450880",
+    "",
+    "TEST-P09-V-1789891450880",
+    "TEST-P09-Q-1789891450880",
+    "What if you could solve any triangle question in 5 seconds?",
+    "Sum of internal angles in a planar triangle",
+    "Add angles A + B + C to always equal 180 degrees.",
+    "Sum of angles is always 180.",
+    "Comment your answer below and subscribe!",
+    1,
+    "",
+    "2026-09-20T08:04:14.675Z",
+    "2026-09-20T08:04:14.675Z"
+  ],
+  "record": {
+    "id": "SCR-TEST-P09-V-1789891450880",
+    "videoId": "TEST-P09-V-1789891450880",
+    "questionId": "TEST-P09-Q-1789891450880",
+    "hookText": "What if you could solve any triangle question in 5 seconds?",
+    "problemStatement": "Sum of internal angles in a planar triangle",
+    "stepByStepSolution": "Add angles A + B + C to always equal 180 degrees.",
+    "speedTrickOrTakeaway": "Sum of angles is always 180.",
+    "callToAction": "Comment your answer below and subscribe!",
+    "currentVersion": 1,
+    "createdAt": "2026-09-20T08:04:14.675Z",
+    "updatedAt": "2026-09-20T08:04:14.675Z"
+  },
+  "checksum": "57c049560a2ac584ee552183019100e85394e15a1ae834ea196597460513613d",
+  "actor": {
+    "id": "USR-001",
+    "name": "System Administrator"
+  },
+  "reason": "Purge automated test artifacts to restore pristine production state"
+}

@@ -1,0 +1,53 @@
+{
+  "id": "DEL-BAK-1789904173869-1541dc28",
+  "backupTimestamp": "2026-09-20T11:36:13.870Z",
+  "sheetName": "THUMBNAILS",
+  "entityId": "THM-TEST-P09-V-1789891450880",
+  "physicalRowIndex": 3,
+  "headers": [
+    "id",
+    "content_id",
+    "video_id",
+    "hook_headline",
+    "drive_asset_url",
+    "preview_url",
+    "status",
+    "current_version",
+    "created_at",
+    "updated_at",
+    "drive_file_id",
+    "drive_folder_id",
+    "drive_folder_url",
+    "file_name",
+    "mime_type",
+    "file_size"
+  ],
+  "rawRow": [
+    "THM-TEST-P09-V-1789891450880",
+    "",
+    "TEST-P09-V-1789891450880",
+    "Triangle Angle Secret Revealed!",
+    "https://drive.google.com/file/d/test-thumbnail-p09/view",
+    "",
+    "APPROVED",
+    1,
+    "2026-09-20T08:04:15.374Z",
+    "2026-09-20T08:04:15.374Z"
+  ],
+  "record": {
+    "id": "THM-TEST-P09-V-1789891450880",
+    "videoId": "TEST-P09-V-1789891450880",
+    "hookHeadline": "Triangle Angle Secret Revealed!",
+    "driveAssetUrl": "https://drive.google.com/file/d/test-thumbnail-p09/view",
+    "status": "APPROVED",
+    "currentVersion": 1,
+    "createdAt": "2026-09-20T08:04:15.374Z",
+    "updatedAt": "2026-09-20T08:04:15.374Z"
+  },
+  "checksum": "e6345f6eb39240175162dc8e4ade84accadf5599a85727e03161499e18564ef8",
+  "actor": {
+    "id": "USR-001",
+    "name": "System Administrator"
+  },
+  "reason": "Purge automated test artifacts to restore pristine production state"
+}
