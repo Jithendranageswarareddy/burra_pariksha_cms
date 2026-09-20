@@ -40,9 +40,9 @@ export function normalizeQuestionText(text: string): string {
   if (!text) return '';
   return text
     .toLowerCase()
-    .trim()
-    .replace(/[^\w\s]/g, '') // remove punctuation
-    .replace(/\s+/g, ' '); // collapse repeated whitespace
+    .replace(/[^\p{L}\p{M}\p{N}\s]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 /**
@@ -571,37 +571,15 @@ export class QuestionService {
       categoryId
     );
 
-    // 4. Allocate Permanent Sequence Question ID
-    const id = await idService.allocateQuestionId();
-
-    // 5. Content Master Integration (Phase 2 & Phase 4 rule: Content Master -> Question -> Video)
-    let contentMasterId = requestPayload.contentMasterId;
-    if (!contentMasterId) {
-      const master = await contentMasterService.createContentMaster(
-        {
-          title: requestPayload.questionText
-            ? requestPayload.questionText.slice(0, 100)
-            : `Content Master for Question ${id}`,
-          primaryQuestionId: id,
-          categoryId: category?.id || categoryId || '',
-          topicId: topic.id,
-          subtopicId: subtopic.id,
-          createdBy: actor.id,
-        },
-        actor.id,
-        actor.name
-      );
-      contentMasterId = master.id;
-    }
-
     const now = new Date().toISOString();
     const status = QuestionStatus.GENERATED;
     const videoStatus = VideoProductionStatus.NOT_STARTED;
 
-    const newQuestion: Question = {
-      id,
-      contentId: contentMasterId,
-      contentMasterId,
+    // Pre-validation check: run MultiLayerVerificationEngine before allocating permanent IDs
+    const preSaveQuestion: Question = {
+      id: 'PRE-SAVE-CHECK',
+      contentId: '',
+      contentMasterId: '',
       categoryId: category?.id || categoryId || '',
       categoryName: category?.name || '',
       topicId: topic.id,
@@ -626,11 +604,11 @@ export class QuestionService {
       explanation: requestPayload.explanation.trim(),
       realWorldContext: realLifeContext,
       realLifeContext: realLifeContext,
-      challengeType: challengeType,
-      presentationType: presentationType,
-      questionStyle: questionStyle,
-      status,
-      videoStatus,
+      challengeType,
+      presentationType,
+      questionStyle,
+      status: QuestionStatus.GENERATED,
+      videoStatus: VideoProductionStatus.NOT_STARTED,
       tags: requestPayload.tags || [],
       source: requestPayload.source || 'AI Generator Studio',
       aiPromptUsed: requestPayload.aiPromptUsed || '',
@@ -644,8 +622,7 @@ export class QuestionService {
       updatedAt: now,
     };
 
-    // 6. Enforce Multi-Layer Verification Pipeline & Backend Save Gate
-    const verificationReport = await MultiLayerVerificationEngine.verify(newQuestion, {
+    const verificationReport = await MultiLayerVerificationEngine.verify(preSaveQuestion, {
       actor: actor.name,
       humanReview: (requestPayload as any).humanReview,
       aiVerifierResult: (requestPayload as any).aiVerifierResult,
@@ -656,10 +633,36 @@ export class QuestionService {
       throw new ValidationError(`Question creation REJECTED at Backend Save Gate due to multi-layer verification failure: ${errDetail}`);
     }
 
-    // Assign server-authoritative verification status (overriding any client spoofing)
-    newQuestion.validationStatus = verificationReport.canonicalValidationStatus;
-    newQuestion.validationScore = verificationReport.confidenceScore;
-    newQuestion.lastValidationId = verificationReport.id;
+    // Now safely allocate sequence and create Content Master
+    const id = await idService.allocateQuestionId();
+    let contentMasterId = requestPayload.contentMasterId;
+    if (!contentMasterId) {
+      const master = await contentMasterService.createContentMaster(
+        {
+          title: requestPayload.questionText
+            ? requestPayload.questionText.slice(0, 100)
+            : `Content Master for Question ${id}`,
+          primaryQuestionId: id,
+          categoryId: category?.id || categoryId || '',
+          topicId: topic.id,
+          subtopicId: subtopic.id,
+          createdBy: actor.id,
+        },
+        actor.id,
+        actor.name
+      );
+      contentMasterId = master.id;
+    }
+
+    const newQuestion: Question = {
+      ...preSaveQuestion,
+      id,
+      contentId: contentMasterId,
+      contentMasterId,
+      validationStatus: verificationReport.canonicalValidationStatus,
+      validationScore: verificationReport.confidenceScore,
+      lastValidationId: verificationReport.id,
+    };
 
     // Save validation audit record
     try {

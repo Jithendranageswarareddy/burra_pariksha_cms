@@ -1896,7 +1896,7 @@ apiRouter.post(
 apiRouter.post(
   '/questions/validate-candidate',
   requireAuth,
-  requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.QUESTION_EDITOR, UserRole.REVIEWER]),
+  requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.QUESTION_EDITOR, UserRole.REVIEWER, UserRole.CONTENT_WRITER]),
   async (req: Request, res: Response) => {
     try {
       const { question, skipTaxonomyLookup, skipDuplicateCheck, source } = req.body || {};

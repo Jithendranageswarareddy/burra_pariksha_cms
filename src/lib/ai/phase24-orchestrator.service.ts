@@ -18,6 +18,7 @@ import { Phase24ProviderRegistry, phase24ProviderRegistry } from './phase24-regi
 import { questionConfigService } from '../services/question-config.service';
 import { geminiService } from './gemini.service';
 import { GenAiQuestionCandidateResponseSchema } from './schemas/question-candidate.schema';
+import { buildGenerationPrompt, BURRA_PARIKSHA_SYSTEM_INSTRUCTION } from './prompts/generation.prompt';
 import { QuestionCreationValidator } from '../validators/question-creation.validator';
 import {
   AiContentPlanRecommendation,
@@ -264,8 +265,8 @@ export class Phase24AIOrchestrator {
     const normalizedDifficulty = QuestionCreationValidator.normalizeDifficulty(resolvedInput.difficulty);
     resolvedInput.difficulty = normalizedDifficulty as any;
 
-    const prompt = `Generate a single ${resolvedInput.difficulty} level multiple-choice question on ${resolvedInput.topicName || resolvedInput.topicId} (${resolvedInput.subtopicName || resolvedInput.subtopicId}) in ${resolvedInput.language}. Return structured JSON with fields: content, option_a, option_b, option_c, option_d, correct_answer (A/B/C/D), explanation.`;
-    const systemInstruction = 'You are an expert competitive exam question author. Output strictly JSON matching the required schema.';
+    const prompt = buildGenerationPrompt(resolvedInput);
+    const systemInstruction = BURRA_PARIKSHA_SYSTEM_INSTRUCTION;
 
     const response = await this.executeTask(
       {
