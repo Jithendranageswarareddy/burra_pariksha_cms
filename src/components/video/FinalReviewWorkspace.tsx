@@ -9,12 +9,12 @@ import {
   ArrowRight,
   FileText,
   Check,
-  Sparkles,
   MessageSquare,
-  Image as ImageIcon,
   Send,
+  CheckSquare,
+  Square,
 } from 'lucide-react';
-import { Video, Script, Thumbnail, PinnedComment, VideoProductionStatus, Question } from '../../types';
+import { Video, Script, VideoProductionStatus, Question } from '../../types';
 import { apiClient } from '../../lib/api-client';
 import { Button } from '../../design-system/components/Button';
 import { Badge } from '../../design-system/components/Badge';
@@ -28,6 +28,52 @@ interface FinalReviewWorkspaceProps {
   onNavigateTab?: (tab: 'script' | 'thumbnail' | 'pinned-comment' | 'editing' | 'publishing' | 'recording' | 'overview' | 'social') => void;
 }
 
+interface QcStandard {
+  id: string;
+  number: number;
+  title: string;
+  description: string;
+}
+
+const MASTER_QC_STANDARDS: QcStandard[] = [
+  {
+    id: 'questionScriptMatch',
+    number: 1,
+    title: 'Linked Question & Script Match',
+    description: 'Spoken Telugu narration accurately reflects the approved question.',
+  },
+  {
+    id: 'resolutionFormat',
+    number: 2,
+    title: 'Master Cut Resolution',
+    description: '1080×1920 9:16 Vertical format verified in Google Drive.',
+  },
+  {
+    id: 'safeZones',
+    number: 3,
+    title: '9:16 Safe Zones',
+    description: 'Captions, options, and countdown timer are within mobile safe zones (not cut off by TikTok/Reels/Shorts UI).',
+  },
+  {
+    id: 'audioClarity',
+    number: 4,
+    title: 'Audio Clarity & Loudness',
+    description: 'Voice is clear with -14 LUFS normalization and zero audio distortion.',
+  },
+  {
+    id: 'teluguTypography',
+    number: 5,
+    title: 'Telugu Typography & Legibility',
+    description: 'Noto Sans Telugu font, high-contrast text overlays readable on small screens.',
+  },
+  {
+    id: 'hookPacing',
+    number: 6,
+    title: 'Hook & Pacing Verification',
+    description: 'Scroll-stopping hook in first 0–3 seconds with concise pacing (~15–45s).',
+  },
+];
+
 export const FinalReviewWorkspace: React.FC<FinalReviewWorkspaceProps> = ({
   videoId,
   video,
@@ -35,15 +81,22 @@ export const FinalReviewWorkspace: React.FC<FinalReviewWorkspaceProps> = ({
   onNavigateTab,
 }) => {
   const [script, setScript] = useState<Script | null>(null);
-  const [thumbnail, setThumbnail] = useState<Thumbnail | null>(null);
-  const [pinnedComment, setPinnedComment] = useState<PinnedComment | null>(null);
   const [sourceQuestion, setSourceQuestion] = useState<Question | null>(null);
-  const [readiness, setReadiness] = useState<any | null>(null);
 
   const [isLoadingData, setIsLoadingData] = useState<boolean>(true);
   const [isUpdating, setIsUpdating] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // 6-Point Quality Checklist State
+  const [qcChecks, setQcChecks] = useState<Record<string, boolean>>({
+    questionScriptMatch: true,
+    resolutionFormat: true,
+    safeZones: true,
+    audioClarity: true,
+    teluguTypography: true,
+    hookPacing: true,
+  });
 
   // Script cross-reference collapsible state
   const [isScriptCrossOpen, setIsScriptCrossOpen] = useState<boolean>(true);
@@ -60,17 +113,11 @@ export const FinalReviewWorkspace: React.FC<FinalReviewWorkspaceProps> = ({
     try {
       setIsLoadingData(true);
       setError(null);
-      const [scriptRes, thumbRes, commentRes, readinessRes] = await Promise.all([
+      const [scriptRes] = await Promise.all([
         apiClient.getScript(videoId).catch(() => ({ script: null })),
-        apiClient.getThumbnail(videoId).catch(() => ({ thumbnail: null })),
-        apiClient.getPinnedComment(videoId).catch(() => ({ pinnedComment: null })),
-        apiClient.getVideoPublishReadiness(videoId).catch(() => null),
       ]);
 
       if (scriptRes?.script) setScript(scriptRes.script);
-      if (thumbRes?.thumbnail) setThumbnail(thumbRes.thumbnail);
-      if (commentRes?.pinnedComment) setPinnedComment(commentRes.pinnedComment);
-      if (readinessRes) setReadiness(readinessRes);
 
       if (video.questionId) {
         try {
@@ -91,6 +138,21 @@ export const FinalReviewWorkspace: React.FC<FinalReviewWorkspaceProps> = ({
     fetchSupportingData();
   }, [videoId]);
 
+  const toggleQcCheck = (id: string) => {
+    setQcChecks((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const toggleAllQcChecks = () => {
+    const allChecked = Object.values(qcChecks).every(Boolean);
+    const updated = MASTER_QC_STANDARDS.reduce((acc, std) => {
+      acc[std.id] = !allChecked;
+      return acc;
+    }, {} as Record<string, boolean>);
+    setQcChecks(updated);
+  };
+
+  const allQcPassed = Object.values(qcChecks).every(Boolean);
+
   const handleStatusTransition = async (nextStatus: VideoProductionStatus, remarks?: string) => {
     setIsUpdating(true);
     setError(null);
@@ -107,65 +169,12 @@ export const FinalReviewWorkspace: React.FC<FinalReviewWorkspaceProps> = ({
       if (onStatusChange) onStatusChange();
 
       if (nextStatus === VideoProductionStatus.READY_TO_UPLOAD && onNavigateTab) {
-        if (thumbnail?.status === 'APPROVED') {
-          onNavigateTab('social');
-        } else {
-          onNavigateTab('thumbnail');
-        }
+        onNavigateTab('thumbnail');
       } else if (nextStatus === VideoProductionStatus.EDITING && onNavigateTab) {
         onNavigateTab('editing');
       }
     } catch (err: any) {
       setError(err?.message || 'Failed to update video status.');
-    } finally {
-      setIsUpdating(false);
-    }
-  };
-
-  const handleQuickApproveThumbnail = async () => {
-    setIsUpdating(true);
-    setError(null);
-    setSuccessMessage(null);
-    try {
-      const payload = {
-        hookHeadline: thumbnail?.hookHeadline || video.title || 'Thumbnail Headline',
-        driveAssetUrl: thumbnail?.driveAssetUrl || '',
-        previewUrl: thumbnail?.previewUrl || '',
-        status: 'APPROVED',
-        createNewVersion: false,
-        designerNotes: 'Quick approved in Final QC Command Station',
-      };
-      const res = await apiClient.saveThumbnail(videoId, payload);
-      setThumbnail(res.thumbnail);
-      setSuccessMessage('Thumbnail asset successfully approved!');
-      await fetchSupportingData();
-      if (onStatusChange) onStatusChange();
-    } catch (err: any) {
-      setError(err?.message || 'Failed to approve thumbnail.');
-    } finally {
-      setIsUpdating(false);
-    }
-  };
-
-  const handleQuickApprovePinnedComment = async () => {
-    setIsUpdating(true);
-    setError(null);
-    setSuccessMessage(null);
-    try {
-      const payload = {
-        commentText: pinnedComment?.commentText || `Detailed solution for ${video.id}`,
-        solutionBreakdown: pinnedComment?.solutionBreakdown || 'Step-by-step verified solution proof.',
-        nextChallengeQuestion: pinnedComment?.nextChallengeQuestion || '',
-        isApproved: true,
-      };
-      const saved = await apiClient.savePinnedComment(videoId, payload);
-      const record = saved?.pinnedComment || saved;
-      setPinnedComment(record);
-      setSuccessMessage('Pinned solution comment approved!');
-      await fetchSupportingData();
-      if (onStatusChange) onStatusChange();
-    } catch (err: any) {
-      setError(err?.message || 'Failed to approve pinned comment.');
     } finally {
       setIsUpdating(false);
     }
@@ -183,12 +192,6 @@ export const FinalReviewWorkspace: React.FC<FinalReviewWorkspaceProps> = ({
       setIsSavingNotes(false);
     }
   };
-
-  // Evaluation flags
-  const isScriptVerified = Boolean(script && (script.currentVersion > 0 || script.hookText));
-  const isThumbnailApproved = thumbnail?.status === 'APPROVED';
-  const isPinnedCommentApproved = pinnedComment?.isApproved === true;
-  const scriptFormatText = (script as any)?.scriptFormat === 'VIRAL_CHALLENGE' ? 'Viral Challenge' : 'Full Solution';
 
   return (
     <div className="space-y-6">
@@ -209,160 +212,67 @@ export const FinalReviewWorkspace: React.FC<FinalReviewWorkspaceProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left Pane (lg:col-span-7) — Quality Assurance Gate */}
         <div className="lg:col-span-7 space-y-6">
-          {/* Card 1: 5-Point Authoritative QC Gate */}
+          {/* Card 1: 6-Point Video QC Standards */}
           <Card className="p-5 border-slate-200/80 shadow-xs space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="w-5 h-5 text-indigo-600" />
-                <h3 className="text-sm font-bold text-slate-900">5-Point Authoritative QC Gate</h3>
+                <h3 className="text-sm font-bold text-slate-900">6-Point Master Video Quality Standards</h3>
               </div>
-              <Badge variant="active" size="sm">QC Lock</Badge>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={toggleAllQcChecks}
+                  className="text-xs text-indigo-600 hover:text-indigo-800 h-7 px-2"
+                >
+                  {allQcPassed ? 'Deselect All' : 'Select All / Certify'}
+                </Button>
+                <Badge variant="active" size="sm">QC Lock</Badge>
+              </div>
             </div>
 
             {isLoadingData ? (
               <div className="py-8 text-center text-xs text-slate-400 font-mono">
-                Evaluating QC verification gates...
+                Evaluating QC verification standards...
               </div>
             ) : (
               <div className="space-y-2.5 text-xs">
-                {/* 1. Linked Question Record */}
-                <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <div>
-                      <p className="font-bold text-slate-800">1. Linked Question Record</p>
-                      <p className="text-[11px] font-mono text-slate-500">
-                        {video.questionId || sourceQuestion?.id || 'BP-Q-001048'} (Verified & Approved)
-                      </p>
-                    </div>
-                  </div>
-                  <Badge variant="success" size="sm">PASS</Badge>
-                </div>
-
-                {/* 2. Approved Script Context */}
-                <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    {isScriptVerified ? (
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                    ) : (
-                      <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
-                    )}
-                    <div>
-                      <p className="font-bold text-slate-800">2. Approved Script Context</p>
-                      <p className="text-[11px] text-slate-500">
-                        v{script?.currentVersion || 1} Verified ({scriptFormatText})
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {onNavigateTab && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onNavigateTab('script')}
-                        className="text-indigo-600 hover:text-indigo-800 text-[11px] h-7 px-2"
-                      >
-                        Inspect
-                      </Button>
-                    )}
-                    <Badge variant={isScriptVerified ? 'success' : 'warning'} size="sm">
-                      {isScriptVerified ? 'PASS' : 'PENDING'}
-                    </Badge>
-                  </div>
-                </div>
-
-                {/* 3. Master Video Cut Asset */}
-                <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <div>
-                      <p className="font-bold text-slate-800">3. Master Video Cut Asset</p>
-                      <p className="text-[11px] text-slate-500">Ingested 1080x1920 9:16 MP4 (Drive Ready)</p>
-                    </div>
-                  </div>
-                  <Badge variant="success" size="sm">PASS</Badge>
-                </div>
-
-                {/* 4. Thumbnail Asset Status */}
-                <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    {isThumbnailApproved ? (
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                    ) : (
-                      <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
-                    )}
-                    <div>
-                      <p className="font-bold text-slate-800">4. Thumbnail Asset Status</p>
-                      <p className="text-[11px] text-slate-500">
-                        {thumbnail?.status === 'APPROVED' ? 'Approved & Certified' : 'Design Ready (Pending Review)'}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {!isThumbnailApproved && (
-                      <>
-                        <Button
-                          variant="primary"
-                          size="sm"
-                          disabled={isUpdating}
-                          onClick={handleQuickApproveThumbnail}
-                          icon={Sparkles}
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white h-7 px-2 text-[11px]"
+                {MASTER_QC_STANDARDS.map((std) => {
+                  const isPassed = Boolean(qcChecks[std.id]);
+                  return (
+                    <div
+                      key={std.id}
+                      onClick={() => toggleQcCheck(std.id)}
+                      className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex items-start justify-between cursor-pointer hover:bg-slate-100/70 transition-colors"
+                    >
+                      <div className="flex items-start gap-2.5">
+                        <button
+                          type="button"
+                          className="mt-0.5 text-slate-600 hover:text-indigo-600 focus:outline-hidden"
+                          aria-label={`Toggle standard ${std.number}`}
                         >
-                          Quick Approve
-                        </Button>
-                        {onNavigateTab && (
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => onNavigateTab('thumbnail')}
-                            icon={ImageIcon}
-                            className="h-7 px-2 text-[11px]"
-                          >
-                            Design Thumbnail
-                          </Button>
-                        )}
-                      </>
-                    )}
-                    <Badge variant={isThumbnailApproved ? 'success' : 'warning'} size="sm">
-                      {isThumbnailApproved ? 'PASS' : 'PENDING'}
-                    </Badge>
-                  </div>
-                </div>
-
-                {/* 5. Official Pinned Comment */}
-                <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    {isPinnedCommentApproved ? (
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                    ) : (
-                      <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
-                    )}
-                    <div>
-                      <p className="font-bold text-slate-800">5. Official Pinned Comment</p>
-                      <p className="text-[11px] text-slate-500">
-                        {isPinnedCommentApproved ? 'Approved Solution Comment' : 'Pending Formal Sign-Off'}
-                      </p>
+                          {isPassed ? (
+                            <CheckSquare className="w-4 h-4 text-emerald-600 shrink-0" />
+                          ) : (
+                            <Square className="w-4 h-4 text-slate-400 shrink-0" />
+                          )}
+                        </button>
+                        <div>
+                          <p className="font-bold text-slate-800">
+                            {std.number}. {std.title}
+                          </p>
+                          <p className="text-[11px] text-slate-500 leading-snug">
+                            {std.description}
+                          </p>
+                        </div>
+                      </div>
+                      <Badge variant={isPassed ? 'success' : 'warning'} size="sm" className="ml-2 shrink-0">
+                        {isPassed ? 'PASS' : 'PENDING'}
+                      </Badge>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {!isPinnedCommentApproved && (
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        disabled={isUpdating}
-                        onClick={handleQuickApprovePinnedComment}
-                        icon={Sparkles}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white h-7 px-2 text-[11px]"
-                      >
-                        Quick Sign-Off
-                      </Button>
-                    )}
-                    <Badge variant={isPinnedCommentApproved ? 'success' : 'warning'} size="sm">
-                      {isPinnedCommentApproved ? 'PASS' : 'PENDING'}
-                    </Badge>
-                  </div>
-                </div>
+                  );
+                })}
               </div>
             )}
           </Card>
@@ -479,7 +389,7 @@ export const FinalReviewWorkspace: React.FC<FinalReviewWorkspaceProps> = ({
                 className="w-full justify-center text-xs py-2.5 font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
                 icon={ArrowRight}
               >
-                ✓ Certify QC & Proceed to Step 08: Thumbnail →
+                ✓ Lock Video Cut & Proceed to Step 08: Thumbnail Studio →
               </Button>
 
               {/* Secondary Send Back Action */}
