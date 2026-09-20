@@ -111,8 +111,8 @@ function AppRoutes() {
         <Route path="production/:videoId/create-script" element={<VideoTabRedirect tab="script" />} />
 
         <Route path="videos/review-script" element={<Navigate to="/production?status=SCRIPT_READY" replace />} />
-        <Route path="videos/:videoId/review-script" element={<VideoReviewScriptPage />} />
-        <Route path="production/:videoId/review-script" element={<VideoReviewScriptPage />} />
+        <Route path="videos/:videoId/review-script" element={<VideoTabRedirect tab="script" />} />
+        <Route path="production/:videoId/review-script" element={<VideoTabRedirect tab="script" />} />
 
         <Route path="videos/record" element={<Navigate to="/production?status=RECORDING" replace />} />
         <Route path="videos/:videoId/record" element={<VideoTabRedirect tab="recording" />} />
@@ -135,8 +135,8 @@ function AppRoutes() {
         <Route path="videos/:videoId/pinned-comment" element={<VideoTabRedirect tab="social" />} />
         <Route path="production/:videoId/pinned-comment" element={<VideoTabRedirect tab="social" />} />
 
-        <Route path="videos/:videoId/social-review" element={<SocialReviewPage />} />
-        <Route path="production/:videoId/social-review" element={<SocialReviewPage />} />
+        <Route path="videos/:videoId/social-review" element={<VideoTabRedirect tab="social" />} />
+        <Route path="production/:videoId/social-review" element={<VideoTabRedirect tab="social" />} />
 
         <Route path="production/:videoId" element={<VideoTabRedirect />} />
         <Route path="videos/:videoId" element={<VideoDetailPage />} />
@@ -153,8 +153,8 @@ function AppRoutes() {
         <Route path="production/:videoId/publishing-package" element={<Navigate to="/platform-packages" replace />} />
 
         <Route path="publishing" element={<PublishingPage />} />
-        <Route path="videos/:videoId/publish" element={<PublishingPage />} />
-        <Route path="production/:videoId/publish" element={<PublishingPage />} />
+        <Route path="videos/:videoId/publish" element={<VideoTabRedirect tab="publishing" />} />
+        <Route path="production/:videoId/publish" element={<VideoTabRedirect tab="publishing" />} />
 
         {/* Top-Level Analytics Experience Routes (Phase 10) */}
         <Route path="analytics" element={<Navigate to="/analytics/overview" replace />} />

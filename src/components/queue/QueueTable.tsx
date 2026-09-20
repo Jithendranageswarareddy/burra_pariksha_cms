@@ -133,7 +133,7 @@ export const QueueTable: React.FC<QueueTableProps> = ({ videos, onSelectVideo })
                         </Link>
                       ) : (item.status === VideoProductionStatus.QUEUED || item.status === VideoProductionStatus.SCRIPT_REQUIRED) ? (
                         <Link
-                          to={`/videos/${item.id}/review-script`}
+                          to={`/videos/${item.id}?tab=script`}
                           className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-700 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer"
                           title="Review Teleprompter Script"
                         >
