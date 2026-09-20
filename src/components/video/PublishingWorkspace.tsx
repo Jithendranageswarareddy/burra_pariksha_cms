@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import {
   Publishing,
+  SocialPlatform,
   SocialPublishStatus,
   SocialReviewPackageBundle,
   SocialReviewStatus,
@@ -251,27 +252,32 @@ export const PublishingWorkspace: React.FC<PublishingWorkspaceProps> = ({
     ? `${video.actualDurationSeconds}s Verified`
     : '45s Verified';
 
+  const ytVariant = socialBundle?.multiPlatformAdaptations?.variants?.[SocialPlatform.YOUTUBE_SHORTS];
+
   const isPinnedCommentReady = Boolean(
     publishing?.pinnedCommentReady ||
     socialBundle?.currentReviewStatus === SocialReviewStatus.APPROVED ||
     socialBundle?.isPublishingReady ||
-    Boolean(socialBundle?.multiPlatformAdaptations?.youtubeShorts?.pinnedComment)
+    Boolean(ytVariant?.cta?.pinnedCommentPrompt)
   );
 
   // Quick copy strings
   const quickYoutubeTitle =
-    socialBundle?.multiPlatformAdaptations?.youtubeShorts?.caption ||
-    socialBundle?.canonicalMetadata?.title ||
+    ytVariant?.title ||
+    ytVariant?.caption ||
+    socialBundle?.canonicalMetadata?.shortTitle ||
     video.title ||
     'గణితం స్పీడ్ ట్రిక్ | Aptitude Shortcut Telugu #Shorts';
 
   const quickSeoHashtags =
-    socialBundle?.canonicalMetadata?.hashtags?.length
+    ytVariant?.hashtags?.length
+      ? ytVariant.hashtags.map((h: string) => `#${h.replace('#', '')}`).join(' ')
+      : socialBundle?.canonicalMetadata?.hashtags?.length
       ? socialBundle.canonicalMetadata.hashtags.map((h: string) => `#${h.replace('#', '')}`).join(' ')
       : '#BurraPariksha #Shorts #AptitudeTricks #TeluguMaths #CompetitiveExams';
 
   const quickPinnedComment =
-    socialBundle?.multiPlatformAdaptations?.youtubeShorts?.pinnedComment ||
+    ytVariant?.cta?.pinnedCommentPrompt ||
     socialBundle?.question?.explanation ||
     '🔥 సమాధానం & పూర్తి స్టెప్స్ వివరణ: సరైన సమాధానం ఎంపిక చేయబడింది. ఈ ప్రశ్నను 10 సెకన్లలో సాల్వ్ చేయడానికి మా ట్రిక్ ప్రాక్టీస్ చేయండి!';
 

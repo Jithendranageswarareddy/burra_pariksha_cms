@@ -657,7 +657,7 @@ export const SocialReviewWorkspace: React.FC<SocialReviewWorkspaceProps> = ({
                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
                   <div className="flex items-center justify-between text-[11px] font-mono text-slate-500">
                     <span>Question ID: {question.id}</span>
-                    <Badge variant="outline" size="sm">
+                    <Badge variant="neutral" size="sm">
                       {question.validationStatus}
                     </Badge>
                   </div>
@@ -777,7 +777,7 @@ export const SocialReviewWorkspace: React.FC<SocialReviewWorkspaceProps> = ({
                 <h3 className="text-sm font-bold text-slate-900">Social Decision Station</h3>
               </div>
               <div className="flex items-center gap-1.5">
-                <Badge variant="outline" size="sm">
+                <Badge variant="neutral" size="sm">
                   Gate 09
                 </Badge>
                 {qualityAssessment && (

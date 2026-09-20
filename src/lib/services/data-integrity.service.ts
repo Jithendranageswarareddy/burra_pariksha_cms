@@ -78,10 +78,17 @@ export class DataIntegrityService {
   }
 
   /**
-   * Extracts numeric ID from a formatted identifier string (e.g. BP-Q-000123 -> 123)
+   * Extracts numeric ID from a formatted identifier string (e.g. BP-Q-000123 -> 123).
+   * If expectedPrefix is provided, only extracts if id starts with expectedPrefix.
    */
-  private extractNumericId(id: string): number | null {
+  private extractNumericId(id: string, expectedPrefix?: string): number | null {
     if (!id || typeof id !== 'string') return null;
+    if (expectedPrefix) {
+      if (!id.startsWith(expectedPrefix)) return null;
+      const rest = id.slice(expectedPrefix.length);
+      const parsed = parseInt(rest, 10);
+      return isNaN(parsed) ? null : parsed;
+    }
     const match = id.match(/(\d+)$/);
     return match ? parseInt(match[1], 10) : null;
   }
@@ -224,6 +231,21 @@ export class DataIntegrityService {
             return; // Preserved immutable historical ID; valid legacy format
           }
 
+          // Test artifacts classified as informational notice
+          if (idStr.startsWith('TEST-')) {
+            addIssue(
+              'INFO',
+              'ID_INTEGRITY',
+              sheetName,
+              `Record "${idStr}" is an automated test artifact and does not use standard prefix "${expectedPrefix}".`,
+              `Automated test artifact record recognized. No production remediation required.`,
+              sheetName,
+              idStr,
+              idField
+            );
+            return;
+          }
+
           addIssue(
             'WARNING',
             'ID_INTEGRITY',
@@ -263,69 +285,136 @@ export class DataIntegrityService {
     const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
     questions.forEach((q) => {
+      const isTestItem = Boolean(q.id && q.id.startsWith('TEST-'));
+
       if (!q.topicId) {
-        addIssue(
-          'ERROR',
-          'QUESTION_INTEGRITY',
-          SHEET_TABS.QUESTIONS,
-          `Question "${q.id}" is missing required topic_id.`,
-          `Set a valid Topic ID for question "${q.id}" in the QUESTIONS worksheet.`,
-          'QUESTION',
-          q.id,
-          'topicId'
-        );
-      } else {
-        const topic = topicMap.get(q.topicId);
-        if (!topic) {
+        if (isTestItem) {
+          addIssue(
+            'INFO',
+            'QUESTION_INTEGRITY',
+            SHEET_TABS.QUESTIONS,
+            `Test artifact question "${q.id}" has no topic_id.`,
+            `No production remediation required for test artifact records.`,
+            'QUESTION',
+            q.id,
+            'topicId'
+          );
+        } else {
           addIssue(
             'ERROR',
             'QUESTION_INTEGRITY',
             SHEET_TABS.QUESTIONS,
-            `Question "${q.id}" references non-existent topic_id "${q.topicId}".`,
-            `Update topic_id for question "${q.id}" to an existing topic in the TOPICS tab.`,
+            `Question "${q.id}" is missing required topic_id.`,
+            `Set a valid Topic ID for question "${q.id}" in the QUESTIONS worksheet.`,
             'QUESTION',
             q.id,
             'topicId'
           );
         }
+      } else {
+        const topic = topicMap.get(q.topicId);
+        if (!topic) {
+          if (isTestItem) {
+            addIssue(
+              'INFO',
+              'QUESTION_INTEGRITY',
+              SHEET_TABS.QUESTIONS,
+              `Test artifact question "${q.id}" references non-existent topic_id "${q.topicId}".`,
+              `No production remediation required for test artifact records.`,
+              'QUESTION',
+              q.id,
+              'topicId'
+            );
+          } else {
+            addIssue(
+              'ERROR',
+              'QUESTION_INTEGRITY',
+              SHEET_TABS.QUESTIONS,
+              `Question "${q.id}" references non-existent topic_id "${q.topicId}".`,
+              `Update topic_id for question "${q.id}" to an existing topic in the TOPICS tab.`,
+              'QUESTION',
+              q.id,
+              'topicId'
+            );
+          }
+        }
       }
 
       if (!q.subtopicId) {
-        addIssue(
-          'ERROR',
-          'QUESTION_INTEGRITY',
-          SHEET_TABS.QUESTIONS,
-          `Question "${q.id}" is missing required subtopic_id.`,
-          `Set a valid Subtopic ID for question "${q.id}" in the QUESTIONS worksheet.`,
-          'QUESTION',
-          q.id,
-          'subtopicId'
-        );
+        if (isTestItem) {
+          addIssue(
+            'INFO',
+            'QUESTION_INTEGRITY',
+            SHEET_TABS.QUESTIONS,
+            `Test artifact question "${q.id}" has no subtopic_id.`,
+            `No production remediation required for test artifact records.`,
+            'QUESTION',
+            q.id,
+            'subtopicId'
+          );
+        } else {
+          addIssue(
+            'ERROR',
+            'QUESTION_INTEGRITY',
+            SHEET_TABS.QUESTIONS,
+            `Question "${q.id}" is missing required subtopic_id.`,
+            `Set a valid Subtopic ID for question "${q.id}" in the QUESTIONS worksheet.`,
+            'QUESTION',
+            q.id,
+            'subtopicId'
+          );
+        }
       } else {
         const subtopic = subtopicMap.get(q.subtopicId);
         if (!subtopic) {
-          addIssue(
-            'ERROR',
-            'QUESTION_INTEGRITY',
-            SHEET_TABS.QUESTIONS,
-            `Question "${q.id}" references non-existent subtopic_id "${q.subtopicId}".`,
-            `Update subtopic_id for question "${q.id}" to an existing subtopic in the SUBTOPICS tab.`,
-            'QUESTION',
-            q.id,
-            'subtopicId'
-          );
+          if (isTestItem) {
+            addIssue(
+              'INFO',
+              'QUESTION_INTEGRITY',
+              SHEET_TABS.QUESTIONS,
+              `Test artifact question "${q.id}" references non-existent subtopic_id "${q.subtopicId}".`,
+              `No production remediation required for test artifact records.`,
+              'QUESTION',
+              q.id,
+              'subtopicId'
+            );
+          } else {
+            addIssue(
+              'ERROR',
+              'QUESTION_INTEGRITY',
+              SHEET_TABS.QUESTIONS,
+              `Question "${q.id}" references non-existent subtopic_id "${q.subtopicId}".`,
+              `Update subtopic_id for question "${q.id}" to an existing subtopic in the SUBTOPICS tab.`,
+              'QUESTION',
+              q.id,
+              'subtopicId'
+            );
+          }
         } else if (q.topicId && subtopic.topicId !== q.topicId) {
           // Hierarchy violation: Subtopic belongs to different Topic
-          addIssue(
-            'ERROR',
-            'QUESTION_INTEGRITY',
-            SHEET_TABS.QUESTIONS,
-            `Hierarchy mismatch: Subtopic "${q.subtopicId}" belongs to Topic "${subtopic.topicId}", but question "${q.id}" is assigned to Topic "${q.topicId}".`,
-            `Align topic_id and subtopic_id for question "${q.id}" in the QUESTIONS worksheet.`,
-            'QUESTION',
-            q.id,
-            'subtopicId'
-          );
+          if (isTestItem) {
+            addIssue(
+              'INFO',
+              'QUESTION_INTEGRITY',
+              SHEET_TABS.QUESTIONS,
+              `Hierarchy mismatch in test artifact question "${q.id}": Subtopic "${q.subtopicId}" belongs to Topic "${subtopic.topicId}", but question is assigned to Topic "${q.topicId}".`,
+              `No production remediation required for test artifact records.`,
+              'QUESTION',
+              q.id,
+              'subtopicId'
+            );
+          } else {
+            addIssue(
+              'ERROR',
+              'QUESTION_INTEGRITY',
+              SHEET_TABS.QUESTIONS,
+              `Hierarchy mismatch: Subtopic "${q.subtopicId}" belongs to Topic "${subtopic.topicId}", but question "${q.id}" is assigned to Topic "${q.topicId}".`,
+              `Align topic_id and subtopic_id for question "${q.id}" in the QUESTIONS worksheet.`,
+              'QUESTION',
+              q.id,
+              'subtopicId'
+            );
+          }
         }
       }
 
@@ -487,29 +576,57 @@ export class DataIntegrityService {
     const questionToVideosCount = new Map<string, string[]>();
 
     videos.forEach((v) => {
+      const isTestItem = Boolean(v.id && v.id.startsWith('TEST-'));
+
       // 1. Missing Question Reference
       if (!v.questionId) {
-        addIssue(
-          'ERROR',
-          'VIDEO_INTEGRITY',
-          SHEET_TABS.VIDEOS,
-          `Video "${v.id}" has missing question_id.`,
-          `Link video "${v.id}" to an authoritative Question ID in the VIDEOS worksheet.`,
-          'VIDEO',
-          v.id,
-          'questionId'
-        );
+        if (isTestItem) {
+          addIssue(
+            'INFO',
+            'VIDEO_INTEGRITY',
+            SHEET_TABS.VIDEOS,
+            `Test artifact video "${v.id}" has missing question_id.`,
+            `No production remediation required for test artifact records.`,
+            'VIDEO',
+            v.id,
+            'questionId'
+          );
+        } else {
+          addIssue(
+            'ERROR',
+            'VIDEO_INTEGRITY',
+            SHEET_TABS.VIDEOS,
+            `Video "${v.id}" has missing question_id.`,
+            `Link video "${v.id}" to an authoritative Question ID in the VIDEOS worksheet.`,
+            'VIDEO',
+            v.id,
+            'questionId'
+          );
+        }
       } else if (!questionMap.has(v.questionId)) {
-        addIssue(
-          'ERROR',
-          'VIDEO_INTEGRITY',
-          SHEET_TABS.VIDEOS,
-          `Video "${v.id}" points to non-existent question_id "${v.questionId}".`,
-          `Update question_id for video "${v.id}" to an existing question in the QUESTIONS worksheet.`,
-          'VIDEO',
-          v.id,
-          'questionId'
-        );
+        if (isTestItem) {
+          addIssue(
+            'INFO',
+            'VIDEO_INTEGRITY',
+            SHEET_TABS.VIDEOS,
+            `Test artifact video "${v.id}" points to non-existent question_id "${v.questionId}".`,
+            `No production remediation required for test artifact records.`,
+            'VIDEO',
+            v.id,
+            'questionId'
+          );
+        } else {
+          addIssue(
+            'ERROR',
+            'VIDEO_INTEGRITY',
+            SHEET_TABS.VIDEOS,
+            `Video "${v.id}" points to non-existent question_id "${v.questionId}".`,
+            `Update question_id for video "${v.id}" to an existing question in the QUESTIONS worksheet.`,
+            'VIDEO',
+            v.id,
+            'questionId'
+          );
+        }
       } else {
         // Track active videos per question
         if (v.status !== VideoProductionStatus.CANCELLED) {
@@ -563,16 +680,29 @@ export class DataIntegrityService {
       // 4. QUESTION_VIDEOS Relationship mapping
       const hasQvMapping = questionVideos.some((qv) => qv.videoId === v.id && qv.questionId === v.questionId);
       if (!hasQvMapping && v.questionId) {
-        addIssue(
-          'WARNING',
-          'VIDEO_INTEGRITY',
-          SHEET_TABS.QUESTION_VIDEOS,
-          `Video "${v.id}" does not have a corresponding mapping row in QUESTION_VIDEOS.`,
-          `Add relationship row (question_id="${v.questionId}", video_id="${v.id}") to QUESTION_VIDEOS.`,
-          'VIDEO',
-          v.id,
-          'id'
-        );
+        if (isTestItem) {
+          addIssue(
+            'INFO',
+            'VIDEO_INTEGRITY',
+            SHEET_TABS.QUESTION_VIDEOS,
+            `Test artifact video "${v.id}" does not have a corresponding mapping row in QUESTION_VIDEOS.`,
+            `No production remediation required for test artifact records.`,
+            'VIDEO',
+            v.id,
+            'id'
+          );
+        } else {
+          addIssue(
+            'WARNING',
+            'VIDEO_INTEGRITY',
+            SHEET_TABS.QUESTION_VIDEOS,
+            `Video "${v.id}" does not have a corresponding mapping row in QUESTION_VIDEOS.`,
+            `Add relationship row (question_id="${v.questionId}", video_id="${v.id}") to QUESTION_VIDEOS.`,
+            'VIDEO',
+            v.id,
+            'id'
+          );
+        }
       }
 
       // 5. READY_TO_UPLOAD & UPLOADED Readiness verification
@@ -631,28 +761,55 @@ export class DataIntegrityService {
     // =========================================================================
     const scriptVersionMap = new Map<string, ScriptVersion[]>();
     scriptVersions.forEach((sv) => {
+      const isTestItem = Boolean(sv.id && sv.id.startsWith('TEST-'));
       if (!sv.scriptId) {
-        addIssue(
-          'ERROR',
-          'SCRIPT_INTEGRITY',
-          SHEET_TABS.SCRIPT_VERSIONS,
-          `Script version "${sv.id}" is missing script_id reference.`,
-          `Link script version "${sv.id}" to a valid script_id in SCRIPT_VERSIONS.`,
-          'SCRIPT_VERSION',
-          sv.id,
-          'scriptId'
-        );
+        if (isTestItem) {
+          addIssue(
+            'INFO',
+            'SCRIPT_INTEGRITY',
+            SHEET_TABS.SCRIPT_VERSIONS,
+            `Test artifact script version "${sv.id}" is missing script_id reference.`,
+            `No production remediation required for test artifact records.`,
+            'SCRIPT_VERSION',
+            sv.id,
+            'scriptId'
+          );
+        } else {
+          addIssue(
+            'ERROR',
+            'SCRIPT_INTEGRITY',
+            SHEET_TABS.SCRIPT_VERSIONS,
+            `Script version "${sv.id}" is missing script_id reference.`,
+            `Link script version "${sv.id}" to a valid script_id in SCRIPT_VERSIONS.`,
+            'SCRIPT_VERSION',
+            sv.id,
+            'scriptId'
+          );
+        }
       } else if (!scriptMap.has(sv.scriptId)) {
-        addIssue(
-          'ERROR',
-          'SCRIPT_INTEGRITY',
-          SHEET_TABS.SCRIPT_VERSIONS,
-          `Script version "${sv.id}" points to non-existent script_id "${sv.scriptId}".`,
-          `Correct script_id in SCRIPT_VERSIONS for version "${sv.id}".`,
-          'SCRIPT_VERSION',
-          sv.id,
-          'scriptId'
-        );
+        if (isTestItem) {
+          addIssue(
+            'INFO',
+            'SCRIPT_INTEGRITY',
+            SHEET_TABS.SCRIPT_VERSIONS,
+            `Test artifact script version "${sv.id}" points to non-existent script_id "${sv.scriptId}".`,
+            `No production remediation required for test artifact records.`,
+            'SCRIPT_VERSION',
+            sv.id,
+            'scriptId'
+          );
+        } else {
+          addIssue(
+            'ERROR',
+            'SCRIPT_INTEGRITY',
+            SHEET_TABS.SCRIPT_VERSIONS,
+            `Script version "${sv.id}" points to non-existent script_id "${sv.scriptId}".`,
+            `Correct script_id in SCRIPT_VERSIONS for version "${sv.id}".`,
+            'SCRIPT_VERSION',
+            sv.id,
+            'scriptId'
+          );
+        }
       } else {
         const list = scriptVersionMap.get(sv.scriptId) || [];
         list.push(sv);
@@ -661,28 +818,55 @@ export class DataIntegrityService {
     });
 
     scripts.forEach((s) => {
+      const isTestItem = Boolean(s.id && s.id.startsWith('TEST-'));
       if (!s.videoId) {
-        addIssue(
-          'ERROR',
-          'SCRIPT_INTEGRITY',
-          SHEET_TABS.SCRIPT,
-          `Script "${s.id}" is missing video_id reference.`,
-          `Link script "${s.id}" to an existing video in the SCRIPT worksheet.`,
-          'SCRIPT',
-          s.id,
-          'videoId'
-        );
+        if (isTestItem) {
+          addIssue(
+            'INFO',
+            'SCRIPT_INTEGRITY',
+            SHEET_TABS.SCRIPT,
+            `Test artifact script "${s.id}" is missing video_id reference.`,
+            `No production remediation required for test artifact records.`,
+            'SCRIPT',
+            s.id,
+            'videoId'
+          );
+        } else {
+          addIssue(
+            'ERROR',
+            'SCRIPT_INTEGRITY',
+            SHEET_TABS.SCRIPT,
+            `Script "${s.id}" is missing video_id reference.`,
+            `Link script "${s.id}" to an existing video in the SCRIPT worksheet.`,
+            'SCRIPT',
+            s.id,
+            'videoId'
+          );
+        }
       } else if (!videoMap.has(s.videoId)) {
-        addIssue(
-          'ERROR',
-          'SCRIPT_INTEGRITY',
-          SHEET_TABS.SCRIPT,
-          `Script "${s.id}" points to non-existent video_id "${s.videoId}".`,
-          `Update video_id for script "${s.id}" to a valid video in the VIDEOS worksheet.`,
-          'SCRIPT',
-          s.id,
-          'videoId'
-        );
+        if (isTestItem) {
+          addIssue(
+            'INFO',
+            'SCRIPT_INTEGRITY',
+            SHEET_TABS.SCRIPT,
+            `Test artifact script "${s.id}" points to non-existent video_id "${s.videoId}".`,
+            `No production remediation required for test artifact records.`,
+            'SCRIPT',
+            s.id,
+            'videoId'
+          );
+        } else {
+          addIssue(
+            'ERROR',
+            'SCRIPT_INTEGRITY',
+            SHEET_TABS.SCRIPT,
+            `Script "${s.id}" points to non-existent video_id "${s.videoId}".`,
+            `Update video_id for script "${s.id}" to a valid video in the VIDEOS worksheet.`,
+            'SCRIPT',
+            s.id,
+            'videoId'
+          );
+        }
       }
 
       // Version validation
@@ -725,28 +909,55 @@ export class DataIntegrityService {
     // =========================================================================
     const thumbnailVersionMap = new Map<string, ThumbnailVersion[]>();
     thumbnailVersions.forEach((tv) => {
+      const isTestItem = Boolean(tv.id && tv.id.startsWith('TEST-'));
       if (!tv.thumbnailId) {
-        addIssue(
-          'ERROR',
-          'THUMBNAIL_INTEGRITY',
-          SHEET_TABS.THUMBNAIL_VERSIONS,
-          `Thumbnail version "${tv.id}" is missing thumbnail_id.`,
-          `Link thumbnail version "${tv.id}" to a valid thumbnail_id in THUMBNAIL_VERSIONS.`,
-          'THUMBNAIL_VERSION',
-          tv.id,
-          'thumbnailId'
-        );
+        if (isTestItem) {
+          addIssue(
+            'INFO',
+            'THUMBNAIL_INTEGRITY',
+            SHEET_TABS.THUMBNAIL_VERSIONS,
+            `Test artifact thumbnail version "${tv.id}" is missing thumbnail_id.`,
+            `No production remediation required for test artifact records.`,
+            'THUMBNAIL_VERSION',
+            tv.id,
+            'thumbnailId'
+          );
+        } else {
+          addIssue(
+            'ERROR',
+            'THUMBNAIL_INTEGRITY',
+            SHEET_TABS.THUMBNAIL_VERSIONS,
+            `Thumbnail version "${tv.id}" is missing thumbnail_id.`,
+            `Link thumbnail version "${tv.id}" to a valid thumbnail_id in THUMBNAIL_VERSIONS.`,
+            'THUMBNAIL_VERSION',
+            tv.id,
+            'thumbnailId'
+          );
+        }
       } else if (!thumbnailMap.has(tv.thumbnailId)) {
-        addIssue(
-          'ERROR',
-          'THUMBNAIL_INTEGRITY',
-          SHEET_TABS.THUMBNAIL_VERSIONS,
-          `Thumbnail version "${tv.id}" references non-existent thumbnail_id "${tv.thumbnailId}".`,
-          `Correct thumbnail_id in THUMBNAIL_VERSIONS for version "${tv.id}".`,
-          'THUMBNAIL_VERSION',
-          tv.id,
-          'thumbnailId'
-        );
+        if (isTestItem) {
+          addIssue(
+            'INFO',
+            'THUMBNAIL_INTEGRITY',
+            SHEET_TABS.THUMBNAIL_VERSIONS,
+            `Test artifact thumbnail version "${tv.id}" references non-existent thumbnail_id "${tv.thumbnailId}".`,
+            `No production remediation required for test artifact records.`,
+            'THUMBNAIL_VERSION',
+            tv.id,
+            'thumbnailId'
+          );
+        } else {
+          addIssue(
+            'ERROR',
+            'THUMBNAIL_INTEGRITY',
+            SHEET_TABS.THUMBNAIL_VERSIONS,
+            `Thumbnail version "${tv.id}" references non-existent thumbnail_id "${tv.thumbnailId}".`,
+            `Correct thumbnail_id in THUMBNAIL_VERSIONS for version "${tv.id}".`,
+            'THUMBNAIL_VERSION',
+            tv.id,
+            'thumbnailId'
+          );
+        }
       } else {
         const list = thumbnailVersionMap.get(tv.thumbnailId) || [];
         list.push(tv);
@@ -755,28 +966,55 @@ export class DataIntegrityService {
     });
 
     thumbnails.forEach((t) => {
+      const isTestItem = Boolean(t.id && t.id.startsWith('TEST-'));
       if (!t.videoId) {
-        addIssue(
-          'ERROR',
-          'THUMBNAIL_INTEGRITY',
-          SHEET_TABS.THUMBNAILS,
-          `Thumbnail "${t.id}" is missing video_id.`,
-          `Link thumbnail "${t.id}" to a valid video in THUMBNAILS.`,
-          'THUMBNAIL',
-          t.id,
-          'videoId'
-        );
+        if (isTestItem) {
+          addIssue(
+            'INFO',
+            'THUMBNAIL_INTEGRITY',
+            SHEET_TABS.THUMBNAILS,
+            `Test artifact thumbnail "${t.id}" is missing video_id.`,
+            `No production remediation required for test artifact records.`,
+            'THUMBNAIL',
+            t.id,
+            'videoId'
+          );
+        } else {
+          addIssue(
+            'ERROR',
+            'THUMBNAIL_INTEGRITY',
+            SHEET_TABS.THUMBNAILS,
+            `Thumbnail "${t.id}" is missing video_id.`,
+            `Link thumbnail "${t.id}" to a valid video in THUMBNAILS.`,
+            'THUMBNAIL',
+            t.id,
+            'videoId'
+          );
+        }
       } else if (!videoMap.has(t.videoId)) {
-        addIssue(
-          'ERROR',
-          'THUMBNAIL_INTEGRITY',
-          SHEET_TABS.THUMBNAILS,
-          `Thumbnail "${t.id}" references non-existent video_id "${t.videoId}".`,
-          `Update video_id for thumbnail "${t.id}" in THUMBNAILS.`,
-          'THUMBNAIL',
-          t.id,
-          'videoId'
-        );
+        if (isTestItem) {
+          addIssue(
+            'INFO',
+            'THUMBNAIL_INTEGRITY',
+            SHEET_TABS.THUMBNAILS,
+            `Test artifact thumbnail "${t.id}" references non-existent video_id "${t.videoId}".`,
+            `No production remediation required for test artifact records.`,
+            'THUMBNAIL',
+            t.id,
+            'videoId'
+          );
+        } else {
+          addIssue(
+            'ERROR',
+            'THUMBNAIL_INTEGRITY',
+            SHEET_TABS.THUMBNAILS,
+            `Thumbnail "${t.id}" references non-existent video_id "${t.videoId}".`,
+            `Update video_id for thumbnail "${t.id}" in THUMBNAILS.`,
+            'THUMBNAIL',
+            t.id,
+            'videoId'
+          );
+        }
       }
 
       if (t.status === 'APPROVED' && !t.driveAssetUrl && !t.previewUrl) {
@@ -798,54 +1036,108 @@ export class DataIntegrityService {
     // =========================================================================
     const pinnedCommentVersionMap = new Map<string, PinnedCommentVersion[]>();
     pinnedCommentVersions.forEach((pv) => {
+      const isTestItem = Boolean(pv.id && pv.id.startsWith('TEST-'));
       if (!pv.pinnedCommentId) {
-        addIssue(
-          'ERROR',
-          'PINNED_COMMENT_INTEGRITY',
-          SHEET_TABS.PINNED_COMMENT_VERSIONS,
-          `Pinned comment version "${pv.id}" is missing pinned_comment_id.`,
-          `Set pinned_comment_id for version row "${pv.id}".`,
-          'PINNED_COMMENT_VERSION',
-          pv.id,
-          'pinnedCommentId'
-        );
+        if (isTestItem) {
+          addIssue(
+            'INFO',
+            'PINNED_COMMENT_INTEGRITY',
+            SHEET_TABS.PINNED_COMMENT_VERSIONS,
+            `Test artifact pinned comment version "${pv.id}" is missing pinned_comment_id.`,
+            `No production remediation required for test artifact records.`,
+            'PINNED_COMMENT_VERSION',
+            pv.id,
+            'pinnedCommentId'
+          );
+        } else {
+          addIssue(
+            'ERROR',
+            'PINNED_COMMENT_INTEGRITY',
+            SHEET_TABS.PINNED_COMMENT_VERSIONS,
+            `Pinned comment version "${pv.id}" is missing pinned_comment_id.`,
+            `Set pinned_comment_id for version row "${pv.id}".`,
+            'PINNED_COMMENT_VERSION',
+            pv.id,
+            'pinnedCommentId'
+          );
+        }
       } else if (!pinnedCommentMap.has(pv.pinnedCommentId)) {
-        addIssue(
-          'ERROR',
-          'PINNED_COMMENT_INTEGRITY',
-          SHEET_TABS.PINNED_COMMENT_VERSIONS,
-          `Pinned comment version "${pv.id}" references non-existent comment "${pv.pinnedCommentId}".`,
-          `Fix pinned_comment_id in PINNED_COMMENT_VERSIONS for "${pv.id}".`,
-          'PINNED_COMMENT_VERSION',
-          pv.id,
-          'pinnedCommentId'
-        );
+        if (isTestItem) {
+          addIssue(
+            'INFO',
+            'PINNED_COMMENT_INTEGRITY',
+            SHEET_TABS.PINNED_COMMENT_VERSIONS,
+            `Test artifact pinned comment version "${pv.id}" references non-existent comment "${pv.pinnedCommentId}".`,
+            `No production remediation required for test artifact records.`,
+            'PINNED_COMMENT_VERSION',
+            pv.id,
+            'pinnedCommentId'
+          );
+        } else {
+          addIssue(
+            'ERROR',
+            'PINNED_COMMENT_INTEGRITY',
+            SHEET_TABS.PINNED_COMMENT_VERSIONS,
+            `Pinned comment version "${pv.id}" references non-existent comment "${pv.pinnedCommentId}".`,
+            `Fix pinned_comment_id in PINNED_COMMENT_VERSIONS for "${pv.id}".`,
+            'PINNED_COMMENT_VERSION',
+            pv.id,
+            'pinnedCommentId'
+          );
+        }
       }
     });
 
     pinnedComments.forEach((p) => {
+      const isTestItem = Boolean(p.id && p.id.startsWith('TEST-'));
       if (!p.videoId) {
-        addIssue(
-          'ERROR',
-          'PINNED_COMMENT_INTEGRITY',
-          SHEET_TABS.PINNED_COMMENTS,
-          `Pinned comment "${p.id}" is missing video_id.`,
-          `Link pinned comment "${p.id}" to a valid video in PINNED_COMMENTS.`,
-          'PINNED_COMMENT',
-          p.id,
-          'videoId'
-        );
+        if (isTestItem) {
+          addIssue(
+            'INFO',
+            'PINNED_COMMENT_INTEGRITY',
+            SHEET_TABS.PINNED_COMMENTS,
+            `Test artifact pinned comment "${p.id}" is missing video_id.`,
+            `No production remediation required for test artifact records.`,
+            'PINNED_COMMENT',
+            p.id,
+            'videoId'
+          );
+        } else {
+          addIssue(
+            'ERROR',
+            'PINNED_COMMENT_INTEGRITY',
+            SHEET_TABS.PINNED_COMMENTS,
+            `Pinned comment "${p.id}" is missing video_id.`,
+            `Link pinned comment "${p.id}" to a valid video in PINNED_COMMENTS.`,
+            'PINNED_COMMENT',
+            p.id,
+            'videoId'
+          );
+        }
       } else if (!videoMap.has(p.videoId)) {
-        addIssue(
-          'ERROR',
-          'PINNED_COMMENT_INTEGRITY',
-          SHEET_TABS.PINNED_COMMENTS,
-          `Pinned comment "${p.id}" points to non-existent video "${p.videoId}".`,
-          `Update video_id for pinned comment "${p.id}".`,
-          'PINNED_COMMENT',
-          p.id,
-          'videoId'
-        );
+        if (isTestItem) {
+          addIssue(
+            'INFO',
+            'PINNED_COMMENT_INTEGRITY',
+            SHEET_TABS.PINNED_COMMENTS,
+            `Test artifact pinned comment "${p.id}" points to non-existent video "${p.videoId}".`,
+            `No production remediation required for test artifact records.`,
+            'PINNED_COMMENT',
+            p.id,
+            'videoId'
+          );
+        } else {
+          addIssue(
+            'ERROR',
+            'PINNED_COMMENT_INTEGRITY',
+            SHEET_TABS.PINNED_COMMENTS,
+            `Pinned comment "${p.id}" points to non-existent video "${p.videoId}".`,
+            `Update video_id for pinned comment "${p.id}".`,
+            'PINNED_COMMENT',
+            p.id,
+            'videoId'
+          );
+        }
       }
 
       if (!p.commentText || p.commentText.trim() === '') {
@@ -868,28 +1160,55 @@ export class DataIntegrityService {
     const publishingSeenVideos = new Set<string>();
 
     publishingRecords.forEach((pub) => {
+      const isTestItem = Boolean(pub.id && pub.id.startsWith('TEST-'));
       if (!pub.videoId) {
-        addIssue(
-          'ERROR',
-          'PUBLISHING_INTEGRITY',
-          SHEET_TABS.PUBLISHING,
-          `Publishing record "${pub.id}" has missing video_id.`,
-          `Set video_id for publishing row "${pub.id}" in the PUBLISHING worksheet.`,
-          'PUBLISHING',
-          pub.id,
-          'videoId'
-        );
+        if (isTestItem) {
+          addIssue(
+            'INFO',
+            'PUBLISHING_INTEGRITY',
+            SHEET_TABS.PUBLISHING,
+            `Test artifact publishing record "${pub.id}" has missing video_id.`,
+            `No production remediation required for test artifact records.`,
+            'PUBLISHING',
+            pub.id,
+            'videoId'
+          );
+        } else {
+          addIssue(
+            'ERROR',
+            'PUBLISHING_INTEGRITY',
+            SHEET_TABS.PUBLISHING,
+            `Publishing record "${pub.id}" has missing video_id.`,
+            `Set video_id for publishing row "${pub.id}" in the PUBLISHING worksheet.`,
+            'PUBLISHING',
+            pub.id,
+            'videoId'
+          );
+        }
       } else if (!videoMap.has(pub.videoId)) {
-        addIssue(
-          'ERROR',
-          'PUBLISHING_INTEGRITY',
-          SHEET_TABS.PUBLISHING,
-          `Publishing record "${pub.id}" points to non-existent video_id "${pub.videoId}".`,
-          `Update video_id for publishing record "${pub.id}".`,
-          'PUBLISHING',
-          pub.id,
-          'videoId'
-        );
+        if (isTestItem) {
+          addIssue(
+            'INFO',
+            'PUBLISHING_INTEGRITY',
+            SHEET_TABS.PUBLISHING,
+            `Test artifact publishing record "${pub.id}" points to non-existent video_id "${pub.videoId}".`,
+            `No production remediation required for test artifact records.`,
+            'PUBLISHING',
+            pub.id,
+            'videoId'
+          );
+        } else {
+          addIssue(
+            'ERROR',
+            'PUBLISHING_INTEGRITY',
+            SHEET_TABS.PUBLISHING,
+            `Publishing record "${pub.id}" points to non-existent video_id "${pub.videoId}".`,
+            `Update video_id for publishing record "${pub.id}".`,
+            'PUBLISHING',
+            pub.id,
+            'videoId'
+          );
+        }
       } else {
         if (publishingSeenVideos.has(pub.videoId)) {
           addIssue(
@@ -1113,19 +1432,19 @@ export class DataIntegrityService {
     // J. SEQUENCE INTEGRITY CHECKS
     // =========================================================================
     const maxIdsByEntity: Record<string, number> = {
-      [SEQUENCE_ENTITIES.QUESTION]: Math.max(0, ...questions.map((q) => this.extractNumericId(q.id) || 0)),
-      [SEQUENCE_ENTITIES.VIDEO]: Math.max(0, ...videos.map((v) => this.extractNumericId(v.id) || 0)),
-      [SEQUENCE_ENTITIES.SCRIPT]: Math.max(0, ...scripts.map((s) => this.extractNumericId(s.id) || 0)),
-      [SEQUENCE_ENTITIES.THUMBNAIL]: Math.max(0, ...thumbnails.map((t) => this.extractNumericId(t.id) || 0)),
-      [SEQUENCE_ENTITIES.PINNED_COMMENT]: Math.max(0, ...pinnedComments.map((p) => this.extractNumericId(p.id) || 0)),
-      [SEQUENCE_ENTITIES.CATEGORY]: Math.max(0, ...categories.map((c) => this.extractNumericId(c.id) || 0)),
-      [SEQUENCE_ENTITIES.TOPIC]: Math.max(0, ...topics.map((t) => this.extractNumericId(t.id) || 0)),
-      [SEQUENCE_ENTITIES.SUBTOPIC]: Math.max(0, ...subtopics.map((s) => this.extractNumericId(s.id) || 0)),
+      [SEQUENCE_ENTITIES.QUESTION]: Math.max(0, ...questions.map((q) => this.extractNumericId(q.id, ID_PREFIX_MAP[SEQUENCE_ENTITIES.QUESTION]?.prefix) || 0)),
+      [SEQUENCE_ENTITIES.VIDEO]: Math.max(0, ...videos.map((v) => this.extractNumericId(v.id, ID_PREFIX_MAP[SEQUENCE_ENTITIES.VIDEO]?.prefix) || 0)),
+      [SEQUENCE_ENTITIES.SCRIPT]: Math.max(0, ...scripts.map((s) => this.extractNumericId(s.id, ID_PREFIX_MAP[SEQUENCE_ENTITIES.SCRIPT]?.prefix) || 0)),
+      [SEQUENCE_ENTITIES.THUMBNAIL]: Math.max(0, ...thumbnails.map((t) => this.extractNumericId(t.id, ID_PREFIX_MAP[SEQUENCE_ENTITIES.THUMBNAIL]?.prefix) || 0)),
+      [SEQUENCE_ENTITIES.PINNED_COMMENT]: Math.max(0, ...pinnedComments.map((p) => this.extractNumericId(p.id, ID_PREFIX_MAP[SEQUENCE_ENTITIES.PINNED_COMMENT]?.prefix) || 0)),
+      [SEQUENCE_ENTITIES.CATEGORY]: Math.max(0, ...categories.map((c) => this.extractNumericId(c.id, ID_PREFIX_MAP[SEQUENCE_ENTITIES.CATEGORY]?.prefix) || 0)),
+      [SEQUENCE_ENTITIES.TOPIC]: Math.max(0, ...topics.map((t) => this.extractNumericId(t.id, ID_PREFIX_MAP[SEQUENCE_ENTITIES.TOPIC]?.prefix) || 0)),
+      [SEQUENCE_ENTITIES.SUBTOPIC]: Math.max(0, ...subtopics.map((s) => this.extractNumericId(s.id, ID_PREFIX_MAP[SEQUENCE_ENTITIES.SUBTOPIC]?.prefix) || 0)),
       // Note: USER IDs use timestamp-based allocation (allocateUserId: USR-#### via Date.now()),
       // not monotonic counter allocation from SEQUENCES table.
       [SEQUENCE_ENTITIES.CONTENT_PLAN]: 0,
       [SEQUENCE_ENTITIES.CONTENT_BATCH]: 0,
-      [SEQUENCE_ENTITIES.ASSIGNMENT]: Math.max(0, ...assignments.map((a) => this.extractNumericId(a.id) || 0)),
+      [SEQUENCE_ENTITIES.ASSIGNMENT]: Math.max(0, ...assignments.map((a) => this.extractNumericId(a.id, ID_PREFIX_MAP[SEQUENCE_ENTITIES.ASSIGNMENT]?.prefix) || 0)),
     };
 
     const seenSeqEntities = new Set<string>();

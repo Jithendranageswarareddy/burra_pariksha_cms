@@ -85,12 +85,6 @@ export class SequenceSafetyService {
       const parsed = parseInt(rest, 10);
       return isNaN(parsed) ? null : parsed;
     }
-    // Also test generic numeric extraction
-    const match = idString.match(/\d+$/);
-    if (match) {
-      const parsed = parseInt(match[0], 10);
-      return isNaN(parsed) ? null : parsed;
-    }
     return null;
   }
 
