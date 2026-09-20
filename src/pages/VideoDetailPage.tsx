@@ -247,7 +247,8 @@ export const VideoDetailPage: React.FC = () => {
     activeTab === 'social' ? 'SOCIAL_REVIEW' :
     activeTab === 'thumbnail' ? 'THUMBNAIL' :
     activeTab === 'publishing' ? 'PUBLISHING_SETUP' :
-    'EDITING';
+    activeTab === 'overview' ? (video.status === VideoProductionStatus.UPLOADED ? 'PUBLISHED' : undefined) :
+    undefined;
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto animate-in fade-in duration-200 pb-16">
