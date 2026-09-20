@@ -112,6 +112,8 @@ export const SEQUENCE_ENTITIES = {
   SOCIAL_PERFORMANCE_INTELLIGENCE: 'SOCIAL_PERFORMANCE_INTELLIGENCE',
   PLATFORM_ADAPTATION: 'PLATFORM_ADAPTATION',
   CONTENT_STRATEGY: 'CONTENT_STRATEGY',
+  SOCIAL_COMMENT: 'SOCIAL_COMMENT',
+  COMMENT_INTELLIGENCE: 'COMMENT_INTELLIGENCE',
 } as const;
 
 export type SequenceEntityType = typeof SEQUENCE_ENTITIES[keyof typeof SEQUENCE_ENTITIES];
@@ -135,6 +137,8 @@ export const ID_PREFIX_MAP: Record<SequenceEntityType, { prefix: string; padLeng
   [SEQUENCE_ENTITIES.SOCIAL_PERFORMANCE_INTELLIGENCE]: { prefix: 'BP-SPI-', padLength: 6 },
   [SEQUENCE_ENTITIES.PLATFORM_ADAPTATION]: { prefix: 'BP-ADP-', padLength: 6 },
   [SEQUENCE_ENTITIES.CONTENT_STRATEGY]: { prefix: 'BP-STR-', padLength: 6 },
+  [SEQUENCE_ENTITIES.SOCIAL_COMMENT]: { prefix: 'BP-CMT-', padLength: 6 },
+  [SEQUENCE_ENTITIES.COMMENT_INTELLIGENCE]: { prefix: 'BP-CMI-', padLength: 6 },
 };
 
 // ============================================================================
@@ -1297,6 +1301,10 @@ export type BulkImportTaxonomyInput = z.infer<typeof BulkImportTaxonomyInputSche
 
 export const ANALYTICS_SHEET_TABS = {
   SOCIAL_ANALYTICS: 'SOCIAL_ANALYTICS',
+  SOCIAL_PERFORMANCE_INTELLIGENCE: 'ANALYTICS_INTELLIGENCE',
+  STRATEGY_RECOMMENDATIONS: 'STRATEGY_RECOMMENDATIONS',
+  SOCIAL_COMMENTS: 'SOCIAL_COMMENTS',
+  COMMENT_INTELLIGENCE: 'COMMENT_INTELLIGENCE',
 } as const;
 
 export type AnalyticsSheetTabName = typeof ANALYTICS_SHEET_TABS[keyof typeof ANALYTICS_SHEET_TABS];
@@ -1423,3 +1431,134 @@ export const STRATEGY_RECOMMENDATION_SCHEMA: SheetSchemaContract = {
     { name: 'VERSION', propertyKey: 'version', type: 'number', required: true },
   ],
 };
+
+// ============================================================================
+// PHASE 30: AUDIENCE SOCIAL COMMENTS & COMMENT INTELLIGENCE SCHEMAS
+// (Strictly stored in separate Analytics Workbook)
+// ============================================================================
+
+/**
+ * Phase 30: SOCIAL_COMMENTS Schema
+ * Stored in separate Analytics Workbook under SOCIAL_COMMENTS sheet tab.
+ * Stores raw audience comments captured across publishing platforms.
+ */
+export const SOCIAL_COMMENTS_SCHEMA: SheetSchemaContract = {
+  sheetName: 'SOCIAL_COMMENTS' as any,
+  purpose: 'Stores raw audience social comments for published content in separate analytics workbook',
+  primaryKey: 'id',
+  columns: [
+    { name: 'ID', propertyKey: 'id', type: 'string', required: true, isPrimaryKey: true },
+    { name: 'CONTENT_ID', propertyKey: 'contentId', type: 'string', required: true },
+    { name: 'VIDEO_ID', propertyKey: 'videoId', type: 'string', required: false },
+    { name: 'PUBLISHING_ID', propertyKey: 'publishingId', type: 'string', required: false },
+    { name: 'PLATFORM', propertyKey: 'platform', type: 'string', required: true, allowedValues: ['youtube', 'instagram', 'facebook'] },
+    { name: 'PLATFORM_POST_ID', propertyKey: 'platformPostId', type: 'string', required: false },
+    { name: 'PLATFORM_COMMENT_ID', propertyKey: 'platformCommentId', type: 'string', required: false },
+    { name: 'COMMENT_TEXT', propertyKey: 'commentText', type: 'string', required: true },
+    { name: 'AUTHOR_DISPLAY_NAME', propertyKey: 'authorDisplayName', type: 'string', required: false },
+    { name: 'COMMENT_CREATED_AT', propertyKey: 'commentCreatedAt', type: 'string', required: false },
+    { name: 'CAPTURED_AT', propertyKey: 'capturedAt', type: 'string', required: true },
+    { name: 'LIKE_COUNT', propertyKey: 'likeCount', type: 'number', required: false },
+    { name: 'REPLY_COUNT', propertyKey: 'replyCount', type: 'number', required: false },
+    { name: 'PARENT_COMMENT_ID', propertyKey: 'parentCommentId', type: 'string', required: false },
+    { name: 'IS_REPLY', propertyKey: 'isReply', type: 'boolean', required: false },
+    { name: 'SOURCE', propertyKey: 'source', type: 'string', required: true, allowedValues: ['MANUAL_PASTE', 'CSV_IMPORT', 'JSON_IMPORT', 'API_SYNC'] },
+    { name: 'STATUS', propertyKey: 'status', type: 'string', required: true, allowedValues: ['UNPROCESSED', 'ANALYZED', 'FLAGGED', 'IGNORED'] },
+  ],
+};
+
+export const SocialCommentSourceSchema = z.enum([
+  'MANUAL_PASTE',
+  'CSV_IMPORT',
+  'JSON_IMPORT',
+  'API_SYNC',
+]);
+
+export const SocialCommentStatusSchema = z.enum([
+  'UNPROCESSED',
+  'ANALYZED',
+  'FLAGGED',
+  'IGNORED',
+]);
+
+export const CreateSocialCommentInputSchema = z.object({
+  contentId: z.string().regex(/^BP-CNT-\d{6}$/, 'Invalid content ID format (must be BP-CNT-######)'),
+  videoId: z.string().regex(/^BP-V-\d{6}$/, 'Invalid video ID format (must be BP-V-######)').optional(),
+  publishingId: z.string().regex(/^(PUB|BP-PUB)-\d{6}$/, 'Invalid publishing ID format (must be PUB-###### or BP-PUB-######)').optional(),
+  platform: z.enum(['youtube', 'instagram', 'facebook']),
+  platformPostId: z.string().min(1, 'Platform post ID must be non-empty when supplied').optional(),
+  platformCommentId: z.string().min(1, 'Platform comment ID must be non-empty when supplied').optional(),
+  commentText: z.string().min(1, 'Comment text is required'),
+  authorDisplayName: z.string().optional(),
+  commentCreatedAt: z.string().optional(),
+  capturedAt: z.string().optional(),
+  likeCount: z.number().int().min(0, 'Like count must be non-negative').optional().default(0),
+  replyCount: z.number().int().min(0, 'Reply count must be non-negative').optional().default(0),
+  parentCommentId: z.string().optional(),
+  isReply: z.boolean().optional().default(false),
+  source: z.union([SocialCommentSourceSchema, z.string()]).default('MANUAL_PASTE'),
+  status: z.union([SocialCommentStatusSchema, z.string()]).default('UNPROCESSED'),
+});
+
+export type CreateSocialCommentInput = z.infer<typeof CreateSocialCommentInputSchema>;
+
+export const ImportSocialCommentsInputSchema = z.object({
+  comments: z.array(CreateSocialCommentInputSchema).min(1, 'At least one comment must be provided for import'),
+});
+
+export type ImportSocialCommentsInput = z.infer<typeof ImportSocialCommentsInputSchema>;
+
+/**
+ * Phase 30: COMMENT_INTELLIGENCE Schema
+ * Stored in separate Analytics Workbook under COMMENT_INTELLIGENCE sheet tab.
+ * Represents an analysis batch / run across captured audience comments.
+ */
+export const COMMENT_INTELLIGENCE_SCHEMA: SheetSchemaContract = {
+  sheetName: 'COMMENT_INTELLIGENCE' as any,
+  purpose: 'Stores AI Comment Intelligence and audience misconception analysis reports in separate analytics workbook',
+  primaryKey: 'id',
+  columns: [
+    { name: 'ID', propertyKey: 'id', type: 'string', required: true, isPrimaryKey: true },
+    { name: 'CONTENT_ID', propertyKey: 'contentId', type: 'string', required: true },
+    { name: 'VIDEO_ID', propertyKey: 'videoId', type: 'string', required: false },
+    { name: 'PLATFORM', propertyKey: 'platform', type: 'string', required: false },
+    { name: 'ANALYSIS_SCOPE', propertyKey: 'analysisScope', type: 'string', required: true },
+    { name: 'SOURCE_COMMENT_COUNT', propertyKey: 'sourceCommentCount', type: 'number', required: true },
+    { name: 'SOURCE_COMMENT_IDS', propertyKey: 'sourceCommentIds', type: 'json', required: true },
+    { name: 'ANALYZED_AT', propertyKey: 'analyzedAt', type: 'string', required: true },
+    { name: 'ACTOR_ID', propertyKey: 'actorId', type: 'string', required: false },
+    { name: 'ACTOR_NAME', propertyKey: 'actorName', type: 'string', required: false },
+    { name: 'OVERALL_SENTIMENT', propertyKey: 'overallSentiment', type: 'json', required: true },
+    { name: 'MISCONCEPTIONS', propertyKey: 'misconceptions', type: 'json', required: true },
+    { name: 'VIEWER_QUESTIONS', propertyKey: 'viewerQuestions', type: 'json', required: true },
+    { name: 'CONTENT_REQUESTS', propertyKey: 'contentRequests', type: 'json', required: true },
+    { name: 'FACTUAL_CORRECTIONS', propertyKey: 'factualCorrections', type: 'json', required: true },
+    { name: 'RECOMMENDATIONS', propertyKey: 'recommendations', type: 'json', required: true },
+    { name: 'CONFIDENCE', propertyKey: 'confidence', type: 'string', required: true },
+    { name: 'CONFIDENCE_SCORE', propertyKey: 'confidenceScore', type: 'number', required: false },
+    { name: 'MODEL_USED', propertyKey: 'modelUsed', type: 'string', required: true },
+    { name: 'PROMPT_VERSION', propertyKey: 'promptVersion', type: 'string', required: true },
+    { name: 'IS_FALLBACK_MODE', propertyKey: 'isFallbackMode', type: 'boolean', required: true },
+    { name: 'PROVENANCE', propertyKey: 'provenance', type: 'json', required: false },
+    { name: 'EVIDENCE_TRACEABILITY', propertyKey: 'evidenceTraceability', type: 'json', required: true },
+  ],
+};
+
+export const CommentIntelligenceScopeSchema = z.enum([
+  'CONTENT_MASTER',
+  'VIDEO',
+  'BATCH',
+  'PLATFORM',
+]);
+
+export const GenerateCommentIntelligenceInputSchema = z.object({
+  contentId: z.string().regex(/^BP-CNT-\d{6}$/, 'Invalid content ID format (must be BP-CNT-######)'),
+  videoId: z.string().regex(/^BP-V-\d{6}$/, 'Invalid video ID format (must be BP-V-######)').optional(),
+  platform: z.enum(['youtube', 'instagram', 'facebook', 'ALL']).optional(),
+  analysisScope: z.union([CommentIntelligenceScopeSchema, z.string()]).optional().default('CONTENT_MASTER'),
+  commentIds: z.array(z.string().regex(/^BP-CMT-\d{6}$/, 'Invalid comment ID format (must be BP-CMT-######)')).optional(),
+  forceFallback: z.boolean().optional().default(false),
+});
+
+export type GenerateCommentIntelligenceInput = z.infer<typeof GenerateCommentIntelligenceInputSchema>;
+

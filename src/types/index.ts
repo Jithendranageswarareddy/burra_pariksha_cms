@@ -3066,4 +3066,156 @@ export interface ContentStrategyRecommendation {
   version: number;
 }
 
+// ============================================================================
+// PHASE 30: AUDIENCE SOCIAL COMMENTS & COMMENT INTELLIGENCE DATA CONTRACTS
+// (Strictly isolated to separate Analytics Workbook)
+// ============================================================================
+
+export type SocialCommentSource = 'MANUAL_PASTE' | 'CSV_IMPORT' | 'JSON_IMPORT' | 'API_SYNC';
+
+export type SocialCommentStatus = 'UNPROCESSED' | 'ANALYZED' | 'FLAGGED' | 'IGNORED';
+
+export interface SocialCommentRecord {
+  id: string; // CMS-generated primary key: BP-CMT-######
+  contentId: string; // Canonical Content Master reference: BP-CNT-######
+  videoId?: string; // Optional: BP-V-######
+  publishingId?: string; // Optional: PUB-###### or BP-PUB-######
+  platform: 'youtube' | 'instagram' | 'facebook' | string;
+  platformPostId?: string; // Optional provider-native post identifier
+  platformCommentId?: string; // Optional provider-native comment identifier (for (platform, platformCommentId) deduplication)
+  commentText: string;
+  authorDisplayName?: string; // Public display context only
+  commentCreatedAt?: string; // Provider timestamp (ISO-8601)
+  capturedAt: string; // Capture timestamp (ISO-8601)
+  likeCount?: number;
+  replyCount?: number;
+  parentCommentId?: string;
+  isReply?: boolean;
+  source: SocialCommentSource | string;
+  status: SocialCommentStatus | string;
+}
+
+export interface CreateSocialCommentInput {
+  contentId: string;
+  videoId?: string;
+  publishingId?: string;
+  platform: 'youtube' | 'instagram' | 'facebook' | string;
+  platformPostId?: string;
+  platformCommentId?: string;
+  commentText: string;
+  authorDisplayName?: string;
+  commentCreatedAt?: string;
+  capturedAt?: string;
+  likeCount?: number;
+  replyCount?: number;
+  parentCommentId?: string;
+  isReply?: boolean;
+  source: SocialCommentSource | string;
+  status?: SocialCommentStatus | string;
+}
+
+export interface ImportSocialCommentsInput {
+  comments: CreateSocialCommentInput[];
+}
+
+export interface SocialCommentQueryFilters {
+  contentId?: string;
+  videoId?: string;
+  publishingId?: string;
+  platform?: string;
+  platformPostId?: string;
+  platformCommentId?: string;
+  source?: string;
+  status?: string;
+  isReply?: boolean;
+  startDate?: string;
+  endDate?: string;
+}
+
+export type CommentIntelligenceScope = 'CONTENT_MASTER' | 'VIDEO' | 'BATCH' | 'PLATFORM';
+
+export interface CommentMisconceptionItem {
+  misconception: string;
+  frequencyEstimate?: 'HIGH' | 'MEDIUM' | 'LOW';
+  sampleCommentQuotes: string[];
+  explanationNeeded: string;
+}
+
+export interface ViewerQuestionItem {
+  question: string;
+  frequencyEstimate?: 'HIGH' | 'MEDIUM' | 'LOW';
+  sampleCommentQuotes: string[];
+  suggestedAnswer: string;
+}
+
+export interface ContentRequestItem {
+  requestedTopicOrFormat: string;
+  frequencyEstimate?: 'HIGH' | 'MEDIUM' | 'LOW';
+  sampleCommentQuotes: string[];
+}
+
+export interface FactualCorrectionItem {
+  issueReported: string;
+  severity: 'CRITICAL' | 'MODERATE' | 'MINOR';
+  sampleCommentQuotes: string[];
+  verificationNeeded: string;
+}
+
+export interface CommentRecommendationItem {
+  area: 'QUESTION_DESIGN' | 'EXPLANATION_CLARITY' | 'TOPIC_EXPANSION' | 'PACING' | 'PINNED_COMMENT';
+  recommendation: string;
+  supportingEvidence: string;
+  suggestedAction: string;
+  confidenceLevel: 'HIGH' | 'MEDIUM' | 'LOW';
+}
+
+export interface CommentSentimentSummary {
+  positivePercentage: number;
+  negativePercentage: number;
+  neutralPercentage: number;
+  overallVerdict: 'OVERWHELMINGLY_POSITIVE' | 'POSITIVE' | 'MIXED' | 'NEGATIVE' | 'CONFUSED';
+  summary: string;
+}
+
+export interface CommentIntelligenceRecord {
+  id: string; // CMS-generated BP-CMI-######
+  contentId: string; // Canonical Content Master reference BP-CNT-######
+  videoId?: string; // Optional BP-V-######
+  platform?: string; // 'youtube' | 'instagram' | 'facebook' | 'ALL'
+  analysisScope: CommentIntelligenceScope | string;
+  sourceCommentCount: number;
+  sourceCommentIds: string[]; // List of BP-CMT-###### IDs analyzed in this run
+  analyzedAt: string; // ISO-8601 timestamp
+  actorId?: string;
+  actorName?: string;
+  overallSentiment: CommentSentimentSummary;
+  misconceptions: CommentMisconceptionItem[];
+  viewerQuestions: ViewerQuestionItem[];
+  contentRequests: ContentRequestItem[];
+  factualCorrections: FactualCorrectionItem[];
+  recommendations: CommentRecommendationItem[];
+  confidence: 'HIGH' | 'MEDIUM' | 'LOW' | 'INSUFFICIENT_DATA';
+  confidenceScore?: number;
+  modelUsed: string; // e.g. 'gemini-2.5-flash', 'deterministic-fallback'
+  promptVersion: string; // e.g. 'v1.0'
+  isFallbackMode: boolean;
+  provenance?: AIProvenance;
+  evidenceTraceability: {
+    commentIdsUsed: string[];
+    totalCommentsAnalyzed: number;
+    sampleSizeConfidence: 'HIGH' | 'MEDIUM' | 'LOW';
+    platformBreakdown?: Record<string, number>;
+  };
+}
+
+export interface GenerateCommentIntelligenceInput {
+  contentId: string;
+  videoId?: string;
+  platform?: string;
+  analysisScope?: CommentIntelligenceScope | string;
+  commentIds?: string[];
+  forceFallback?: boolean;
+}
+
+
 
