@@ -385,7 +385,7 @@ export const QuestionVerifyApprovePage: React.FC = () => {
               <Button
                 variant="primary"
                 size="sm"
-                onClick={() => navigate(`/videos/${targetVideoId}/create-script`)}
+                onClick={() => navigate(`/videos/${targetVideoId}?tab=script`)}
                 icon={ArrowRight}
                 className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold"
               >

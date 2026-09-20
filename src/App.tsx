@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useParams, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ProductionJourneyProvider } from './contexts/ProductionJourneyContext';
 import { LoginPage } from './pages/LoginPage';
@@ -43,10 +43,17 @@ import { getDefaultLandingRoute } from './config/roles';
 
 function VideoTabRedirect({ tab }: { tab?: string }) {
   const { videoId } = useParams<{ videoId: string }>();
+  const location = useLocation();
   if (!videoId) {
     return <Navigate to="/production" replace />;
   }
-  return <Navigate to={tab ? `/videos/${videoId}?tab=${tab}` : `/videos/${videoId}`} replace />;
+  if (tab) {
+    const searchParams = new URLSearchParams(location.search);
+    searchParams.set('tab', tab);
+    const searchStr = searchParams.toString();
+    return <Navigate to={`/videos/${videoId}${searchStr ? `?${searchStr}` : ''}`} replace />;
+  }
+  return <Navigate to={`/videos/${videoId}${location.search}`} replace />;
 }
 
 function AppRoutes() {

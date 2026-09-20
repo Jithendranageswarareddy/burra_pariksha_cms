@@ -228,7 +228,7 @@ export const TeamOperationsPage: React.FC = () => {
       case 'VIDEO':
       case 'SCRIPT':
       case 'THUMBNAIL':
-        return `/production/${encodeURIComponent(entityId)}`;
+        return `/videos/${encodeURIComponent(entityId)}`;
       case 'PUBLISHING':
         return `/publishing?videoId=${encodeURIComponent(entityId)}`;
       case 'CONTENT_PLAN':

@@ -459,7 +459,7 @@ export const ProductionBoardPage: React.FC = () => {
                       <td className="py-3 px-4">
                         <div className="space-y-1">
                           <Link
-                            to={`/production/${item.videoId}`}
+                            to={`/videos/${item.videoId}`}
                             className="font-semibold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1.5"
                           >
                             <span>{item.title}</span>
@@ -564,7 +564,7 @@ export const ProductionBoardPage: React.FC = () => {
                       {/* Script */}
                       <td className="py-3 px-4">
                         <Link
-                          to={`/production/${item.videoId}?tab=script`}
+                          to={`/videos/${item.videoId}?tab=script`}
                           className="block hover:bg-slate-100 dark:hover:bg-slate-800/80 p-1.5 rounded-lg transition-colors group/script"
                           title="Open Script Workspace"
                         >
@@ -586,7 +586,7 @@ export const ProductionBoardPage: React.FC = () => {
                       {/* Thumbnail */}
                       <td className="py-3 px-4">
                         <Link
-                          to={`/production/${item.videoId}?tab=thumbnail`}
+                          to={`/videos/${item.videoId}?tab=thumbnail`}
                           className="block hover:bg-slate-100 dark:hover:bg-slate-800/80 p-1.5 rounded-lg transition-colors group/thumb"
                           title="Open Thumbnail Workspace"
                         >
@@ -614,7 +614,7 @@ export const ProductionBoardPage: React.FC = () => {
                       {/* Pinned Comment */}
                       <td className="py-3 px-4">
                         <Link
-                          to={`/production/${item.videoId}?tab=pinned-comment`}
+                          to={`/videos/${item.videoId}?tab=pinned-comment`}
                           className="block hover:bg-slate-100 dark:hover:bg-slate-800/80 p-1.5 rounded-lg transition-colors group/comment"
                           title="Open Pinned Comment Workspace"
                         >
@@ -665,7 +665,7 @@ export const ProductionBoardPage: React.FC = () => {
                       {/* Action */}
                       <td className="py-3 px-4 text-right">
                         <Link
-                          to={`/production/${item.videoId}`}
+                          to={`/videos/${item.videoId}`}
                           className="inline-flex items-center justify-center p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                           title="Open Video Detail"
                         >
@@ -753,13 +753,13 @@ export const ProductionBoardPage: React.FC = () => {
                           let navTarget: string | null = null;
                           let navLabel = '';
                           if (lower.includes('script') || lower.includes('version')) {
-                            navTarget = `/production/${inspectingVideoId}?tab=script`;
+                            navTarget = `/videos/${inspectingVideoId}?tab=script`;
                             navLabel = 'Open Script Workspace';
                           } else if (lower.includes('thumbnail')) {
-                            navTarget = `/production/${inspectingVideoId}?tab=thumbnail`;
+                            navTarget = `/videos/${inspectingVideoId}?tab=thumbnail`;
                             navLabel = 'Open Thumbnail Workspace';
                           } else if (lower.includes('pinned comment') || lower.includes('comment')) {
-                            navTarget = `/production/${inspectingVideoId}?tab=pinned-comment`;
+                            navTarget = `/videos/${inspectingVideoId}?tab=pinned-comment`;
                             navLabel = 'Open Pinned Comment Workspace';
                           } else if (lower.includes('publishing') || lower.includes('platform')) {
                             navTarget = '/publishing';
@@ -768,7 +768,7 @@ export const ProductionBoardPage: React.FC = () => {
                             navTarget = `/questions`;
                             navLabel = 'Open Questions';
                           } else if (lower.includes('video') || lower.includes('title')) {
-                            navTarget = `/production/${inspectingVideoId}`;
+                            navTarget = `/videos/${inspectingVideoId}`;
                             navLabel = 'Open Video Detail';
                           }
 
