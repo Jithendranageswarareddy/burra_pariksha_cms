@@ -186,6 +186,10 @@ export const PlatformPackagesPage: React.FC = () => {
   // Effective Google Drive folder link
   const effectiveDriveUrl = selectedVideo?.driveFolderUrl || 'https://drive.google.com';
   const effectiveQuestionId = selectedVideo?.questionId || youtubePkg?.questionId || instagramPkg?.questionId || '';
+  const effectiveContentMasterId =
+    selectedVideo?.contentMasterId ||
+    selectedVideo?.contentId ||
+    '';
 
   // YouTube calculations
   const ytTitleText = youtubePkg?.title || selectedVideo?.title || 'Telugu Speed Maths Challenge #Shorts #TeluguGK #BurraPariksha';
@@ -613,21 +617,21 @@ export const PlatformPackagesPage: React.FC = () => {
           {/* Workflow Footer Navigation Bar */}
           <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between flex-wrap gap-3">
             <Link
-              to={effectiveQuestionId ? `/social-review/${encodeURIComponent(effectiveQuestionId)}` : '/social-review'}
+              to={currentVideoId ? `/videos/${encodeURIComponent(currentVideoId)}?tab=publishing` : '/publishing'}
               className="text-xs font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-1.5"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Back to Social Review</span>
+              <span>Back to Stage 10: Publishing Station</span>
             </Link>
 
             <div className="flex items-center gap-3">
-              <Link to={currentVideoId ? `/videos/${encodeURIComponent(currentVideoId)}?tab=publishing` : '/publishing'}>
+              <Link to={effectiveContentMasterId ? `/social-analytics/${encodeURIComponent(effectiveContentMasterId)}` : '/social-analytics'}>
                 <Button
                   variant="primary"
                   size="sm"
                   className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold cursor-pointer"
                 >
-                  <span>Proceed to Stage 08: Publishing &amp; Release Station →</span>
+                  <span>Proceed to Stage 13: Social Analytics →</span>
                 </Button>
               </Link>
             </div>
