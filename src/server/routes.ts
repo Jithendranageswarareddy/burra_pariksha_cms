@@ -84,11 +84,14 @@ export const apiRouter = express.Router();
 
 apiRouter.use(express.json());
 
-// Apply helmet security headers
+// Apply helmet security headers (configured for iframe preview and cross-origin compatibility)
 apiRouter.use(
   helmet({
     contentSecurityPolicy: false,
     crossOriginEmbedderPolicy: false,
+    frameguard: false,
+    crossOriginOpenerPolicy: false,
+    crossOriginResourcePolicy: false,
   })
 );
 

@@ -27,18 +27,16 @@ async function startServer() {
   // Mount API routes FIRST
   app.use('/api', apiRouter);
 
-  // Mount static bundle when dist bundle exists, or fallback to Vite dev middleware
-  const distPath = path.join(process.cwd(), 'dist');
-  const indexHtmlPath = path.join(distPath, 'index.html');
-  const isProductionBundleReady = fs.existsSync(indexHtmlPath);
-
-  if (!isProductionBundleReady) {
+  // Vite middleware for development, static bundle for production
+  if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
     });
     app.use(vite.middlewares);
   } else {
+    const distPath = path.join(process.cwd(), 'dist');
+    const indexHtmlPath = path.join(distPath, 'index.html');
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
       res.sendFile(indexHtmlPath);
