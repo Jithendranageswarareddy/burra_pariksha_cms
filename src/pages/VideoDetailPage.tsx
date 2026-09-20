@@ -413,13 +413,15 @@ export const VideoDetailPage: React.FC = () => {
           </div>
         )}
 
-        {/* Extra Tab: Thumbnail */}
+        {/* Step 08: Thumbnail Studio */}
         {activeTab === 'thumbnail' && (
           <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs">
             <ThumbnailWorkspace
               videoId={video.id}
               videoTitle={video.title}
+              video={video}
               onStatusChange={fetchVideoDetails}
+              onNavigateTab={(tab) => handleTabChange(tab as any)}
             />
           </div>
         )}
