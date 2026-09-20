@@ -400,7 +400,7 @@ export const VideoDetailPage: React.FC = () => {
           </div>
         )}
 
-        {/* Stage 5: Social Review & Simulator */}
+        {/* Stage 09: 9:16 Social Simulator & Multi-Platform Adaptation */}
         {activeTab === 'social' && (
           <div className="bg-white border border-slate-200 rounded-2xl p-2 sm:p-4 shadow-xs">
             <SocialReviewWorkspace
