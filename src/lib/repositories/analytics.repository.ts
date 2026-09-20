@@ -48,6 +48,14 @@ export class AnalyticsRepository extends BaseRepository<SocialAnalyticsRecord> {
   }
 
   /**
+   * Finds all analytics snapshot records for a specific Video ID.
+   */
+  public async findByVideoId(videoId: string): Promise<SocialAnalyticsRecord[]> {
+    const all = await this.findAll();
+    return all.filter((r) => r.videoId === videoId);
+  }
+
+  /**
    * Finds all analytics snapshot records for a given publishing platform.
    */
   public async findByPlatform(platform: string): Promise<SocialAnalyticsRecord[]> {
@@ -56,15 +64,18 @@ export class AnalyticsRepository extends BaseRepository<SocialAnalyticsRecord> {
   }
 
   /**
-   * Finds duplicate snapshots created for the same contentId, platform, and timeframe.
+   * Finds duplicate snapshots created for the same contentId/videoId, platform, and timeframe.
    */
   public async findDuplicateSnapshot(
     contentId: string,
     platform: string,
     postingTimestamp?: string,
-    windowSeconds: number = 60
+    windowSeconds: number = 60,
+    videoId?: string
   ): Promise<SocialAnalyticsRecord | null> {
-    const records = await this.findByContentId(contentId);
+    const records = videoId
+      ? await this.findByVideoId(videoId)
+      : await this.findByContentId(contentId);
     const platformRecords = records.filter(
       (r) => r.platform.toLowerCase() === platform.toLowerCase()
     );
@@ -92,6 +103,15 @@ export class AnalyticsRepository extends BaseRepository<SocialAnalyticsRecord> {
 
     if (filters.contentId) {
       records = records.filter((r) => r.contentId === filters.contentId);
+    }
+    if (filters.videoId) {
+      records = records.filter((r) => r.videoId === filters.videoId);
+    }
+    if (filters.publishingId) {
+      records = records.filter((r) => r.publishingId === filters.publishingId);
+    }
+    if (filters.platformPostId) {
+      records = records.filter((r) => r.platformPostId === filters.platformPostId);
     }
     if (filters.platform) {
       records = records.filter((r) => r.platform.toLowerCase() === filters.platform!.toLowerCase());

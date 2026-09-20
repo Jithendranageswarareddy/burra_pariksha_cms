@@ -2087,6 +2087,9 @@ export interface SubmitSocialReviewInput {
 export interface SocialAnalyticsRecord {
   id: string; // e.g. BP-ANL-000001
   contentId: string; // Canonical BP-CNT-######
+  videoId?: string; // BP-V-######
+  publishingId?: string; // PUB-######
+  platformPostId?: string;
   platform: 'youtube' | 'instagram' | 'facebook' | string;
   postingTimestamp?: string;
   views: number;
@@ -2109,6 +2112,9 @@ export interface SocialAnalyticsRecord {
 
 export interface CreateSocialAnalyticsInput {
   contentId: string;
+  videoId?: string;
+  publishingId?: string;
+  platformPostId?: string;
   platform: 'youtube' | 'instagram' | 'facebook' | string;
   postingTimestamp?: string;
   views?: number;
@@ -2135,6 +2141,9 @@ export interface ImportSocialAnalyticsInput {
 
 export interface SocialAnalyticsQueryFilters {
   contentId?: string;
+  videoId?: string;
+  publishingId?: string;
+  platformPostId?: string;
   platform?: string;
   startDate?: string;
   endDate?: string;

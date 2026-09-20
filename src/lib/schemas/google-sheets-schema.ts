@@ -1308,6 +1308,9 @@ export const SOCIAL_ANALYTICS_SCHEMA: SheetSchemaContract = {
   columns: [
     { name: 'ID', propertyKey: 'id', type: 'string', required: true, isPrimaryKey: true },
     { name: 'CONTENT_ID', propertyKey: 'contentId', type: 'string', required: true, isForeignKey: true },
+    { name: 'VIDEO_ID', propertyKey: 'videoId', type: 'string', required: false, isForeignKey: true, foreignKeyTarget: { sheet: SHEET_TABS.VIDEOS, column: 'id' } },
+    { name: 'PUBLISHING_ID', propertyKey: 'publishingId', type: 'string', required: false, isForeignKey: true, foreignKeyTarget: { sheet: SHEET_TABS.PUBLISHING, column: 'id' } },
+    { name: 'PLATFORM_POST_ID', propertyKey: 'platformPostId', type: 'string', required: false },
     { name: 'PLATFORM', propertyKey: 'platform', type: 'string', required: true },
     { name: 'POSTING_TIMESTAMP', propertyKey: 'postingTimestamp', type: 'string', required: false },
     { name: 'VIEWS', propertyKey: 'views', type: 'number', required: true },
@@ -1331,6 +1334,9 @@ export const SOCIAL_ANALYTICS_SCHEMA: SheetSchemaContract = {
 
 export const CreateSocialAnalyticsInputSchema = z.object({
   contentId: z.string().regex(/^BP-CNT-\d{6}$/, 'Invalid content ID format (must be BP-CNT-######)'),
+  videoId: z.string().regex(/^BP-V-\d{6}$/, 'Invalid video ID format (must be BP-V-######)').optional(),
+  publishingId: z.string().regex(/^PUB-\d{6}$/, 'Invalid publishing ID format (must be PUB-######)').optional(),
+  platformPostId: z.string().min(1, 'Platform post ID must be non-empty').optional(),
   platform: z.string().min(1, 'Platform is required'),
   postingTimestamp: z.string().optional(),
   views: z.number().min(0, 'Views must be non-negative').optional().default(0),
