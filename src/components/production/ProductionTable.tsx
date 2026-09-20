@@ -35,7 +35,7 @@ export const ProductionTable: React.FC<ProductionTableProps> = ({ videos, onSele
           <tbody className="divide-y divide-slate-100 text-slate-700">
             {videos.map((v) => {
               const priorityConfig = PRIORITY_CONFIG[v.priority] || PRIORITY_CONFIG[PriorityLevel.NORMAL];
-              const videoDetailUrl = targetTab ? `/production/${v.id}?tab=${targetTab}` : `/production/${v.id}`;
+              const videoDetailUrl = targetTab ? `/videos/${v.id}?tab=${targetTab}` : `/videos/${v.id}`;
 
               return (
                 <tr

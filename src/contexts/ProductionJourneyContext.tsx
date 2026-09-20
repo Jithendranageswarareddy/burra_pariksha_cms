@@ -607,9 +607,13 @@ export const ProductionJourneyProvider: React.FC<{ children: React.ReactNode }> 
           isCompleted = isAnalyticsCompleted;
           isBlocked = !isPublishedCompleted;
           blockerReason = isBlocked ? 'Video must be published to track engagement and analytics.' : undefined;
-          route = contentMasterId
-            ? `/social-analytics/${contentMasterId}`
-            : (videoId ? `/social-analytics/${videoId}` : '/social-analytics');
+          {
+            const resolvedContentMasterId =
+              contentMasterId || (video as any)?.contentMasterId || (video as any)?.contentId;
+            route = resolvedContentMasterId
+              ? `/social-analytics/${resolvedContentMasterId}`
+              : '/social-analytics';
+          }
           break;
 
         case 14: // 14 Performance Review
@@ -838,14 +842,18 @@ export const ProductionJourneyProvider: React.FC<{ children: React.ReactNode }> 
         break;
 
       case 12:
-        computedAction = {
-          label: 'View Social Analytics',
-          stageNumber: 13,
-          route: contentMasterId
-            ? `/social-analytics/${contentMasterId}`
-            : (videoId ? `/social-analytics/${videoId}` : '/social-analytics'),
-          description: 'Track audience metrics and retention trends',
-        };
+        {
+          const resolvedContentMasterId =
+            contentMasterId || (video as any)?.contentMasterId || (video as any)?.contentId;
+          computedAction = {
+            label: 'View Social Analytics',
+            stageNumber: 13,
+            route: resolvedContentMasterId
+              ? `/social-analytics/${resolvedContentMasterId}`
+              : '/social-analytics',
+            description: 'Track audience metrics and retention trends',
+          };
+        }
         break;
 
       case 13:

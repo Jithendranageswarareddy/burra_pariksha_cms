@@ -125,7 +125,7 @@ export const ProductionKanban: React.FC<ProductionKanbanProps> = ({
                         if (onSelectVideo) {
                           onSelectVideo(video);
                         } else {
-                          navigate(targetTab ? `/production/${video.id}?tab=${targetTab}` : `/production/${video.id}`);
+                          navigate(targetTab ? `/videos/${video.id}?tab=${targetTab}` : `/videos/${video.id}`);
                         }
                       }}
                       className={`bg-white p-3.5 rounded-lg border border-slate-200 hover:border-indigo-400 hover:shadow-xs transition-all cursor-pointer space-y-2.5 group ${priorityBorder}`}
@@ -173,7 +173,7 @@ export const ProductionKanban: React.FC<ProductionKanbanProps> = ({
                         <div className="pt-1" onClick={(e) => e.stopPropagation()}>
                           <button
                             type="button"
-                            onClick={() => navigate(`/production/${video.id}?tab=editing`)}
+                            onClick={() => navigate(`/videos/${video.id}?tab=editing`)}
                             className="w-full inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 hover:text-indigo-900 border border-indigo-200 rounded-md text-[11px] font-bold transition-colors shadow-2xs cursor-pointer"
                           >
                             <Scissors className="w-3.5 h-3.5 text-indigo-600" />
@@ -186,7 +186,7 @@ export const ProductionKanban: React.FC<ProductionKanbanProps> = ({
                         <div className="pt-1" onClick={(e) => e.stopPropagation()}>
                           <button
                             type="button"
-                            onClick={() => navigate(`/production/${video.id}?tab=final-review`)}
+                            onClick={() => navigate(`/videos/${video.id}?tab=final-review`)}
                             className="w-full inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 hover:text-purple-900 border border-purple-200 rounded-md text-[11px] font-bold transition-colors shadow-2xs cursor-pointer"
                           >
                             <CheckCircle2 className="w-3.5 h-3.5 text-purple-600" />

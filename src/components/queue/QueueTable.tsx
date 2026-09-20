@@ -44,7 +44,7 @@ export const QueueTable: React.FC<QueueTableProps> = ({ videos, onSelectVideo })
                     if (onSelectVideo) {
                       onSelectVideo(item);
                     } else {
-                      navigate(`/production/${item.id}`);
+                      navigate(`/videos/${item.id}`);
                     }
                   }}
                 >
@@ -58,7 +58,7 @@ export const QueueTable: React.FC<QueueTableProps> = ({ videos, onSelectVideo })
                   {/* Video ID */}
                   <td className="py-3 px-4 font-mono font-bold text-indigo-600 whitespace-nowrap">
                     <Link
-                      to={`/production/${item.id}`}
+                      to={`/videos/${item.id}`}
                       onClick={(e) => e.stopPropagation()}
                       className="hover:underline flex items-center gap-1"
                     >
@@ -142,7 +142,7 @@ export const QueueTable: React.FC<QueueTableProps> = ({ videos, onSelectVideo })
                         </Link>
                       ) : (
                         <Link
-                          to={`/production/${item.id}`}
+                          to={`/videos/${item.id}`}
                           className="inline-flex items-center gap-1 text-xs font-semibold text-slate-700 hover:text-indigo-600 bg-slate-100 hover:bg-slate-200 px-2.5 py-1.5 rounded-lg transition-colors"
                         >
                           <span>Manage</span>
@@ -152,7 +152,7 @@ export const QueueTable: React.FC<QueueTableProps> = ({ videos, onSelectVideo })
 
                       {/* Subtle Secondary Workspace Link */}
                       <Link
-                        to={`/production/${item.id}`}
+                        to={`/videos/${item.id}`}
                         className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md transition-colors"
                         title="Open Full Production Workspace"
                       >

@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ProductionJourneyProvider } from './contexts/ProductionJourneyContext';
 import { LoginPage } from './pages/LoginPage';
@@ -40,6 +40,14 @@ import { ContentMasterPage } from './pages/ContentMasterPage';
 import { SocialReviewPage } from './pages/SocialReviewPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { getDefaultLandingRoute } from './config/roles';
+
+function VideoTabRedirect({ tab }: { tab?: string }) {
+  const { videoId } = useParams<{ videoId: string }>();
+  if (!videoId) {
+    return <Navigate to="/production" replace />;
+  }
+  return <Navigate to={tab ? `/videos/${videoId}?tab=${tab}` : `/videos/${videoId}`} replace />;
+}
 
 function AppRoutes() {
   const { user, isLoading } = useAuth();
@@ -92,38 +100,38 @@ function AppRoutes() {
 
         {/* Video Production 5-Step Workflow Routes */}
         <Route path="videos/create-script" element={<VideoCreateScriptPage />} />
-        <Route path="videos/:videoId/create-script" element={<VideoCreateScriptPage />} />
-        <Route path="production/:videoId/create-script" element={<VideoCreateScriptPage />} />
+        <Route path="videos/:videoId/create-script" element={<VideoTabRedirect tab="script" />} />
+        <Route path="production/:videoId/create-script" element={<VideoTabRedirect tab="script" />} />
 
         <Route path="videos/review-script" element={<VideoReviewScriptPage />} />
         <Route path="videos/:videoId/review-script" element={<VideoReviewScriptPage />} />
         <Route path="production/:videoId/review-script" element={<VideoReviewScriptPage />} />
 
         <Route path="videos/record" element={<VideoRecordPage />} />
-        <Route path="videos/:videoId/record" element={<VideoRecordPage />} />
-        <Route path="production/:videoId/record" element={<VideoRecordPage />} />
+        <Route path="videos/:videoId/record" element={<VideoTabRedirect tab="recording" />} />
+        <Route path="production/:videoId/record" element={<VideoTabRedirect tab="recording" />} />
 
         <Route path="videos/edit-video" element={<VideoEditPage />} />
-        <Route path="videos/:videoId/edit-video" element={<VideoEditPage />} />
-        <Route path="production/:videoId/edit-video" element={<VideoEditPage />} />
+        <Route path="videos/:videoId/edit-video" element={<VideoTabRedirect tab="editing" />} />
+        <Route path="production/:videoId/edit-video" element={<VideoTabRedirect tab="editing" />} />
 
         <Route path="videos/final-video" element={<VideoFinalPage />} />
-        <Route path="videos/:videoId/final-video" element={<VideoFinalPage />} />
-        <Route path="production/:videoId/final-video" element={<VideoFinalPage />} />
+        <Route path="videos/:videoId/final-video" element={<VideoTabRedirect tab="final-review" />} />
+        <Route path="production/:videoId/final-video" element={<VideoTabRedirect tab="final-review" />} />
 
         {/* Asset & Social Review Workflow Routes (Phase 08) */}
         <Route path="videos/thumbnail" element={<VideoThumbnailPage />} />
-        <Route path="videos/:videoId/thumbnail" element={<VideoThumbnailPage />} />
-        <Route path="production/:videoId/thumbnail" element={<VideoThumbnailPage />} />
+        <Route path="videos/:videoId/thumbnail" element={<VideoTabRedirect tab="thumbnail" />} />
+        <Route path="production/:videoId/thumbnail" element={<VideoTabRedirect tab="thumbnail" />} />
 
         <Route path="videos/pinned-comment" element={<VideoPinnedCommentPage />} />
-        <Route path="videos/:videoId/pinned-comment" element={<VideoPinnedCommentPage />} />
-        <Route path="production/:videoId/pinned-comment" element={<VideoPinnedCommentPage />} />
+        <Route path="videos/:videoId/pinned-comment" element={<VideoTabRedirect tab="social" />} />
+        <Route path="production/:videoId/pinned-comment" element={<VideoTabRedirect tab="social" />} />
 
         <Route path="videos/:videoId/social-review" element={<SocialReviewPage />} />
         <Route path="production/:videoId/social-review" element={<SocialReviewPage />} />
 
-        <Route path="production/:videoId" element={<VideoDetailPage />} />
+        <Route path="production/:videoId" element={<VideoTabRedirect />} />
         <Route path="videos/:videoId" element={<VideoDetailPage />} />
 
         {/* Publishing 3-Step Workflow Routes (Phase 09: Steps 13-15) */}
