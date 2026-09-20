@@ -35,6 +35,7 @@
     "test:phase27": "SKIP_SHEETS_SYNC=true tsx src/tests/run-phase27-only.ts",
     "test:phase28": "SKIP_SHEETS_SYNC=true tsx src/tests/run-phase28-only.ts",
     "test:phase29": "SKIP_SHEETS_SYNC=true tsx src/tests/run-phase29.ts",
+    "test:phase30": "SKIP_SHEETS_SYNC=true tsx src/tests/run-phase30-social-comments.ts",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit"
   },

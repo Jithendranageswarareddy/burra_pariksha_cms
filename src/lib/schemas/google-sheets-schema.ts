@@ -1503,7 +1503,27 @@ export const CreateSocialCommentInputSchema = z.object({
 export type CreateSocialCommentInput = z.infer<typeof CreateSocialCommentInputSchema>;
 
 export const ImportSocialCommentsInputSchema = z.object({
-  comments: z.array(CreateSocialCommentInputSchema).min(1, 'At least one comment must be provided for import'),
+  defaultContentId: z.string().regex(/^BP-CNT-\d{6}$/, 'Invalid default content ID format (must be BP-CNT-######)').optional(),
+  defaultPlatform: z.enum(['youtube', 'instagram', 'facebook']).optional(),
+  defaultSource: z.union([SocialCommentSourceSchema, z.string()]).optional(),
+  comments: z.array(z.object({
+    contentId: z.string().optional(),
+    videoId: z.string().optional(),
+    publishingId: z.string().optional(),
+    platform: z.string().optional(),
+    platformPostId: z.string().optional(),
+    platformCommentId: z.string().optional(),
+    commentText: z.string().optional(),
+    authorDisplayName: z.string().optional(),
+    commentCreatedAt: z.string().optional(),
+    capturedAt: z.string().optional(),
+    likeCount: z.number().optional(),
+    replyCount: z.number().optional(),
+    parentCommentId: z.string().optional(),
+    isReply: z.boolean().optional(),
+    source: z.string().optional(),
+    status: z.string().optional(),
+  })).min(1, 'At least one comment must be provided for import'),
 });
 
 export type ImportSocialCommentsInput = z.infer<typeof ImportSocialCommentsInputSchema>;

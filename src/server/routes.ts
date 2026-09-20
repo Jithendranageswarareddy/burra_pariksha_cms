@@ -72,7 +72,10 @@ import {
   UpdateUserInputSchema,
   CreateSocialAnalyticsInputSchema,
   ImportSocialAnalyticsInputSchema,
+  CreateSocialCommentInputSchema,
+  ImportSocialCommentsInputSchema,
 } from '../lib/schemas/google-sheets-schema';
+import { socialCommentsService } from '../lib/services/social-comments.service';
 import helmet from 'helmet';
 import busboy from 'busboy';
 import { google } from 'googleapis';
@@ -6043,6 +6046,179 @@ apiRouter.get('/analytics/summary', requireAuth, async (req: Request, res: Respo
     res.status(500).json({ success: false, error: 'Failed to compute analytics summary', message: err?.message });
   }
 });
+
+/**
+ * Phase 30: Create / Ingest a single audience social comment.
+ */
+apiRouter.post(
+  '/social-comments',
+  requireAuth,
+  requireRole([
+    UserRole.ADMIN,
+    UserRole.CONTENT_MANAGER,
+    UserRole.COMMUNITY_MANAGER,
+    UserRole.ANALYTICS_VIEWER,
+    UserRole.CREATOR,
+    UserRole.PUBLISHING_MANAGER,
+  ]),
+  async (req: Request, res: Response) => {
+    try {
+      const parsed = CreateSocialCommentInputSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
+          success: false,
+          error: 'Validation failed for social comment input',
+          details: parsed.error.format(),
+        });
+      }
+
+      const authReq = req as AuthenticatedRequest;
+      const actorId = authReq.user?.id || 'USR-ANL';
+      const actorName = authReq.user?.name || 'Analytics User';
+
+      const result = await socialCommentsService.createComment(parsed.data, actorId, actorName);
+      if (!result.success) {
+        return res.status(400).json(result);
+      }
+
+      res.status(result.isDuplicate ? 200 : 201).json(result);
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: 'Failed to ingest social comment', message: err?.message });
+    }
+  }
+);
+
+/**
+ * Phase 30: Bulk import audience social comments (manual CSV/JSON import).
+ */
+apiRouter.post(
+  '/social-comments/import',
+  requireAuth,
+  requireRole([
+    UserRole.ADMIN,
+    UserRole.CONTENT_MANAGER,
+    UserRole.COMMUNITY_MANAGER,
+    UserRole.ANALYTICS_VIEWER,
+  ]),
+  async (req: Request, res: Response) => {
+    try {
+      const parsed = ImportSocialCommentsInputSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
+          success: false,
+          error: 'Validation failed for bulk comment import input',
+          details: parsed.error.format(),
+        });
+      }
+
+      const authReq = req as AuthenticatedRequest;
+      const actorId = authReq.user?.id || 'USR-ANL';
+      const actorName = authReq.user?.name || 'Analytics User';
+
+      const result = await socialCommentsService.importComments(parsed.data, actorId, actorName);
+      res.status(200).json(result);
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: 'Failed to bulk import social comments', message: err?.message });
+    }
+  }
+);
+
+/**
+ * Phase 30: Query audience social comments with filters.
+ */
+apiRouter.get(
+  '/social-comments',
+  requireAuth,
+  requireRole([
+    UserRole.ADMIN,
+    UserRole.CONTENT_MANAGER,
+    UserRole.COMMUNITY_MANAGER,
+    UserRole.ANALYTICS_VIEWER,
+    UserRole.CREATOR,
+    UserRole.PUBLISHING_MANAGER,
+    UserRole.REVIEWER,
+    UserRole.EDITOR,
+  ]),
+  async (req: Request, res: Response) => {
+    try {
+      const filters = {
+        contentId: req.query.contentId as string | undefined,
+        videoId: req.query.videoId as string | undefined,
+        publishingId: req.query.publishingId as string | undefined,
+        platform: req.query.platform as string | undefined,
+        platformPostId: req.query.platformPostId as string | undefined,
+        platformCommentId: req.query.platformCommentId as string | undefined,
+        source: req.query.source as any,
+        status: req.query.status as any,
+        isReply: req.query.isReply !== undefined ? req.query.isReply === 'true' : undefined,
+        startDate: req.query.startDate as string | undefined,
+        endDate: req.query.endDate as string | undefined,
+      };
+
+      const records = await socialCommentsService.getComments(filters);
+      res.json({ success: true, count: records.length, records });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: 'Failed to query social comments', message: err?.message });
+    }
+  }
+);
+
+/**
+ * Phase 30: Get comments for a specific canonical Content Master ID.
+ */
+apiRouter.get(
+  '/social-comments/content/:contentId',
+  requireAuth,
+  requireRole([
+    UserRole.ADMIN,
+    UserRole.CONTENT_MANAGER,
+    UserRole.COMMUNITY_MANAGER,
+    UserRole.ANALYTICS_VIEWER,
+    UserRole.CREATOR,
+    UserRole.PUBLISHING_MANAGER,
+    UserRole.REVIEWER,
+    UserRole.EDITOR,
+  ]),
+  async (req: Request, res: Response) => {
+    try {
+      const { contentId } = req.params;
+      const records = await socialCommentsService.getCommentsByContentId(contentId);
+      res.json({ success: true, count: records.length, contentId, records });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: 'Failed to fetch content social comments', message: err?.message });
+    }
+  }
+);
+
+/**
+ * Phase 30: Get a single audience comment by ID.
+ */
+apiRouter.get(
+  '/social-comments/:id',
+  requireAuth,
+  requireRole([
+    UserRole.ADMIN,
+    UserRole.CONTENT_MANAGER,
+    UserRole.COMMUNITY_MANAGER,
+    UserRole.ANALYTICS_VIEWER,
+    UserRole.CREATOR,
+    UserRole.PUBLISHING_MANAGER,
+    UserRole.REVIEWER,
+    UserRole.EDITOR,
+  ]),
+  async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const record = await socialCommentsService.getCommentById(id);
+      if (!record) {
+        return res.status(404).json({ success: false, error: `Social comment '${id}' not found` });
+      }
+      res.json({ success: true, record });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: 'Failed to fetch social comment', message: err?.message });
+    }
+  }
+);
 
 /**
  * Phase 28: Generate AI Social Performance Intelligence Report.

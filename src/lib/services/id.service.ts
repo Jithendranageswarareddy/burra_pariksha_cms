@@ -113,6 +113,14 @@ export class IdService {
     return this.generateId(SEQUENCE_ENTITIES.CONTENT_STRATEGY);
   }
 
+  public async allocateSocialCommentId(): Promise<string> {
+    return this.generateId(SEQUENCE_ENTITIES.SOCIAL_COMMENT);
+  }
+
+  public async allocateCommentIntelligenceId(): Promise<string> {
+    return this.generateId(SEQUENCE_ENTITIES.COMMENT_INTELLIGENCE);
+  }
+
   public async allocateUserId(): Promise<string> {
     const timestamp = Date.now();
     return `USR-${timestamp.toString().slice(-4)}`;

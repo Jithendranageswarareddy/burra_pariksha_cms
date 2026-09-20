@@ -26,6 +26,8 @@ import { contentMastersRepository } from './content-masters.repository';
 import { socialReviewsRepository } from './social-reviews.repository';
 import { analyticsRepository } from './analytics.repository';
 import { intelligenceRepository } from './intelligence.repository';
+import { socialCommentsRepository } from './social-comments.repository';
+import { commentIntelligenceRepository } from './comment-intelligence.repository';
 
 export interface SequenceRecord {
   entityType: string;
@@ -112,6 +114,10 @@ export class SequencesRepository extends BaseRepository<SequenceRecord> {
         return analyticsRepository;
       case SEQUENCE_ENTITIES.SOCIAL_PERFORMANCE_INTELLIGENCE:
         return intelligenceRepository;
+      case SEQUENCE_ENTITIES.SOCIAL_COMMENT:
+        return socialCommentsRepository;
+      case SEQUENCE_ENTITIES.COMMENT_INTELLIGENCE:
+        return commentIntelligenceRepository;
       default:
         return null;
     }

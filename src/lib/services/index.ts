@@ -57,4 +57,5 @@ export * from './phase18-thumbnail-intelligence.service';
 export * from './phase23-production.service';
 export * from './phase25-consensus.service';
 export * from './phase26-copilot.service';
+export * from './social-comments.service';
 

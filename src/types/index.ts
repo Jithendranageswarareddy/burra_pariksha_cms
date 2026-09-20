@@ -3110,12 +3110,15 @@ export interface CreateSocialCommentInput {
   replyCount?: number;
   parentCommentId?: string;
   isReply?: boolean;
-  source: SocialCommentSource | string;
+  source?: SocialCommentSource | string;
   status?: SocialCommentStatus | string;
 }
 
 export interface ImportSocialCommentsInput {
-  comments: CreateSocialCommentInput[];
+  defaultContentId?: string;
+  defaultPlatform?: 'youtube' | 'instagram' | 'facebook' | string;
+  defaultSource?: SocialCommentSource | string;
+  comments: Partial<CreateSocialCommentInput>[];
 }
 
 export interface SocialCommentQueryFilters {
