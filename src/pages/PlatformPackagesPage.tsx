@@ -27,7 +27,8 @@ import {
 } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { Button } from '../components/common/Button';
-import { PublishingWorkflowHeader } from '../components/publishing/PublishingWorkflowHeader';
+import { ProductionJourneyBar } from '../components/production/ProductionJourneyBar';
+import { useProductionJourney } from '../contexts/ProductionJourneyContext';
 import { apiClient } from '../lib/api-client';
 import {
   Video,
@@ -44,6 +45,7 @@ export const PlatformPackagesPage: React.FC = () => {
 
   const queryVideoId = searchParams.get('videoId') || '';
   const currentVideoId = routeVideoId || queryVideoId;
+  const { loadJourneyForVideo } = useProductionJourney();
 
   // Video list state
   const [videos, setVideos] = useState<Video[]>([]);
@@ -106,6 +108,9 @@ export const PlatformPackagesPage: React.FC = () => {
           targetVid = freshVideos.find((v) => v.id === currentVideoId);
         }
         setSelectedVideo(targetVid || null);
+        if (targetVid) {
+          loadJourneyForVideo(targetVid.id, targetVid);
+        }
 
         // Fetch platform projections
         const [yt, ig, fb] = await Promise.all([
@@ -211,14 +216,8 @@ export const PlatformPackagesPage: React.FC = () => {
         }
       />
 
-      {/* Publishing Workflow Header Steps Bar */}
-      <PublishingWorkflowHeader
-        currentStep={13}
-        videoId={currentVideoId || undefined}
-        videoTitle={selectedVideo?.title || youtubePkg?.videoTitle}
-        videoStatus={selectedVideo?.status}
-        questionId={selectedVideo?.questionId || youtubePkg?.questionId}
-      />
+      {/* 15-Stage Continuous Production Journey Orchestration Bar */}
+      <ProductionJourneyBar activeStage="PLATFORM_SYNC" showDetails />
 
       {/* Video Selection Hub & Switcher */}
       <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs flex flex-col md:flex-row items-center justify-between gap-3">

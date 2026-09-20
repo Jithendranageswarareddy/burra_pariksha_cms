@@ -304,6 +304,17 @@ export const AnalyticsExperiencePage: React.FC = () => {
       if (res.success) {
         setActionSuccessMsg(`Strategy Recommendation #${id} applied to Question Studio.`);
         await loadAnalyticsData();
+        const rec = strategyRecs.find((r) => r.id === id);
+        if (rec) {
+          const params = new URLSearchParams({
+            topicId: rec.topicId || '',
+            subtopicId: rec.subtopicId || '',
+            difficulty: rec.difficulty || '',
+            questionStyle: rec.questionStyle || '',
+            context: rec.hook || '',
+          });
+          navigate(`/studio?${params.toString()}`);
+        }
       }
     } catch (err: any) {
       setError(err?.message || 'Failed to apply recommendation.');

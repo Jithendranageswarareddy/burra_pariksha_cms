@@ -339,15 +339,15 @@ export const VideoDetailPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-1.5">
-          <Link to={`/questions/${video.questionId}`}>
-            <button
-              type="button"
-              className="px-2.5 py-1 text-xs border border-slate-200 rounded-lg bg-white text-slate-700 hover:bg-slate-50 font-semibold transition-all cursor-pointer flex items-center gap-1 shadow-2xs"
-            >
-              <ExternalLink className="w-3.5 h-3.5 text-slate-500" />
-              <span>View Question Record</span>
-            </button>
-          </Link>
+          <a
+            href={`/questions/${encodeURIComponent(video.questionId)}`}
+            target="_blank"
+            rel="noreferrer"
+            className="px-2.5 py-1 text-xs border border-slate-200 rounded-lg bg-white text-slate-700 hover:bg-slate-50 font-semibold transition-all cursor-pointer flex items-center gap-1 shadow-2xs"
+          >
+            <ExternalLink className="w-3.5 h-3.5 text-slate-500" />
+            <span>View Question Record</span>
+          </a>
         </div>
       </div>
 

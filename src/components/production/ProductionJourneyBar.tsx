@@ -63,6 +63,10 @@ export const ProductionJourneyBar: React.FC<ProductionJourneyBarProps> = ({
     PUBLISHING_SETUP: 10,
     PUBLISHING: 10,
     PUBLISHED: 11,
+    PLATFORM_SYNC: 12,
+    ANALYTICS: 13,
+    PERFORMANCE_REVIEW: 14,
+    INSIGHTS: 15,
   };
 
   const effectiveCurrentStage =
