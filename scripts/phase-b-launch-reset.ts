@@ -107,7 +107,7 @@ const REPO_MAP: Record<string, BaseRepository<any>> = {
 };
 
 // Protected sheets (Must never have data rows deleted or mutated)
-const PROTECTED_SHEETS = [
+const PROTECTED_SHEETS: string[] = [
   SHEET_TABS.USERS,
   SHEET_TABS.CATEGORIES,
   SHEET_TABS.TOPICS,

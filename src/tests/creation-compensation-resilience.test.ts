@@ -185,7 +185,7 @@ async function runTests() {
       return rec;
     };
 
-    let cachedDuringWorkflow: boolean | undefined = false;
+    let cachedDuringWorkflow: any = false;
     (workflowService as any).recordTransition = async (entityType: any, entityId: any) => {
       executionEventLog.push(`WORKFLOW_TRANSITION:${entityId}`);
       // Verify that at the exact moment workflow runs, the question is ALREADY present in the idempotency cache
