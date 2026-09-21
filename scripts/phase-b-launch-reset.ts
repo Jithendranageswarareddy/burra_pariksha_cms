@@ -415,7 +415,7 @@ async function runLaunchReset() {
 
   // Clear any stray fallback stores not in protected list or SEQUENCES
   for (const [sheetName, storeMap] of fallbackStore.entries()) {
-    if (!PROTECTED_SHEETS.includes(sheetName) && sheetName !== SHEET_TABS.SEQUENCES) {
+    if (!(PROTECTED_SHEETS as readonly string[]).includes(sheetName) && sheetName !== SHEET_TABS.SEQUENCES) {
       storeMap.clear();
     }
   }
@@ -520,7 +520,7 @@ async function runLaunchReset() {
       if (!seqMatch) {
         postVerificationPassed = false;
       }
-    } else if (PROTECTED_SHEETS.includes(sheetName)) {
+    } else if ((PROTECTED_SHEETS as readonly string[]).includes(sheetName)) {
       // Must exactly match pre-cleanup fingerprint and count
       const preFp = preProtectedFingerprints[sheetName];
       const currentDataFp = computeSha256({ headers, records });
@@ -567,7 +567,7 @@ async function runLaunchReset() {
     const fpStatus = postItem?.fingerprintMatch ? 'MATCH / OK' : 'MISMATCH';
 
     let classification = 'OPERATIONAL PURGED';
-    if (PROTECTED_SHEETS.includes(sheetName)) {
+    if ((PROTECTED_SHEETS as readonly string[]).includes(sheetName)) {
       classification = 'CRITICAL PRESERVED';
     } else if (sheetName === SHEET_TABS.SEQUENCES) {
       classification = 'SEQUENCE PRESERVED/SYNC';

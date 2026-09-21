@@ -163,8 +163,9 @@ export async function runPhase139RemediationTests(): Promise<{
         } as any;
       };
 
-      googleDriveService.deleteFile = async (fileId: string) => {
+      googleDriveService.deleteFile = async (fileId: string): Promise<boolean> => {
         deletedDriveFileIds.push(fileId);
+        return true;
       };
 
       thumbnailsRepository.findByVideoId = async () => null;

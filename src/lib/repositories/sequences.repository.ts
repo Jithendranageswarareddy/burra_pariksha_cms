@@ -125,6 +125,8 @@ export class SequencesRepository extends BaseRepository<SequenceRecord> {
 
   /**
    * Scans target entity's repository to determine maximum numeric ID currently present.
+   * Enforces strict canonical format validation: ^<configured prefix><exactly padLength digits>$.
+   * Noncanonical IDs (such as test fixtures, wrong prefixes, or malformed digit lengths) are strictly ignored.
    */
   public async getMaxExistingId(entityType: string): Promise<number> {
     try {
@@ -132,7 +134,25 @@ export class SequencesRepository extends BaseRepository<SequenceRecord> {
       if (!repo) return 0;
 
       const config = ID_PREFIX_MAP[entityType as SequenceEntityType];
-      const prefix = config ? config.prefix : '';
+      let prefix = config ? config.prefix : '';
+      let padLength = config ? config.padLength : 6;
+
+      try {
+        const sequence = await this.getSequence(entityType);
+        if (sequence) {
+          if (sequence.prefix) prefix = sequence.prefix;
+          if (sequence.padLength && !isNaN(Number(sequence.padLength))) {
+            padLength = Number(sequence.padLength);
+          }
+        }
+      } catch {
+        // Fall back to config if getSequence fails
+      }
+
+      if (!prefix || !padLength || padLength <= 0) return 0;
+
+      const escapedPrefix = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const canonicalRegex = new RegExp(`^${escapedPrefix}(\\d{${padLength}})$`);
 
       const records = await repo.findAll();
       if (!records || records.length === 0) return 0;
@@ -140,20 +160,14 @@ export class SequencesRepository extends BaseRepository<SequenceRecord> {
       let maxId = 0;
       for (const record of records) {
         if (!record) continue;
-        const rawId = record.id || record.contentId || record.contentMasterId || (record as any)[repo.getSchema().primaryKey];
+        const primaryKey = repo.getSchema().primaryKey || 'id';
+        const rawId = record.id || (record as any)[primaryKey] || record.contentId || record.contentMasterId;
         if (!rawId || typeof rawId !== 'string') continue;
 
-        let num = 0;
-        if (prefix && rawId.startsWith(prefix)) {
-          const suffix = rawId.slice(prefix.length);
-          num = parseInt(suffix, 10);
-        } else {
-          const match = rawId.match(/(\d+)$/);
-          if (match) {
-            num = parseInt(match[1], 10);
-          }
-        }
+        const match = rawId.match(canonicalRegex);
+        if (!match) continue;
 
+        const num = parseInt(match[1], 10);
         if (!isNaN(num) && num > maxId) {
           maxId = num;
         }
