@@ -31,6 +31,9 @@ export class IntelligenceRepository extends BaseRepository<SocialPerformanceInte
    * accidental fallback to production GOOGLE_SHEETS_ID.
    */
   protected getTargetSpreadsheetId(): string | undefined {
+    if (this.client.isTestMode()) {
+      return process.env.TEST_ANALYTICS_SPREADSHEET_ID || 'UNCONFIGURED_ANALYTICS_SPREADSHEET';
+    }
     return process.env.ANALYTICS_SPREADSHEET_ID || 'UNCONFIGURED_ANALYTICS_SPREADSHEET';
   }
 

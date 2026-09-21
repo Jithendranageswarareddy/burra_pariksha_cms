@@ -170,6 +170,13 @@ export class AuthorizationError extends GoogleSheetsError {
   }
 }
 
+export class TestIsolationWriteBlockedError extends GoogleSheetsError {
+  constructor(message: string, details?: Record<string, unknown>) {
+    super(message, 'TEST_ISOLATION_WRITE_BLOCKED', 403, details);
+    this.name = 'TestIsolationWriteBlockedError';
+  }
+}
+
 export type ErrorClassification = 'TRANSIENT' | 'NON_TRANSIENT';
 
 /**
@@ -209,6 +216,7 @@ export function classifyError(err: unknown): ErrorClassification {
     err instanceof ReferenceIntegrityError ||
     err instanceof ValidationError ||
     err instanceof AuthorizationError ||
+    err instanceof TestIsolationWriteBlockedError ||
     err instanceof ConfigurationError
   ) {
     return 'NON_TRANSIENT';

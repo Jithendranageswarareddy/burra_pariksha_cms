@@ -36,6 +36,9 @@ export class SocialCommentsRepository extends BaseRepository<SocialCommentRecord
    * accidental fallback to production GOOGLE_SHEETS_ID.
    */
   protected override getTargetSpreadsheetId(): string | undefined {
+    if (this.client.isTestMode()) {
+      return process.env.TEST_ANALYTICS_SPREADSHEET_ID || 'UNCONFIGURED_ANALYTICS_SPREADSHEET';
+    }
     return process.env.ANALYTICS_SPREADSHEET_ID || 'UNCONFIGURED_ANALYTICS_SPREADSHEET';
   }
 

@@ -55,9 +55,13 @@ export abstract class BaseRepository<T extends Record<string, any>> {
 
   /**
    * Hook for subclasses to specify a custom target spreadsheet ID (e.g. ANALYTICS_SPREADSHEET_ID).
-   * Defaults to undefined, which resolves to the main GOOGLE_SHEETS_ID.
+   * In TEST MODE, if no subclass override is provided, routes to TEST_GOOGLE_SHEETS_ID.
+   * Defaults to undefined in production/dev, which resolves to the main GOOGLE_SHEETS_ID.
    */
   protected getTargetSpreadsheetId(): string | undefined {
+    if (this.client.isTestMode()) {
+      return process.env.TEST_GOOGLE_SHEETS_ID || undefined;
+    }
     return undefined;
   }
 
