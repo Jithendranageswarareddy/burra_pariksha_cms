@@ -1,0 +1,2486 @@
+{
+  "timestamp": "2026-09-21T14:57:57.784Z",
+  "purpose": "Pre-Launch Historical Audit Trail Backup",
+  "recordCount": 248,
+  "auditRecords": [
+    {
+      "id": "LOG-1789835634757-00001-pw22-OPS-1789835634756",
+      "timestamp": "2026-09-19T16:33:54.757Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "ADMIN_SYNCHRONIZE_SEQUENCE",
+      "entityType": "SYSTEM_RECOVERY",
+      "entityId": "OPS-1789835634756",
+      "details": "{\"entityType\":\"TOPIC\",\"previousNextNumber\":1,\"updatedNextNumber\":101,\"detectedMaxAllocatedId\":100,\"reason\":\"Manual administrative recovery for sequence synchronization\"}"
+    },
+    {
+      "id": "LOG-1789835675005-00002-8fsc-OPS-1789835675005",
+      "timestamp": "2026-09-19T16:34:35.005Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "ADMIN_SYNCHRONIZE_SEQUENCE",
+      "entityType": "SYSTEM_RECOVERY",
+      "entityId": "OPS-1789835675005",
+      "details": "{\"entityType\":\"SUBTOPIC\",\"previousNextNumber\":1,\"updatedNextNumber\":101,\"detectedMaxAllocatedId\":100,\"reason\":\"Manual administrative recovery for sequence synchronization\"}"
+    },
+    {
+      "id": "LOG-1789836626731-00001-sfvr-AUTH",
+      "timestamp": "2026-09-19T16:50:26.731Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "LOGIN_SUCCESS",
+      "entityType": "SYSTEM",
+      "entityId": "AUTH",
+      "details": "{\"role\":\"ADMIN\",\"roles\":[\"ADMIN\"]}"
+    },
+    {
+      "id": "LOG-1789843590533-00001-lku7-BP-CNT-000001",
+      "timestamp": "2026-09-19T18:46:30.533Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "CREATE_CONTENT_MASTER",
+      "entityType": "CONTENT_MASTER",
+      "entityId": "BP-CNT-000001",
+      "details": "{\"title\":\"ఒక వస్తువు ధర 500 రూపాయలు. దానిపై 10% తగ్గింపు (Discount) ఇస్తే, ఆ వస్తువు యొక్క అమ్మకపు ధర ఎంత?\"}"
+    },
+    {
+      "id": "LOG-1789843594953-00002-2q1k-BP-Q-000001",
+      "timestamp": "2026-09-19T18:46:34.953Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "QUESTION_CREATED",
+      "entityType": "QUESTION",
+      "entityId": "BP-Q-000001",
+      "details": "{\"creationMode\":\"ai\",\"questionId\":\"BP-Q-000001\",\"contentMasterId\":\"BP-CNT-000001\",\"categoryId\":\"\",\"topicId\":\"BP-TOP-001\",\"subtopicId\":\"BP-SUB-0001\",\"difficulty\":\"Easy\",\"challengeType\":\"ABCD\",\"presentationType\":\"Text\",\"language\":\"TELUGU\",\"questionStyle\":\"STORY_BASED\",\"idempotencyKey\":\"[REDACTED]\"}"
+    },
+    {
+      "id": "LOG-1789843597640-00003-ep8c-BP-Q-000001",
+      "timestamp": "2026-09-19T18:46:37.640Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "QUESTION_VALIDATION_STARTED",
+      "entityType": "QUESTION",
+      "entityId": "BP-Q-000001",
+      "details": "{\"statusBefore\":\"VALID\"}"
+    },
+    {
+      "id": "LOG-1789843600823-00004-y3dc-BP-Q-000001",
+      "timestamp": "2026-09-19T18:46:40.823Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "QUESTION_VALIDATION_COMPLETED",
+      "entityType": "QUESTION",
+      "entityId": "BP-Q-000001",
+      "details": "{\"validationId\":\"VAL-BP-Q-000001-1789843597974-V4SWR\",\"status\":\"VALID\",\"confidenceScore\":0.9,\"errorsCount\":0,\"warningsCount\":1}"
+    },
+    {
+      "id": "LOG-1789844357587-00001-cc1m-BP-Q-000001",
+      "timestamp": "2026-09-19T18:59:17.587Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "QUESTION_VALIDATION_STARTED",
+      "entityType": "QUESTION",
+      "entityId": "BP-Q-000001",
+      "details": "{\"statusBefore\":\"VALID\"}"
+    },
+    {
+      "id": "LOG-1789844357783-00002-318a-BP-Q-000001",
+      "timestamp": "2026-09-19T18:59:17.783Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "QUESTION_VALIDATION_STARTED",
+      "entityType": "QUESTION",
+      "entityId": "BP-Q-000001",
+      "details": "{\"statusBefore\":\"VALID\"}"
+    },
+    {
+      "id": "LOG-1789844361266-00003-b6v1-BP-Q-000001",
+      "timestamp": "2026-09-19T18:59:21.266Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "QUESTION_VALIDATION_COMPLETED",
+      "entityType": "QUESTION",
+      "entityId": "BP-Q-000001",
+      "details": "{\"validationId\":\"VAL-BP-Q-000001-1789844358652-6VOM0\",\"status\":\"VALID\",\"confidenceScore\":0.9,\"errorsCount\":0,\"warningsCount\":1}"
+    },
+    {
+      "id": "LOG-1789844361797-00004-9yvj-BP-Q-000001",
+      "timestamp": "2026-09-19T18:59:21.797Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "QUESTION_VALIDATION_COMPLETED",
+      "entityType": "QUESTION",
+      "entityId": "BP-Q-000001",
+      "details": "{\"validationId\":\"VAL-BP-Q-000001-1789844358427-IAPMR\",\"status\":\"VALID\",\"confidenceScore\":0.9,\"errorsCount\":0,\"warningsCount\":1}"
+    },
+    {
+      "id": "LOG-1789844518827-00005-o0sv-BP-Q-000001",
+      "timestamp": "2026-09-19T19:01:58.827Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "QUESTION_STATUS_CHANGED",
+      "entityType": "QUESTION",
+      "entityId": "BP-Q-000001",
+      "details": "{\"from\":\"GENERATED\",\"to\":\"APPROVED\",\"remarks\":\"Approved by Jithendra in Step 02 verification audit.\"}"
+    },
+    {
+      "id": "LOG-1789844523084-00006-ji91-BP-V-000001",
+      "timestamp": "2026-09-19T19:02:03.084Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "VIDEO_QUEUED",
+      "entityType": "VIDEO",
+      "entityId": "BP-V-000001",
+      "details": "{\"questionId\":\"BP-Q-000001\",\"priority\":\"NORMAL\"}"
+    },
+    {
+      "id": "LOG-1789844525294-00007-3j8i-BP-Q-000001",
+      "timestamp": "2026-09-19T19:02:05.294Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "QUESTION_VALIDATION_STARTED",
+      "entityType": "QUESTION",
+      "entityId": "BP-Q-000001",
+      "details": "{\"statusBefore\":\"VALID\"}"
+    },
+    {
+      "id": "LOG-1789844529179-00008-qbyo-BP-Q-000001",
+      "timestamp": "2026-09-19T19:02:09.179Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "QUESTION_VALIDATION_COMPLETED",
+      "entityType": "QUESTION",
+      "entityId": "BP-Q-000001",
+      "details": "{\"validationId\":\"VAL-BP-Q-000001-1789844525663-22COJ\",\"status\":\"VALID\",\"confidenceScore\":0.9,\"errorsCount\":0,\"warningsCount\":1}"
+    },
+    {
+      "id": "LOG-1789844648760-00009-zks4-BP-Q-000001",
+      "timestamp": "2026-09-19T19:04:08.760Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "QUESTION_VALIDATION_STARTED",
+      "entityType": "QUESTION",
+      "entityId": "BP-Q-000001",
+      "details": "{\"statusBefore\":\"VALID\"}"
+    },
+    {
+      "id": "LOG-1789844652173-00010-orpl-BP-Q-000001",
+      "timestamp": "2026-09-19T19:04:12.173Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "QUESTION_VALIDATION_COMPLETED",
+      "entityType": "QUESTION",
+      "entityId": "BP-Q-000001",
+      "details": "{\"validationId\":\"VAL-BP-Q-000001-1789844649474-RJTU2\",\"status\":\"VALID\",\"confidenceScore\":0.9,\"errorsCount\":0,\"warningsCount\":1}"
+    },
+    {
+      "id": "LOG-1789847184767-00001-walx-BP-Q-000001",
+      "timestamp": "2026-09-19T19:46:24.767Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "QUESTION_VALIDATION_STARTED",
+      "entityType": "QUESTION",
+      "entityId": "BP-Q-000001",
+      "details": "{\"statusBefore\":\"VALID\"}"
+    },
+    {
+      "id": "LOG-1789847188825-00002-b86y-BP-Q-000001",
+      "timestamp": "2026-09-19T19:46:28.825Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "QUESTION_VALIDATION_COMPLETED",
+      "entityType": "QUESTION",
+      "entityId": "BP-Q-000001",
+      "details": "{\"validationId\":\"VAL-BP-Q-000001-1789847185632-D6CPW\",\"status\":\"VALID\",\"confidenceScore\":0.9,\"errorsCount\":0,\"warningsCount\":1}"
+    },
+    {
+      "id": "LOG-1789847209128-00003-trv2-BP-Q-000001",
+      "timestamp": "2026-09-19T19:46:49.128Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "QUESTION_VALIDATION_STARTED",
+      "entityType": "QUESTION",
+      "entityId": "BP-Q-000001",
+      "details": "{\"statusBefore\":\"VALID\"}"
+    },
+    {
+      "id": "LOG-1789847218826-00004-bvyf-BP-Q-000001",
+      "timestamp": "2026-09-19T19:46:58.826Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "QUESTION_VALIDATION_COMPLETED",
+      "entityType": "QUESTION",
+      "entityId": "BP-Q-000001",
+      "details": "{\"validationId\":\"VAL-BP-Q-000001-1789847209452-52ZAD\",\"status\":\"VALID\",\"confidenceScore\":0.9,\"errorsCount\":0,\"warningsCount\":1}"
+    },
+    {
+      "id": "LOG-1789847244295-00005-asko-BP-Q-000001",
+      "timestamp": "2026-09-19T19:47:24.295Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "QUESTION_VALIDATION_STARTED",
+      "entityType": "QUESTION",
+      "entityId": "BP-Q-000001",
+      "details": "{\"statusBefore\":\"VALID\"}"
+    },
+    {
+      "id": "LOG-1789847247425-00006-bj8a-BP-Q-000001",
+      "timestamp": "2026-09-19T19:47:27.425Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "QUESTION_VALIDATION_COMPLETED",
+      "entityType": "QUESTION",
+      "entityId": "BP-Q-000001",
+      "details": "{\"validationId\":\"VAL-BP-Q-000001-1789847244630-10QH4\",\"status\":\"VALID\",\"confidenceScore\":0.9,\"errorsCount\":0,\"warningsCount\":1}"
+    },
+    {
+      "id": "LOG-1789847750468-00001-rpv5-AUTH",
+      "timestamp": "2026-09-19T19:55:50.468Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "LOGIN_SUCCESS",
+      "entityType": "SYSTEM",
+      "entityId": "AUTH",
+      "details": "{\"role\":\"ADMIN\",\"roles\":[\"ADMIN\"]}"
+    },
+    {
+      "id": "LOG-1789848844044-00001-sh5j-BP-S-000001",
+      "timestamp": "2026-09-19T20:14:04.044Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "CREATE_SCRIPT",
+      "entityType": "SCRIPT",
+      "entityId": "BP-S-000001",
+      "details": "{\"videoId\":\"BP-V-000001\",\"versionNumber\":1}"
+    },
+    {
+      "id": "LOG-1789848882212-00002-0fz1-BP-S-000001",
+      "timestamp": "2026-09-19T20:14:42.212Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "UPDATE_SCRIPT_IN_PLACE",
+      "entityType": "SCRIPT",
+      "entityId": "BP-S-000001",
+      "details": "{\"videoId\":\"BP-V-000001\",\"currentVersion\":1}"
+    },
+    {
+      "id": "LOG-1789850049433-00001-acox-BP-V-000001",
+      "timestamp": "2026-09-19T20:34:09.433Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "VIDEO_PRIORITY_CHANGED",
+      "entityType": "VIDEO",
+      "entityId": "BP-V-000001",
+      "details": "{\"from\":\"NORMAL\",\"to\":\"LOW\"}"
+    },
+    {
+      "id": "LOG-1789850300420-00001-9duk-BP-V-000001",
+      "timestamp": "2026-09-19T20:38:20.420Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "VIDEO_ASSET_UPLOAD",
+      "entityType": "VIDEO",
+      "entityId": "BP-V-000001",
+      "details": "{\"contentId\":\"BP-CNT-000001\",\"driveFileId\":\"1ThtWOFXFkOzS7dgSrks9fBl1uWwGy1fy\",\"fileName\":\"video_11.1.mp4\",\"mimeType\":\"video/mp4\",\"fileSize\":2987275,\"version\":2}"
+    },
+    {
+      "id": "LOG-1789852423047-00001-zzua-BP-Q-000001",
+      "timestamp": "2026-09-19T21:13:43.047Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "QUESTION_VALIDATION_STARTED",
+      "entityType": "QUESTION",
+      "entityId": "BP-Q-000001",
+      "details": "{\"statusBefore\":\"VALID\"}"
+    },
+    {
+      "id": "LOG-1789852427262-00002-167f-BP-Q-000001",
+      "timestamp": "2026-09-19T21:13:47.262Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "QUESTION_VALIDATION_COMPLETED",
+      "entityType": "QUESTION",
+      "entityId": "BP-Q-000001",
+      "details": "{\"validationId\":\"VAL-BP-Q-000001-1789852423892-IFVHP\",\"status\":\"VALID\",\"confidenceScore\":0.9,\"errorsCount\":0,\"warningsCount\":1}"
+    },
+    {
+      "id": "LOG-1789853878671-00001-8qg5-BP-V-000001",
+      "timestamp": "2026-09-19T21:37:58.671Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "UPLOAD_EDITED_VIDEO",
+      "entityType": "VIDEO",
+      "entityId": "BP-V-000001",
+      "details": "{\"contentId\":\"BP-CNT-000001\",\"mediaAssetId\":\"MEDIA-000001-EDITED-1\",\"driveFileId\":\"1MeLNCd2dSWz6ebs0DyM-95-G9iPmRAol\",\"version\":1}"
+    },
+    {
+      "id": "LOG-1789853915540-00002-plls-BP-V-000001",
+      "timestamp": "2026-09-19T21:38:35.540Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "VIDEO_METADATA_UPDATED",
+      "entityType": "VIDEO",
+      "entityId": "BP-V-000001",
+      "details": "{\"updates\":{\"notes\":\"Auto-queued from verification audit by Jithendra\",\"actualDurationSeconds\":45,\"driveFolderUrl\":\"https://drive.google.com/file/d/1ThtWOFXFkOzS7dgSrks9fBl1uWwGy1fy/view?usp=drivesdk\",\"finalRenderPath\":\"gs://burra-pariksha/edited-master.mp4\",\"finalRenderWidth\":1080,\"finalRenderHeight\":1920,\"finalRenderFormat\":\"MP4\",\"finalRenderAspectRatio\":\"9:16\"}}"
+    },
+    {
+      "id": "LOG-1789853919366-00003-fwdh-BP-V-000001",
+      "timestamp": "2026-09-19T21:38:39.366Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "UPDATE_VIDEO_STATUS",
+      "entityType": "VIDEO",
+      "entityId": "BP-V-000001",
+      "details": "{\"from\":\"EDITING\",\"to\":\"FINAL_REVIEW\",\"remarks\":\"Completed Editing Stage and sent to Final QC\"}"
+    },
+    {
+      "id": "LOG-1789854498262-00001-9vhd-BP-S-000001",
+      "timestamp": "2026-09-19T21:48:18.262Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "UPDATE_SCRIPT_IN_PLACE",
+      "entityType": "SCRIPT",
+      "entityId": "BP-S-000001",
+      "details": "{\"videoId\":\"BP-V-000001\",\"currentVersion\":1}"
+    },
+    {
+      "id": "LOG-1789854516182-00002-oh87-BP-V-000001",
+      "timestamp": "2026-09-19T21:48:36.182Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "VIDEO_METADATA_UPDATED",
+      "entityType": "VIDEO",
+      "entityId": "BP-V-000001",
+      "details": "{\"updates\":{\"notes\":\"Auto-queued from verification audit by Jithendra\",\"actualDurationSeconds\":45,\"driveFolderUrl\":\"https://drive.google.com/file/d/1ThtWOFXFkOzS7dgSrks9fBl1uWwGy1fy/view?usp=drivesdk\",\"finalRenderPath\":\"gs://burra-pariksha/edited-master.mp4\",\"finalRenderWidth\":1080,\"finalRenderHeight\":1920,\"finalRenderFormat\":\"MP4\",\"finalRenderAspectRatio\":\"9:16\"}}"
+    },
+    {
+      "id": "LOG-1789885889181-00001-oduf-BP-V-000001",
+      "timestamp": "2026-09-20T06:31:29.181Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "UPDATE_VIDEO_STATUS",
+      "entityType": "VIDEO",
+      "entityId": "BP-V-000001",
+      "details": "{\"from\":\"FINAL_REVIEW\",\"to\":\"EDITING\",\"remarks\":\"Auto-advancing to EDITING for master cut upload\"}"
+    },
+    {
+      "id": "LOG-1789885977252-00002-isab-BP-V-000001",
+      "timestamp": "2026-09-20T06:32:57.252Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "VIDEO_METADATA_UPDATED",
+      "entityType": "VIDEO",
+      "entityId": "BP-V-000001",
+      "details": "{\"updates\":{\"notes\":\"Auto-queued from verification audit by Jithendra\",\"actualDurationSeconds\":45,\"driveFolderUrl\":\"https://drive.google.com/file/d/1ThtWOFXFkOzS7dgSrks9fBl1uWwGy1fy/view?usp=drivesdk\",\"finalRenderPath\":\"gs://burra-pariksha/edited-master.mp4\",\"finalRenderWidth\":1080,\"finalRenderHeight\":1920,\"finalRenderFormat\":\"MP4\",\"finalRenderAspectRatio\":\"9:16\"}}"
+    },
+    {
+      "id": "LOG-1789885981598-00003-69pt-BP-V-000001",
+      "timestamp": "2026-09-20T06:33:01.598Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "UPDATE_VIDEO_STATUS",
+      "entityType": "VIDEO",
+      "entityId": "BP-V-000001",
+      "details": "{\"from\":\"EDITING\",\"to\":\"FINAL_REVIEW\",\"remarks\":\"Completed Editing Stage and sent to Final QC\"}"
+    },
+    {
+      "id": "LOG-1789887026034-00001-ro7m-BP-V-000001",
+      "timestamp": "2026-09-20T06:50:26.034Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "UPDATE_VIDEO_STATUS",
+      "entityType": "VIDEO",
+      "entityId": "BP-V-000001",
+      "details": "{\"from\":\"FINAL_REVIEW\",\"to\":\"READY_TO_UPLOAD\",\"remarks\":\"Transitioned to READY_TO_UPLOAD via Final Review Workspace\"}"
+    },
+    {
+      "id": "LOG-1789889132159-00001-6s7p-BP-T-000001",
+      "timestamp": "2026-09-20T07:25:32.159Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "CREATE_THUMBNAIL_ASSET",
+      "entityType": "THUMBNAIL",
+      "entityId": "BP-T-000001",
+      "details": "{\"videoId\":\"BP-V-000001\",\"driveFileId\":\"1_gjtTjjPV9gWRW8sK2wKGO1PuEm0vSu0\"}"
+    },
+    {
+      "id": "LOG-1789889176448-00002-nukl-BP-T-000001",
+      "timestamp": "2026-09-20T07:26:16.448Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "UPDATE_THUMBNAIL",
+      "entityType": "THUMBNAIL",
+      "entityId": "BP-T-000001",
+      "details": "{\"videoId\":\"BP-V-000001\",\"status\":\"APPROVED\"}"
+    },
+    {
+      "id": "LOG-1789889179603-00003-vpaa-BP-T-000001",
+      "timestamp": "2026-09-20T07:26:19.603Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "UPDATE_THUMBNAIL_STATUS",
+      "entityType": "THUMBNAIL",
+      "entityId": "BP-T-000001",
+      "details": "{\"fromStatus\":\"APPROVED\",\"toStatus\":\"APPROVED\",\"remarks\":\"Certified and approved in Step 08 Thumbnail Studio\"}"
+    },
+    {
+      "id": "LOG-1789890705260-00001-ciam-AUTH",
+      "timestamp": "2026-09-20T07:51:45.260Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "LOGIN_SUCCESS",
+      "entityType": "SYSTEM",
+      "entityId": "AUTH",
+      "details": "{\"role\":\"ADMIN\",\"roles\":[\"ADMIN\"]}"
+    },
+    {
+      "id": "LOG-1789890850332-00002-9tcd-BP-Q-000001",
+      "timestamp": "2026-09-20T07:54:10.332Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "ADMIN_SELF_APPROVAL_OVERRIDE",
+      "entityType": "SOCIAL_REVIEW",
+      "entityId": "BP-Q-000001",
+      "details": "{\"reviewId\":\"BP-REV-1789890849539-812\",\"decision\":\"APPROVED\",\"versionHash\":\"d7443acc42a042b69180b07195ed5e360f2d0c88327b120d4f848671ee35c884\",\"reason\":\"Human social package approved.\",\"isAdminOverride\":true}"
+    },
+    {
+      "id": "LOG-1789891466541-00001-05wu-TEST-P09-V-1789891450880",
+      "timestamp": "2026-09-20T08:04:26.541Z",
+      "actorId": "USR-001",
+      "actorName": "Admin",
+      "action": "VALIDATE_PUBLISH_READINESS",
+      "entityType": "VIDEO",
+      "entityId": "TEST-P09-V-1789891450880",
+      "details": "{\"isReady\":true,\"blockerCount\":0,\"warningCount\":0,\"blockers\":[]}"
+    },
+    {
+      "id": "LOG-1789891470096-00002-8qgt-TEST-P09-V-1789891450880",
+      "timestamp": "2026-09-20T08:04:30.096Z",
+      "actorId": "USR-001",
+      "actorName": "Admin",
+      "action": "VALIDATE_PUBLISH_READINESS",
+      "entityType": "VIDEO",
+      "entityId": "TEST-P09-V-1789891450880",
+      "details": "{\"isReady\":true,\"blockerCount\":0,\"warningCount\":0,\"blockers\":[]}"
+    },
+    {
+      "id": "LOG-1789891473049-00003-h2ni-TEST-P09-V-1789891450880",
+      "timestamp": "2026-09-20T08:04:33.049Z",
+      "actorId": "USR-001",
+      "actorName": "Admin",
+      "action": "VALIDATE_PUBLISH_READINESS",
+      "entityType": "VIDEO",
+      "entityId": "TEST-P09-V-1789891450880",
+      "details": "{\"isReady\":true,\"blockerCount\":0,\"warningCount\":0,\"blockers\":[]}"
+    },
+    {
+      "id": "LOG-1789891476005-00004-2qy5-TEST-P09-V-1789891450880",
+      "timestamp": "2026-09-20T08:04:36.005Z",
+      "actorId": "USR-001",
+      "actorName": "Admin",
+      "action": "VALIDATE_PUBLISH_READINESS",
+      "entityType": "VIDEO",
+      "entityId": "TEST-P09-V-1789891450880",
+      "details": "{\"isReady\":true,\"blockerCount\":0,\"warningCount\":0,\"blockers\":[]}"
+    },
+    {
+      "id": "LOG-1789892270105-00001-jh3n-BP-Q-000001",
+      "timestamp": "2026-09-20T08:17:50.105Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "ADMIN_SELF_APPROVAL_OVERRIDE",
+      "entityType": "SOCIAL_REVIEW",
+      "entityId": "BP-Q-000001",
+      "details": "{\"reviewId\":\"BP-REV-1789892269271-311\",\"decision\":\"APPROVED\",\"versionHash\":\"82b6863f74540dedd30628d4517b0c05ba673fda29d58f7625c44de7c1037b36\",\"reason\":\"Human social package approved.\",\"isAdminOverride\":true}"
+    },
+    {
+      "id": "LOG-1789892503321-00002-0yom-BP-V-000001",
+      "timestamp": "2026-09-20T08:21:43.321Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "VIDEO_METADATA_UPDATED",
+      "entityType": "VIDEO",
+      "entityId": "BP-V-000001",
+      "details": "{\"updates\":{\"finalRenderPath\":\"gs://burra-pariksha/edited-master.mp4\"}}"
+    },
+    {
+      "id": "LOG-1789892506963-00003-zw7o-BP-V-000001",
+      "timestamp": "2026-09-20T08:21:46.963Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "VIDEO_MARKED_UPLOADED",
+      "entityType": "VIDEO",
+      "entityId": "BP-V-000001",
+      "details": "{\"from\":\"READY_TO_UPLOAD\",\"to\":\"UPLOADED\",\"remarks\":\"Manual upload recorded and verified\"}"
+    },
+    {
+      "id": "LOG-1789894068637-00001-qk29-BP-V-000001",
+      "timestamp": "2026-09-20T08:47:48.637Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "VALIDATE_PUBLISH_READINESS",
+      "entityType": "VIDEO",
+      "entityId": "BP-V-000001",
+      "details": "{\"isReady\":false,\"blockerCount\":2,\"warningCount\":0,\"blockers\":[\"Pinned comment for video \\\"BP-V-000001\\\" is missing.\",\"Social review status is \\\"PENDING_REVIEW\\\" (must be APPROVED before publishing).\"]}"
+    },
+    {
+      "id": "LOG-1789894068638-00002-f6vv-BP-V-000001",
+      "timestamp": "2026-09-20T08:47:48.638Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "VALIDATE_PUBLISH_READINESS",
+      "entityType": "VIDEO",
+      "entityId": "BP-V-000001",
+      "details": "{\"isReady\":false,\"blockerCount\":2,\"warningCount\":0,\"blockers\":[\"Pinned comment for video \\\"BP-V-000001\\\" is missing.\",\"Social review status is \\\"PENDING_REVIEW\\\" (must be APPROVED before publishing).\"]}"
+    },
+    {
+      "id": "LOG-1789894068638-00003-5hve-BP-V-000001",
+      "timestamp": "2026-09-20T08:47:48.638Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "VALIDATE_PUBLISH_READINESS",
+      "entityType": "VIDEO",
+      "entityId": "BP-V-000001",
+      "details": "{\"isReady\":false,\"blockerCount\":2,\"warningCount\":0,\"blockers\":[\"Pinned comment for video \\\"BP-V-000001\\\" is missing.\",\"Social review status is \\\"PENDING_REVIEW\\\" (must be APPROVED before publishing).\"]}"
+    },
+    {
+      "id": "LOG-1789894182494-00004-di90-BP-ANL-000001",
+      "timestamp": "2026-09-20T08:49:42.494Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "ANALYTICS_RECORD_CREATED",
+      "entityType": "SOCIAL_ANALYTICS",
+      "entityId": "BP-ANL-000001",
+      "details": "{\"contentId\":\"BP-CNT-000001\",\"platform\":\"youtube\",\"views\":1250}"
+    },
+    {
+      "id": "LOG-1789894264602-00005-3zix-BP-SPI-000001",
+      "timestamp": "2026-09-20T08:51:04.602Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "CREATE_INTELLIGENCE_REPORT",
+      "entityType": "SOCIAL_PERFORMANCE_INTELLIGENCE",
+      "entityId": "BP-SPI-000001",
+      "details": "{\"reportId\":\"BP-SPI-000001\",\"recordCount\":1,\"isFallbackMode\":false,\"modelUsed\":\"gemini-3.1-flash-lite\"}"
+    },
+    {
+      "id": "LOG-1789895661220-00006-z2wq-BP-Q-000001",
+      "timestamp": "2026-09-20T09:14:21.220Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "QUESTION_VALIDATION_STARTED",
+      "entityType": "QUESTION",
+      "entityId": "BP-Q-000001",
+      "details": "{\"statusBefore\":\"VALID\"}"
+    },
+    {
+      "id": "LOG-1789895665185-00007-9l9n-BP-Q-000001",
+      "timestamp": "2026-09-20T09:14:25.185Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "QUESTION_VALIDATION_COMPLETED",
+      "entityType": "QUESTION",
+      "entityId": "BP-Q-000001",
+      "details": "{\"validationId\":\"VAL-BP-Q-000001-1789895662082-7BH1E\",\"status\":\"VALID\",\"confidenceScore\":0.9,\"errorsCount\":0,\"warningsCount\":1}"
+    },
+    {
+      "id": "LOG-1789904169172-00001-cwsr-REV-TEST-P09-V-1789891450880",
+      "timestamp": "2026-09-20T11:36:09.172Z",
+      "actorId": "USR-001",
+      "actorName": "System Administrator",
+      "action": "VERIFIED_RECORD_DELETION",
+      "entityType": "SOCIAL_REVIEWS",
+      "entityId": "REV-TEST-P09-V-1789891450880",
+      "details": "{\"sheetName\":\"SOCIAL_REVIEWS\",\"physicalRowIndex\":3,\"backupFilePath\":\"/app/applet/backups/deletion/DEL-BAK-1789904168075-cd2feb91-SOCIAL_REVIEWS-REV-TEST-P09-V-1789891450880.json\",\"backupChecksum\":\"674bd05bdc1771815e2a1c712060e0e3ddc032237e386091647d3f8a65ccef9a\",\"verifiedAt\":\"2026-09-20T11:36:09.172Z\",\"reason\":\"Purge automated test artifacts to restore pristine production state\"}"
+    },
+    {
+      "id": "LOG-1789904171441-00002-y80c-PUB-TEST-P09-V-1789891450880",
+      "timestamp": "2026-09-20T11:36:11.441Z",
+      "actorId": "USR-001",
+      "actorName": "System Administrator",
+      "action": "VERIFIED_RECORD_DELETION",
+      "entityType": "PUBLISHING",
+      "entityId": "PUB-TEST-P09-V-1789891450880",
+      "details": "{\"sheetName\":\"PUBLISHING\",\"physicalRowIndex\":3,\"backupFilePath\":\"/app/applet/backups/deletion/DEL-BAK-1789904170291-3e2d35be-PUBLISHING-PUB-TEST-P09-V-1789891450880.json\",\"backupChecksum\":\"7f8c4660bc38b1f90019dd90d4bb2233461be1433063d7db8f29231804962c91\",\"verifiedAt\":\"2026-09-20T11:36:11.441Z\",\"reason\":\"Purge automated test artifacts to restore pristine production state\"}"
+    },
+    {
+      "id": "LOG-1789904173222-00003-58t2-PIN-TEST-P09-V-1789891450880",
+      "timestamp": "2026-09-20T11:36:13.222Z",
+      "actorId": "USR-001",
+      "actorName": "System Administrator",
+      "action": "VERIFIED_RECORD_DELETION",
+      "entityType": "PINNED_COMMENTS",
+      "entityId": "PIN-TEST-P09-V-1789891450880",
+      "details": "{\"sheetName\":\"PINNED_COMMENTS\",\"physicalRowIndex\":2,\"backupFilePath\":\"/app/applet/backups/deletion/DEL-BAK-1789904172102-0e5b2f86-PINNED_COMMENTS-PIN-TEST-P09-V-1789891450880.json\",\"backupChecksum\":\"30a52e53da51d85e32203423e00580f7aff66a5ce8eeef93b41266181eb8881f\",\"verifiedAt\":\"2026-09-20T11:36:13.222Z\",\"reason\":\"Purge automated test artifacts to restore pristine production state\"}"
+    },
+    {
+      "id": "LOG-1789904174930-00004-j3om-THM-TEST-P09-V-1789891450880",
+      "timestamp": "2026-09-20T11:36:14.930Z",
+      "actorId": "USR-001",
+      "actorName": "System Administrator",
+      "action": "VERIFIED_RECORD_DELETION",
+      "entityType": "THUMBNAILS",
+      "entityId": "THM-TEST-P09-V-1789891450880",
+      "details": "{\"sheetName\":\"THUMBNAILS\",\"physicalRowIndex\":3,\"backupFilePath\":\"/app/applet/backups/deletion/DEL-BAK-1789904173869-1541dc28-THUMBNAILS-THM-TEST-P09-V-1789891450880.json\",\"backupChecksum\":\"e6345f6eb39240175162dc8e4ade84accadf5599a85727e03161499e18564ef8\",\"verifiedAt\":\"2026-09-20T11:36:14.930Z\",\"reason\":\"Purge automated test artifacts to restore pristine production state\"}"
+    },
+    {
+      "id": "LOG-1789904176587-00005-tfnh-SCR-TEST-P09-V-1789891450880",
+      "timestamp": "2026-09-20T11:36:16.587Z",
+      "actorId": "USR-001",
+      "actorName": "System Administrator",
+      "action": "VERIFIED_RECORD_DELETION",
+      "entityType": "SCRIPT",
+      "entityId": "SCR-TEST-P09-V-1789891450880",
+      "details": "{\"sheetName\":\"SCRIPT\",\"physicalRowIndex\":3,\"backupFilePath\":\"/app/applet/backups/deletion/DEL-BAK-1789904175560-b1f3a672-SCRIPT-SCR-TEST-P09-V-1789891450880.json\",\"backupChecksum\":\"57c049560a2ac584ee552183019100e85394e15a1ae834ea196597460513613d\",\"verifiedAt\":\"2026-09-20T11:36:16.587Z\",\"reason\":\"Purge automated test artifacts to restore pristine production state\"}"
+    },
+    {
+      "id": "LOG-1789904178283-00006-7ol7-TEST-P09-V-1789891450880",
+      "timestamp": "2026-09-20T11:36:18.283Z",
+      "actorId": "USR-001",
+      "actorName": "System Administrator",
+      "action": "VERIFIED_RECORD_DELETION",
+      "entityType": "VIDEOS",
+      "entityId": "TEST-P09-V-1789891450880",
+      "details": "{\"sheetName\":\"VIDEOS\",\"physicalRowIndex\":3,\"backupFilePath\":\"/app/applet/backups/deletion/DEL-BAK-1789904177238-4a9d589d-VIDEOS-TEST-P09-V-1789891450880.json\",\"backupChecksum\":\"25b6ac50b86ac894d3fa3e964aff90e9661fccb058f6588513515f25d562fc14\",\"verifiedAt\":\"2026-09-20T11:36:18.283Z\",\"reason\":\"Purge automated test artifacts to restore pristine production state\"}"
+    },
+    {
+      "id": "LOG-1789904180021-00007-b1s8-TEST-P09-Q-1789891450880",
+      "timestamp": "2026-09-20T11:36:20.021Z",
+      "actorId": "USR-001",
+      "actorName": "System Administrator",
+      "action": "VERIFIED_RECORD_DELETION",
+      "entityType": "QUESTIONS",
+      "entityId": "TEST-P09-Q-1789891450880",
+      "details": "{\"sheetName\":\"QUESTIONS\",\"physicalRowIndex\":3,\"backupFilePath\":\"/app/applet/backups/deletion/DEL-BAK-1789904178968-0228697d-QUESTIONS-TEST-P09-Q-1789891450880.json\",\"backupChecksum\":\"e412647c7c0725f697fbec8f3d6f3e081618f8c3dd4d1e789debe3309854e51e\",\"verifiedAt\":\"2026-09-20T11:36:20.021Z\",\"reason\":\"Purge automated test artifacts to restore pristine production state\"}"
+    },
+    {
+      "id": "LOG-1789931098959-00001-7kzo-BP-ANL-000002",
+      "timestamp": "2026-09-20T19:04:58.959Z",
+      "actorId": "ACT-ADMIN",
+      "actorName": "Admin User",
+      "action": "ANALYTICS_RECORD_CREATED",
+      "entityType": "SOCIAL_ANALYTICS",
+      "entityId": "BP-ANL-000002",
+      "details": "{\"contentId\":\"BP-CNT-270001\",\"platform\":\"youtube\",\"views\":12500}"
+    },
+    {
+      "id": "LOG-1789931101316-00002-ebiw-BP-ANL-000003",
+      "timestamp": "2026-09-20T19:05:01.316Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "ANALYTICS_RECORD_CREATED",
+      "entityType": "SOCIAL_ANALYTICS",
+      "entityId": "BP-ANL-000003",
+      "details": "{\"contentId\":\"BP-CNT-270002\",\"platform\":\"YouTube\",\"views\":300}"
+    },
+    {
+      "id": "LOG-1789931102994-00003-5spo-BP-ANL-000004",
+      "timestamp": "2026-09-20T19:05:02.994Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "ANALYTICS_RECORD_CREATED",
+      "entityType": "SOCIAL_ANALYTICS",
+      "entityId": "BP-ANL-000004",
+      "details": "{\"contentId\":\"BP-CNT-270002\",\"platform\":\"Instagram\",\"views\":500}"
+    },
+    {
+      "id": "LOG-1789931104883-00004-9xdc-BP-ANL-000005",
+      "timestamp": "2026-09-20T19:05:04.883Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "ANALYTICS_RECORD_CREATED",
+      "entityType": "SOCIAL_ANALYTICS",
+      "entityId": "BP-ANL-000005",
+      "details": "{\"contentId\":\"BP-CNT-270003\",\"platform\":\"facebook\",\"views\":1000}"
+    },
+    {
+      "id": "LOG-1789931106465-00005-jzdt-BP-ANL-000006",
+      "timestamp": "2026-09-20T19:05:06.465Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "ANALYTICS_RECORD_CREATED",
+      "entityType": "SOCIAL_ANALYTICS",
+      "entityId": "BP-ANL-000006",
+      "details": "{\"contentId\":\"BP-CNT-270003\",\"platform\":\"facebook\",\"views\":2500}"
+    },
+    {
+      "id": "LOG-1789931108432-00006-r0mu-BP-ANL-000007",
+      "timestamp": "2026-09-20T19:05:08.432Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "ANALYTICS_RECORD_CREATED",
+      "entityType": "SOCIAL_ANALYTICS",
+      "entityId": "BP-ANL-000007",
+      "details": "{\"contentId\":\"BP-CNT-270004\",\"platform\":\"facebook\",\"views\":4000}"
+    },
+    {
+      "id": "LOG-1789931109075-00007-mrh6-BULK-1789931109075",
+      "timestamp": "2026-09-20T19:05:09.075Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "ANALYTICS_BULK_IMPORTED",
+      "entityType": "SOCIAL_ANALYTICS",
+      "entityId": "BULK-1789931109075",
+      "details": "{\"totalImported\":2,\"totalFailed\":0}"
+    },
+    {
+      "id": "LOG-1789931110588-00008-8flw-BP-ANL-000008",
+      "timestamp": "2026-09-20T19:05:10.588Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "ANALYTICS_RECORD_CREATED",
+      "entityType": "SOCIAL_ANALYTICS",
+      "entityId": "BP-ANL-000008",
+      "details": "{\"contentId\":\"BP-CNT-270005\",\"platform\":\"youtube\",\"views\":500}"
+    },
+    {
+      "id": "LOG-1789931112662-00009-0m7c-BP-ANL-000009",
+      "timestamp": "2026-09-20T19:05:12.662Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "ANALYTICS_RECORD_CREATED",
+      "entityType": "SOCIAL_ANALYTICS",
+      "entityId": "BP-ANL-000009",
+      "details": "{\"contentId\":\"BP-CNT-270006\",\"platform\":\"instagram\",\"views\":99}"
+    },
+    {
+      "id": "LOG-1789931114215-00010-wd48-BP-ANL-000010",
+      "timestamp": "2026-09-20T19:05:14.215Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "ANALYTICS_RECORD_CREATED",
+      "entityType": "SOCIAL_ANALYTICS",
+      "entityId": "BP-ANL-000010",
+      "details": "{\"contentId\":\"BP-CNT-270007\",\"platform\":\"facebook\",\"views\":12000}"
+    },
+    {
+      "id": "LOG-1789931116300-00011-14ao-BP-ANL-000011",
+      "timestamp": "2026-09-20T19:05:16.300Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "ANALYTICS_RECORD_CREATED",
+      "entityType": "SOCIAL_ANALYTICS",
+      "entityId": "BP-ANL-000011",
+      "details": "{\"contentId\":\"BP-CNT-270009\",\"platform\":\"facebook\",\"views\":6500}"
+    },
+    {
+      "id": "LOG-1789935409031-00001-651n-BP-CMT-000001",
+      "timestamp": "2026-09-20T20:16:49.031Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "CREATE_SOCIAL_COMMENT",
+      "entityType": "SOCIAL_COMMENTS",
+      "entityId": "BP-CMT-000001",
+      "details": "{\"contentId\":\"BP-CNT-310001\",\"videoId\":\"BP-V-310001\",\"platform\":\"youtube\",\"source\":\"MANUAL_PASTE\"}"
+    },
+    {
+      "id": "LOG-1789935411174-00002-lh41-BP-CMT-000002",
+      "timestamp": "2026-09-20T20:16:51.174Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "CREATE_SOCIAL_COMMENT",
+      "entityType": "SOCIAL_COMMENTS",
+      "entityId": "BP-CMT-000002",
+      "details": "{\"contentId\":\"BP-CNT-310001\",\"videoId\":\"BP-V-310001\",\"platform\":\"youtube\",\"source\":\"MANUAL_PASTE\"}"
+    },
+    {
+      "id": "LOG-1789935412771-00003-jpou-BP-CMT-000003",
+      "timestamp": "2026-09-20T20:16:52.771Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "CREATE_SOCIAL_COMMENT",
+      "entityType": "SOCIAL_COMMENTS",
+      "entityId": "BP-CMT-000003",
+      "details": "{\"contentId\":\"BP-CNT-310001\",\"platform\":\"instagram\",\"source\":\"MANUAL_PASTE\"}"
+    },
+    {
+      "id": "LOG-1789935414268-00004-zblo-BP-CMT-000004",
+      "timestamp": "2026-09-20T20:16:54.268Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "CREATE_SOCIAL_COMMENT",
+      "entityType": "SOCIAL_COMMENTS",
+      "entityId": "BP-CMT-000004",
+      "details": "{\"contentId\":\"BP-CNT-310001\",\"platform\":\"facebook\",\"source\":\"MANUAL_PASTE\"}"
+    },
+    {
+      "id": "LOG-1789935415901-00005-1xfa-BP-CMT-000005",
+      "timestamp": "2026-09-20T20:16:55.901Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "CREATE_SOCIAL_COMMENT",
+      "entityType": "SOCIAL_COMMENTS",
+      "entityId": "BP-CMT-000005",
+      "details": "{\"contentId\":\"BP-CNT-310001\",\"platform\":\"youtube\",\"source\":\"MANUAL_PASTE\"}"
+    },
+    {
+      "id": "LOG-1789935420321-00006-5nir-BP-CMI-000002",
+      "timestamp": "2026-09-20T20:17:00.321Z",
+      "actorId": "USR-TEST-01",
+      "actorName": "Test Analyst",
+      "action": "GENERATE_COMMENT_INTELLIGENCE",
+      "entityType": "COMMENT_INTELLIGENCE",
+      "entityId": "BP-CMI-000002",
+      "details": "{\"reportId\":\"BP-CMI-000002\",\"contentId\":\"BP-CNT-310001\",\"sourceCommentCount\":4,\"isFallbackMode\":true,\"modelUsed\":\"DETERMINISTIC_RULE_ENGINE\"}"
+    },
+    {
+      "id": "LOG-1789935422602-00007-vw6x-BP-CMI-000003",
+      "timestamp": "2026-09-20T20:17:02.602Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "GENERATE_COMMENT_INTELLIGENCE",
+      "entityType": "COMMENT_INTELLIGENCE",
+      "entityId": "BP-CMI-000003",
+      "details": "{\"reportId\":\"BP-CMI-000003\",\"contentId\":\"BP-CNT-310001\",\"videoId\":\"BP-V-310001\",\"sourceCommentCount\":2,\"isFallbackMode\":true,\"modelUsed\":\"DETERMINISTIC_RULE_ENGINE\"}"
+    },
+    {
+      "id": "LOG-1789935424307-00008-j5u2-BP-CMI-000004",
+      "timestamp": "2026-09-20T20:17:04.307Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "GENERATE_COMMENT_INTELLIGENCE",
+      "entityType": "COMMENT_INTELLIGENCE",
+      "entityId": "BP-CMI-000004",
+      "details": "{\"reportId\":\"BP-CMI-000004\",\"contentId\":\"BP-CNT-310001\",\"sourceCommentCount\":2,\"isFallbackMode\":true,\"modelUsed\":\"DETERMINISTIC_RULE_ENGINE\"}"
+    },
+    {
+      "id": "LOG-1789935426726-00009-a8bk-BP-CMI-000005",
+      "timestamp": "2026-09-20T20:17:06.726Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "GENERATE_COMMENT_INTELLIGENCE",
+      "entityType": "COMMENT_INTELLIGENCE",
+      "entityId": "BP-CMI-000005",
+      "details": "{\"reportId\":\"BP-CMI-000005\",\"contentId\":\"BP-CNT-310002\",\"sourceCommentCount\":0,\"isFallbackMode\":true,\"modelUsed\":\"DETERMINISTIC_RULE_ENGINE\"}"
+    },
+    {
+      "id": "LOG-1789935428476-00010-77ou-BP-CMI-000006",
+      "timestamp": "2026-09-20T20:17:08.476Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "GENERATE_COMMENT_INTELLIGENCE",
+      "entityType": "COMMENT_INTELLIGENCE",
+      "entityId": "BP-CMI-000006",
+      "details": "{\"reportId\":\"BP-CMI-000006\",\"contentId\":\"BP-CNT-310001\",\"sourceCommentCount\":4,\"isFallbackMode\":true,\"modelUsed\":\"DETERMINISTIC_RULE_ENGINE\"}"
+    },
+    {
+      "id": "LOG-1789935527075-00001-ml1c-BP-CMT-000006",
+      "timestamp": "2026-09-20T20:18:47.075Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "CREATE_SOCIAL_COMMENT",
+      "entityType": "SOCIAL_COMMENTS",
+      "entityId": "BP-CMT-000006",
+      "details": "{\"contentId\":\"BP-CNT-310001\",\"videoId\":\"BP-V-310001\",\"platform\":\"youtube\",\"source\":\"MANUAL_PASTE\"}"
+    },
+    {
+      "id": "LOG-1789935529072-00002-rpv1-BP-CMT-000007",
+      "timestamp": "2026-09-20T20:18:49.072Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "CREATE_SOCIAL_COMMENT",
+      "entityType": "SOCIAL_COMMENTS",
+      "entityId": "BP-CMT-000007",
+      "details": "{\"contentId\":\"BP-CNT-310001\",\"videoId\":\"BP-V-310001\",\"platform\":\"youtube\",\"source\":\"MANUAL_PASTE\"}"
+    },
+    {
+      "id": "LOG-1789935530835-00003-o4u4-BP-CMT-000008",
+      "timestamp": "2026-09-20T20:18:50.835Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "CREATE_SOCIAL_COMMENT",
+      "entityType": "SOCIAL_COMMENTS",
+      "entityId": "BP-CMT-000008",
+      "details": "{\"contentId\":\"BP-CNT-310001\",\"platform\":\"instagram\",\"source\":\"MANUAL_PASTE\"}"
+    },
+    {
+      "id": "LOG-1789935532860-00004-apx8-BP-CMT-000009",
+      "timestamp": "2026-09-20T20:18:52.860Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "CREATE_SOCIAL_COMMENT",
+      "entityType": "SOCIAL_COMMENTS",
+      "entityId": "BP-CMT-000009",
+      "details": "{\"contentId\":\"BP-CNT-310001\",\"platform\":\"facebook\",\"source\":\"MANUAL_PASTE\"}"
+    },
+    {
+      "id": "LOG-1789935534384-00005-yhbe-BP-CMT-000010",
+      "timestamp": "2026-09-20T20:18:54.384Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "CREATE_SOCIAL_COMMENT",
+      "entityType": "SOCIAL_COMMENTS",
+      "entityId": "BP-CMT-000010",
+      "details": "{\"contentId\":\"BP-CNT-310001\",\"platform\":\"youtube\",\"source\":\"MANUAL_PASTE\"}"
+    },
+    {
+      "id": "LOG-1789935539004-00006-c61y-BP-CMI-000008",
+      "timestamp": "2026-09-20T20:18:59.003Z",
+      "actorId": "USR-TEST-01",
+      "actorName": "Test Analyst",
+      "action": "GENERATE_COMMENT_INTELLIGENCE",
+      "entityType": "COMMENT_INTELLIGENCE",
+      "entityId": "BP-CMI-000008",
+      "details": "{\"reportId\":\"BP-CMI-000008\",\"contentId\":\"BP-CNT-310001\",\"sourceCommentCount\":8,\"isFallbackMode\":true,\"modelUsed\":\"DETERMINISTIC_RULE_ENGINE\"}"
+    },
+    {
+      "id": "LOG-1789935541215-00007-f6ty-BP-CMI-000009",
+      "timestamp": "2026-09-20T20:19:01.215Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "GENERATE_COMMENT_INTELLIGENCE",
+      "entityType": "COMMENT_INTELLIGENCE",
+      "entityId": "BP-CMI-000009",
+      "details": "{\"reportId\":\"BP-CMI-000009\",\"contentId\":\"BP-CNT-310001\",\"videoId\":\"BP-V-310001\",\"sourceCommentCount\":4,\"isFallbackMode\":true,\"modelUsed\":\"DETERMINISTIC_RULE_ENGINE\"}"
+    },
+    {
+      "id": "LOG-1789935542826-00008-lbu0-BP-CMI-000010",
+      "timestamp": "2026-09-20T20:19:02.826Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "GENERATE_COMMENT_INTELLIGENCE",
+      "entityType": "COMMENT_INTELLIGENCE",
+      "entityId": "BP-CMI-000010",
+      "details": "{\"reportId\":\"BP-CMI-000010\",\"contentId\":\"BP-CNT-310001\",\"sourceCommentCount\":2,\"isFallbackMode\":true,\"modelUsed\":\"DETERMINISTIC_RULE_ENGINE\"}"
+    },
+    {
+      "id": "LOG-1789935544982-00009-ip2y-BP-CMI-000011",
+      "timestamp": "2026-09-20T20:19:04.982Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "GENERATE_COMMENT_INTELLIGENCE",
+      "entityType": "COMMENT_INTELLIGENCE",
+      "entityId": "BP-CMI-000011",
+      "details": "{\"reportId\":\"BP-CMI-000011\",\"contentId\":\"BP-CNT-310002\",\"sourceCommentCount\":0,\"isFallbackMode\":true,\"modelUsed\":\"DETERMINISTIC_RULE_ENGINE\"}"
+    },
+    {
+      "id": "LOG-1789935546485-00010-jgpd-BP-CMI-000012",
+      "timestamp": "2026-09-20T20:19:06.485Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "GENERATE_COMMENT_INTELLIGENCE",
+      "entityType": "COMMENT_INTELLIGENCE",
+      "entityId": "BP-CMI-000012",
+      "details": "{\"reportId\":\"BP-CMI-000012\",\"contentId\":\"BP-CNT-310001\",\"sourceCommentCount\":8,\"isFallbackMode\":true,\"modelUsed\":\"DETERMINISTIC_RULE_ENGINE\"}"
+    },
+    {
+      "id": "LOG-1789935565825-00001-odkm-BP-CMT-000011",
+      "timestamp": "2026-09-20T20:19:25.825Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "CREATE_SOCIAL_COMMENT",
+      "entityType": "SOCIAL_COMMENTS",
+      "entityId": "BP-CMT-000011",
+      "details": "{\"contentId\":\"BP-CNT-675483\",\"videoId\":\"BP-V-675483\",\"platform\":\"youtube\",\"source\":\"MANUAL_PASTE\"}"
+    },
+    {
+      "id": "LOG-1789935567635-00002-8l68-BP-CMT-000012",
+      "timestamp": "2026-09-20T20:19:27.635Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "CREATE_SOCIAL_COMMENT",
+      "entityType": "SOCIAL_COMMENTS",
+      "entityId": "BP-CMT-000012",
+      "details": "{\"contentId\":\"BP-CNT-675483\",\"videoId\":\"BP-V-675483\",\"platform\":\"youtube\",\"source\":\"MANUAL_PASTE\"}"
+    },
+    {
+      "id": "LOG-1789935569184-00003-rten-BP-CMT-000013",
+      "timestamp": "2026-09-20T20:19:29.184Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "CREATE_SOCIAL_COMMENT",
+      "entityType": "SOCIAL_COMMENTS",
+      "entityId": "BP-CMT-000013",
+      "details": "{\"contentId\":\"BP-CNT-675483\",\"platform\":\"instagram\",\"source\":\"MANUAL_PASTE\"}"
+    },
+    {
+      "id": "LOG-1789935570739-00004-hveb-BP-CMT-000014",
+      "timestamp": "2026-09-20T20:19:30.739Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "CREATE_SOCIAL_COMMENT",
+      "entityType": "SOCIAL_COMMENTS",
+      "entityId": "BP-CMT-000014",
+      "details": "{\"contentId\":\"BP-CNT-675483\",\"platform\":\"facebook\",\"source\":\"MANUAL_PASTE\"}"
+    },
+    {
+      "id": "LOG-1789935572298-00005-na6j-BP-CMT-000015",
+      "timestamp": "2026-09-20T20:19:32.298Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "CREATE_SOCIAL_COMMENT",
+      "entityType": "SOCIAL_COMMENTS",
+      "entityId": "BP-CMT-000015",
+      "details": "{\"contentId\":\"BP-CNT-675483\",\"platform\":\"youtube\",\"source\":\"MANUAL_PASTE\"}"
+    },
+    {
+      "id": "LOG-1789935576667-00006-3gxh-BP-CMI-000014",
+      "timestamp": "2026-09-20T20:19:36.667Z",
+      "actorId": "USR-TEST-01",
+      "actorName": "Test Analyst",
+      "action": "GENERATE_COMMENT_INTELLIGENCE",
+      "entityType": "COMMENT_INTELLIGENCE",
+      "entityId": "BP-CMI-000014",
+      "details": "{\"reportId\":\"BP-CMI-000014\",\"contentId\":\"BP-CNT-675483\",\"sourceCommentCount\":4,\"isFallbackMode\":true,\"modelUsed\":\"DETERMINISTIC_RULE_ENGINE\"}"
+    },
+    {
+      "id": "LOG-1789935588799-00007-3yo8-BP-CMI-000015",
+      "timestamp": "2026-09-20T20:19:48.799Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "GENERATE_COMMENT_INTELLIGENCE",
+      "entityType": "COMMENT_INTELLIGENCE",
+      "entityId": "BP-CMI-000015",
+      "details": "{\"reportId\":\"BP-CMI-000015\",\"contentId\":\"BP-CNT-675483\",\"videoId\":\"BP-V-675483\",\"sourceCommentCount\":2,\"isFallbackMode\":true,\"modelUsed\":\"DETERMINISTIC_RULE_ENGINE\"}"
+    },
+    {
+      "id": "LOG-1789935590866-00008-ix0q-BP-CMI-000016",
+      "timestamp": "2026-09-20T20:19:50.866Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "GENERATE_COMMENT_INTELLIGENCE",
+      "entityType": "COMMENT_INTELLIGENCE",
+      "entityId": "BP-CMI-000016",
+      "details": "{\"reportId\":\"BP-CMI-000016\",\"contentId\":\"BP-CNT-675483\",\"sourceCommentCount\":2,\"isFallbackMode\":true,\"modelUsed\":\"DETERMINISTIC_RULE_ENGINE\"}"
+    },
+    {
+      "id": "LOG-1789935592404-00009-k5k2-BP-CMI-000017",
+      "timestamp": "2026-09-20T20:19:52.404Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "GENERATE_COMMENT_INTELLIGENCE",
+      "entityType": "COMMENT_INTELLIGENCE",
+      "entityId": "BP-CMI-000017",
+      "details": "{\"reportId\":\"BP-CMI-000017\",\"contentId\":\"BP-CNT-675484\",\"sourceCommentCount\":0,\"isFallbackMode\":true,\"modelUsed\":\"DETERMINISTIC_RULE_ENGINE\"}"
+    },
+    {
+      "id": "LOG-1789935594471-00010-m2tn-BP-CMI-000018",
+      "timestamp": "2026-09-20T20:19:54.471Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "GENERATE_COMMENT_INTELLIGENCE",
+      "entityType": "COMMENT_INTELLIGENCE",
+      "entityId": "BP-CMI-000018",
+      "details": "{\"reportId\":\"BP-CMI-000018\",\"contentId\":\"BP-CNT-675483\",\"sourceCommentCount\":4,\"isFallbackMode\":true,\"modelUsed\":\"DETERMINISTIC_RULE_ENGINE\"}"
+    },
+    {
+      "id": "LOG-1789936381657-00001-e0zo-AUTH",
+      "timestamp": "2026-09-20T20:33:01.657Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "LOGIN_SUCCESS",
+      "entityType": "SYSTEM",
+      "entityId": "AUTH",
+      "details": "{\"role\":\"ADMIN\",\"roles\":[\"ADMIN\"]}"
+    },
+    {
+      "id": "LOG-1789936394564-00002-u7qy-AUTH",
+      "timestamp": "2026-09-20T20:33:14.564Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "LOGOUT",
+      "entityType": "SYSTEM",
+      "entityId": "AUTH",
+      "details": "{\"status\":\"SUCCESS\"}"
+    },
+    {
+      "id": "LOG-1789936403810-00003-dvmd-AUTH",
+      "timestamp": "2026-09-20T20:33:23.810Z",
+      "actorId": "USR-002",
+      "actorName": "Surendra Reddy",
+      "action": "LOGIN_SUCCESS",
+      "entityType": "SYSTEM",
+      "entityId": "AUTH",
+      "details": "{\"role\":\"CONTENT_MANAGER\",\"roles\":[\"CONTENT_MANAGER\",\"VIDEO_EDITOR\"]}"
+    },
+    {
+      "id": "LOG-1789936424791-00004-iq6f-AUTH",
+      "timestamp": "2026-09-20T20:33:44.791Z",
+      "actorId": "USR-002",
+      "actorName": "Surendra Reddy",
+      "action": "LOGOUT",
+      "entityType": "SYSTEM",
+      "entityId": "AUTH",
+      "details": "{\"status\":\"SUCCESS\"}"
+    },
+    {
+      "id": "LOG-1789936448203-00005-nh2e-AUTH",
+      "timestamp": "2026-09-20T20:34:08.203Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "LOGIN_SUCCESS",
+      "entityType": "SYSTEM",
+      "entityId": "AUTH",
+      "details": "{\"role\":\"ADMIN\",\"roles\":[\"ADMIN\"]}"
+    },
+    {
+      "id": "LOG-1789936513226-00006-uu4n-AUTH",
+      "timestamp": "2026-09-20T20:35:13.226Z",
+      "actorId": "USR-002",
+      "actorName": "Surendra Reddy",
+      "action": "LOGIN_SUCCESS",
+      "entityType": "SYSTEM",
+      "entityId": "AUTH",
+      "details": "{\"role\":\"CONTENT_MANAGER\",\"roles\":[\"CONTENT_MANAGER\",\"VIDEO_EDITOR\"]}"
+    },
+    {
+      "id": "LOG-1789936600901-00007-r6sx-USR-002",
+      "timestamp": "2026-09-20T20:36:40.901Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "USER_UPDATED",
+      "entityType": "USER",
+      "entityId": "USR-002",
+      "details": "{\"previous\":{\"id\":\"USR-002\",\"name\":\"Surendra Reddy\",\"email\":\"seelamsurendrareddy999@gmail.com\",\"role\":\"CONTENT_MANAGER\",\"isActive\":true,\"password_hash\":\"scrypt$v1$de0a6642495121936eb9b62bba177e15$adbff50e5e9233f81b6b578e87e299e8d8bde5ad0f8c50d17edd17707a918f1e0d87b601c81af82726f4a6b3e780bfe97ff98c4a9f7a2da9d7a7b971cbeb4406\",\"last_login_at\":\"2026-09-20T20:35:12.837Z\",\"createdAt\":\"2026-09-11T12:34:14.870Z\",\"updatedAt\":\"2026-09-20T20:35:12.838Z\",\"sessionVersion\":44,\"roles\":[\"CONTENT_MANAGER\",\"VIDEO_EDITOR\"]},\"updated\":{\"id\":\"USR-002\",\"name\":\"Surendra Reddy\",\"email\":\"seelamsurendrareddy999@gmail.com\",\"role\":\"VIDEO_EDITOR\",\"isActive\":true,\"password_hash\":\"scrypt$v1$de0a6642495121936eb9b62bba177e15$adbff50e5e9233f81b6b578e87e299e8d8bde5ad0f8c50d17edd17707a918f1e0d87b601c81af82726f4a6b3e780bfe97ff98c4a9f7a2da9d7a7b971cbeb4406\",\"last_login_at\":\"2026-09-20T20:35:12.837Z\",\"createdAt\":\"2026-09-11T12:34:14.870Z\",\"updatedAt\":\"2026-09-20T20:36:40.268Z\",\"sessionVersion\":45,\"roles\":[\"VIDEO_EDITOR\"]}}"
+    },
+    {
+      "id": "LOG-1789936616983-00008-h2tu-AUTH",
+      "timestamp": "2026-09-20T20:36:56.983Z",
+      "actorId": "USR-002",
+      "actorName": "Surendra Reddy",
+      "action": "LOGIN_SUCCESS",
+      "entityType": "SYSTEM",
+      "entityId": "AUTH",
+      "details": "{\"role\":\"VIDEO_EDITOR\",\"roles\":[\"VIDEO_EDITOR\"]}"
+    },
+    {
+      "id": "LOG-1789936744637-00009-8g8j-USR-002",
+      "timestamp": "2026-09-20T20:39:04.637Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "USER_UPDATED",
+      "entityType": "USER",
+      "entityId": "USR-002",
+      "details": "{\"previous\":{\"id\":\"USR-002\",\"name\":\"Surendra Reddy\",\"email\":\"seelamsurendrareddy999@gmail.com\",\"role\":\"VIDEO_EDITOR\",\"isActive\":true,\"password_hash\":\"scrypt$v1$de0a6642495121936eb9b62bba177e15$adbff50e5e9233f81b6b578e87e299e8d8bde5ad0f8c50d17edd17707a918f1e0d87b601c81af82726f4a6b3e780bfe97ff98c4a9f7a2da9d7a7b971cbeb4406\",\"last_login_at\":\"2026-09-20T20:36:56.487Z\",\"createdAt\":\"2026-09-11T12:34:14.870Z\",\"updatedAt\":\"2026-09-20T20:36:56.487Z\",\"sessionVersion\":45,\"roles\":[\"VIDEO_EDITOR\"]},\"updated\":{\"id\":\"USR-002\",\"name\":\"Surendra Reddy\",\"email\":\"seelamsurendrareddy999@gmail.com\",\"role\":\"VIDEO_EDITOR, CONTENT_MANAGER\",\"isActive\":true,\"password_hash\":\"scrypt$v1$de0a6642495121936eb9b62bba177e15$adbff50e5e9233f81b6b578e87e299e8d8bde5ad0f8c50d17edd17707a918f1e0d87b601c81af82726f4a6b3e780bfe97ff98c4a9f7a2da9d7a7b971cbeb4406\",\"last_login_at\":\"2026-09-20T20:36:56.487Z\",\"createdAt\":\"2026-09-11T12:34:14.870Z\",\"updatedAt\":\"2026-09-20T20:39:04.247Z\",\"sessionVersion\":46,\"roles\":[\"VIDEO_EDITOR\",\"CONTENT_MANAGER\"]}}"
+    },
+    {
+      "id": "LOG-1789936760671-00010-wsmo-AUTH",
+      "timestamp": "2026-09-20T20:39:20.671Z",
+      "actorId": "USR-002",
+      "actorName": "Surendra Reddy",
+      "action": "LOGIN_SUCCESS",
+      "entityType": "SYSTEM",
+      "entityId": "AUTH",
+      "details": "{\"role\":\"VIDEO_EDITOR\",\"roles\":[\"VIDEO_EDITOR\",\"CONTENT_MANAGER\"]}"
+    },
+    {
+      "id": "LOG-1789937273411-00001-tnie-BP-CNT-675485",
+      "timestamp": "2026-09-20T20:47:53.411Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "CREATE_CONTENT_MASTER",
+      "entityType": "CONTENT_MASTER",
+      "entityId": "BP-CNT-675485",
+      "details": "{\"title\":\"రాము ప్రతిరోజూ తన ఆఫీసుకి వెళ్లడానికి మెట్రో రైలును ఉపయోగిస్తాడు. అతను 40 కి.మీ/గం వేగంతో వెళ్తే, ఆఫ\"}"
+    },
+    {
+      "id": "LOG-1789937277485-00002-b6z0-BP-Q-000002",
+      "timestamp": "2026-09-20T20:47:57.485Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "QUESTION_CREATED",
+      "entityType": "QUESTION",
+      "entityId": "BP-Q-000002",
+      "details": "{\"creationMode\":\"ai\",\"questionId\":\"BP-Q-000002\",\"contentMasterId\":\"BP-CNT-675485\",\"categoryId\":\"\",\"topicId\":\"BP-TOP-001\",\"subtopicId\":\"BP-SUB-0001\",\"difficulty\":\"Intermediate\",\"challengeType\":\"ABCD\",\"presentationType\":\"Text\",\"language\":\"TELUGU\",\"questionStyle\":\"STORY_BASED\",\"idempotencyKey\":\"[REDACTED]\"}"
+    },
+    {
+      "id": "LOG-1789937279992-00003-hrcj-BP-Q-000002",
+      "timestamp": "2026-09-20T20:47:59.992Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "QUESTION_VALIDATION_STARTED",
+      "entityType": "QUESTION",
+      "entityId": "BP-Q-000002",
+      "details": "{\"statusBefore\":\"VALID\"}"
+    },
+    {
+      "id": "LOG-1789937287323-00004-7m1f-BP-Q-000002",
+      "timestamp": "2026-09-20T20:48:07.323Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "QUESTION_VALIDATION_COMPLETED",
+      "entityType": "QUESTION",
+      "entityId": "BP-Q-000002",
+      "details": "{\"validationId\":\"VAL-BP-Q-000002-1789937280372-YB5H8\",\"status\":\"VALID\",\"confidenceScore\":0.8,\"errorsCount\":0,\"warningsCount\":3}"
+    },
+    {
+      "id": "LOG-1789937407700-00005-226l-BP-Q-000002",
+      "timestamp": "2026-09-20T20:50:07.700Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "QUESTION_STATUS_CHANGED",
+      "entityType": "QUESTION",
+      "entityId": "BP-Q-000002",
+      "details": "{\"from\":\"GENERATED\",\"to\":\"APPROVED\",\"remarks\":\"Approved by Jithendra in Step 02 verification audit.\"}"
+    },
+    {
+      "id": "LOG-1789937412924-00006-z44z-BP-V-000002",
+      "timestamp": "2026-09-20T20:50:12.924Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "VIDEO_QUEUED",
+      "entityType": "VIDEO",
+      "entityId": "BP-V-000002",
+      "details": "{\"questionId\":\"BP-Q-000002\",\"priority\":\"NORMAL\"}"
+    },
+    {
+      "id": "LOG-1789937415577-00007-xcxp-BP-Q-000002",
+      "timestamp": "2026-09-20T20:50:15.577Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "QUESTION_VALIDATION_STARTED",
+      "entityType": "QUESTION",
+      "entityId": "BP-Q-000002",
+      "details": "{\"statusBefore\":\"VALID\"}"
+    },
+    {
+      "id": "LOG-1789937421653-00008-q2cb-BP-Q-000002",
+      "timestamp": "2026-09-20T20:50:21.653Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "QUESTION_VALIDATION_COMPLETED",
+      "entityType": "QUESTION",
+      "entityId": "BP-Q-000002",
+      "details": "{\"validationId\":\"VAL-BP-Q-000002-1789937415980-ZA2U7\",\"status\":\"VALID\",\"confidenceScore\":0.8,\"errorsCount\":0,\"warningsCount\":3}"
+    },
+    {
+      "id": "LOG-1789937557818-00001-cc0o-BP-CMT-000016",
+      "timestamp": "2026-09-20T20:52:37.818Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "CREATE_SOCIAL_COMMENT",
+      "entityType": "SOCIAL_COMMENTS",
+      "entityId": "BP-CMT-000016",
+      "details": "{\"contentId\":\"BP-CNT-954466\",\"videoId\":\"BP-V-954466\",\"platform\":\"youtube\",\"source\":\"MANUAL_PASTE\"}"
+    },
+    {
+      "id": "LOG-1789937559868-00002-bgrz-BP-CMT-000017",
+      "timestamp": "2026-09-20T20:52:39.868Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "CREATE_SOCIAL_COMMENT",
+      "entityType": "SOCIAL_COMMENTS",
+      "entityId": "BP-CMT-000017",
+      "details": "{\"contentId\":\"BP-CNT-954466\",\"videoId\":\"BP-V-954466\",\"platform\":\"youtube\",\"source\":\"MANUAL_PASTE\"}"
+    },
+    {
+      "id": "LOG-1789937564936-00003-q48o-BP-STR-000001",
+      "timestamp": "2026-09-20T20:52:44.936Z",
+      "actorId": "USER",
+      "actorName": "User",
+      "action": "STRATEGY_GENERATION",
+      "entityType": "CONTENT_STRATEGY",
+      "entityId": "BP-STR-000001",
+      "details": "{\"sourceReportId\":\"BP-SPI-000001\",\"isFallback\":false}"
+    },
+    {
+      "id": "LOG-1789937565259-00004-41b0-BP-STR-000001",
+      "timestamp": "2026-09-20T20:52:45.259Z",
+      "actorId": "USER",
+      "actorName": "User",
+      "action": "RECOMMENDATION_CREATION",
+      "entityType": "CONTENT_STRATEGY",
+      "entityId": "BP-STR-000001",
+      "details": "{\"topicId\":\"BP-TOP-001\",\"subtopicId\":\"BP-SUB-0001\",\"confidenceLevel\":\"LOW\"}"
+    },
+    {
+      "id": "LOG-1789937568619-00005-a89u-BP-STR-000001",
+      "timestamp": "2026-09-20T20:52:48.619Z",
+      "action": "APPLY_STRATEGY_RECOMMENDATION",
+      "entityType": "CONTENT_STRATEGY",
+      "entityId": "BP-STR-000001",
+      "details": "{\"contentPlanId\":\"BP-PLN-0001\",\"appliedParameters\":{\"topicId\":\"BP-TOP-001\",\"subtopicId\":\"BP-SUB-0001\",\"difficulty\":\"MEDIUM\"}}"
+    },
+    {
+      "id": "LOG-1789937636597-00001-4q9n-BP-CMT-000018",
+      "timestamp": "2026-09-20T20:53:56.597Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "CREATE_SOCIAL_COMMENT",
+      "entityType": "SOCIAL_COMMENTS",
+      "entityId": "BP-CMT-000018",
+      "details": "{\"contentId\":\"BP-CNT-293113\",\"videoId\":\"BP-V-293113\",\"platform\":\"youtube\",\"source\":\"MANUAL_PASTE\"}"
+    },
+    {
+      "id": "LOG-1789937638541-00002-q10m-BP-CMT-000019",
+      "timestamp": "2026-09-20T20:53:58.541Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "CREATE_SOCIAL_COMMENT",
+      "entityType": "SOCIAL_COMMENTS",
+      "entityId": "BP-CMT-000019",
+      "details": "{\"contentId\":\"BP-CNT-293113\",\"videoId\":\"BP-V-293113\",\"platform\":\"youtube\",\"source\":\"MANUAL_PASTE\"}"
+    },
+    {
+      "id": "LOG-1789937647113-00003-dvfi-BP-CMI-000019",
+      "timestamp": "2026-09-20T20:54:07.113Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "GENERATE_COMMENT_INTELLIGENCE",
+      "entityType": "COMMENT_INTELLIGENCE",
+      "entityId": "BP-CMI-000019",
+      "details": "{\"reportId\":\"BP-CMI-000019\",\"contentId\":\"BP-CNT-293113\",\"videoId\":\"BP-V-293113\",\"sourceCommentCount\":2,\"isFallbackMode\":false,\"modelUsed\":\"gemini-3.1-flash-lite\"}"
+    },
+    {
+      "id": "LOG-1789937651869-00004-30ke-BP-STR-000002",
+      "timestamp": "2026-09-20T20:54:11.869Z",
+      "actorId": "USER",
+      "actorName": "User",
+      "action": "STRATEGY_GENERATION",
+      "entityType": "CONTENT_STRATEGY",
+      "entityId": "BP-STR-000002",
+      "details": "{\"sourceReportId\":\"BP-SPI-000001\",\"isFallback\":false}"
+    },
+    {
+      "id": "LOG-1789937652193-00005-4gyn-BP-STR-000002",
+      "timestamp": "2026-09-20T20:54:12.193Z",
+      "actorId": "USER",
+      "actorName": "User",
+      "action": "RECOMMENDATION_CREATION",
+      "entityType": "CONTENT_STRATEGY",
+      "entityId": "BP-STR-000002",
+      "details": "{\"topicId\":\"BP-TOP-001\",\"subtopicId\":\"BP-SUB-0001\",\"confidenceLevel\":\"MEDIUM\"}"
+    },
+    {
+      "id": "LOG-1789937656357-00006-891p-BP-STR-000002",
+      "timestamp": "2026-09-20T20:54:16.357Z",
+      "actorId": "USER_ACTOR",
+      "actorName": "Human Content Strategist",
+      "action": "APPLY_STRATEGY_RECOMMENDATION",
+      "entityType": "CONTENT_STRATEGY",
+      "entityId": "BP-STR-000002",
+      "details": "{\"contentPlanId\":\"BP-PLN-0002\",\"appliedParameters\":{\"topicId\":\"BP-TOP-001\",\"subtopicId\":\"BP-SUB-0001\",\"difficulty\":\"MEDIUM\"}}"
+    },
+    {
+      "id": "LOG-1789937659927-00007-k74v-BP-STR-000003",
+      "timestamp": "2026-09-20T20:54:19.927Z",
+      "actorId": "USER",
+      "actorName": "User",
+      "action": "STRATEGY_GENERATION",
+      "entityType": "CONTENT_STRATEGY",
+      "entityId": "BP-STR-000003",
+      "details": "{\"sourceReportId\":\"BP-SPI-000001\",\"isFallback\":true}"
+    },
+    {
+      "id": "LOG-1789937660262-00008-vykb-BP-STR-000003",
+      "timestamp": "2026-09-20T20:54:20.262Z",
+      "actorId": "USER",
+      "actorName": "User",
+      "action": "RECOMMENDATION_CREATION",
+      "entityType": "CONTENT_STRATEGY",
+      "entityId": "BP-STR-000003",
+      "details": "{\"topicId\":\"BP-TOP-001\",\"subtopicId\":\"BP-SUB-0001\",\"confidenceLevel\":\"LOW\"}"
+    },
+    {
+      "id": "LOG-1789937679432-00001-mv2m-BP-CMT-000020",
+      "timestamp": "2026-09-20T20:54:39.432Z",
+      "actorId": "USR-TEST",
+      "actorName": "Test Tester",
+      "action": "CREATE_SOCIAL_COMMENT",
+      "entityType": "SOCIAL_COMMENTS",
+      "entityId": "BP-CMT-000020",
+      "details": "{\"contentId\":\"BP-CNT-300001\",\"videoId\":\"BP-V-300001\",\"platform\":\"youtube\",\"source\":\"MANUAL_PASTE\"}"
+    },
+    {
+      "id": "LOG-1789937681326-00002-un8e-BP-CMT-000020",
+      "timestamp": "2026-09-20T20:54:41.326Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "UPDATE_SOCIAL_COMMENT_METRICS",
+      "entityType": "SOCIAL_COMMENTS",
+      "entityId": "BP-CMT-000020",
+      "details": "{\"platform\":\"youtube\",\"platformCommentId\":\"yt-cmt-1001\",\"likeCount\":12,\"replyCount\":3,\"commentText\":\"This explanation of quadratic equations was incredibly clear and helpful! (Updated text)\"}"
+    },
+    {
+      "id": "LOG-1789937682884-00003-dkvi-BP-CMT-000021",
+      "timestamp": "2026-09-20T20:54:42.884Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "CREATE_SOCIAL_COMMENT",
+      "entityType": "SOCIAL_COMMENTS",
+      "entityId": "BP-CMT-000021",
+      "details": "{\"contentId\":\"BP-CNT-300001\",\"platform\":\"instagram\",\"source\":\"MANUAL_PASTE\"}"
+    },
+    {
+      "id": "LOG-1789937684431-00004-bqtz-BP-CMT-000022",
+      "timestamp": "2026-09-20T20:54:44.431Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "CREATE_SOCIAL_COMMENT",
+      "entityType": "SOCIAL_COMMENTS",
+      "entityId": "BP-CMT-000022",
+      "details": "{\"contentId\":\"BP-CNT-300001\",\"platform\":\"youtube\",\"source\":\"MANUAL_PASTE\"}"
+    },
+    {
+      "id": "LOG-1789937686007-00005-qj5n-BP-CMT-000023",
+      "timestamp": "2026-09-20T20:54:46.007Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "CREATE_SOCIAL_COMMENT",
+      "entityType": "SOCIAL_COMMENTS",
+      "entityId": "BP-CMT-000023",
+      "details": "{\"contentId\":\"BP-CNT-300002\",\"platform\":\"facebook\",\"source\":\"MANUAL_PASTE\"}"
+    },
+    {
+      "id": "LOG-1789937687630-00006-pars-BP-CMT-000024",
+      "timestamp": "2026-09-20T20:54:47.630Z",
+      "actorId": "USR-TEST",
+      "actorName": "Test Ingest",
+      "action": "CREATE_SOCIAL_COMMENT",
+      "entityType": "SOCIAL_COMMENTS",
+      "entityId": "BP-CMT-000024",
+      "details": "{\"contentId\":\"BP-CNT-300001\",\"platform\":\"youtube\",\"source\":\"MANUAL_PASTE\"}"
+    },
+    {
+      "id": "LOG-1789937689212-00007-d1n2-BP-CMT-000025",
+      "timestamp": "2026-09-20T20:54:49.212Z",
+      "actorId": "USR-TEST",
+      "actorName": "Test Ingest",
+      "action": "CREATE_SOCIAL_COMMENT",
+      "entityType": "SOCIAL_COMMENTS",
+      "entityId": "BP-CMT-000025",
+      "details": "{\"contentId\":\"BP-CNT-300001\",\"platform\":\"youtube\",\"source\":\"MANUAL_PASTE\"}"
+    },
+    {
+      "id": "LOG-1789937690110-00008-ql8w-BP-CMT-000024",
+      "timestamp": "2026-09-20T20:54:50.110Z",
+      "actorId": "USR-TEST",
+      "actorName": "Test Ingest",
+      "action": "UPDATE_SOCIAL_COMMENT_METRICS",
+      "entityType": "SOCIAL_COMMENTS",
+      "entityId": "BP-CMT-000024",
+      "details": "{\"platform\":\"youtube\",\"platformCommentId\":\"yt-batch-001\",\"likeCount\":10,\"commentText\":\"Batch comment one edited\"}"
+    },
+    {
+      "id": "LOG-1789937690441-00009-tt4k-BATCH-1789937690441",
+      "timestamp": "2026-09-20T20:54:50.441Z",
+      "actorId": "USR-TEST",
+      "actorName": "Test Ingest",
+      "action": "IMPORT_SOCIAL_COMMENTS_BATCH",
+      "entityType": "SOCIAL_COMMENTS",
+      "entityId": "BATCH-1789937690441",
+      "details": "{\"received\":5,\"created\":2,\"updated\":1,\"duplicates\":1,\"rejected\":2}"
+    },
+    {
+      "id": "LOG-1789937692073-00010-kgjn-BP-CMT-000026",
+      "timestamp": "2026-09-20T20:54:52.073Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "CREATE_SOCIAL_COMMENT",
+      "entityType": "SOCIAL_COMMENTS",
+      "entityId": "BP-CMT-000026",
+      "details": "{\"contentId\":\"BP-CNT-300001\",\"videoId\":\"BP-V-300001\",\"platform\":\"youtube\",\"source\":\"MANUAL_PASTE\"}"
+    },
+    {
+      "id": "LOG-1789937694178-00011-hw6u-BP-CMT-000027",
+      "timestamp": "2026-09-20T20:54:54.178Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "CREATE_SOCIAL_COMMENT",
+      "entityType": "SOCIAL_COMMENTS",
+      "entityId": "BP-CMT-000027",
+      "details": "{\"contentId\":\"BP-CNT-300001\",\"platform\":\"youtube\",\"source\":\"MANUAL_PASTE\"}"
+    },
+    {
+      "id": "LOG-1789937711475-00001-9d0c-BP-CMT-000029",
+      "timestamp": "2026-09-20T20:55:11.475Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "CREATE_SOCIAL_COMMENT",
+      "entityType": "SOCIAL_COMMENTS",
+      "entityId": "BP-CMT-000029",
+      "details": "{\"contentId\":\"BP-CNT-253072\",\"videoId\":\"BP-V-253072\",\"platform\":\"youtube\",\"source\":\"MANUAL_PASTE\"}"
+    },
+    {
+      "id": "LOG-1789937713475-00002-2ced-BP-CMT-000030",
+      "timestamp": "2026-09-20T20:55:13.475Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "CREATE_SOCIAL_COMMENT",
+      "entityType": "SOCIAL_COMMENTS",
+      "entityId": "BP-CMT-000030",
+      "details": "{\"contentId\":\"BP-CNT-253072\",\"videoId\":\"BP-V-253072\",\"platform\":\"youtube\",\"source\":\"MANUAL_PASTE\"}"
+    },
+    {
+      "id": "LOG-1789937715065-00003-qw8g-BP-CMT-000031",
+      "timestamp": "2026-09-20T20:55:15.065Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "CREATE_SOCIAL_COMMENT",
+      "entityType": "SOCIAL_COMMENTS",
+      "entityId": "BP-CMT-000031",
+      "details": "{\"contentId\":\"BP-CNT-253072\",\"platform\":\"instagram\",\"source\":\"MANUAL_PASTE\"}"
+    },
+    {
+      "id": "LOG-1789937716643-00004-hdwp-BP-CMT-000032",
+      "timestamp": "2026-09-20T20:55:16.643Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "CREATE_SOCIAL_COMMENT",
+      "entityType": "SOCIAL_COMMENTS",
+      "entityId": "BP-CMT-000032",
+      "details": "{\"contentId\":\"BP-CNT-253072\",\"platform\":\"facebook\",\"source\":\"MANUAL_PASTE\"}"
+    },
+    {
+      "id": "LOG-1789937718218-00005-5ug4-BP-CMT-000033",
+      "timestamp": "2026-09-20T20:55:18.218Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "CREATE_SOCIAL_COMMENT",
+      "entityType": "SOCIAL_COMMENTS",
+      "entityId": "BP-CMT-000033",
+      "details": "{\"contentId\":\"BP-CNT-253072\",\"platform\":\"youtube\",\"source\":\"MANUAL_PASTE\"}"
+    },
+    {
+      "id": "LOG-1789937722715-00006-v24a-BP-CMI-000022",
+      "timestamp": "2026-09-20T20:55:22.715Z",
+      "actorId": "USR-TEST-01",
+      "actorName": "Test Analyst",
+      "action": "GENERATE_COMMENT_INTELLIGENCE",
+      "entityType": "COMMENT_INTELLIGENCE",
+      "entityId": "BP-CMI-000022",
+      "details": "{\"reportId\":\"BP-CMI-000022\",\"contentId\":\"BP-CNT-253072\",\"sourceCommentCount\":4,\"isFallbackMode\":true,\"modelUsed\":\"DETERMINISTIC_RULE_ENGINE\"}"
+    },
+    {
+      "id": "LOG-1789937724878-00007-2qqx-BP-CMI-000023",
+      "timestamp": "2026-09-20T20:55:24.878Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "GENERATE_COMMENT_INTELLIGENCE",
+      "entityType": "COMMENT_INTELLIGENCE",
+      "entityId": "BP-CMI-000023",
+      "details": "{\"reportId\":\"BP-CMI-000023\",\"contentId\":\"BP-CNT-253072\",\"videoId\":\"BP-V-253072\",\"sourceCommentCount\":2,\"isFallbackMode\":true,\"modelUsed\":\"DETERMINISTIC_RULE_ENGINE\"}"
+    },
+    {
+      "id": "LOG-1789937726524-00008-ay13-BP-CMI-000024",
+      "timestamp": "2026-09-20T20:55:26.524Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "GENERATE_COMMENT_INTELLIGENCE",
+      "entityType": "COMMENT_INTELLIGENCE",
+      "entityId": "BP-CMI-000024",
+      "details": "{\"reportId\":\"BP-CMI-000024\",\"contentId\":\"BP-CNT-253072\",\"sourceCommentCount\":2,\"isFallbackMode\":true,\"modelUsed\":\"DETERMINISTIC_RULE_ENGINE\"}"
+    },
+    {
+      "id": "LOG-1789937728729-00009-x8pi-BP-CMI-000025",
+      "timestamp": "2026-09-20T20:55:28.729Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "GENERATE_COMMENT_INTELLIGENCE",
+      "entityType": "COMMENT_INTELLIGENCE",
+      "entityId": "BP-CMI-000025",
+      "details": "{\"reportId\":\"BP-CMI-000025\",\"contentId\":\"BP-CNT-253073\",\"sourceCommentCount\":0,\"isFallbackMode\":true,\"modelUsed\":\"DETERMINISTIC_RULE_ENGINE\"}"
+    },
+    {
+      "id": "LOG-1789937730285-00010-82pi-BP-CMI-000026",
+      "timestamp": "2026-09-20T20:55:30.285Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "GENERATE_COMMENT_INTELLIGENCE",
+      "entityType": "COMMENT_INTELLIGENCE",
+      "entityId": "BP-CMI-000026",
+      "details": "{\"reportId\":\"BP-CMI-000026\",\"contentId\":\"BP-CNT-253072\",\"sourceCommentCount\":4,\"isFallbackMode\":true,\"modelUsed\":\"DETERMINISTIC_RULE_ENGINE\"}"
+    },
+    {
+      "id": "LOG-1789937739850-00001-gfpe-BP-ANL-000013",
+      "timestamp": "2026-09-20T20:55:39.850Z",
+      "actorId": "ACT-ADMIN",
+      "actorName": "Admin User",
+      "action": "ANALYTICS_RECORD_CREATED",
+      "entityType": "SOCIAL_ANALYTICS",
+      "entityId": "BP-ANL-000013",
+      "details": "{\"contentId\":\"BP-CNT-270001\",\"platform\":\"youtube\",\"views\":12500}"
+    },
+    {
+      "id": "LOG-1789937742639-00002-3wh2-BP-ANL-000014",
+      "timestamp": "2026-09-20T20:55:42.639Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "ANALYTICS_RECORD_CREATED",
+      "entityType": "SOCIAL_ANALYTICS",
+      "entityId": "BP-ANL-000014",
+      "details": "{\"contentId\":\"BP-CNT-270002\",\"platform\":\"YouTube\",\"views\":300}"
+    },
+    {
+      "id": "LOG-1789937744327-00003-n9nb-BP-ANL-000015",
+      "timestamp": "2026-09-20T20:55:44.327Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "ANALYTICS_RECORD_CREATED",
+      "entityType": "SOCIAL_ANALYTICS",
+      "entityId": "BP-ANL-000015",
+      "details": "{\"contentId\":\"BP-CNT-270002\",\"platform\":\"Instagram\",\"views\":500}"
+    },
+    {
+      "id": "LOG-1789937746703-00004-obrt-BP-ANL-000016",
+      "timestamp": "2026-09-20T20:55:46.703Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "ANALYTICS_RECORD_CREATED",
+      "entityType": "SOCIAL_ANALYTICS",
+      "entityId": "BP-ANL-000016",
+      "details": "{\"contentId\":\"BP-CNT-270003\",\"platform\":\"facebook\",\"views\":1000}"
+    },
+    {
+      "id": "LOG-1789937748276-00005-p907-BP-ANL-000017",
+      "timestamp": "2026-09-20T20:55:48.276Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "ANALYTICS_RECORD_CREATED",
+      "entityType": "SOCIAL_ANALYTICS",
+      "entityId": "BP-ANL-000017",
+      "details": "{\"contentId\":\"BP-CNT-270003\",\"platform\":\"facebook\",\"views\":2500}"
+    },
+    {
+      "id": "LOG-1789937756593-00009-kib5-BP-S-000002",
+      "timestamp": "2026-09-20T20:55:56.593Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "CREATE_SCRIPT",
+      "entityType": "SCRIPT",
+      "entityId": "BP-S-000002",
+      "details": "{\"videoId\":\"BP-V-000002\",\"versionNumber\":1}"
+    },
+    {
+      "id": "LOG-1789937756697-00010-nage-BP-PIN-000001",
+      "timestamp": "2026-09-20T20:55:56.697Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "CREATE_PINNED_COMMENT",
+      "entityType": "PINNED_COMMENT",
+      "entityId": "BP-PIN-000001",
+      "details": "{\"videoId\":\"BP-V-000002\",\"isApproved\":true}"
+    },
+    {
+      "id": "LOG-1789937758921-00011-05m7-BP-S-000002",
+      "timestamp": "2026-09-20T20:55:58.921Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "MARK_SCRIPT_READY",
+      "entityType": "SCRIPT",
+      "entityId": "BP-S-000002",
+      "details": "{\"videoId\":\"BP-V-000002\",\"remarks\":\"Script finalized via Audience Engagement Script Engine\"}"
+    },
+    {
+      "id": "LOG-1789937749240-00006-enpi-BULK-1789937749240",
+      "timestamp": "2026-09-20T20:55:49.240Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "ANALYTICS_BULK_IMPORTED",
+      "entityType": "SOCIAL_ANALYTICS",
+      "entityId": "BULK-1789937749240",
+      "details": "{\"totalImported\":2,\"totalFailed\":0}"
+    },
+    {
+      "id": "LOG-1789937789638-00007-7ebd-BP-ANL-000018",
+      "timestamp": "2026-09-20T20:56:29.638Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "ANALYTICS_RECORD_CREATED",
+      "entityType": "SOCIAL_ANALYTICS",
+      "entityId": "BP-ANL-000018",
+      "details": "{\"contentId\":\"BP-CNT-270005\",\"platform\":\"youtube\",\"views\":500}"
+    },
+    {
+      "id": "LOG-1789937791647-00008-f3k2-BP-ANL-000019",
+      "timestamp": "2026-09-20T20:56:31.647Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "ANALYTICS_RECORD_CREATED",
+      "entityType": "SOCIAL_ANALYTICS",
+      "entityId": "BP-ANL-000019",
+      "details": "{\"contentId\":\"BP-CNT-270006\",\"platform\":\"instagram\",\"views\":99}"
+    },
+    {
+      "id": "LOG-1789937793238-00009-p5jd-BP-ANL-000020",
+      "timestamp": "2026-09-20T20:56:33.238Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "ANALYTICS_RECORD_CREATED",
+      "entityType": "SOCIAL_ANALYTICS",
+      "entityId": "BP-ANL-000020",
+      "details": "{\"contentId\":\"BP-CNT-270007\",\"platform\":\"facebook\",\"views\":12000}"
+    },
+    {
+      "id": "LOG-1789937795105-00010-6nbh-BP-ANL-000021",
+      "timestamp": "2026-09-20T20:56:35.105Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "ANALYTICS_RECORD_CREATED",
+      "entityType": "SOCIAL_ANALYTICS",
+      "entityId": "BP-ANL-000021",
+      "details": "{\"contentId\":\"BP-CNT-270009\",\"platform\":\"facebook\",\"views\":6500}"
+    },
+    {
+      "id": "LOG-1789937811848-00001-vcwh-BP-ANL-000022",
+      "timestamp": "2026-09-20T20:56:51.848Z",
+      "actorId": "USR-TEST-P28",
+      "actorName": "Test Agent",
+      "action": "ANALYTICS_RECORD_CREATED",
+      "entityType": "SOCIAL_ANALYTICS",
+      "entityId": "BP-ANL-000022",
+      "details": "{\"contentId\":\"BP-CNT-280001\",\"platform\":\"youtube_shorts\",\"views\":15000}"
+    },
+    {
+      "id": "LOG-1789937815373-00002-yryb-BP-ANL-000023",
+      "timestamp": "2026-09-20T20:56:55.373Z",
+      "actorId": "USR-TEST-P28",
+      "actorName": "Test Agent",
+      "action": "ANALYTICS_RECORD_CREATED",
+      "entityType": "SOCIAL_ANALYTICS",
+      "entityId": "BP-ANL-000023",
+      "details": "{\"contentId\":\"BP-CNT-280002\",\"platform\":\"instagram_reels\",\"views\":5000}"
+    },
+    {
+      "id": "LOG-1789937817917-00003-lyid-BP-SPI-000002",
+      "timestamp": "2026-09-20T20:56:57.917Z",
+      "actorId": "USR-TEST-P28",
+      "actorName": "Test Agent",
+      "action": "CREATE_INTELLIGENCE_REPORT",
+      "entityType": "SOCIAL_PERFORMANCE_INTELLIGENCE",
+      "entityId": "BP-SPI-000002",
+      "details": "{\"reportId\":\"BP-SPI-000002\",\"recordCount\":23,\"isFallbackMode\":true,\"modelUsed\":\"DETERMINISTIC_RULE_ENGINE\"}"
+    },
+    {
+      "id": "LOG-1789937819521-00004-qbrf-BP-SPI-000003",
+      "timestamp": "2026-09-20T20:56:59.521Z",
+      "actorId": "USR-TEST-P28",
+      "actorName": "Test Agent",
+      "action": "CREATE_INTELLIGENCE_REPORT",
+      "entityType": "SOCIAL_PERFORMANCE_INTELLIGENCE",
+      "entityId": "BP-SPI-000003",
+      "details": "{\"reportId\":\"BP-SPI-000003\",\"recordCount\":23,\"isFallbackMode\":true,\"modelUsed\":\"DETERMINISTIC_RULE_ENGINE\"}"
+    },
+    {
+      "id": "LOG-1789937822569-00005-qmac-BP-SPI-000004",
+      "timestamp": "2026-09-20T20:57:02.569Z",
+      "actorId": "USR-TEST-P28",
+      "actorName": "Test Agent",
+      "action": "CREATE_INTELLIGENCE_REPORT",
+      "entityType": "SOCIAL_PERFORMANCE_INTELLIGENCE",
+      "entityId": "BP-SPI-000004",
+      "details": "{\"reportId\":\"BP-SPI-000004\",\"recordCount\":23,\"isFallbackMode\":true,\"modelUsed\":\"DETERMINISTIC_RULE_ENGINE\"}"
+    },
+    {
+      "id": "LOG-1789937824170-00006-g1bi-BP-SPI-000005",
+      "timestamp": "2026-09-20T20:57:04.170Z",
+      "actorId": "USR-TEST-P28",
+      "actorName": "Test Agent",
+      "action": "CREATE_INTELLIGENCE_REPORT",
+      "entityType": "SOCIAL_PERFORMANCE_INTELLIGENCE",
+      "entityId": "BP-SPI-000005",
+      "details": "{\"reportId\":\"BP-SPI-000005\",\"recordCount\":23,\"isFallbackMode\":false,\"modelUsed\":\"gemini-3.8-flash\"}"
+    },
+    {
+      "id": "LOG-1789937825553-00007-u99s-BP-SPI-000002",
+      "timestamp": "2026-09-20T20:57:05.553Z",
+      "actorId": "USR-TEST-P28",
+      "actorName": "Test Agent",
+      "action": "APPLY_STRATEGY_RECOMMENDATION",
+      "entityType": "SOCIAL_PERFORMANCE_INTELLIGENCE",
+      "entityId": "BP-SPI-000002",
+      "details": "{\"recommendationId\":\"REC-BP-SPI-000002-01\",\"appliedParameters\":{\"topicId\":\"TP-MATH\",\"subtopicId\":\"STP-ALGEBRA\",\"difficulty\":\"EASY\"}}"
+    },
+    {
+      "id": "LOG-1789937858185-00001-4iiv-BP-SPI-000006",
+      "timestamp": "2026-09-20T20:57:38.185Z",
+      "actorId": "USR-TEST-P28",
+      "actorName": "Test Agent",
+      "action": "CREATE_INTELLIGENCE_REPORT",
+      "entityType": "SOCIAL_PERFORMANCE_INTELLIGENCE",
+      "entityId": "BP-SPI-000006",
+      "details": "{\"reportId\":\"BP-SPI-000006\",\"recordCount\":23,\"isFallbackMode\":true,\"modelUsed\":\"DETERMINISTIC_RULE_ENGINE\"}"
+    },
+    {
+      "id": "LOG-1789937860248-00002-l23c-BP-SPI-000007",
+      "timestamp": "2026-09-20T20:57:40.248Z",
+      "actorId": "USR-TEST-P28",
+      "actorName": "Test Agent",
+      "action": "CREATE_INTELLIGENCE_REPORT",
+      "entityType": "SOCIAL_PERFORMANCE_INTELLIGENCE",
+      "entityId": "BP-SPI-000007",
+      "details": "{\"reportId\":\"BP-SPI-000007\",\"recordCount\":1,\"isFallbackMode\":true,\"modelUsed\":\"DETERMINISTIC_RULE_ENGINE\"}"
+    },
+    {
+      "id": "LOG-1789937862092-00003-ee74-BP-SPI-000008",
+      "timestamp": "2026-09-20T20:57:42.092Z",
+      "actorId": "USR-TEST-P28",
+      "actorName": "Test Agent",
+      "action": "CREATE_INTELLIGENCE_REPORT",
+      "entityType": "SOCIAL_PERFORMANCE_INTELLIGENCE",
+      "entityId": "BP-SPI-000008",
+      "details": "{\"reportId\":\"BP-SPI-000008\",\"recordCount\":23,\"isFallbackMode\":true,\"modelUsed\":\"DETERMINISTIC_RULE_ENGINE\"}"
+    },
+    {
+      "id": "LOG-1789937864633-00004-33tg-BP-SPI-000009",
+      "timestamp": "2026-09-20T20:57:44.633Z",
+      "actorId": "USR-TEST-P28",
+      "actorName": "Test Agent",
+      "action": "CREATE_INTELLIGENCE_REPORT",
+      "entityType": "SOCIAL_PERFORMANCE_INTELLIGENCE",
+      "entityId": "BP-SPI-000009",
+      "details": "{\"reportId\":\"BP-SPI-000009\",\"recordCount\":23,\"isFallbackMode\":true,\"modelUsed\":\"DETERMINISTIC_RULE_ENGINE\"}"
+    },
+    {
+      "id": "LOG-1789937866195-00005-m0ug-BP-SPI-000010",
+      "timestamp": "2026-09-20T20:57:46.195Z",
+      "actorId": "USR-TEST-P28",
+      "actorName": "Test Agent",
+      "action": "CREATE_INTELLIGENCE_REPORT",
+      "entityType": "SOCIAL_PERFORMANCE_INTELLIGENCE",
+      "entityId": "BP-SPI-000010",
+      "details": "{\"reportId\":\"BP-SPI-000010\",\"recordCount\":23,\"isFallbackMode\":false,\"modelUsed\":\"gemini-3.8-flash\"}"
+    },
+    {
+      "id": "LOG-1789937867510-00006-yecn-BP-SPI-000006",
+      "timestamp": "2026-09-20T20:57:47.510Z",
+      "actorId": "USR-TEST-P28",
+      "actorName": "Test Agent",
+      "action": "APPLY_STRATEGY_RECOMMENDATION",
+      "entityType": "SOCIAL_PERFORMANCE_INTELLIGENCE",
+      "entityId": "BP-SPI-000006",
+      "details": "{\"recommendationId\":\"REC-BP-SPI-000006-01\",\"appliedParameters\":{\"topicId\":\"TP-MATH\",\"subtopicId\":\"STP-ALGEBRA\",\"difficulty\":\"EASY\"}}"
+    },
+    {
+      "id": "LOG-1789937886512-00001-j4eh-BP-ANL-000024",
+      "timestamp": "2026-09-20T20:58:06.512Z",
+      "actorId": "USR-TEST-P28",
+      "actorName": "Test Agent",
+      "action": "ANALYTICS_RECORD_CREATED",
+      "entityType": "SOCIAL_ANALYTICS",
+      "entityId": "BP-ANL-000024",
+      "details": "{\"contentId\":\"BP-CNT-280001\",\"platform\":\"youtube_shorts\",\"views\":15000}"
+    },
+    {
+      "id": "LOG-1789937888359-00002-chc7-BP-ANL-000025",
+      "timestamp": "2026-09-20T20:58:08.358Z",
+      "actorId": "USR-TEST-P28",
+      "actorName": "Test Agent",
+      "action": "ANALYTICS_RECORD_CREATED",
+      "entityType": "SOCIAL_ANALYTICS",
+      "entityId": "BP-ANL-000025",
+      "details": "{\"contentId\":\"BP-CNT-280002\",\"platform\":\"instagram_reels\",\"views\":5000}"
+    },
+    {
+      "id": "LOG-1789937890514-00003-0mmm-BP-SPI-000011",
+      "timestamp": "2026-09-20T20:58:10.514Z",
+      "actorId": "USR-TEST-P28",
+      "actorName": "Test Agent",
+      "action": "CREATE_INTELLIGENCE_REPORT",
+      "entityType": "SOCIAL_PERFORMANCE_INTELLIGENCE",
+      "entityId": "BP-SPI-000011",
+      "details": "{\"reportId\":\"BP-SPI-000011\",\"recordCount\":25,\"isFallbackMode\":true,\"modelUsed\":\"DETERMINISTIC_RULE_ENGINE\"}"
+    },
+    {
+      "id": "LOG-1789937892107-00004-yobm-BP-SPI-000012",
+      "timestamp": "2026-09-20T20:58:12.107Z",
+      "actorId": "USR-TEST-P28",
+      "actorName": "Test Agent",
+      "action": "CREATE_INTELLIGENCE_REPORT",
+      "entityType": "SOCIAL_PERFORMANCE_INTELLIGENCE",
+      "entityId": "BP-SPI-000012",
+      "details": "{\"reportId\":\"BP-SPI-000012\",\"recordCount\":2,\"isFallbackMode\":true,\"modelUsed\":\"DETERMINISTIC_RULE_ENGINE\"}"
+    },
+    {
+      "id": "LOG-1789937893980-00005-k6ej-BP-SPI-000013",
+      "timestamp": "2026-09-20T20:58:13.980Z",
+      "actorId": "USR-TEST-P28",
+      "actorName": "Test Agent",
+      "action": "CREATE_INTELLIGENCE_REPORT",
+      "entityType": "SOCIAL_PERFORMANCE_INTELLIGENCE",
+      "entityId": "BP-SPI-000013",
+      "details": "{\"reportId\":\"BP-SPI-000013\",\"recordCount\":25,\"isFallbackMode\":true,\"modelUsed\":\"DETERMINISTIC_RULE_ENGINE\"}"
+    },
+    {
+      "id": "LOG-1789937896540-00006-6mui-BP-SPI-000014",
+      "timestamp": "2026-09-20T20:58:16.540Z",
+      "actorId": "USR-TEST-P28",
+      "actorName": "Test Agent",
+      "action": "CREATE_INTELLIGENCE_REPORT",
+      "entityType": "SOCIAL_PERFORMANCE_INTELLIGENCE",
+      "entityId": "BP-SPI-000014",
+      "details": "{\"reportId\":\"BP-SPI-000014\",\"recordCount\":25,\"isFallbackMode\":true,\"modelUsed\":\"DETERMINISTIC_RULE_ENGINE\"}"
+    },
+    {
+      "id": "LOG-1789937898221-00007-y4yx-BP-SPI-000015",
+      "timestamp": "2026-09-20T20:58:18.221Z",
+      "actorId": "USR-TEST-P28",
+      "actorName": "Test Agent",
+      "action": "CREATE_INTELLIGENCE_REPORT",
+      "entityType": "SOCIAL_PERFORMANCE_INTELLIGENCE",
+      "entityId": "BP-SPI-000015",
+      "details": "{\"reportId\":\"BP-SPI-000015\",\"recordCount\":25,\"isFallbackMode\":false,\"modelUsed\":\"gemini-3.8-flash\"}"
+    },
+    {
+      "id": "LOG-1789937900302-00008-zihk-BP-SPI-000011",
+      "timestamp": "2026-09-20T20:58:20.302Z",
+      "actorId": "USR-TEST-P28",
+      "actorName": "Test Agent",
+      "action": "APPLY_STRATEGY_RECOMMENDATION",
+      "entityType": "SOCIAL_PERFORMANCE_INTELLIGENCE",
+      "entityId": "BP-SPI-000011",
+      "details": "{\"recommendationId\":\"REC-BP-SPI-000011-01\",\"appliedParameters\":{\"topicId\":\"TP-MATH\",\"subtopicId\":\"STP-ALGEBRA\",\"difficulty\":\"EASY\"}}"
+    },
+    {
+      "id": "LOG-1789937911152-00001-xqag-BP-SPI-000015",
+      "timestamp": "2026-09-20T20:58:31.152Z",
+      "actorId": "TEST-USER-01",
+      "actorName": "Test Creator",
+      "action": "APPLY_STRATEGY_RECOMMENDATION",
+      "entityType": "SOCIAL_PERFORMANCE_INTELLIGENCE",
+      "entityId": "BP-SPI-000015",
+      "details": "{\"recommendationId\":\"REC-BP-SPI-000015-TOP-01\",\"appliedParameters\":{\"targetPlatform\":\"youtube_shorts\"}}"
+    },
+    {
+      "id": "LOG-1789937913320-00002-vdql-BP-SPI-888888",
+      "timestamp": "2026-09-20T20:58:33.320Z",
+      "actorId": "TEST-USER-02",
+      "actorName": "Test Creator",
+      "action": "APPLY_STRATEGY_RECOMMENDATION",
+      "entityType": "SOCIAL_PERFORMANCE_INTELLIGENCE",
+      "entityId": "BP-SPI-888888",
+      "details": "{\"recommendationId\":\"REC-BP-SPI-888888-PT-01\",\"appliedParameters\":{\"targetPlatform\":\"youtube_shorts\",\"recommendedPostingWindow\":\"SUNDAY 18:00 - 21:00 UTC\"}}"
+    },
+    {
+      "id": "LOG-1789937927135-00001-h73d-BP-CMT-000034",
+      "timestamp": "2026-09-20T20:58:47.135Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "CREATE_SOCIAL_COMMENT",
+      "entityType": "SOCIAL_COMMENTS",
+      "entityId": "BP-CMT-000034",
+      "details": "{\"contentId\":\"BP-CNT-813799\",\"videoId\":\"BP-V-813799\",\"platform\":\"youtube\",\"source\":\"MANUAL_PASTE\"}"
+    },
+    {
+      "id": "LOG-1789937929048-00002-9xmn-BP-CMT-000035",
+      "timestamp": "2026-09-20T20:58:49.048Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "CREATE_SOCIAL_COMMENT",
+      "entityType": "SOCIAL_COMMENTS",
+      "entityId": "BP-CMT-000035",
+      "details": "{\"contentId\":\"BP-CNT-813799\",\"videoId\":\"BP-V-813799\",\"platform\":\"youtube\",\"source\":\"MANUAL_PASTE\"}"
+    },
+    {
+      "id": "LOG-1789937935847-00003-jfv8-BP-CMI-000027",
+      "timestamp": "2026-09-20T20:58:55.847Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "GENERATE_COMMENT_INTELLIGENCE",
+      "entityType": "COMMENT_INTELLIGENCE",
+      "entityId": "BP-CMI-000027",
+      "details": "{\"reportId\":\"BP-CMI-000027\",\"contentId\":\"BP-CNT-813799\",\"videoId\":\"BP-V-813799\",\"sourceCommentCount\":2,\"isFallbackMode\":false,\"modelUsed\":\"gemini-3.1-flash-lite\"}"
+    },
+    {
+      "id": "LOG-1789937941445-00004-35dk-BP-STR-000004",
+      "timestamp": "2026-09-20T20:59:01.445Z",
+      "actorId": "USER",
+      "actorName": "User",
+      "action": "STRATEGY_GENERATION",
+      "entityType": "CONTENT_STRATEGY",
+      "entityId": "BP-STR-000004",
+      "details": "{\"sourceReportId\":\"BP-SPI-888888\",\"isFallback\":false}"
+    },
+    {
+      "id": "LOG-1789937941957-00005-6vgu-BP-STR-000004",
+      "timestamp": "2026-09-20T20:59:01.957Z",
+      "actorId": "USER",
+      "actorName": "User",
+      "action": "RECOMMENDATION_CREATION",
+      "entityType": "CONTENT_STRATEGY",
+      "entityId": "BP-STR-000004",
+      "details": "{\"topicId\":\"TP-MATH\",\"subtopicId\":\"STP-ALGEBRA\",\"confidenceLevel\":\"HIGH\"}"
+    },
+    {
+      "id": "LOG-1789937945216-00006-lt8c-BP-STR-000004",
+      "timestamp": "2026-09-20T20:59:05.216Z",
+      "actorId": "USER_ACTOR",
+      "actorName": "Human Content Strategist",
+      "action": "APPLY_STRATEGY_RECOMMENDATION",
+      "entityType": "CONTENT_STRATEGY",
+      "entityId": "BP-STR-000004",
+      "details": "{\"contentPlanId\":\"BP-PLN-0003\",\"appliedParameters\":{\"topicId\":\"TP-MATH\",\"subtopicId\":\"STP-ALGEBRA\",\"difficulty\":\"MEDIUM\"}}"
+    },
+    {
+      "id": "LOG-1789937948616-00007-7xvp-BP-STR-000005",
+      "timestamp": "2026-09-20T20:59:08.616Z",
+      "actorId": "USER",
+      "actorName": "User",
+      "action": "STRATEGY_GENERATION",
+      "entityType": "CONTENT_STRATEGY",
+      "entityId": "BP-STR-000005",
+      "details": "{\"sourceReportId\":\"BP-SPI-888888\",\"isFallback\":true}"
+    },
+    {
+      "id": "LOG-1789937949120-00008-6ul6-BP-STR-000005",
+      "timestamp": "2026-09-20T20:59:09.120Z",
+      "actorId": "USER",
+      "actorName": "User",
+      "action": "RECOMMENDATION_CREATION",
+      "entityType": "CONTENT_STRATEGY",
+      "entityId": "BP-STR-000005",
+      "details": "{\"topicId\":\"TP-MATH\",\"subtopicId\":\"STP-ALGEBRA\",\"confidenceLevel\":\"MEDIUM\"}"
+    },
+    {
+      "id": "LOG-1789938389015-00001-irhb-BP-ANL-000027",
+      "timestamp": "2026-09-20T21:06:29.015Z",
+      "actorId": "ACT-ADMIN",
+      "actorName": "Admin User",
+      "action": "ANALYTICS_RECORD_CREATED",
+      "entityType": "SOCIAL_ANALYTICS",
+      "entityId": "BP-ANL-000027",
+      "details": "{\"contentId\":\"BP-CNT-270001\",\"platform\":\"youtube\",\"views\":12500}"
+    },
+    {
+      "id": "LOG-1789938391501-00002-lcmd-BP-ANL-000028",
+      "timestamp": "2026-09-20T21:06:31.501Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "ANALYTICS_RECORD_CREATED",
+      "entityType": "SOCIAL_ANALYTICS",
+      "entityId": "BP-ANL-000028",
+      "details": "{\"contentId\":\"BP-CNT-270002\",\"platform\":\"YouTube\",\"views\":300}"
+    },
+    {
+      "id": "LOG-1789938393139-00003-gja8-BP-ANL-000029",
+      "timestamp": "2026-09-20T21:06:33.139Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "ANALYTICS_RECORD_CREATED",
+      "entityType": "SOCIAL_ANALYTICS",
+      "entityId": "BP-ANL-000029",
+      "details": "{\"contentId\":\"BP-CNT-270002\",\"platform\":\"Instagram\",\"views\":500}"
+    },
+    {
+      "id": "LOG-1789938395039-00004-7e4y-BP-ANL-000030",
+      "timestamp": "2026-09-20T21:06:35.039Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "ANALYTICS_RECORD_CREATED",
+      "entityType": "SOCIAL_ANALYTICS",
+      "entityId": "BP-ANL-000030",
+      "details": "{\"contentId\":\"BP-CNT-270003\",\"platform\":\"facebook\",\"views\":1000}"
+    },
+    {
+      "id": "LOG-1789938396590-00005-a5ov-BP-ANL-000031",
+      "timestamp": "2026-09-20T21:06:36.590Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "ANALYTICS_RECORD_CREATED",
+      "entityType": "SOCIAL_ANALYTICS",
+      "entityId": "BP-ANL-000031",
+      "details": "{\"contentId\":\"BP-CNT-270003\",\"platform\":\"facebook\",\"views\":2500}"
+    },
+    {
+      "id": "LOG-1789938397547-00006-zky7-BULK-1789938397547",
+      "timestamp": "2026-09-20T21:06:37.547Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "ANALYTICS_BULK_IMPORTED",
+      "entityType": "SOCIAL_ANALYTICS",
+      "entityId": "BULK-1789938397547",
+      "details": "{\"totalImported\":2,\"totalFailed\":0}"
+    },
+    {
+      "id": "LOG-1789938398843-00007-ps3o-BP-ANL-000032",
+      "timestamp": "2026-09-20T21:06:38.843Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "ANALYTICS_RECORD_CREATED",
+      "entityType": "SOCIAL_ANALYTICS",
+      "entityId": "BP-ANL-000032",
+      "details": "{\"contentId\":\"BP-CNT-270005\",\"platform\":\"youtube\",\"views\":500}"
+    },
+    {
+      "id": "LOG-1789938400385-00008-jk3s-BP-ANL-000033",
+      "timestamp": "2026-09-20T21:06:40.385Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "ANALYTICS_RECORD_CREATED",
+      "entityType": "SOCIAL_ANALYTICS",
+      "entityId": "BP-ANL-000033",
+      "details": "{\"contentId\":\"BP-CNT-270006\",\"platform\":\"instagram\",\"views\":99}"
+    },
+    {
+      "id": "LOG-1789938402229-00009-a8y4-BP-ANL-000034",
+      "timestamp": "2026-09-20T21:06:42.229Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "ANALYTICS_RECORD_CREATED",
+      "entityType": "SOCIAL_ANALYTICS",
+      "entityId": "BP-ANL-000034",
+      "details": "{\"contentId\":\"BP-CNT-270007\",\"platform\":\"facebook\",\"views\":12000}"
+    },
+    {
+      "id": "LOG-1789938403764-00010-s27x-BP-ANL-000035",
+      "timestamp": "2026-09-20T21:06:43.764Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "ANALYTICS_RECORD_CREATED",
+      "entityType": "SOCIAL_ANALYTICS",
+      "entityId": "BP-ANL-000035",
+      "details": "{\"contentId\":\"BP-CNT-270009\",\"platform\":\"facebook\",\"views\":6500}"
+    },
+    {
+      "id": "LOG-1789938415332-00001-1yuz-BP-ANL-000036",
+      "timestamp": "2026-09-20T21:06:55.332Z",
+      "actorId": "USR-TEST-P28",
+      "actorName": "Test Agent",
+      "action": "ANALYTICS_RECORD_CREATED",
+      "entityType": "SOCIAL_ANALYTICS",
+      "entityId": "BP-ANL-000036",
+      "details": "{\"contentId\":\"BP-CNT-280001\",\"platform\":\"youtube_shorts\",\"views\":15000}"
+    },
+    {
+      "id": "LOG-1789938417884-00002-98n5-BP-ANL-000037",
+      "timestamp": "2026-09-20T21:06:57.884Z",
+      "actorId": "USR-TEST-P28",
+      "actorName": "Test Agent",
+      "action": "ANALYTICS_RECORD_CREATED",
+      "entityType": "SOCIAL_ANALYTICS",
+      "entityId": "BP-ANL-000037",
+      "details": "{\"contentId\":\"BP-CNT-280002\",\"platform\":\"instagram_reels\",\"views\":5000}"
+    },
+    {
+      "id": "LOG-1789938420044-00003-beyx-BP-SPI-888889",
+      "timestamp": "2026-09-20T21:07:00.044Z",
+      "actorId": "USR-TEST-P28",
+      "actorName": "Test Agent",
+      "action": "CREATE_INTELLIGENCE_REPORT",
+      "entityType": "SOCIAL_PERFORMANCE_INTELLIGENCE",
+      "entityId": "BP-SPI-888889",
+      "details": "{\"reportId\":\"BP-SPI-888889\",\"recordCount\":37,\"isFallbackMode\":true,\"modelUsed\":\"DETERMINISTIC_RULE_ENGINE\"}"
+    },
+    {
+      "id": "LOG-1789938421567-00004-4qd5-BP-SPI-888890",
+      "timestamp": "2026-09-20T21:07:01.567Z",
+      "actorId": "USR-TEST-P28",
+      "actorName": "Test Agent",
+      "action": "CREATE_INTELLIGENCE_REPORT",
+      "entityType": "SOCIAL_PERFORMANCE_INTELLIGENCE",
+      "entityId": "BP-SPI-888890",
+      "details": "{\"reportId\":\"BP-SPI-888890\",\"recordCount\":3,\"isFallbackMode\":true,\"modelUsed\":\"DETERMINISTIC_RULE_ENGINE\"}"
+    },
+    {
+      "id": "LOG-1789938423491-00005-6syj-BP-SPI-888891",
+      "timestamp": "2026-09-20T21:07:03.491Z",
+      "actorId": "USR-TEST-P28",
+      "actorName": "Test Agent",
+      "action": "CREATE_INTELLIGENCE_REPORT",
+      "entityType": "SOCIAL_PERFORMANCE_INTELLIGENCE",
+      "entityId": "BP-SPI-888891",
+      "details": "{\"reportId\":\"BP-SPI-888891\",\"recordCount\":37,\"isFallbackMode\":true,\"modelUsed\":\"DETERMINISTIC_RULE_ENGINE\"}"
+    },
+    {
+      "id": "LOG-1789938425958-00006-lah1-BP-SPI-888892",
+      "timestamp": "2026-09-20T21:07:05.958Z",
+      "actorId": "USR-TEST-P28",
+      "actorName": "Test Agent",
+      "action": "CREATE_INTELLIGENCE_REPORT",
+      "entityType": "SOCIAL_PERFORMANCE_INTELLIGENCE",
+      "entityId": "BP-SPI-888892",
+      "details": "{\"reportId\":\"BP-SPI-888892\",\"recordCount\":37,\"isFallbackMode\":true,\"modelUsed\":\"DETERMINISTIC_RULE_ENGINE\"}"
+    },
+    {
+      "id": "LOG-1789938427546-00007-8t4p-BP-SPI-888893",
+      "timestamp": "2026-09-20T21:07:07.546Z",
+      "actorId": "USR-TEST-P28",
+      "actorName": "Test Agent",
+      "action": "CREATE_INTELLIGENCE_REPORT",
+      "entityType": "SOCIAL_PERFORMANCE_INTELLIGENCE",
+      "entityId": "BP-SPI-888893",
+      "details": "{\"reportId\":\"BP-SPI-888893\",\"recordCount\":37,\"isFallbackMode\":false,\"modelUsed\":\"gemini-3.8-flash\"}"
+    },
+    {
+      "id": "LOG-1789938428888-00008-u5rm-BP-SPI-888889",
+      "timestamp": "2026-09-20T21:07:08.888Z",
+      "actorId": "USR-TEST-P28",
+      "actorName": "Test Agent",
+      "action": "APPLY_STRATEGY_RECOMMENDATION",
+      "entityType": "SOCIAL_PERFORMANCE_INTELLIGENCE",
+      "entityId": "BP-SPI-888889",
+      "details": "{\"recommendationId\":\"REC-BP-SPI-888889-01\",\"appliedParameters\":{\"topicId\":\"TP-MATH\",\"subtopicId\":\"STP-ALGEBRA\",\"difficulty\":\"EASY\"}}"
+    },
+    {
+      "id": "LOG-1789938438497-00001-x5fw-BP-SPI-888893",
+      "timestamp": "2026-09-20T21:07:18.497Z",
+      "actorId": "TEST-USER-01",
+      "actorName": "Test Creator",
+      "action": "APPLY_STRATEGY_RECOMMENDATION",
+      "entityType": "SOCIAL_PERFORMANCE_INTELLIGENCE",
+      "entityId": "BP-SPI-888893",
+      "details": "{\"recommendationId\":\"REC-BP-SPI-888893-TOP-01\",\"appliedParameters\":{\"targetPlatform\":\"youtube_shorts\"}}"
+    },
+    {
+      "id": "LOG-1789938440632-00002-7rvl-BP-SPI-888888",
+      "timestamp": "2026-09-20T21:07:20.632Z",
+      "actorId": "TEST-USER-02",
+      "actorName": "Test Creator",
+      "action": "APPLY_STRATEGY_RECOMMENDATION",
+      "entityType": "SOCIAL_PERFORMANCE_INTELLIGENCE",
+      "entityId": "BP-SPI-888888",
+      "details": "{\"recommendationId\":\"REC-BP-SPI-888888-PT-01\",\"appliedParameters\":{\"targetPlatform\":\"youtube_shorts\",\"recommendedPostingWindow\":\"SUNDAY 18:00 - 21:00 UTC\"}}"
+    },
+    {
+      "id": "LOG-1789938455000-00001-u0va-BP-CMT-000020",
+      "timestamp": "2026-09-20T21:07:35.000Z",
+      "actorId": "USR-TEST",
+      "actorName": "Test Tester",
+      "action": "UPDATE_SOCIAL_COMMENT_METRICS",
+      "entityType": "SOCIAL_COMMENTS",
+      "entityId": "BP-CMT-000020",
+      "details": "{\"platform\":\"youtube\",\"platformCommentId\":\"yt-cmt-1001\",\"likeCount\":5,\"replyCount\":1,\"commentText\":\"This explanation of quadratic equations was incredibly clear and helpful!\"}"
+    },
+    {
+      "id": "LOG-1789938456517-00002-vcz6-BP-CMT-000020",
+      "timestamp": "2026-09-20T21:07:36.517Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "UPDATE_SOCIAL_COMMENT_METRICS",
+      "entityType": "SOCIAL_COMMENTS",
+      "entityId": "BP-CMT-000020",
+      "details": "{\"platform\":\"youtube\",\"platformCommentId\":\"yt-cmt-1001\",\"likeCount\":12,\"replyCount\":3,\"commentText\":\"This explanation of quadratic equations was incredibly clear and helpful! (Updated text)\"}"
+    },
+    {
+      "id": "LOG-1789938458416-00003-9f9l-BP-CMT-000036",
+      "timestamp": "2026-09-20T21:07:38.416Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "CREATE_SOCIAL_COMMENT",
+      "entityType": "SOCIAL_COMMENTS",
+      "entityId": "BP-CMT-000036",
+      "details": "{\"contentId\":\"BP-CNT-300002\",\"platform\":\"facebook\",\"source\":\"MANUAL_PASTE\"}"
+    },
+    {
+      "id": "LOG-1789938459303-00004-obps-BP-CMT-000024",
+      "timestamp": "2026-09-20T21:07:39.303Z",
+      "actorId": "USR-TEST",
+      "actorName": "Test Ingest",
+      "action": "UPDATE_SOCIAL_COMMENT_METRICS",
+      "entityType": "SOCIAL_COMMENTS",
+      "entityId": "BP-CMT-000024",
+      "details": "{\"platform\":\"youtube\",\"platformCommentId\":\"yt-batch-001\",\"likeCount\":2,\"commentText\":\"Batch comment one\"}"
+    },
+    {
+      "id": "LOG-1789938460209-00005-jacj-BP-CMT-000024",
+      "timestamp": "2026-09-20T21:07:40.209Z",
+      "actorId": "USR-TEST",
+      "actorName": "Test Ingest",
+      "action": "UPDATE_SOCIAL_COMMENT_METRICS",
+      "entityType": "SOCIAL_COMMENTS",
+      "entityId": "BP-CMT-000024",
+      "details": "{\"platform\":\"youtube\",\"platformCommentId\":\"yt-batch-001\",\"likeCount\":10,\"commentText\":\"Batch comment one edited\"}"
+    },
+    {
+      "id": "LOG-1789938460531-00006-f3hk-BATCH-1789938460531",
+      "timestamp": "2026-09-20T21:07:40.531Z",
+      "actorId": "USR-TEST",
+      "actorName": "Test Ingest",
+      "action": "IMPORT_SOCIAL_COMMENTS_BATCH",
+      "entityType": "SOCIAL_COMMENTS",
+      "entityId": "BATCH-1789938460531",
+      "details": "{\"received\":5,\"created\":0,\"updated\":2,\"duplicates\":3,\"rejected\":2}"
+    },
+    {
+      "id": "LOG-1789938462383-00007-zbul-BP-CMT-000037",
+      "timestamp": "2026-09-20T21:07:42.383Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "CREATE_SOCIAL_COMMENT",
+      "entityType": "SOCIAL_COMMENTS",
+      "entityId": "BP-CMT-000037",
+      "details": "{\"contentId\":\"BP-CNT-300001\",\"platform\":\"youtube\",\"source\":\"MANUAL_PASTE\"}"
+    },
+    {
+      "id": "LOG-1789938477198-00001-owud-BP-CMT-000039",
+      "timestamp": "2026-09-20T21:07:57.198Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "CREATE_SOCIAL_COMMENT",
+      "entityType": "SOCIAL_COMMENTS",
+      "entityId": "BP-CMT-000039",
+      "details": "{\"contentId\":\"BP-CNT-544751\",\"videoId\":\"BP-V-544751\",\"platform\":\"youtube\",\"source\":\"MANUAL_PASTE\"}"
+    },
+    {
+      "id": "LOG-1789938479075-00002-gm45-BP-CMT-000040",
+      "timestamp": "2026-09-20T21:07:59.075Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "CREATE_SOCIAL_COMMENT",
+      "entityType": "SOCIAL_COMMENTS",
+      "entityId": "BP-CMT-000040",
+      "details": "{\"contentId\":\"BP-CNT-544751\",\"videoId\":\"BP-V-544751\",\"platform\":\"youtube\",\"source\":\"MANUAL_PASTE\"}"
+    },
+    {
+      "id": "LOG-1789938480605-00003-1sfr-BP-CMT-000041",
+      "timestamp": "2026-09-20T21:08:00.605Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "CREATE_SOCIAL_COMMENT",
+      "entityType": "SOCIAL_COMMENTS",
+      "entityId": "BP-CMT-000041",
+      "details": "{\"contentId\":\"BP-CNT-544751\",\"platform\":\"instagram\",\"source\":\"MANUAL_PASTE\"}"
+    },
+    {
+      "id": "LOG-1789938482157-00004-veg3-BP-CMT-000042",
+      "timestamp": "2026-09-20T21:08:02.157Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "CREATE_SOCIAL_COMMENT",
+      "entityType": "SOCIAL_COMMENTS",
+      "entityId": "BP-CMT-000042",
+      "details": "{\"contentId\":\"BP-CNT-544751\",\"platform\":\"facebook\",\"source\":\"MANUAL_PASTE\"}"
+    },
+    {
+      "id": "LOG-1789938483741-00005-iz2v-BP-CMT-000043",
+      "timestamp": "2026-09-20T21:08:03.741Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "CREATE_SOCIAL_COMMENT",
+      "entityType": "SOCIAL_COMMENTS",
+      "entityId": "BP-CMT-000043",
+      "details": "{\"contentId\":\"BP-CNT-544751\",\"platform\":\"youtube\",\"source\":\"MANUAL_PASTE\"}"
+    },
+    {
+      "id": "LOG-1789938488224-00006-sftx-BP-CMI-000030",
+      "timestamp": "2026-09-20T21:08:08.224Z",
+      "actorId": "USR-TEST-01",
+      "actorName": "Test Analyst",
+      "action": "GENERATE_COMMENT_INTELLIGENCE",
+      "entityType": "COMMENT_INTELLIGENCE",
+      "entityId": "BP-CMI-000030",
+      "details": "{\"reportId\":\"BP-CMI-000030\",\"contentId\":\"BP-CNT-544751\",\"sourceCommentCount\":4,\"isFallbackMode\":true,\"modelUsed\":\"DETERMINISTIC_RULE_ENGINE\"}"
+    },
+    {
+      "id": "LOG-1789938490466-00007-xamy-BP-CMI-000031",
+      "timestamp": "2026-09-20T21:08:10.466Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "GENERATE_COMMENT_INTELLIGENCE",
+      "entityType": "COMMENT_INTELLIGENCE",
+      "entityId": "BP-CMI-000031",
+      "details": "{\"reportId\":\"BP-CMI-000031\",\"contentId\":\"BP-CNT-544751\",\"videoId\":\"BP-V-544751\",\"sourceCommentCount\":2,\"isFallbackMode\":true,\"modelUsed\":\"DETERMINISTIC_RULE_ENGINE\"}"
+    },
+    {
+      "id": "LOG-1789938492040-00008-0eur-BP-CMI-000032",
+      "timestamp": "2026-09-20T21:08:12.040Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "GENERATE_COMMENT_INTELLIGENCE",
+      "entityType": "COMMENT_INTELLIGENCE",
+      "entityId": "BP-CMI-000032",
+      "details": "{\"reportId\":\"BP-CMI-000032\",\"contentId\":\"BP-CNT-544751\",\"sourceCommentCount\":2,\"isFallbackMode\":true,\"modelUsed\":\"DETERMINISTIC_RULE_ENGINE\"}"
+    },
+    {
+      "id": "LOG-1789938494202-00009-0g7y-BP-CMI-000033",
+      "timestamp": "2026-09-20T21:08:14.202Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "GENERATE_COMMENT_INTELLIGENCE",
+      "entityType": "COMMENT_INTELLIGENCE",
+      "entityId": "BP-CMI-000033",
+      "details": "{\"reportId\":\"BP-CMI-000033\",\"contentId\":\"BP-CNT-544752\",\"sourceCommentCount\":0,\"isFallbackMode\":true,\"modelUsed\":\"DETERMINISTIC_RULE_ENGINE\"}"
+    },
+    {
+      "id": "LOG-1789938495895-00010-w9m2-BP-CMI-000034",
+      "timestamp": "2026-09-20T21:08:15.895Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "GENERATE_COMMENT_INTELLIGENCE",
+      "entityType": "COMMENT_INTELLIGENCE",
+      "entityId": "BP-CMI-000034",
+      "details": "{\"reportId\":\"BP-CMI-000034\",\"contentId\":\"BP-CNT-544751\",\"sourceCommentCount\":4,\"isFallbackMode\":true,\"modelUsed\":\"DETERMINISTIC_RULE_ENGINE\"}"
+    },
+    {
+      "id": "LOG-1789938510311-00001-i5i2-BP-CMT-000044",
+      "timestamp": "2026-09-20T21:08:30.311Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "CREATE_SOCIAL_COMMENT",
+      "entityType": "SOCIAL_COMMENTS",
+      "entityId": "BP-CMT-000044",
+      "details": "{\"contentId\":\"BP-CNT-440698\",\"videoId\":\"BP-V-440698\",\"platform\":\"youtube\",\"source\":\"MANUAL_PASTE\"}"
+    },
+    {
+      "id": "LOG-1789938512527-00002-iwx8-BP-CMT-000045",
+      "timestamp": "2026-09-20T21:08:32.527Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "CREATE_SOCIAL_COMMENT",
+      "entityType": "SOCIAL_COMMENTS",
+      "entityId": "BP-CMT-000045",
+      "details": "{\"contentId\":\"BP-CNT-440698\",\"videoId\":\"BP-V-440698\",\"platform\":\"youtube\",\"source\":\"MANUAL_PASTE\"}"
+    },
+    {
+      "id": "LOG-1789938522836-00003-h525-BP-CMI-000035",
+      "timestamp": "2026-09-20T21:08:42.836Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "GENERATE_COMMENT_INTELLIGENCE",
+      "entityType": "COMMENT_INTELLIGENCE",
+      "entityId": "BP-CMI-000035",
+      "details": "{\"reportId\":\"BP-CMI-000035\",\"contentId\":\"BP-CNT-440698\",\"videoId\":\"BP-V-440698\",\"sourceCommentCount\":2,\"isFallbackMode\":false,\"modelUsed\":\"gemini-3.1-flash-lite\"}"
+    },
+    {
+      "id": "LOG-1789938531139-00004-azhs-BP-STR-000006",
+      "timestamp": "2026-09-20T21:08:51.139Z",
+      "actorId": "USER",
+      "actorName": "User",
+      "action": "STRATEGY_GENERATION",
+      "entityType": "CONTENT_STRATEGY",
+      "entityId": "BP-STR-000006",
+      "details": "{\"sourceReportId\":\"BP-SPI-888888\",\"isFallback\":false}"
+    },
+    {
+      "id": "LOG-1789938531600-00005-0n19-BP-STR-000006",
+      "timestamp": "2026-09-20T21:08:51.600Z",
+      "actorId": "USER",
+      "actorName": "User",
+      "action": "RECOMMENDATION_CREATION",
+      "entityType": "CONTENT_STRATEGY",
+      "entityId": "BP-STR-000006",
+      "details": "{\"topicId\":\"TP-MATH\",\"subtopicId\":\"STP-ALGEBRA\",\"confidenceLevel\":\"HIGH\"}"
+    },
+    {
+      "id": "LOG-1789938535075-00006-iz3w-BP-STR-000006",
+      "timestamp": "2026-09-20T21:08:55.075Z",
+      "actorId": "USER_ACTOR",
+      "actorName": "Human Content Strategist",
+      "action": "APPLY_STRATEGY_RECOMMENDATION",
+      "entityType": "CONTENT_STRATEGY",
+      "entityId": "BP-STR-000006",
+      "details": "{\"contentPlanId\":\"BP-PLN-0004\",\"appliedParameters\":{\"topicId\":\"TP-MATH\",\"subtopicId\":\"STP-ALGEBRA\",\"difficulty\":\"MEDIUM\"}}"
+    },
+    {
+      "id": "LOG-1789938538481-00007-dll6-BP-STR-000007",
+      "timestamp": "2026-09-20T21:08:58.481Z",
+      "actorId": "USER",
+      "actorName": "User",
+      "action": "STRATEGY_GENERATION",
+      "entityType": "CONTENT_STRATEGY",
+      "entityId": "BP-STR-000007",
+      "details": "{\"sourceReportId\":\"BP-SPI-888888\",\"isFallback\":true}"
+    },
+    {
+      "id": "LOG-1789938538826-00008-bzfk-BP-STR-000007",
+      "timestamp": "2026-09-20T21:08:58.826Z",
+      "actorId": "USER",
+      "actorName": "User",
+      "action": "RECOMMENDATION_CREATION",
+      "entityType": "CONTENT_STRATEGY",
+      "entityId": "BP-STR-000007",
+      "details": "{\"topicId\":\"TP-MATH\",\"subtopicId\":\"STP-ALGEBRA\",\"confidenceLevel\":\"MEDIUM\"}"
+    },
+    {
+      "id": "LOG-1790001177492-00001-0d8t-AUTH",
+      "timestamp": "2026-09-21T14:32:57.492Z",
+      "actorId": "USR-001",
+      "actorName": "Jithendra",
+      "action": "LOGIN_SUCCESS",
+      "entityType": "SYSTEM",
+      "entityId": "AUTH",
+      "details": "{\"role\":\"ADMIN\",\"roles\":[\"ADMIN\"]}"
+    }
+  ],
+  "checksum": "8223ca8ae2efd9c011aa250281558e6754cc2ca4e6d53ddb36c375c05df65277"
+}

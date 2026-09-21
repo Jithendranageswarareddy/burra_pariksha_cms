@@ -1,0 +1,88 @@
+{
+  "timestamp": "2026-09-21T15:01:50.657Z",
+  "purpose": "Pre-Launch Historical Audit Trail Backup",
+  "recordCount": 8,
+  "auditRecords": [
+    {
+      "id": "LOG-1790002822994-00001-8q1m-BP-CMT-000001",
+      "timestamp": "2026-09-21T15:00:22.994Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "CREATE_SOCIAL_COMMENT",
+      "entityType": "SOCIAL_COMMENTS",
+      "entityId": "BP-CMT-000001",
+      "details": "{\"contentId\":\"BP-CNT-399835\",\"videoId\":\"BP-V-399835\",\"platform\":\"youtube\",\"source\":\"MANUAL_PASTE\"}"
+    },
+    {
+      "id": "LOG-1790002824721-00002-jfg4-BP-CMT-000002",
+      "timestamp": "2026-09-21T15:00:24.721Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "CREATE_SOCIAL_COMMENT",
+      "entityType": "SOCIAL_COMMENTS",
+      "entityId": "BP-CMT-000002",
+      "details": "{\"contentId\":\"BP-CNT-399835\",\"videoId\":\"BP-V-399835\",\"platform\":\"youtube\",\"source\":\"MANUAL_PASTE\"}"
+    },
+    {
+      "id": "LOG-1790002846151-00003-mvzg-BP-CMI-000001",
+      "timestamp": "2026-09-21T15:00:46.151Z",
+      "actorId": "SYSTEM",
+      "actorName": "System User",
+      "action": "GENERATE_COMMENT_INTELLIGENCE",
+      "entityType": "COMMENT_INTELLIGENCE",
+      "entityId": "BP-CMI-000001",
+      "details": "{\"reportId\":\"BP-CMI-000001\",\"contentId\":\"BP-CNT-399835\",\"videoId\":\"BP-V-399835\",\"sourceCommentCount\":2,\"isFallbackMode\":false,\"modelUsed\":\"gemini-3.1-flash-lite\"}"
+    },
+    {
+      "id": "LOG-1790002863948-00004-rvc9-BP-STR-000001",
+      "timestamp": "2026-09-21T15:01:03.948Z",
+      "actorId": "USER",
+      "actorName": "User",
+      "action": "STRATEGY_GENERATION",
+      "entityType": "CONTENT_STRATEGY",
+      "entityId": "BP-STR-000001",
+      "details": "{\"isFallback\":false}"
+    },
+    {
+      "id": "LOG-1790002864281-00005-g36w-BP-STR-000001",
+      "timestamp": "2026-09-21T15:01:04.281Z",
+      "actorId": "USER",
+      "actorName": "User",
+      "action": "RECOMMENDATION_CREATION",
+      "entityType": "CONTENT_STRATEGY",
+      "entityId": "BP-STR-000001",
+      "details": "{\"topicId\":\"TP-MATH\",\"subtopicId\":\"STP-ALGEBRA\",\"confidenceLevel\":\"MEDIUM\"}"
+    },
+    {
+      "id": "LOG-1790002867060-00006-o4cg-BP-STR-000001",
+      "timestamp": "2026-09-21T15:01:07.060Z",
+      "actorId": "USER_ACTOR",
+      "actorName": "Human Content Strategist",
+      "action": "APPLY_STRATEGY_RECOMMENDATION",
+      "entityType": "CONTENT_STRATEGY",
+      "entityId": "BP-STR-000001",
+      "details": "{\"contentPlanId\":\"BP-PLN-0001\",\"appliedParameters\":{\"topicId\":\"TP-MATH\",\"subtopicId\":\"STP-ALGEBRA\",\"difficulty\":\"MEDIUM\"}}"
+    },
+    {
+      "id": "LOG-1790002870147-00007-mfeg-BP-STR-000002",
+      "timestamp": "2026-09-21T15:01:10.147Z",
+      "actorId": "USER",
+      "actorName": "User",
+      "action": "STRATEGY_GENERATION",
+      "entityType": "CONTENT_STRATEGY",
+      "entityId": "BP-STR-000002",
+      "details": "{\"isFallback\":true}"
+    },
+    {
+      "id": "LOG-1790002870417-00008-2s5l-BP-STR-000002",
+      "timestamp": "2026-09-21T15:01:10.416Z",
+      "actorId": "USER",
+      "actorName": "User",
+      "action": "RECOMMENDATION_CREATION",
+      "entityType": "CONTENT_STRATEGY",
+      "entityId": "BP-STR-000002",
+      "details": "{\"topicId\":\"TP-MATH\",\"subtopicId\":\"STP-ALGEBRA\",\"confidenceLevel\":\"LOW\"}"
+    }
+  ],
+  "checksum": "5a2ad7e6428ab8c102dddca8853f383e97f33d073dfbcec4cd03792b9b78b56b"
+}

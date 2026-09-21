@@ -568,16 +568,18 @@ export class GoogleSheetsClient {
   /**
    * Clears all data rows in a worksheet below row 1 (headers).
    */
-  public async clearDataRows(sheetName: string): Promise<void> {
+  public async clearDataRows(sheetName: string, overrideSpreadsheetId?: string): Promise<void> {
+    const spreadsheetId = this.getSpreadsheetId(overrideSpreadsheetId);
+    this.invalidateRowCache(`${spreadsheetId}:${sheetName}`);
     this.invalidateRowCache(sheetName);
     return this.executeWithRetry(async () => {
       const sheets = this.getSheetsApi();
-      const spreadsheetId = this.getSpreadsheetId();
       try {
         await sheets.spreadsheets.values.clear({
           spreadsheetId,
           range: `'${sheetName}'!A2:ZZ10000`,
         });
+        this.invalidateRowCache(`${spreadsheetId}:${sheetName}`);
         this.invalidateRowCache(sheetName);
       } catch (err: any) {
         this.handleApiError(err, `clearDataRows(${sheetName})`, sheetName);
@@ -589,11 +591,12 @@ export class GoogleSheetsClient {
   /**
    * Overwrites values in a worksheet starting at a specific range (e.g. 'A2').
    */
-  public async updateRangeValues(sheetName: string, rangeA1: string, values: (string | number | boolean)[][]): Promise<void> {
+  public async updateRangeValues(sheetName: string, rangeA1: string, values: (string | number | boolean)[][], overrideSpreadsheetId?: string): Promise<void> {
+    const spreadsheetId = this.getSpreadsheetId(overrideSpreadsheetId);
+    this.invalidateRowCache(`${spreadsheetId}:${sheetName}`);
     this.invalidateRowCache(sheetName);
     return this.executeWithRetry(async () => {
       const sheets = this.getSheetsApi();
-      const spreadsheetId = this.getSpreadsheetId();
       try {
         await sheets.spreadsheets.values.update({
           spreadsheetId,
@@ -603,6 +606,7 @@ export class GoogleSheetsClient {
             values,
           },
         });
+        this.invalidateRowCache(`${spreadsheetId}:${sheetName}`);
         this.invalidateRowCache(sheetName);
       } catch (err: any) {
         this.handleApiError(err, `updateRangeValues(${sheetName})`, sheetName);
