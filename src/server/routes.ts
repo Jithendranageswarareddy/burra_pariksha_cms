@@ -1769,7 +1769,21 @@ apiRouter.get('/questions/:id/canonical-state', async (req: Request, res: Respon
 apiRouter.post('/questions', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.QUESTION_EDITOR, UserRole.CONTENT_WRITER]), async (req: Request, res: Response) => {
   try {
     const actor = getRequestActor(req);
-    const newQuestion = await questionService.createQuestion(req.body, actor);
+    const idempotencyHeader = req.headers['x-idempotency-key'];
+    const idempotencyKey = typeof idempotencyHeader === 'string' ? idempotencyHeader : req.body?.idempotencyKey;
+
+    const rawQuestionText = (req.body?.questionText || req.body?.question || req.body?.content || '');
+    const canonicalQuestionText = typeof rawQuestionText === 'string' ? rawQuestionText.trim() : '';
+
+    const payload = {
+      creationMode: req.body?.creationMode || 'manual',
+      ...req.body,
+      questionText: canonicalQuestionText || req.body?.questionText,
+      question: canonicalQuestionText || req.body?.question,
+      idempotencyKey,
+    };
+
+    const newQuestion = await questionService.createQuestionFromRequest(payload, actor);
     res.status(201).json(newQuestion);
   } catch (err: any) {
     res.status(err?.statusCode || 400).json({

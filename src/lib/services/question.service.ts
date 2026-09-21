@@ -474,6 +474,11 @@ export class QuestionService {
       return this.idempotencyCache.get(requestPayload.idempotencyKey)!;
     }
 
+    // Resolve creationMode default if not explicitly provided
+    if (!requestPayload.creationMode) {
+      requestPayload.creationMode = 'manual';
+    }
+
     // Resolve canonical questionText across aliases at creation boundary
     const canonicalQuestionText = (
       requestPayload.questionText ||
