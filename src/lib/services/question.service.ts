@@ -7,6 +7,7 @@
  */
 
 import { questionsRepository } from '../repositories/questions.repository';
+import { contentMastersRepository } from '../repositories/content-masters.repository';
 import { validationsRepository } from '../repositories/validations.repository';
 import { CreateQuestionInput, CreateQuestionInputSchema, QuestionFilterInput, UpdateQuestionInputSchema } from '../schemas/google-sheets-schema';
 import { Question, QuestionStatus, VideoProductionStatus, QuestionValidationStatus, UserRole } from '../../types';
@@ -641,6 +642,8 @@ export class QuestionService {
     // Now safely allocate sequence and create Content Master
     const id = await idService.allocateQuestionId();
     let contentMasterId = requestPayload.contentMasterId;
+    let createdContentMaster = false;
+
     if (!contentMasterId) {
       const master = await contentMasterService.createContentMaster(
         {
@@ -657,6 +660,7 @@ export class QuestionService {
         actor.name
       );
       contentMasterId = master.id;
+      createdContentMaster = true;
     }
 
     const newQuestion: Question = {
@@ -669,7 +673,7 @@ export class QuestionService {
       lastValidationId: verificationReport.id,
     };
 
-    // Save validation audit record
+    // Save validation audit record (best-effort)
     try {
       await validationsRepository.saveValidationResult({
         id: verificationReport.id,
@@ -727,45 +731,76 @@ export class QuestionService {
       // Best-effort audit save
     }
 
-    // 7. Append to authoritative QUESTIONS sheet
-    await questionsRepository.appendRecord(newQuestion);
-
-    // 7. Workflow State Transition
-    await workflowService.recordTransition(
-      'QUESTION',
-      id,
-      'DRAFT',
-      status,
-      actor.name,
-      `Question created via ${requestPayload.creationMode.toUpperCase()} creation pipeline`
-    );
-
-    // 8. Audit Log
-    await auditService.log(
-      actor.id,
-      actor.name,
-      'QUESTION_CREATED',
-      'QUESTION',
-      id,
-      {
-        creationMode: requestPayload.creationMode,
-        questionId: id,
-        contentMasterId,
-        categoryId: category?.id || categoryId || '',
-        topicId: topic.id,
-        subtopicId: subtopic.id,
-        difficulty,
-        challengeType,
-        presentationType,
-        language,
-        questionStyle,
-        idempotencyKey: requestPayload.idempotencyKey,
+    // 7. Authoritative QUESTION persistence with controlled compensation
+    try {
+      await questionsRepository.appendRecord(newQuestion);
+    } catch (primaryError) {
+      if (createdContentMaster && contentMasterId) {
+        try {
+          await contentMastersRepository.delete(contentMasterId, {
+            actor: { id: actor.id, name: actor.name },
+            reason: `Compensation: Question ${id} persistence failed`,
+          });
+        } catch (compensationError) {
+          console.warn(
+            `[QuestionService] Content Master compensation failed for ${contentMasterId} after Question persistence error:`,
+            compensationError instanceof Error ? compensationError.message : compensationError
+          );
+        }
       }
-    );
+      throw primaryError;
+    }
 
-    // Cache by idempotency key if provided
+    // 8. Immediately populate idempotency cache before post-save auxiliary operations
     if (requestPayload.idempotencyKey) {
       this.idempotencyCache.set(requestPayload.idempotencyKey, newQuestion);
+    }
+
+    // 9. Post-save auxiliary: Workflow State Transition (resilient, non-fatal)
+    try {
+      await workflowService.recordTransition(
+        'QUESTION',
+        id,
+        'DRAFT',
+        status,
+        actor.name,
+        `Question created via ${requestPayload.creationMode.toUpperCase()} creation pipeline`
+      );
+    } catch (wfErr) {
+      console.warn(
+        `[QuestionService] Non-fatal workflow transition failure for Question ${id}:`,
+        wfErr instanceof Error ? wfErr.message : wfErr
+      );
+    }
+
+    // 10. Post-save auxiliary: Audit Log (resilient, non-fatal)
+    try {
+      await auditService.log(
+        actor.id,
+        actor.name,
+        'QUESTION_CREATED',
+        'QUESTION',
+        id,
+        {
+          creationMode: requestPayload.creationMode,
+          questionId: id,
+          contentMasterId,
+          categoryId: category?.id || categoryId || '',
+          topicId: topic.id,
+          subtopicId: subtopic.id,
+          difficulty,
+          challengeType,
+          presentationType,
+          language,
+          questionStyle,
+          idempotencyKey: requestPayload.idempotencyKey,
+        }
+      );
+    } catch (auditErr) {
+      console.warn(
+        `[QuestionService] Non-fatal audit log failure for Question ${id}:`,
+        auditErr instanceof Error ? auditErr.message : auditErr
+      );
     }
 
     return newQuestion;

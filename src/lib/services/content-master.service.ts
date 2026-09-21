@@ -141,14 +141,21 @@ export class ContentMasterService {
 
     const saved = await contentMastersRepository.create(master);
 
-    await auditLogRepository.logAction(
-      actorId,
-      actorName,
-      'CREATE_CONTENT_MASTER',
-      'CONTENT_MASTER',
-      saved.id,
-      { title: saved.title }
-    );
+    try {
+      await auditLogRepository.logAction(
+        actorId,
+        actorName,
+        'CREATE_CONTENT_MASTER',
+        'CONTENT_MASTER',
+        saved.id,
+        { title: saved.title }
+      );
+    } catch (auditErr) {
+      console.warn(
+        `[ContentMasterService] Non-fatal audit log failure during Content Master creation (ID: ${saved.id}):`,
+        auditErr instanceof Error ? auditErr.message : auditErr
+      );
+    }
 
     return saved;
   }
