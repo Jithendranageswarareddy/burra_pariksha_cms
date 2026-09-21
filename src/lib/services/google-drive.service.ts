@@ -589,19 +589,21 @@ export class GoogleDriveService {
 
   /**
    * Permanently deletes a file from Drive (strictly for temporary/test cleanup or rollback).
+   * Propagates errors on Drive API failure so callers cannot mistakenly report success.
    */
-  public async deleteFile(fileId: string): Promise<void> {
-    if (!fileId) return;
+  public async deleteFile(fileId: string): Promise<boolean> {
+    if (!fileId) return false;
     this.mockFiles.delete(fileId);
-    if (!this.isConfigured()) return;
+    if (!this.isConfigured()) return true;
 
     try {
       const drive = this.getDriveApi();
       await drive.files.delete({ fileId });
+      return true;
     } catch (err: any) {
-      if (!err?.message?.includes('disabled') && !err?.message?.includes('not been used in project')) {
-        console.warn(`[GoogleDriveService] Failed to delete file ${fileId}: ${err?.message}`);
-      }
+      const msg = err?.message || String(err);
+      console.error(`[GoogleDriveService] Drive deleteFile failed for "${fileId}": ${msg}`);
+      throw new Error(`Drive deleteFile failed for "${fileId}": ${msg}`);
     }
   }
 }

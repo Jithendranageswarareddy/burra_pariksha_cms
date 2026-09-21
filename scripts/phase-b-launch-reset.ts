@@ -106,13 +106,14 @@ const REPO_MAP: Record<string, BaseRepository<any>> = {
   STRATEGY_RECOMMENDATIONS: strategyRecommendationRepository,
 };
 
-// Protected sheets (Must never have data rows deleted)
+// Protected sheets (Must never have data rows deleted or mutated)
 const PROTECTED_SHEETS = [
   SHEET_TABS.USERS,
   SHEET_TABS.CATEGORIES,
   SHEET_TABS.TOPICS,
   SHEET_TABS.SUBTOPICS,
   SHEET_TABS.QUESTION_CONFIG,
+  SHEET_TABS.SEQUENCES,
 ];
 
 // Operational cleanable sheets in Production Workbook
@@ -419,72 +420,22 @@ async function runLaunchReset() {
     }
   }
 
-  // C. Deterministic Sequence Counter Reset (Entity rows preserved, nextNumber = 1 / maxExistingId + 1)
-  console.log('   🔹 C. Synchronizing Auto-Increment Sequences (Preserving Entity Structure)...');
+  // C. Sequences Protection (PROTECTED / READ-ONLY: Never update, insert, delete, recompute, or reset)
+  console.log('   🔹 C. SEQUENCES are strictly PROTECTED / READ-ONLY: No mutation, recomputation, or reset permitted.');
 
-  const allSequenceEntities = Object.values(SEQUENCE_ENTITIES);
-
-  for (const entity of allSequenceEntities) {
-    const config = ID_PREFIX_MAP[entity as SequenceEntityType] || { prefix: 'BP-', padLength: 6 };
-    
-    // For cleared operational entities, maxExistingId is 0 -> nextNumber starts cleanly at 1
-    // For preserved entities (e.g. USERS, TOPICS), nextNumber is maxExistingId + 1
-    const maxExistingId = await sequencesRepository.getMaxExistingId(entity);
-    const targetNextNumber = maxExistingId > 0 ? maxExistingId + 1 : 1;
-
-    const sequenceRecord = {
-      entityType: entity,
-      nextNumber: targetNextNumber,
-      prefix: config.prefix,
-      padLength: config.padLength,
-      updatedAt: new Date().toISOString(),
-    };
-
-    try {
-      const existing = await sequencesRepository.findById(entity);
-      if (existing) {
-        await sequencesRepository.updateRecord(entity, {
-          nextNumber: targetNextNumber,
-          prefix: config.prefix,
-          padLength: config.padLength,
-          updatedAt: new Date().toISOString(),
-        });
-      } else {
-        await sequencesRepository.appendRecord(sequenceRecord);
-      }
-      console.log(`      ⚙️ Sequence [${entity.padEnd(22)}]: nextNumber -> ${String(targetNextNumber).padStart(4)} (maxExistingId: ${maxExistingId})`);
-    } catch (err: any) {
-      console.warn(`      ⚠️ Warning updating sequence '${entity}':`, err?.message || err);
-    }
-  }
-
-  // Sync fallback store for SEQUENCES
-  const seqStore = fallbackStore.get(SHEET_TABS.SEQUENCES);
-  if (seqStore) {
-    for (const entity of allSequenceEntities) {
-      const config = ID_PREFIX_MAP[entity as SequenceEntityType] || { prefix: 'BP-', padLength: 6 };
-      const maxExistingId = await sequencesRepository.getMaxExistingId(entity);
-      const targetNextNumber = maxExistingId > 0 ? maxExistingId + 1 : 1;
-      seqStore.set(entity, {
-        entityType: entity,
-        nextNumber: targetNextNumber,
-        prefix: config.prefix,
-        padLength: config.padLength,
-        updatedAt: new Date().toISOString(),
-      });
-    }
-  }
-
-  // D. Google Drive Media Cleanup
-  console.log('   🔹 D. Cleaning Google Drive Test Media Assets...');
+  // D. Google Drive Media Cleanup (Untouched / Preserved for launch safety)
+  console.log('   🔹 D. Google Drive Media Assets (Untouched / Preserved per launch reset safety mandate)...');
   googleDriveService.clearFolderCache();
-
-  for (const testFileId of TEST_DRIVE_FILE_IDS) {
-    try {
-      await googleDriveService.deleteFile(testFileId);
-      console.log(`      🗑️ Removed test Drive media file: ${testFileId}`);
-    } catch (err: any) {
-      console.warn(`      ⚠️ Notice removing test Drive file ${testFileId}:`, err?.message || err);
+  // NOTE: Test Drive files (1LCEKNSrC6W_3qwi8wFXpoDfk3VeSbgxS, 1BIf5p998z4iH45G9lY9h_LyjKXGtGoYa)
+  // are left untouched to prevent invalid_grant errors or unconfirmed deletion states.
+  if (TEST_DRIVE_FILE_IDS.length > 0 && process.env.ENABLE_DRIVE_DELETION === 'true') {
+    for (const testFileId of TEST_DRIVE_FILE_IDS) {
+      try {
+        await googleDriveService.deleteFile(testFileId);
+        console.log(`      🗑️ Removed test Drive media file: ${testFileId}`);
+      } catch (err: any) {
+        console.error(`      ❌ DRIVE DELETE FAILED for ${testFileId}: ${err?.message || err}`);
+      }
     }
   }
 
@@ -530,7 +481,46 @@ async function runLaunchReset() {
 
     let fingerprintMatch = true;
 
-    if (PROTECTED_SHEETS.includes(sheetName)) {
+    if (sheetName === SHEET_TABS.SEQUENCES) {
+      // Must deeply compare each sequence entity record: entityType, nextNumber, prefix, padLength
+      const preRecords = liveInventory[SHEET_TABS.SEQUENCES]?.records || [];
+      const preMap = new Map<string, any>(preRecords.map((r: any) => [r.entityType, r]));
+      const postMap = new Map<string, any>(records.map((r: any) => [r.entityType, r]));
+
+      let seqMatch = true;
+      if (records.length !== preRecords.length) {
+        seqMatch = false;
+        const msg = `SEQUENCES record count mismatch! Pre: ${preRecords.length}, Post: ${records.length}`;
+        failureReasons.push(msg);
+        console.error(`   ❌ VIOLATION: ${msg}`);
+      }
+
+      for (const [entityType, preRec] of preMap.entries()) {
+        const postRec = postMap.get(entityType);
+        if (!postRec) {
+          seqMatch = false;
+          const msg = `Sequence entity '${entityType}' missing in post-cleanup SEQUENCES!`;
+          failureReasons.push(msg);
+          console.error(`   ❌ VIOLATION: ${msg}`);
+          continue;
+        }
+        if (
+          String(preRec.nextNumber) !== String(postRec.nextNumber) ||
+          String(preRec.prefix ?? '') !== String(postRec.prefix ?? '') ||
+          String(preRec.padLength ?? '') !== String(postRec.padLength ?? '')
+        ) {
+          seqMatch = false;
+          const msg = `Sequence entity '${entityType}' mutated! Pre: [nextNumber=${preRec.nextNumber}, prefix=${preRec.prefix}, padLength=${preRec.padLength}] | Post: [nextNumber=${postRec.nextNumber}, prefix=${postRec.prefix}, padLength=${postRec.padLength}]`;
+          failureReasons.push(msg);
+          console.error(`   ❌ VIOLATION: ${msg}`);
+        }
+      }
+
+      fingerprintMatch = seqMatch;
+      if (!seqMatch) {
+        postVerificationPassed = false;
+      }
+    } else if (PROTECTED_SHEETS.includes(sheetName)) {
       // Must exactly match pre-cleanup fingerprint and count
       const preFp = preProtectedFingerprints[sheetName];
       const currentDataFp = computeSha256({ headers, records });
@@ -539,14 +529,6 @@ async function runLaunchReset() {
       if (!fingerprintMatch) {
         postVerificationPassed = false;
         const msg = `Protected sheet '${sheetName}' mutated! Pre-count: ${preFp.count}, Post-count: ${records.length}`;
-        failureReasons.push(msg);
-        console.error(`   ❌ VIOLATION: ${msg}`);
-      }
-    } else if (sheetName === SHEET_TABS.SEQUENCES) {
-      // Must have all sequence entity definitions
-      if (records.length < allSequenceEntities.length) {
-        postVerificationPassed = false;
-        const msg = `SEQUENCES sheet missing entity rows! Expected >= ${allSequenceEntities.length}, found ${records.length}`;
         failureReasons.push(msg);
         console.error(`   ❌ VIOLATION: ${msg}`);
       }
