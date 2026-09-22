@@ -301,6 +301,10 @@ export class QuestionService {
     input: CreateQuestionInput,
     actor: { id: string; name: string; role?: string | UserRole } = { id: 'USR-001', name: 'Admin / Content Lead', role: UserRole.ADMIN }
   ): Promise<Question> {
+    // Extract idempotencyKey and optional fields from raw input before Zod stripping
+    const rawInput = (input && typeof input === 'object') ? (input as any) : {};
+    const rawIdempotencyKey = rawInput.idempotencyKey;
+
     // 1. Zod runtime schema validation
     const validatedInput = CreateQuestionInputSchema.parse(input);
 
@@ -329,7 +333,7 @@ export class QuestionService {
       aiModel: (validatedInput as any).aiModel,
       aiPrompt: (validatedInput as any).aiPrompt,
       originalityScore: (validatedInput as any).originalityScore,
-      idempotencyKey: (validatedInput as any).idempotencyKey,
+      idempotencyKey: rawIdempotencyKey || (validatedInput as any).idempotencyKey,
       generationMode: validatedInput.generationMode,
     };
 

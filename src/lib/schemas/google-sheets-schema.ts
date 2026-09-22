@@ -820,7 +820,6 @@ const QuestionInputBaseSchema = z.object({
   authorId: z.string().optional(),
   author: z.string().optional(),
   generationMode: z.string().optional(),
-  idempotencyKey: z.string().optional(),
   createdAt: z.string().optional(),
   updatedAt: z.string().optional(),
   validationStatus: z.string().optional(),
