@@ -95,11 +95,40 @@ export class QuestionCreationValidator {
   }
 
   /**
+   * Normalizes an idempotency key:
+   * - Trims leading/trailing whitespace
+   * - Validates string type and length <= 255
+   * - Returns undefined if key is undefined or null (not provided)
+   * - Throws ValidationError if key is empty string, whitespace-only, non-string, or exceeds 255 characters
+   */
+  public static normalizeIdempotencyKey(key?: unknown): string | undefined {
+    if (key === undefined || key === null) {
+      return undefined;
+    }
+    if (typeof key !== 'string') {
+      throw new ValidationError('Invalid idempotency key: must be a string.');
+    }
+    const trimmed = key.trim();
+    if (trimmed.length === 0) {
+      throw new ValidationError('Invalid idempotency key: cannot be empty or whitespace only.');
+    }
+    if (trimmed.length > 255) {
+      throw new ValidationError(`Invalid idempotency key: length (${trimmed.length}) exceeds maximum allowed 255 characters.`);
+    }
+    return trimmed;
+  }
+
+  /**
    * Validates structural constraints of a question creation request payload.
    */
   public static validateStructure(payload: QuestionCreationRequestPayload): void {
     if (!payload) {
       throw new ValidationError('Question creation payload is required.');
+    }
+
+    // 0. Idempotency Key Validation & Normalization
+    if (payload.idempotencyKey !== undefined && payload.idempotencyKey !== null) {
+      payload.idempotencyKey = this.normalizeIdempotencyKey(payload.idempotencyKey);
     }
 
     if (payload.difficulty) {

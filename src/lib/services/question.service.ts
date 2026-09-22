@@ -16,8 +16,9 @@ import { taxonomyService } from './taxonomy.service';
 import { workflowService } from './workflow.service';
 import { auditService } from './audit.service';
 import { contentMasterService } from './content-master.service';
-import { ReferenceIntegrityError, ValidationError } from '../google-sheets/errors';
+import { IdempotencyConflictError, ReferenceIntegrityError, ValidationError } from '../google-sheets/errors';
 import { MultiLayerVerificationEngine } from '../validation/multi-layer-verification.engine';
+import { createHash } from 'crypto';
 
 export interface DuplicateMatch {
   questionId: string;
@@ -89,6 +90,15 @@ const VALID_QUESTION_TRANSITIONS: Record<QuestionStatus, QuestionStatus[]> = {
   [QuestionStatus.ARCHIVED]: [QuestionStatus.DRAFT, QuestionStatus.EDITING],
 };
 
+export interface IdempotencyCacheEntry {
+  question: Question;
+  payloadFingerprint: string;
+  createdAt: number;
+}
+
+const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+const IDEMPOTENCY_MAX_ENTRIES = 1000;
+
 import { videoService } from './video.service';
 import { QuestionCreationRequestPayload, QuestionCreationValidator } from '../validators/question-creation.validator';
 import { smartRandomService } from './smart-random.service';
@@ -96,7 +106,8 @@ import { questionConfigService } from './question-config.service';
 
 export class QuestionService {
   private static instance: QuestionService | null = null;
-  private idempotencyCache: Map<string, Question> = new Map();
+  private idempotencyCache: Map<string, IdempotencyCacheEntry> = new Map();
+  private inFlightRegistry: Map<string, { promise: Promise<Question>; payloadFingerprint: string }> = new Map();
 
   private constructor() {}
 
@@ -105,6 +116,111 @@ export class QuestionService {
       QuestionService.instance = new QuestionService();
     }
     return QuestionService.instance;
+  }
+
+  /**
+   * Computes a deterministic SHA-256 fingerprint for a question creation request payload.
+   * Excludes metadata like `idempotencyKey` and normalizes whitespace and key ordering.
+   */
+  public computePayloadFingerprint(payload: QuestionCreationRequestPayload): string {
+    const canonicalQuestionText = (
+      payload.questionText ||
+      payload.question ||
+      (payload as any).content ||
+      ''
+    ).trim();
+
+    const options = payload.options ? {
+      a: (payload.options.a || '').trim(),
+      b: (payload.options.b || '').trim(),
+      c: (payload.options.c || '').trim(),
+      d: (payload.options.d || '').trim(),
+    } : { a: '', b: '', c: '', d: '' };
+
+    const tags = Array.isArray(payload.tags) ? [...payload.tags].map(t => String(t).trim()).sort() : [];
+
+    const normalizedObject = {
+      categoryId: (payload.categoryId || '').trim(),
+      challengeType: (payload.challengeType || '').trim(),
+      contentMasterId: (payload.contentMasterId || '').trim(),
+      correctAnswer: (payload.correctAnswer || '').trim(),
+      creationMode: (payload.creationMode || 'manual').trim(),
+      difficulty: (payload.difficulty || '').trim().toLowerCase(),
+      explanation: (payload.explanation || '').trim(),
+      generationMode: (payload.generationMode || '').trim(),
+      language: (payload.language || '').trim().toUpperCase(),
+      options,
+      presentationType: (payload.presentationType || '').trim(),
+      questionStyle: (payload.questionStyle || '').trim(),
+      questionText: canonicalQuestionText,
+      realLifeContext: (payload.realLifeContext || '').trim(),
+      source: (payload.source || '').trim(),
+      subtopicId: (payload.subtopicId || '').trim(),
+      tags,
+      topicId: (payload.topicId || '').trim(),
+    };
+
+    const serialized = JSON.stringify(normalizedObject, Object.keys(normalizedObject).sort());
+    return createHash('sha256').update(serialized, 'utf8').digest('hex');
+  }
+
+  /**
+   * Stores a completed Question result in the bounded LRU/TTL idempotency cache.
+   */
+  private cacheIdempotencyResult(key: string, question: Question, payloadFingerprint: string): void {
+    const now = Date.now();
+    // Evict expired entries
+    for (const [k, entry] of this.idempotencyCache.entries()) {
+      if (now - entry.createdAt > IDEMPOTENCY_TTL_MS) {
+        this.idempotencyCache.delete(k);
+      }
+    }
+
+    // If key already exists in cache, delete first so insertion order is updated
+    if (this.idempotencyCache.has(key)) {
+      this.idempotencyCache.delete(key);
+    }
+
+    // Evict oldest entry if capacity reached (Map maintains insertion order)
+    if (this.idempotencyCache.size >= IDEMPOTENCY_MAX_ENTRIES) {
+      const oldestKey = this.idempotencyCache.keys().next().value;
+      if (oldestKey) {
+        this.idempotencyCache.delete(oldestKey);
+      }
+    }
+
+    // Set new entry
+    this.idempotencyCache.set(key, {
+      question,
+      payloadFingerprint,
+      createdAt: now,
+    });
+  }
+
+  /**
+   * Gets a cached idempotent result if valid, evicting expired entries.
+   */
+  private getCachedIdempotencyResult(key: string): IdempotencyCacheEntry | null {
+    const entry = this.idempotencyCache.get(key);
+    if (!entry) return null;
+
+    if (Date.now() - entry.createdAt > IDEMPOTENCY_TTL_MS) {
+      this.idempotencyCache.delete(key);
+      return null;
+    }
+
+    // Refresh LRU order by re-inserting
+    this.idempotencyCache.delete(key);
+    this.idempotencyCache.set(key, entry);
+    return entry;
+  }
+
+  /**
+   * Clears all idempotency cache entries and in-flight registry (primarily for isolated test reset).
+   */
+  public clearIdempotencyCache(): void {
+    this.idempotencyCache.clear();
+    this.inFlightRegistry.clear();
   }
 
   /**
@@ -470,11 +586,67 @@ export class QuestionService {
       }
     }
 
-    // 0. Idempotency Check
-    if (requestPayload.idempotencyKey && this.idempotencyCache.has(requestPayload.idempotencyKey)) {
-      return this.idempotencyCache.get(requestPayload.idempotencyKey)!;
+    // 0. Validate & Normalize Idempotency Key
+    const normalizedIdempotencyKey = QuestionCreationValidator.normalizeIdempotencyKey(requestPayload.idempotencyKey);
+    requestPayload.idempotencyKey = normalizedIdempotencyKey;
+
+    const payloadFingerprint = this.computePayloadFingerprint(requestPayload);
+
+    // 1. Check Completed Cache
+    if (normalizedIdempotencyKey) {
+      const cached = this.getCachedIdempotencyResult(normalizedIdempotencyKey);
+      if (cached) {
+        if (cached.payloadFingerprint !== payloadFingerprint) {
+          throw new IdempotencyConflictError(
+            `Idempotency key "${normalizedIdempotencyKey}" has already been used with a different request payload.`
+          );
+        }
+        return cached.question;
+      }
+
+      // 2. Check In-Flight Registry
+      const inFlight = this.inFlightRegistry.get(normalizedIdempotencyKey);
+      if (inFlight) {
+        if (inFlight.payloadFingerprint !== payloadFingerprint) {
+          throw new IdempotencyConflictError(
+            `Idempotency key "${normalizedIdempotencyKey}" is currently being processed with a different request payload.`
+          );
+        }
+        return inFlight.promise;
+      }
     }
 
+    // 3. Register In-Flight Execution
+    const executionPromise = this.executeQuestionCreation(requestPayload, actor, payloadFingerprint);
+
+    if (normalizedIdempotencyKey) {
+      this.inFlightRegistry.set(normalizedIdempotencyKey, {
+        promise: executionPromise,
+        payloadFingerprint,
+      });
+    }
+
+    try {
+      const question = await executionPromise;
+      if (normalizedIdempotencyKey) {
+        this.cacheIdempotencyResult(normalizedIdempotencyKey, question, payloadFingerprint);
+      }
+      return question;
+    } finally {
+      if (normalizedIdempotencyKey) {
+        this.inFlightRegistry.delete(normalizedIdempotencyKey);
+      }
+    }
+  }
+
+  /**
+   * Internal Core Question Creation Worker.
+   */
+  private async executeQuestionCreation(
+    requestPayload: QuestionCreationRequestPayload,
+    actor: { id: string; name: string; role?: string | UserRole },
+    payloadFingerprint: string
+  ): Promise<Question> {
     // Resolve creationMode default if not explicitly provided
     if (!requestPayload.creationMode) {
       requestPayload.creationMode = 'manual';
@@ -751,9 +923,9 @@ export class QuestionService {
       throw primaryError;
     }
 
-    // 8. Immediately populate idempotency cache before post-save auxiliary operations
+    // 8. Populate idempotency cache immediately after persistence
     if (requestPayload.idempotencyKey) {
-      this.idempotencyCache.set(requestPayload.idempotencyKey, newQuestion);
+      this.cacheIdempotencyResult(requestPayload.idempotencyKey, newQuestion, payloadFingerprint);
     }
 
     // 9. Post-save auxiliary: Workflow State Transition (resilient, non-fatal)

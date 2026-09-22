@@ -53,18 +53,31 @@ export class AuditService {
 
   /**
    * Recursively sanitizes data payloads, redacting private keys, tokens, and credentials.
+   * Exempts non-credential fields such as `idempotencyKey` / `idempotency_key` / `primaryKey`.
    */
   private sanitizePayload(data: Record<string, unknown>): Record<string, unknown> {
     const sanitized: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(data)) {
       const lowerKey = key.toLowerCase();
+      
+      // Explicit exemptions for safe identifiers containing 'key'
+      const isExemptKey =
+        lowerKey === 'idempotencykey' ||
+        lowerKey === 'idempotency_key' ||
+        lowerKey === 'idempotency-key' ||
+        lowerKey === 'primarykey' ||
+        lowerKey === 'sortkey';
+
       if (
-        lowerKey.includes('key') ||
-        lowerKey.includes('secret') ||
-        lowerKey.includes('token') ||
-        lowerKey.includes('auth') ||
-        lowerKey.includes('credential') ||
-        lowerKey.includes('password')
+        !isExemptKey &&
+        (
+          lowerKey.includes('key') ||
+          lowerKey.includes('secret') ||
+          lowerKey.includes('token') ||
+          lowerKey.includes('auth') ||
+          lowerKey.includes('credential') ||
+          lowerKey.includes('password')
+        )
       ) {
         sanitized[key] = '[REDACTED]';
       } else if (typeof value === 'string') {

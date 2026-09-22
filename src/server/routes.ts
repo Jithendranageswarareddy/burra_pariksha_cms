@@ -628,6 +628,20 @@ apiRouter.get('/tests/task2b', async (req: Request, res: Response) => {
   }
 });
 
+apiRouter.get('/tests/a0232b', async (req: Request, res: Response) => {
+  if (process.env.NODE_ENV === 'production') {
+    res.status(404).json({ success: false, error: 'Test runner endpoints are disabled in production environment.' });
+    return;
+  }
+  try {
+    const { runIdempotencyConcurrencyResilienceTests } = await import('../tests/idempotency-concurrency-resilience.test');
+    const result = await runIdempotencyConcurrencyResilienceTests();
+    res.json({ success: result.success, ...result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'A-02.3.2b Idempotency Concurrency tests failed' });
+  }
+});
+
 apiRouter.get('/tests/task2c', async (req: Request, res: Response) => {
   if (process.env.NODE_ENV === 'production') {
     res.status(404).json({ success: false, error: 'Test runner endpoints are disabled in production environment.' });

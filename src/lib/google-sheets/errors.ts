@@ -87,6 +87,13 @@ export class ValidationError extends GoogleSheetsError {
   }
 }
 
+export class IdempotencyConflictError extends GoogleSheetsError {
+  constructor(message: string = 'Idempotency key has already been used with a different request payload', details?: Record<string, unknown>) {
+    super(message, 'IDEMPOTENCY_CONFLICT', 409, details);
+    this.name = 'IdempotencyConflictError';
+  }
+}
+
 export class NotFoundError extends GoogleSheetsError {
   constructor(message: string = 'Resource not found', details?: Record<string, unknown>) {
     super(message, 'NOT_FOUND_ERROR', 404, details);
@@ -215,6 +222,7 @@ export function classifyError(err: unknown): ErrorClassification {
     err instanceof SchemaMismatchError ||
     err instanceof ReferenceIntegrityError ||
     err instanceof ValidationError ||
+    err instanceof IdempotencyConflictError ||
     err instanceof AuthorizationError ||
     err instanceof TestIsolationWriteBlockedError ||
     err instanceof ConfigurationError
