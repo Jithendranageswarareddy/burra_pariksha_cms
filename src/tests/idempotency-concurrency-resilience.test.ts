@@ -500,7 +500,9 @@ export async function runIdempotencyConcurrencyResilienceTests() {
   const sanitized = (auditService as any).sanitizePayload({
     idempotencyKey: 'bp-idemp-123456',
     idempotency_key: 'bp-idemp-654321',
+    'idempotency-key': 'bp-idemp-789012',
     primaryKey: 'PK-100',
+    sortKey: 'SK-200',
     title: 'Valid Question',
     apiKey: 'SECRET_API_KEY_VALUE',
     password: 'SUPER_SECRET_PASSWORD',
@@ -509,7 +511,9 @@ export async function runIdempotencyConcurrencyResilienceTests() {
 
   assert(sanitized.idempotencyKey === 'bp-idemp-123456', 'idempotencyKey is NOT redacted by audit sanitization');
   assert(sanitized.idempotency_key === 'bp-idemp-654321', 'idempotency_key is NOT redacted by audit sanitization');
-  assert(sanitized.primaryKey === 'PK-100', 'primaryKey is NOT redacted by audit sanitization');
+  assert(sanitized['idempotency-key'] === 'bp-idemp-789012', 'idempotency-key is NOT redacted by audit sanitization');
+  assert(sanitized.primaryKey === '[REDACTED]', 'primaryKey is handled by original sanitization rules');
+  assert(sanitized.sortKey === '[REDACTED]', 'sortKey is handled by original sanitization rules');
 
   // Test 28: Actual secrets remain safely redacted
   assert(sanitized.apiKey === '[REDACTED]', 'apiKey is correctly redacted');
@@ -593,14 +597,17 @@ export async function runIdempotencyConcurrencyResilienceTests() {
   };
 }
 
-runIdempotencyConcurrencyResilienceTests()
-  .then((res) => {
-    if (!res.success) {
+// Direct CLI execution guard
+if (process.argv[1] && process.argv[1].endsWith('idempotency-concurrency-resilience.test.ts')) {
+  runIdempotencyConcurrencyResilienceTests()
+    .then((res) => {
+      if (!res.success) {
+        process.exit(1);
+      }
+    })
+    .catch((err) => {
+      console.error('Test Suite Failed:', err);
       process.exit(1);
-    }
-  })
-  .catch((err) => {
-    console.error('Test Suite Failed:', err);
-    process.exit(1);
-  });
+    });
+}
 

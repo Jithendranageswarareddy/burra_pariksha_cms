@@ -64,9 +64,7 @@ export class AuditService {
       const isExemptKey =
         lowerKey === 'idempotencykey' ||
         lowerKey === 'idempotency_key' ||
-        lowerKey === 'idempotency-key' ||
-        lowerKey === 'primarykey' ||
-        lowerKey === 'sortkey';
+        lowerKey === 'idempotency-key';
 
       if (
         !isExemptKey &&
