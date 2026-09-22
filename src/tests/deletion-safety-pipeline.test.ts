@@ -39,6 +39,7 @@ class TestEntityRepository extends BaseRepository<{ id: string; name: string }> 
       this.client = {
         ...googleSheetsClient,
         isConfigured: () => false,
+        isTestMode: () => false,
         invalidateRowCache: () => {},
       } as any;
     }
@@ -246,6 +247,7 @@ export async function runDeletionSafetyPipelineTests(): Promise<{ passed: number
 
     const mockClient = {
       isConfigured: () => true,
+      isTestMode: () => false,
       getSpreadsheetId: () => 'mock-spreadsheet-id',
       invalidateRowCache: () => {},
       getRows: async () => ({

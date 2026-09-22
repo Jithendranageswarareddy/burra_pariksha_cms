@@ -642,6 +642,20 @@ apiRouter.get('/tests/a0232b', async (req: Request, res: Response) => {
   }
 });
 
+apiRouter.get('/tests/a024', async (req: Request, res: Response) => {
+  if (process.env.NODE_ENV === 'production') {
+    res.status(404).json({ success: false, error: 'Test runner endpoints are disabled in production environment.' });
+    return;
+  }
+  try {
+    const { runPipelineConvergenceSequenceResilienceTests } = await import('../tests/pipeline-convergence-sequence-resilience.test');
+    const result = await runPipelineConvergenceSequenceResilienceTests();
+    res.json({ success: result.success, ...result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'A-02.4 Pipeline Convergence tests failed' });
+  }
+});
+
 apiRouter.get('/tests/task2c', async (req: Request, res: Response) => {
   if (process.env.NODE_ENV === 'production') {
     res.status(404).json({ success: false, error: 'Test runner endpoints are disabled in production environment.' });

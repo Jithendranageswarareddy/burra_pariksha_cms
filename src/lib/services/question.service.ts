@@ -295,280 +295,46 @@ export class QuestionService {
   /**
    * Creates a new question with schema & taxonomy validation, permanent sequence ID allocation,
    * enforced default statuses (status=GENERATED, video_status=NOT_STARTED), and audit/workflow tracking.
+   * Delegated directly to canonical createQuestionFromRequest pipeline for convergence (A-02.4).
    */
   public async createQuestion(
     input: CreateQuestionInput,
     actor: { id: string; name: string; role?: string | UserRole } = { id: 'USR-001', name: 'Admin / Content Lead', role: UserRole.ADMIN }
   ): Promise<Question> {
-    if (actor.role) {
-      const r = String(actor.role).toUpperCase();
-      const allowed = [UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.QUESTION_EDITOR, UserRole.CONTENT_WRITER];
-      if (!allowed.includes(r as any)) {
-        throw new Error(`Unauthorized: Role "${actor.role}" is not allowed to create questions.`);
-      }
-    }
-
     // 1. Zod runtime schema validation
     const validatedInput = CreateQuestionInputSchema.parse(input);
 
-    // Validate non-empty and distinct options and correct answer choice
-    const optValues = [
-      validatedInput.options.a.trim().toLowerCase(),
-      validatedInput.options.b.trim().toLowerCase(),
-      validatedInput.options.c.trim().toLowerCase(),
-      validatedInput.options.d.trim().toLowerCase(),
-    ];
-    if (optValues.some((v) => v.length === 0)) {
-      throw new ValidationError('Question options must not contain empty choices.');
-    }
-    if (new Set(optValues).size < 4) {
-      throw new ValidationError('Question options must contain 4 distinct choices.');
-    }
-
-    const correctKey = validatedInput.correctAnswer.toLowerCase() as 'a' | 'b' | 'c' | 'd';
-    if (!validatedInput.options[correctKey] || !validatedInput.options[correctKey].trim()) {
-      throw new ValidationError(`Selected correct answer (${validatedInput.correctAnswer}) corresponds to an empty option choice.`);
-    }
-
-    // Handle RANDOM mode, subtopicId = 'RANDOM', or realLifeContext = 'RANDOM'
-    let resolvedSubtopicId = validatedInput.subtopicId;
-    const inputContext = ((validatedInput as any).realLifeContext || validatedInput.realWorldContext || '').trim();
-    const isRandomContext = inputContext.toUpperCase() === 'RANDOM' || inputContext.toUpperCase() === 'SMART_RANDOM';
-
-    // Validate explicit non-random realLifeContext against inactive entries in QUESTION_CONFIG
-    if (inputContext && !isRandomContext) {
-      const allContexts = await questionConfigService.getRealLifeContexts(false, true);
-      const match = allContexts.find(
-        (c) =>
-          c.code.toUpperCase() === inputContext.toUpperCase() ||
-          c.displayLabel.toLowerCase() === inputContext.toLowerCase()
-      );
-      if (match && !match.isActive) {
-        throw new ValidationError(`Selected Real-Life Context "${inputContext}" is inactive in QUESTION_CONFIG.`);
-      }
-    }
-
-    // Validate explicit questionStyle against inactive entries in QUESTION_CONFIG
-    const inputStyle = ((validatedInput as any).questionStyle || '').trim();
-    if (inputStyle) {
-      const allStyles = await questionConfigService.getQuestionStyles(false, true);
-      const match = allStyles.find(
-        (s) =>
-          s.code.toUpperCase() === inputStyle.toUpperCase() ||
-          s.displayLabel.toLowerCase() === inputStyle.toLowerCase()
-      );
-      if (match && !match.isActive) {
-        throw new ValidationError(`Selected Question Style "${inputStyle}" is inactive in QUESTION_CONFIG.`);
-      }
-    }
-
-    let resolvedGenerationMode: 'SUBTOPIC' | 'RANDOM' =
-      validatedInput.generationMode?.toUpperCase() === 'RANDOM' ||
-      validatedInput.subtopicId?.toUpperCase() === 'RANDOM' ||
-      isRandomContext
-        ? 'RANDOM'
-        : 'SUBTOPIC';
-
-    if (resolvedGenerationMode === 'RANDOM' || resolvedSubtopicId?.toUpperCase() === 'RANDOM') {
-      const resolved = await taxonomyService.resolveSubtopicSelection(validatedInput.topicId, 'RANDOM');
-      resolvedSubtopicId = resolved.subtopicId;
-      resolvedGenerationMode = 'RANDOM';
-    }
-
-    // Resolve context if RANDOM so literal "RANDOM" is never persisted
-    let resolvedRealLifeContext = inputContext;
-    if (isRandomContext) {
-      const resolvedContextParams = await smartRandomService.resolveParameters({
-        topicId: validatedInput.topicId,
-        subtopicId: resolvedSubtopicId,
-        realLifeContext: 'RANDOM',
-      });
-      resolvedRealLifeContext = resolvedContextParams.realLifeContext;
-      resolvedGenerationMode = 'RANDOM';
-    }
-    if (resolvedRealLifeContext.toUpperCase() === 'RANDOM') {
-      throw new ValidationError('Real-life context cannot be persisted as literal "RANDOM". A concrete context must be resolved.');
-    }
-
-    // 2. Validate Taxonomy Integrity (Topic -> Subtopic primary, optional legacy category)
-    const { category, topic, subtopic } = await taxonomyService.validateQuestionTaxonomy(
-      validatedInput.topicId,
-      resolvedSubtopicId,
-      validatedInput.categoryId
-    );
-
-    // 3. Permanent ID Allocation via SEQUENCES tab
-    const id = await idService.allocateQuestionId();
-
-    // 3B. Canonical Content ID / Content Master allocation & correlation
-    let contentId = (validatedInput as any).contentId || (validatedInput as any).contentMasterId;
-    let contentMasterId = (validatedInput as any).contentMasterId || (validatedInput as any).contentId;
-    if (!contentMasterId) {
-      const master = await contentMasterService.createContentMaster(
-        {
-          title: validatedInput.questionText ? validatedInput.questionText.slice(0, 100) : `Content Master for Question ${id}`,
-          primaryQuestionId: id,
-          categoryId: category?.id || '',
-          topicId: topic.id,
-          subtopicId: subtopic.id,
-          createdBy: actor.id,
-        },
-        actor.id,
-        actor.name
-      );
-      contentMasterId = master.id;
-      contentId = master.id;
-    }
-
-    const now = new Date().toISOString();
-    // Enforce Phase 3 mandatory creation defaults: status = GENERATED, video_status = NOT_STARTED
-    const status = QuestionStatus.GENERATED;
-    const videoStatus = VideoProductionStatus.NOT_STARTED;
-
-    const newQuestion: Question = {
-      id,
-      contentId,
-      contentMasterId,
-      categoryId: category?.id || '',
-      categoryName: category?.name || '',
-      topicId: topic.id,
-      topicName: topic.name,
-      subtopicId: subtopic.id,
-      subtopicName: subtopic.name,
+    // 2. Map normalized input to QuestionCreationRequestPayload
+    const payload: QuestionCreationRequestPayload = {
+      creationMode: 'manual',
+      categoryId: validatedInput.categoryId,
+      topicId: validatedInput.topicId,
+      subtopicId: validatedInput.subtopicId,
       difficulty: validatedInput.difficulty,
+      realLifeContext: (validatedInput as any).realLifeContext || validatedInput.realWorldContext,
+      challengeType: (validatedInput as any).challengeType,
+      presentationType: (validatedInput as any).presentationType,
       language: (validatedInput as any).language || 'TELUGU',
+      questionStyle: (validatedInput as any).questionStyle,
       questionText: validatedInput.questionText,
       question: validatedInput.questionText,
+      content: (validatedInput as any).content,
       options: validatedInput.options,
-      optionA: validatedInput.options.a,
-      optionB: validatedInput.options.b,
-      optionC: validatedInput.options.c,
-      optionD: validatedInput.options.d,
       correctAnswer: validatedInput.correctAnswer,
       explanation: validatedInput.explanation,
-      realWorldContext: resolvedRealLifeContext,
-      realLifeContext: resolvedRealLifeContext,
-      challengeType: (validatedInput as any).challengeType || '',
-      presentationType: (validatedInput as any).presentationType || '',
-      originalityScore: (validatedInput as any).originalityScore || 0,
-      aiModel: (validatedInput as any).aiModel || '',
-      aiPrompt: (validatedInput as any).aiPrompt || '',
-      questionStyle: QuestionCreationValidator.normalizeQuestionStyle(validatedInput.questionStyle),
-      status,
-      videoStatus,
-      tags: validatedInput.tags || [],
+      contentMasterId: (validatedInput as any).contentMasterId || (validatedInput as any).contentId,
+      tags: validatedInput.tags,
       source: validatedInput.source || 'AI Generator Studio',
-      aiPromptUsed: validatedInput.aiPromptUsed || '',
-      authorId: actor.id,
-      author: actor.name || actor.id,
-      generationMode: resolvedGenerationMode,
-      createdAt: now,
-      updatedAt: now,
+      aiPromptUsed: validatedInput.aiPromptUsed,
+      aiModel: (validatedInput as any).aiModel,
+      aiPrompt: (validatedInput as any).aiPrompt,
+      originalityScore: (validatedInput as any).originalityScore,
+      idempotencyKey: (validatedInput as any).idempotencyKey,
+      generationMode: validatedInput.generationMode,
     };
 
-    // 4. Enforce Multi-Layer Verification Pipeline & Backend Save Gate
-    const verificationReport = await MultiLayerVerificationEngine.verify(newQuestion, {
-      actor: actor.name,
-    });
-
-    if (verificationReport.aggregatedStatus === 'FAILED' || !verificationReport.canSave) {
-      const errDetail = verificationReport.overallErrors.join('; ');
-      throw new ValidationError(`Question creation REJECTED at Backend Save Gate due to multi-layer verification failure: ${errDetail}`);
-    }
-
-    // Assign server-authoritative verification status (overriding any client spoofing)
-    newQuestion.validationStatus = verificationReport.canonicalValidationStatus;
-    newQuestion.validationScore = verificationReport.confidenceScore;
-    newQuestion.lastValidationId = verificationReport.id;
-
-    // Save validation audit record
-    try {
-      await validationsRepository.saveValidationResult({
-        id: verificationReport.id,
-        questionId: newQuestion.id,
-        status: verificationReport.canonicalValidationStatus,
-        confidenceScore: verificationReport.confidenceScore,
-        validatorVersion: MultiLayerVerificationEngine.VERSION,
-        validationRuleVersion: '2026.09.v1',
-        timestamp: verificationReport.timestamp,
-        source: 'MULTI_LAYER_PIPELINE',
-        summary: verificationReport.overallErrors.length > 0 
-          ? `Verification failed with ${verificationReport.overallErrors.length} error(s)`
-          : `Multi-layer verification ${verificationReport.aggregatedStatus}`,
-        checks: verificationReport.layerList.map(l => ({
-          checkId: l.layerId,
-          checkName: l.layerName,
-          passed: l.status === 'VERIFIED' || l.status === 'N/A',
-          severity: l.status === 'FAILED' ? 'FATAL' : l.status === 'UNVERIFIED' ? 'WARN' : 'INFO',
-          message: l.summary,
-        })),
-        errors: verificationReport.overallErrors,
-        warnings: verificationReport.overallWarnings,
-        recommendations: [],
-        answerVerification: {
-          isConsistent: verificationReport.layers['5']?.status !== 'FAILED',
-          declaredAnswer: newQuestion.correctAnswer,
-          details: verificationReport.layers['6']?.summary || '',
-          contradictionDetected: verificationReport.layers['5']?.status === 'FAILED',
-        },
-        explanationVerification: {
-          isValid: verificationReport.layers['7']?.status === 'VERIFIED',
-          contradictsAnswer: verificationReport.layers['5']?.status === 'FAILED',
-          reachesDeclaredResult: true,
-          substantiveLength: (newQuestion.explanation || '').length >= 5,
-          details: verificationReport.layers['7']?.summary || '',
-        },
-        ambiguityResult: {
-          isAmbiguous: false,
-          ambiguityReasons: [],
-          confidence: verificationReport.confidenceScore,
-          details: 'No ambiguity',
-        },
-        mathematicalLogicalResult: verificationReport.evidence?.mathDerivation || {
-          status: verificationReport.layers['3']?.status === 'N/A' ? 'NOT_APPLICABLE' : 'VERIFIED',
-          details: verificationReport.layers['3']?.summary || '',
-        },
-        layers: verificationReport.layers,
-        layerList: verificationReport.layerList,
-        aggregatedLayerStatus: verificationReport.aggregatedStatus,
-        humanReviewState: verificationReport.humanReviewState,
-        createdAt: verificationReport.timestamp,
-        updatedAt: verificationReport.timestamp,
-      } as any);
-    } catch {
-      // Best-effort audit save
-    }
-
-    // 5. Persist to authoritative QUESTIONS sheet
-    await questionsRepository.appendRecord(newQuestion);
-
-    // 5. Record initial Workflow state transition (DRAFT -> GENERATED)
-    await workflowService.recordTransition(
-      'QUESTION',
-      id,
-      'DRAFT',
-      status,
-      actor.name,
-      'Initial question authoring and registration'
-    );
-
-    // 6. Record Audit Log
-    await auditService.log(
-      actor.id,
-      actor.name,
-      'QUESTION_CREATED',
-      'QUESTION',
-      id,
-      {
-        questionId: id,
-        categoryId: category?.id || '',
-        topicId: topic.id,
-        subtopicId: subtopic.id,
-        difficulty: validatedInput.difficulty,
-      }
-    );
-
-    return newQuestion;
+    // 3. Delegate to canonical pipeline
+    return this.createQuestionFromRequest(payload, actor);
   }
 
   /**
@@ -811,9 +577,19 @@ export class QuestionService {
       throw new ValidationError(`Question creation REJECTED at Backend Save Gate due to multi-layer verification failure: ${errDetail}`);
     }
 
+    // Verify contentMasterId existence before ID allocation if provided
+    let contentMasterId = requestPayload.contentMasterId;
+    if (contentMasterId) {
+      const existingMaster = await contentMastersRepository.findById(contentMasterId);
+      if (!existingMaster) {
+        throw new ReferenceIntegrityError(
+          `Referenced contentMasterId "${contentMasterId}" does not exist in CONTENT_MASTERS repository.`
+        );
+      }
+    }
+
     // Now safely allocate sequence and create Content Master
     const id = await idService.allocateQuestionId();
-    let contentMasterId = requestPayload.contentMasterId;
     let createdContentMaster = false;
 
     if (!contentMasterId) {

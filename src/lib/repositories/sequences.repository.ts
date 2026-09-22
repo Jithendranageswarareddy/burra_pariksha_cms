@@ -28,6 +28,7 @@ import { analyticsRepository } from './analytics.repository';
 import { intelligenceRepository } from './intelligence.repository';
 import { socialCommentsRepository } from './social-comments.repository';
 import { commentIntelligenceRepository } from './comment-intelligence.repository';
+import { SequenceAllocationError } from '../google-sheets/errors';
 
 export interface SequenceRecord {
   entityType: string;
@@ -173,8 +174,14 @@ export class SequencesRepository extends BaseRepository<SequenceRecord> {
         }
       }
       return maxId;
-    } catch {
-      return 0;
+    } catch (err: any) {
+      if (err instanceof SequenceAllocationError) {
+        throw err;
+      }
+      throw new SequenceAllocationError(
+        entityType,
+        `Failed to scan existing records to determine sequence maximum: ${err?.message || String(err)}`
+      );
     }
   }
 
