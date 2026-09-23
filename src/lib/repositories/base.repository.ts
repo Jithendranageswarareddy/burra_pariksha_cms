@@ -309,19 +309,18 @@ export abstract class BaseRepository<T extends Record<string, any>> {
 
     const sheetStore = BaseRepository.fallbackStore.get(this.schema.sheetName)!;
     const localExisting = sheetStore.get(id);
-    let updated: any = null;
-    if (localExisting) {
-      updated = { ...localExisting, ...updates, updatedAt: new Date().toISOString() };
-      sheetStore.set(id, updated);
-    }
 
+    // If Google Sheets is NOT configured, operate strictly in local fallback store mode
     if (!this.client.isConfigured(this.getTargetSpreadsheetId())) {
+      if (!localExisting) return null;
+      const updated = { ...localExisting, ...updates, updatedAt: new Date().toISOString() };
+      sheetStore.set(id, updated);
       return updated as unknown as T;
     }
 
     try {
       const { headers, rows } = await this.client.getRows(this.schema.sheetName, this.getEndColLetter(), this.getTargetSpreadsheetId());
-      if (!headers || headers.length === 0) return updated as unknown as T;
+      if (!headers || headers.length === 0) return null;
 
       let targetRowIndex = -1;
       let existingRecord: T | null = null;
@@ -336,7 +335,7 @@ export abstract class BaseRepository<T extends Record<string, any>> {
       }
 
       if (targetRowIndex === -1 || !existingRecord) {
-        return updated as unknown as T;
+        return null;
       }
 
       const mergedRecord = {
@@ -354,7 +353,7 @@ export abstract class BaseRepository<T extends Record<string, any>> {
     } catch (err: any) {
       if (this.isWorksheetNotFoundError(err)) {
         await this.ensureWorksheet();
-        return updated as unknown as T;
+        return null;
       }
       throw err;
     }

@@ -1,12 +1,12 @@
 /**
  * A-02.5: SEQUENCE PERSISTENCE, SELF-HEALING & CONCURRENCY RESILIENCE TEST SUITE
  * 
- * Verifies all 12 sequence allocation resilience contracts:
+ * Verifies all sequence allocation resilience contracts:
  * 1. Initial allocation creates row starting past max existing ID
  * 2. Subsequent allocations increment sequentially
  * 3. Retired 'CONTENT_ID' throws error pointing to 'CONTENT_MASTER'
  * 4. Concurrent allocation serialized via single-process promise queue
- * 5. Update failure (updateRecord returning null or throwing) throws SequenceAllocationError
+ * 5. Update failure on missing remote row (exercising real BaseRepository.updateRecord) throws SequenceAllocationError
  * 6. Non-transient update rejection fails-closed
  * 7. Self-healing detects sequence drift and advances nextNumber past max existing ID
  * 8. Self-healing respects entity prefix and pad length
@@ -21,6 +21,7 @@ import { questionsRepository } from '../lib/repositories/questions.repository';
 import { contentMastersRepository } from '../lib/repositories/content-masters.repository';
 import { videosRepository } from '../lib/repositories/videos.repository';
 import { usersRepository } from '../lib/repositories/users.repository';
+import { googleSheetsClient } from '../lib/google-sheets/client';
 import { SequenceAllocationError } from '../lib/google-sheets/errors';
 import { SEQUENCE_ENTITIES } from '../lib/schemas/google-sheets-schema';
 
@@ -57,6 +58,11 @@ export async function runSequenceSelfHealingResilienceTests() {
   const origContentMastersFindAll = contentMastersRepository.findAll;
   const origVideosFindAll = videosRepository.findAll;
   const origUsersFindAll = usersRepository.findAll;
+  const origIsConfigured = googleSheetsClient.isConfigured;
+  const origGetRows = googleSheetsClient.getRows;
+  const origGetHeaders = googleSheetsClient.getHeaders;
+  const origUpdateRow = googleSheetsClient.updateRow;
+  const origCreateWorksheet = googleSheetsClient.createWorksheetIfNotExists;
 
   try {
     // -------------------------------------------------------------------------
@@ -186,23 +192,58 @@ export async function runSequenceSelfHealingResilienceTests() {
     }
 
     // -------------------------------------------------------------------------
-    // TEST 5: Update failure (updateRecord returning null) throws SequenceAllocationError
+    // TEST 5: REAL MISSING-ROW FAIL-CLOSED PROOF (Unmocked BaseRepository.updateRecord)
     // -------------------------------------------------------------------------
     {
-      const inMemorySequences: Map<string, SequenceRecord> = new Map([
-        [SEQUENCE_ENTITIES.QUESTION, { entityType: SEQUENCE_ENTITIES.QUESTION, nextNumber: 50, prefix: 'BP-Q-', padLength: 6 }],
-      ]);
-      sequencesRepository.getSequence = async (entityType: string) => inMemorySequences.get(entityType) || null;
-      sequencesRepository.findById = async (id: string) => inMemorySequences.get(id) || null;
-      sequencesRepository.findAll = async () => Array.from(inMemorySequences.values());
-      // Simulate sheet update failure where row was not found (returns null)
-      sequencesRepository.updateRecord = async () => null;
+      // Restore real BaseRepository / SequencesRepository methods for full pipeline execution
+      sequencesRepository.getSequence = origGetSequence;
+      sequencesRepository.findById = origFindById;
+      sequencesRepository.findAll = origFindAll;
+      sequencesRepository.appendRecord = origAppendRecord;
+      sequencesRepository.updateRecord = origUpdateRecord;
+
+      // Configure mock Google Sheets client state (without network access or real sheets mutation)
+      googleSheetsClient.isConfigured = () => true;
+      googleSheetsClient.getHeaders = async () => ['entity_type', 'next_number', 'prefix', 'pad_length', 'updated_at'];
+      googleSheetsClient.createWorksheetIfNotExists = async () => true;
+      
+      let updateRowWasCalled = false;
+      googleSheetsClient.updateRow = async () => {
+        updateRowWasCalled = true;
+      };
+
+      // In initial getSequence check: row exists with nextNumber=10
+      // In updateRecord check: the row is missing from the remote sheet
+      let getRowsCalls = 0;
+      googleSheetsClient.getRows = async (sheetName: string) => {
+        getRowsCalls++;
+        if (getRowsCalls === 1) {
+          // getSequence finds the row
+          return {
+            headers: ['entity_type', 'next_number', 'prefix', 'pad_length', 'updated_at'],
+            rows: [
+              ['QUESTION', 10, 'BP-Q-', 6, new Date().toISOString()]
+            ]
+          };
+        } else {
+          // updateRecord encounters a missing row in remote sheet
+          return {
+            headers: ['entity_type', 'next_number', 'prefix', 'pad_length', 'updated_at'],
+            rows: [
+              ['VIDEO', 10, 'BP-VID-', 6, new Date().toISOString()]
+            ]
+          };
+        }
+      };
+
       questionsRepository.findAll = async () => [];
 
       let errorThrown = false;
       let errorInstance: any = null;
+      let returnedResult: any = null;
+
       try {
-        await sequencesRepository.allocateNextNumber(SEQUENCE_ENTITIES.QUESTION);
+        returnedResult = await sequencesRepository.allocateNextNumber(SEQUENCE_ENTITIES.QUESTION);
       } catch (err: any) {
         errorThrown = true;
         errorInstance = err;
@@ -210,8 +251,18 @@ export async function runSequenceSelfHealingResilienceTests() {
 
       assert(
         errorThrown && errorInstance instanceof SequenceAllocationError,
-        'Update failure (returning null) fails-closed throwing SequenceAllocationError',
+        'Real missing-row update fails-closed throwing SequenceAllocationError through unmocked BaseRepository.updateRecord',
         `Caught: ${errorInstance?.name} - ${errorInstance?.message}`
+      );
+      assert(
+        returnedResult === null,
+        'No sequence allocation result is returned on remote missing row failure',
+        `Result: ${JSON.stringify(returnedResult)}`
+      );
+      assert(
+        updateRowWasCalled === false,
+        'No remote updateRow was executed when target row was missing',
+        `updateRowWasCalled: ${updateRowWasCalled}`
       );
     }
 
@@ -356,27 +407,22 @@ export async function runSequenceSelfHealingResilienceTests() {
     // TEST 10: Memory fallback isolation when client is unconfigured
     // -------------------------------------------------------------------------
     {
-      const inMemorySequences: Map<string, SequenceRecord> = new Map([
-        [SEQUENCE_ENTITIES.VIDEO, { entityType: SEQUENCE_ENTITIES.VIDEO, nextNumber: 1, prefix: 'BP-VID-', padLength: 6 }],
-      ]);
-      sequencesRepository.getSequence = async (entityType: string) => inMemorySequences.get(entityType) || null;
-      sequencesRepository.findById = async (id: string) => inMemorySequences.get(id) || null;
-      sequencesRepository.findAll = async () => Array.from(inMemorySequences.values());
-      sequencesRepository.updateRecord = async (id: string, updates: Partial<SequenceRecord>) => {
-        const existing = inMemorySequences.get(id);
-        if (!existing) return null;
-        const updated = { ...existing, ...updates, updatedAt: new Date().toISOString() };
-        inMemorySequences.set(id, updated);
-        return updated;
-      };
+      // Reset mocks so we test unconfigured memory mode through real BaseRepository
+      sequencesRepository.getSequence = origGetSequence;
+      sequencesRepository.findById = origFindById;
+      sequencesRepository.findAll = origFindAll;
+      sequencesRepository.appendRecord = origAppendRecord;
+      sequencesRepository.updateRecord = origUpdateRecord;
+      googleSheetsClient.isConfigured = () => false;
+
       videosRepository.findAll = async () => [];
 
       const result = await sequencesRepository.allocateNextNumber(SEQUENCE_ENTITIES.VIDEO);
 
       assert(
-        result.allocatedNumber === 1 && result.prefix === 'BP-VID-',
-        'Video sequence allocates properly in memory store',
-        `Got ${result.allocatedNumber}`
+        result.allocatedNumber >= 1 && result.prefix === 'BP-V-',
+        'Video sequence allocates properly in memory store when unconfigured',
+        `Got ${result.allocatedNumber}, prefix: ${result.prefix}`
       );
     }
 
@@ -455,6 +501,11 @@ export async function runSequenceSelfHealingResilienceTests() {
     contentMastersRepository.findAll = origContentMastersFindAll;
     videosRepository.findAll = origVideosFindAll;
     usersRepository.findAll = origUsersFindAll;
+    googleSheetsClient.isConfigured = origIsConfigured;
+    googleSheetsClient.getRows = origGetRows;
+    googleSheetsClient.getHeaders = origGetHeaders;
+    googleSheetsClient.updateRow = origUpdateRow;
+    googleSheetsClient.createWorksheetIfNotExists = origCreateWorksheet;
   }
 }
 
