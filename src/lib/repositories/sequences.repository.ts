@@ -243,12 +243,19 @@ export class SequencesRepository extends BaseRepository<SequenceRecord> {
 
     const nextNumber = currentNumber + 1;
 
-    await this.updateRecord(entityType, {
+    const updated = await this.updateRecord(entityType, {
       nextNumber,
       prefix: sequence.prefix || config.prefix,
       padLength: Number(sequence.padLength) || config.padLength,
       updatedAt: new Date().toISOString(),
     });
+
+    if (!updated) {
+      throw new SequenceAllocationError(
+        entityType,
+        `Failed to persist sequence allocation to SEQUENCES worksheet for "${entityType}".`
+      );
+    }
 
     return {
       allocatedNumber: currentNumber,
