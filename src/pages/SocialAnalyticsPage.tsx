@@ -52,6 +52,7 @@ import {
   SocialAnalyticsRecord,
   SocialCommentRecord,
   CommentIntelligenceRecord,
+  SocialPublishStatus,
 } from '../types';
 
 export const SocialAnalyticsPage: React.FC = () => {
@@ -76,6 +77,19 @@ export const SocialAnalyticsPage: React.FC = () => {
   const [formVideoId, setFormVideoId] = useState<string>(initialVideoId);
   const [formPublishingId, setFormPublishingId] = useState<string>(initialPublishingId);
   const [formPlatformPostId, setFormPlatformPostId] = useState<string>('');
+  const [resolvedPublishing, setResolvedPublishing] = useState<any | null>(null);
+
+  // Form fields declared at the top to prevent used before declaration error
+  const [formPlatform, setFormPlatform] = useState<'youtube' | 'instagram' | 'facebook'>('youtube');
+  const [formPostingDate, setFormPostingDate] = useState<string>(() => {
+    const now = new Date();
+    return now.toISOString().slice(0, 16); // YYYY-MM-DDTHH:mm
+  });
+  const [formCapturedDate, setFormCapturedDate] = useState<string>(() => {
+    const now = new Date();
+    return now.toISOString().slice(0, 16);
+  });
+  const [formNotes, setFormNotes] = useState<string>('');
 
   useEffect(() => {
     const vid = searchParams.get('videoId');
@@ -83,6 +97,80 @@ export const SocialAnalyticsPage: React.FC = () => {
     if (vid) setFormVideoId(vid);
     if (pubId) setFormPublishingId(pubId);
   }, [searchParams]);
+
+  // Automatically resolve existing publication information when verifiedMaster changes
+  useEffect(() => {
+    if (!selectedContentId || !verifiedMaster) {
+      setResolvedPublishing(null);
+      return;
+    }
+
+    let isMounted = true;
+    apiClient.getPublishing()
+      .then((pubList) => {
+        if (!isMounted) return;
+        const pub = pubList.find(
+          (p) => p.contentId === selectedContentId || p.contentMasterId === selectedContentId
+        );
+        if (pub) {
+          setResolvedPublishing(pub);
+          setFormPublishingId(pub.id);
+          if (pub.videoId) {
+            setFormVideoId(pub.videoId);
+          }
+
+          // Determine starting platform
+          const paramPlatform = searchParams.get('platform')?.toLowerCase();
+          const activePlatform: 'youtube' | 'instagram' | 'facebook' =
+            paramPlatform === 'youtube' || paramPlatform === 'instagram' || paramPlatform === 'facebook'
+              ? paramPlatform
+              : pub.youtube?.status === SocialPublishStatus.PUBLISHED
+              ? 'youtube'
+              : pub.instagram?.status === SocialPublishStatus.PUBLISHED
+              ? 'instagram'
+              : pub.facebook?.status === SocialPublishStatus.PUBLISHED
+              ? 'facebook'
+              : 'youtube';
+
+          setFormPlatform(activePlatform);
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to resolve publication details:', err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedContentId, verifiedMaster, searchParams]);
+
+  // Synchronize platform-specific details (live URL & post ID & posting timestamp) whenever formPlatform or resolvedPublishing changes
+  useEffect(() => {
+    if (!resolvedPublishing) return;
+
+    const platformData = resolvedPublishing[formPlatform];
+    const liveUrl =
+      formPlatform === 'youtube'
+        ? resolvedPublishing.youtube?.videoUrl || ''
+        : formPlatform === 'instagram'
+        ? resolvedPublishing.instagram?.postUrl || ''
+        : resolvedPublishing.facebook?.postUrl || '';
+
+    if (liveUrl) {
+      setFormPlatformPostId(liveUrl);
+    } else {
+      setFormPlatformPostId('');
+    }
+
+    if (platformData?.publishedAt) {
+      try {
+        const dateStr = new Date(platformData.publishedAt).toISOString().slice(0, 16);
+        setFormPostingDate(dateStr);
+      } catch {
+        // Leave unchanged on parsing error
+      }
+    }
+  }, [formPlatform, resolvedPublishing]);
 
   // Snapshots & History state
   const [snapshots, setSnapshots] = useState<SocialAnalyticsRecord[]>([]);
@@ -109,15 +197,6 @@ export const SocialAnalyticsPage: React.FC = () => {
   const [formErrorMessage, setFormErrorMessage] = useState<string | null>(null);
 
   // Form fields
-  const [formPlatform, setFormPlatform] = useState<'youtube' | 'instagram' | 'facebook'>('youtube');
-  const [formPostingDate, setFormPostingDate] = useState<string>(() => {
-    const now = new Date();
-    return now.toISOString().slice(0, 16); // YYYY-MM-DDTHH:mm
-  });
-  const [formCapturedDate, setFormCapturedDate] = useState<string>(() => {
-    const now = new Date();
-    return now.toISOString().slice(0, 16);
-  });
   const [formViews, setFormViews] = useState<number | ''>(0);
   const [formWatchTime, setFormWatchTime] = useState<number | ''>(0);
   const [formRetention, setFormRetention] = useState<number | ''>(0);
@@ -126,7 +205,6 @@ export const SocialAnalyticsPage: React.FC = () => {
   const [formShares, setFormShares] = useState<number | ''>(0);
   const [formSubscribersGained, setFormSubscribersGained] = useState<number | ''>(0);
   const [formCtr, setFormCtr] = useState<number | ''>(0);
-  const [formNotes, setFormNotes] = useState<string>('');
 
   // 1. Preload Content Masters list for easy picker
   useEffect(() => {
@@ -861,6 +939,58 @@ export const SocialAnalyticsPage: React.FC = () => {
                 placeholder="e.g. dQw4w9WgXcQ or post identifier"
                 className="w-full px-3 py-1.5 text-xs font-mono border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
               />
+            </div>
+
+            {/* Snapshot Interval Template Pre-staging */}
+            <div className="space-y-1.5 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 flex items-center justify-between">
+                <span>Snapshot Template</span>
+                <span className="text-[10px] text-slate-400 font-normal lowercase">pre-stages metadata & timestamp</span>
+              </label>
+              <div className="grid grid-cols-3 gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (formPostingDate) {
+                      const postTime = new Date(formPostingDate);
+                      const targetTime = new Date(postTime.getTime() + 24 * 60 * 60 * 1000);
+                      setFormCapturedDate(targetTime.toISOString().slice(0, 16));
+                    }
+                    setFormNotes('[24-Hour Snapshot]');
+                  }}
+                  className="py-1.5 px-2 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 text-[10px] font-bold transition cursor-pointer text-center shadow-2xs"
+                >
+                  24h Snapshot
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (formPostingDate) {
+                      const postTime = new Date(formPostingDate);
+                      const targetTime = new Date(postTime.getTime() + 7 * 24 * 60 * 60 * 1000);
+                      setFormCapturedDate(targetTime.toISOString().slice(0, 16));
+                    }
+                    setFormNotes('[7-Day Snapshot]');
+                  }}
+                  className="py-1.5 px-2 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 text-[10px] font-bold transition cursor-pointer text-center shadow-2xs"
+                >
+                  7d Snapshot
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (formPostingDate) {
+                      const postTime = new Date(formPostingDate);
+                      const targetTime = new Date(postTime.getTime() + 30 * 24 * 60 * 60 * 1000);
+                      setFormCapturedDate(targetTime.toISOString().slice(0, 16));
+                    }
+                    setFormNotes('[30-Day Snapshot]');
+                  }}
+                  className="py-1.5 px-2 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 text-[10px] font-bold transition cursor-pointer text-center shadow-2xs"
+                >
+                  30d Snapshot
+                </button>
+              </div>
             </div>
 
             {/* Platform Selection */}

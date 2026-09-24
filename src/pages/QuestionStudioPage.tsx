@@ -101,6 +101,9 @@ export const QuestionStudioPage: React.FC = () => {
   const queryLanguage = searchParams.get('language') || searchParams.get('lang');
   const queryQuestionStyle = searchParams.get('questionStyle') || searchParams.get('style');
   const queryContext = searchParams.get('realWorldContext') || searchParams.get('context');
+  const queryPedagogicalTrap = searchParams.get('pedagogicalTrapPattern');
+  const queryHookDirective = searchParams.get('hookDirective');
+  const isFromIntelligence = Boolean(queryPedagogicalTrap || queryHookDirective);
 
   // 1. System & Taxonomy State
   const [taxonomyTree, setTaxonomyTree] = useState<any[]>([]);
@@ -125,7 +128,18 @@ export const QuestionStudioPage: React.FC = () => {
   const [realLifeContext, setRealLifeContext] = useState<string>(
     queryContext || ''
   );
-  const [customInstructions, setCustomInstructions] = useState<string>('');
+  const [customInstructions, setCustomInstructions] = useState<string>(() => {
+    const parts: string[] = [];
+    const pTrap = searchParams.get('pedagogicalTrapPattern');
+    const hDirective = searchParams.get('hookDirective');
+    if (pTrap) {
+      parts.push(`Target Pedagogical Trap / Misconception: ${pTrap}`);
+    }
+    if (hDirective) {
+      parts.push(`Recommended Hook Directive: ${hDirective}`);
+    }
+    return parts.join('\n');
+  });
 
   // UI Accordion & Validation Trigger States
   const [isAdvancedOpen, setIsAdvancedOpen] = useState<boolean>(false);
@@ -907,6 +921,34 @@ export const QuestionStudioPage: React.FC = () => {
           >
             Dismiss
           </button>
+        </div>
+      )}
+
+      {isFromIntelligence && (
+        <div className="p-4 bg-indigo-50/90 border border-indigo-200 rounded-2xl flex items-start gap-3.5 mb-2 shadow-2xs">
+          <Sparkles className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5 animate-pulse" />
+          <div className="space-y-1 w-full">
+            <h4 className="text-xs font-bold text-indigo-900 uppercase tracking-wider flex items-center gap-1.5">
+              <span>Performance Intelligence Strategy Directives Loaded</span>
+            </h4>
+            <p className="text-xs text-indigo-700 leading-relaxed font-medium">
+              The generation configuration has been pre-populated from your performance intelligence content strategy. Review the recommended pedagogical trap patterns and hook directives below, edit if desired, and confirm generation.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 text-xs">
+              {queryPedagogicalTrap && (
+                <div className="p-3 bg-white border border-indigo-100 rounded-xl space-y-1 shadow-3xs">
+                  <span className="font-semibold text-indigo-800 block">Target Pedagogical Trap:</span>
+                  <p className="text-slate-600 italic leading-relaxed">{queryPedagogicalTrap}</p>
+                </div>
+              )}
+              {queryHookDirective && (
+                <div className="p-3 bg-white border border-indigo-100 rounded-xl space-y-1 shadow-3xs">
+                  <span className="font-semibold text-indigo-800 block">Recommended Hook Directive:</span>
+                  <p className="text-slate-600 italic leading-relaxed">{queryHookDirective}</p>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
 

@@ -30,6 +30,7 @@ import { workflowService } from './workflow.service';
 import { videoService } from './video.service';
 import { idService } from './id.service';
 import { platformAdaptationService } from './platform-adaptation.service';
+import { analyticsService } from './analytics.service';
 import {
   Publishing,
   SocialPublishStatus,
@@ -650,6 +651,40 @@ export class PublishingService {
         completedCount: updatedPub.completedPlatformsCount,
       }
     );
+
+    // 10. Automatically initialize baseline analytics tracking record idempotently
+    try {
+      const existingSnaps = await analyticsService.queryAnalytics({
+        videoId: videoId,
+        platform: platform,
+      });
+      if (existingSnaps.length === 0) {
+        const video = await videosRepository.findById(videoId);
+        const question = video?.questionId ? await questionsRepository.findById(video.questionId) : null;
+        await analyticsService.recordAnalyticsSnapshot({
+          contentId: pub.contentId || pub.contentMasterId || (video?.contentId || ''),
+          videoId: videoId,
+          publishingId: pub.id,
+          platform: platform,
+          platformPostId: cleanUrl,
+          postingTimestamp: now,
+          views: 0,
+          watchTime: 0,
+          retentionRate: 0,
+          likes: 0,
+          comments: 0,
+          shares: 0,
+          subscribersGained: 0,
+          ctr: 0,
+          topicId: question?.topicId || '',
+          subtopicId: question?.subtopicId || '',
+          difficulty: question?.difficulty || '',
+          language: question?.language || '',
+        }, validActor.id, validActor.name);
+      }
+    } catch (anlErr) {
+      console.error('Failed to automatically initialize baseline analytics tracking:', anlErr);
+    }
 
     return updatedPub;
   }
