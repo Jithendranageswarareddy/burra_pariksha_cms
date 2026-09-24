@@ -199,6 +199,13 @@ export const QuestionImprovePage: React.FC = () => {
 
   useEffect(() => {
     if (activeQuestionId) {
+      navigate(`/questions/${encodeURIComponent(activeQuestionId)}?mode=edit`, { replace: true });
+      return;
+    }
+  }, [activeQuestionId, navigate]);
+
+  useEffect(() => {
+    if (activeQuestionId) {
       loadActiveQuestion(activeQuestionId);
     }
   }, [activeQuestionId, loadActiveQuestion]);

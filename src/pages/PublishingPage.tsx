@@ -57,10 +57,10 @@ export const PublishingPage: React.FC = () => {
   const filterPlatform = searchParams.get('platform') || searchParams.get('filterPlatform') || 'ALL';
   const isPackageStage = searchParams.get('stage') === 'package';
 
-  // If stage=package was passed, redirect smoothly to the dedicated Step 14 PublishingPackagePage
+  // If stage=package was passed, redirect smoothly to the canonical Step 12 PlatformPackagesPage
   useEffect(() => {
     if (isPackageStage) {
-      navigate(urlVideoId ? `/publishing-package?videoId=${encodeURIComponent(urlVideoId)}` : '/publishing-package', { replace: true });
+      navigate(urlVideoId ? `/platform-packages?videoId=${encodeURIComponent(urlVideoId)}` : '/platform-packages', { replace: true });
     }
   }, [isPackageStage, urlVideoId, navigate]);
 

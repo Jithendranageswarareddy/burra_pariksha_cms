@@ -1,0 +1,39 @@
+{
+  "id": "DEL-BAK-1790250146136-f4bd6806",
+  "backupTimestamp": "2026-09-24T11:42:26.136Z",
+  "sheetName": "PINNED_COMMENTS",
+  "entityId": "PIN-TEST-P09-V-1790250083951",
+  "physicalRowIndex": 2,
+  "headers": [
+    "id",
+    "content_id",
+    "video_id",
+    "comment_text",
+    "solution_breakdown",
+    "next_challenge_question",
+    "is_approved",
+    "created_at",
+    "updated_at"
+  ],
+  "rawRow": [
+    "PIN-TEST-P09-V-1790250083951",
+    "",
+    "TEST-P09-V-1790250083951",
+    "Challenge: What is the third angle if two angles are 50° and 60°? Drop your answer below!",
+    "180 - (50 + 60) = 70 degrees.",
+    "",
+    true,
+    "2026-09-24T11:41:27.722Z",
+    "2026-09-24T11:41:27.722Z"
+  ],
+  "record": {
+    "id": "PIN-TEST-P09-V-1790250083951",
+    "videoId": "TEST-P09-V-1790250083951",
+    "commentText": "Challenge: What is the third angle if two angles are 50° and 60°? Drop your answer below!",
+    "solutionBreakdown": "180 - (50 + 60) = 70 degrees.",
+    "isApproved": true,
+    "createdAt": "2026-09-24T11:41:27.722Z",
+    "updatedAt": "2026-09-24T11:41:27.722Z"
+  },
+  "checksum": "fb07b72d7e8b1b70a73f970cb7263ec246ba4a36ac4bf8754187f9fbb1b05827"
+}

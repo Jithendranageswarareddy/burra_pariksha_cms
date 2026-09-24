@@ -23,6 +23,7 @@ import {
   Film,
   Zap,
   ArrowRight,
+  Sparkles,
 } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { Button } from '../components/common/Button';
@@ -33,6 +34,8 @@ import { EntityAssignmentsSection } from '../components/assignments/EntityAssign
 import { ProductionJourneyBar } from '../components/production/ProductionJourneyBar';
 import { useProductionJourney } from '../contexts/ProductionJourneyContext';
 import { apiClient } from '../lib/api-client';
+import { CandidateValidator, CandidateValidationReport } from '../lib/ai/validators/candidate.validator';
+import { AiRefinementAction, QuestionCandidate } from '../lib/ai/types';
 import {
   DifficultyLevel,
   Question,
@@ -84,6 +87,14 @@ export const QuestionDetailPage: React.FC = () => {
   // Duplicate warning state during editing
   const [duplicateMatches, setDuplicateMatches] = useState<any[]>([]);
   const [isCheckingDuplicate, setIsCheckingDuplicate] = useState(false);
+
+  // Optional AI Refinement State (Merged from QuestionImprovePage)
+  const [isRefining, setIsRefining] = useState<boolean>(false);
+  const [refinementAction, setRefinementAction] = useState<AiRefinementAction>(AiRefinementAction.MAKE_REALISTIC);
+  const [customInstructions, setCustomInstructions] = useState<string>('');
+  const [aiSuggestion, setAiSuggestion] = useState<QuestionCandidate | null>(null);
+  const [aiSuggestionApplied, setAiSuggestionApplied] = useState<boolean>(false);
+  const [clientReport, setClientReport] = useState<CandidateValidationReport | null>(null);
 
   const fetchQuestionAndHistory = async () => {
     if (!id) return;
@@ -188,6 +199,94 @@ export const QuestionDetailPage: React.FC = () => {
 
     return () => clearTimeout(timer);
   }, [editQuestionText, isEditing, id]);
+
+  // Live validation on edit form fields
+  useEffect(() => {
+    if (!isEditing) return;
+    const report = CandidateValidator.validate({
+      content: editQuestionText,
+      option_a: editOptA,
+      option_b: editOptB,
+      option_c: editOptC,
+      option_d: editOptD,
+      correct_answer: editCorrectAnswer,
+      explanation: editExplanation,
+      language: editLanguage,
+      question_style: editQuestionStyle,
+      real_world_context: editRealWorldContext,
+    });
+    setClientReport(report);
+  }, [
+    isEditing,
+    editQuestionText,
+    editOptA,
+    editOptB,
+    editOptC,
+    editOptD,
+    editCorrectAnswer,
+    editExplanation,
+    editLanguage,
+    editQuestionStyle,
+    editRealWorldContext,
+  ]);
+
+  // AI Refinement Handlers
+  const handleTriggerAiRefine = async () => {
+    if (!editQuestionText.trim()) {
+      setErrorMessage('Please enter question text before requesting AI refinement.');
+      return;
+    }
+
+    setIsRefining(true);
+    setErrorMessage(null);
+    setAiSuggestionApplied(false);
+
+    try {
+      const activeCandidate: QuestionCandidate = {
+        content: editQuestionText,
+        option_a: editOptA,
+        option_b: editOptB,
+        option_c: editOptC,
+        option_d: editOptD,
+        correct_answer: editCorrectAnswer,
+        explanation: editExplanation,
+        difficulty: editDifficulty,
+        language: editLanguage,
+        question_style: editQuestionStyle as any,
+        real_world_context: editRealWorldContext,
+      };
+
+      const res = await apiClient.refineAiQuestion({
+        action: refinementAction,
+        currentCandidate: activeCandidate,
+        promptModifier: customInstructions.trim() || undefined,
+        targetLanguage: editLanguage,
+      });
+
+      if (res && res.candidate) {
+        setAiSuggestion(res.candidate);
+      } else {
+        throw new Error('No refinement candidate returned by AI.');
+      }
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'AI refinement failed. Human editing remains fully available.');
+    } finally {
+      setIsRefining(false);
+    }
+  };
+
+  const handleApplyAiSuggestion = () => {
+    if (!aiSuggestion) return;
+    if (aiSuggestion.content) setEditQuestionText(aiSuggestion.content);
+    if (aiSuggestion.option_a) setEditOptA(aiSuggestion.option_a);
+    if (aiSuggestion.option_b) setEditOptB(aiSuggestion.option_b);
+    if (aiSuggestion.option_c) setEditOptC(aiSuggestion.option_c);
+    if (aiSuggestion.option_d) setEditOptD(aiSuggestion.option_d);
+    if (aiSuggestion.correct_answer) setEditCorrectAnswer(aiSuggestion.correct_answer);
+    if (aiSuggestion.explanation) setEditExplanation(aiSuggestion.explanation);
+    if (aiSuggestion.real_world_context) setEditRealWorldContext(aiSuggestion.real_world_context);
+    setAiSuggestionApplied(true);
+  };
 
   const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -646,6 +745,186 @@ export const QuestionDetailPage: React.FC = () => {
                 <Button variant="primary" size="sm" icon={Save} type="submit" disabled={isSaving}>
                   {isSaving ? 'Saving Changes...' : 'Save Updates'}
                 </Button>
+              </div>
+
+              {/* OPTIONAL AI REFINEMENT & QUALITY PANEL (Merged from QuestionImprovePage) */}
+              <div className="mt-6 pt-6 border-t border-slate-200 grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* AI Refinement Box */}
+                <div className="bg-indigo-50/50 border border-indigo-200 rounded-xl p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-indigo-950 font-bold text-xs">
+                      <Sparkles className="w-4 h-4 text-indigo-600" />
+                      <span>Optional AI Refinement</span>
+                    </div>
+                    <span className="text-[10px] font-mono px-2 py-0.5 bg-indigo-100 text-indigo-800 rounded font-semibold">
+                      Gemini 2.5 Flash
+                    </span>
+                  </div>
+
+                  <p className="text-[11px] text-indigo-900 leading-relaxed">
+                    Enhance your draft with pedagogical AI assistance. Edits apply to the active form.
+                  </p>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-700 block uppercase tracking-wider">
+                      Refinement Goal
+                    </label>
+                    <select
+                      value={refinementAction}
+                      onChange={(e) => setRefinementAction(e.target.value as any)}
+                      className="w-full bg-white border border-indigo-200 rounded-lg p-2 text-xs text-slate-800"
+                    >
+                      <option value={AiRefinementAction.MAKE_REALISTIC}>Add Real-World Context Hook</option>
+                      <option value={AiRefinementAction.SIMPLIFY_LANGUAGE}>Simplify & Clarify Language</option>
+                      <option value={AiRefinementAction.IMPROVE_OPTIONS}>Improve Distractor Options</option>
+                      <option value={AiRefinementAction.IMPROVE_EXPLANATION}>Improve Solution & Explanation</option>
+                      <option value={AiRefinementAction.IMPROVE_TELUGU}>Translate / Improve Telugu Script</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-700 block uppercase tracking-wider">
+                      Custom Guidance (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      value={customInstructions}
+                      onChange={(e) => setCustomInstructions(e.target.value)}
+                      placeholder="e.g. Use relatable Telugu names, mental math shortcut..."
+                      className="w-full bg-white border border-indigo-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800"
+                    />
+                  </div>
+
+                  <Button
+                    type="button"
+                    variant="primary"
+                    size="sm"
+                    onClick={handleTriggerAiRefine}
+                    disabled={isRefining}
+                    icon={Sparkles}
+                    className="w-full justify-center bg-indigo-600 hover:bg-indigo-700 text-white"
+                  >
+                    {isRefining ? 'Generating AI Suggestion...' : 'Improve with AI'}
+                  </Button>
+
+                  {/* AI Suggestion Preview */}
+                  {aiSuggestion && (
+                    <div className="p-3 bg-white border border-indigo-300 rounded-lg space-y-2 animate-in fade-in">
+                      <div className="flex items-center justify-between pb-1 border-b border-slate-100">
+                        <span className="text-xs font-bold text-indigo-950 flex items-center gap-1">
+                          <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                          Suggestion Ready
+                        </span>
+                        {aiSuggestionApplied && (
+                          <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center gap-1">
+                            <Check className="w-3 h-3" /> Applied
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-800 font-medium line-clamp-3">
+                        {aiSuggestion.content}
+                      </p>
+                      <div className="text-[10px] font-mono text-slate-600 grid grid-cols-2 gap-1">
+                        <span>A: {aiSuggestion.option_a}</span>
+                        <span>B: {aiSuggestion.option_b}</span>
+                        <span>C: {aiSuggestion.option_c}</span>
+                        <span>D: {aiSuggestion.option_d}</span>
+                      </div>
+                      <p className="text-[11px] text-slate-600 line-clamp-2 italic">
+                        Proof: {aiSuggestion.explanation}
+                      </p>
+                      <div className="flex items-center gap-2 pt-1">
+                        <Button
+                          type="button"
+                          variant="primary"
+                          size="sm"
+                          onClick={handleApplyAiSuggestion}
+                          disabled={aiSuggestionApplied}
+                          icon={Check}
+                          className="flex-1 justify-center text-xs"
+                        >
+                          {aiSuggestionApplied ? 'Applied' : 'Apply to Form'}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setAiSuggestion(null)}
+                          className="text-xs"
+                        >
+                          Dismiss
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Live Validation & Quality Status Box */}
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-slate-900 font-bold text-xs">
+                      <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                      <span>Live Quality Status</span>
+                    </div>
+                    <span
+                      className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                        clientReport?.isValid
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : 'bg-amber-100 text-amber-800'
+                      }`}
+                    >
+                      {clientReport?.isValid ? 'Ready for Verification' : 'Needs Correction'}
+                    </span>
+                  </div>
+
+                  <div className="space-y-2 text-xs">
+                    <div className="flex items-center justify-between p-2 bg-white rounded-lg border border-slate-200">
+                      <span className="text-slate-600">Question Content</span>
+                      <span className={editQuestionText.trim().length >= 10 ? 'text-emerald-700 font-semibold' : 'text-amber-600'}>
+                        {editQuestionText.trim().length >= 10 ? '✓ Complete' : '⚠ Too Short'}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between p-2 bg-white rounded-lg border border-slate-200">
+                      <span className="text-slate-600">4 Distinct Options</span>
+                      <span
+                        className={
+                          editOptA.trim() && editOptB.trim() && editOptC.trim() && editOptD.trim()
+                            ? 'text-emerald-700 font-semibold'
+                            : 'text-amber-600'
+                        }
+                      >
+                        {editOptA.trim() && editOptB.trim() && editOptC.trim() && editOptD.trim()
+                          ? '✓ All 4 Present'
+                          : '⚠ Missing Options'}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between p-2 bg-white rounded-lg border border-slate-200">
+                      <span className="text-slate-600">Correct Answer Key</span>
+                      <span className="font-mono font-bold text-indigo-700">Option {editCorrectAnswer}</span>
+                    </div>
+
+                    <div className="flex items-center justify-between p-2 bg-white rounded-lg border border-slate-200">
+                      <span className="text-slate-600">Detailed Proof</span>
+                      <span className={editExplanation.trim().length >= 20 ? 'text-emerald-700 font-semibold' : 'text-amber-600'}>
+                        {editExplanation.trim().length >= 20 ? '✓ Thorough Proof' : '⚠ Short Proof'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {duplicateMatches.length > 0 && (
+                    <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-[11px] text-amber-900 space-y-1">
+                      <p className="font-bold flex items-center gap-1">
+                        <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
+                        Possible Duplicate Questions ({duplicateMatches.length})
+                      </p>
+                      <p className="text-amber-700 line-clamp-1">
+                        Similarity match: {duplicateMatches[0]?.id} ({(duplicateMatches[0]?.similarityScore * 100).toFixed(0)}%)
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
             </form>
           ) : (
