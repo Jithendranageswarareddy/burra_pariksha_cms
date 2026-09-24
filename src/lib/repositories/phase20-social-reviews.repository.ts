@@ -1,16 +1,15 @@
 /**
- * BURRA PARIKSHA CMS - Phase 20 Social Reviews Repository
+ * BURRA PARIKSHA CMS - Phase 20 Social Reviews Repository Adapter
  * Phase 20: Social Review & Quality Gate
  * 
- * Manages persistence of social review records, audit locks, version hashes,
- * and review invalidations.
+ * Compatibility adapter delegating persistence to the canonical socialReviewsRepository.
  */
 
-import { Phase20SocialReviewRecord, Phase20SocialReviewStatus } from '../../types';
+import { Phase20SocialReviewRecord } from '../../types';
+import { socialReviewsRepository } from './social-reviews.repository';
 
 export class Phase20SocialReviewsRepository {
   private static instance: Phase20SocialReviewsRepository | null = null;
-  private reviewStore = new Map<string, Phase20SocialReviewRecord>();
 
   private constructor() {}
 
@@ -22,64 +21,33 @@ export class Phase20SocialReviewsRepository {
   }
 
   public async create(record: Phase20SocialReviewRecord): Promise<Phase20SocialReviewRecord> {
-    this.reviewStore.set(record.id, { ...record });
-    return { ...record };
+    return socialReviewsRepository.createPhase20Record(record);
   }
 
   public async findById(id: string): Promise<Phase20SocialReviewRecord | null> {
-    const found = this.reviewStore.get(id);
-    return found ? { ...found } : null;
+    return socialReviewsRepository.findPhase20ById(id);
   }
 
   public async findByContentId(contentId: string): Promise<Phase20SocialReviewRecord[]> {
-    return Array.from(this.reviewStore.values())
-      .filter((r) => r.contentId === contentId)
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      .map((r) => ({ ...r }));
+    return socialReviewsRepository.findPhase20ByContentId(contentId);
   }
 
   public async getLatestByContentId(contentId: string): Promise<Phase20SocialReviewRecord | null> {
-    const reviews = await this.findByContentId(contentId);
-    return reviews.length > 0 ? { ...reviews[0] } : null;
+    return socialReviewsRepository.getLatestPhase20ByContentId(contentId);
   }
 
   public async update(id: string, updates: Partial<Phase20SocialReviewRecord>): Promise<Phase20SocialReviewRecord> {
-    const existing = this.reviewStore.get(id);
-    if (!existing) {
-      throw new Error(`Social review record with ID "${id}" does not exist.`);
-    }
-
-    const updated: Phase20SocialReviewRecord = {
-      ...existing,
-      ...updates,
-      updatedAt: new Date().toISOString(),
-    };
-
-    this.reviewStore.set(id, updated);
-    return { ...updated };
+    return socialReviewsRepository.updatePhase20Record(id, updates);
   }
 
   public async invalidateReviewsForContent(contentId: string, reason: string): Promise<number> {
-    let count = 0;
-    const now = new Date().toISOString();
-    for (const [id, record] of this.reviewStore.entries()) {
-      if (record.contentId === contentId && !record.isInvalidated && record.status === 'PASS') {
-        this.reviewStore.set(id, {
-          ...record,
-          isInvalidated: true,
-          invalidatedReason: reason,
-          invalidatedAt: now,
-          updatedAt: now,
-        });
-        count++;
-      }
-    }
-    return count;
+    return socialReviewsRepository.invalidatePhase20ReviewsForContent(contentId, reason);
   }
 
   public async clear(): Promise<void> {
-    this.reviewStore.clear();
+    return socialReviewsRepository.clearPhase20Store();
   }
 }
 
 export const phase20SocialReviewsRepository = Phase20SocialReviewsRepository.getInstance();
+
