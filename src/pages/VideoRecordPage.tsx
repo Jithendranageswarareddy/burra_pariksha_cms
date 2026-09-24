@@ -1033,10 +1033,10 @@ export const VideoRecordPage: React.FC = () => {
               <div className="bg-white rounded-xl border border-indigo-200 p-5 shadow-xs space-y-3">
                 <div className="flex items-center gap-2 text-indigo-700 font-bold text-xs">
                   <Film className="w-4 h-4 text-indigo-600" />
-                  <span>Stage 06: Video Editing Bay</span>
+                  <span>Stage 06: Video Editing</span>
                 </div>
                 <p className="text-xs text-slate-600">
-                  Raw recording captured? Proceed to the Video Editing Bay to sync Telugu motion graphics, countdown timers, and check 50–59s pacing.
+                  Raw recording captured? Proceed to Video Editing to sync Telugu motion graphics, countdown timers, and check 50–59s pacing.
                 </p>
 
                 <Button
@@ -1049,7 +1049,7 @@ export const VideoRecordPage: React.FC = () => {
                   icon={ArrowRight}
                   className="w-full text-xs justify-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
                 >
-                  Proceed to Stage 06: Video Editing Bay
+                  Proceed to Stage 06: Video Editing
                 </Button>
               </div>
             </div>
