@@ -312,6 +312,8 @@ export const AnalyticsExperiencePage: React.FC = () => {
             difficulty: rec.difficulty || '',
             questionStyle: rec.questionStyle || '',
             context: rec.hook || '',
+            pedagogicalTrapPattern: rec.evidence || '',
+            hookDirective: rec.hook || '',
           });
           navigate(`/studio?${params.toString()}`);
         }
