@@ -41,6 +41,18 @@ import { SocialReviewPage } from './pages/SocialReviewPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { getDefaultLandingRoute } from './config/roles';
 
+function QuestionImproveRedirect() {
+  const { id } = useParams<{ id: string }>();
+  const location = useLocation();
+  if (id) {
+    const searchParams = new URLSearchParams(location.search);
+    searchParams.set('mode', 'edit');
+    const searchStr = searchParams.toString();
+    return <Navigate to={`/questions/${id}${searchStr ? `?${searchStr}` : ''}`} replace />;
+  }
+  return <QuestionImprovePage />;
+}
+
 function VideoTabRedirect({ tab }: { tab?: string }) {
   const { videoId } = useParams<{ videoId: string }>();
   const location = useLocation();
@@ -93,7 +105,7 @@ function AppRoutes() {
         <Route path="studio" element={<QuestionStudioPage />} />
         <Route path="questions/new" element={<Navigate to="/studio" replace />} />
         <Route path="questions/improve" element={<QuestionImprovePage />} />
-        <Route path="questions/:id/improve" element={<QuestionImprovePage />} />
+        <Route path="questions/:id/improve" element={<QuestionImproveRedirect />} />
         <Route path="questions/verify" element={<QuestionVerifyApprovePage />} />
         <Route path="questions/:id/verify" element={<QuestionVerifyApprovePage />} />
         <Route path="questions/:id" element={<QuestionDetailPage />} />
@@ -107,6 +119,8 @@ function AppRoutes() {
 
         {/* Video Production 5-Step Workflow Routes */}
         <Route path="videos/create-script" element={<VideoCreateScriptPage />} />
+        <Route path="videos/:videoId/script" element={<VideoTabRedirect tab="script" />} />
+        <Route path="production/:videoId/script" element={<VideoTabRedirect tab="script" />} />
         <Route path="videos/:videoId/create-script" element={<VideoTabRedirect tab="script" />} />
         <Route path="production/:videoId/create-script" element={<VideoTabRedirect tab="script" />} />
 
@@ -132,8 +146,8 @@ function AppRoutes() {
         <Route path="production/:videoId/thumbnail" element={<VideoTabRedirect tab="thumbnail" />} />
 
         <Route path="videos/pinned-comment" element={<Navigate to="/production" replace />} />
-        <Route path="videos/:videoId/pinned-comment" element={<VideoTabRedirect tab="social" />} />
-        <Route path="production/:videoId/pinned-comment" element={<VideoTabRedirect tab="social" />} />
+        <Route path="videos/:videoId/pinned-comment" element={<VideoTabRedirect tab="pinned-comment" />} />
+        <Route path="production/:videoId/pinned-comment" element={<VideoTabRedirect tab="pinned-comment" />} />
 
         <Route path="videos/:videoId/social-review" element={<VideoTabRedirect tab="social" />} />
         <Route path="production/:videoId/social-review" element={<VideoTabRedirect tab="social" />} />

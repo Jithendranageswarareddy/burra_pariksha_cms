@@ -155,9 +155,18 @@ export function inferBreadcrumbs(pathname: string, search: string): BreadcrumbIt
   }
 
   if (pathname.startsWith('/videos/') || pathname.startsWith('/production/')) {
+    let sublabel = 'Video Details';
+    if (tab === 'script') sublabel = 'Script Workspace';
+    else if (tab === 'recording') sublabel = 'Recording Workspace';
+    else if (tab === 'editing') sublabel = 'Editing Workspace';
+    else if (tab === 'final-review') sublabel = 'Final QC Review';
+    else if (tab === 'thumbnail') sublabel = 'Thumbnail Studio';
+    else if (tab === 'social') sublabel = 'Social Review Simulator';
+    else if (tab === 'pinned-comment') sublabel = 'Pinned Comment';
+    else if (tab === 'publishing') sublabel = 'Publishing Dispatcher';
     return [
       { label: 'Production', href: '/production' },
-      { label: 'Video Details' },
+      { label: sublabel },
     ];
   }
 

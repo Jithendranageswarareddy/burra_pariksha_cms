@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
   Video,
@@ -46,6 +46,8 @@ import {
 
 export const QuestionDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { loadJourneyForQuestion } = useProductionJourney();
 
   const [question, setQuestion] = useState<Question | null>(null);
@@ -55,7 +57,7 @@ export const QuestionDetailPage: React.FC = () => {
   const [subtopics, setSubtopics] = useState<any[]>([]);
 
   const [isLoading, setIsLoading] = useState(true);
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(() => searchParams.get('mode') === 'edit');
   const [isSaving, setIsSaving] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [isQueueing, setIsQueueing] = useState(false);
@@ -139,6 +141,12 @@ export const QuestionDetailPage: React.FC = () => {
   useEffect(() => {
     fetchQuestionAndHistory();
   }, [id]);
+
+  useEffect(() => {
+    if (searchParams.get('mode') === 'edit') {
+      setIsEditing(true);
+    }
+  }, [searchParams]);
 
   // Filter available subtopics for currently selected topic in edit mode
   const editAvailableSubtopics = editTopicId
