@@ -330,7 +330,7 @@ class ApiClient {
     if (idempotencyKey) {
       headers['x-idempotency-key'] = idempotencyKey;
     }
-    return this.request('/questions/create', {
+    return this.request('/questions', {
       method: 'POST',
       headers,
       body: JSON.stringify(payload),
@@ -1360,9 +1360,22 @@ class ApiClient {
     return this.request('/production-board');
   }
 
-  // Phase 8H: Social Content Review
+  // Phase 8H / Step 09: Canonical Social Content Review
   public async getSocialReviewPackage(questionId: string): Promise<{ success: boolean; data: import('../types').SocialReviewPackageBundle }> {
     return this.request(`/social-enhancement/review/${encodeURIComponent(questionId)}`);
+  }
+
+  public async submitSocialReviewDecision(
+    questionId: string,
+    decision: 'APPROVED' | 'CHANGES_REQUESTED' | 'REJECTED',
+    versionHash: string,
+    reason?: string,
+    feedbackCategories?: string[]
+  ): Promise<{ success: boolean; data: import('../types').SocialReviewPackageBundle; record: import('../types').SocialReviewRecord }> {
+    return this.request('/social-reviews/decision', {
+      method: 'POST',
+      body: JSON.stringify({ questionId, decision, versionHash, reason, feedbackCategories }),
+    });
   }
 
   public async approveSocialReviewPackage(
@@ -1371,10 +1384,13 @@ class ApiClient {
     reason?: string,
     feedbackCategories?: string[]
   ): Promise<{ success: boolean; data: import('../types').SocialReviewPackageBundle; record: import('../types').SocialReviewRecord }> {
-    return this.request(`/social-enhancement/review/${encodeURIComponent(questionId)}/approve`, {
-      method: 'POST',
-      body: JSON.stringify({ versionHash, reason, feedbackCategories }),
-    });
+    return this.submitSocialReviewDecision(
+      questionId,
+      'APPROVED',
+      versionHash,
+      reason || 'Human social package approved.',
+      feedbackCategories
+    );
   }
 
   public async requestSocialReviewChanges(
@@ -1383,10 +1399,13 @@ class ApiClient {
     reason: string,
     feedbackCategories?: string[]
   ): Promise<{ success: boolean; data: import('../types').SocialReviewPackageBundle; record: import('../types').SocialReviewRecord }> {
-    return this.request(`/social-enhancement/review/${encodeURIComponent(questionId)}/request-changes`, {
-      method: 'POST',
-      body: JSON.stringify({ versionHash, reason, feedbackCategories }),
-    });
+    return this.submitSocialReviewDecision(
+      questionId,
+      'CHANGES_REQUESTED',
+      versionHash,
+      reason,
+      feedbackCategories
+    );
   }
 
   public async rejectSocialReviewPackage(
@@ -1395,10 +1414,13 @@ class ApiClient {
     reason: string,
     feedbackCategories?: string[]
   ): Promise<{ success: boolean; data: import('../types').SocialReviewPackageBundle; record: import('../types').SocialReviewRecord }> {
-    return this.request(`/social-enhancement/review/${encodeURIComponent(questionId)}/reject`, {
-      method: 'POST',
-      body: JSON.stringify({ versionHash, reason, feedbackCategories }),
-    });
+    return this.submitSocialReviewDecision(
+      questionId,
+      'REJECTED',
+      versionHash,
+      reason,
+      feedbackCategories
+    );
   }
 
   public async getSocialReviewHistory(questionId: string): Promise<{ success: boolean; data: import('../types').SocialReviewRecord[] }> {

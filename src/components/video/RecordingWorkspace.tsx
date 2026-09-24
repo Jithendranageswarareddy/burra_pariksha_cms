@@ -266,8 +266,7 @@ export const RecordingWorkspace: React.FC<RecordingWorkspaceProps> = ({
         video.status === VideoProductionStatus.EDITING ||
         video.status === VideoProductionStatus.FINAL_REVIEW ||
         video.status === VideoProductionStatus.READY_TO_UPLOAD ||
-        video.status === VideoProductionStatus.UPLOADED ||
-        video.status === VideoProductionStatus.PUBLISHED
+        video.status === VideoProductionStatus.UPLOADED
       );
 
       if (!hasRawVideoFootage) {
