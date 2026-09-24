@@ -85,6 +85,10 @@ export class ThumbnailService {
     return { thumbnail: null, draftProposal };
   }
 
+  public async getThumbnailById(id: string): Promise<Thumbnail | null> {
+    return thumbnailsRepository.findById(id);
+  }
+
   /**
    * Retrieves all historical versions for a thumbnail.
    */

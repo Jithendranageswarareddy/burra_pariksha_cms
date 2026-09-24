@@ -627,6 +627,18 @@ export class SocialReviewService {
     return SocialReviewService.getReviewHistory(questionId);
   }
 
+  public async getAllReviews(): Promise<SocialReviewRecord[]> {
+    return socialReviewsRepository.findAll();
+  }
+
+  public async getReviewById(id: string): Promise<SocialReviewRecord | null> {
+    return socialReviewsRepository.findById(id);
+  }
+
+  public async getReviewsByQuestion(questionId: string): Promise<SocialReviewRecord[]> {
+    return socialReviewsRepository.findByQuestion(questionId);
+  }
+
   public clearDraftCache(questionId?: string): void {
     SocialReviewService.clearDraftCache(questionId);
   }

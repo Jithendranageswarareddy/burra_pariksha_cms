@@ -238,6 +238,13 @@ export class Phase14DriveService {
   }
 
   /**
+   * Retrieves all media assets/versions for a content ID filtered by stage.
+   */
+  public async listAssetsByStage(contentId: string, mediaStage: MediaStage): Promise<MediaAsset[]> {
+    return mediaAssetsRepository.findByContentIdAndStage(contentId, mediaStage);
+  }
+
+  /**
    * Retrieves latest version of a media asset stage for a content ID.
    */
   public async getLatestAsset(contentId: string, mediaStage: MediaStage): Promise<MediaAsset | null> {

@@ -98,6 +98,10 @@ export class ScriptService {
     return phase24AIOrchestrator.generateTeluguScript(question);
   }
 
+  public async getScriptByQuestionId(questionId: string): Promise<Script | null> {
+    return scriptsRepository.findByQuestionId(questionId);
+  }
+
   /**
    * Retrieves the current active script for a given video.
    * If none exists in the repository, generates a structured conversational Telugu starter draft derived from the linked question.

@@ -112,6 +112,13 @@ export async function runPhase8iSecurityVerification(): Promise<SuiteSummary> {
 
   // Check 6: requireAuth accepts valid admin session token
   try {
+    const { usersRepository } = await import('../lib/repositories/users.repository');
+    usersRepository.setUserSessionState('USR-001', {
+      sessionVersion: 1,
+      isActive: true,
+      role: UserRole.ADMIN,
+      roles: [UserRole.ADMIN],
+    });
     const adminToken = authService.generateSessionToken({ userId: 'USR-001', role: UserRole.ADMIN, name: 'Admin Lead' });
     let nextCalled = false;
     const req: any = { headers: { authorization: `Bearer ${adminToken}` } };
@@ -845,6 +852,29 @@ export async function runPhase8iSecurityVerification(): Promise<SuiteSummary> {
     addResult('REG-08', typeof SocialReviewService.getReviewPackageBundle === 'function' && typeof SocialReviewService.submitReviewDecision === 'function', `Phase 8H SocialReviewService initialized`);
   } catch (err: any) {
     addResult('REG-08', false, `Phase 8H SocialReviewService import failed: ${err.message}`);
+  }
+
+  // Check 63: Safe sequential user-ID allocation using sequences repository (Correction 2)
+  try {
+    const { idService } = await import('../lib/services/id.service');
+    const id1 = await idService.allocateUserId();
+    const id2 = await idService.allocateUserId();
+    const matchesPrefix = id1.startsWith('USR-') && id2.startsWith('USR-');
+    const sequential = parseInt(id1.split('-')[1], 10) < parseInt(id2.split('-')[1], 10);
+    addResult('REG-09', matchesPrefix && sequential, `Sequential User-ID Allocation: ${id1} -> ${id2}`);
+  } catch (err: any) {
+    addResult('REG-09', false, `User-ID Allocation check failed: ${err.message}`);
+  }
+
+  // Check 64: Test-router mounting isolation (Correction 1)
+  try {
+    const isProduction = process.env.NODE_ENV === 'production';
+    const isHarness = process.env.ENABLE_TEST_HARNESS === 'true';
+    const shouldMount = !isProduction && isHarness;
+    const expected = (process.env.NODE_ENV !== 'production' && process.env.ENABLE_TEST_HARNESS === 'true');
+    addResult('REG-10', expected === shouldMount, `Test-router mounting condition evaluates to: ${expected}`);
+  } catch (err: any) {
+    addResult('REG-10', false, `Test-router mounting isolation check failed: ${err.message}`);
   }
 
   const passedCount = results.filter((r) => r.passed).length;

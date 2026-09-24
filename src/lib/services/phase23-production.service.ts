@@ -25,7 +25,7 @@ import {
   subtopicsRepository,
 } from '../repositories';
 import { objectAuthService, ActorContext } from './object-auth.service';
-import { phase22PublishingHubService } from './phase22-publishing-hub.service';
+import { publishingService } from './publishing.service';
 import { taxonomyService } from './taxonomy.service';
 import {
   DifficultyLevel,
@@ -991,7 +991,7 @@ export class Phase23ProductionService {
     let publishingReadiness = null;
     if (contentId && /^BP-CNT-\d{6}$/.test(contentId)) {
       try {
-        publishingReadiness = await phase22PublishingHubService.evaluateReadiness(contentId, 'YOUTUBE');
+        publishingReadiness = await publishingService.evaluateReadiness(contentId, 'YOUTUBE');
       } catch {
         publishingReadiness = null;
       }

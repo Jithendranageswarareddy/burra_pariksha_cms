@@ -35,9 +35,11 @@ import {
   workflowService,
   workflowOrchestrationService,
   analyticsService,
+  socialReviewService,
   phase15ScriptProductionService,
   phase17VideoProductionService,
   phase18ThumbnailIntelligenceService,
+  phase14DriveService,
 } from '../lib/services';
 import { thumbnailCandidatesRepository } from '../lib/repositories/thumbnail-candidates.repository';
 import { ThumbnailSafetyValidator } from '../lib/validators/thumbnail-safety.validator';
@@ -91,8 +93,8 @@ export const apiRouter = express.Router();
 apiRouter.use(express.json());
 
 // Stage 7 Phase 4: Isolated Test Runner Mount (Non-production / Test harness only)
-if (process.env.NODE_ENV !== 'production' || process.env.ENABLE_TEST_HARNESS === 'true') {
-  apiRouter.use(testRouter);
+if (process.env.NODE_ENV !== 'production' && process.env.ENABLE_TEST_HARNESS === 'true') {
+  apiRouter.use('/internal/tests', testRouter);
 }
 
 // Apply helmet security headers (configured for iframe preview and cross-origin compatibility)
@@ -218,7 +220,7 @@ apiRouter.get('/auth/me', async (req: Request, res: Response) => {
       return;
     }
 
-    const user = await usersRepository.findById(payload.userId);
+    const user = await assignmentService.getUserById(payload.userId);
     if (!user || !user.isActive) {
       res.clearCookie('bp_session', { path: '/' });
       res.status(401).json({ authenticated: false, error: 'User is inactive or not found.' });
@@ -480,7 +482,7 @@ apiRouter.post('/social-enhancement/metadata/generate', requireRole([
 
     let targetQuestion = question;
     if (!targetQuestion && questionId) {
-      targetQuestion = await questionsRepository.findById(questionId);
+      targetQuestion = await questionService.getQuestionById(questionId);
     }
 
     if (!targetQuestion) {
@@ -529,7 +531,7 @@ apiRouter.post('/social-enhancement/platform-adaptation/generate', requireRole([
 
     let targetQuestion = question;
     if (!targetQuestion && questionId) {
-      targetQuestion = await questionsRepository.findById(questionId);
+      targetQuestion = await questionService.getQuestionById(questionId);
     }
 
     if (!targetQuestion) {
@@ -1736,7 +1738,7 @@ apiRouter.patch('/videos/:id/status', requireRole([UserRole.ADMIN, UserRole.CONT
     }
 
     if ((status === VideoProductionStatus.EDITED || status === VideoProductionStatus.FINAL_REVIEW) && video.status === VideoProductionStatus.EDITING) {
-      const editedAssets = await mediaAssetsRepository.findByContentIdAndStage(video.contentId || '', 'EDITED');
+      const editedAssets = await phase14DriveService.listAssetsByStage(video.contentId || '', 'EDITED');
       if (editedAssets.length === 0) {
         return res.status(400).json({
           error: 'ValidationError',
@@ -1846,7 +1848,7 @@ apiRouter.post('/videos/:id/final-render/complete', requireRole([UserRole.ADMIN,
     }
 
     // Authoritative check: An edited video must be uploaded to Google Drive
-    const editedAssets = await mediaAssetsRepository.findByContentIdAndStage(video.contentId || '', 'EDITED');
+    const editedAssets = await phase14DriveService.listAssetsByStage(video.contentId || '', 'EDITED');
     if (editedAssets.length === 0) {
       return res.status(400).json({
         error: 'ValidationError',
@@ -2087,7 +2089,7 @@ apiRouter.post('/phase16/script/:scriptId/reject', requireAuth, async (req: Requ
 apiRouter.get('/phase16/script/:scriptId/versions', requireAuth, async (req: Request, res: Response) => {
   try {
     const { scriptId } = req.params;
-    const versions = await scriptVersionsRepository.findByScriptId(scriptId);
+    const versions = await scriptService.getScriptVersions(scriptId);
     res.status(200).json({ scriptId, versions });
   } catch (err: any) {
     res.status(500).json({ error: err?.message || 'Failed to fetch script versions' });
@@ -2108,7 +2110,7 @@ const handleRawVideoUploadRoute = async (req: Request, res: Response) => {
 
     // If videoIdParam is provided, look up script/video record
     if (videoIdParam && !targetScriptId) {
-      const vid = await videosRepository.findById(videoIdParam);
+      const vid = await videoService.getVideoById(videoIdParam);
       if (vid) {
         if (!targetContentId) targetContentId = vid.contentId;
         const scriptRes = await scriptService.getScriptByVideoId(videoIdParam);
@@ -2151,9 +2153,9 @@ const handleRawVideoUploadRoute = async (req: Request, res: Response) => {
           if (!targetScriptId) {
             // Fallback: If script doesn't exist yet, fetch or create basic script for video
             if (videoIdParam) {
-              const vid = await videosRepository.findById(videoIdParam);
+              const vid = await videoService.getVideoById(videoIdParam);
               if (vid?.questionId) {
-                const s = await scriptsRepository.findByQuestionId(vid.questionId);
+                const s = await scriptService.getScriptByQuestionId(vid.questionId);
                 if (s) targetScriptId = s.id;
               }
             }
@@ -2239,7 +2241,7 @@ apiRouter.post(
       const { videoId } = req.params;
       const actor = getRequestActor(req);
 
-      const video = await videosRepository.findById(videoId);
+      const video = await videoService.getVideoById(videoId);
       if (!video) {
         return res.status(404).json({ error: `Video with ID "${videoId}" does not exist.` });
       }
@@ -2485,7 +2487,7 @@ apiRouter.post('/phase18/thumbnails/upload-binary', requireAuth, async (req: Req
 apiRouter.get('/phase18/thumbnails/:contentId/candidates', requireAuth, async (req: Request, res: Response) => {
   try {
     const { contentId } = req.params;
-    const candidates = await thumbnailCandidatesRepository.findByContentId(contentId);
+    const candidates = await phase18ThumbnailIntelligenceService.getCandidatesForContent(contentId);
     res.status(200).json(candidates);
   } catch (err: any) {
     res.status(500).json({ error: err?.message || 'Failed to fetch candidates' });
@@ -2508,7 +2510,7 @@ apiRouter.post('/phase18/thumbnails/validate-safety', requireAuth, async (req: R
     if (!hookHeadline || !questionId) {
       return res.status(400).json({ error: 'hookHeadline and questionId are required' });
     }
-    const question = await questionsRepository.findById(questionId);
+    const question = await questionService.getQuestionById(questionId);
     if (!question) {
       return res.status(404).json({ error: 'Question not found' });
     }
@@ -2672,7 +2674,7 @@ apiRouter.get('/thumbnails/:id/download', requireAuth, async (req: Request, res:
   try {
     const { id } = req.params;
     const actor = getRequestActor(req);
-    const thumbnail = await thumbnailsRepository.findById(id);
+    const thumbnail = await thumbnailService.getThumbnailById(id);
     if (!thumbnail) {
       return res.status(404).json({ error: 'Thumbnail Not Found', message: `Thumbnail with ID "${id}" was not found.` });
     }
@@ -3125,7 +3127,7 @@ apiRouter.post(
 
       let targetQuestion = questionPayload;
       if (!targetQuestion && questionId) {
-        targetQuestion = await questionsRepository.findById(questionId);
+        targetQuestion = await questionService.getQuestionById(questionId);
       }
 
       if (!targetQuestion) {
@@ -3179,7 +3181,7 @@ apiRouter.post(
 
       let targetQuestion = questionPayload;
       if (!targetQuestion && questionId) {
-        targetQuestion = await questionsRepository.findById(questionId);
+        targetQuestion = await questionService.getQuestionById(questionId);
       }
 
       if (!targetQuestion) {
@@ -3227,7 +3229,7 @@ apiRouter.get(
     try {
       const { questionId } = req.params;
       const actor = getRequestActor(req);
-      const question = await questionsRepository.findById(questionId);
+      const question = await questionService.getQuestionById(questionId);
       if (!question) {
         return res.status(404).json({ success: false, error: 'Question not found' });
       }
@@ -3266,7 +3268,7 @@ apiRouter.post(
       const { questionId } = req.params;
       const { versionHash, reason, feedbackCategories } = req.body || {};
       const actor = getRequestActor(req);
-      const question = await questionsRepository.findById(questionId);
+      const question = await questionService.getQuestionById(questionId);
       if (!question) {
         return res.status(404).json({ success: false, error: 'Question not found' });
       }
@@ -3301,7 +3303,7 @@ apiRouter.post(
       const { questionId } = req.params;
       const { versionHash, reason, feedbackCategories } = req.body || {};
       const actor = getRequestActor(req);
-      const question = await questionsRepository.findById(questionId);
+      const question = await questionService.getQuestionById(questionId);
       if (!question) {
         return res.status(404).json({ success: false, error: 'Question not found' });
       }
@@ -3336,7 +3338,7 @@ apiRouter.post(
       const { questionId } = req.params;
       const { versionHash, reason, feedbackCategories } = req.body || {};
       const actor = getRequestActor(req);
-      const question = await questionsRepository.findById(questionId);
+      const question = await questionService.getQuestionById(questionId);
       if (!question) {
         return res.status(404).json({ success: false, error: 'Question not found' });
       }
@@ -3389,7 +3391,7 @@ apiRouter.get(
     try {
       const { questionId } = req.params;
       const actor = getRequestActor(req);
-      const question = await questionsRepository.findById(questionId);
+      const question = await questionService.getQuestionById(questionId);
       if (!question) {
         return res.status(404).json({ success: false, error: 'Question not found' });
       }
@@ -3430,7 +3432,7 @@ apiRouter.post(
         return res.status(400).json({ success: false, error: 'questionId, decision, and versionHash are required' });
       }
       const actor = getRequestActor(req);
-      const question = await questionsRepository.findById(questionId);
+      const question = await questionService.getQuestionById(questionId);
       if (!question) {
         return res.status(404).json({ success: false, error: 'Question not found' });
       }
@@ -3490,7 +3492,7 @@ apiRouter.get(
         });
       }
 
-      const allReviews = await socialReviewsRepository.findAll();
+      const allReviews = await socialReviewService.getAllReviews();
       if (isManagerOrAdmin) {
         return res.json({ success: true, data: allReviews });
       }
@@ -3503,7 +3505,7 @@ apiRouter.get(
           continue;
         }
         if (rev.questionId) {
-          const q = await questionsRepository.findById(rev.questionId);
+          const q = await questionService.getQuestionById(rev.questionId);
           if (q && (await objectAuthService.canAccessSocialPackage(actor, q))) {
             authorizedReviews.push(rev);
           }
@@ -3530,15 +3532,15 @@ apiRouter.get(
       const actor = getRequestActor(req);
 
       // 1. Attempt lookup by Social Review record ID
-      let review = await socialReviewsRepository.findById(reviewId);
+      let review = await socialReviewService.getReviewById(reviewId);
       let targetQuestionId = review ? review.questionId : null;
 
       // 2. If not found as a review ID, check if reviewId is a question ID
       if (!targetQuestionId) {
-        const directQuestion = await questionsRepository.findById(reviewId);
+        const directQuestion = await questionService.getQuestionById(reviewId);
         if (directQuestion) {
           targetQuestionId = directQuestion.id;
-          const reviews = await socialReviewsRepository.findByQuestion(targetQuestionId);
+          const reviews = await socialReviewService.getReviewsByQuestion(targetQuestionId);
           if (reviews && reviews.length > 0) {
             review = reviews[0];
           }
@@ -3553,7 +3555,7 @@ apiRouter.get(
         });
       }
 
-      const question = await questionsRepository.findById(targetQuestionId);
+      const question = await questionService.getQuestionById(targetQuestionId);
       if (!question) {
         return res.status(404).json({
           success: false,

@@ -122,8 +122,7 @@ export class IdService {
   }
 
   public async allocateUserId(): Promise<string> {
-    const timestamp = Date.now();
-    return `USR-${timestamp.toString().slice(-4)}`;
+    return this.generateId(SEQUENCE_ENTITIES.USER);
   }
 
   public async allocateId(entityType: string): Promise<string> {

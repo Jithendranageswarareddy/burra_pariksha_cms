@@ -97,6 +97,10 @@ export class Phase18ThumbnailIntelligenceService {
     return Phase18ThumbnailIntelligenceService.instance;
   }
 
+  public async getCandidatesForContent(contentId: string): Promise<ThumbnailCandidate[]> {
+    return thumbnailCandidatesRepository.findByContentId(contentId);
+  }
+
   /**
    * RBAC verification helper
    */
