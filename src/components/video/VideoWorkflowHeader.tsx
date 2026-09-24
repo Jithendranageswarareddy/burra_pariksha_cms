@@ -66,15 +66,6 @@ export const VideoWorkflowHeader: React.FC<VideoWorkflowHeaderProps> = ({
   onStepSelect,
   activeStageTab,
 }) => {
-  // Legacy step compatibility mapping (legacy 5->3, 6->4, 7->6, 8->6, 9->7)
-  const normalizedStep =
-    currentStep === 5 ? 3 :
-    currentStep === 6 ? 4 :
-    currentStep === 7 ? 6 :
-    currentStep === 8 ? 6 :
-    currentStep === 9 ? 7 :
-    currentStep;
-
   const getStepPath = (step: VideoStepMeta): string => {
     if (videoId) {
       return `/videos/${encodeURIComponent(videoId)}?tab=${step.stageKey}`;
@@ -121,8 +112,8 @@ export const VideoWorkflowHeader: React.FC<VideoWorkflowHeaderProps> = ({
         {VIDEO_STEPS.map((step) => {
           const isCurrent = activeStageTab
             ? activeStageTab === step.stageKey
-            : step.stepNumber === normalizedStep;
-          const isCompleted = step.stepNumber < normalizedStep;
+            : step.stepNumber === currentStep;
+          const isCompleted = step.stepNumber < currentStep;
           const StepIcon = step.icon;
           const targetUrl = getStepPath(step);
 

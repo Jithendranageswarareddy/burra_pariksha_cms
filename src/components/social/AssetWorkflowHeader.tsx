@@ -56,13 +56,6 @@ export const AssetWorkflowHeader: React.FC<AssetWorkflowHeaderProps> = ({
   questionId,
   className = '',
 }) => {
-  // Legacy step mapping: legacy 10 -> 8, 11 -> 9, 12 -> 9
-  const normalizedStep =
-    currentStep === 10 ? 8 :
-    currentStep === 11 ? 9 :
-    currentStep === 12 ? 9 :
-    currentStep;
-
   const getStepPath = (step: AssetStepMeta): string => {
     if (videoId) {
       switch (step.stepNumber) {
@@ -142,8 +135,8 @@ export const AssetWorkflowHeader: React.FC<AssetWorkflowHeaderProps> = ({
       <div className="p-3 sm:p-4 bg-slate-50/70">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
           {ASSET_STEPS.map((step) => {
-            const isCurrent = step.stepNumber === normalizedStep;
-            const isPassed = step.stepNumber < normalizedStep;
+            const isCurrent = step.stepNumber === currentStep;
+            const isPassed = step.stepNumber < currentStep;
             const targetUrl = getStepPath(step);
             const StepIcon = step.icon;
 

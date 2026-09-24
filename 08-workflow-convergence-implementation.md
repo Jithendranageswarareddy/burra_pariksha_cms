@@ -153,11 +153,14 @@ Bidirectional state mappers derive these states from domain entities:
 ---
 
 ## 17. Workflow Header Convergence
-- `QuestionWorkflowHeader.tsx`: Derived from `CANONICAL_15_STEPS.slice(0, 2)`.
-- `VideoWorkflowHeader.tsx`: Derived from `CANONICAL_15_STEPS.filter(s => s.stepNumber >= 3 && s.stepNumber <= 9)`.
-- `AssetWorkflowHeader.tsx`: Derived from `CANONICAL_15_STEPS.filter(s => s.stepNumber >= 8 && s.stepNumber <= 10)`.
-- `PublishingWorkflowHeader.tsx`: Derived from `CANONICAL_15_STEPS.filter(s => s.stepNumber >= 10 && s.stepNumber <= 12)`.
+- `QuestionWorkflowHeader.tsx`: Directly consumes `CANONICAL_15_STEPS` (Steps 01–02); legacy `normalizedStep` removed for strict 1:1 step matching.
+- `VideoWorkflowHeader.tsx`: Directly consumes `CANONICAL_15_STEPS` (Steps 03–09); legacy `normalizedStep` remapping removed.
+- `AssetWorkflowHeader.tsx`: Directly consumes `CANONICAL_15_STEPS` (Steps 08–10); legacy `normalizedStep` remapping removed.
+- `PublishingWorkflowHeader.tsx`: Directly consumes `CANONICAL_15_STEPS` (Steps 10–12); legacy `normalizedStep` remapping removed.
 - `StepIndicator.tsx`: Derived from `CANONICAL_15_STEPS`.
+- `DashboardPage.tsx`: Corrected in-flight video card step assignment from stale `05 Video Editing Bay` to canonical `06 Video Editing`.
+- `VideoRecordPage.tsx`: Corrected next-stage action card from `Stage 05` to `Stage 06: Video Editing Bay`.
+- Step 05 downstream-status caveat in `RecordingWorkspace.tsx` (`handleProceedToEditing`) remains intentionally preserved for backwards status compatibility without altering schema.
 
 ---
 

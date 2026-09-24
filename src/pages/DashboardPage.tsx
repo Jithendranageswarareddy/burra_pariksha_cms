@@ -91,8 +91,8 @@ export const DashboardPage: React.FC = () => {
           return {
             id: vId,
             title: topTask.title || 'Video Production Item',
-            stepNumber: '05',
-            stepName: 'Video Editing Bay',
+            stepNumber: '06',
+            stepName: 'Video Editing',
             stageCategory: 'VIDEO',
             priority: topTask.priority || 'HIGH',
             reason: topTask.description || 'Assigned production item',
@@ -112,8 +112,8 @@ export const DashboardPage: React.FC = () => {
       return {
         id: v.id,
         title: v.title || `Video ${v.id}`,
-        stepNumber: v.status === 'SCRIPT_READY' ? '04' : '05',
-        stepName: v.status === 'SCRIPT_READY' ? 'Teleprompter & Filming' : 'Video Editing Bay',
+        stepNumber: v.status === 'SCRIPT_READY' ? '04' : '06',
+        stepName: v.status === 'SCRIPT_READY' ? 'Teleprompter & Filming' : 'Video Editing',
         stageCategory: 'VIDEO',
         topic: v.question?.topicId || 'Aptitude',
         priority: v.priority || 'HIGH',

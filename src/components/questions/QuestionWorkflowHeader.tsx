@@ -44,9 +44,6 @@ export const QuestionWorkflowHeader: React.FC<QuestionWorkflowHeaderProps> = ({
 }) => {
   const navigate = useNavigate();
 
-  // Normalize current step (canonical 1 and 2; legacy 3 -> 1, legacy 4 -> 2)
-  const normalizedStep = currentStep === 3 ? 1 : currentStep === 4 ? 2 : currentStep;
-
   const getStepPath = (step: QuestionStepMeta): string => {
     if (questionId) {
       if (step.stepNumber === 1) return `/studio?id=${encodeURIComponent(questionId)}`;
@@ -87,8 +84,8 @@ export const QuestionWorkflowHeader: React.FC<QuestionWorkflowHeaderProps> = ({
       {/* Canonical Question Stages (01 & 02) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
         {QUESTION_STEPS.map((step) => {
-          const isCurrent = step.stepNumber === normalizedStep;
-          const isCompleted = step.stepNumber < normalizedStep;
+          const isCurrent = step.stepNumber === currentStep;
+          const isCompleted = step.stepNumber < currentStep;
           const StepIcon = step.icon;
           const targetUrl = getStepPath(step);
 

@@ -56,13 +56,6 @@ export const PublishingWorkflowHeader: React.FC<PublishingWorkflowHeaderProps> =
   questionId,
   className = '',
 }) => {
-  // Legacy step mapping: legacy 13 -> 12, 14 -> 10, 15 -> 11
-  const normalizedStep =
-    currentStep === 13 ? 12 :
-    currentStep === 14 ? 10 :
-    currentStep === 15 ? 11 :
-    currentStep;
-
   const getStepPath = (step: PublishingStepMeta): string => {
     if (videoId) {
       if (step.stepNumber === 10 || step.stepNumber === 11) {
@@ -116,7 +109,7 @@ export const PublishingWorkflowHeader: React.FC<PublishingWorkflowHeaderProps> =
             </Link>
 
             {/* Next Step Shortcut */}
-            {normalizedStep === 10 && (
+            {currentStep === 10 && (
               <Link
                 to={videoId ? `/videos/${encodeURIComponent(videoId)}?tab=publishing` : '/publishing'}
                 className="text-[11px] text-emerald-300 hover:text-emerald-200 transition-colors flex items-center gap-1 font-medium"
@@ -133,8 +126,8 @@ export const PublishingWorkflowHeader: React.FC<PublishingWorkflowHeaderProps> =
       <div className="p-3 sm:p-4 bg-slate-50/70">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
           {PUBLISHING_STEPS.map((step) => {
-            const isCurrent = step.stepNumber === normalizedStep;
-            const isPassed = step.stepNumber < normalizedStep;
+            const isCurrent = step.stepNumber === currentStep;
+            const isPassed = step.stepNumber < currentStep;
             const targetUrl = getStepPath(step);
             const StepIcon = step.icon;
 
