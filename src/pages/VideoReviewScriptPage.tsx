@@ -221,7 +221,7 @@ export const VideoReviewScriptPage: React.FC = () => {
     }
   };
 
-  // Return to Step 05
+  // Return to Step 03 Audience Script
   const handleReturnToCreate = async () => {
     const targetId = videoId || selectedVideo?.id;
     if (!targetId) return;
@@ -229,7 +229,7 @@ export const VideoReviewScriptPage: React.FC = () => {
     try {
       setIsSaving(true);
       setError(null);
-      await apiClient.returnScriptToEditing(targetId, 'Script returned to Step 05 for revision');
+      await apiClient.returnScriptToEditing(targetId, 'Script returned to Step 03 for revision');
       setSuccessMessage('Script returned to SCRIPT_REQUIRED.');
       if (selectedVideo) {
         setSelectedVideo({ ...selectedVideo, status: VideoProductionStatus.SCRIPT_REQUIRED });
@@ -260,7 +260,7 @@ export const VideoReviewScriptPage: React.FC = () => {
 
     return (
       <div className="space-y-6 max-w-6xl mx-auto pb-16">
-        <VideoWorkflowHeader currentStep={6} />
+        <VideoWorkflowHeader currentStep={3} />
 
         <PageHeader
           title="Review Script"
@@ -334,7 +334,7 @@ export const VideoReviewScriptPage: React.FC = () => {
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-16">
       <VideoWorkflowHeader
-        currentStep={6}
+        currentStep={3}
         videoId={videoId || selectedVideo?.id}
         videoTitle={selectedVideo?.title}
         videoStatus={selectedVideo?.status}

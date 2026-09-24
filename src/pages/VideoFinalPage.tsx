@@ -179,7 +179,7 @@ export const VideoFinalPage: React.FC = () => {
       );
       setSelectedVideo(updated);
       setShowReturnModal(false);
-      setSuccessMessage('Video returned to Step 08 EDITING status with editor feedback.');
+      setSuccessMessage('Video returned to Step 06 EDITING status with editor feedback.');
       setTimeout(() => setSuccessMessage(null), 4000);
     } catch (err: any) {
       setError(err?.message || 'Failed to return video to editing.');
@@ -199,7 +199,7 @@ export const VideoFinalPage: React.FC = () => {
 
     return (
       <div className="space-y-6 max-w-6xl mx-auto pb-16">
-        <VideoWorkflowHeader currentStep={9} />
+        <VideoWorkflowHeader currentStep={7} />
 
         <PageHeader
           title="Video Review & Signoff"
@@ -275,7 +275,7 @@ export const VideoFinalPage: React.FC = () => {
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-16">
       <VideoWorkflowHeader
-        currentStep={9}
+        currentStep={7}
         videoId={videoId || selectedVideo?.id}
         videoTitle={selectedVideo?.title}
         videoStatus={selectedVideo?.status}

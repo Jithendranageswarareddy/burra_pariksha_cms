@@ -257,6 +257,26 @@ export const RecordingWorkspace: React.FC<RecordingWorkspaceProps> = ({
     setIsUpdating(true);
     setError(null);
     try {
+      // Step 05 Gate: Verify that raw footage has been ingested or linked
+      const hasRawVideoFootage = Boolean(
+        video.driveFileId ||
+        video.rawFootagePath ||
+        video.driveFolderUrl ||
+        video.status === VideoProductionStatus.RECORDED ||
+        video.status === VideoProductionStatus.EDITING ||
+        video.status === VideoProductionStatus.FINAL_REVIEW ||
+        video.status === VideoProductionStatus.READY_TO_UPLOAD ||
+        video.status === VideoProductionStatus.UPLOADED ||
+        video.status === VideoProductionStatus.PUBLISHED
+      );
+
+      if (!hasRawVideoFootage) {
+        setError(
+          'Step 05 (Raw Video Handoff) Gate: Raw video footage or Google Drive folder link must be attached before proceeding to Step 06 (Video Editing).'
+        );
+        return;
+      }
+
       if (
         video.status === VideoProductionStatus.RECORDED ||
         video.status === VideoProductionStatus.QUEUED ||
@@ -266,7 +286,7 @@ export const RecordingWorkspace: React.FC<RecordingWorkspaceProps> = ({
         await apiClient.updateVideoStatus(
           videoId,
           VideoProductionStatus.EDITING,
-          'Raw footage secured, advancing to Editing stage'
+          'Raw footage secured, advancing to Step 06 Video Editing'
         );
         if (onStatusChange) onStatusChange();
       }
@@ -536,7 +556,7 @@ export const RecordingWorkspace: React.FC<RecordingWorkspaceProps> = ({
               onClick={handleProceedToEditing}
               className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 w-full text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
-              <span>Save Footage &amp; Proceed to Step 05: Editing Bay →</span>
+              <span>Save Footage &amp; Proceed to Step 06: Video Editing →</span>
             </button>
 
             {/* Quick Status Transition Actions */}

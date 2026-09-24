@@ -2,24 +2,15 @@ import React from 'react';
 import { Check, Lock, ChevronRight } from 'lucide-react';
 import { COLOR_TOKENS, RADIUS_TOKENS, TYPOGRAPHY_TOKENS, ICON_TOKENS } from '../tokens';
 import { ProductionWorkflowStep, StepState } from '../types';
+import { CANONICAL_15_STEPS } from '../../lib/workflow/canonical-workflow';
 
-export const PRODUCTION_WORKFLOW_STEPS: ProductionWorkflowStep[] = [
-  { stepNumber: 1, id: 'generate-question', label: 'Generate Question', shortLabel: 'Generate', path: '/studio' },
-  { stepNumber: 2, id: 'question-library', label: 'Question Library', shortLabel: 'Library', path: '/questions' },
-  { stepNumber: 3, id: 'improve-question', label: 'Improve Question', shortLabel: 'Improve', path: '/questions?status=DRAFT' },
-  { stepNumber: 4, id: 'verify-approve', label: 'Verify & Approve', shortLabel: 'Verify', path: '/questions?status=GENERATED' },
-  { stepNumber: 5, id: 'create-script', label: 'Create Script', shortLabel: 'Script', path: '/production?status=SCRIPT_REQUIRED' },
-  { stepNumber: 6, id: 'review-script', label: 'Review Script', shortLabel: 'Review Script', path: '/production?status=SCRIPT_READY' },
-  { stepNumber: 7, id: 'record-video', label: 'Record Video', shortLabel: 'Record', path: '/queue' },
-  { stepNumber: 8, id: 'edit-video', label: 'Edit Video', shortLabel: 'Edit', path: '/production?status=EDITING' },
-  { stepNumber: 9, id: 'final-video', label: 'Final Video', shortLabel: 'Final Review', path: '/production?status=FINAL_REVIEW' },
-  { stepNumber: 10, id: 'create-thumbnail', label: 'Create Thumbnail', shortLabel: 'Thumbnail', path: '/production?status=READY_TO_UPLOAD' },
-  { stepNumber: 11, id: 'pinned-comment', label: 'Pinned Comment', shortLabel: 'Comment', path: '/production?status=UPLOADED' },
-  { stepNumber: 12, id: 'social-review', label: 'Social Review', shortLabel: 'Social Review', path: '/social-review' },
-  { stepNumber: 13, id: 'platform-packages', label: 'Platform Packages', shortLabel: 'Platforms', path: '/platform-packages' },
-  { stepNumber: 14, id: 'publishing-package', label: 'Publishing Package', shortLabel: 'Package', path: '/publishing-package' },
-  { stepNumber: 15, id: 'publish', label: 'Publish', shortLabel: 'Publish', path: '/publishing' },
-];
+export const PRODUCTION_WORKFLOW_STEPS: ProductionWorkflowStep[] = CANONICAL_15_STEPS.map((step) => ({
+  stepNumber: step.stepNumber,
+  id: step.id,
+  label: step.label.replace(/^\d{2}\s+/, ''),
+  shortLabel: step.shortLabel,
+  path: step.canonicalRoute.replace('/:id', '').replace('/:reviewId', '').replace('/:contentId', ''),
+}));
 
 export interface StepIndicatorProps {
   id?: string;

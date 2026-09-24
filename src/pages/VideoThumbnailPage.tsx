@@ -312,7 +312,7 @@ export const VideoThumbnailPage: React.FC = () => {
 
     return (
       <div className="space-y-6 max-w-6xl mx-auto pb-16">
-        <AssetWorkflowHeader currentStep={10} />
+        <AssetWorkflowHeader currentStep={8} />
 
         <PageHeader
           title="Thumbnail Studio"
@@ -388,7 +388,7 @@ export const VideoThumbnailPage: React.FC = () => {
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-16">
       <AssetWorkflowHeader
-        currentStep={10}
+        currentStep={8}
         videoId={selectedVideo?.id || videoId}
         videoTitle={selectedVideo?.title}
         videoStatus={selectedVideo?.status}

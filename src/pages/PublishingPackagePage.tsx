@@ -267,7 +267,7 @@ export const PublishingPackagePage: React.FC = () => {
 
       {/* Publishing Workflow Header Steps Bar */}
       <PublishingWorkflowHeader
-        currentStep={14}
+        currentStep={10}
         videoId={currentVideoId || undefined}
         videoTitle={selectedVideo?.title || publishingRecord?.videoTitle}
         videoStatus={selectedVideo?.status}

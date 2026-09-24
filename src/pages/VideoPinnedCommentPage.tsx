@@ -195,7 +195,7 @@ export const VideoPinnedCommentPage: React.FC = () => {
 
     return (
       <div className="space-y-6 max-w-6xl mx-auto pb-16">
-        <AssetWorkflowHeader currentStep={11} />
+        <AssetWorkflowHeader currentStep={9} />
 
         <PageHeader
           title="Pinned Comment Studio"
@@ -273,7 +273,7 @@ export const VideoPinnedCommentPage: React.FC = () => {
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-16">
       <AssetWorkflowHeader
-        currentStep={11}
+        currentStep={9}
         videoId={selectedVideo?.id || videoId}
         videoTitle={selectedVideo?.title}
         videoStatus={selectedVideo?.status}

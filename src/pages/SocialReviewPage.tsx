@@ -277,7 +277,7 @@ export const SocialReviewPage: React.FC = () => {
     return (
       <div className="space-y-6 max-w-7xl mx-auto pb-16 animate-in fade-in duration-200">
         <AssetWorkflowHeader
-          currentStep={12}
+          currentStep={9}
           videoId={resolvedVideoId || undefined}
           questionId={resolvedQuestionId || undefined}
         />

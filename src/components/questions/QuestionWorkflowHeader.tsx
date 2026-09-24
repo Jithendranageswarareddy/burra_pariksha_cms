@@ -1,17 +1,18 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Sparkles, BookOpen, Edit3, ShieldCheck, Check } from 'lucide-react';
+import { Sparkles, ShieldCheck, Check, Edit3, BookOpen } from 'lucide-react';
 import { Badge } from '../../design-system/components/Badge';
+import { CANONICAL_15_STEPS } from '../../lib/workflow/canonical-workflow';
 
 export interface QuestionWorkflowHeaderProps {
-  currentStep: 1 | 2 | 3 | 4;
+  currentStep: number;
   questionId?: string;
   questionTitle?: string;
   className?: string;
 }
 
-interface StepMeta {
-  stepNumber: 1 | 2 | 3 | 4;
+export interface QuestionStepMeta {
+  stepNumber: number;
   stepCode: string;
   label: string;
   shortLabel: string;
@@ -20,44 +21,20 @@ interface StepMeta {
   description: string;
 }
 
-const QUESTION_STEPS: StepMeta[] = [
-  {
-    stepNumber: 1,
-    stepCode: 'Generate',
-    label: 'Generate',
-    shortLabel: 'Generate',
-    icon: Sparkles,
-    path: '/studio',
-    description: 'AI generation from Topic taxonomy',
-  },
-  {
-    stepNumber: 2,
-    stepCode: 'Library',
-    label: 'Library',
-    shortLabel: 'Library',
-    icon: BookOpen,
-    path: '/questions',
-    description: 'Explore, filter & pick questions',
-  },
-  {
-    stepNumber: 3,
-    stepCode: 'Improve',
-    label: 'Improve',
-    shortLabel: 'Improve',
-    icon: Edit3,
-    path: '/questions/improve',
-    description: 'Human editing & optional AI refinement',
-  },
-  {
-    stepNumber: 4,
-    stepCode: 'Approve',
-    label: 'Approve',
-    shortLabel: 'Approve',
-    icon: ShieldCheck,
-    path: '/questions/verify',
-    description: 'Quality gate & validation review',
-  },
-];
+const STEP_ICONS: Record<number, React.ElementType> = {
+  1: Sparkles,
+  2: ShieldCheck,
+};
+
+export const QUESTION_STEPS: QuestionStepMeta[] = CANONICAL_15_STEPS.slice(0, 2).map((s) => ({
+  stepNumber: s.stepNumber,
+  stepCode: String(s.stepNumber).padStart(2, '0'),
+  label: s.label,
+  shortLabel: s.shortLabel,
+  icon: STEP_ICONS[s.stepNumber] || Sparkles,
+  path: s.canonicalRoute,
+  description: s.responsibility,
+}));
 
 export const QuestionWorkflowHeader: React.FC<QuestionWorkflowHeaderProps> = ({
   currentStep,
@@ -67,10 +44,13 @@ export const QuestionWorkflowHeader: React.FC<QuestionWorkflowHeaderProps> = ({
 }) => {
   const navigate = useNavigate();
 
-  const getStepPath = (step: StepMeta): string => {
+  // Normalize current step (canonical 1 and 2; legacy 3 -> 1, legacy 4 -> 2)
+  const normalizedStep = currentStep === 3 ? 1 : currentStep === 4 ? 2 : currentStep;
+
+  const getStepPath = (step: QuestionStepMeta): string => {
     if (questionId) {
-      if (step.stepNumber === 3) return `/questions/${encodeURIComponent(questionId)}/improve`;
-      if (step.stepNumber === 4) return `/questions/${encodeURIComponent(questionId)}/verify`;
+      if (step.stepNumber === 1) return `/studio?id=${encodeURIComponent(questionId)}`;
+      if (step.stepNumber === 2) return `/questions/${encodeURIComponent(questionId)}/verify`;
     }
     return step.path;
   };
@@ -83,10 +63,10 @@ export const QuestionWorkflowHeader: React.FC<QuestionWorkflowHeaderProps> = ({
       <div className="flex items-center justify-between gap-2 mb-3 pb-2.5 border-b border-slate-100 flex-wrap">
         <div className="flex items-center gap-2">
           <Badge variant="neutral" size="sm" className="font-semibold">
-            Question Pipeline
+            Question Lifecycle
           </Badge>
           <span className="text-xs text-slate-500 hidden md:inline">
-            From Topic selection to verified and approved question
+            Canonical Stage 01 &amp; Stage 02 Question Authoring &amp; Verification
           </span>
         </div>
 
@@ -104,12 +84,11 @@ export const QuestionWorkflowHeader: React.FC<QuestionWorkflowHeaderProps> = ({
         )}
       </div>
 
-      {/* 4-Step Progress Bar Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+      {/* Canonical Question Stages (01 & 02) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
         {QUESTION_STEPS.map((step) => {
-          const isCurrent = step.stepNumber === currentStep;
-          const isCompleted = step.stepNumber < currentStep;
-          const isUpcoming = step.stepNumber > currentStep;
+          const isCurrent = step.stepNumber === normalizedStep;
+          const isCompleted = step.stepNumber < normalizedStep;
           const StepIcon = step.icon;
           const targetUrl = getStepPath(step);
 
@@ -161,3 +140,5 @@ export const QuestionWorkflowHeader: React.FC<QuestionWorkflowHeaderProps> = ({
     </div>
   );
 };
+
+export default QuestionWorkflowHeader;

@@ -294,7 +294,7 @@ export const VideoEditPage: React.FC = () => {
 
     return (
       <div className="space-y-6 max-w-6xl mx-auto pb-16">
-        <VideoWorkflowHeader currentStep={8} />
+        <VideoWorkflowHeader currentStep={6} />
 
         <PageHeader
           title="Video Editor"
@@ -368,7 +368,7 @@ export const VideoEditPage: React.FC = () => {
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-16">
       <VideoWorkflowHeader
-        currentStep={8}
+        currentStep={6}
         videoId={videoId || selectedVideo?.id}
         videoTitle={selectedVideo?.title}
         videoStatus={selectedVideo?.status}

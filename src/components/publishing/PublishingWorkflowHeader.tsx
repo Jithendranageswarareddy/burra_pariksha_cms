@@ -1,17 +1,18 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Share2,
-  CheckCircle2,
+  Calendar,
   UploadCloud,
-  Check,
+  CheckCircle2,
   CheckCheck,
-  Film,
+  Check,
   ArrowRight,
+  Share2,
 } from 'lucide-react';
+import { CANONICAL_15_STEPS } from '../../lib/workflow/canonical-workflow';
 
 export interface PublishingWorkflowHeaderProps {
-  currentStep: 13 | 14 | 15;
+  currentStep: number;
   videoId?: string;
   videoTitle?: string;
   videoStatus?: string;
@@ -19,8 +20,8 @@ export interface PublishingWorkflowHeaderProps {
   className?: string;
 }
 
-interface StepMeta {
-  stepNumber: 13 | 14 | 15;
+export interface PublishingStepMeta {
+  stepNumber: number;
   stepCode: string;
   label: string;
   shortLabel: string;
@@ -29,35 +30,23 @@ interface StepMeta {
   description: string;
 }
 
-export const PUBLISHING_STEPS: StepMeta[] = [
-  {
-    stepNumber: 13,
-    stepCode: 'Platform Adaptations',
-    label: 'Platform Adaptations',
-    shortLabel: 'Platforms',
-    icon: Share2,
-    path: '/platform-packages',
-    description: 'YouTube, Instagram & Facebook adaptations, diffs & copy',
-  },
-  {
-    stepNumber: 14,
-    stepCode: 'Pre-Publish Check',
-    label: 'Pre-Publish Check',
-    shortLabel: 'Pre-Check',
-    icon: CheckCircle2,
-    path: '/publishing-package',
-    description: 'Pre-flight checklist, asset bundles & readiness',
-  },
-  {
-    stepNumber: 15,
-    stepCode: 'Publish & Links',
-    label: 'Publish & Links',
-    shortLabel: 'Publish',
-    icon: UploadCloud,
-    path: '/publishing',
-    description: 'Manual upload tracker, scheduling, retries & live URLs',
-  },
-];
+const STEP_ICONS: Record<number, React.ElementType> = {
+  10: Calendar,
+  11: UploadCloud,
+  12: Share2,
+};
+
+export const PUBLISHING_STEPS: PublishingStepMeta[] = CANONICAL_15_STEPS.filter(
+  (s) => s.stepNumber >= 10 && s.stepNumber <= 12
+).map((s) => ({
+  stepNumber: s.stepNumber,
+  stepCode: String(s.stepNumber).padStart(2, '0'),
+  label: s.label,
+  shortLabel: s.shortLabel,
+  icon: STEP_ICONS[s.stepNumber] || UploadCloud,
+  path: s.canonicalRoute,
+  description: s.responsibility,
+}));
 
 export const PublishingWorkflowHeader: React.FC<PublishingWorkflowHeaderProps> = ({
   currentStep,
@@ -67,15 +56,17 @@ export const PublishingWorkflowHeader: React.FC<PublishingWorkflowHeaderProps> =
   questionId,
   className = '',
 }) => {
-  const getStepPath = (step: StepMeta): string => {
+  // Legacy step mapping: legacy 13 -> 12, 14 -> 10, 15 -> 11
+  const normalizedStep =
+    currentStep === 13 ? 12 :
+    currentStep === 14 ? 10 :
+    currentStep === 15 ? 11 :
+    currentStep;
+
+  const getStepPath = (step: PublishingStepMeta): string => {
     if (videoId) {
-      switch (step.stepNumber) {
-        case 13:
-          return `/videos/${encodeURIComponent(videoId)}/platform-packages`;
-        case 14:
-          return `/videos/${encodeURIComponent(videoId)}/publishing-package`;
-        case 15:
-          return `/videos/${encodeURIComponent(videoId)}/publish`;
+      if (step.stepNumber === 10 || step.stepNumber === 11) {
+        return `/videos/${encodeURIComponent(videoId)}?tab=publishing`;
       }
     }
     return step.path;
@@ -87,8 +78,8 @@ export const PublishingWorkflowHeader: React.FC<PublishingWorkflowHeaderProps> =
       {(videoId || videoTitle) && (
         <div className="bg-slate-900 text-white px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800">
           <div className="flex items-center gap-2.5 min-w-0">
-            <span className="text-[10px] font-mono uppercase bg-emerald-950 text-emerald-300 px-2 py-0.5 rounded border border-emerald-800/80 font-bold shrink-0">
-              Publishing Pipeline
+            <span className="text-[10px] font-mono uppercase bg-emerald-950 text-emerald-300 px-2 py-0.5 rounded border border-emerald-800 font-bold shrink-0">
+              Distribution Station
             </span>
             {videoId && (
               <span className="text-xs font-mono font-bold text-slate-300 shrink-0">
@@ -116,7 +107,7 @@ export const PublishingWorkflowHeader: React.FC<PublishingWorkflowHeaderProps> =
 
             {/* Link back to Social Review */}
             <Link
-              to={videoId ? `/videos/${encodeURIComponent(videoId)}/social-review` : '/social-review'}
+              to={videoId ? `/videos/${encodeURIComponent(videoId)}?tab=social` : '/social-review'}
               className="text-[11px] text-slate-400 hover:text-white transition-colors flex items-center gap-1 font-medium"
               title="Return to Social Review"
             >
@@ -125,21 +116,12 @@ export const PublishingWorkflowHeader: React.FC<PublishingWorkflowHeaderProps> =
             </Link>
 
             {/* Next Step Shortcut */}
-            {currentStep === 13 && (
+            {normalizedStep === 10 && (
               <Link
-                to={videoId ? `/videos/${encodeURIComponent(videoId)}/publishing-package` : '/publishing-package'}
+                to={videoId ? `/videos/${encodeURIComponent(videoId)}?tab=publishing` : '/publishing'}
                 className="text-[11px] text-emerald-300 hover:text-emerald-200 transition-colors flex items-center gap-1 font-medium"
               >
-                <span>Pre-Publish Check</span>
-                <ArrowRight className="w-3 h-3 text-emerald-300" />
-              </Link>
-            )}
-            {currentStep === 14 && (
-              <Link
-                to={videoId ? `/videos/${encodeURIComponent(videoId)}/publish` : '/publishing'}
-                className="text-[11px] text-emerald-300 hover:text-emerald-200 transition-colors flex items-center gap-1 font-medium"
-              >
-                <span>Publish</span>
+                <span>Live Release</span>
                 <ArrowRight className="w-3 h-3 text-emerald-300" />
               </Link>
             )}
@@ -149,10 +131,10 @@ export const PublishingWorkflowHeader: React.FC<PublishingWorkflowHeaderProps> =
 
       {/* Steps Flow Bar */}
       <div className="p-3 sm:p-4 bg-slate-50/70">
-        <div className="grid grid-cols-3 gap-2 sm:gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
           {PUBLISHING_STEPS.map((step) => {
-            const isCurrent = step.stepNumber === currentStep;
-            const isPassed = step.stepNumber < currentStep;
+            const isCurrent = step.stepNumber === normalizedStep;
+            const isPassed = step.stepNumber < normalizedStep;
             const targetUrl = getStepPath(step);
             const StepIcon = step.icon;
 
@@ -160,7 +142,7 @@ export const PublishingWorkflowHeader: React.FC<PublishingWorkflowHeaderProps> =
               <Link
                 key={step.stepNumber}
                 to={targetUrl}
-                className={`relative rounded-xl p-2.5 sm:p-3.5 transition-all flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 border ${
+                className={`relative rounded-xl p-2.5 sm:p-3.5 transition-all flex items-center gap-2 sm:gap-3 border ${
                   isCurrent
                     ? 'bg-emerald-600 border-emerald-600 text-white shadow-xs'
                     : isPassed

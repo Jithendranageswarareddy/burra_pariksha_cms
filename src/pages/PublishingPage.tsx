@@ -345,7 +345,7 @@ export const PublishingPage: React.FC = () => {
 
       {/* Publishing Workflow Header */}
       <PublishingWorkflowHeader
-        currentStep={15}
+        currentStep={11}
         videoId={urlVideoId || undefined}
         videoTitle={urlVideoId && videoMap[urlVideoId] ? videoMap[urlVideoId].title : undefined}
         videoStatus={urlVideoId && videoMap[urlVideoId] ? videoMap[urlVideoId].status : undefined}

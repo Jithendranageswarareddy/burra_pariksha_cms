@@ -433,7 +433,7 @@ export const QuestionImprovePage: React.FC = () => {
           }
         />
 
-        <QuestionWorkflowHeader currentStep={3} />
+        <QuestionWorkflowHeader currentStep={1} />
 
         <Card variant="default" padding="lg">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-100">
@@ -547,7 +547,7 @@ export const QuestionImprovePage: React.FC = () => {
       />
 
       <QuestionWorkflowHeader
-        currentStep={3}
+        currentStep={1}
         questionId={activeQuestionId}
         questionTitle={question?.questionText ? question.questionText.slice(0, 45) + '...' : undefined}
       />
