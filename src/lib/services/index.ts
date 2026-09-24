@@ -58,4 +58,14 @@ export * from './phase23-production.service';
 export * from './phase25-consensus.service';
 export * from './phase26-copilot.service';
 export * from './social-comments.service';
+export * from './platform-adaptation.service';
+export * from './social-review.service';
+export * from './comment-intelligence.service';
+export * from './content-strategy.service';
+export * from './social-enhancement.service';
+export * from './social-quality.service';
+export * from './production-asset-validation.service';
+export * from './deletion-safety.service';
+export * from './snapshot-scheduler.service';
+
 

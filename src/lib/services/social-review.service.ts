@@ -600,4 +600,41 @@ export class SocialReviewService {
   public static async getReviewHistory(questionId: string): Promise<SocialReviewRecord[]> {
     return socialReviewsRepository.findByQuestion(questionId);
   }
+
+  private static instance: SocialReviewService | null = null;
+
+  public static getInstance(): SocialReviewService {
+    if (!SocialReviewService.instance) {
+      SocialReviewService.instance = new SocialReviewService();
+    }
+    return SocialReviewService.instance;
+  }
+
+  public async getReviewPackageBundle(questionId: string, overrideQuestion?: Question): Promise<SocialReviewPackageBundle> {
+    return SocialReviewService.getReviewPackageBundle(questionId, overrideQuestion);
+  }
+
+  public async submitReviewDecision(
+    questionId: string,
+    input: SubmitSocialReviewInput & { decision: SocialReviewStatus },
+    actor: { id: string; name: string; role: UserRole | string },
+    overrideQuestion?: Question
+  ): Promise<{ record: SocialReviewRecord; bundle: SocialReviewPackageBundle }> {
+    return SocialReviewService.submitReviewDecision(questionId, input, actor, overrideQuestion);
+  }
+
+  public async getReviewHistory(questionId: string): Promise<SocialReviewRecord[]> {
+    return SocialReviewService.getReviewHistory(questionId);
+  }
+
+  public clearDraftCache(questionId?: string): void {
+    SocialReviewService.clearDraftCache(questionId);
+  }
+
+  public computeVersionHash(bundleParams: Parameters<typeof SocialReviewService.computeVersionHash>[0]): string {
+    return SocialReviewService.computeVersionHash(bundleParams);
+  }
 }
+
+export const socialReviewService = SocialReviewService.getInstance();
+

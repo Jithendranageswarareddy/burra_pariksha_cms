@@ -5965,8 +5965,8 @@ apiRouter.get('/media/latest/:contentId/:stage', requireAuth, async (req: Reques
 apiRouter.get('/adaptations/package/:contentId', requireAuth, async (req: Request, res: Response) => {
   try {
     const { contentId } = req.params;
-    const { phase21PlatformAdaptationService } = await import('../lib/services/phase21-platform-adaptation.service');
-    const pkg = await phase21PlatformAdaptationService.getMultiPlatformPackage(contentId);
+    const { platformAdaptationService } = await import('../lib/services/platform-adaptation.service');
+    const pkg = await platformAdaptationService.getMultiPlatformPackage(contentId);
     res.json({ success: true, data: pkg });
   } catch (err: any) {
     res.status(err?.statusCode || 500).json({ success: false, error: err?.message });
@@ -5976,8 +5976,8 @@ apiRouter.get('/adaptations/package/:contentId', requireAuth, async (req: Reques
 apiRouter.get('/adaptations/search', requireAuth, async (req: Request, res: Response) => {
   try {
     const { contentId, platform, status, version, createdBy } = req.query;
-    const { phase21PlatformAdaptationService } = await import('../lib/services/phase21-platform-adaptation.service');
-    const records = await phase21PlatformAdaptationService.searchAdaptations({
+    const { platformAdaptationService } = await import('../lib/services/platform-adaptation.service');
+    const records = await platformAdaptationService.searchAdaptations({
       contentId: contentId ? String(contentId) : undefined,
       platform: platform ? String(platform) as any : undefined,
       status: status ? String(status) as any : undefined,
@@ -5999,8 +5999,8 @@ apiRouter.post('/adaptations/recommend', requireAuth, aiRateLimiter, async (req:
       name: authReq.user?.name || 'User',
       role: (authReq.user?.role as UserRole) || UserRole.CREATOR,
     };
-    const { phase21PlatformAdaptationService } = await import('../lib/services/phase21-platform-adaptation.service');
-    const rec = await phase21PlatformAdaptationService.generateAiAdaptationRecommendation(
+    const { platformAdaptationService } = await import('../lib/services/platform-adaptation.service');
+    const rec = await platformAdaptationService.generateAiAdaptationRecommendation(
       contentId,
       platform,
       actor,
@@ -6020,8 +6020,8 @@ apiRouter.post('/adaptations', requireAuth, async (req: Request, res: Response) 
       name: authReq.user?.name || 'User',
       role: (authReq.user?.role as UserRole) || UserRole.CREATOR,
     };
-    const { phase21PlatformAdaptationService } = await import('../lib/services/phase21-platform-adaptation.service');
-    const created = await phase21PlatformAdaptationService.createAdaptation(req.body, actor);
+    const { platformAdaptationService } = await import('../lib/services/platform-adaptation.service');
+    const created = await platformAdaptationService.createAdaptation(req.body, actor);
     res.status(201).json({ success: true, data: created });
   } catch (err: any) {
     res.status(err?.statusCode || 500).json({ success: false, error: err?.message });
@@ -6037,8 +6037,8 @@ apiRouter.put('/adaptations/:id', requireAuth, async (req: Request, res: Respons
       name: authReq.user?.name || 'User',
       role: (authReq.user?.role as UserRole) || UserRole.CREATOR,
     };
-    const { phase21PlatformAdaptationService } = await import('../lib/services/phase21-platform-adaptation.service');
-    const updated = await phase21PlatformAdaptationService.updateAdaptation(id, req.body, actor);
+    const { platformAdaptationService } = await import('../lib/services/platform-adaptation.service');
+    const updated = await platformAdaptationService.updateAdaptation(id, req.body, actor);
     res.json({ success: true, data: updated });
   } catch (err: any) {
     res.status(err?.statusCode || 500).json({ success: false, error: err?.message });
@@ -6054,8 +6054,8 @@ apiRouter.post('/adaptations/:id/submit-review', requireAuth, async (req: Reques
       name: authReq.user?.name || 'User',
       role: (authReq.user?.role as UserRole) || UserRole.CREATOR,
     };
-    const { phase21PlatformAdaptationService } = await import('../lib/services/phase21-platform-adaptation.service');
-    const submitted = await phase21PlatformAdaptationService.submitForReview(id, actor);
+    const { platformAdaptationService } = await import('../lib/services/platform-adaptation.service');
+    const submitted = await platformAdaptationService.submitForReview(id, actor);
     res.json({ success: true, data: submitted });
   } catch (err: any) {
     res.status(err?.statusCode || 500).json({ success: false, error: err?.message });
@@ -6071,8 +6071,8 @@ apiRouter.post('/adaptations/:id/approve', requireAuth, async (req: Request, res
       name: authReq.user?.name || 'User',
       role: (authReq.user?.role as UserRole) || UserRole.REVIEWER,
     };
-    const { phase21PlatformAdaptationService } = await import('../lib/services/phase21-platform-adaptation.service');
-    const approved = await phase21PlatformAdaptationService.approveAdaptation(id, actor, { reason: req.body?.reason });
+    const { platformAdaptationService } = await import('../lib/services/platform-adaptation.service');
+    const approved = await platformAdaptationService.approveAdaptation(id, actor, { reason: req.body?.reason });
     res.json({ success: true, data: approved });
   } catch (err: any) {
     res.status(err?.statusCode || 500).json({ success: false, error: err?.message });
@@ -6088,8 +6088,8 @@ apiRouter.post('/adaptations/:id/reject', requireAuth, async (req: Request, res:
       name: authReq.user?.name || 'User',
       role: (authReq.user?.role as UserRole) || UserRole.REVIEWER,
     };
-    const { phase21PlatformAdaptationService } = await import('../lib/services/phase21-platform-adaptation.service');
-    const rejected = await phase21PlatformAdaptationService.rejectAdaptation(id, req.body?.reason, actor);
+    const { platformAdaptationService } = await import('../lib/services/platform-adaptation.service');
+    const rejected = await platformAdaptationService.rejectAdaptation(id, req.body?.reason, actor);
     res.json({ success: true, data: rejected });
   } catch (err: any) {
     res.status(err?.statusCode || 500).json({ success: false, error: err?.message });
@@ -6105,8 +6105,8 @@ apiRouter.post('/adaptations/:id/request-changes', requireAuth, async (req: Requ
       name: authReq.user?.name || 'User',
       role: (authReq.user?.role as UserRole) || UserRole.REVIEWER,
     };
-    const { phase21PlatformAdaptationService } = await import('../lib/services/phase21-platform-adaptation.service');
-    const changesReq = await phase21PlatformAdaptationService.requestChanges(id, req.body?.reason, actor);
+    const { platformAdaptationService } = await import('../lib/services/platform-adaptation.service');
+    const changesReq = await platformAdaptationService.requestChanges(id, req.body?.reason, actor);
     res.json({ success: true, data: changesReq });
   } catch (err: any) {
     res.status(err?.statusCode || 500).json({ success: false, error: err?.message });
@@ -6116,8 +6116,8 @@ apiRouter.post('/adaptations/:id/request-changes', requireAuth, async (req: Requ
 apiRouter.get('/adaptations/:id/versions', requireAuth, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { phase21PlatformAdaptationService } = await import('../lib/services/phase21-platform-adaptation.service');
-    const versions = await phase21PlatformAdaptationService.getAdaptationVersions(id);
+    const { platformAdaptationService } = await import('../lib/services/platform-adaptation.service');
+    const versions = await platformAdaptationService.getAdaptationVersions(id);
     res.json({ success: true, data: versions });
   } catch (err: any) {
     res.status(err?.statusCode || 500).json({ success: false, error: err?.message });
@@ -6127,8 +6127,8 @@ apiRouter.get('/adaptations/:id/versions', requireAuth, async (req: Request, res
 apiRouter.get('/adaptations/:id/staleness', requireAuth, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { phase21PlatformAdaptationService } = await import('../lib/services/phase21-platform-adaptation.service');
-    const staleness = await phase21PlatformAdaptationService.checkStaleness(id);
+    const { platformAdaptationService } = await import('../lib/services/platform-adaptation.service');
+    const staleness = await platformAdaptationService.checkStaleness(id);
     res.json({ success: true, data: staleness });
   } catch (err: any) {
     res.status(err?.statusCode || 500).json({ success: false, error: err?.message });
@@ -6142,8 +6142,8 @@ apiRouter.get('/adaptations/:id/staleness', requireAuth, async (req: Request, re
 apiRouter.get('/publishing/readiness/:contentId/:platform', requireAuth, async (req: Request, res: Response) => {
   try {
     const { contentId, platform } = req.params;
-    const { phase22PublishingHubService } = await import('../lib/services/phase22-publishing-hub.service');
-    const readiness = await phase22PublishingHubService.evaluateReadiness(contentId, platform);
+    const { publishingService } = await import('../lib/services/publishing.service');
+    const readiness = await publishingService.evaluateReadiness(contentId, platform);
     res.json({ success: true, data: readiness });
   } catch (err: any) {
     res.status(err?.statusCode || 500).json({ success: false, error: err?.message });
@@ -6153,8 +6153,8 @@ apiRouter.get('/publishing/readiness/:contentId/:platform', requireAuth, async (
 apiRouter.get('/publishing/package/:contentId/:platform', requireAuth, async (req: Request, res: Response) => {
   try {
     const { contentId, platform } = req.params;
-    const { phase22PublishingHubService } = await import('../lib/services/phase22-publishing-hub.service');
-    const pkg = await phase22PublishingHubService.getPublisherPackage(contentId, platform);
+    const { publishingService } = await import('../lib/services/publishing.service');
+    const pkg = await publishingService.getPublisherPackage(contentId, platform);
     res.json({ success: true, data: pkg });
   } catch (err: any) {
     res.status(err?.statusCode || 500).json({ success: false, error: err?.message });
@@ -6164,8 +6164,8 @@ apiRouter.get('/publishing/package/:contentId/:platform', requireAuth, async (re
 apiRouter.get('/publishing/package/:contentId', requireAuth, async (req: Request, res: Response) => {
   try {
     const { contentId } = req.params;
-    const { phase22PublishingHubService } = await import('../lib/services/phase22-publishing-hub.service');
-    const packages = await phase22PublishingHubService.getAllPublisherPackagesForContent(contentId);
+    const { publishingService } = await import('../lib/services/publishing.service');
+    const packages = await publishingService.getAllPublisherPackagesForContent(contentId);
     res.json({ success: true, data: packages });
   } catch (err: any) {
     res.status(err?.statusCode || 500).json({ success: false, error: err?.message });
@@ -6174,8 +6174,8 @@ apiRouter.get('/publishing/package/:contentId', requireAuth, async (req: Request
 
 apiRouter.get('/publishing/search', requireAuth, async (req: Request, res: Response) => {
   try {
-    const { phase22PublishingHubService } = await import('../lib/services/phase22-publishing-hub.service');
-    const results = await phase22PublishingHubService.searchPublisherPackages(req.query as any);
+    const { publishingService } = await import('../lib/services/publishing.service');
+    const results = await publishingService.searchPublisherPackages(req.query as any);
     res.json({ success: true, data: results });
   } catch (err: any) {
     res.status(err?.statusCode || 500).json({ success: false, error: err?.message });
@@ -6190,8 +6190,8 @@ apiRouter.post('/publishing/mark-published', requireAuth, async (req: Request, r
       name: authReq.user?.name || 'User',
       role: (authReq.user?.role as UserRole) || UserRole.PUBLISHER,
     };
-    const { phase22PublishingHubService } = await import('../lib/services/phase22-publishing-hub.service');
-    const record = await phase22PublishingHubService.markManuallyPublished(req.body, actor);
+    const { publishingService } = await import('../lib/services/publishing.service');
+    const record = await publishingService.markManuallyPublished(req.body, actor);
     res.json({ success: true, data: record });
   } catch (err: any) {
     res.status(err?.statusCode || 500).json({ success: false, error: err?.message });
@@ -6206,8 +6206,8 @@ apiRouter.post('/publishing/mark-failed', requireAuth, async (req: Request, res:
       name: authReq.user?.name || 'User',
       role: (authReq.user?.role as UserRole) || UserRole.PUBLISHER,
     };
-    const { phase22PublishingHubService } = await import('../lib/services/phase22-publishing-hub.service');
-    const record = await phase22PublishingHubService.markPublishingFailed(req.body, actor);
+    const { publishingService } = await import('../lib/services/publishing.service');
+    const record = await publishingService.markContentPublishingFailed(req.body, actor);
     res.json({ success: true, data: record });
   } catch (err: any) {
     res.status(err?.statusCode || 500).json({ success: false, error: err?.message });
@@ -6222,9 +6222,9 @@ apiRouter.post('/publishing/retry', requireAuth, async (req: Request, res: Respo
       name: authReq.user?.name || 'User',
       role: (authReq.user?.role as UserRole) || UserRole.PUBLISHER,
     };
-    const { phase22PublishingHubService } = await import('../lib/services/phase22-publishing-hub.service');
+    const { publishingService } = await import('../lib/services/publishing.service');
     const { contentId, platform, notes } = req.body;
-    const record = await phase22PublishingHubService.retryPublishing(contentId, platform, actor, notes);
+    const record = await publishingService.retryContentPublishing(contentId, platform, actor, notes);
     res.json({ success: true, data: record });
   } catch (err: any) {
     res.status(err?.statusCode || 500).json({ success: false, error: err?.message });
