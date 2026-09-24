@@ -35,7 +35,7 @@ import { thumbnailsRepository, thumbnailVersionsRepository } from '../repositori
 import { thumbnailCandidatesRepository } from '../repositories/thumbnail-candidates.repository';
 import { pinnedCommentPackagesRepository } from '../repositories/pinned-comment-packages.repository';
 import { mediaAssetsRepository } from '../repositories/media-assets.repository';
-import { phase20SocialReviewsRepository } from '../repositories/phase20-social-reviews.repository';
+import { socialReviewsRepository } from '../repositories/social-reviews.repository';
 import { auditService } from './audit.service';
 import { Phase20SocialQualityGateValidator } from '../validators/phase20-social-quality-gate.validator';
 import { phase24AIOrchestrator } from '../ai/phase24-orchestrator.service';
@@ -463,7 +463,7 @@ export class Phase20SocialReviewService {
       updatedAt: now,
     };
 
-    await phase20SocialReviewsRepository.create(reviewRecord);
+    await socialReviewsRepository.createPhase20Record(reviewRecord);
 
     await auditService.log(
       actor.id,
@@ -495,7 +495,7 @@ export class Phase20SocialReviewService {
     this.verifyRole(actor, ['ADMIN', 'CONTENT_MANAGER', 'REVIEWER', 'TOPIC_LEAD'], 'complete social review decision');
 
     // 2. Fetch review record
-    const existingReview = await phase20SocialReviewsRepository.findById(reviewId);
+    const existingReview = await socialReviewsRepository.findPhase20ById(reviewId);
     if (!existingReview) {
       throw new ReferenceIntegrityError(`Social review record "${reviewId}" does not exist.`);
     }
@@ -526,7 +526,7 @@ export class Phase20SocialReviewService {
         );
       }
 
-      updatedRecord = await phase20SocialReviewsRepository.update(reviewId, {
+      updatedRecord = await socialReviewsRepository.updatePhase20Record(reviewId, {
         status: 'PASS',
         decision: 'PASS',
         decisionReason: reason || 'Approved all quality gate and invariance checks.',
@@ -559,7 +559,7 @@ export class Phase20SocialReviewService {
         throw new ValidationError('A detailed reason containing at least 10 meaningful characters is required when requesting changes.');
       }
 
-      updatedRecord = await phase20SocialReviewsRepository.update(reviewId, {
+      updatedRecord = await socialReviewsRepository.updatePhase20Record(reviewId, {
         status: 'CHANGES_REQUIRED',
         decision: 'CHANGES_REQUIRED',
         decisionReason: reasonText,
@@ -586,7 +586,7 @@ export class Phase20SocialReviewService {
         throw new ValidationError('A detailed reason containing at least 10 meaningful characters is required when rejecting a package.');
       }
 
-      updatedRecord = await phase20SocialReviewsRepository.update(reviewId, {
+      updatedRecord = await socialReviewsRepository.updatePhase20Record(reviewId, {
         status: 'REJECTED',
         decision: 'REJECTED',
         decisionReason: reasonText,
@@ -671,7 +671,7 @@ export class Phase20SocialReviewService {
     overrides?: any
   ): Promise<Phase20ProductionReadinessResult> {
     const livePackage = await this.assemblePackage(contentId, overrides);
-    const latestReview = await phase20SocialReviewsRepository.getLatestByContentId(contentId);
+    const latestReview = await socialReviewsRepository.getLatestPhase20ByContentId(contentId);
 
     if (!latestReview) {
       return {
@@ -708,7 +708,7 @@ export class Phase20SocialReviewService {
 
     if (liveHash !== reviewedHash) {
       // Invalidate the stale review
-      const invalidatedRecord = await phase20SocialReviewsRepository.update(latestReview.id, {
+      const invalidatedRecord = await socialReviewsRepository.updatePhase20Record(latestReview.id, {
         isInvalidated: true,
         invalidatedReason: 'Artifact modification detected after social review approval',
         invalidatedAt: new Date().toISOString(),
@@ -757,7 +757,7 @@ export class Phase20SocialReviewService {
    * Invalidates existing PASS reviews for a content ID when an upstream artifact changes.
    */
   public async invalidateReviewIfArtifactsChanged(contentId: string, reason: string): Promise<boolean> {
-    const count = await phase20SocialReviewsRepository.invalidateReviewsForContent(contentId, reason);
+    const count = await socialReviewsRepository.invalidatePhase20ReviewsForContent(contentId, reason);
     if (count > 0) {
       await auditService.log(
         'SYSTEM',
@@ -776,7 +776,7 @@ export class Phase20SocialReviewService {
    * Retrieves full review history for a Content ID.
    */
   public async getReviewHistory(contentId: string): Promise<Phase20SocialReviewRecord[]> {
-    return phase20SocialReviewsRepository.findByContentId(contentId);
+    return socialReviewsRepository.findPhase20ByContentId(contentId);
   }
 }
 

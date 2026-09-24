@@ -22,6 +22,15 @@ export class SocialReviewsRepository extends BaseRepository<SocialReviewRecord> 
     return SocialReviewsRepository.instance;
   }
 
+  public async save(record: SocialReviewRecord): Promise<SocialReviewRecord> {
+    const existing = await this.findById(record.id);
+    if (existing) {
+      const updated = await this.updateRecord(record.id, record);
+      if (updated) return updated;
+    }
+    return this.create(record);
+  }
+
   public async findByQuestion(questionId: string): Promise<SocialReviewRecord[]> {
     const all = await this.findAll();
     return all
@@ -37,16 +46,27 @@ export class SocialReviewsRepository extends BaseRepository<SocialReviewRecord> 
   // Canonical Phase 20 Social Review record support integrated into canonical repo
   public async createPhase20Record(record: Phase20SocialReviewRecord): Promise<Phase20SocialReviewRecord> {
     this.phase20ReviewStore.set(record.id, { ...record });
-    // Also sync to Google Sheets SOCIAL_REVIEWS tab if applicable
+
+    let decisionEnum = SocialReviewStatus.PENDING_REVIEW;
+    const rawStatus = String(record.status || record.decision || '').toUpperCase();
+    if (rawStatus === 'PASS' || rawStatus === 'APPROVED') {
+      decisionEnum = SocialReviewStatus.APPROVED;
+    } else if (rawStatus === 'CHANGES_REQUIRED' || rawStatus === 'CHANGES_REQUESTED') {
+      decisionEnum = SocialReviewStatus.CHANGES_REQUESTED;
+    } else if (rawStatus === 'REJECTED') {
+      decisionEnum = SocialReviewStatus.REJECTED;
+    }
+
+    // Sync to Google Sheets SOCIAL_REVIEWS tab if applicable
     const mapped: SocialReviewRecord = {
       id: record.id,
       questionId: record.versionLock?.questionId || '',
       contentId: record.contentId,
-      reviewedVersionHash: record.versionLock?.hashes?.packageHash || '',
+      reviewedVersionHash: record.versionLock?.hashes?.packageOverallHash || '',
       reviewerId: record.assignedReviewerId || record.reviewedBy || 'SYSTEM',
       reviewerName: record.reviewedByName || 'System Validator',
       reviewerRole: record.reviewedByRole || 'REVIEWER',
-      decision: (record.status as unknown as SocialReviewStatus) || ('PENDING' as SocialReviewStatus),
+      decision: decisionEnum,
       reason: record.decisionReason,
       feedbackCategories: record.feedbackCategories,
       overallQualityScoreAtReview: record.validationSummary?.isValid ? 100 : 50,
@@ -54,7 +74,7 @@ export class SocialReviewsRepository extends BaseRepository<SocialReviewRecord> 
       reviewedAt: record.reviewedAt || new Date().toISOString(),
     };
     try {
-      await this.create(mapped);
+      await this.save(mapped);
     } catch {
       // In-memory fallback if sheet not configured
     }
@@ -76,6 +96,10 @@ export class SocialReviewsRepository extends BaseRepository<SocialReviewRecord> 
   public async getLatestPhase20ByContentId(contentId: string): Promise<Phase20SocialReviewRecord | null> {
     const reviews = await this.findPhase20ByContentId(contentId);
     return reviews.length > 0 ? { ...reviews[0] } : null;
+  }
+
+  public async getLatestByContentId(contentId: string): Promise<Phase20SocialReviewRecord | null> {
+    return this.getLatestPhase20ByContentId(contentId);
   }
 
   public async updatePhase20Record(
@@ -121,5 +145,6 @@ export class SocialReviewsRepository extends BaseRepository<SocialReviewRecord> 
 }
 
 export const socialReviewsRepository = SocialReviewsRepository.getInstance();
+
 
 

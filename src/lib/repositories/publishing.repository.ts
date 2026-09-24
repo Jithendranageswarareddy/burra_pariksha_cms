@@ -42,6 +42,15 @@ export class PublishingRepository extends BaseRepository<Publishing> {
     return all.find((p) => (p as any).contentId === contentId) || null;
   }
 
+  public async save(record: Publishing): Promise<Publishing> {
+    const existing = await this.findById(record.id);
+    if (existing) {
+      const updated = await this.updateRecord(record.id, record);
+      if (updated) return updated;
+    }
+    return this.create(record);
+  }
+
   // Canonical Phase 22 publishing hub support integrated into canonical repo
   public generateId(): string {
     const num = this.idCounter++;

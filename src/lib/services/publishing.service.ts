@@ -14,7 +14,7 @@
 
 import crypto from 'crypto';
 import { publishingRepository } from '../repositories/publishing.repository';
-import { phase22PublishingRepository } from '../repositories/phase22-publishing.repository';
+import { socialReviewsRepository } from '../repositories/social-reviews.repository';
 import { contentMastersRepository } from '../repositories/content-masters.repository';
 import { videosRepository } from '../repositories/videos.repository';
 import { questionsRepository } from '../repositories/questions.repository';
@@ -25,7 +25,6 @@ import { scriptsRepository } from '../repositories/scripts.repository';
 import { assignmentsRepository } from '../repositories/assignments.repository';
 import { usersRepository } from '../repositories/users.repository';
 import { auditLogRepository } from '../repositories/audit-log.repository';
-import { phase20SocialReviewsRepository } from '../repositories/phase20-social-reviews.repository';
 import { auditService } from './audit.service';
 import { workflowService } from './workflow.service';
 import { videoService } from './video.service';
@@ -1501,7 +1500,7 @@ export class PublishingService {
     }
 
     // 3. Phase 20 Social Review PASS / APPROVED
-    const socialReview = await phase20SocialReviewsRepository.getLatestByContentId(contentId);
+    const socialReview = await socialReviewsRepository.getLatestPhase20ByContentId(contentId);
     const socialReviewApproved = !!(
       socialReview &&
       ((socialReview.status as string) === 'PASS' || (socialReview.status as string) === 'APPROVED') &&
@@ -1724,8 +1723,8 @@ export class PublishingService {
       contentId,
       platform
     );
-    const socialReview = await phase20SocialReviewsRepository.getLatestByContentId(contentId);
-    const publishingRecord = await phase22PublishingRepository.findByContentIdAndPlatform(
+    const socialReview = await socialReviewsRepository.getLatestPhase20ByContentId(contentId);
+    const publishingRecord = await publishingRepository.findPhase22ByContentIdAndPlatform(
       contentId,
       platform
     );
@@ -1923,14 +1922,14 @@ export class PublishingService {
     const pkg = await this.getPublisherPackage(input.contentId, platform);
 
     // Idempotency check: check if record exists for contentId + platform + adaptationVersion
-    let existingRecord = await phase22PublishingRepository.findByContentIdPlatformAndVersion(
+    let existingRecord = await publishingRepository.findPhase22ByContentIdPlatformAndVersion(
       input.contentId,
       platform,
       pkg.source.adaptationVersion
     );
 
     if (!existingRecord) {
-      existingRecord = await phase22PublishingRepository.findByContentIdAndPlatform(
+      existingRecord = await publishingRepository.findPhase22ByContentIdAndPlatform(
         input.contentId,
         platform
       );
@@ -1938,7 +1937,7 @@ export class PublishingService {
 
     const now = new Date().toISOString();
     const publishedAt = input.publishedAt || now;
-    const recordId = existingRecord ? existingRecord.id : phase22PublishingRepository.generateId();
+    const recordId = existingRecord ? existingRecord.id : publishingRepository.generateId();
 
     const record: Phase22PublishingRecord = {
       id: recordId,
@@ -1967,7 +1966,7 @@ export class PublishingService {
       updatedAt: now,
     };
 
-    const saved = await phase22PublishingRepository.save(record);
+    const saved = await publishingRepository.savePhase22Record(record);
 
     await auditService.log(
       actor.id,
@@ -2000,13 +1999,13 @@ export class PublishingService {
     const platform = this.normalizePlatform(input.platform);
 
     const pkg = await this.getPublisherPackage(input.contentId, platform);
-    let existingRecord = await phase22PublishingRepository.findByContentIdAndPlatform(
+    let existingRecord = await publishingRepository.findPhase22ByContentIdAndPlatform(
       input.contentId,
       platform
     );
 
     const now = new Date().toISOString();
-    const recordId = existingRecord ? existingRecord.id : phase22PublishingRepository.generateId();
+    const recordId = existingRecord ? existingRecord.id : publishingRepository.generateId();
 
     const record: Phase22PublishingRecord = {
       id: recordId,
@@ -2032,7 +2031,7 @@ export class PublishingService {
       updatedAt: now,
     };
 
-    const saved = await phase22PublishingRepository.save(record);
+    const saved = await publishingRepository.savePhase22Record(record);
 
     await auditService.log(
       actor.id,
@@ -2064,7 +2063,7 @@ export class PublishingService {
     const platform = this.normalizePlatform(platformInput);
 
     const readiness = await this.evaluateReadiness(contentId, platform);
-    let existingRecord = await phase22PublishingRepository.findByContentIdAndPlatform(
+    let existingRecord = await publishingRepository.findPhase22ByContentIdAndPlatform(
       contentId,
       platform
     );
@@ -2095,7 +2094,7 @@ export class PublishingService {
         : `Retry note: ${notes}`;
     }
 
-    const saved = await phase22PublishingRepository.save(existingRecord);
+    const saved = await publishingRepository.savePhase22Record(existingRecord);
 
     await auditService.log(
       actor.id,
@@ -2124,7 +2123,7 @@ export class PublishingService {
     platformInput: string | PlatformType
   ): Promise<Phase22PublishingRecord | null> {
     const platform = this.normalizePlatform(platformInput);
-    return phase22PublishingRepository.findByContentIdAndPlatform(contentId, platform);
+    return publishingRepository.findPhase22ByContentIdAndPlatform(contentId, platform);
   }
 }
 
