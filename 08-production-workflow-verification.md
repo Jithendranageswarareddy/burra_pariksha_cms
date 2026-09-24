@@ -7,16 +7,16 @@
 ## 1. Executive Summary
 This report presents the final, authoritative reconciliation of **Stage 8 — Production Workflow Verification** for the Burra Pariksha CMS. The E2E content manufacturing pipeline (Steps 01 to 15) has been audited, tested, and mapped against the frozen Product Truth (`01-product-truth.md`) and Canonical Architecture (`06-canonical-architecture.md`). 
 
-The core 15-step digital assembly line is structurally sound and verified. We have proven that the post-publish analytics and strategic feedback loop successfully pre-populates Question Studio to trigger subsequent generation cycles, achieving a closed production loop.
+The canonical architecture and individual workflow capabilities are substantially verified. The post-publish analytics and strategic feedback loop successfully maps and pre-populates parameter payloads to guide subsequent question drafting. However, the complete continuous production journey remains unproven in one end-to-end execution.
 
 ---
 
 ## 2. Git Baseline & Provenance
 *   **Target Baseline Commit**: `cf7c5ae286f0bcb44e5992fbd4b49810a063368c`
 *   **Exact Local HEAD SHA**: `d6bea6cd525c0ec50c9f785357cfd4953e6943f2`
-*   **Exact Origin Main SHA**: `UNKNOWN` (Local isolated environment prevents live GitHub fetch due to credential constraints)
-*   **Match Status**: **LOCAL VERIFIED ONLY** (Local verification is executed against the exact master baseline code checkpoint `d6bea6cd525c0ec50c9f785357cfd4953e6943f2`)
-*   **Report Provenance**: Revision 2 (Re-evaluated under Stage 8 final reconciliation rules, based entirely on the current code baseline).
+*   **Exact Origin Main SHA**: `UNKNOWN`
+*   **Match Status**: **NOT PROVEN** (The local environment could not authenticate to GitHub and therefore could not independently prove that local HEAD equals remote origin/main. Remote synchronization was not verified).
+*   **Report Provenance**: Revision 3 (Corrected under Stage 8 final evidence reconciliation rules, based entirely on the current code baseline).
 
 ---
 
@@ -55,7 +55,7 @@ For each step in the canonical 15-stage conveyor, the following matrix tracks ex
 
 ### **`FULL 01→15→01 CONTINUOUS EXECUTION NOT PROVEN`**
 
-*Reasoning*: While every individual step has been validated (with Steps 01, 02, 09, 10, 11, 12, and 15 proven via **Actual Execution** in test harnesses, and all other steps proven via **Code/API/Integration Evidence**), there is **no single integrated, continuous execution script** that automates the transition of a single question item across all 15 stages consecutively in a single execution thread. Each phase is verified independently using focused integration suites.
+*Reasoning*: While every individual step has been validated (with Steps 01, 02, 09, 10, 11, 12, and 15 supported by **Actual Execution** in test harnesses, and all other steps supported by **Code/API/Integration Evidence**), there is **no single integrated, continuous execution script** that automates the transition of a single question item across all 15 stages consecutively in a single execution thread. Each phase is verified independently using focused integration suites.
 
 ---
 
@@ -67,24 +67,24 @@ The following tests were executed against the canonical architecture to reconcil
     *   *Proves*: Accurate content strategy recommendations, multi-dimensional aggregates calculations, and the closed-loop parameters mapping.
 2.  **`npm run test:phase09`**: **`9/9 PASSED`** (CURRENT CANONICAL - **PROVEN**)
     *   *Proves*: Multi-platform scheduled uploads, Gate D pre-flight checklists, live URL registrations, and video status transitions to `UPLOADED`.
-3.  **`npm run test:phase06`**: **`4/12 PASSED` / `8/12 FAILED`** (OBSOLETE TEST - **B**)
+3.  **`npm run test:phase06`**: **`4/12 PASSED` / `8/12 FAILED`** (OBSOLETE TEST - **PARTIALLY PROVEN**)
     *   *Discrepancy*: Fails because it expects defunct, local navigation headers (`QuestionWorkflowHeader`) that Stage 6 Canonical Architecture retired in favor of the global `ProductionJourneyBar` conveyor.
-4.  **`npm run test:phase07`**: **`2/13 PASSED` / `11/13 FAILED`** (OBSOLETE TEST - **B**)
+4.  **`npm run test:phase07`**: **`2/13 PASSED` / `11/13 FAILED`** (OBSOLETE TEST - **PARTIALLY PROVEN**)
     *   *Discrepancy*: Fails because it expects legacy standalone phase routes (`/videos/record`, `/videos/edit-video`) that were consolidated under the unified tabbed workspaces inside `VideoDetailPage.tsx`.
 
 ---
 
 ## 7. Cross-Cutting Property Audits
 
-*   **Role-Based Access Control (RBAC)**: `VERIFIED — CODE/API/INTEGRATION EVIDENCE`. Actor validation is enforced inside route handlers (`routes.ts`) protecting approval endpoints from unauthorized roles.
-*   **Page Refresh Resilience**: `VERIFIED — CODE/API/INTEGRATION EVIDENCE`. URL query parameters dynamically populate form fields on reload, avoiding state corruption.
-*   **Deep-Linking**: `VERIFIED — CODE/API/INTEGRATION EVIDENCE`. Typing `/videos/BP-V-000001?tab=editing` directly launches the exact workspace after `AuthGuard` validation.
-*   **Rejection/Rework Loops**: `VERIFIED — ACTUAL EXECUTION`. Verified during verify approvals and social reviews, rollback transitions update database keys correctly.
-*   **Error Recovery**: `VERIFIED — CODE/API/INTEGRATION EVIDENCE`. Graces gracefully to local mock configurations if sheet queries timeout.
-*   **Idempotency**: `VERIFIED — ACTUAL EXECUTION`. Step 11 (`markPlatformPublished`) checks for existing snapshots to avoid creating duplicates baseline records if double finalized.
-*   **Workbook Separation**: `VERIFIED — CODE/API/INTEGRATION EVIDENCE`. Isolated sheets configuration for Production and Analytics workbook fully enforced.
-*   **Canonical ID Sequences**: `VERIFIED — ACTUAL EXECUTION`. Unique sequences assigned securely matching `BP-[A-Z]+-\d{6}` formats.
-*   **Relational Integrity**: `VERIFIED — CODE/API/INTEGRATION EVIDENCE`. Content Master (`BP-CNT`), Questions (`BP-Q`), and Video (`BP-V`) references interlink cleanly.
+*   **Role-Based Access Control (RBAC)**: `VERIFIED — CODE/API/INTEGRATION EVIDENCE` (**PROVEN**). Actor validation is enforced inside route handlers (`routes.ts`) protecting approval endpoints from unauthorized roles.
+*   **Page Refresh Resilience**: `VERIFIED — CODE/API/INTEGRATION EVIDENCE` (**PROVEN**). URL query parameters dynamically populate form fields on reload, avoiding state corruption.
+*   **Deep-Linking**: `VERIFIED — CODE/API/INTEGRATION EVIDENCE` (**PROVEN**). Typing `/videos/BP-V-000001?tab=editing` directly launches the exact workspace after `AuthGuard` validation.
+*   **Rejection/Rework Loops**: `VERIFIED — ACTUAL EXECUTION` (**PROVEN**). Verified during verify approvals and social reviews, rollback transitions update database keys correctly.
+*   **Error Recovery**: `VERIFIED — CODE/API/INTEGRATION EVIDENCE` (**PROVEN**). Graces gracefully to local mock configurations if sheet queries timeout.
+*   **Idempotency**: `VERIFIED — ACTUAL EXECUTION` (**PROVEN**). Step 11 (`markPlatformPublished`) checks for existing snapshots to avoid creating duplicates baseline records if double finalized.
+*   **Workbook Separation**: `VERIFIED — CODE/API/INTEGRATION EVIDENCE` (**PROVEN**). Isolated sheets configuration for Production and Analytics workbook fully enforced.
+*   **Canonical ID Sequences**: `VERIFIED — ACTUAL EXECUTION` (**PROVEN**). Unique sequences assigned securely matching `BP-[A-Z]+-\d{6}` formats.
+*   **Relational Integrity**: `VERIFIED — CODE/API/INTEGRATION EVIDENCE` (**PROVEN**). Content Master (`BP-CNT`), Questions (`BP-Q`), and Video (`BP-V`) references interlink cleanly.
 
 ---
 
@@ -108,11 +108,20 @@ The following tests were executed against the canonical architecture to reconcil
 
 ---
 
-## 11. Final Stage 8 Verdict
-
-### **`B. PRODUCTION WORKFLOW VERIFIED WITH LIMITATIONS`**
-
-*Justification*: The canonical 15-stage workflow operates correctly and forms an integrated closed feedback loop. The post-publication loop (11 → 12 → 13 → 14 → 15 → 01) successfully transfers analytics, auto-resolves metadata, and steers subsequent question generation with recommended parameters. Limitations are restricted solely to external cloud sandbox integrations.
+## 11. Evidence Gaps & Discrepancies
+The complete continuous 01→15→01 execution was **NOT** independently proven in one end-to-end run. Individual steps and subsystem transitions are supported by actual execution and/or code/API/integration evidence.
 
 ---
-*Reconciliation Report compiled on 2026-09-24T11:50:00-07:00.*
+
+## 12. Final Stage 8 Verdict
+
+### **`B. VERIFIED WITH LIMITATIONS`**
+
+*Limitations include*:
+1.  **Complete continuous 01→15→01 execution not proven** (No single integrated, continuous script automates the full transition of a single question item across all 15 stages consecutively in a single execution thread).
+2.  **External hardware/cloud/social integrations not physically testable** (Physical uploads to Google Drive, actual YouTube postings, and GCS archiving are dry-run simulated).
+3.  **Confirmed orphaned legacy standalone files** (Defunct phase page components remain unmounted in directories).
+4.  **Confirmed /platform-packages breadcrumb naming discrepancy** (Mapped incorrectly to "Publishing Package" in UI).
+
+---
+*Reconciliation Report completed on 2026-09-24T11:55:00-07:00.*
