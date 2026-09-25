@@ -44,6 +44,273 @@ export interface OperationalTelemetry {
   lastLatencyMs: number | null;
   lastSuccessTimestamp: string | null;
   lastFailureTimestamp: string | null;
+  rateLimiter?: {
+    queuedRequests: number;
+    activeRequests: number;
+    availableTokens: number;
+    throttledRequests: number;
+    rateLimitHits: number;
+    globalCooldownActive: boolean;
+  };
+}
+
+export interface RateLimiterConfig {
+  bucketCapacity: number;
+  refillRatePerSecond: number;
+  maxConcurrentRequests: number;
+  minIntervalMs: number;
+  rateLimitBackoffBaseMs: number;
+  rateLimitBackoffMaxMs: number;
+  enabled: boolean;
+}
+
+export interface RateLimiterStats {
+  availableTokens: number;
+  activeRequests: number;
+  queuedRequests: number;
+  totalThrottledRequests: number;
+  rateLimitHits: number;
+  globalCooldownActive: boolean;
+  globalCooldownRemainingMs: number;
+}
+
+export function isRateLimitError(err: unknown): boolean {
+  if (!err) return false;
+  if (err instanceof RateLimitError) return true;
+  const anyErr = err as any;
+  const status = Number(anyErr?.statusCode || anyErr?.status || anyErr?.code);
+  if (status === 429) return true;
+  const msg = String(anyErr?.message || anyErr || '').toLowerCase();
+  return (
+    msg.includes('rate limit') ||
+    msg.includes('quota exceeded') ||
+    msg.includes('user rate limit exceeded') ||
+    msg.includes('resource_exhausted')
+  );
+}
+
+/**
+ * P-02 HARDENING: Proactive Outgoing Request Pressure & Burst Protection
+ * Manages token bucket pacing, concurrency serialization, and global 429 circuit breaking.
+ */
+export class RequestPressureLimiter {
+  private config: RateLimiterConfig;
+  private tokens: number;
+  private lastRefillTimestamp: number;
+  private activeRequests: number = 0;
+  private lastDispatchTimestamp: number = 0;
+  private globalCooldownUntil: number = 0;
+  private globalRateLimitStreak: number = 0;
+  private totalThrottledRequests: number = 0;
+  private rateLimitHits: number = 0;
+  private queue: Array<{
+    resolve: () => void;
+    opName: string;
+    enqueuedAt: number;
+  }> = [];
+  private scheduledTimer: ReturnType<typeof setTimeout> | null = null;
+
+  constructor(initialConfig?: Partial<RateLimiterConfig>) {
+    this.config = {
+      bucketCapacity: initialConfig?.bucketCapacity ?? 10,
+      refillRatePerSecond: initialConfig?.refillRatePerSecond ?? 2,
+      maxConcurrentRequests: initialConfig?.maxConcurrentRequests ?? 4,
+      minIntervalMs: initialConfig?.minIntervalMs ?? 50,
+      rateLimitBackoffBaseMs: initialConfig?.rateLimitBackoffBaseMs ?? 1500,
+      rateLimitBackoffMaxMs: initialConfig?.rateLimitBackoffMaxMs ?? 15000,
+      enabled: initialConfig?.enabled ?? true,
+    };
+    this.tokens = this.config.bucketCapacity;
+    this.lastRefillTimestamp = Date.now();
+  }
+
+  public configure(options?: Partial<RateLimiterConfig>): void {
+    if (!options) return;
+    this.config = { ...this.config, ...options };
+    if (this.tokens > this.config.bucketCapacity) {
+      this.tokens = this.config.bucketCapacity;
+    }
+    this.scheduleNext();
+  }
+
+  public reset(): void {
+    if (this.scheduledTimer) {
+      clearTimeout(this.scheduledTimer);
+      this.scheduledTimer = null;
+    }
+    this.tokens = this.config.bucketCapacity;
+    this.lastRefillTimestamp = Date.now();
+    this.activeRequests = 0;
+    this.lastDispatchTimestamp = 0;
+    this.globalCooldownUntil = 0;
+    this.globalRateLimitStreak = 0;
+    this.totalThrottledRequests = 0;
+    this.rateLimitHits = 0;
+    while (this.queue.length > 0) {
+      const item = this.queue.shift();
+      item?.resolve();
+    }
+  }
+
+  public getStats(): RateLimiterStats {
+    this.refillTokens();
+    const now = Date.now();
+    return {
+      availableTokens: Math.floor(this.tokens * 100) / 100,
+      activeRequests: this.activeRequests,
+      queuedRequests: this.queue.length,
+      totalThrottledRequests: this.totalThrottledRequests,
+      rateLimitHits: this.rateLimitHits,
+      globalCooldownActive: now < this.globalCooldownUntil,
+      globalCooldownRemainingMs: Math.max(0, this.globalCooldownUntil - now),
+    };
+  }
+
+  private refillTokens(): void {
+    const now = Date.now();
+    const elapsedSec = (now - this.lastRefillTimestamp) / 1000;
+    if (elapsedSec > 0) {
+      this.tokens = Math.min(this.config.bucketCapacity, this.tokens + elapsedSec * this.config.refillRatePerSecond);
+      this.lastRefillTimestamp = now;
+    }
+  }
+
+  public async acquireSlot(opName: string): Promise<void> {
+    if (!this.config.enabled) {
+      this.activeRequests++;
+      return;
+    }
+
+    this.refillTokens();
+    const now = Date.now();
+
+    const notInCooldown = now >= this.globalCooldownUntil;
+    const underConcurrency = this.activeRequests < this.config.maxConcurrentRequests;
+    const hasToken = this.tokens >= 1;
+    const intervalSatisfied = (now - this.lastDispatchTimestamp) >= this.config.minIntervalMs;
+
+    if (this.queue.length === 0 && notInCooldown && underConcurrency && hasToken && intervalSatisfied) {
+      this.tokens -= 1;
+      this.activeRequests++;
+      this.lastDispatchTimestamp = Date.now();
+      return;
+    }
+
+    this.totalThrottledRequests++;
+    return new Promise<void>((resolve) => {
+      this.queue.push({
+        resolve,
+        opName,
+        enqueuedAt: Date.now(),
+      });
+      this.scheduleNext();
+    });
+  }
+
+  public releaseSlot(): void {
+    this.activeRequests = Math.max(0, this.activeRequests - 1);
+    this.scheduleNext();
+  }
+
+  public notifyRateLimitHit(err?: unknown): void {
+    this.rateLimitHits++;
+    this.globalRateLimitStreak++;
+    const streak = this.globalRateLimitStreak;
+    const backoff = calculateBackoffDelay(streak - 1, {
+      initialDelayMs: this.config.rateLimitBackoffBaseMs,
+      maxDelayMs: this.config.rateLimitBackoffMaxMs,
+      backoffMultiplier: 2,
+      jitter: true,
+    });
+    this.globalCooldownUntil = Math.max(this.globalCooldownUntil, Date.now() + backoff);
+    this.scheduleNext();
+  }
+
+  public notifySuccess(): void {
+    if (this.globalRateLimitStreak > 0) {
+      this.globalRateLimitStreak = Math.max(0, this.globalRateLimitStreak - 1);
+    }
+  }
+
+  private scheduleNext(): void {
+    if (this.queue.length === 0) {
+      if (this.scheduledTimer) {
+        clearTimeout(this.scheduledTimer);
+        this.scheduledTimer = null;
+      }
+      return;
+    }
+
+    if (this.scheduledTimer) {
+      return;
+    }
+
+    const now = Date.now();
+    let waitMs = 0;
+
+    if (now < this.globalCooldownUntil) {
+      waitMs = Math.max(waitMs, this.globalCooldownUntil - now);
+    }
+
+    if (this.activeRequests >= this.config.maxConcurrentRequests) {
+      return;
+    }
+
+    this.refillTokens();
+    if (this.tokens < 1) {
+      const needed = 1 - this.tokens;
+      const refillMs = Math.ceil((needed / this.config.refillRatePerSecond) * 1000);
+      waitMs = Math.max(waitMs, refillMs);
+    }
+
+    const elapsed = now - this.lastDispatchTimestamp;
+    if (elapsed < this.config.minIntervalMs) {
+      waitMs = Math.max(waitMs, this.config.minIntervalMs - elapsed);
+    }
+
+    this.scheduledTimer = setTimeout(() => {
+      this.scheduledTimer = null;
+      this.drainOne();
+    }, waitMs);
+  }
+
+  private drainOne(): void {
+    if (this.queue.length === 0) return;
+
+    const now = Date.now();
+    if (now < this.globalCooldownUntil) {
+      this.scheduleNext();
+      return;
+    }
+
+    if (this.activeRequests >= this.config.maxConcurrentRequests) {
+      return;
+    }
+
+    this.refillTokens();
+    if (this.tokens < 1) {
+      this.scheduleNext();
+      return;
+    }
+
+    const elapsed = now - this.lastDispatchTimestamp;
+    if (elapsed < this.config.minIntervalMs) {
+      this.scheduleNext();
+      return;
+    }
+
+    const item = this.queue.shift();
+    if (item) {
+      this.tokens -= 1;
+      this.activeRequests++;
+      this.lastDispatchTimestamp = Date.now();
+      item.resolve();
+    }
+
+    if (this.queue.length > 0) {
+      this.scheduleNext();
+    }
+  }
 }
 
 /**
@@ -78,6 +345,12 @@ export class GoogleSheetsClient {
   // In-flight read deduplication map to coalesce concurrent requests
   private inFlightReads = new Map<string, Promise<{ headers: string[]; rows: (string | number | boolean)[][] }>>();
 
+  // In-flight header deduplication map to coalesce concurrent requests
+  private inFlightHeaders = new Map<string, Promise<string[]>>();
+
+  // P-02: Request pressure limiter (token bucket + concurrency + 429 global circuit breaker)
+  private rateLimiter: RequestPressureLimiter;
+
   // Operational telemetry
   private lastSuccessfulOp: string | null = null;
   private lastFailedOp: string | null = null;
@@ -87,7 +360,33 @@ export class GoogleSheetsClient {
   private lastSuccessTimestamp: string | null = null;
   private lastFailureTimestamp: string | null = null;
 
-  private constructor() {}
+  private constructor() {
+    const isTest = process.env.NODE_ENV === 'test' || process.env.CMS_TEST_ISOLATION === 'true';
+    const enforceInTest = process.env.TEST_ENFORCE_RATE_LIMIT === 'true';
+    if (isTest && !enforceInTest) {
+      // In automated test runs without explicit rate-limit testing, use fast unthrottled parameters
+      this.rateLimiter = new RequestPressureLimiter({
+        bucketCapacity: 100,
+        refillRatePerSecond: 100,
+        maxConcurrentRequests: 50,
+        minIntervalMs: 0,
+        rateLimitBackoffBaseMs: 50,
+        rateLimitBackoffMaxMs: 500,
+        enabled: true,
+      });
+    } else {
+      // Production defaults
+      this.rateLimiter = new RequestPressureLimiter({
+        bucketCapacity: 10,
+        refillRatePerSecond: 2,
+        maxConcurrentRequests: 4,
+        minIntervalMs: 50,
+        rateLimitBackoffBaseMs: 1500,
+        rateLimitBackoffMaxMs: 15000,
+        enabled: true,
+      });
+    }
+  }
 
   public static getInstance(): GoogleSheetsClient {
     if (!GoogleSheetsClient.instance) {
@@ -101,6 +400,7 @@ export class GoogleSheetsClient {
       if (sheetName.includes(':')) {
         this.rowCache.delete(sheetName);
         this.inFlightReads.delete(sheetName);
+        this.inFlightHeaders.delete(sheetName);
       } else {
         for (const key of this.rowCache.keys()) {
           if (key === sheetName || key.endsWith(`:${sheetName}`)) {
@@ -112,10 +412,16 @@ export class GoogleSheetsClient {
             this.inFlightReads.delete(key);
           }
         }
+        for (const key of this.inFlightHeaders.keys()) {
+          if (key === sheetName || key.endsWith(`:${sheetName}`)) {
+            this.inFlightHeaders.delete(key);
+          }
+        }
       }
     } else {
       this.rowCache.clear();
       this.inFlightReads.clear();
+      this.inFlightHeaders.clear();
     }
   }
 
@@ -123,6 +429,7 @@ export class GoogleSheetsClient {
    * Returns operational telemetry metrics for health reporting.
    */
   public getOperationalTelemetry(): OperationalTelemetry {
+    const stats = this.rateLimiter.getStats();
     return {
       lastSuccessfulOperation: this.lastSuccessfulOp,
       lastFailedOperation: this.lastFailedOp,
@@ -131,7 +438,27 @@ export class GoogleSheetsClient {
       lastLatencyMs: this.lastLatencyMs,
       lastSuccessTimestamp: this.lastSuccessTimestamp,
       lastFailureTimestamp: this.lastFailureTimestamp,
+      rateLimiter: {
+        queuedRequests: stats.queuedRequests,
+        activeRequests: stats.activeRequests,
+        availableTokens: stats.availableTokens,
+        throttledRequests: stats.totalThrottledRequests,
+        rateLimitHits: stats.rateLimitHits,
+        globalCooldownActive: stats.globalCooldownActive,
+      },
     };
+  }
+
+  public getRateLimiterStats(): RateLimiterStats {
+    return this.rateLimiter.getStats();
+  }
+
+  public configureRateLimiter(options?: Partial<RateLimiterConfig>): void {
+    this.rateLimiter.configure(options);
+  }
+
+  public resetRateLimiter(): void {
+    this.rateLimiter.reset();
   }
 
   /**
@@ -305,6 +632,9 @@ export class GoogleSheetsClient {
     const startTime = Date.now();
 
     while (true) {
+      // P-02: Acquire rate limiter slot (smooths bursts, caps concurrency, awaits global 429 cooldown)
+      await this.rateLimiter.acquireSlot(opName);
+
       try {
         // Execute operation with timeout protection
         const opPromise = operation();
@@ -320,10 +650,16 @@ export class GoogleSheetsClient {
 
         const latency = Date.now() - startTime;
         this.recordTelemetry(true, opName, latency);
+        this.rateLimiter.notifySuccess();
         return result;
       } catch (err: any) {
         const latency = Date.now() - startTime;
         const classification = classifyError(err);
+        const rateLimitExceeded = isRateLimitError(err);
+
+        if (rateLimitExceeded) {
+          this.rateLimiter.notifyRateLimitHit(err);
+        }
 
         // If non-transient or retry limit exhausted, record failure and throw
         if (classification === 'NON_TRANSIENT' || attempt >= maxRetries) {
@@ -343,6 +679,8 @@ export class GoogleSheetsClient {
         this.totalRetries++;
         const delay = calculateBackoffDelay(attempt - 1, options);
         await new Promise((resolve) => setTimeout(resolve, delay));
+      } finally {
+        this.rateLimiter.releaseSlot();
       }
     }
   }
@@ -375,11 +713,21 @@ export class GoogleSheetsClient {
 
   /**
    * Retrieves row 1 (headers) of the specified worksheet.
+   * Deduplicates concurrent in-flight requests when multiple callers query headers simultaneously.
    */
   public async getHeaders(sheetName: string, overrideSpreadsheetId?: string): Promise<string[]> {
-    return this.executeWithRetry(async () => {
+    const spreadsheetId = this.getSpreadsheetId(overrideSpreadsheetId);
+    const cacheKey = `${spreadsheetId}:${sheetName}`;
+
+    // Check if an in-flight read for these headers already exists
+    const existingInFlight = this.inFlightHeaders.get(cacheKey);
+    if (existingInFlight) {
+      const sharedResult = await existingInFlight;
+      return [...sharedResult];
+    }
+
+    const fetchPromise = this.executeWithRetry(async () => {
       const sheets = this.getSheetsApi();
-      const spreadsheetId = this.getSpreadsheetId(overrideSpreadsheetId);
 
       try {
         const res = await sheets.spreadsheets.values.get({
@@ -398,6 +746,15 @@ export class GoogleSheetsClient {
         throw err;
       }
     }, `getHeaders(${sheetName})`);
+
+    this.inFlightHeaders.set(cacheKey, fetchPromise);
+
+    try {
+      const freshHeaders = await fetchPromise;
+      return [...freshHeaders];
+    } finally {
+      this.inFlightHeaders.delete(cacheKey);
+    }
   }
 
   /**

@@ -173,8 +173,9 @@ export async function runD01ConcurrencyTests(): Promise<{ passed: number; failed
 
     // Temporarily inject an error into updateRow
     let shouldFail = true;
-    const originalUpdateRow = repo.client.updateRow;
-    repo.client.updateRow = async (sheet: string, rowIdx: number, vals: any[]) => {
+    const clientAny = (repo as any).client;
+    const originalUpdateRow = clientAny.updateRow;
+    clientAny.updateRow = async (sheet: string, rowIdx: number, vals: any[]) => {
       if (shouldFail) {
         throw new Error('Simulated Google Sheets Network Write Error');
       }
