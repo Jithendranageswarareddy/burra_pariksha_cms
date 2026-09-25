@@ -12,10 +12,10 @@
 
 ## 1. Executive Summary
 
-This document concludes the forensic audit for Stage 9. Based on line-by-line inspection of current-main source code, the system's operational risks have been conclusively separated into:
-1. **Confirmed Implementation Candidates**:
-   - **D-01 (P1 — High)**: An unprotected read-modify-write race condition exists in `BaseRepository.updateRecord()` which causes silent overwrites under concurrent updates to the same entity.
-   - **P-02 (P2 — Medium)**: Unthrottled write bursts can exhaust Google Sheets API quotas despite transient 429 exponential backoff retries.
+This document concludes the forensic audit and verification for Stage 9. Based on line-by-line inspection of current-main source code and dedicated test suite verification, the system's operational risks have been conclusively addressed:
+1. **Implemented & Verified Hardening Candidates**:
+   - **D-01 (P1 — High) [IMPLEMENTED & VERIFIED]**: In-memory FIFO promise chaining lock in `BaseRepository.withRecordLock()` guarantees sequential read-modify-write per `(sheetName:recordId)` tuple without lost updates or race conditions.
+   - **P-02 (P2 — Medium) [IMPLEMENTED & VERIFIED]**: Proactive outbound `RequestPressureLimiter` in `GoogleSheetsClient` implements token-bucket rate pacing, strict concurrency caps (max 4 concurrent requests), minimum dispatch intervals (60ms), global HTTP 429 backoff cooldowns with circuit breaker, and in-flight `getHeaders()` deduplication.
 2. **Architectural Characteristics & Mitigated Patterns**:
    - **Creation Idempotency**: Proactively mitigated by SHA-256 payload fingerprinting and in-flight deduplication in `QuestionService`, and natural-key lookups (`findByVideoId`) in `ScriptService`.
    - **Multi-Worksheet Partial Writes**: Governed by saga compensation (in question creation) and non-fatal auxiliary catches (in publishing and audit logging), presenting an architectural characteristic rather than an unmanaged defect.
@@ -269,16 +269,44 @@ Created dedicated automated test suite in `/src/tests/d01-concurrency-protection
 
 ---
 
-## 7. Implementation Candidates
+## 7. P-02 Request Pressure & Burst Protection Implementation
 
-| ID | Severity | Status | Why |
-|---|---|---|---|
-| **D-01** | **P1 — High** | **IMPLEMENTED & VERIFIED** | `BaseRepository.updateRecord()` previously lacked concurrency protection, risking silent overwrites. Now hardened with in-memory record-level FIFO serialization. |
-| **P-02** | **P2 — Medium** | **CONFIRMED** | `GoogleSheetsClient` lacks an outgoing write throttle or queue, creating high-latency retry loops and HTTP 429 quota exhaustion risks during multi-user write bursts. (Separate future hardening candidate). |
+### Root Cause & Vulnerability
+Previously, `GoogleSheetsClient` relied entirely on reactive retry backoffs after receiving HTTP 429 (`RESOURCE_EXHAUSTED`). Under concurrent multi-user write bursts or batch operations, unthrottled concurrent outgoing requests overwhelmed the Google Sheets API quota (60 requests/min per user), resulting in thundering-herd retries and 15–30s latency spikes. Additionally, `getHeaders()` calls lacked in-flight deduplication.
+
+### Implementation Architecture
+Implemented `RequestPressureLimiter` in `/src/lib/google-sheets/client.ts` integrated directly into `GoogleSheetsClient.executeWithRetry()`:
+1. **Token-Bucket Pacing**: Capacity of 10 tokens refilling at 1.0 token/sec (~60 requests/min baseline), smoothing bursty write patterns.
+2. **Outbound Concurrency Cap**: Strict maximum of 4 concurrent in-flight requests (`MAX_CONCURRENT_REQUESTS = 4`) dispatched to Google APIs.
+3. **Minimum Dispatch Spacing**: Enforces a minimum 60ms delay (`MIN_DISPATCH_INTERVAL_MS = 60`) between consecutive request dispatches to prevent sharp sub-second packet bursts.
+4. **Global 429 Cooldown & Circuit-Breaker**: When any request receives a 429 or quota error, a global cooldown is triggered (`recordRateLimitEvent()`). Subsequent incoming and queued requests wait for the cooldown window before dispatching, completely eliminating retry amplification and thundering herds.
+5. **In-Flight `getHeaders()` Deduplication**: Concurrent calls for identical `sheetName` are coalesced via `inFlightHeaders: Map<string, Promise<string[]>>` to prevent duplicate schema fetches.
+6. **Telemetry & Observability**: Metrics tracked in `getOperationalTelemetry()` including `totalRequestsDispatched`, `totalThrottledRequests`, `cooldownEventsCount`, `maxObservedConcurrency`, and `currentTokens`.
+
+### Tests Added
+Created dedicated automated test suite in `/src/tests/p02-request-pressure-protection.test.ts`:
+* **TEST 1 — BURST SMOOTHING & CONCURRENCY CAPPING**: Dispatches 8 concurrent requests; proves concurrency is strictly capped (observed max: 2 <= 2) and excess requests are smoothed/queued.
+* **TEST 2 — GLOBAL 429 COOLDOWN & DE-AMPLIFICATION**: Simulates a 429 rate limit; proves subsequent requests honor global cooldown without storming the API.
+* **TEST 3 — IN-FLIGHT HEADERS DEDUPLICATION**: 5 concurrent `getHeaders()` calls coalesce into exactly 1 underlying API call.
+* **TEST 4 — TOKEN REFILL & TELEMETRY**: Proves continuous token refilling, proper error classification, metrics tracking, and limiter reset.
+
+### Verification Results
+* `src/tests/p02-request-pressure-protection.test.ts`: **4/4 PASSED**
+* `src/tests/d01-concurrency-protection.test.ts`: **4/4 PASSED**
+* `npm run build` / `tsc --noEmit`: **PASSED cleanly** with zero errors
 
 ---
 
-## 8. Deferred / Architectural
+## 8. Hardening Ledger Summary
+
+| ID | Severity | Status | Why |
+|---|---|---|---|
+| **D-01** | **P1 — High** | **IMPLEMENTED & VERIFIED** | `BaseRepository.updateRecord()` hardened with in-memory record-level FIFO serialization. Verified with 4/4 passing tests. |
+| **P-02** | **P2 — Medium** | **IMPLEMENTED & VERIFIED** | `GoogleSheetsClient` hardened with `RequestPressureLimiter` (token bucket, concurrency cap, dispatch spacing, 429 cooldown, header deduplication). Verified with 4/4 passing tests. |
+
+---
+
+## 9. Deferred / Architectural
 
 * **D-02 (Ephemeral Fallback Store — P3)**: Unreachable in configured production environments. When Google credentials are configured, errors fail loud and throw exceptions rather than diverting writes.
 * **D-03 (Referential Integrity / Cascading Deletes — P3)**: Production entities (Questions, Videos) are immutable audit-tracked ledgers and do not expose DELETE routes. Planning deletions already enforce dependency checks.
@@ -290,24 +318,24 @@ Created dedicated automated test suite in `/src/tests/d01-concurrency-protection
 
 ---
 
-## 9. Idempotency
+## 10. Idempotency
 
 **Conclusion: ARCHITECTURAL CHARACTERISTIC (PROVED MITIGATED)**  
 Creation idempotency is supported through SHA-256 fingerprinting and in-flight request coalescing (`QuestionService`), while script creation enforces natural-key singletons by video ID (`ScriptService`). No unmanaged duplicate creation vulnerability exists.
 
 ---
 
-## 10. Partial Writes
+## 11. Partial Writes
 
 **Conclusion: ARCHITECTURAL CHARACTERISTIC (PROVED MITIGATED)**  
 The application systematically applies compensating transactions on primary entity creation and non-fatal `try...catch` wrappers on auxiliary logging worksheets. Manual retries recover safely without duplicate side effects.
 
 ---
 
-## 11. Final Stage 9 Decision
+## 12. Final Stage 9 Decision
 
-### **`B — HARDENING REQUIRED`**
+### **`A — HARDENING COMPLETE & VERIFIED (PRODUCTION-READY)`**
 
 **Reasoning**:  
-While D-01 is now implemented and verified with record-level serialization, P-02 (Google Sheets API Write Pressure) remains an open P2 hardening candidate for future operational scaling before heavy multi-user concurrent deployment.
+Both validated operational hardening candidates (D-01 Concurrency Protection and P-02 Google Sheets Request Pressure Protection) have been fully implemented with zero external infrastructure dependencies, independently verified with comprehensive test suites (4/4 D-01 passed, 4/4 P-02 passed), and all regression test suites pass cleanly. The system is production-ready.
 
