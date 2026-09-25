@@ -224,20 +224,61 @@ The absence of two-phase commit is an intrinsic property of Google Sheets. The a
 
 ---
 
-## 6. Implementation Candidates
+## 6. D-01 Concurrency Protection Implementation
 
-Only findings that are confirmed production risks and technically sound for implementation in the Google Sheets persistence layer:
+### Root Cause
+`BaseRepository.updateRecord()` and `BaseRepository.deleteRecord()` read entire worksheets into memory, find the target row index, merge or evaluate mutations, and write back to that specific row index. Without concurrency control, two overlapping operations on the same record execute with stale snapshots, resulting in silent lost updates (last-write-wins) or row-index shift hazards.
 
-### Implementation Candidates
+### Implementation Approach
+Implemented an in-memory, FIFO-ordered promise chaining lock (`BaseRepository.withRecordLock<R>(id, operation)`):
+* Conflicting mutations targeting the same record are serialized into a sequential execution chain.
+* The lock is acquired immediately upon entering `updateRecord` or `deleteRecord`, wraps the entire read-modify-write / backup-delete sequence, and is guaranteed to release in a `finally` block.
+* Failures in preceding operations are caught gracefully via `.catch(() => {})` so an exception in one request does not cascade to or permanently block subsequent queued operations.
+* Memory leak prevention: The lock registry key (`${sheetName}:${id}`) is evicted from `BaseRepository.recordLocks` as soon as the queue for that record empties.
 
-| ID | Severity | Status | Why |
-|---|---|---|---|
-| **D-01** | **P1 — High** | **CONFIRMED** | `BaseRepository.updateRecord()` performs an unprotected read-modify-write without version checks or mutexes, resulting in silent data overwrites during concurrent edits. |
-| **P-02** | **P2 — Medium** | **CONFIRMED** | `GoogleSheetsClient` lacks an outgoing write throttle or queue, creating high-latency retry loops and HTTP 429 quota exhaustion risks during multi-user write bursts. |
+### Lock Granularity
+* **Granularity Scope**: Strictly **Record-Level** (`${this.schema.sheetName}:${id}`).
+* Unrelated records within the same repository (e.g., `BP-Q-000001` vs `BP-Q-000002`) execute completely in parallel without blocking.
+* Records in different worksheets (e.g., `VIDEOS:BP-V-000001` vs `QUESTIONS:BP-Q-000001`) run in parallel without contention.
+
+### What Is Protected
+* Concurrent updates on the same record (`updateRecord`, `update`).
+* Concurrent deletions on the same record (`deleteRecord`, `delete`).
+* Concurrent update vs delete races on the same record.
+
+### What Is NOT Protected
+* Read-only operations (`findAll`, `findById`) are deliberately non-blocking to maximize read throughput.
+* Unrelated records across different rows are not serialized.
+
+### Single-Process Limitation
+* **Within a single Node.js process**: 100% protection against concurrent conflicting updates.
+* **Across multiple distributed Node instances / serverless containers**: In-memory promise locks are process-local and do NOT provide distributed synchronization across separate processes unless paired with a distributed coordinator. This limitation is explicitly recognized.
+
+### Tests Added
+Created dedicated automated test suite in `/src/tests/d01-concurrency-protection.test.ts`:
+* **TEST 1 — SERIALIZATION**: Proves two concurrent updates to the same record (`fieldA` and `fieldB`) are serialized; both updates are preserved with zero lost updates.
+* **TEST 2 — INDEPENDENT RECORDS**: Proves concurrent updates to distinct records (`REC-ALPHA` and `REC-BETA`) execute in parallel (concurrent in-flight = 2).
+* **TEST 3 — ERROR RELEASE**: Proves that when a locked operation throws a network write error, the lock is released in `finally`, and a subsequent operation on the same record succeeds immediately.
+* **TEST 4 — MEMORY LEAK PREVENTION**: Proves that upon completion of parallel and sequential operations, all registry entries are evicted, returning active lock count strictly to 0.
+
+### Verification Results
+* `src/tests/d01-concurrency-protection.test.ts`: **4/4 PASSED**
+* `npm run test:phase09`: **9/9 PASSED** (Publishing workflow intact)
+* `npm run test:phase29`: **10/10 PASSED** (Content strategy intact)
+* `npm run build` / `tsc --noEmit`: **PASSED cleanly** with zero errors
 
 ---
 
-## 7. Deferred / Architectural Items
+## 7. Implementation Candidates
+
+| ID | Severity | Status | Why |
+|---|---|---|---|
+| **D-01** | **P1 — High** | **IMPLEMENTED & VERIFIED** | `BaseRepository.updateRecord()` previously lacked concurrency protection, risking silent overwrites. Now hardened with in-memory record-level FIFO serialization. |
+| **P-02** | **P2 — Medium** | **CONFIRMED** | `GoogleSheetsClient` lacks an outgoing write throttle or queue, creating high-latency retry loops and HTTP 429 quota exhaustion risks during multi-user write bursts. (Separate future hardening candidate). |
+
+---
+
+## 8. Deferred / Architectural
 
 * **D-02 (Ephemeral Fallback Store — P3)**: Unreachable in configured production environments. When Google credentials are configured, errors fail loud and throw exceptions rather than diverting writes.
 * **D-03 (Referential Integrity / Cascading Deletes — P3)**: Production entities (Questions, Videos) are immutable audit-tracked ledgers and do not expose DELETE routes. Planning deletions already enforce dependency checks.
@@ -249,25 +290,24 @@ Only findings that are confirmed production risks and technically sound for impl
 
 ---
 
-## 8. Idempotency Conclusion
+## 9. Idempotency
 
 **Conclusion: ARCHITECTURAL CHARACTERISTIC (PROVED MITIGATED)**  
 Creation idempotency is supported through SHA-256 fingerprinting and in-flight request coalescing (`QuestionService`), while script creation enforces natural-key singletons by video ID (`ScriptService`). No unmanaged duplicate creation vulnerability exists.
 
 ---
 
-## 9. Partial Writes Conclusion
+## 10. Partial Writes
 
 **Conclusion: ARCHITECTURAL CHARACTERISTIC (PROVED MITIGATED)**  
 The application systematically applies compensating transactions on primary entity creation and non-fatal `try...catch` wrappers on auxiliary logging worksheets. Manual retries recover safely without duplicate side effects.
 
 ---
 
-## 10. Final Stage 9 Decision
+## 11. Final Stage 9 Decision
 
 ### **`B — HARDENING REQUIRED`**
 
 **Reasoning**:  
-A confirmed **P1 (High)** production risk remains in the persistence layer:
-* **D-01 (Concurrency / Read-Modify-Write)**: Unprotected updates in `BaseRepository.updateRecord()` can silently overwrite operational data under concurrent user actions.
-* Remediating D-01 (and the accompanying P-02 write pressure) is required before high-concurrency production usage.
+While D-01 is now implemented and verified with record-level serialization, P-02 (Google Sheets API Write Pressure) remains an open P2 hardening candidate for future operational scaling before heavy multi-user concurrent deployment.
+

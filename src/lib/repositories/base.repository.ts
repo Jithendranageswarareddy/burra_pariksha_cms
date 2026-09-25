@@ -26,6 +26,9 @@ export abstract class BaseRepository<T extends Record<string, any>> {
   protected HEADER_CACHE_TTL_MS = 60000; // 1 minute header cache
   protected worksheetChecked: boolean = false;
 
+  // Static registry tracking in-flight lock promises per (sheetName:recordId) to serialize concurrent mutations
+  protected static recordLocks: Map<string, Promise<void>> = new Map();
+
   // Local fallback storage for development when Google credentials are not provided
   protected static fallbackStore: Map<string, Map<string, Record<string, any>>> = new Map();
 
@@ -301,62 +304,104 @@ export abstract class BaseRepository<T extends Record<string, any>> {
   }
 
   /**
-   * Updates an existing record by primary key.
+   * Executes a mutation with record-level serialization within this Node process.
+   * Conflicting mutations targeting the same record (sheetName:id) are serialized in FIFO order.
+   * Independent records execute concurrently without blocking.
+   */
+  protected async withRecordLock<R>(id: string, operation: () => Promise<R>): Promise<R> {
+    const lockKey = `${this.schema.sheetName}:${id}`;
+    const previousLock = BaseRepository.recordLocks.get(lockKey) || Promise.resolve();
+
+    let releaseCurrentLock!: () => void;
+    const currentLock = new Promise<void>((resolve) => {
+      releaseCurrentLock = resolve;
+    });
+
+    BaseRepository.recordLocks.set(lockKey, currentLock);
+
+    try {
+      // Wait for any previous in-flight operation on this record to settle.
+      // We swallow errors from prior operations so failures do not block subsequent callers.
+      await previousLock.catch(() => {});
+      return await operation();
+    } finally {
+      // Release lock for subsequent operations queued behind this one
+      releaseCurrentLock();
+
+      // Memory cleanup: If no subsequent operation has overwritten our lock in the map, delete the key
+      if (BaseRepository.recordLocks.get(lockKey) === currentLock) {
+        BaseRepository.recordLocks.delete(lockKey);
+      }
+    }
+  }
+
+  /**
+   * Helper for tests or diagnostics to inspect active lock registry size.
+   */
+  public static getActiveLockCount(): number {
+    return BaseRepository.recordLocks.size;
+  }
+
+  /**
+   * Updates an existing record by primary key with record-level serialization.
    */
   public async updateRecord(id: string, updates: Partial<T>): Promise<T | null> {
     if (!id) return null;
-    const pkProp = this.getPrimaryKeyProperty();
 
-    const sheetStore = BaseRepository.fallbackStore.get(this.schema.sheetName)!;
-    const localExisting = sheetStore.get(id);
+    return this.withRecordLock(id, async () => {
+      const pkProp = this.getPrimaryKeyProperty();
 
-    // If Google Sheets is NOT configured, operate strictly in local fallback store mode
-    if (!this.client.isConfigured(this.getTargetSpreadsheetId())) {
-      if (!localExisting) return null;
-      const updated = { ...localExisting, ...updates, updatedAt: new Date().toISOString() };
-      sheetStore.set(id, updated);
-      return updated as unknown as T;
-    }
+      const sheetStore = BaseRepository.fallbackStore.get(this.schema.sheetName)!;
+      const localExisting = sheetStore.get(id);
 
-    try {
-      const { headers, rows } = await this.client.getRows(this.schema.sheetName, this.getEndColLetter(), this.getTargetSpreadsheetId());
-      if (!headers || headers.length === 0) return null;
+      // If Google Sheets is NOT configured, operate strictly in local fallback store mode
+      if (!this.client.isConfigured(this.getTargetSpreadsheetId())) {
+        if (!localExisting) return null;
+        const updated = { ...localExisting, ...updates, updatedAt: new Date().toISOString() };
+        sheetStore.set(id, updated);
+        return updated as unknown as T;
+      }
 
-      let targetRowIndex = -1;
-      let existingRecord: T | null = null;
+      try {
+        const { headers, rows } = await this.client.getRows(this.schema.sheetName, this.getEndColLetter(), this.getTargetSpreadsheetId());
+        if (!headers || headers.length === 0) return null;
 
-      for (let i = 0; i < rows.length; i++) {
-        const rec = rowToObject<T>(rows[i], headers, this.schema);
-        if (rec && String(rec[pkProp]) === String(id)) {
-          targetRowIndex = i + 2; // Row 1 is header, so row 0 in array is sheet row 2
-          existingRecord = rec;
-          break;
+        let targetRowIndex = -1;
+        let existingRecord: T | null = null;
+
+        for (let i = 0; i < rows.length; i++) {
+          const rec = rowToObject<T>(rows[i], headers, this.schema);
+          if (rec && String(rec[pkProp]) === String(id)) {
+            targetRowIndex = i + 2; // Row 1 is header, so row 0 in array is sheet row 2
+            existingRecord = rec;
+            break;
+          }
         }
+
+        if (targetRowIndex === -1 || !existingRecord) {
+          return null;
+        }
+
+        const mergedRecord = {
+          ...(localExisting || {}),
+          ...existingRecord,
+          ...updates,
+          updatedAt: new Date().toISOString(),
+        } as unknown as T;
+        sheetStore.set(id, mergedRecord);
+
+        const newRow = objectToRow(mergedRecord, headers, this.schema);
+        await this.client.updateRow(this.schema.sheetName, targetRowIndex, newRow, this.getTargetSpreadsheetId());
+
+        return mergedRecord;
+      } catch (err: any) {
+        if (this.isWorksheetNotFoundError(err)) {
+          await this.ensureWorksheet();
+          return null;
+        }
+        throw err;
       }
-
-      if (targetRowIndex === -1 || !existingRecord) {
-        return null;
-      }
-
-      const mergedRecord = {
-        ...(localExisting || {}),
-        ...existingRecord,
-        ...updates,
-        updatedAt: new Date().toISOString(),
-      } as unknown as T;
-      sheetStore.set(id, mergedRecord);
-
-      const newRow = objectToRow(mergedRecord, headers, this.schema);
-      await this.client.updateRow(this.schema.sheetName, targetRowIndex, newRow, this.getTargetSpreadsheetId());
-
-      return mergedRecord;
-    } catch (err: any) {
-      if (this.isWorksheetNotFoundError(err)) {
-        await this.ensureWorksheet();
-        return null;
-      }
-      throw err;
-    }
+    });
   }
 
   /**
@@ -386,112 +431,115 @@ export abstract class BaseRepository<T extends Record<string, any>> {
     options?: { actor?: { id: string; name: string }; reason?: string }
   ): Promise<boolean> {
     if (!id) return false;
-    const pkProp = this.getPrimaryKeyProperty();
 
-    if (!this.client.isConfigured(this.getTargetSpreadsheetId())) {
-      const sheetStore = BaseRepository.fallbackStore.get(this.schema.sheetName);
-      if (!sheetStore) return false;
-      const existing = sheetStore.get(id);
-      if (!existing) return false;
+    return this.withRecordLock(id, async () => {
+      const pkProp = this.getPrimaryKeyProperty();
 
-      const previousCount = sheetStore.size;
+      if (!this.client.isConfigured(this.getTargetSpreadsheetId())) {
+        const sheetStore = BaseRepository.fallbackStore.get(this.schema.sheetName);
+        if (!sheetStore) return false;
+        const existing = sheetStore.get(id);
+        if (!existing) return false;
 
-      // 1. BACKUP & 2. VERIFY BACKUP
+        const previousCount = sheetStore.size;
+
+        // 1. BACKUP & 2. VERIFY BACKUP
+        const safetyToken = await deletionSafetyService.createAndVerifyBackup({
+          sheetName: this.schema.sheetName,
+          entityId: String(id),
+          physicalRowIndex: -1,
+          headers: this.schema.columns.map((c) => c.name),
+          rawRow: this.schema.columns.map((c) => (existing as any)[c.propertyKey] ?? ''),
+          record: existing,
+          actor: options?.actor,
+          reason: options?.reason,
+        });
+
+        // 3. DELETE (consuming single-use token)
+        const consumed = deletionSafetyService.consumeToken(safetyToken, this.schema.sheetName, -1);
+        if (!consumed) {
+          throw new DirectDeleteBypassError('Invalid or expired deletion safety token');
+        }
+        sheetStore.delete(id);
+
+        // 4. READ-BACK VERIFICATION
+        if (sheetStore.has(id)) {
+          throw new DeletionReadBackError(`Post-deletion read-back failed: record '${id}' still present in fallback store`);
+        }
+
+        // 5. INTEGRITY CHECK
+        if (sheetStore.size !== previousCount - 1) {
+          throw new DeletionIntegrityError(`Post-deletion count mismatch: expected ${previousCount - 1}, found ${sheetStore.size}`);
+        }
+
+        // 6. AUDIT RESULT
+        await this.logDeletionAudit(id, safetyToken, options?.actor, options?.reason);
+        return true;
+      }
+
+      const { headers, rows } = await this.client.getRows(this.schema.sheetName, this.getEndColLetter(), this.getTargetSpreadsheetId());
+      if (!headers || headers.length === 0) return false;
+
+      let targetRowIndex = -1;
+      let targetRecord: T | null = null;
+      let targetRawRow: (string | number | boolean)[] = [];
+
+      for (let i = 0; i < rows.length; i++) {
+        const rec = rowToObject<T>(rows[i], headers, this.schema);
+        if (rec && String(rec[pkProp]) === String(id)) {
+          targetRowIndex = i + 2; // Row 1 is header, so row 0 in array is sheet row 2
+          targetRecord = rec;
+          targetRawRow = rows[i];
+          break;
+        }
+      }
+
+      if (targetRowIndex === -1 || !targetRecord) {
+        return false;
+      }
+
+      const previousRowCount = rows.length;
+
+      // 1. BACKUP & 2. VERIFY BACKUP (Fails closed before modifying worksheet)
       const safetyToken = await deletionSafetyService.createAndVerifyBackup({
         sheetName: this.schema.sheetName,
         entityId: String(id),
-        physicalRowIndex: -1,
-        headers: this.schema.columns.map((c) => c.name),
-        rawRow: this.schema.columns.map((c) => (existing as any)[c.propertyKey] ?? ''),
-        record: existing,
+        physicalRowIndex: targetRowIndex,
+        headers,
+        rawRow: targetRawRow,
+        record: targetRecord,
         actor: options?.actor,
         reason: options?.reason,
       });
 
-      // 3. DELETE (consuming single-use token)
-      const consumed = deletionSafetyService.consumeToken(safetyToken, this.schema.sheetName, -1);
-      if (!consumed) {
-        throw new DirectDeleteBypassError('Invalid or expired deletion safety token');
-      }
-      sheetStore.delete(id);
+      // 3. DELETE (passing single-use safety token to client.deleteRow)
+      await this.client.deleteRow(this.schema.sheetName, targetRowIndex, this.getTargetSpreadsheetId(), safetyToken);
 
       // 4. READ-BACK VERIFICATION
-      if (sheetStore.has(id)) {
-        throw new DeletionReadBackError(`Post-deletion read-back failed: record '${id}' still present in fallback store`);
+      const spreadsheetId = this.getTargetSpreadsheetId() || this.client.getSpreadsheetId();
+      this.client.invalidateRowCache(`${spreadsheetId}:${this.schema.sheetName}`);
+      const postData = await this.client.getRows(this.schema.sheetName, this.getEndColLetter(), this.getTargetSpreadsheetId());
+
+      for (let i = 0; i < postData.rows.length; i++) {
+        const rec = rowToObject<T>(postData.rows[i], postData.headers, this.schema);
+        if (rec && String(rec[pkProp]) === String(id)) {
+          throw new DeletionReadBackError(
+            `Post-deletion read-back failed: record '${id}' is still present in '${this.schema.sheetName}' at sheet row ${i + 2}`
+          );
+        }
       }
 
       // 5. INTEGRITY CHECK
-      if (sheetStore.size !== previousCount - 1) {
-        throw new DeletionIntegrityError(`Post-deletion count mismatch: expected ${previousCount - 1}, found ${sheetStore.size}`);
+      if (postData.rows.length !== previousRowCount - 1) {
+        throw new DeletionIntegrityError(
+          `Post-deletion row count invariant violated in '${this.schema.sheetName}': expected ${previousRowCount - 1}, found ${postData.rows.length}`
+        );
       }
 
       // 6. AUDIT RESULT
       await this.logDeletionAudit(id, safetyToken, options?.actor, options?.reason);
       return true;
-    }
-
-    const { headers, rows } = await this.client.getRows(this.schema.sheetName, this.getEndColLetter(), this.getTargetSpreadsheetId());
-    if (!headers || headers.length === 0) return false;
-
-    let targetRowIndex = -1;
-    let targetRecord: T | null = null;
-    let targetRawRow: (string | number | boolean)[] = [];
-
-    for (let i = 0; i < rows.length; i++) {
-      const rec = rowToObject<T>(rows[i], headers, this.schema);
-      if (rec && String(rec[pkProp]) === String(id)) {
-        targetRowIndex = i + 2; // Row 1 is header, so row 0 in array is sheet row 2
-        targetRecord = rec;
-        targetRawRow = rows[i];
-        break;
-      }
-    }
-
-    if (targetRowIndex === -1 || !targetRecord) {
-      return false;
-    }
-
-    const previousRowCount = rows.length;
-
-    // 1. BACKUP & 2. VERIFY BACKUP (Fails closed before modifying worksheet)
-    const safetyToken = await deletionSafetyService.createAndVerifyBackup({
-      sheetName: this.schema.sheetName,
-      entityId: String(id),
-      physicalRowIndex: targetRowIndex,
-      headers,
-      rawRow: targetRawRow,
-      record: targetRecord,
-      actor: options?.actor,
-      reason: options?.reason,
     });
-
-    // 3. DELETE (passing single-use safety token to client.deleteRow)
-    await this.client.deleteRow(this.schema.sheetName, targetRowIndex, this.getTargetSpreadsheetId(), safetyToken);
-
-    // 4. READ-BACK VERIFICATION
-    const spreadsheetId = this.getTargetSpreadsheetId() || this.client.getSpreadsheetId();
-    this.client.invalidateRowCache(`${spreadsheetId}:${this.schema.sheetName}`);
-    const postData = await this.client.getRows(this.schema.sheetName, this.getEndColLetter(), this.getTargetSpreadsheetId());
-
-    for (let i = 0; i < postData.rows.length; i++) {
-      const rec = rowToObject<T>(postData.rows[i], postData.headers, this.schema);
-      if (rec && String(rec[pkProp]) === String(id)) {
-        throw new DeletionReadBackError(
-          `Post-deletion read-back failed: record '${id}' is still present in '${this.schema.sheetName}' at sheet row ${i + 2}`
-        );
-      }
-    }
-
-    // 5. INTEGRITY CHECK
-    if (postData.rows.length !== previousRowCount - 1) {
-      throw new DeletionIntegrityError(
-        `Post-deletion row count invariant violated in '${this.schema.sheetName}': expected ${previousRowCount - 1}, found ${postData.rows.length}`
-      );
-    }
-
-    // 6. AUDIT RESULT
-    await this.logDeletionAudit(id, safetyToken, options?.actor, options?.reason);
-    return true;
   }
 
   /**
