@@ -74,7 +74,7 @@ async function runLocalSetup() {
         console.log('\n==================================================================');
         console.log('🎉 SUCCESS! GOOGLE DRIVE REFRESH TOKEN ACQUIRED SUCCESSFULLY');
         console.log('==================================================================\n');
-        console.log('Copy this token and add it to your production secret / GOOGLE_DRIVE_REFRESH_TOKEN:\n');
+        console.log('Copy this token and add it to your production secret / GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN:\n');
         console.log(`\x1b[32;1m${tokens.refresh_token}\x1b[0m\n`);
         console.log('Keep this token secret. Do NOT commit it to git or share it in public channels.\n');
 

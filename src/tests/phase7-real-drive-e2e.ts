@@ -15,13 +15,13 @@ export async function runRealDriveE2E() {
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
   const redirectUri = process.env.GOOGLE_REDIRECT_URI;
-  const refreshToken = process.env.GOOGLE_DRIVE_REFRESH_TOKEN || googleDriveService.getInMemoryAuth();
+  const refreshToken = process.env.GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN || googleDriveService.getInMemoryAuth();
 
   console.log('Configuration Presence Checklist:');
-  console.log(`- GOOGLE_CLIENT_ID:           ${clientId ? 'PRESENT (Configured)' : 'MISSING'}`);
-  console.log(`- GOOGLE_CLIENT_SECRET:       ${clientSecret ? 'PRESENT (Configured)' : 'MISSING'}`);
-  console.log(`- GOOGLE_REDIRECT_URI:        ${redirectUri ? 'PRESENT (Configured)' : 'MISSING'}`);
-  console.log(`- GOOGLE_DRIVE_REFRESH_TOKEN: ${refreshToken ? 'PRESENT (Configured)' : 'MISSING'}`);
+  console.log(`- GOOGLE_CLIENT_ID:                 ${clientId ? 'PRESENT (Configured)' : 'MISSING'}`);
+  console.log(`- GOOGLE_CLIENT_SECRET:             ${clientSecret ? 'PRESENT (Configured)' : 'MISSING'}`);
+  console.log(`- GOOGLE_REDIRECT_URI:              ${redirectUri ? 'PRESENT (Configured)' : 'MISSING'}`);
+  console.log(`- GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN: ${refreshToken ? 'PRESENT (Configured)' : 'MISSING'}`);
 
   if (!clientId || !clientSecret) {
     console.log('\n❌ [BLOCKED] Server-side OAuth Client ID or Client Secret is not configured.');
@@ -31,7 +31,7 @@ export async function runRealDriveE2E() {
 
   // STEP 2 — AUTHORIZATION URL GENERATION IF REFRESH TOKEN IS MISSING
   if (!refreshToken) {
-    console.log('\n⚠️  GOOGLE_DRIVE_REFRESH_TOKEN is not configured yet.');
+    console.log('\n⚠️  GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN is not configured yet.');
     console.log('Please follow these steps to generate the OAuth refresh token:\n');
     
     try {

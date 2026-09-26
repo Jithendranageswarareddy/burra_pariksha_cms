@@ -22,6 +22,7 @@ export async function runOAuthVerification(): Promise<TestResult[]> {
   const backupEnv = {
     GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
     GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+    GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN: process.env.GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN,
     GOOGLE_DRIVE_REFRESH_TOKEN: process.env.GOOGLE_DRIVE_REFRESH_TOKEN,
     GOOGLE_SERVICE_ACCOUNT_EMAIL: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
     GOOGLE_PRIVATE_KEY: process.env.GOOGLE_PRIVATE_KEY,
@@ -49,6 +50,7 @@ export async function runOAuthVerification(): Promise<TestResult[]> {
   const clearEnv = () => {
     delete process.env.GOOGLE_CLIENT_ID;
     delete process.env.GOOGLE_CLIENT_SECRET;
+    delete process.env.GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN;
     delete process.env.GOOGLE_DRIVE_REFRESH_TOKEN;
     delete process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
     delete process.env.GOOGLE_PRIVATE_KEY;
@@ -65,6 +67,7 @@ export async function runOAuthVerification(): Promise<TestResult[]> {
     // Clear all first
     delete process.env.GOOGLE_CLIENT_ID;
     delete process.env.GOOGLE_CLIENT_SECRET;
+    delete process.env.GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN;
     delete process.env.GOOGLE_DRIVE_REFRESH_TOKEN;
     delete process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
     delete process.env.GOOGLE_PRIVATE_KEY;
@@ -80,11 +83,11 @@ export async function runOAuthVerification(): Promise<TestResult[]> {
   };
 
   // 1. OAuth configuration detection
-  addTest(1, 'OAuth configuration detection', () => {
+  addTest(1, 'OAuth configuration detection with GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN', () => {
     clearEnv();
     process.env.GOOGLE_CLIENT_ID = 'test-client-id';
     process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret';
-    process.env.GOOGLE_DRIVE_REFRESH_TOKEN = 'test-refresh-token';
+    process.env.GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN = 'test-refresh-token';
 
     const mode = googleDriveService.getAuthProviderMode();
     const isConfigured = googleDriveService.isConfigured();
@@ -98,7 +101,7 @@ export async function runOAuthVerification(): Promise<TestResult[]> {
     clearEnv();
     process.env.GOOGLE_CLIENT_ID = 'test-client-id';
     process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret';
-    process.env.GOOGLE_DRIVE_REFRESH_TOKEN = 'test-refresh-token';
+    process.env.GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN = 'test-refresh-token';
 
     // Access private method to trigger auth initialization
     // @ts-ignore
@@ -153,7 +156,7 @@ export async function runOAuthVerification(): Promise<TestResult[]> {
     clearEnv();
     process.env.GOOGLE_CLIENT_ID = 'test-client-id';
     process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret';
-    process.env.GOOGLE_DRIVE_REFRESH_TOKEN = 'test-refresh-token';
+    process.env.GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN = 'test-refresh-token';
 
     // @ts-ignore
     const drive = googleDriveService.getDriveApi();
@@ -169,7 +172,7 @@ export async function runOAuthVerification(): Promise<TestResult[]> {
     clearEnv();
     process.env.GOOGLE_CLIENT_ID = 'test-client-id';
     process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret';
-    process.env.GOOGLE_DRIVE_REFRESH_TOKEN = 'test-refresh-token';
+    process.env.GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN = 'test-refresh-token';
 
     // Mocks getDriveApi to return a failing client
     // @ts-ignore
@@ -200,7 +203,7 @@ export async function runOAuthVerification(): Promise<TestResult[]> {
     clearEnv();
     process.env.GOOGLE_CLIENT_ID = 'test-client-id';
     process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret';
-    process.env.GOOGLE_DRIVE_REFRESH_TOKEN = 'test-refresh-token';
+    process.env.GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN = 'test-refresh-token';
 
     // @ts-ignore
     googleDriveService.driveApi = {
@@ -228,7 +231,7 @@ export async function runOAuthVerification(): Promise<TestResult[]> {
     clearEnv();
     process.env.GOOGLE_CLIENT_ID = 'test-client-id';
     process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret';
-    process.env.GOOGLE_DRIVE_REFRESH_TOKEN = 'test-refresh-token';
+    process.env.GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN = 'test-refresh-token';
     process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL = 'legacy-sa@test.com';
     process.env.GOOGLE_PRIVATE_KEY = 'legacy-key';
     process.env.NODE_ENV = 'production';
@@ -244,7 +247,7 @@ export async function runOAuthVerification(): Promise<TestResult[]> {
     clearEnv();
     process.env.GOOGLE_CLIENT_ID = 'test-client-id';
     process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret';
-    process.env.GOOGLE_DRIVE_REFRESH_TOKEN = 'test-refresh-token';
+    process.env.GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN = 'test-refresh-token';
 
     // @ts-ignore
     const drive = googleDriveService.getDriveApi();
@@ -258,7 +261,7 @@ export async function runOAuthVerification(): Promise<TestResult[]> {
     clearEnv();
     process.env.GOOGLE_CLIENT_ID = 'test-client-id';
     process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret';
-    process.env.GOOGLE_DRIVE_REFRESH_TOKEN = 'test-refresh-token';
+    process.env.GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN = 'test-refresh-token';
 
     // @ts-ignore
     googleDriveService.driveApi = {
@@ -290,7 +293,7 @@ export async function runOAuthVerification(): Promise<TestResult[]> {
     clearEnv();
     process.env.GOOGLE_CLIENT_ID = 'test-client-id';
     process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret';
-    process.env.GOOGLE_DRIVE_REFRESH_TOKEN = 'test-refresh-token';
+    process.env.GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN = 'test-refresh-token';
 
     let deleteCalledWith: string | null = null;
     // @ts-ignore
@@ -307,6 +310,58 @@ export async function runOAuthVerification(): Promise<TestResult[]> {
     await googleDriveService.deleteFile('DRV-DELETE-123');
     if (deleteCalledWith !== 'DRV-DELETE-123') {
       throw new Error(`Expected deleteFile to invoke drive.files.delete with DRV-DELETE-123, got: ${deleteCalledWith}`);
+    }
+  });
+
+  // 14. Phase 6 focused check: Old variable alone is NOT accepted as production refresh token
+  addTest(14, 'Old variable alone (GOOGLE_DRIVE_REFRESH_TOKEN) is NOT accepted and does NOT fall back', () => {
+    clearEnv();
+    process.env.GOOGLE_CLIENT_ID = 'test-client-id';
+    process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret';
+    process.env.GOOGLE_DRIVE_REFRESH_TOKEN = 'old-expired-token';
+    // Explicitly NO GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN
+
+    const mode = googleDriveService.getAuthProviderMode();
+    const isConfigured = googleDriveService.isConfigured();
+
+    if (mode === 'OAUTH2') {
+      throw new Error('FAILED: Application accepted old GOOGLE_DRIVE_REFRESH_TOKEN instead of requiring GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN');
+    }
+    if (isConfigured) {
+      throw new Error('FAILED: isConfigured returned true when only old variable was present');
+    }
+
+    let errorThrown = false;
+    try {
+      // @ts-ignore
+      googleDriveService.getDriveApi();
+    } catch (err: any) {
+      errorThrown = true;
+      if (!err.message.includes('not configured') && !err.message.includes('unavailable')) {
+        throw new Error(`Expected auth unavailable error, got: ${err.message}`);
+      }
+    }
+    if (!errorThrown) {
+      throw new Error('FAILED: getDriveApi() did not throw when new GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN was absent');
+    }
+  });
+
+  // 15. Phase 6 focused check: New variable present enables USER_OAUTH without old variable
+  addTest(15, 'New variable present enables USER_OAUTH without old variable', () => {
+    clearEnv();
+    process.env.GOOGLE_CLIENT_ID = 'test-client-id';
+    process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret';
+    process.env.GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN = 'new-valid-production-token';
+    // Explicitly NO GOOGLE_DRIVE_REFRESH_TOKEN
+
+    const mode = googleDriveService.getAuthProviderMode();
+    const isConfigured = googleDriveService.isConfigured();
+
+    if (mode !== 'OAUTH2') {
+      throw new Error(`Expected provider mode to be OAUTH2 with new variable, got ${mode}`);
+    }
+    if (!isConfigured) {
+      throw new Error('Expected isConfigured to be true with new variable');
     }
   });
 

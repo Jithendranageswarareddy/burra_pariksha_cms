@@ -100,7 +100,7 @@ export class GoogleDriveService {
     }
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-    const refreshToken = process.env.GOOGLE_DRIVE_REFRESH_TOKEN || this.tempRefreshToken;
+    const refreshToken = process.env.GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN || this.tempRefreshToken;
 
     if (clientId && clientSecret && refreshToken) {
       return 'OAUTH2';
@@ -144,7 +144,7 @@ export class GoogleDriveService {
     if (mode === 'OAUTH2') {
       const clientId = process.env.GOOGLE_CLIENT_ID;
       const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-      const refreshToken = process.env.GOOGLE_DRIVE_REFRESH_TOKEN || this.tempRefreshToken;
+      const refreshToken = process.env.GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN || this.tempRefreshToken;
 
       try {
         const oauth2Client = new google.auth.OAuth2(
