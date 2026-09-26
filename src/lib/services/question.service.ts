@@ -574,6 +574,7 @@ export class QuestionService {
       actor: actor.name,
       humanReview: (requestPayload as any).humanReview,
       aiVerifierResult: (requestPayload as any).aiVerifierResult,
+      skipDuplicateCheck: requestPayload.skipDuplicateCheck,
     });
 
     if (verificationReport.aggregatedStatus === 'FAILED' || !verificationReport.canSave) {

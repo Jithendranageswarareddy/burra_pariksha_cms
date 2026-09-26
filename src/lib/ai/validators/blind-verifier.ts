@@ -113,9 +113,23 @@ function extractOptionNumbers(text: string): number[] {
   if (!text) return [];
   const timeMins = parseTimeStringToMinutes(text);
   const cleaned = text.replace(/(\d),(\d)/g, '$1$2').replace(/\b\d{1,2}:\d{2}(?:\s*(?:AM|PM|ఏఎం|పీఎం))?\b/gi, '');
-  const matches = cleaned.match(/-?\d+(?:\.\d+)?/g);
   const nums: number[] = [];
   if (timeMins !== null) nums.push(timeMins);
+
+  // Check for fractions like 1/15, 3/4
+  const fractionRegex = /(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)/g;
+  let fracMatch: RegExpExecArray | null;
+  while ((fracMatch = fractionRegex.exec(cleaned)) !== null) {
+    const num = parseFloat(fracMatch[1]);
+    const den = parseFloat(fracMatch[2]);
+    if (!isNaN(num) && !isNaN(den) && den !== 0) {
+      nums.push(num / den);
+    }
+  }
+
+  // Remove fractions before extracting standalone numbers so numerator/denominator aren't treated as isolated numbers
+  const textWithoutFractions = cleaned.replace(/(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)/g, ' ');
+  const matches = textWithoutFractions.match(/-?\d+(?:\.\d+)?/g);
   if (matches) {
     matches.forEach((m) => {
       const parsed = parseFloat(m);

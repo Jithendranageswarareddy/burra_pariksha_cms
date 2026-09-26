@@ -44,6 +44,7 @@ export interface QuestionCreationRequestPayload {
   idempotencyKey?: string;
   generationMode?: 'SUBTOPIC' | 'RANDOM' | string;
   mathematicalVerification?: any;
+  skipDuplicateCheck?: boolean;
 }
 
 export class QuestionCreationValidator {
