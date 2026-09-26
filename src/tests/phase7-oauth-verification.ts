@@ -365,6 +365,85 @@ export async function runOAuthVerification(): Promise<TestResult[]> {
     }
   });
 
+  // 16. Both variables present -> canonical GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN wins and old is ignored
+  addTest(16, 'Both variables present -> canonical variable is selected and old variable is ignored', () => {
+    clearEnv();
+    process.env.GOOGLE_CLIENT_ID = 'test-client-id';
+    process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret';
+    process.env.GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN = 'canonical-new-token';
+    process.env.GOOGLE_DRIVE_REFRESH_TOKEN = 'stale-old-revoked-token';
+
+    const mode = googleDriveService.getAuthProviderMode();
+    const status = googleDriveService.getDriveConfigurationStatus();
+
+    if (mode !== 'OAUTH2') {
+      throw new Error(`Expected provider mode OAUTH2, got ${mode}`);
+    }
+    if (status.refreshToken !== 'CONFIGURED') {
+      throw new Error(`Expected refreshToken status CONFIGURED, got ${status.refreshToken}`);
+    }
+  });
+
+  // 17. In production mode, in-memory tokens cannot override missing canonical environment variable
+  addTest(17, 'In production mode, in-memory tokens are rejected if GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN is missing', () => {
+    clearEnv();
+    process.env.NODE_ENV = 'production';
+    process.env.GOOGLE_CLIENT_ID = 'test-client-id';
+    process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret';
+    googleDriveService.setInMemoryAuth('stale-memory-token');
+
+    const mode = googleDriveService.getAuthProviderMode();
+    if (mode === 'OAUTH2') {
+      throw new Error('Production mode must NOT accept in-memory tokens as a substitute for GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN');
+    }
+    process.env.NODE_ENV = backupEnv.NODE_ENV;
+  });
+
+  // 18. invalid_grant error detection and non-retry failure behavior
+  addAsyncTest(18, 'invalid_grant error is recognized as non-transient and produces descriptive auth error', async () => {
+    clearEnv();
+    process.env.GOOGLE_CLIENT_ID = 'test-client-id';
+    process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret';
+    process.env.GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN = 'test-token';
+
+    let errorThrown = false;
+    try {
+      await googleDriveService.executeWithRetry(async () => {
+        const err: any = new Error('invalid_grant: Token has been expired or revoked.');
+        err.response = { data: { error: 'invalid_grant' } };
+        throw err;
+      }, 3, 50);
+    } catch (err: any) {
+      errorThrown = true;
+      if (!err.message.includes('invalid, expired, or revoked')) {
+        throw new Error(`Expected descriptive invalid_grant error, got: ${err.message}`);
+      }
+    }
+    if (!errorThrown) {
+      throw new Error('Expected executeWithRetry to throw on invalid_grant without retrying');
+    }
+  });
+
+  // 19. Diagnostic status reporting never leaks secret values
+  addTest(19, 'getDriveConfigurationStatus produces sanitized diagnostic flags without exposing secrets', () => {
+    clearEnv();
+    const rawSecret = 'SUPER_SECRET_TOKEN_VALUE_XYZ';
+    process.env.GOOGLE_CLIENT_ID = 'my-client-id';
+    process.env.GOOGLE_CLIENT_SECRET = 'my-client-secret';
+    process.env.GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN = rawSecret;
+    process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID = 'root-123';
+
+    const status = googleDriveService.getDriveConfigurationStatus();
+    const statusJson = JSON.stringify(status);
+
+    if (statusJson.includes(rawSecret)) {
+      throw new Error('SECURITY VIOLATION: getDriveConfigurationStatus leaked the raw secret token value!');
+    }
+    if (status.refreshToken !== 'CONFIGURED' || status.clientId !== 'CONFIGURED') {
+      throw new Error('Expected CONFIGURED status flags for configured credentials');
+    }
+  });
+
   // 13. Callback never logs, returns, or persists refresh_token, and OAuth config works
   addAsyncTest(13, 'OAuth callback safety, no logging/exposures, and memory-only configuration works', async () => {
     const originalLog = console.log;

@@ -100,7 +100,11 @@ export class GoogleDriveService {
     }
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-    const refreshToken = process.env.GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN || this.tempRefreshToken;
+    // Canonical variable is GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN.
+    // In production, in-memory tokens are forbidden. In test/dev, tempRefreshToken is allowed only when env is absent.
+    const refreshToken =
+      process.env.GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN ||
+      (process.env.NODE_ENV !== 'production' ? this.tempRefreshToken : null);
 
     if (clientId && clientSecret && refreshToken) {
       return 'OAUTH2';
@@ -114,6 +118,36 @@ export class GoogleDriveService {
     }
 
     return 'NONE';
+  }
+
+  /**
+   * Returns a sanitized diagnostic overview of Google Drive configuration without revealing any secret values.
+   */
+  public getDriveConfigurationStatus(): {
+    mode: 'OAUTH2' | 'SERVICE_ACCOUNT' | 'NONE';
+    refreshToken: 'CONFIGURED' | 'MISSING';
+    clientId: 'CONFIGURED' | 'MISSING';
+    clientSecret: 'CONFIGURED' | 'MISSING';
+    rootFolder: 'CONFIGURED' | 'MISSING';
+    isConfigured: boolean;
+  } {
+    const mode = this.getAuthProviderMode();
+    const hasRefreshToken = Boolean(
+      process.env.GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN ||
+      (process.env.NODE_ENV !== 'production' && this.tempRefreshToken)
+    );
+    const hasClientId = Boolean(process.env.GOOGLE_CLIENT_ID);
+    const hasClientSecret = Boolean(process.env.GOOGLE_CLIENT_SECRET);
+    const hasRootFolder = Boolean(process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID);
+
+    return {
+      mode,
+      refreshToken: hasRefreshToken ? 'CONFIGURED' : 'MISSING',
+      clientId: hasClientId ? 'CONFIGURED' : 'MISSING',
+      clientSecret: hasClientSecret ? 'CONFIGURED' : 'MISSING',
+      rootFolder: hasRootFolder ? 'CONFIGURED' : 'MISSING',
+      isConfigured: this.isConfigured(),
+    };
   }
 
   /**
@@ -144,7 +178,13 @@ export class GoogleDriveService {
     if (mode === 'OAUTH2') {
       const clientId = process.env.GOOGLE_CLIENT_ID;
       const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-      const refreshToken = process.env.GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN || this.tempRefreshToken;
+      const refreshToken =
+        process.env.GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN ||
+        (process.env.NODE_ENV !== 'production' ? this.tempRefreshToken : null);
+
+      if (!refreshToken) {
+        throw new GoogleAuthError('GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN is not configured.');
+      }
 
       try {
         const oauth2Client = new google.auth.OAuth2(
@@ -161,6 +201,14 @@ export class GoogleDriveService {
         this.isAuthInitialized = true;
         return this.driveApi;
       } catch (err: any) {
+        if (
+          err?.message?.includes('invalid_grant') ||
+          err?.response?.data?.error === 'invalid_grant'
+        ) {
+          throw new GoogleAuthError(
+            'Google Drive OAuth refresh token is invalid, expired, or revoked. Update GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN in the runtime secret store.'
+          );
+        }
         throw new GoogleAuthError(
           `Failed to initialize Google Drive OAuth 2.0 authentication: ${err?.message || 'Unknown auth error'}`
         );
@@ -347,6 +395,14 @@ export class GoogleDriveService {
       try {
         return await operation();
       } catch (err: any) {
+        if (
+          err?.message?.includes('invalid_grant') ||
+          err?.response?.data?.error === 'invalid_grant'
+        ) {
+          throw new GoogleAuthError(
+            'Google Drive OAuth refresh token is invalid, expired, or revoked. Update GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN in the runtime secret store.'
+          );
+        }
         attempt++;
         const isTransient = this.isTransientError(err);
         if (!isTransient || attempt >= maxRetries) {
@@ -361,11 +417,14 @@ export class GoogleDriveService {
   }
 
   private isTransientError(err: any): boolean {
+    const errMsg = (err?.message || '').toLowerCase();
+    if (errMsg.includes('invalid_grant')) {
+      return false;
+    }
     const status = err?.status || err?.statusCode || (err?.response && err.response.status);
     if (status) {
       return [408, 429, 500, 502, 503, 504].includes(status);
     }
-    const errMsg = (err?.message || '').toLowerCase();
     return errMsg.includes('timeout') || errMsg.includes('econnreset') || errMsg.includes('etimedout') || errMsg.includes('network') || errMsg.includes('rate limit');
   }
 

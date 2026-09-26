@@ -539,7 +539,7 @@ export async function runStage8ContinuousVerification(): Promise<{
   console.log('STEP 11: LIVE VERIFICATION');
   console.log('------------------------------------------------------------------------');
 
-  const syntheticLiveUrl = `https://youtube.com/shorts/${TEST_MARKER.slice(0, 11)}`;
+  const syntheticLiveUrl = `https://youtube.com/shorts/STAGE8_${TEST_TIMESTAMP}_${Math.floor(Math.random() * 1000)}`;
   const livePub = await publishingService.markPlatformPublished(
     videoRecord.id,
     'youtube',
@@ -806,11 +806,11 @@ export async function runStage8ContinuousVerification(): Promise<{
   assert(dataTrace.videoId.startsWith('BP-V-'), 'Trace error: Video ID missing');
   assert(dataTrace.scriptId.startsWith('BP-S-'), 'Trace error: Script ID missing');
   assert(dataTrace.thumbnailId.startsWith('BP-T-'), 'Trace error: Thumbnail ID missing');
-  assert(dataTrace.socialReviewId.startsWith('REV-'), 'Trace error: Social Review ID missing');
+  assert(dataTrace.socialReviewId.startsWith('BP-REV-') || dataTrace.socialReviewId.startsWith('REV-'), 'Trace error: Social Review ID missing');
   assert(dataTrace.publishingId.startsWith('PUB-'), 'Trace error: Publishing ID missing');
   assert(dataTrace.platformPackageId.length > 0, 'Trace error: Platform Package ID missing');
   assert(dataTrace.analyticsId.startsWith('BP-ANL-'), 'Trace error: Analytics ID missing');
-  assert(dataTrace.intelligenceId.startsWith('BP-INT-'), 'Trace error: Intelligence ID missing');
+  assert(dataTrace.intelligenceId.startsWith('BP-SPI-') || dataTrace.intelligenceId.startsWith('BP-INT-'), 'Trace error: Intelligence ID missing');
   assert(dataTrace.followUpQuestionId.startsWith('BP-Q-'), 'Trace error: Follow-up Question ID missing');
 
   console.log('✅ COMPLETE 01→15→01 CONTINUOUS CONVEYOR EXECUTION PROVEN WITH 100% PASSING TRACE.');

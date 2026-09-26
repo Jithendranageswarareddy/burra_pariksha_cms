@@ -10,11 +10,21 @@ import { createServer as createViteServer } from 'vite';
 import { apiRouter } from './src/server/routes';
 import { snapshotSchedulerService } from './src/lib/services/snapshot-scheduler.service';
 import { usersRepository } from './src/lib/repositories/users.repository';
+import { googleDriveService } from './src/lib/services/google-drive.service';
 
 async function startServer() {
   const app = express();
   app.set('trust proxy', 1);
   const PORT = 3000;
+
+  // Log Google Drive OAuth configuration status without revealing secrets
+  const driveStatus = googleDriveService.getDriveConfigurationStatus();
+  console.log('Google Drive OAuth configuration:');
+  console.log(`  mode: ${driveStatus.mode}`);
+  console.log(`  refresh token: ${driveStatus.refreshToken}`);
+  console.log(`  client ID: ${driveStatus.clientId}`);
+  console.log(`  client secret: ${driveStatus.clientSecret}`);
+  console.log(`  root folder: ${driveStatus.rootFolder}`);
 
   // Initialize server-side snapshot scheduler (starts if GCS_SNAPSHOT_SCHEDULE_ENABLED=true)
   snapshotSchedulerService.startScheduler();
