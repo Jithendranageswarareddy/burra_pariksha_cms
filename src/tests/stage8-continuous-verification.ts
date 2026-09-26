@@ -287,26 +287,12 @@ export async function runStage8ContinuousVerification(): Promise<{
   }
 
   const rawVideoBuffer = Buffer.from(`RAW_FOOTAGE_STREAM_PAYLOAD_${TEST_MARKER}`);
-  let rawVideoUpload: any;
-  try {
-    rawVideoUpload = await googleDriveService.uploadFile({
-      fileName: `${TEST_MARKER}_raw_footage.mp4`,
-      mimeType: 'video/mp4',
-      bodyStreamOrBuffer: rawVideoBuffer,
-      description: `Stage 8 continuous E2E raw camera footage for ${videoRecord.id}`,
-    });
-  } catch (driveErr: any) {
-    console.log(`[INFO] EXTERNAL INTEGRATION NOT LIVE VERIFIED (Google Drive API returned: ${driveErr?.message || driveErr}). Using canonical adapter fallback.`);
-    const mockFileId = `drive_file_stage8_${TEST_TIMESTAMP}`;
-    rawVideoUpload = {
-      fileId: mockFileId,
-      name: `${TEST_MARKER}_raw_footage.mp4`,
-      mimeType: 'video/mp4',
-      size: rawVideoBuffer.length,
-      webViewLink: `https://drive.google.com/file/d/${mockFileId}/view`,
-      createdTime: new Date().toISOString(),
-    };
-  }
+  const rawVideoUpload = await googleDriveService.uploadFile({
+    fileName: `${TEST_MARKER}_raw_footage.mp4`,
+    mimeType: 'video/mp4',
+    bodyStreamOrBuffer: rawVideoBuffer,
+    description: `Stage 8 continuous E2E raw camera footage for ${videoRecord.id}`,
+  });
 
   assert(rawVideoUpload && rawVideoUpload.fileId, 'Step 05: Raw footage upload must return fileId');
 
