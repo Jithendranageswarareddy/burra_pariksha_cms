@@ -868,13 +868,7 @@ export const QuestionStudioPage: React.FC = () => {
   const getSaveGateReason = (): string | null => {
     if (configError) return 'Configuration unavailable. Please resolve QUESTION_CONFIG errors.';
     if (!candidate.questionText.trim()) return 'Question problem statement is required.';
-    if (clientReport?.mathematicalVerification?.status === 'FAILED') {
-      return `Mathematical verification failed: ${clientReport.mathematicalVerification.reason || 'Calculated answer does not match declared options.'}`;
-    }
     if (clientReport && !clientReport.isValid) return 'Fix blocking client validation errors before saving.';
-    if (serverValidationResult?.status === QuestionValidationStatus.INVALID) {
-      return `Server validation rejected candidate: ${serverValidationResult.errors[0] || 'Mathematical or structural contradiction detected.'}`;
-    }
     if (isSaving) return 'Save operation in progress...';
     if (isGenerating || isRefining) return 'AI operation in progress...';
     if (isValidatingServer) return 'Server validation in progress...';
@@ -884,19 +878,19 @@ export const QuestionStudioPage: React.FC = () => {
   const saveGateReason = getSaveGateReason();
 
   return (
-    <div className="space-y-5 pb-12 animate-in fade-in duration-200">
+    <div className="space-y-3 pb-6 animate-in fade-in duration-200">
       {/* 1. PAGE HEADER */}
       <PageHeader
         title="AI Question Studio"
-        description="Generate high-yield Telugu aptitude questions with AI, craft real-world scenarios, and verify math accuracy."
+        description="Generate high-yield Telugu aptitude question candidates with AI and hand off to Step 02 for verification."
         actions={
-          <div className="flex items-center gap-2.5 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
             <Button
               variant="outline"
               size="sm"
               onClick={handleResetStudio}
               icon={RotateCcw}
-              className="text-xs bg-white border-slate-200 shadow-2xs hover:bg-slate-50 text-slate-700 font-medium"
+              className="text-xs bg-white border-slate-200 shadow-2xs hover:bg-slate-50 text-slate-700 font-medium h-8"
             >
               + Draft Another Question
             </Button>
@@ -904,14 +898,14 @@ export const QuestionStudioPage: React.FC = () => {
         }
       />
 
-      {/* 2. PERMANENT 15-STAGE TIMELINE ANCHOR (ALWAYS VISIBLE BELOW PAGE HEADER) */}
+      {/* 2. PERMANENT 15-STAGE TIMELINE ANCHOR */}
       <div id="permanent-timeline-anchor" className="w-full">
         <ProductionJourneyBar activeStage="QUESTION_STUDIO" showDetails />
       </div>
 
       {/* Global Error Alert Banner */}
       {errorMessage && (
-        <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 flex items-start gap-3 animate-in slide-in-from-top-2 text-xs shadow-2xs">
+        <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 flex items-start gap-2.5 animate-in slide-in-from-top-2 text-xs shadow-2xs">
           <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
           <div className="flex-1">
             <h4 className="font-bold">Notice</h4>
@@ -928,26 +922,26 @@ export const QuestionStudioPage: React.FC = () => {
       )}
 
       {isFromIntelligence && (
-        <div className="p-4 bg-indigo-50/90 border border-indigo-200 rounded-2xl flex items-start gap-3.5 mb-2 shadow-2xs">
-          <Sparkles className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5 animate-pulse" />
+        <div className="p-3 bg-indigo-50/90 border border-indigo-200 rounded-xl flex items-start gap-3 shadow-2xs">
+          <Sparkles className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5 animate-pulse" />
           <div className="space-y-1 w-full">
             <h4 className="text-xs font-bold text-indigo-900 uppercase tracking-wider flex items-center gap-1.5">
-              <span>Performance Intelligence Strategy Directives Loaded</span>
+              <span>Performance Intelligence Directives Loaded</span>
             </h4>
             <p className="text-xs text-indigo-700 leading-relaxed font-medium">
-              The generation configuration has been pre-populated from your performance intelligence content strategy. Review the recommended pedagogical trap patterns and hook directives below, edit if desired, and confirm generation.
+              Generation configuration pre-populated from content strategy. Review directives and generate.
             </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 text-xs">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pt-1 text-xs">
               {queryPedagogicalTrap && (
-                <div className="p-3 bg-white border border-indigo-100 rounded-xl space-y-1 shadow-3xs">
-                  <span className="font-semibold text-indigo-800 block">Target Pedagogical Trap:</span>
-                  <p className="text-slate-600 italic leading-relaxed">{queryPedagogicalTrap}</p>
+                <div className="p-2 bg-white border border-indigo-100 rounded-lg space-y-0.5 shadow-3xs">
+                  <span className="font-semibold text-indigo-800 block text-[11px]">Target Pedagogical Trap:</span>
+                  <p className="text-slate-600 italic text-[11px] leading-snug">{queryPedagogicalTrap}</p>
                 </div>
               )}
               {queryHookDirective && (
-                <div className="p-3 bg-white border border-indigo-100 rounded-xl space-y-1 shadow-3xs">
-                  <span className="font-semibold text-indigo-800 block">Recommended Hook Directive:</span>
-                  <p className="text-slate-600 italic leading-relaxed">{queryHookDirective}</p>
+                <div className="p-2 bg-white border border-indigo-100 rounded-lg space-y-0.5 shadow-3xs">
+                  <span className="font-semibold text-indigo-800 block text-[11px]">Recommended Hook:</span>
+                  <p className="text-slate-600 italic text-[11px] leading-snug">{queryHookDirective}</p>
                 </div>
               )}
             </div>
@@ -955,18 +949,17 @@ export const QuestionStudioPage: React.FC = () => {
         </div>
       )}
 
-      {/* 3. COMPACT DUAL-PANE WORKSPACE (40% Left / 60% Right on lg:) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-        {/* LEFT COLUMN: AI QUESTION SETUP (40% width on lg: -> col-span-5) */}
-        <div className="lg:col-span-5 space-y-4 bg-white/95 backdrop-blur-xs border border-slate-200/80 rounded-2xl p-4 shadow-xs">
-          <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
+      {/* 3. COMPACT DUAL-PANE WORKSPACE */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-start">
+        {/* LEFT COLUMN: AI QUESTION SETUP (col-span-5) */}
+        <div className="lg:col-span-5 space-y-3 bg-white/95 backdrop-blur-xs border border-slate-200/80 rounded-xl p-3.5 shadow-xs">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-100">
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-600 flex items-center justify-center shrink-0">
-                <Wand2 className="w-4 h-4" />
+              <div className="w-6 h-6 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-600 flex items-center justify-center shrink-0">
+                <Wand2 className="w-3.5 h-3.5" />
               </div>
               <div>
                 <h3 className="text-xs font-bold text-slate-900 tracking-tight">AI Question Setup</h3>
-                <p className="text-[11px] text-slate-500">Target curriculum & scenario setup</p>
               </div>
             </div>
             <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
@@ -974,29 +967,29 @@ export const QuestionStudioPage: React.FC = () => {
             </span>
           </div>
 
-          {/* Group 1 (Primary): Topic & Subtopic with Live APPSC/TSPSC High-Yield Indicator */}
-          <div className="space-y-2">
+          {/* Group 1: Topic & Subtopic */}
+          <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+              <label className="text-[11px] font-bold text-slate-800 flex items-center gap-1">
                 <span>Curriculum Topic & Subtopic</span>
                 <span className="text-rose-500">*</span>
               </label>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800 border border-amber-200 flex items-center gap-1">
-                <Sparkles className="w-3 h-3 text-amber-600" />
+              <span className="px-1.5 py-0.2 rounded-full text-[9px] font-extrabold bg-amber-100 text-amber-800 border border-amber-200 flex items-center gap-1">
+                <Sparkles className="w-2.5 h-2.5 text-amber-600" />
                 <span>APPSC/TSPSC High-Yield</span>
               </span>
             </div>
 
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-0.5">
                   Topic {loadingTaxonomy && '...'}
                 </label>
                 <select
                   value={selectedTopic}
                   onChange={(e) => handleTopicChange(e.target.value)}
                   disabled={loadingTaxonomy || allTopics.length === 0}
-                  className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:bg-white focus:border-indigo-500 focus:outline-hidden"
+                  className="w-full px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:bg-white focus:border-indigo-500 focus:outline-hidden"
                 >
                   {allTopics.map((top: any) => (
                     <option key={top.id} value={top.id}>
@@ -1007,14 +1000,14 @@ export const QuestionStudioPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-0.5">
                   Subtopic
                 </label>
                 <select
                   value={selectedSubtopic}
                   onChange={(e) => handleSubtopicChange(e.target.value)}
                   disabled={loadingTaxonomy || currentSubtopics.length === 0}
-                  className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:bg-white focus:border-indigo-500 focus:outline-hidden"
+                  className="w-full px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:bg-white focus:border-indigo-500 focus:outline-hidden"
                 >
                   <option value="RANDOM">🎲 RANDOM Subtopic</option>
                   {currentSubtopics.map((sub: any) => (
@@ -1027,10 +1020,10 @@ export const QuestionStudioPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Group 2 (Context): Real-Life Telugu Context Dropdown + Horizontal Chip Scroller */}
-          <div className="space-y-2 pt-2 border-t border-slate-100">
+          {/* Group 2: Real-Life Telugu Context */}
+          <div className="space-y-1.5 pt-2 border-t border-slate-100">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-slate-800">
+              <label className="text-[11px] font-bold text-slate-800">
                 Real-Life Telugu Context
               </label>
               <span className="text-[10px] text-slate-400 font-mono">Exam Scenarios</span>
@@ -1044,7 +1037,7 @@ export const QuestionStudioPage: React.FC = () => {
                 updateCandidateField('realLifeContext', newCtx);
               }}
               disabled={loadingConfig || realLifeContexts.length === 0}
-              className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:bg-white focus:border-indigo-500 focus:outline-hidden"
+              className="w-full px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:bg-white focus:border-indigo-500 focus:outline-hidden"
             >
               {loadingConfig && <option value="">Loading contexts from config...</option>}
               {!loadingConfig && realLifeContexts.length > 0 && (
@@ -1059,10 +1052,7 @@ export const QuestionStudioPage: React.FC = () => {
 
             {/* Quick Scenario Hooks Horizontal Chip Scroller */}
             <div className="pt-0.5">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                Quick Scenario Hooks:
-              </span>
-              <div className="flex flex-nowrap overflow-x-auto gap-1.5 py-1 scrollbar-none">
+              <div className="flex flex-nowrap overflow-x-auto gap-1 py-0.5 scrollbar-none">
                 {REAL_WORLD_HOOK_SUGGESTIONS.map((hook) => (
                   <button
                     key={hook}
@@ -1071,7 +1061,7 @@ export const QuestionStudioPage: React.FC = () => {
                       setRealLifeContext(hook);
                       updateCandidateField('realLifeContext', hook);
                     }}
-                    className={`shrink-0 py-1 px-2.5 text-[11px] font-medium rounded-full border transition-all cursor-pointer ${
+                    className={`shrink-0 py-0.5 px-2 text-[10px] font-medium rounded-full border transition-all cursor-pointer ${
                       realLifeContext === hook
                         ? 'bg-indigo-600 text-white border-indigo-600 font-bold shadow-2xs'
                         : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
@@ -1084,25 +1074,25 @@ export const QuestionStudioPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Group 3 (Collapsible Contextual Disclosure): "Advanced Studio Tuning" */}
-          <div className="border border-slate-200/80 rounded-xl overflow-hidden bg-slate-50/50">
+          {/* Group 3: Advanced Studio Tuning */}
+          <div className="border border-slate-200/80 rounded-lg overflow-hidden bg-slate-50/50">
             <button
               type="button"
               onClick={() => setIsAdvancedOpen(!isAdvancedOpen)}
-              className="w-full p-2.5 flex items-center justify-between text-xs font-bold text-slate-800 bg-white hover:bg-slate-50 transition-colors cursor-pointer"
+              className="w-full p-2 flex items-center justify-between text-[11px] font-bold text-slate-800 bg-white hover:bg-slate-50 transition-colors cursor-pointer"
             >
-              <div className="flex items-center gap-2">
-                <Sliders className="w-3.5 h-3.5 text-indigo-600" />
+              <div className="flex items-center gap-1.5">
+                <Sliders className="w-3 h-3 text-indigo-600" />
                 <span>Advanced Studio Tuning</span>
               </div>
-              <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isAdvancedOpen ? 'rotate-180' : ''}`} />
+              <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform ${isAdvancedOpen ? 'rotate-180' : ''}`} />
             </button>
 
             {isAdvancedOpen && (
-              <div className="p-3 border-t border-slate-200/80 space-y-2.5 bg-white text-xs animate-in fade-in">
+              <div className="p-2.5 border-t border-slate-200/80 space-y-2 bg-white text-xs animate-in fade-in">
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-0.5">
                       Difficulty
                     </label>
                     <select
@@ -1111,7 +1101,7 @@ export const QuestionStudioPage: React.FC = () => {
                         setDifficulty(e.target.value);
                         updateCandidateField('difficulty', e.target.value);
                       }}
-                      className="w-full px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-800"
+                      className="w-full px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-800"
                     >
                       {QUESTION_CREATION_CONFIG.difficulties.map((diff) => (
                         <option key={diff.id} value={diff.id}>{diff.label}</option>
@@ -1120,7 +1110,7 @@ export const QuestionStudioPage: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-0.5">
                       Language
                     </label>
                     <select
@@ -1130,7 +1120,7 @@ export const QuestionStudioPage: React.FC = () => {
                         setLanguage(lang);
                         updateCandidateField('language', lang);
                       }}
-                      className="w-full px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-indigo-950"
+                      className="w-full px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-indigo-950"
                     >
                       {QUESTION_CREATION_CONFIG.languages.map((l) => (
                         <option key={l.id} value={l.id}>{l.nativeName} ({l.name})</option>
@@ -1141,13 +1131,13 @@ export const QuestionStudioPage: React.FC = () => {
 
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-0.5">
                       Challenge Type
                     </label>
                     <select
                       value={candidate.challengeType}
                       onChange={(e) => handleChallengeTypeChange(e.target.value)}
-                      className="w-full px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-800"
+                      className="w-full px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-800"
                     >
                       {QUESTION_CREATION_CONFIG.challengeTypes.map((type) => (
                         <option key={type.id} value={type.id}>{type.name}</option>
@@ -1156,7 +1146,7 @@ export const QuestionStudioPage: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-0.5">
                       Presentation Type
                     </label>
                     <select
@@ -1165,7 +1155,7 @@ export const QuestionStudioPage: React.FC = () => {
                         setPresentationType(e.target.value);
                         updateCandidateField('presentationType', e.target.value);
                       }}
-                      className="w-full px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-800"
+                      className="w-full px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-800"
                     >
                       {QUESTION_CREATION_CONFIG.presentationTypes.map((p) => (
                         <option key={p.id} value={p.id}>{p.name}</option>
@@ -1175,13 +1165,13 @@ export const QuestionStudioPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-0.5">
                     Question Style
                   </label>
                   <select
                     value={questionStyle}
                     onChange={(e) => handleQuestionStyleChange(e.target.value)}
-                    className="w-full px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-800"
+                    className="w-full px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-800"
                   >
                     {questionStyles.map((style) => (
                       <option key={style.id} value={style.code}>{style.displayLabel}</option>
@@ -1192,31 +1182,31 @@ export const QuestionStudioPage: React.FC = () => {
             )}
           </div>
 
-          {/* Group 4: Custom AI Guidance + Elevated Primary Button (Always above laptop fold) */}
-          <div className="space-y-2 pt-2 border-t border-slate-100">
-            <label className="text-xs font-bold text-slate-800 block">Custom AI Guidance</label>
+          {/* Group 4: Custom AI Guidance + Generate Button */}
+          <div className="space-y-2 pt-1.5 border-t border-slate-100">
+            <label className="text-[11px] font-bold text-slate-800 block">Custom AI Guidance</label>
             <textarea
               value={customInstructions}
               onChange={(e) => setCustomInstructions(e.target.value)}
               rows={2}
               placeholder="e.g., Include a trick option for calculating discount stacking on UPI payment..."
-              className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:border-indigo-500 focus:outline-hidden"
+              className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:border-indigo-500 focus:outline-hidden"
             />
 
             <button
               type="button"
               onClick={handleGenerate}
               disabled={isGenerating}
-              className="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-bold text-xs shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              className="w-full py-2 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-bold text-xs shadow-xs hover:shadow-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
             >
               {isGenerating ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
                   <span>Generating Telugu Question...</span>
                 </>
               ) : (
                 <>
-                  <Sparkles className="w-4 h-4 text-amber-300" />
+                  <Sparkles className="w-3.5 h-3.5 text-amber-300" />
                   <span>✦ Generate Telugu Question</span>
                 </>
               )}
@@ -1224,87 +1214,49 @@ export const QuestionStudioPage: React.FC = () => {
           </div>
         </div>
 
-        {/* RIGHT COLUMN: INTERACTIVE QUESTION CANVAS (60% width on lg: -> col-span-7) */}
-        <div className="lg:col-span-7 space-y-4 bg-white/95 backdrop-blur-xs border border-slate-200/80 rounded-2xl p-5 shadow-xs flex flex-col min-h-[520px]">
+        {/* RIGHT COLUMN: FOCUSED QUESTION CANVAS (col-span-7) */}
+        <div className="lg:col-span-7 space-y-3 bg-white/95 backdrop-blur-xs border border-slate-200/80 rounded-xl p-3.5 shadow-xs flex flex-col min-h-[480px]">
           {/* Canvas Header */}
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-            <div className="flex items-center gap-2 text-slate-900">
-              <FileCheck className="w-4 h-4 text-indigo-600" />
-              <h3 className="text-sm font-bold tracking-tight">Interactive Question Canvas</h3>
+          <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+            <div className="flex items-center gap-1.5 text-slate-900">
+              <FileCheck className="w-3.5 h-3.5 text-indigo-600" />
+              <h3 className="text-xs font-bold tracking-tight">Question Canvas</h3>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               {isDirty && (
-                <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full flex items-center gap-1">
+                <span className="text-[9px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.2 rounded-full flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-                  Unsaved Edits
+                  Draft
                 </span>
               )}
 
-              <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 font-mono">
+              <span className="text-[9px] font-bold uppercase px-1.5 py-0.2 rounded-full bg-slate-100 text-slate-700 font-mono">
                 {candidate.language === QuestionLanguage.TELUGU || (candidate.language as string) === 'TELUGU'
-                  ? 'తెలుగు (Telugu)'
-                  : 'English'}{' '}
-                • AI Candidate
+                  ? 'తెలుగు'
+                  : 'English'}
               </span>
             </div>
           </div>
 
           {/* EMPTY CANVAS SKELETON STATE */}
           {!hasCandidate && !candidate.questionText.trim() && !isGenerating && (
-            <div className="flex-1 flex flex-col items-center justify-center p-6 bg-slate-50/70 border border-dashed border-slate-300 rounded-2xl space-y-5 my-auto text-center relative overflow-hidden">
-              {/* Glassmorphic Animated Skeleton Preview */}
-              <div className="w-full max-w-md bg-white/80 backdrop-blur-xs rounded-xl border border-slate-200/80 p-4 space-y-3 shadow-2xs pointer-events-none opacity-85">
-                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                  <div className="h-3.5 w-28 bg-slate-200 rounded animate-pulse"></div>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-telugu">
-                    తెలుగు కాన్వాస్
-                  </span>
-                </div>
-                <div className="space-y-1.5 py-1">
-                  <div className="h-3 w-11/12 bg-slate-200 rounded animate-pulse"></div>
-                  <div className="h-3 w-3/4 bg-slate-200/80 rounded animate-pulse"></div>
-                </div>
-                <div className="grid grid-cols-2 gap-2 pt-1">
-                  <div className="h-9 rounded-lg bg-slate-100 border border-slate-200/60 p-2 flex items-center gap-2">
-                    <span className="w-4 h-4 rounded-full bg-slate-200 text-[10px] font-bold flex items-center justify-center font-telugu">ఎ</span>
-                    <div className="h-2 w-14 bg-slate-200 rounded"></div>
-                  </div>
-                  <div className="h-9 rounded-lg bg-slate-100 border border-slate-200/60 p-2 flex items-center gap-2">
-                    <span className="w-4 h-4 rounded-full bg-slate-200 text-[10px] font-bold flex items-center justify-center font-telugu">బి</span>
-                    <div className="h-2 w-16 bg-slate-200 rounded"></div>
-                  </div>
-                  <div className="h-9 rounded-lg bg-slate-100 border border-slate-200/60 p-2 flex items-center gap-2">
-                    <span className="w-4 h-4 rounded-full bg-slate-200 text-[10px] font-bold flex items-center justify-center font-telugu">సి</span>
-                    <div className="h-2 w-12 bg-slate-200 rounded"></div>
-                  </div>
-                  <div className="h-9 rounded-lg bg-slate-100 border border-slate-200/60 p-2 flex items-center gap-2">
-                    <span className="w-4 h-4 rounded-full bg-slate-200 text-[10px] font-bold flex items-center justify-center font-telugu">డి</span>
-                    <div className="h-2 w-18 bg-slate-200 rounded"></div>
-                  </div>
-                </div>
-                <div className="h-8 rounded-lg bg-indigo-50/60 border border-indigo-100/80 p-2 flex items-center justify-between">
-                  <div className="h-2 w-28 bg-indigo-200 rounded"></div>
-                  <div className="h-2 w-10 bg-indigo-200 rounded"></div>
-                </div>
-              </div>
-
-              {/* Invitation Heading */}
-              <div className="space-y-1.5 z-10 max-w-sm">
-                <h4 className="text-sm font-bold text-slate-900">Interactive Question Canvas</h4>
-                <p className="text-xs text-slate-500 leading-relaxed">
-                  Configure your Topic, Subtopic, and Scenario on the left, then click{' '}
+            <div className="flex-1 flex flex-col items-center justify-center p-6 bg-slate-50/70 border border-dashed border-slate-300 rounded-xl space-y-4 my-auto text-center relative overflow-hidden">
+              <div className="space-y-1 z-10 max-w-sm">
+                <h4 className="text-xs font-bold text-slate-900">Question Workspace Ready</h4>
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  Configure your topic on the left and click{' '}
                   <span className="font-semibold text-indigo-700">&quot;✦ Generate Telugu Question&quot;</span>.
                 </p>
               </div>
 
-              <div className="flex items-center gap-3 z-10">
+              <div className="flex items-center gap-2 z-10">
                 <button
                   type="button"
                   onClick={handleGenerate}
-                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-sm flex items-center gap-1.5 cursor-pointer"
+                  className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs flex items-center gap-1.5 cursor-pointer"
                 >
-                  <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                  <Sparkles className="w-3 h-3 text-amber-300" />
                   <span>Generate Candidate</span>
                 </button>
                 <button
@@ -1313,9 +1265,9 @@ export const QuestionStudioPage: React.FC = () => {
                     setHasCandidate(true);
                     setIsDirty(true);
                   }}
-                  className="px-3 py-2 rounded-xl bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold text-xs shadow-2xs flex items-center gap-1.5 cursor-pointer"
+                  className="px-3 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold text-xs shadow-2xs flex items-center gap-1.5 cursor-pointer"
                 >
-                  <PenTool className="w-3.5 h-3.5 text-slate-500" />
+                  <PenTool className="w-3 h-3 text-slate-500" />
                   <span>Manual Draft</span>
                 </button>
               </div>
@@ -1324,31 +1276,28 @@ export const QuestionStudioPage: React.FC = () => {
 
           {/* AI GENERATION LOADING SKELETON */}
           {isGenerating && (
-            <div className="space-y-4 animate-pulse p-4 rounded-xl border border-indigo-100 bg-indigo-50/30">
+            <div className="space-y-3 animate-pulse p-3.5 rounded-xl border border-indigo-100 bg-indigo-50/30">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Loader2 className="w-4 h-4 text-indigo-600 animate-spin" />
+                  <Loader2 className="w-3.5 h-3.5 text-indigo-600 animate-spin" />
                   <span className="text-xs font-bold text-indigo-900">
-                    Gemini AI is generating high-yield Telugu question candidate...
+                    Generating Telugu question candidate...
                   </span>
                 </div>
-                <span className="text-[10px] font-mono text-indigo-600 font-semibold bg-indigo-100/60 px-2 py-0.5 rounded-full">
-                  తెలుగు Prompting
-                </span>
               </div>
 
-              <div className="space-y-2">
-                <div className="h-3 w-36 bg-slate-200 rounded"></div>
-                <div className="h-20 bg-slate-200/80 rounded-xl"></div>
+              <div className="space-y-1.5">
+                <div className="h-2.5 w-28 bg-slate-200 rounded"></div>
+                <div className="h-16 bg-slate-200/80 rounded-lg"></div>
               </div>
 
-              <div className="space-y-2">
-                <div className="h-3 w-48 bg-slate-200 rounded"></div>
+              <div className="space-y-1.5">
+                <div className="h-2.5 w-36 bg-slate-200 rounded"></div>
                 <div className="grid grid-cols-2 gap-2">
-                  <div className="h-12 bg-slate-200/70 rounded-xl"></div>
-                  <div className="h-12 bg-slate-200/70 rounded-xl"></div>
-                  <div className="h-12 bg-slate-200/70 rounded-xl"></div>
-                  <div className="h-12 bg-slate-200/70 rounded-xl"></div>
+                  <div className="h-10 bg-slate-200/70 rounded-lg"></div>
+                  <div className="h-10 bg-slate-200/70 rounded-lg"></div>
+                  <div className="h-10 bg-slate-200/70 rounded-lg"></div>
+                  <div className="h-10 bg-slate-200/70 rounded-lg"></div>
                 </div>
               </div>
             </div>
@@ -1356,40 +1305,32 @@ export const QuestionStudioPage: React.FC = () => {
 
           {/* ACTIVE CANDIDATE WORKSPACE */}
           {(hasCandidate || candidate.questionText.trim().length > 0) && !isGenerating && (
-            <div className="space-y-4">
-              {/* AI REFINEMENT BAR */}
-              <div className="p-3 bg-indigo-50/70 border border-indigo-100 rounded-xl space-y-2">
-                <div className="flex items-center justify-between text-xs font-semibold text-indigo-900">
-                  <span className="flex items-center gap-1.5 font-bold">
-                    <Wand2 className="w-3.5 h-3.5 text-indigo-600" />
-                    AI Refinement Bar
-                  </span>
-                  {isRefining && (
-                    <span className="text-[10px] text-indigo-600 font-semibold flex items-center gap-1 animate-pulse">
-                      <Loader2 className="w-3 h-3 animate-spin" />
-                      Refining candidate...
-                    </span>
-                  )}
+            <div className="space-y-3">
+              {/* AI REFINEMENT BAR (Focused: Increase Difficulty, Simplify Telugu, Add Trap Distractor) */}
+              <div className="p-2 bg-indigo-50/70 border border-indigo-100 rounded-lg flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-900">
+                  <Wand2 className="w-3 h-3 text-indigo-600" />
+                  <span>AI Refine:</span>
                 </div>
 
-                <div className="flex items-center gap-1.5 flex-wrap">
+                <div className="flex items-center gap-1 flex-wrap">
                   <button
                     type="button"
                     disabled={isRefining}
                     onClick={() => handleRefine(AiRefinementAction.INCREASE_DIFFICULTY)}
-                    className="py-1 px-2.5 text-[11px] font-semibold rounded-lg bg-white border border-indigo-200 text-indigo-800 hover:bg-indigo-600 hover:text-white transition-colors cursor-pointer flex items-center gap-1 disabled:opacity-50"
+                    className="py-0.5 px-2 text-[10px] font-semibold rounded-md bg-white border border-indigo-200 text-indigo-800 hover:bg-indigo-600 hover:text-white transition-colors cursor-pointer flex items-center gap-1 disabled:opacity-50"
                   >
-                    <ArrowUp className="w-3 h-3 text-indigo-500" />
-                    <span>+ Increase Difficulty</span>
+                    <ArrowUp className="w-2.5 h-2.5 text-indigo-500" />
+                    <span>+ Difficulty</span>
                   </button>
 
                   <button
                     type="button"
                     disabled={isRefining}
                     onClick={() => handleRefine(AiRefinementAction.SIMPLIFY_LANGUAGE)}
-                    className="py-1 px-2.5 text-[11px] font-semibold rounded-lg bg-white border border-indigo-200 text-indigo-800 hover:bg-indigo-600 hover:text-white transition-colors cursor-pointer flex items-center gap-1 disabled:opacity-50"
+                    className="py-0.5 px-2 text-[10px] font-semibold rounded-md bg-white border border-indigo-200 text-indigo-800 hover:bg-indigo-600 hover:text-white transition-colors cursor-pointer flex items-center gap-1 disabled:opacity-50"
                   >
-                    <Languages className="w-3 h-3 text-indigo-500" />
+                    <Languages className="w-2.5 h-2.5 text-indigo-500" />
                     <span>Simplify Telugu</span>
                   </button>
 
@@ -1397,35 +1338,25 @@ export const QuestionStudioPage: React.FC = () => {
                     type="button"
                     disabled={isRefining}
                     onClick={() => handleRefine(AiRefinementAction.IMPROVE_OPTIONS)}
-                    className="py-1 px-2.5 text-[11px] font-semibold rounded-lg bg-white border border-indigo-200 text-indigo-800 hover:bg-indigo-600 hover:text-white transition-colors cursor-pointer flex items-center gap-1 disabled:opacity-50"
+                    className="py-0.5 px-2 text-[10px] font-semibold rounded-md bg-white border border-indigo-200 text-indigo-800 hover:bg-indigo-600 hover:text-white transition-colors cursor-pointer flex items-center gap-1 disabled:opacity-50"
                   >
-                    <Layers className="w-3 h-3 text-indigo-500" />
+                    <Layers className="w-2.5 h-2.5 text-indigo-500" />
                     <span>Add Trap Distractor</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    disabled={isRefining}
-                    onClick={() => handleRefine(AiRefinementAction.IMPROVE_EXPLANATION)}
-                    className="py-1 px-2.5 text-[11px] font-semibold rounded-lg bg-white border border-indigo-200 text-indigo-800 hover:bg-indigo-600 hover:text-white transition-colors cursor-pointer flex items-center gap-1 disabled:opacity-50"
-                  >
-                    <HelpCircle className="w-3 h-3 text-indigo-500" />
-                    <span>Speed Trick Focus</span>
                   </button>
                 </div>
               </div>
 
-              {/* TELUGU QUESTION PROBLEM STATEMENT */}
+              {/* QUESTION PROBLEM STATEMENT */}
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  <label className="text-[11px] font-bold text-slate-800 flex items-center gap-1">
                     <span>Question Problem Statement</span>
                     <span className="text-rose-500">*</span>
-                    <span className="text-[10px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.2 rounded font-telugu">
+                    <span className="text-[9px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1 py-0.2 rounded font-telugu">
                       తెలుగు
                     </span>
                   </label>
-                  <span className="text-[10px] font-mono text-slate-400">
+                  <span className="text-[9px] font-mono text-slate-400">
                     {candidate.questionText.length} chars
                   </span>
                 </div>
@@ -1433,45 +1364,45 @@ export const QuestionStudioPage: React.FC = () => {
                   value={candidate.questionText}
                   onChange={(e) => updateCandidateField('questionText', e.target.value)}
                   rows={3}
-                  placeholder="స్పష్టమైన లెక్క మరియు సందర్భం ఇక్కడ రాయండి..."
-                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:bg-white focus:border-indigo-500 focus:outline-hidden font-telugu leading-relaxed text-sm"
+                  placeholder="స్పష్టమైన ప్రశ్న మరియు లెక్క ఇక్కడ రాయండి..."
+                  className="w-full px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:border-indigo-500 focus:outline-hidden font-telugu leading-relaxed text-xs"
                 />
               </div>
 
-              {/* HIGH-CONTRAST 2X2 OPTION GRID */}
-              <div className="space-y-2">
+              {/* OPTIONS & CORRECT ANSWER */}
+              <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-slate-800">
+                  <label className="text-[11px] font-bold text-slate-800">
                     Options & Correct Answer <span className="text-rose-500">*</span>
                   </label>
-                  <span className="text-[10px] text-slate-500">
-                    Click option card to toggle correct answer
+                  <span className="text-[9px] text-slate-500">
+                    Select correct radio option
                   </span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  {/* Option A / ఎ */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {/* Option A */}
                   <div
                     onClick={() => updateCandidateField('correctAnswer', 'A')}
-                    className={`p-2.5 rounded-xl border transition-all cursor-pointer select-none ${
+                    className={`p-2 rounded-lg border transition-all cursor-pointer select-none ${
                       candidate.correctAnswer === 'A'
-                        ? 'bg-emerald-50/90 border-emerald-400 ring-2 ring-emerald-200/60'
+                        ? 'bg-emerald-50/90 border-emerald-400 ring-1 ring-emerald-200'
                         : 'bg-slate-50 border-slate-200 hover:border-slate-300'
                     }`}
                   >
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-1.5">
+                    <div className="flex items-center justify-between mb-0.5">
+                      <div className="flex items-center gap-1">
                         <input
                           type="radio"
                           name="correctAnswer"
                           checked={candidate.correctAnswer === 'A'}
                           onChange={() => updateCandidateField('correctAnswer', 'A')}
-                          className="w-3.5 h-3.5 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                          className="w-3 h-3 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
                         />
-                        <span className="text-xs font-bold text-slate-800">Option A / ఎ</span>
+                        <span className="text-[11px] font-bold text-slate-800">Option A / ఎ</span>
                       </div>
                       {candidate.correctAnswer === 'A' && (
-                        <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-1.5 py-0.2 rounded-full">
+                        <span className="text-[9px] font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-1 py-0.2 rounded-full">
                           Correct
                         </span>
                       )}
@@ -1482,32 +1413,32 @@ export const QuestionStudioPage: React.FC = () => {
                       onClick={(e) => e.stopPropagation()}
                       onChange={(e) => updateCandidateField('optionA', e.target.value)}
                       placeholder="Option A value"
-                      className="w-full font-telugu text-xs font-medium text-slate-900 bg-white px-2 py-1.5 rounded-lg border border-slate-200 focus:border-indigo-500 focus:outline-hidden"
+                      className="w-full font-telugu text-xs font-medium text-slate-900 bg-white px-2 py-1 rounded border border-slate-200 focus:border-indigo-500 focus:outline-hidden"
                     />
                   </div>
 
-                  {/* Option B / బి */}
+                  {/* Option B */}
                   <div
                     onClick={() => updateCandidateField('correctAnswer', 'B')}
-                    className={`p-2.5 rounded-xl border transition-all cursor-pointer select-none ${
+                    className={`p-2 rounded-lg border transition-all cursor-pointer select-none ${
                       candidate.correctAnswer === 'B'
-                        ? 'bg-emerald-50/90 border-emerald-400 ring-2 ring-emerald-200/60'
+                        ? 'bg-emerald-50/90 border-emerald-400 ring-1 ring-emerald-200'
                         : 'bg-slate-50 border-slate-200 hover:border-slate-300'
                     }`}
                   >
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-1.5">
+                    <div className="flex items-center justify-between mb-0.5">
+                      <div className="flex items-center gap-1">
                         <input
                           type="radio"
                           name="correctAnswer"
                           checked={candidate.correctAnswer === 'B'}
                           onChange={() => updateCandidateField('correctAnswer', 'B')}
-                          className="w-3.5 h-3.5 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                          className="w-3 h-3 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
                         />
-                        <span className="text-xs font-bold text-slate-800">Option B / బి</span>
+                        <span className="text-[11px] font-bold text-slate-800">Option B / బి</span>
                       </div>
                       {candidate.correctAnswer === 'B' && (
-                        <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-1.5 py-0.2 rounded-full">
+                        <span className="text-[9px] font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-1 py-0.2 rounded-full">
                           Correct
                         </span>
                       )}
@@ -1518,32 +1449,32 @@ export const QuestionStudioPage: React.FC = () => {
                       onClick={(e) => e.stopPropagation()}
                       onChange={(e) => updateCandidateField('optionB', e.target.value)}
                       placeholder="Option B value"
-                      className="w-full font-telugu text-xs font-medium text-slate-900 bg-white px-2 py-1.5 rounded-lg border border-slate-200 focus:border-indigo-500 focus:outline-hidden"
+                      className="w-full font-telugu text-xs font-medium text-slate-900 bg-white px-2 py-1 rounded border border-slate-200 focus:border-indigo-500 focus:outline-hidden"
                     />
                   </div>
 
-                  {/* Option C / సి */}
+                  {/* Option C */}
                   <div
                     onClick={() => updateCandidateField('correctAnswer', 'C')}
-                    className={`p-2.5 rounded-xl border transition-all cursor-pointer select-none ${
+                    className={`p-2 rounded-lg border transition-all cursor-pointer select-none ${
                       candidate.correctAnswer === 'C'
-                        ? 'bg-emerald-50/90 border-emerald-400 ring-2 ring-emerald-200/60'
+                        ? 'bg-emerald-50/90 border-emerald-400 ring-1 ring-emerald-200'
                         : 'bg-slate-50 border-slate-200 hover:border-slate-300'
                     }`}
                   >
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-1.5">
+                    <div className="flex items-center justify-between mb-0.5">
+                      <div className="flex items-center gap-1">
                         <input
                           type="radio"
                           name="correctAnswer"
                           checked={candidate.correctAnswer === 'C'}
                           onChange={() => updateCandidateField('correctAnswer', 'C')}
-                          className="w-3.5 h-3.5 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                          className="w-3 h-3 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
                         />
-                        <span className="text-xs font-bold text-slate-800">Option C / సి</span>
+                        <span className="text-[11px] font-bold text-slate-800">Option C / సి</span>
                       </div>
                       {candidate.correctAnswer === 'C' && (
-                        <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-1.5 py-0.2 rounded-full">
+                        <span className="text-[9px] font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-1 py-0.2 rounded-full">
                           Correct
                         </span>
                       )}
@@ -1554,32 +1485,32 @@ export const QuestionStudioPage: React.FC = () => {
                       onClick={(e) => e.stopPropagation()}
                       onChange={(e) => updateCandidateField('optionC', e.target.value)}
                       placeholder="Option C value"
-                      className="w-full font-telugu text-xs font-medium text-slate-900 bg-white px-2 py-1.5 rounded-lg border border-slate-200 focus:border-indigo-500 focus:outline-hidden"
+                      className="w-full font-telugu text-xs font-medium text-slate-900 bg-white px-2 py-1 rounded border border-slate-200 focus:border-indigo-500 focus:outline-hidden"
                     />
                   </div>
 
-                  {/* Option D / డి */}
+                  {/* Option D */}
                   <div
                     onClick={() => updateCandidateField('correctAnswer', 'D')}
-                    className={`p-2.5 rounded-xl border transition-all cursor-pointer select-none ${
+                    className={`p-2 rounded-lg border transition-all cursor-pointer select-none ${
                       candidate.correctAnswer === 'D'
-                        ? 'bg-emerald-50/90 border-emerald-400 ring-2 ring-emerald-200/60'
+                        ? 'bg-emerald-50/90 border-emerald-400 ring-1 ring-emerald-200'
                         : 'bg-slate-50 border-slate-200 hover:border-slate-300'
                     }`}
                   >
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-1.5">
+                    <div className="flex items-center justify-between mb-0.5">
+                      <div className="flex items-center gap-1">
                         <input
                           type="radio"
                           name="correctAnswer"
                           checked={candidate.correctAnswer === 'D'}
                           onChange={() => updateCandidateField('correctAnswer', 'D')}
-                          className="w-3.5 h-3.5 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                          className="w-3 h-3 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
                         />
-                        <span className="text-xs font-bold text-slate-800">Option D / డి</span>
+                        <span className="text-[11px] font-bold text-slate-800">Option D / డి</span>
                       </div>
                       {candidate.correctAnswer === 'D' && (
-                        <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-1.5 py-0.2 rounded-full">
+                        <span className="text-[9px] font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-1 py-0.2 rounded-full">
                           Correct
                         </span>
                       )}
@@ -1590,47 +1521,24 @@ export const QuestionStudioPage: React.FC = () => {
                       onClick={(e) => e.stopPropagation()}
                       onChange={(e) => updateCandidateField('optionD', e.target.value)}
                       placeholder="Option D value"
-                      className="w-full font-telugu text-xs font-medium text-slate-900 bg-white px-2 py-1.5 rounded-lg border border-slate-200 focus:border-indigo-500 focus:outline-hidden"
+                      className="w-full font-telugu text-xs font-medium text-slate-900 bg-white px-2 py-1 rounded border border-slate-200 focus:border-indigo-500 focus:outline-hidden"
                     />
                   </div>
                 </div>
-              </div>
-
-              {/* BURRA SPEED TRICK & STEP-BY-STEP SOLUTION */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                    <span>Burra Speed Trick & Math Proof</span>
-                    <span className="text-rose-500">*</span>
-                    <span className="text-[10px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.2 rounded font-telugu">
-                      తెలుగు
-                    </span>
-                  </label>
-                  <span className="text-[10px] font-mono text-slate-400">
-                    {candidate.explanation.length} chars
-                  </span>
-                </div>
-                <textarea
-                  value={candidate.explanation}
-                  onChange={(e) => updateCandidateField('explanation', e.target.value)}
-                  rows={3}
-                  placeholder="సాధన విధానం మరియు బుర్ర పరీక్ష స్పీడ్ ట్రిక్ ఇక్కడ రాయండి..."
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:bg-white focus:border-indigo-500 focus:outline-hidden font-telugu leading-relaxed text-xs"
-                />
               </div>
             </div>
           )}
 
           {/* DUPLICATE MATCHES BOX */}
           {duplicateMatches.length > 0 && (
-            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-1 animate-in fade-in">
+            <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-lg space-y-0.5 animate-in fade-in">
               <div className="flex items-center gap-1.5 text-amber-900 font-bold text-xs">
-                <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                <span>Potential Duplicate Question Detected ({duplicateMatches.length} match)</span>
+                <AlertTriangle className="w-3 h-3 text-amber-600 shrink-0" />
+                <span>Potential Duplicate ({duplicateMatches.length} match)</span>
               </div>
               {duplicateMatches.slice(0, 2).map((match: any, idx: number) => (
-                <p key={idx} className="text-[11px] text-amber-800 pl-5">
-                  • Match <span className="font-mono font-semibold">{match.questionId}</span> ({Math.round((match.similarity || 0) * 100)}% similarity): &quot;
+                <p key={idx} className="text-[10px] text-amber-800 pl-4">
+                  • Match <span className="font-mono font-semibold">{match.questionId}</span> ({Math.round((match.similarity || 0) * 100)}%): &quot;
                   {match.questionText || match.content}&quot;
                 </p>
               ))}
@@ -1639,15 +1547,15 @@ export const QuestionStudioPage: React.FC = () => {
 
           {/* UNIFIED VALIDATION STRIP */}
           {(hasCandidate || candidate.questionText.trim().length > 0) && !isGenerating && (
-            <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl space-y-1.5">
-              <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <ShieldCheck className="w-4 h-4 text-indigo-600 shrink-0" />
-                  <span className="font-bold text-slate-900">Validation:</span>
+            <div className="p-2.5 bg-slate-50 border border-slate-200/80 rounded-lg space-y-1">
+              <div className="flex flex-wrap items-center justify-between gap-1.5 text-xs">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <ShieldCheck className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                  <span className="font-bold text-slate-900 text-[11px]">Validation:</span>
 
                   {clientReport && (
                     <span
-                      className={`font-bold text-[10px] px-2 py-0.5 rounded-full ${
+                      className={`font-bold text-[9px] px-1.5 py-0.2 rounded-full ${
                         clientReport.isValid
                           ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                           : 'bg-rose-100 text-rose-800 border border-rose-200'
@@ -1659,7 +1567,7 @@ export const QuestionStudioPage: React.FC = () => {
 
                   {clientReport?.mathematicalVerification && (
                     <span
-                      className={`font-bold text-[10px] px-2 py-0.5 rounded-full ${
+                      className={`font-bold text-[9px] px-1.5 py-0.2 rounded-full ${
                         clientReport.mathematicalVerification.status === 'VERIFIED'
                           ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
                           : clientReport.mathematicalVerification.status === 'FAILED'
@@ -1667,13 +1575,13 @@ export const QuestionStudioPage: React.FC = () => {
                           : 'bg-amber-100 text-amber-900 border border-amber-300'
                       }`}
                     >
-                      Math: {clientReport.mathematicalVerification.status === 'UNVERIFIED' ? 'NEEDS VERIFICATION' : clientReport.mathematicalVerification.status}
+                      Math: {clientReport.mathematicalVerification.status === 'UNVERIFIED' ? 'UNVERIFIED (Draft)' : clientReport.mathematicalVerification.status}
                     </span>
                   )}
 
                   {serverValidationResult && !isValidationStale ? (
                     <span
-                      className={`font-bold text-[10px] px-2 py-0.5 rounded-full ${
+                      className={`font-bold text-[9px] px-1.5 py-0.2 rounded-full ${
                         serverValidationResult.status === QuestionValidationStatus.VALID
                           ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
                           : serverValidationResult.status === QuestionValidationStatus.NEEDS_REVIEW
@@ -1683,14 +1591,14 @@ export const QuestionStudioPage: React.FC = () => {
                     >
                       Server: {
                         serverValidationResult.status === QuestionValidationStatus.VALID
-                          ? 'DRAFT CHECKS PASSED'
+                          ? 'VALID'
                           : serverValidationResult.status === QuestionValidationStatus.NEEDS_REVIEW
-                          ? 'VERIFICATION REQUIRED'
-                          : 'INVALID (REJECTED)'
+                          ? 'NEEDS REVIEW (Step 02)'
+                          : 'INVALID'
                       }
                     </span>
                   ) : (
-                    <span className="text-[10px] text-slate-500 font-medium">Pending Server Verification</span>
+                    <span className="text-[9px] text-slate-500 font-medium">Pending Server Check</span>
                   )}
                 </div>
 
@@ -1700,26 +1608,26 @@ export const QuestionStudioPage: React.FC = () => {
                   onClick={handleServerValidate}
                   isLoading={isValidatingServer}
                   icon={FileCheck}
-                  className="bg-white border-indigo-200 text-indigo-900 hover:bg-indigo-50 text-[11px] py-0.5 px-2.5 h-7"
+                  className="bg-white border-indigo-200 text-indigo-900 hover:bg-indigo-50 text-[10px] py-0.5 px-2 h-6"
                 >
                   Run Validation
                 </Button>
               </div>
 
-              {/* Show errors when attempted save or math/server failed */}
+              {/* Show errors if present */}
               {((hasAttemptedSave && clientReport && clientReport.errors.length > 0) ||
                 (serverValidationResult && serverValidationResult.status === QuestionValidationStatus.INVALID)) && (
-                <div className="pt-1 text-[11px] text-rose-800 font-medium space-y-0.5 border-t border-rose-100/80 mt-1">
+                <div className="pt-1 text-[10px] text-rose-800 font-medium space-y-0.5 border-t border-rose-100/80 mt-1">
                   {clientReport && clientReport.errors.length > 0 && clientReport.errors.map((err, idx) => (
-                    <p key={`client-${idx}`} className="flex items-center gap-1.5">
-                      <AlertCircle className="w-3 h-3 text-rose-600 shrink-0" />
+                    <p key={`client-${idx}`} className="flex items-center gap-1">
+                      <AlertCircle className="w-2.5 h-2.5 text-rose-600 shrink-0" />
                       <span>{err}</span>
                     </p>
                   ))}
                   {serverValidationResult && serverValidationResult.status === QuestionValidationStatus.INVALID && serverValidationResult.errors.map((err, idx) => (
-                    <p key={`server-${idx}`} className="flex items-center gap-1.5">
-                      <AlertCircle className="w-3 h-3 text-rose-600 shrink-0" />
-                      <span>Server Validation Error: {err}</span>
+                    <p key={`server-${idx}`} className="flex items-center gap-1">
+                      <AlertCircle className="w-2.5 h-2.5 text-rose-600 shrink-0" />
+                      <span>Server Validation: {err}</span>
                     </p>
                   ))}
                 </div>
@@ -1728,23 +1636,21 @@ export const QuestionStudioPage: React.FC = () => {
           )}
 
           {/* CANVAS FOOTER ACTION BAR */}
-          <div className="mt-auto pt-4 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleResetStudio}
-                icon={RotateCcw}
-                className="text-xs bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
-              >
-                Clear / Discard Draft
-              </Button>
-            </div>
+          <div className="mt-auto pt-3 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleResetStudio}
+              icon={RotateCcw}
+              className="text-xs bg-white text-slate-700 border-slate-200 hover:bg-slate-50 h-8"
+            >
+              Clear / Discard Draft
+            </Button>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               {hasAttemptedSave && saveGateReason && (
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-amber-800 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200 max-w-xs">
-                  <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-800 bg-amber-50 px-2 py-1 rounded border border-amber-200 max-w-xs">
+                  <AlertTriangle className="w-3 h-3 text-amber-600 shrink-0" />
                   <span>{saveGateReason}</span>
                 </span>
               )}
@@ -1756,7 +1662,7 @@ export const QuestionStudioPage: React.FC = () => {
                 isLoading={isSaving}
                 disabled={Boolean(hasAttemptedSave && saveGateReason)}
                 icon={ArrowRight}
-                className="bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-bold shadow-md cursor-pointer px-5 text-xs py-2.5 rounded-xl"
+                className="bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-bold shadow-xs cursor-pointer px-4 text-xs py-2 rounded-lg h-8"
               >
                 Continue to Step 02: Verification →
               </Button>
