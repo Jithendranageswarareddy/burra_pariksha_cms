@@ -15,7 +15,9 @@ import { MathematicalLogicalResult } from '../../types';
 export interface SolverSolution {
   problemType: string;
   expectedValue: number | string;
+  alternateValue?: number;
   expectedUnit?: string;
+  expectedDirection?: 'DECREASE' | 'INCREASE' | 'NEUTRAL';
   details: string;
   calculationSteps: string[];
 }
@@ -35,9 +37,39 @@ function extractOptionNumbers(text: string): number[] {
   return matches.map((m) => parseFloat(m)).filter((n) => !isNaN(n));
 }
 
-function optionMatchesValue(optionText: string, expectedVal: number | string, tolerance = 1e-2): boolean {
+function getDirection(text: string): 'DECREASE' | 'INCREASE' | 'NEUTRAL' {
+  if (!text) return 'NEUTRAL';
+  const lower = text.toLowerCase();
+  const isDec = /decrease|decreased|decreasing|loss|drop|reduction|less|lower|down|fall|తగ్గింది|తగ్గుదల|తగ్గే|తగ్గించారు|తగ్గించి|నష్టం|తక్కువ|క్షీణించింది/i.test(lower);
+  const isInc = /increase|increased|increasing|gain|profit|rise|more|higher|up|grow|పెరిగింది|పెరుగుదల|పెరిగే|పెంచారు|పెంచి|లాభం|అధికం|ఎక్కువ|వృద్ధి/i.test(lower);
+  if (isDec && !isInc) return 'DECREASE';
+  if (isInc && !isDec) return 'INCREASE';
+  return 'NEUTRAL';
+}
+
+function optionMatchesValue(
+  optionText: string,
+  expectedVal: number | string,
+  alternateVal?: number,
+  expectedDirection: 'DECREASE' | 'INCREASE' | 'NEUTRAL' = 'NEUTRAL',
+  tolerance = 1e-2
+): boolean {
   if (typeof expectedVal === 'string') {
     return optionText.trim().toLowerCase() === expectedVal.trim().toLowerCase();
+  }
+
+  // Directional guard: reject option if it asserts the opposite direction
+  if (expectedDirection !== 'NEUTRAL') {
+    const optDir = getDirection(optionText);
+    if (optDir !== 'NEUTRAL' && optDir !== expectedDirection) {
+      return false;
+    }
+  }
+
+  if (expectedVal === 0) {
+    if (/no\s*change|ఎలాంటి\s*మార్పు\s*లేదు|మార్పు\s*లేదు|zero|శూన్యం/i.test(optionText)) {
+      return true;
+    }
   }
 
   const nums = extractOptionNumbers(optionText);
@@ -47,6 +79,14 @@ function optionMatchesValue(optionText: string, expectedVal: number | string, to
       (expectedVal !== 0 && Math.abs((n - expectedVal) / expectedVal) <= 0.005)
     ) {
       return true;
+    }
+    if (alternateVal !== undefined && alternateVal !== null) {
+      if (
+        Math.abs(n - alternateVal) <= tolerance ||
+        (alternateVal !== 0 && Math.abs((n - alternateVal) / alternateVal) <= 0.005)
+      ) {
+        return true;
+      }
     }
   }
   return false;
@@ -98,6 +138,7 @@ export class MathematicalLogicalEngine {
 
       // Percentages, Profit, Loss, Discount & Interest
       MathematicalLogicalEngine.solvePercentageOfValue,
+      MathematicalLogicalEngine.solveSuccessivePercentageChangeProblem,
       MathematicalLogicalEngine.solvePercentageChangeProblem,
       MathematicalLogicalEngine.solveProfitAndLossProblem,
       MathematicalLogicalEngine.solveSuccessiveDiscountsProblem,
@@ -149,10 +190,10 @@ export class MathematicalLogicalEngine {
     availableKeys: string[],
     declaredAnswer: string
   ): MathematicalLogicalResult {
-    const { problemType, expectedValue, expectedUnit, details, calculationSteps } = solution;
+    const { problemType, expectedValue, alternateValue, expectedUnit, expectedDirection = 'NEUTRAL', details, calculationSteps } = solution;
 
     const matchedKeys = availableKeys.filter((k) =>
-      optionMatchesValue(optionsMap[k], expectedValue)
+      optionMatchesValue(optionsMap[k], expectedValue, alternateValue, expectedDirection)
     );
 
     // Case 1: No option matches calculated value
@@ -489,6 +530,120 @@ export class MathematicalLogicalEngine {
       }
     }
     return null;
+  }
+
+  // =========================================================================
+  // 7b. Successive Percentage Change / Price Variation
+  // =========================================================================
+  public static solveSuccessivePercentageChangeProblem(content: string): SolverSolution | null {
+    if (!content) return null;
+
+    const hasChangeKeywords = /పెంచ|తగ్గి|increase|decrease|markup|discount|రాయితీ/i.test(content);
+    if (!hasChangeKeywords) return null;
+
+    const pctRegex = /(\d+(?:\.\d+)?)\s*%/g;
+    const matches = [...content.matchAll(pctRegex)];
+    if (matches.length < 2) return null;
+
+    const ops: { rate: number; type: 'INCREASE' | 'DECREASE' }[] = [];
+    for (const match of matches) {
+      const rate = parseFloat(match[1]);
+      const idx = match.index ?? 0;
+      const before = content.slice(Math.max(0, idx - 40), idx).trim();
+      const after = content.slice(idx + match[0].length, Math.min(content.length, idx + match[0].length + 40)).trim();
+
+      const incPre = /(?:increase|increased|increasing|markup|rise|పెంచిన|పెరిగిన)\s*(?:by\s*)?$/i.test(before);
+      const decPre = /(?:decrease|decreased|decreasing|discount|reduction|drop|తగ్గించిన|తగ్గిన)\s*(?:by\s*)?$/i.test(before);
+
+      const incPost = /^(?:పెంచారు|పెంచి|పెరుగుదల|పెరిగిన|increase|increased|increasing|markup|more)/i.test(after);
+      const decPost = /^(?:తగ్గించారు|తగ్గించి|తగ్గుదల|తగ్గింపు|రాయితీ|decrease|decreased|decreasing|reduction|discount|less)/i.test(after);
+
+      let type: 'INCREASE' | 'DECREASE' | null = null;
+      if (incPre || incPost) type = 'INCREASE';
+      if (decPre || decPost) type = 'DECREASE';
+
+      if (!type) {
+        if (/పెంచ|increase/i.test(before)) type = 'INCREASE';
+        else if (/తగ్గి|decrease|discount/i.test(before)) type = 'DECREASE';
+        else if (/పెంచ|increase/i.test(after)) type = 'INCREASE';
+        else if (/తగ్గి|decrease|discount/i.test(after)) type = 'DECREASE';
+      }
+
+      if (type) {
+        ops.push({ rate, type });
+      }
+    }
+
+    if (ops.length < 2) return null;
+
+    const baseMatch = content.match(/(?:అసలు\s*(?:ధర|వెల)?|కొన్న\s*వెల|ప్రకటన\s*(?:ధర|వెల)|ధర|మొత్తం|original\s+price|cost\s+price|marked\s+price|initial\s+price|price\s+of)\s*[:=]?\s*[₹Rs\.రూ\s]*\s*(\d+(?:,\d+)*(?:\.\d+)?)/i) ||
+                      content.match(/[₹Rs\.రూ]\s*(\d+(?:,\d+)*(?:\.\d+)?)/i);
+    const basePrice = baseMatch ? cleanNumber(baseMatch[1]) : null;
+
+    let multiplier = 1.0;
+    const steps: string[] = [];
+    if (basePrice) steps.push(`Base Price = ₹${basePrice}`);
+
+    ops.forEach((op, i) => {
+      const factor = op.type === 'INCREASE' ? (1 + op.rate / 100) : (1 - op.rate / 100);
+      multiplier *= factor;
+      steps.push(`Step ${i + 1}: ${op.type} of ${op.rate}% -> Factor = ${factor.toFixed(2)}`);
+    });
+
+    const netPctChange = Math.round((multiplier - 1) * 10000) / 100;
+    const isOverallDecrease = netPctChange < 0;
+    const isOverallIncrease = netPctChange > 0;
+    const netDirection: 'DECREASE' | 'INCREASE' | 'NEUTRAL' = isOverallDecrease ? 'DECREASE' : (isOverallIncrease ? 'INCREASE' : 'NEUTRAL');
+
+    const asksChange = /(?:ఎంత.*మార|మార్పు\s*ఎంత|ఎంత\s*తగ్గి|ఎంత\s*పెరి|how\s*much.*change|what.*change|net\s*change|overall\s*change|price\s*change|difference|వ్యత్యాసం|శాతం\s*మార్పు|మారిన\s*శాతం)/i.test(content);
+    const asksPercentageChange = asksChange && /(?:శాతం|percent|percentage)/i.test(content);
+
+    if (asksChange && basePrice) {
+      const finalPrice = Math.round(basePrice * multiplier * 100) / 100;
+      const absDiff = Math.round(Math.abs(finalPrice - basePrice) * 100) / 100;
+      const absPct = Math.abs(netPctChange);
+
+      steps.push(`Final Price = ${basePrice} * ${multiplier.toFixed(4)} = ₹${finalPrice}`);
+      steps.push(`Absolute Change = |${finalPrice} - ${basePrice}| = ₹${absDiff} (${absPct}% ${netDirection.toLowerCase()})`);
+
+      const primaryVal = asksPercentageChange ? absPct : absDiff;
+      const secondaryVal = asksPercentageChange ? absDiff : absPct;
+      const primaryUnit = asksPercentageChange ? '%' : '₹';
+
+      return {
+        problemType: 'Successive Percentage Change (Price Variation)',
+        expectedValue: primaryVal,
+        alternateValue: secondaryVal,
+        expectedUnit: primaryUnit,
+        expectedDirection: netDirection,
+        details: `Successive percentage change on base ₹${basePrice}: Net change is ₹${absDiff} (${absPct}% ${netDirection === 'DECREASE' ? 'decrease / తగ్గింది' : 'increase / పెరిగింది'}).`,
+        calculationSteps: steps,
+      };
+    } else if (basePrice && !asksChange) {
+      const finalPrice = Math.round(basePrice * multiplier * 100) / 100;
+      steps.push(`Final Price = ${basePrice} * ${multiplier.toFixed(4)} = ₹${finalPrice}`);
+
+      return {
+        problemType: 'Successive Percentage Change (Final Price)',
+        expectedValue: finalPrice,
+        expectedUnit: '₹',
+        expectedDirection: 'NEUTRAL',
+        details: `Final price after successive changes is ₹${finalPrice}.`,
+        calculationSteps: steps,
+      };
+    } else {
+      const absPct = Math.abs(netPctChange);
+      steps.push(`Net Percentage Change = ${netPctChange}% (${absPct}% ${netDirection.toLowerCase()})`);
+
+      return {
+        problemType: 'Successive Percentage Change (Net Percentage)',
+        expectedValue: absPct,
+        expectedUnit: '%',
+        expectedDirection: netDirection,
+        details: `Net percentage change is ${absPct}% (${netDirection === 'DECREASE' ? 'decrease / తగ్గింది' : 'increase / పెరిగింది'}).`,
+        calculationSteps: steps,
+      };
+    }
   }
 
   // =========================================================================

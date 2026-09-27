@@ -18,6 +18,11 @@ import { DEFAULT_AI_CONFIG } from '../config';
 import { classifyAIError } from '../error';
 import { MathVerificationResult } from './mathematical.validator';
 
+export interface EquivalentRepresentation {
+  value: number | string;
+  unit: string;
+}
+
 export interface BlindVerificationRequest {
   problemText: string;
   language?: QuestionLanguage | string;
@@ -30,6 +35,7 @@ export interface BlindVerificationDerivedResult {
   isNumerical: boolean;
   expectedValue?: number | string;
   expectedUnit?: string;
+  equivalentRepresentations?: EquivalentRepresentation[];
   confidence: number;
   briefDerivation?: string;
   unverifiedReason?: string;
@@ -50,8 +56,9 @@ CRITICAL MANDATES:
 4. If the problem is quantitative/numerical:
    - Compute the exact mathematical solution step-by-step.
    - Pay strict attention to multi-segment journeys, combined rates, percentages, simple/compound interest, ratios, and unit conversions (km/h <-> m/s, minutes <-> hours).
-   - Format expectedValue as the exact decimal or integer string (e.g. "52.5" or "30" or "120").
+   - Format expectedValue as the exact decimal or integer string (e.g. "52.5" or "30" or "120" or "40").
    - Format expectedUnit as standard unit if applicable (e.g. "km/h", "seconds", "%", "₹", "days", "meters").
+   - EQUIVALENT REPRESENTATIONS: When a problem involves a base amount/principal and percentage change, profit/loss, markup, or discount, the answer can legitimately be expressed either in absolute terms (e.g. "₹40") or relative percentage terms (e.g. "4%"). In such mathematically justified cases, populate equivalentRepresentations with the alternate representation(s) (e.g., if expectedValue="40" and expectedUnit="₹", add [{ "value": "4", "unit": "%" }]). Do NOT invent equivalent values if there is no well-defined base quantity in the problem.
    - Set isNumerical=true, solvable=true, and provide an honest confidence score (0.0 to 1.0).
 5. If the problem lacks critical numbers, contains contradictory premises, or is physically impossible, set solvable=false, confidence=0.0, and specify unverifiedReason.
 6. Return ONLY valid JSON matching the requested schema.`;
@@ -74,6 +81,18 @@ export const GenAiBlindSolverResponseSchema = {
     expectedUnit: {
       type: 'STRING',
       description: 'Unit of the calculated value (e.g. km/h, seconds, %, rupees, days).',
+    },
+    equivalentRepresentations: {
+      type: 'ARRAY',
+      description: 'Optional mathematically equivalent representations (e.g., relative percentage vs absolute currency, or alternate valid units).',
+      items: {
+        type: 'OBJECT',
+        properties: {
+          value: { type: 'STRING', description: 'Equivalent calculated numeric or symbolic value.' },
+          unit: { type: 'STRING', description: 'Unit of the equivalent value (e.g., %, ₹, sec, min).' },
+        },
+        required: ['value', 'unit'],
+      },
     },
     confidence: {
       type: 'NUMBER',
@@ -140,27 +159,119 @@ function extractOptionNumbers(text: string): number[] {
 }
 
 /**
- * Checks if option contains the expected numeric value within tolerance.
+ * Clean numeric string into a float.
  */
-function optionMatchesValue(optionText: string, expectedVal: number, expectedUnit?: string, tolerance = 1e-2): boolean {
+export function cleanNumber(str: string): number | null {
+  if (!str) return null;
+  const timeMins = parseTimeStringToMinutes(str);
+  if (timeMins !== null) return timeMins;
+  const cleaned = str.replace(/,/g, '').trim();
+  const num = parseFloat(cleaned);
+  return isNaN(num) ? null : num;
+}
+
+/**
+ * Detects directional polarity (increase vs decrease / profit vs loss) from text.
+ */
+export function getDirection(text: string): 'DECREASE' | 'INCREASE' | 'NEUTRAL' {
+  if (!text) return 'NEUTRAL';
+  const lower = text.toLowerCase();
+  const isDec = /decrease|decreased|decreasing|loss|drop|reduction|less|lower|down|fall|తగ్గింది|తగ్గుదల|తగ్గే|తగ్గించారు|తగ్గించి|నష్టం|తక్కువ|క్షీణించింది/i.test(lower);
+  const isInc = /increase|increased|increasing|gain|profit|rise|more|higher|up|grow|పెరిగింది|పెరుగుదల|పెరిగే|పెంచారు|పెంచి|లాభం|అధికం|ఎక్కువ|వృద్ధి/i.test(lower);
+  if (isDec && !isInc) return 'DECREASE';
+  if (isInc && !isDec) return 'INCREASE';
+  return 'NEUTRAL';
+}
+
+/**
+ * Extracts defensible base amounts (e.g. principal, original price, cost price) from problem text.
+ */
+export function extractBaseAmounts(text: string): number[] {
+  if (!text) return [];
+  const baseAmounts: number[] = [];
+
+  const addAmount = (numStr: string) => {
+    const val = cleanNumber(numStr);
+    if (val !== null && val > 0 && !baseAmounts.includes(val)) {
+      baseAmounts.push(val);
+    }
+  };
+
+  // 1. Currency prefix: ₹1000, Rs. 1000, Rs 1000, రూ. 1000, రూ 1000, INR 1000
+  const currencyPrefixRegex = /(?:₹|Rs\.?|రూ\.?|INR)\s*(\d+(?:,\d+)*(?:\.\d+)?)/gi;
+  let m: RegExpExecArray | null;
+  while ((m = currencyPrefixRegex.exec(text)) !== null) {
+    addAmount(m[1]);
+  }
+
+  // 2. Currency suffix: 1000 రూపాయలు, 1000 rupees
+  const currencySuffixRegex = /(\d+(?:,\d+)*(?:\.\d+)?)\s*(?:రూపాయలు|rupees|rs)\b/gi;
+  while ((m = currencySuffixRegex.exec(text)) !== null) {
+    addAmount(m[1]);
+  }
+
+  // 3. Explicit keywords: అసలు ధర, కొన్న వెల, ప్రకటన వెల, మొదట, original price, cost price, marked price, initial price, principal
+  const baseKeywordRegex = /(?:అసలు\s*(?:ధర|వెల)?|కొన్న\s*వెల|ప్రకటన\s*(?:ధర|వెల)|ధర|మొత్తం|original\s+price|cost\s+price|marked\s+price|initial\s+price|principal|sum\s+of)\s*[:=]?\s*[₹Rs\.రూ\s]*\s*(\d+(?:,\d+)*(?:\.\d+)?)/gi;
+  while ((m = baseKeywordRegex.exec(text)) !== null) {
+    addAmount(m[1]);
+  }
+
+  return baseAmounts;
+}
+
+/**
+ * Checks if option contains the expected numeric value within tolerance,
+ * supporting unit conversions and percentage <-> absolute amount equivalence
+ * based on a defensible base quantity in the problem statement.
+ */
+export function optionMatchesValue(
+  optionText: string,
+  expectedVal: number,
+  expectedUnit?: string,
+  baseAmounts: number[] = [],
+  tolerance = 1e-2,
+  expectedDirection: 'DECREASE' | 'INCREASE' | 'NEUTRAL' = 'NEUTRAL'
+): boolean {
+  if (!optionText) return false;
+
+  // 1. Directional Polarity Guard:
+  // If an expected direction is established (DECREASE vs INCREASE),
+  // reject options that explicitly assert the opposite direction.
+  if (expectedDirection !== 'NEUTRAL') {
+    const optDir = getDirection(optionText);
+    if (optDir !== 'NEUTRAL' && optDir !== expectedDirection) {
+      return false;
+    }
+  }
+
+  const absExpectedVal = Math.abs(expectedVal);
+
+  // 2. Time string matching (e.g. 10:30)
   const optionTimeMins = parseTimeStringToMinutes(optionText);
   if (optionTimeMins !== null && Math.abs(optionTimeMins - expectedVal) <= tolerance) {
     return true;
   }
 
+  // 3. Number extraction and comparisons
   const nums = extractOptionNumbers(optionText);
+  const optLower = optionText.toLowerCase();
+
   for (const n of nums) {
+    const absN = Math.abs(n);
+
+    // Direct match (signed or unsigned magnitude)
     if (
       Math.abs(n - expectedVal) <= tolerance ||
-      (expectedVal !== 0 && Math.abs((n - expectedVal) / expectedVal) <= 0.005)
+      Math.abs(absN - absExpectedVal) <= tolerance ||
+      (expectedVal !== 0 && Math.abs((n - expectedVal) / expectedVal) <= 0.005) ||
+      (absExpectedVal !== 0 && Math.abs((absN - absExpectedVal) / absExpectedVal) <= 0.005)
     ) {
       return true;
     }
 
-    // Unit conversions support (seconds <-> minutes, minutes <-> hours, meters <-> km, m/s <-> km/h)
+    // Standard unit conversions support (seconds <-> minutes, minutes <-> hours, meters <-> km, m/s <-> km/h)
     if (expectedUnit) {
       const u = expectedUnit.toLowerCase();
-      const optLower = optionText.toLowerCase();
 
       // Seconds <-> Minutes (e.g. 360 seconds <-> 6 minutes)
       if (u.includes('second') || u === 's' || u === 'sec' || u === 'secs') {
@@ -187,20 +298,43 @@ function optionMatchesValue(optionText: string, expectedVal: number, expectedUni
         }
       }
     }
+
+    // Percentage <-> Absolute Amount Equivalence using Base Amount(s)
+    if (baseAmounts && baseAmounts.length > 0) {
+      const u = (expectedUnit || '').toLowerCase();
+      const isExpectedPercent = u.includes('%') || u.includes('percent') || u.includes('శాతం');
+      const isOptionPercent = optLower.includes('%') || optLower.includes('percent') || optLower.includes('శాతం');
+
+      for (const base of baseAmounts) {
+        if (base <= 0) continue;
+
+        // Case A: Expected is Percentage (e.g., 4%), Option is Absolute Amount (e.g., ₹40)
+        // Absolute = (expectedVal / 100) * base = (4 / 100) * 1000 = 40
+        if (isExpectedPercent && !isOptionPercent) {
+          const absEquiv = (absExpectedVal / 100) * base;
+          if (
+            Math.abs(absN - absEquiv) <= tolerance ||
+            (absEquiv !== 0 && Math.abs((absN - absEquiv) / absEquiv) <= 0.005)
+          ) {
+            return true;
+          }
+        }
+
+        // Case B: Expected is Absolute Amount (e.g., ₹40), Option is Percentage (e.g., 4%)
+        // Percentage = (expectedVal / base) * 100 = (40 / 1000) * 100 = 4%
+        if (!isExpectedPercent && isOptionPercent) {
+          const pctEquiv = (absExpectedVal / base) * 100;
+          if (
+            Math.abs(absN - pctEquiv) <= tolerance ||
+            (pctEquiv !== 0 && Math.abs((absN - pctEquiv) / pctEquiv) <= 0.005)
+          ) {
+            return true;
+          }
+        }
+      }
+    }
   }
   return false;
-}
-
-/**
- * Clean numeric string into a float.
- */
-function cleanNumber(str: string): number | null {
-  if (!str) return null;
-  const timeMins = parseTimeStringToMinutes(str);
-  if (timeMins !== null) return timeMins;
-  const cleaned = str.replace(/,/g, '').trim();
-  const num = parseFloat(cleaned);
-  return isNaN(num) ? null : num;
 }
 
 /**
@@ -235,6 +369,36 @@ export function evaluateBlindDerivedResult(
   const expectedVal = cleanNumber(String(derived.expectedValue));
   const expectedUnit = derived.expectedUnit || '';
   const details = derived.briefDerivation || `Independently derived: ${derived.expectedValue} ${expectedUnit}`.trim();
+
+  // Extract defensible base amounts from problem text and derivation
+  const combinedContextText = `${candidate.content || ''} ${derived.briefDerivation || ''}`.trim();
+  const baseAmounts = extractBaseAmounts(combinedContextText);
+
+  // Determine directional polarity of the derived solution
+  let expectedDirection: 'DECREASE' | 'INCREASE' | 'NEUTRAL' = 'NEUTRAL';
+  if (expectedVal !== null && expectedVal < 0) {
+    expectedDirection = 'DECREASE';
+  } else if (derived.briefDerivation) {
+    const parts = derived.briefDerivation.split(/[.;\n]/).map((s) => s.trim()).filter(Boolean);
+    const lastPart = parts.length > 0 ? parts[parts.length - 1] : '';
+    const lastDir = getDirection(lastPart);
+    if (lastDir !== 'NEUTRAL') {
+      expectedDirection = lastDir;
+    } else {
+      expectedDirection = getDirection(derived.briefDerivation);
+    }
+  }
+
+  // Pre-parse equivalent representations if provided by blind solver
+  const equivValues: { value: number; unit?: string }[] = [];
+  if (Array.isArray(derived.equivalentRepresentations)) {
+    for (const eq of derived.equivalentRepresentations) {
+      const v = cleanNumber(String(eq.value));
+      if (v !== null) {
+        equivValues.push({ value: v, unit: eq.unit });
+      }
+    }
+  }
 
   // If numerical value could not be parsed as float, fallback to string matching
   if (expectedVal === null) {
@@ -310,8 +474,18 @@ export function evaluateBlindDerivedResult(
 
   const matchedOptions: ('A' | 'B' | 'C' | 'D')[] = [];
   (['A', 'B', 'C', 'D'] as const).forEach((optKey) => {
-    if (optionMatchesValue(optionsMap[optKey], expectedVal, expectedUnit)) {
+    const optText = optionsMap[optKey];
+    // 1. Primary check on expectedVal
+    if (optionMatchesValue(optText, expectedVal, expectedUnit, baseAmounts, 1e-2, expectedDirection)) {
       matchedOptions.push(optKey);
+    } else {
+      // 2. Check any equivalent representations provided by blind solver
+      for (const eq of equivValues) {
+        if (optionMatchesValue(optText, eq.value, eq.unit, baseAmounts, 1e-2, expectedDirection)) {
+          matchedOptions.push(optKey);
+          break;
+        }
+      }
     }
   });
 

@@ -397,6 +397,7 @@ export class MultiLayerVerificationEngine {
           const blindResult = evaluateBlindDerivedResult(
             derived,
             {
+              content: questionText,
               option_a: opts.a || '',
               option_b: opts.b || '',
               option_c: opts.c || '',

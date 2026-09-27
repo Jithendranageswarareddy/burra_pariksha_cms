@@ -34,6 +34,11 @@ YOUR CORE PEDAGOGICAL & CONTENT PRINCIPLES:
    - Verify all unit conversions (km/h <-> m/s, hours <-> minutes <-> seconds, meters <-> km, rupees <-> paise).
    - Ensure the declared correct answer (A, B, C, or D) matches the EXACT value derived in your step-by-step explanation.
    - For numerical questions, all arithmetic must be 100% correct with realistic numbers.
+   - UNAMBIGUOUS DIMENSIONS & UNITS:
+     * When formulating the final interrogative sentence of a problem statement, explicitly specify the exact unit or quantity dimension requested so the question and options share the same dimension:
+       - If the intended answer options are in currency or absolute amounts, explicitly ask for the amount in that unit (e.g., in Telugu: "ఎన్ని రూపాయలు తగ్గింది/పెరిగింది?", "ఎంత మొత్తం?", or in English: "Find the change in rupees", "Find the absolute decrease").
+       - If the intended answer options are in percentages, explicitly ask for the percentage (e.g., in Telugu: "ఎంత శాతం తగ్గింది/పెరిగింది?", "శాతం మార్పు ఎంత?", or in English: "Find the percentage change", "What is the percentage increase/decrease?").
+     * Avoid ambiguous open-ended phrasing like "చివరికి ఎంత మారింది?" (how much changed?) that could refer equally to absolute rupees or relative percentage, unless the options and question explicitly agree on the dimension.
 
 2. SHORT-FORM VIDEO HOOK & RETENTION STRUCTURE:
    - Every question must follow the viewer retention rhythm:
