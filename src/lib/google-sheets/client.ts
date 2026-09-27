@@ -1072,7 +1072,13 @@ export class GoogleSheetsClient {
       throw new SpreadsheetNotFoundError(this.getSpreadsheetId());
     }
 
-    if (sheetName && (message.includes(`Unable to parse range: '${sheetName}'`) || message.includes('exceeds grid limits'))) {
+    if (
+      sheetName &&
+      (message.toLowerCase().includes('unable to parse range') ||
+        message.includes(`'${sheetName}'`) ||
+        message.includes(`${sheetName}!`) ||
+        message.includes('exceeds grid limits'))
+    ) {
       throw new WorksheetNotFoundError(sheetName);
     }
 

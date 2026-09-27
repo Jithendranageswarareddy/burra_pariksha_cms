@@ -625,6 +625,8 @@ export interface Video {
   assignments?: Assignment[];
   workflowHistory?: Workflow[];
   auditLogs?: AuditLog[];
+  rawAssets?: MediaAsset[];
+  mediaAsset?: MediaAsset;
 }
 
 export interface ProductionStats {

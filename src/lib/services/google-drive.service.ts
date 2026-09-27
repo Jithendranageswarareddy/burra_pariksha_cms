@@ -665,6 +665,94 @@ export class GoogleDriveService {
       throw new Error(`Drive deleteFile failed for "${fileId}": ${msg}`);
     }
   }
+
+  /**
+   * Lists all Drive folders and files specifically belonging to a content ID hierarchy.
+   */
+  public async listContentFoldersAndFiles(contentId: string): Promise<
+    Array<{
+      id: string;
+      name: string;
+      mimeType: string;
+      parents?: string[];
+      isFolder: boolean;
+      path: string;
+    }>
+  > {
+    const results: Array<{
+      id: string;
+      name: string;
+      mimeType: string;
+      parents?: string[];
+      isFolder: boolean;
+      path: string;
+    }> = [];
+
+    if (!contentId || !this.isConfigured()) {
+      return results;
+    }
+
+    try {
+      const drive = this.getDriveApi();
+      const safeId = contentId.replace(/'/g, "\\'");
+      const res = await drive.files.list({
+        q: `name = '${safeId}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
+        fields: 'files(id, name, mimeType, parents)',
+      });
+
+      const rootFolders = res.data.files || [];
+      for (const root of rootFolders) {
+        results.push({
+          id: root.id!,
+          name: root.name!,
+          mimeType: root.mimeType || 'application/vnd.google-apps.folder',
+          parents: root.parents || undefined,
+          isFolder: true,
+          path: `/${root.name}`,
+        });
+
+        // 1st level subfolders/files (e.g. Videos, Scripts, Thumbnails, Raw, Edited, Final)
+        const subRes = await drive.files.list({
+          q: `'${root.id}' in parents and trashed = false`,
+          fields: 'files(id, name, mimeType, parents)',
+        });
+
+        for (const sub of subRes.data.files || []) {
+          const isFolder = sub.mimeType === 'application/vnd.google-apps.folder';
+          results.push({
+            id: sub.id!,
+            name: sub.name!,
+            mimeType: sub.mimeType || '',
+            parents: sub.parents || undefined,
+            isFolder,
+            path: `/${root.name}/${sub.name}`,
+          });
+
+          if (isFolder) {
+            // 2nd level files (e.g. /Videos/vd1.1.mp4)
+            const leafRes = await drive.files.list({
+              q: `'${sub.id}' in parents and trashed = false`,
+              fields: 'files(id, name, mimeType, parents)',
+            });
+            for (const leaf of leafRes.data.files || []) {
+              results.push({
+                id: leaf.id!,
+                name: leaf.name!,
+                mimeType: leaf.mimeType || '',
+                parents: leaf.parents || undefined,
+                isFolder: leaf.mimeType === 'application/vnd.google-apps.folder',
+                path: `/${root.name}/${sub.name}/${leaf.name}`,
+              });
+            }
+          }
+        }
+      }
+    } catch (err: any) {
+      console.warn(`[GoogleDriveService] listContentFoldersAndFiles warning for "${contentId}":`, err?.message || err);
+    }
+
+    return results;
+  }
 }
 
 export const googleDriveService = GoogleDriveService.getInstance();

@@ -36,6 +36,7 @@ import {
   Question,
   QuestionStatus,
   Video,
+  MediaAsset,
   VideoProductionStatus,
   Workflow,
   AuditLog,
@@ -712,7 +713,7 @@ export class VideoService {
   }
 
   /**
-   * Retrieves single video by ID enriched with question, workflow history, assignments, and audit logs.
+   * Retrieves single video by ID enriched with question, workflow history, assignments, audit logs, and rawAssets.
    */
   public async getVideoById(id: string): Promise<Video | null> {
     const video = await videosRepository.findById(id);
@@ -725,8 +726,17 @@ export class VideoService {
       auditLogRepository.findByEntity('VIDEO', video.id).catch(() => []),
     ]);
 
+    const contentId = video.contentId || video.contentMasterId || question?.contentId || question?.contentMasterId;
+    let rawAssets: MediaAsset[] = [];
+    if (contentId) {
+      rawAssets = await mediaAssetsRepository.findByContentIdAndStage(contentId, 'RAW').catch(() => []);
+      rawAssets.sort((a, b) => (Number(b.version) || 0) - (Number(a.version) || 0));
+    }
+
     return {
       ...video,
+      contentId: video.contentId || contentId,
+      rawAssets,
       question: question || undefined,
       assignments: assignments || [],
       workflowHistory: workflowHistory || [],
@@ -856,8 +866,19 @@ export class VideoService {
       targetContentId = targetContentId || existingVideo.contentId || existingVideo.contentMasterId;
     }
 
+    if (!targetContentId && existingVideo?.questionId) {
+      try {
+        const q = await questionsRepository.findById(existingVideo.questionId);
+        if (q) {
+          targetContentId = q.contentId || q.contentMasterId;
+        }
+      } catch {
+        // Fallback silently if question cannot be fetched
+      }
+    }
+
     if (!targetContentId) {
-      throw new ValidationError('Canonical Content ID (e.g. BP-CNT-000001) or videoId is required for asset upload.');
+      throw new ValidationError('Canonical Content ID (e.g. BP-CNT-000001) or videoId with associated content is required for asset upload.');
     }
 
     // Ensure content master exists or validate content ID
@@ -878,39 +899,60 @@ export class VideoService {
       description: `Uploaded video asset for Content ID: ${targetContentId}`,
     });
 
-    // 4. Compute incremented version number
-    let nextVersion = 1;
-    if (existingVideo) {
-      const currentVer = Number(existingVideo.version) || 1;
-      nextVersion = currentVer + 1;
-    } else {
-      const allContentVideos = await videosRepository.findAll();
-      const matchingVideos = allContentVideos.filter(
-        (v) => v.contentId === targetContentId || v.contentMasterId === targetContentId
-      );
-      if (matchingVideos.length > 0) {
-        const maxVer = Math.max(...matchingVideos.map((v) => Number(v.version) || 1));
-        nextVersion = maxVer + 1;
-      }
-    }
+    // 4. Compute incremented take/version number monotonically across both MEDIA_ASSETS and Video
+    const rawAssetsBefore = await mediaAssetsRepository.findByContentIdAndStage(targetContentId, 'RAW');
+    const maxMediaVersion = rawAssetsBefore.reduce((max, a) => Math.max(max, Number(a.version) || 0), 0);
+    const currentVideoVer = Number(existingVideo?.version) || 0;
+    const nextVersion = Math.max(maxMediaVersion, currentVideoVer) + 1;
 
     try {
-      // 5. Update or create video record metadata in Google Sheets
       const now = new Date().toISOString();
+
+      // 5. Idempotent check: if a MediaAsset with this driveFileId already exists for this content, reuse it
+      let mediaAsset = rawAssetsBefore.find((a) => a.driveFileId === driveFile.fileId);
+      if (!mediaAsset) {
+        const assetId = `MEDIA-${targetContentId.replace('BP-CNT-', '')}-RAW-${nextVersion}`;
+        mediaAsset = {
+          id: assetId,
+          contentId: targetContentId,
+          driveFileId: driveFile.fileId,
+          folderId: hierarchy.videosFolderId,
+          fileName: sanitizedFileName,
+          mimeType,
+          fileSize: driveFile.size || size,
+          createdAt: now,
+          updatedAt: now,
+          mediaStage: 'RAW',
+          version: nextVersion,
+        };
+        await mediaAssetsRepository.create(mediaAsset);
+      }
+
+      // 6. Update or create video record metadata in Google Sheets (VIDEOS worksheet)
       let updatedVideo: Video;
 
       if (existingVideo) {
         const updatePayload: Partial<Video> = {
-          driveFileId: driveFile.fileId,
+          contentId: targetContentId,
+          contentMasterId: existingVideo.contentMasterId || targetContentId,
+          driveFileId: driveFile.fileId, // Canonical pointer to active/latest take
           driveFolderId: hierarchy.videosFolderId,
           driveFolderUrl: driveFile.webViewLink || `https://drive.google.com/drive/folders/${hierarchy.videosFolderId}`,
           fileName: sanitizedFileName,
           mimeType,
           fileSize: driveFile.size || size,
-          version: nextVersion,
+          version: mediaAsset.version || nextVersion,
+          rawFootagePath: driveFile.webViewLink || `https://drive.google.com/file/d/${driveFile.fileId}/view`,
           finalRenderFormat: mimeType.split('/')[1] || 'mp4',
           updatedAt: now,
         };
+        // If in recording preparation states, advance to RECORDED
+        if (
+          existingVideo.status === VideoProductionStatus.SCRIPT_READY ||
+          existingVideo.status === VideoProductionStatus.RECORDING
+        ) {
+          updatePayload.status = VideoProductionStatus.RECORDED;
+        }
         updatedVideo = (await videosRepository.update(existingVideo.id, updatePayload)) as Video;
       } else {
         const primaryQuestionId = contentDetails.questions[0]?.id || `BP-Q-000000`;
@@ -921,7 +963,7 @@ export class VideoService {
           contentMasterId: targetContentId,
           questionId: primaryQuestionId,
           title: contentDetails.contentMaster.title || `Video for ${targetContentId}`,
-          status: VideoProductionStatus.EDITED,
+          status: VideoProductionStatus.RECORDED,
           priority: PriorityLevel.NORMAL,
           driveFileId: driveFile.fileId,
           driveFolderId: hierarchy.videosFolderId,
@@ -929,13 +971,20 @@ export class VideoService {
           fileName: sanitizedFileName,
           mimeType,
           fileSize: driveFile.size || size,
-          version: nextVersion,
+          version: mediaAsset.version || nextVersion,
+          rawFootagePath: driveFile.webViewLink || `https://drive.google.com/file/d/${driveFile.fileId}/view`,
           finalRenderFormat: mimeType.split('/')[1] || 'mp4',
           createdAt: now,
           updatedAt: now,
         };
         updatedVideo = await videosRepository.create(newVideoPayload);
       }
+
+      // 7. Attach full rawAssets collection and newly created mediaAsset to response
+      const allRawAssets = await mediaAssetsRepository.findByContentIdAndStage(targetContentId, 'RAW');
+      allRawAssets.sort((a, b) => (Number(b.version) || 0) - (Number(a.version) || 0));
+      updatedVideo.rawAssets = allRawAssets;
+      updatedVideo.mediaAsset = mediaAsset;
 
       // Audit log
       await auditService.log(
@@ -947,17 +996,18 @@ export class VideoService {
         {
           contentId: targetContentId,
           driveFileId: driveFile.fileId,
+          mediaAssetId: mediaAsset.id,
           fileName: sanitizedFileName,
           mimeType,
           fileSize: size,
-          version: nextVersion,
+          version: mediaAsset.version || nextVersion,
+          totalRawTakes: allRawAssets.length,
         }
       );
 
       return updatedVideo;
     } catch (err: any) {
-      // Compensation: Rollback Drive file if Sheets metadata persistence fails
-      await googleDriveService.deleteFile(driveFile.fileId);
+      console.error('[VideoService] Failed to persist video metadata after Drive upload:', err?.message || err);
       throw new Error(`Failed to persist video metadata after Drive upload: ${err?.message || 'Unknown error'}`);
     }
   }

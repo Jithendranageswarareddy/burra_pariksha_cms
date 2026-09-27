@@ -76,16 +76,43 @@ export const RecordingWorkspace: React.FC<RecordingWorkspaceProps> = ({
   const [driveUrlInput, setDriveUrlInput] = useState<string>('');
   const [isUploadingFile, setIsUploadingFile] = useState<boolean>(false);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
-  const [rawAssets, setRawAssets] = useState<MediaAsset[]>([]);
+  const [rawAssets, setRawAssets] = useState<MediaAsset[]>(video.rawAssets || []);
 
   const fetchHistory = async () => {
     try {
       const history = await apiClient.getVideoProductionHistory(videoId);
-      if (history.rawAssets) {
+      if (history.rawAssets && history.rawAssets.length > 0) {
         setRawAssets(history.rawAssets);
+      } else if (video.rawAssets && video.rawAssets.length > 0) {
+        setRawAssets(video.rawAssets);
       }
     } catch (err) {
       console.warn('Failed to fetch raw assets history:', err);
+      if (video.rawAssets && video.rawAssets.length > 0) {
+        setRawAssets(video.rawAssets);
+      }
+    }
+  };
+
+  const handleSelectActiveTake = async (asset: MediaAsset) => {
+    try {
+      setIsUpdating(true);
+      setError(null);
+      await apiClient.updateVideoMetadata(videoId, {
+        driveFileId: asset.driveFileId,
+        fileName: asset.fileName,
+        version: asset.version,
+        rawFootagePath: `https://drive.google.com/file/d/${asset.driveFileId}/view`,
+      });
+      setSuccessMessage(`Selected active raw video: ${asset.fileName}`);
+      if (onStatusChange) {
+        onStatusChange();
+      }
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (err: any) {
+      setError(err?.message || 'Failed to select raw video file');
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -154,6 +181,9 @@ export const RecordingWorkspace: React.FC<RecordingWorkspaceProps> = ({
   };
 
   useEffect(() => {
+    if (video.rawAssets && video.rawAssets.length > 0) {
+      setRawAssets(video.rawAssets);
+    }
     fetchScript();
     fetchHistory();
     setPresenterName(video.assignedHost || '');
@@ -188,6 +218,12 @@ export const RecordingWorkspace: React.FC<RecordingWorkspaceProps> = ({
       clearInterval(progressInterval);
       setUploadProgress(100);
 
+      // If backend returned rawAssets collection, populate state immediately
+      const incomingRaw = updatedVideo.rawAssets || (updatedVideo as any).video?.rawAssets;
+      if (incomingRaw && incomingRaw.length > 0) {
+        setRawAssets(incomingRaw);
+      }
+
       // Advance status to RECORDED if currently SCRIPT_READY or RECORDING
       if (
         video.status === VideoProductionStatus.SCRIPT_READY ||
@@ -196,7 +232,7 @@ export const RecordingWorkspace: React.FC<RecordingWorkspaceProps> = ({
         await apiClient.updateVideoStatus(
           videoId,
           VideoProductionStatus.RECORDED,
-          `Raw video file "${selectedFile.name}" uploaded to Google Drive (Take #${recordingTake})`
+          `Raw video file "${selectedFile.name}" uploaded to Google Drive`
         );
       }
 
@@ -241,7 +277,7 @@ export const RecordingWorkspace: React.FC<RecordingWorkspaceProps> = ({
       await apiClient.updateVideoStatus(
         videoId,
         VideoProductionStatus.RECORDED,
-        `Raw footage linked via Google Drive: ${driveUrlInput.trim()} (Take #${recordingTake})`
+        `Raw footage linked via Google Drive: ${driveUrlInput.trim()}`
       );
       setSuccessMessage('Raw footage Drive URL linked! Video status updated to RECORDED.');
       setDriveUrlInput('');
@@ -309,7 +345,7 @@ export const RecordingWorkspace: React.FC<RecordingWorkspaceProps> = ({
       await apiClient.updateVideoStatus(
         videoId,
         nextStatus,
-        `Transitioned to ${nextStatus} via Recording Workspace (Take #${recordingTake})`
+        `Transitioned to ${nextStatus} via Recording Workspace`
       );
       setSuccessMessage(`Successfully transitioned recording status to ${nextStatus}.`);
       if (onStatusChange) {
@@ -335,13 +371,13 @@ export const RecordingWorkspace: React.FC<RecordingWorkspaceProps> = ({
     try {
       await apiClient.updateVideoMetadata(videoId, {
         assignedHost: presenterName,
-        notes: `[Take #${recordingTake}] ${takeNotes}`.trim(),
+        notes: takeNotes.trim(),
       });
-      setSuccessMessage(`Saved Take #${recordingTake} director remarks & presenter metadata.`);
+      setSuccessMessage(`Saved presenter & director remarks.`);
       setTimeout(() => setSuccessMessage(null), 3500);
       if (onStatusChange) onStatusChange();
     } catch (err: any) {
-      setError(err?.message || 'Failed to save take metadata.');
+      setError(err?.message || 'Failed to save presenter & remarks.');
     } finally {
       setIsSavingTakeMeta(false);
     }
@@ -587,48 +623,23 @@ export const RecordingWorkspace: React.FC<RecordingWorkspaceProps> = ({
             </div>
           </div>
 
-          {/* CARD 2: MULTI-TAKE & RAW FOOTAGE INGESTION */}
+          {/* CARD 2: RAW VIDEO FILES */}
           <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs space-y-3">
             <div className="flex items-center justify-between pb-2 border-b border-slate-100">
               <div className="flex items-center gap-1.5">
                 <UploadCloud className="w-4 h-4 text-indigo-600" />
-                <h3 className="text-xs font-bold text-slate-900">Multi-Take Manager &amp; Raw Footage</h3>
+                <h3 className="text-xs font-bold text-slate-900">Raw Video Files</h3>
               </div>
-              {video.driveFileId && (
-                <span className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-md">
-                  Secured
-                </span>
-              )}
+              <span className="text-[10px] font-mono font-bold text-slate-700 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-md">
+                Raw Video Files: {rawAssets.length} {rawAssets.length === 1 ? 'file' : 'files'}
+              </span>
             </div>
 
-            {/* Take Selector */}
-            <div className="space-y-1">
-              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                Take Selector
-              </label>
-              <div className="flex items-center gap-1">
-                {[1, 2, 3, 4, 5].map((takeNum) => (
-                  <button
-                    key={takeNum}
-                    type="button"
-                    onClick={() => setRecordingTake(takeNum)}
-                    className={`flex-1 py-1 rounded-lg text-xs font-mono font-bold border transition-colors cursor-pointer ${
-                      recordingTake === takeNum
-                        ? 'bg-red-600 border-red-700 text-white shadow-xs'
-                        : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-                    }`}
-                  >
-                    #{takeNum}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Presenter & Take Notes Inputs */}
+            {/* Host Name & Remarks Inputs */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
               <div>
                 <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">
-                  Presenter Name
+                  Host Name (optional)
                 </label>
                 <input
                   type="text"
@@ -640,13 +651,13 @@ export const RecordingWorkspace: React.FC<RecordingWorkspaceProps> = ({
               </div>
               <div>
                 <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">
-                  Take Notes
+                  Director Remarks
                 </label>
                 <input
                   type="text"
                   value={takeNotes}
                   onChange={(e) => setTakeNotes(e.target.value)}
-                  placeholder="e.g. Take 2 best hook energy"
+                  placeholder="e.g. Clean Telugu pronunciation, strong hook"
                   className="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg focus:outline-hidden focus:border-indigo-500 text-slate-800 bg-slate-50/50"
                 />
               </div>
@@ -660,53 +671,81 @@ export const RecordingWorkspace: React.FC<RecordingWorkspaceProps> = ({
                 className="text-[11px] font-semibold text-slate-700 hover:text-slate-900 border border-slate-200 hover:bg-slate-50 px-2.5 py-1 rounded-lg transition-colors w-full flex items-center justify-center gap-1 cursor-pointer"
               >
                 <Save className="w-3 h-3 text-slate-500" />
-                <span>{isSavingTakeMeta ? 'Saving...' : 'Save Presenter & Take Notes'}</span>
+                <span>{isSavingTakeMeta ? 'Saving...' : 'Save Presenter & Remarks'}</span>
               </button>
             </div>
 
-            {/* Raw Footage Ingestion Section */}
+            {/* Raw Footage File List Section */}
             <div className="pt-2 border-t border-slate-100 space-y-2 text-xs">
               <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                Raw Footage Ingestion
+                Uploaded Video Files ({rawAssets.length})
               </label>
 
-              {video.driveFileId ? (
+              {rawAssets.length > 0 ? (
+                <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                  {rawAssets.map((asset, idx) => {
+                    const isSelectedSource = asset.driveFileId === video.driveFileId || (idx === 0 && !video.driveFileId);
+                    return (
+                      <div
+                        key={asset.id || idx}
+                        className={`p-2.5 rounded-xl border text-[11px] font-mono flex items-center justify-between gap-3 transition-colors ${
+                          isSelectedSource
+                            ? 'bg-indigo-50/80 border-indigo-200 shadow-2xs'
+                            : 'bg-slate-50/80 border-slate-200 hover:bg-slate-100/80'
+                        }`}
+                      >
+                        <div className="truncate flex items-center gap-2 min-w-0">
+                          <Film className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                          <span className="text-slate-800 font-medium truncate" title={asset.fileName}>
+                            {asset.fileName || `raw_video_${idx + 1}.mp4`}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2.5 shrink-0">
+                          {asset.fileSize ? (
+                            <span className="text-[10px] text-slate-500 font-sans">
+                              {(asset.fileSize / (1024 * 1024)).toFixed(1)} MB
+                            </span>
+                          ) : null}
+                          {!isSelectedSource && asset.driveFileId && (
+                            <button
+                              type="button"
+                              onClick={() => handleSelectActiveTake(asset)}
+                              disabled={isUpdating}
+                              className="text-[10px] font-medium text-slate-600 hover:text-indigo-700 bg-white border border-slate-200 px-2 py-0.5 rounded-md hover:border-indigo-300 transition-colors shrink-0 cursor-pointer"
+                              title="Select as primary source file for editing"
+                            >
+                              Use for Editing
+                            </button>
+                          )}
+                          {asset.driveFileId && (
+                            <a
+                              href={`https://drive.google.com/file/d/${asset.driveFileId}/view`}
+                              target="_blank"
+                              rel="noreferrer"
+                              title="Open in Google Drive"
+                              className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 px-2 py-0.5 rounded-md transition-colors flex items-center gap-1"
+                            >
+                              <span>Open Drive</span>
+                              <ExternalLink className="w-3 h-3" />
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : video.driveFileId ? (
                 <div className="p-2.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl space-y-1 text-[11px]">
                   <div className="flex items-center gap-1.5 font-semibold text-emerald-900">
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                     <span>Raw Video Secured in Google Drive</span>
                   </div>
                   <p className="font-mono text-[10px] text-emerald-700 truncate">
-                    ID: {video.driveFileId}
+                    Drive File ID: {video.driveFileId}
                   </p>
                 </div>
-              ) : null}
-
-              {/* Ingested Raw Assets List */}
-              {rawAssets.length > 0 && (
-                <div className="space-y-1.5 pt-1">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-                    Ingested Takes ({rawAssets.length})
-                  </span>
-                  <div className="space-y-1 max-h-36 overflow-y-auto pr-1">
-                    {rawAssets.map((asset, idx) => (
-                      <div
-                        key={asset.id || idx}
-                        className="p-2 rounded-lg bg-slate-50 border border-slate-200 text-[11px] font-mono flex items-center justify-between gap-2"
-                      >
-                        <div className="truncate">
-                          <span className="font-bold text-indigo-700">Take #{asset.version || idx + 1}:</span>{' '}
-                          <span className="text-slate-800">{asset.fileName || `raw_take_${idx + 1}.mp4`}</span>
-                        </div>
-                        {asset.fileSize && (
-                          <span className="text-[10px] text-slate-500 shrink-0">
-                            {(asset.fileSize / (1024 * 1024)).toFixed(1)} MB
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
+              ) : (
+                <p className="text-[11px] text-slate-400 italic">No raw video files uploaded yet.</p>
               )}
 
               {/* File Upload Button */}
@@ -841,9 +880,6 @@ export const RecordingWorkspace: React.FC<RecordingWorkspaceProps> = ({
                 <div className="flex items-center gap-2">
                   <span className="font-mono text-xs font-bold tracking-widest text-red-500 uppercase">
                     STUDIO TELEPROMPTER • {video.id}
-                  </span>
-                  <span className="font-mono text-[10px] px-2 py-0.2 rounded bg-red-950 text-red-300 border border-red-800 font-bold">
-                    TAKE #{recordingTake}
                   </span>
                 </div>
                 <span className="text-[11px] text-slate-400 block font-mono">

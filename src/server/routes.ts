@@ -1610,7 +1610,15 @@ const handleVideoUploadRoute = async (req: Request, res: Response) => {
           actor,
         });
 
-        res.status(201).json(video);
+        // Backward compatibility: Support direct video properties, nested video entity, asset, and rawAssets
+        const responsePayload = {
+          ...video,
+          video,
+          asset: video.mediaAsset,
+          rawAssets: video.rawAssets,
+        };
+
+        res.status(201).json(responsePayload);
       } catch (err: any) {
         res.status(err?.statusCode || 400).json({
           error: err?.name || 'Upload Failed',

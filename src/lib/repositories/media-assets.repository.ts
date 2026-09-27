@@ -25,16 +25,35 @@ export class MediaAssetsRepository extends BaseRepository<MediaAsset> {
    * Finds all media assets associated with a specific Content ID.
    */
   public async findByContentId(contentId: string): Promise<MediaAsset[]> {
+    if (!contentId) return [];
     const all = await this.findAll();
-    return all.filter((item) => item.contentId === contentId);
+    const targetNorm = contentId.trim();
+    const targetClean = targetNorm.replace(/^BP-CNT-0*/, '');
+    return all.filter((item) => {
+      const itemNorm = (item.contentId || '').trim();
+      return (
+        itemNorm === targetNorm ||
+        (targetClean.length > 0 && itemNorm.replace(/^BP-CNT-0*/, '') === targetClean)
+      );
+    });
   }
 
   /**
    * Finds all media assets associated with a specific Content ID and Media Stage.
    */
   public async findByContentIdAndStage(contentId: string, mediaStage: MediaStage): Promise<MediaAsset[]> {
+    if (!contentId) return [];
     const all = await this.findAll();
-    return all.filter((item) => item.contentId === contentId && item.mediaStage === mediaStage);
+    const targetNorm = contentId.trim();
+    const targetClean = targetNorm.replace(/^BP-CNT-0*/, '');
+    return all.filter((item) => {
+      if (item.mediaStage !== mediaStage) return false;
+      const itemNorm = (item.contentId || '').trim();
+      return (
+        itemNorm === targetNorm ||
+        (targetClean.length > 0 && itemNorm.replace(/^BP-CNT-0*/, '') === targetClean)
+      );
+    });
   }
 
   /**
@@ -46,7 +65,7 @@ export class MediaAssetsRepository extends BaseRepository<MediaAsset> {
       return null;
     }
     // Sort descending by version number
-    stageAssets.sort((a, b) => b.version - a.version);
+    stageAssets.sort((a, b) => (Number(b.version) || 0) - (Number(a.version) || 0));
     return stageAssets[0];
   }
 
@@ -54,8 +73,9 @@ export class MediaAssetsRepository extends BaseRepository<MediaAsset> {
    * Resolves the next version number for an upload.
    */
   public async getNextVersionNumber(contentId: string, mediaStage: MediaStage): Promise<number> {
-    const latest = await this.getLatestVersion(contentId, mediaStage);
-    return latest ? latest.version + 1 : 1;
+    const stageAssets = await this.findByContentIdAndStage(contentId, mediaStage);
+    const maxVersion = stageAssets.reduce((max, a) => Math.max(max, Number(a.version) || 0), 0);
+    return maxVersion + 1;
   }
 }
 

@@ -872,6 +872,9 @@ export const QuestionStudioPage: React.FC = () => {
       return `Mathematical verification failed: ${clientReport.mathematicalVerification.reason || 'Calculated answer does not match declared options.'}`;
     }
     if (clientReport && !clientReport.isValid) return 'Fix blocking client validation errors before saving.';
+    if (serverValidationResult?.status === QuestionValidationStatus.INVALID) {
+      return `Server validation rejected candidate: ${serverValidationResult.errors[0] || 'Mathematical or structural contradiction detected.'}`;
+    }
     if (isSaving) return 'Save operation in progress...';
     if (isGenerating || isRefining) return 'AI operation in progress...';
     if (isValidatingServer) return 'Server validation in progress...';
@@ -1664,7 +1667,7 @@ export const QuestionStudioPage: React.FC = () => {
                           : 'bg-amber-100 text-amber-900 border border-amber-300'
                       }`}
                     >
-                      Math: {clientReport.mathematicalVerification.status}
+                      Math: {clientReport.mathematicalVerification.status === 'UNVERIFIED' ? 'NEEDS VERIFICATION' : clientReport.mathematicalVerification.status}
                     </span>
                   )}
 
@@ -1673,10 +1676,18 @@ export const QuestionStudioPage: React.FC = () => {
                       className={`font-bold text-[10px] px-2 py-0.5 rounded-full ${
                         serverValidationResult.status === QuestionValidationStatus.VALID
                           ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
-                          : 'bg-amber-100 text-amber-900 border border-amber-300'
+                          : serverValidationResult.status === QuestionValidationStatus.NEEDS_REVIEW
+                          ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                          : 'bg-rose-100 text-rose-900 border border-rose-300'
                       }`}
                     >
-                      Server: {serverValidationResult.status}
+                      Server: {
+                        serverValidationResult.status === QuestionValidationStatus.VALID
+                          ? 'DRAFT CHECKS PASSED'
+                          : serverValidationResult.status === QuestionValidationStatus.NEEDS_REVIEW
+                          ? 'VERIFICATION REQUIRED'
+                          : 'INVALID (REJECTED)'
+                      }
                     </span>
                   ) : (
                     <span className="text-[10px] text-slate-500 font-medium">Pending Server Verification</span>
@@ -1695,13 +1706,20 @@ export const QuestionStudioPage: React.FC = () => {
                 </Button>
               </div>
 
-              {/* Show errors ONLY when attempted save or math failed */}
-              {hasAttemptedSave && clientReport && clientReport.errors.length > 0 && (
-                <div className="pt-1 text-[11px] text-rose-800 font-medium space-y-0.5">
-                  {clientReport.errors.map((err, idx) => (
-                    <p key={idx} className="flex items-center gap-1.5">
+              {/* Show errors when attempted save or math/server failed */}
+              {((hasAttemptedSave && clientReport && clientReport.errors.length > 0) ||
+                (serverValidationResult && serverValidationResult.status === QuestionValidationStatus.INVALID)) && (
+                <div className="pt-1 text-[11px] text-rose-800 font-medium space-y-0.5 border-t border-rose-100/80 mt-1">
+                  {clientReport && clientReport.errors.length > 0 && clientReport.errors.map((err, idx) => (
+                    <p key={`client-${idx}`} className="flex items-center gap-1.5">
                       <AlertCircle className="w-3 h-3 text-rose-600 shrink-0" />
-                      {err}
+                      <span>{err}</span>
+                    </p>
+                  ))}
+                  {serverValidationResult && serverValidationResult.status === QuestionValidationStatus.INVALID && serverValidationResult.errors.map((err, idx) => (
+                    <p key={`server-${idx}`} className="flex items-center gap-1.5">
+                      <AlertCircle className="w-3 h-3 text-rose-600 shrink-0" />
+                      <span>Server Validation Error: {err}</span>
                     </p>
                   ))}
                 </div>

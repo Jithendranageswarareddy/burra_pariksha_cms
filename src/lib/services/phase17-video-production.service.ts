@@ -608,17 +608,47 @@ export class Phase17VideoProductionService {
       throw new ValidationError(`Video with ID "${videoId}" does not exist.`);
     }
 
-    const contentId = video.contentId || '';
+    // Robust canonical Content ID resolution
+    let contentId = video.contentId || video.contentMasterId || '';
+    if (!contentId && video.questionId) {
+      try {
+        const q = await questionsRepository.findById(video.questionId);
+        if (q) {
+          contentId = q.contentId || q.contentMasterId || '';
+        }
+      } catch {
+        // Fallback silently if question cannot be fetched
+      }
+    }
+
     const [rawAssets, editedAssets, finalAssets] = await Promise.all([
-      mediaAssetsRepository.findByContentIdAndStage(contentId, 'RAW'),
-      mediaAssetsRepository.findByContentIdAndStage(contentId, 'EDITED'),
-      mediaAssetsRepository.findByContentIdAndStage(contentId, 'FINAL'),
+      contentId ? mediaAssetsRepository.findByContentIdAndStage(contentId, 'RAW') : Promise.resolve([]),
+      contentId ? mediaAssetsRepository.findByContentIdAndStage(contentId, 'EDITED') : Promise.resolve([]),
+      contentId ? mediaAssetsRepository.findByContentIdAndStage(contentId, 'FINAL') : Promise.resolve([]),
     ]);
 
+    // Backward compatibility: If no RAW records exist in MEDIA_ASSETS yet but video has driveFileId,
+    // synthesize a legacy asset so existing single-video records show their uploaded file
+    if (rawAssets.length === 0 && video.driveFileId) {
+      rawAssets.push({
+        id: `LEGACY-${video.id}`,
+        contentId: contentId || `BP-CNT-LEGACY`,
+        driveFileId: video.driveFileId,
+        folderId: video.driveFolderId || '',
+        fileName: video.fileName || 'raw_video.mp4',
+        mimeType: video.mimeType || 'video/mp4',
+        fileSize: video.fileSize || 0,
+        createdAt: video.createdAt || new Date().toISOString(),
+        updatedAt: video.updatedAt || new Date().toISOString(),
+        mediaStage: 'RAW',
+        version: Number(video.version) || 1,
+      });
+    }
+
     // Sort versions descending
-    rawAssets.sort((a, b) => b.version - a.version);
-    editedAssets.sort((a, b) => b.version - a.version);
-    finalAssets.sort((a, b) => b.version - a.version);
+    rawAssets.sort((a, b) => (Number(b.version) || 0) - (Number(a.version) || 0));
+    editedAssets.sort((a, b) => (Number(b.version) || 0) - (Number(a.version) || 0));
+    finalAssets.sort((a, b) => (Number(b.version) || 0) - (Number(a.version) || 0));
 
     return {
       video,

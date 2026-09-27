@@ -101,10 +101,14 @@ export abstract class BaseRepository<T extends Record<string, any>> {
    * Checks if an error is a WorksheetNotFoundError or missing tab error.
    */
   protected isWorksheetNotFoundError(err: any): boolean {
+    const msg = (typeof err?.message === 'string' ? err.message : String(err || '')).toLowerCase();
     return (
       err instanceof WorksheetNotFoundError ||
       err?.name === 'WorksheetNotFoundError' ||
-      (typeof err?.message === 'string' && err.message.includes('does not exist'))
+      msg.includes('does not exist') ||
+      msg.includes('unable to parse range') ||
+      msg.includes('worksheet not found') ||
+      msg.includes('not found')
     );
   }
 
