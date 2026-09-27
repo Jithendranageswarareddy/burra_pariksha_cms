@@ -97,78 +97,73 @@ export const ProductionJourneyBar: React.FC<ProductionJourneyBarProps> = ({
   const activeStageObj = stages.find((s) => s.stageNumber === effectiveCurrentStage) || stages[0];
 
   return (
-    <div className={`bg-white rounded-xl border border-slate-200 shadow-xs p-4 space-y-4 ${className}`}>
-      {/* Top Header: Canonical Lineage, Current Stage Badge & Intelligent Next Action */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
-        <div className="flex items-center gap-2.5 flex-wrap">
+    <div className={`bg-white rounded-xl border border-slate-200/90 shadow-2xs p-2.5 sm:p-3 space-y-2 ${className}`}>
+      {/* Top Header: Current Stage Prominence & Context Indicators */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-100">
+        <div className="flex items-center gap-2 flex-wrap">
           <div className="flex items-center gap-1.5 font-bold text-xs text-slate-800">
-            <Layers className="w-4 h-4 text-indigo-600 shrink-0" />
+            <Layers className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
             <span>Production Journey</span>
           </div>
 
           <span className="text-slate-300 hidden sm:inline">•</span>
 
           {/* Active Stage Indicator */}
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-semibold">
-            <span className="w-2 h-2 rounded-full bg-indigo-600 animate-pulse" />
-            <span>Stage {String(effectiveCurrentStage).padStart(2, '0')} / 15: {activeStageObj.shortLabel}</span>
+          <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-bold">
+            <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-pulse" />
+            <span>Stage {String(effectiveCurrentStage).padStart(2, '0')} / 15: {activeStageObj.label}</span>
           </div>
 
+          {/* Next Stage Context Pill */}
+          {stages.find((s) => s.stageNumber === effectiveCurrentStage + 1) && (
+            <span className="text-[11px] text-slate-500 hidden md:inline-flex items-center gap-1 font-medium bg-slate-50 px-2 py-0.5 rounded border border-slate-200/80">
+              <span className="text-slate-400">Next:</span>
+              <span className="text-slate-700 font-semibold">{stages.find((s) => s.stageNumber === effectiveCurrentStage + 1)?.shortLabel}</span>
+            </span>
+          )}
+
           {/* Canonical correlation identifiers */}
-          <div className="flex items-center gap-1.5 flex-wrap text-[11px] font-mono">
+          <div className="flex items-center gap-1 flex-wrap text-[10px] font-mono">
             {contentMasterId && (
-              <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded border border-slate-200">
+              <span className="bg-slate-50 text-slate-600 px-1.5 py-0.2 rounded border border-slate-200">
                 Master: {contentMasterId}
               </span>
             )}
             {questionId && (
-              <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded border border-slate-200">
+              <span className="bg-slate-50 text-slate-600 px-1.5 py-0.2 rounded border border-slate-200">
                 Q: {questionId}
               </span>
             )}
             {videoId && (
-              <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded border border-slate-200">
+              <span className="bg-slate-50 text-slate-600 px-1.5 py-0.2 rounded border border-slate-200">
                 V: {videoId}
               </span>
             )}
           </div>
         </div>
 
-        {/* Right Header Actions: Reload & Intelligent Next Action */}
-        <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+        {/* Right Header Actions: Reload Journey Data */}
+        <div className="flex items-center gap-1.5 self-start sm:self-auto shrink-0">
           <button
             type="button"
             onClick={() => reloadJourneyData()}
             disabled={isLoading}
             title="Reload Journey State"
-            className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-50 transition-colors disabled:opacity-50"
+            className="p-1 rounded-md border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-50 transition-colors disabled:opacity-50"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-indigo-600' : ''}`} />
+            <RefreshCw className={`w-3 h-3 ${isLoading ? 'animate-spin text-indigo-600' : ''}`} />
           </button>
-
-          {/* Intelligent Next Action Button */}
-          {nextAction && (
-            <button
-              type="button"
-              onClick={handleNextActionClick}
-              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-xs font-bold shadow-xs hover:shadow transition-all group cursor-pointer"
-              title={nextAction.description || `Advance to ${nextAction.label}`}
-            >
-              <Sparkles className="w-3.5 h-3.5 text-indigo-200" />
-              <span>{nextAction.label}</span>
-              <ArrowRight className="w-3.5 h-3.5 text-indigo-200 group-hover:translate-x-0.5 transition-transform" />
-            </button>
-          )}
         </div>
       </div>
 
       {/* 15 UI Stages Horizontal Stepper Track */}
-      <div className="relative overflow-x-auto pb-2 pt-1 scrollbar-thin">
-        <div className="flex items-center min-w-[1020px] px-1 py-1">
+      <div className="relative overflow-x-auto pb-1 pt-0.5 scrollbar-thin">
+        <div className="flex items-center min-w-[900px] px-0.5 py-0.5">
           {stages.map((stage, index) => {
             const isLast = index === stages.length - 1;
             const isTooltipOpen = activeTooltipStage === stage.stageNumber;
             const isNodeCurrent = stage.stageNumber === effectiveCurrentStage;
+            const isNodeNext = stage.stageNumber === effectiveCurrentStage + 1;
 
             return (
               <React.Fragment key={stage.id}>
@@ -181,20 +176,22 @@ export const ProductionJourneyBar: React.FC<ProductionJourneyBarProps> = ({
                 >
                   {/* Circle Indicator */}
                   <div
-                    className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold font-mono transition-all select-none ${
+                    className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold font-mono transition-all select-none ${
                       isNodeCurrent
-                        ? 'bg-indigo-600 text-white border-2 border-white ring-4 ring-indigo-100 scale-110 shadow-sm z-10'
+                        ? 'bg-indigo-600 text-white border-2 border-white ring-3 ring-indigo-200 scale-110 shadow-xs z-10'
+                        : isNodeNext
+                        ? 'bg-indigo-50 text-indigo-700 border-2 border-indigo-400 font-bold hover:bg-indigo-100'
                         : stage.isCompleted
                         ? 'bg-emerald-600 text-white border border-emerald-500 hover:bg-emerald-700'
                         : stage.isBlocked
-                        ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed opacity-80'
-                        : 'bg-white text-slate-600 border border-slate-300 hover:border-indigo-400 hover:text-indigo-600'
+                        ? 'bg-slate-100 text-slate-300 border border-slate-200 cursor-not-allowed opacity-70'
+                        : 'bg-white text-slate-400 border border-slate-200 hover:border-slate-300 hover:text-slate-600'
                     }`}
                   >
                     {stage.isCompleted ? (
-                      <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                      <Check className="w-3 h-3 stroke-[2.5]" />
                     ) : stage.isBlocked ? (
-                      <Lock className="w-3 h-3 text-slate-400" />
+                      <Lock className="w-2.5 h-2.5 text-slate-300" />
                     ) : (
                       String(stage.stageNumber).padStart(2, '0')
                     )}
@@ -202,14 +199,16 @@ export const ProductionJourneyBar: React.FC<ProductionJourneyBarProps> = ({
 
                   {/* Stage Label */}
                   <span
-                    className={`mt-1.5 text-[10px] tracking-tight whitespace-nowrap text-center transition-colors max-w-[80px] leading-tight select-none ${
+                    className={`mt-1 text-[9px] tracking-tight whitespace-nowrap text-center transition-colors max-w-[70px] leading-tight select-none ${
                       isNodeCurrent
                         ? 'text-indigo-700 font-bold'
+                        : isNodeNext
+                        ? 'text-indigo-600 font-semibold'
                         : stage.isCompleted
-                        ? 'text-slate-700 font-medium'
+                        ? 'text-slate-600 font-medium'
                         : stage.isBlocked
-                        ? 'text-slate-400'
-                        : 'text-slate-500'
+                        ? 'text-slate-300'
+                        : 'text-slate-400'
                     }`}
                   >
                     {stage.shortLabel}
@@ -217,38 +216,38 @@ export const ProductionJourneyBar: React.FC<ProductionJourneyBarProps> = ({
 
                   {/* Prerequisite Tooltip on Hover / Focus */}
                   {isTooltipOpen && (
-                    <div className="absolute bottom-full mb-2.5 z-40 w-56 p-2.5 bg-slate-900 text-white rounded-lg shadow-xl text-left pointer-events-none animate-in fade-in zoom-in-95 duration-150">
-                      <div className="flex items-center gap-1.5 font-bold text-[11px] text-indigo-300 pb-1 border-b border-slate-800">
+                    <div className="absolute bottom-full mb-2 z-40 w-52 p-2 bg-slate-900 text-white rounded-lg shadow-lg text-left pointer-events-none animate-in fade-in zoom-in-95 duration-150">
+                      <div className="flex items-center gap-1.5 font-bold text-[10px] text-indigo-300 pb-1 border-b border-slate-800">
                         {stage.isBlocked ? (
-                          <Lock className="w-3 h-3 text-amber-400 shrink-0" />
+                          <Lock className="w-2.5 h-2.5 text-amber-400 shrink-0" />
                         ) : stage.isCompleted ? (
-                          <Check className="w-3 h-3 text-emerald-400 shrink-0" />
+                          <Check className="w-2.5 h-2.5 text-emerald-400 shrink-0" />
                         ) : (
-                          <Info className="w-3 h-3 text-indigo-400 shrink-0" />
+                          <Info className="w-2.5 h-2.5 text-indigo-400 shrink-0" />
                         )}
                         <span>{stage.label}</span>
                       </div>
-                      <p className="text-[10px] text-slate-300 pt-1 leading-relaxed">
+                      <p className="text-[9px] text-slate-300 pt-1 leading-relaxed">
                         {stage.description}
                       </p>
                       {stage.isBlocked && stage.blockerReason && (
-                        <div className="mt-1.5 p-1.5 rounded bg-rose-950/60 border border-rose-800/80 text-[10px] text-rose-200">
-                          <span className="font-semibold text-rose-300">Prerequisite required: </span>
+                        <div className="mt-1 p-1 rounded bg-rose-950/60 border border-rose-800/80 text-[9px] text-rose-200">
+                          <span className="font-semibold text-rose-300">Prerequisite: </span>
                           {stage.blockerReason}
                         </div>
                       )}
                       {stage.isCompleted && (
-                        <div className="mt-1.5 text-[10px] text-emerald-400 font-medium flex items-center gap-1">
-                          <Check className="w-2.5 h-2.5" /> Stage Completed
+                        <div className="mt-1 text-[9px] text-emerald-400 font-medium flex items-center gap-1">
+                          <Check className="w-2 h-2" /> Completed
                         </div>
                       )}
                       {stage.isCurrent && (
-                        <div className="mt-1.5 text-[10px] text-indigo-300 font-bold flex items-center gap-1">
-                          <ChevronRight className="w-2.5 h-2.5" /> Active Stage
+                        <div className="mt-1 text-[9px] text-indigo-300 font-bold flex items-center gap-1">
+                          <ChevronRight className="w-2 h-2" /> Active Stage
                         </div>
                       )}
                       {/* Arrow caret */}
-                      <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-slate-900" />
+                      <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-x-3 border-x-transparent border-t-3 border-t-slate-900" />
                     </div>
                   )}
                 </div>
@@ -256,12 +255,12 @@ export const ProductionJourneyBar: React.FC<ProductionJourneyBarProps> = ({
                 {/* Connecting Track Line */}
                 {!isLast && (
                   <div
-                    className={`flex-1 h-0.5 mx-1 min-w-[20px] transition-colors ${
+                    className={`flex-1 h-0.5 mx-0.5 min-w-[14px] transition-colors ${
                       stage.isCompleted && stages[index + 1]?.isCompleted
                         ? 'bg-emerald-500'
                         : stage.isCompleted
                         ? 'bg-indigo-300'
-                        : 'bg-slate-200'
+                        : 'bg-slate-200/80'
                     }`}
                   />
                 )}
@@ -270,21 +269,6 @@ export const ProductionJourneyBar: React.FC<ProductionJourneyBarProps> = ({
           })}
         </div>
       </div>
-
-      {/* Optional Details footer if requested */}
-      {showDetails && (
-        <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-slate-700">{activeStageObj.label}:</span>
-            <span>{activeStageObj.description}</span>
-          </div>
-          {nextAction?.description && (
-            <div className="text-slate-400 text-[11px] italic">
-              Next: {nextAction.description}
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 };

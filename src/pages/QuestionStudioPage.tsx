@@ -89,6 +89,188 @@ export interface StudioCandidate {
   mathematicalVerification?: MathVerificationResult;
 }
 
+export type Step01WorkflowState = 'EMPTY' | 'INCOMPLETE' | 'VALID' | 'NEEDS_REVIEW' | 'INVALID';
+
+export interface Step01StateEvaluation {
+  state: Step01WorkflowState;
+  canContinue: boolean;
+  reason?: string;
+  errors: string[];
+  warnings: string[];
+}
+
+export function getStep01WorkflowState({
+  hasCandidate,
+  candidate,
+  clientReport,
+  serverValidationResult,
+  isValidationStale,
+  configError,
+}: {
+  hasCandidate: boolean;
+  candidate: StudioCandidate;
+  clientReport: CandidateValidationReport | null;
+  serverValidationResult: ValidationResult | null;
+  isValidationStale: boolean;
+  configError: string | null;
+}): Step01StateEvaluation {
+  if (configError) {
+    return {
+      state: 'INVALID',
+      canContinue: false,
+      reason: 'Configuration unavailable. Please resolve QUESTION_CONFIG errors.',
+      errors: [configError],
+      warnings: [],
+    };
+  }
+
+  // STATE A — EMPTY: No candidate drafted or generated
+  const qText = (candidate.questionText || '').trim();
+  if (!hasCandidate || !qText) {
+    return {
+      state: 'EMPTY',
+      canContinue: false,
+      reason: 'Question workspace is empty. Generate an AI question or draft manually.',
+      errors: [],
+      warnings: [],
+    };
+  }
+
+  const optA = (candidate.optionA || '').trim();
+  const optB = (candidate.optionB || '').trim();
+  const optC = (candidate.optionC || '').trim();
+  const optD = (candidate.optionD || '').trim();
+  const declaredAnswer = (candidate.correctAnswer || '').trim().toUpperCase();
+  const challengeType = candidate.challengeType || 'ABCD';
+
+  // STATE B — INCOMPLETE: Missing required question text length or required options
+  const missingFieldErrors: string[] = [];
+  if (qText.length < 10) {
+    missingFieldErrors.push('Question statement must be at least 10 characters.');
+  }
+  if (!optA) missingFieldErrors.push('Option A is required.');
+  if (!optB) missingFieldErrors.push('Option B is required.');
+  if (challengeType === 'ABCD') {
+    if (!optC) missingFieldErrors.push('Option C is required.');
+    if (!optD) missingFieldErrors.push('Option D is required.');
+  }
+
+  if (missingFieldErrors.length > 0) {
+    return {
+      state: 'INCOMPLETE',
+      canContinue: false,
+      reason: missingFieldErrors[0],
+      errors: missingFieldErrors,
+      warnings: [],
+    };
+  }
+
+  // Check fatal errors: Invalid correct answer choice
+  if (!['A', 'B', 'C', 'D'].includes(declaredAnswer)) {
+    return {
+      state: 'INVALID',
+      canContinue: false,
+      reason: `Invalid correct answer choice '${declaredAnswer}'. Must be A, B, C, or D.`,
+      errors: [`Invalid correct answer choice '${declaredAnswer}'.`],
+      warnings: [],
+    };
+  }
+
+  // Check fatal errors: Duplicate or equivalent options
+  const rawOptions = [
+    { key: 'A', text: optA.toLowerCase() },
+    { key: 'B', text: optB.toLowerCase() },
+    ...(challengeType === 'ABCD' ? [{ key: 'C', text: optC.toLowerCase() }, { key: 'D', text: optD.toLowerCase() }] : []),
+  ];
+
+  for (let i = 0; i < rawOptions.length; i++) {
+    for (let j = i + 1; j < rawOptions.length; j++) {
+      if (rawOptions[i].text && rawOptions[i].text === rawOptions[j].text) {
+        return {
+          state: 'INVALID',
+          canContinue: false,
+          reason: `Duplicate options: Option ${rawOptions[i].key} and Option ${rawOptions[j].key} have identical values.`,
+          errors: [`Duplicate options: Option ${rawOptions[i].key} and Option ${rawOptions[j].key} have identical values.`],
+          warnings: [],
+        };
+      }
+    }
+  }
+
+  // Check fatal errors: Client validation structural failures
+  if (clientReport && !clientReport.isValid) {
+    return {
+      state: 'INVALID',
+      canContinue: false,
+      reason: clientReport.errors[0] || 'Client validation failed.',
+      errors: clientReport.errors,
+      warnings: clientReport.warnings || [],
+    };
+  }
+
+  // Check fatal errors: Mathematical contradiction (FAILED)
+  const mathStatus = candidate.mathematicalVerification?.status || clientReport?.mathematicalVerification?.status;
+  if (mathStatus === 'FAILED') {
+    const mathReason = candidate.mathematicalVerification?.reason || clientReport?.mathematicalVerification?.reason || 'Deterministic mathematical contradiction established.';
+    return {
+      state: 'INVALID',
+      canContinue: false,
+      reason: `Mathematical contradiction: ${mathReason}`,
+      errors: [`Mathematical contradiction: ${mathReason}`],
+      warnings: [],
+    };
+  }
+
+  // Check fresh server validation result (only if not stale)
+  if (serverValidationResult && !isValidationStale) {
+    if (serverValidationResult.status === QuestionValidationStatus.INVALID) {
+      return {
+        state: 'INVALID',
+        canContinue: false,
+        reason: serverValidationResult.errors[0] || 'Server validation rejected candidate.',
+        errors: serverValidationResult.errors,
+        warnings: serverValidationResult.warnings || [],
+      };
+    }
+    if (serverValidationResult.status === QuestionValidationStatus.VALID) {
+      return {
+        state: 'VALID',
+        canContinue: true,
+        errors: [],
+        warnings: serverValidationResult.warnings || [],
+      };
+    }
+    if (serverValidationResult.status === QuestionValidationStatus.NEEDS_REVIEW) {
+      return {
+        state: 'NEEDS_REVIEW',
+        canContinue: true,
+        reason: 'Candidate structurally valid; pending editorial verification in Step 02.',
+        errors: [],
+        warnings: serverValidationResult.warnings || [],
+      };
+    }
+  }
+
+  // STATE D — NEEDS_REVIEW: Structurally valid, but math is UNVERIFIED or pending server validation
+  if (mathStatus === 'UNVERIFIED' || !mathStatus) {
+    return {
+      state: 'NEEDS_REVIEW',
+      canContinue: true,
+      reason: 'Mathematical verification pending in Step 02.',
+      errors: [],
+      warnings: ['Mathematical verification pending independent review in Step 02.'],
+    };
+  }
+
+  // STATE C — VALID: All checks passed and math is verified
+  return {
+    state: 'VALID',
+    canContinue: true,
+    errors: [],
+    warnings: [],
+  };
+}
+
 export const QuestionStudioPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -508,8 +690,23 @@ export const QuestionStudioPage: React.FC = () => {
     setIsDirty(true);
     setCandidate((prev) => {
       const updated = { ...prev, [field]: value };
-      if (!isInternalUpdateRef.current && serverValidationResult) {
-        setIsValidationStale(true);
+      if (
+        field === 'questionText' ||
+        field === 'optionA' ||
+        field === 'optionB' ||
+        field === 'optionC' ||
+        field === 'optionD' ||
+        field === 'correctAnswer'
+      ) {
+        if (!isInternalUpdateRef.current && serverValidationResult) {
+          setIsValidationStale(true);
+        }
+        if (prev.mathematicalVerification && prev.mathematicalVerification.status !== 'UNVERIFIED') {
+          updated.mathematicalVerification = {
+            status: 'UNVERIFIED',
+            reason: 'Content modified after initial verification',
+          };
+        }
       }
       return updated;
     });
@@ -747,21 +944,30 @@ export const QuestionStudioPage: React.FC = () => {
     }
   };
 
+  // Canonical derived Step 01 workflow state machine
+  const workflowState = useMemo(() => {
+    return getStep01WorkflowState({
+      hasCandidate,
+      candidate,
+      clientReport,
+      serverValidationResult,
+      isValidationStale,
+      configError,
+    });
+  }, [
+    hasCandidate,
+    candidate,
+    clientReport,
+    serverValidationResult,
+    isValidationStale,
+    configError,
+  ]);
+
   // Canonical Save & Direct Navigation to Step 02 Verification
   const handleSaveAndContinue = async () => {
     setHasAttemptedSave(true);
-    if (!hasCandidate || !candidate.questionText.trim()) {
-      setErrorMessage('Cannot save an empty question candidate.');
-      return;
-    }
-
-    if (clientReport?.mathematicalVerification?.status === 'FAILED') {
-      setErrorMessage('Mathematical verification failed. Please correct calculation error before proceeding.');
-      return;
-    }
-
-    if (clientReport && !clientReport.isValid) {
-      setErrorMessage('Please resolve client validation issues before saving.');
+    if (!workflowState.canContinue) {
+      setErrorMessage(workflowState.reason || 'Cannot continue: please resolve validation errors before proceeding.');
       return;
     }
 
@@ -864,18 +1070,6 @@ export const QuestionStudioPage: React.FC = () => {
     setSavedQuestion(null);
     setErrorMessage(null);
   };
-
-  const getSaveGateReason = (): string | null => {
-    if (configError) return 'Configuration unavailable. Please resolve QUESTION_CONFIG errors.';
-    if (!candidate.questionText.trim()) return 'Question problem statement is required.';
-    if (clientReport && !clientReport.isValid) return 'Fix blocking client validation errors before saving.';
-    if (isSaving) return 'Save operation in progress...';
-    if (isGenerating || isRefining) return 'AI operation in progress...';
-    if (isValidatingServer) return 'Server validation in progress...';
-    return null;
-  };
-
-  const saveGateReason = getSaveGateReason();
 
   return (
     <div className="space-y-3 pb-6 animate-in fade-in duration-200">
@@ -1579,7 +1773,11 @@ export const QuestionStudioPage: React.FC = () => {
                     </span>
                   )}
 
-                  {serverValidationResult && !isValidationStale ? (
+                  {isValidationStale ? (
+                    <span className="font-bold text-[9px] px-1.5 py-0.2 rounded-full bg-slate-100 text-slate-700 border border-slate-300">
+                      Server: Pending Re-validation
+                    </span>
+                  ) : serverValidationResult ? (
                     <span
                       className={`font-bold text-[9px] px-1.5 py-0.2 rounded-full ${
                         serverValidationResult.status === QuestionValidationStatus.VALID
@@ -1615,17 +1813,17 @@ export const QuestionStudioPage: React.FC = () => {
               </div>
 
               {/* Show errors if present */}
-              {((hasAttemptedSave && clientReport && clientReport.errors.length > 0) ||
-                (serverValidationResult && serverValidationResult.status === QuestionValidationStatus.INVALID)) && (
+              {((workflowState.state === 'INVALID' && workflowState.errors.length > 0) ||
+                (serverValidationResult && !isValidationStale && serverValidationResult.status === QuestionValidationStatus.INVALID)) && (
                 <div className="pt-1 text-[10px] text-rose-800 font-medium space-y-0.5 border-t border-rose-100/80 mt-1">
-                  {clientReport && clientReport.errors.length > 0 && clientReport.errors.map((err, idx) => (
-                    <p key={`client-${idx}`} className="flex items-center gap-1">
+                  {workflowState.errors.map((err, idx) => (
+                    <p key={`wf-err-${idx}`} className="flex items-center gap-1">
                       <AlertCircle className="w-2.5 h-2.5 text-rose-600 shrink-0" />
                       <span>{err}</span>
                     </p>
                   ))}
-                  {serverValidationResult && serverValidationResult.status === QuestionValidationStatus.INVALID && serverValidationResult.errors.map((err, idx) => (
-                    <p key={`server-${idx}`} className="flex items-center gap-1">
+                  {serverValidationResult && !isValidationStale && serverValidationResult.status === QuestionValidationStatus.INVALID && serverValidationResult.errors.map((err, idx) => (
+                    <p key={`server-err-${idx}`} className="flex items-center gap-1">
                       <AlertCircle className="w-2.5 h-2.5 text-rose-600 shrink-0" />
                       <span>Server Validation: {err}</span>
                     </p>
@@ -1648,10 +1846,10 @@ export const QuestionStudioPage: React.FC = () => {
             </Button>
 
             <div className="flex items-center gap-2">
-              {hasAttemptedSave && saveGateReason && (
-                <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-800 bg-amber-50 px-2 py-1 rounded border border-amber-200 max-w-xs">
-                  <AlertTriangle className="w-3 h-3 text-amber-600 shrink-0" />
-                  <span>{saveGateReason}</span>
+              {!workflowState.canContinue && workflowState.state !== 'EMPTY' && workflowState.reason && (
+                <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-rose-800 bg-rose-50 px-2 py-1 rounded border border-rose-200 max-w-xs truncate" title={workflowState.reason}>
+                  <AlertCircle className="w-3 h-3 text-rose-600 shrink-0" />
+                  <span className="truncate">{workflowState.reason}</span>
                 </span>
               )}
 
@@ -1660,9 +1858,9 @@ export const QuestionStudioPage: React.FC = () => {
                 size="md"
                 onClick={handleSaveAndContinue}
                 isLoading={isSaving}
-                disabled={Boolean(hasAttemptedSave && saveGateReason)}
+                disabled={!workflowState.canContinue || isSaving || isGenerating || isRefining || isValidatingServer}
                 icon={ArrowRight}
-                className="bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-bold shadow-xs cursor-pointer px-4 text-xs py-2 rounded-lg h-8"
+                className="bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-bold shadow-xs cursor-pointer px-4 text-xs py-2 rounded-lg h-8 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Continue to Step 02: Verification →
               </Button>
