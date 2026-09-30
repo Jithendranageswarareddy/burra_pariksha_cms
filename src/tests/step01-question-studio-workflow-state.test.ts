@@ -60,9 +60,6 @@ function runTests() {
   const stateEmpty = getStep01WorkflowState({
     hasCandidate: false,
     candidate: { ...baseCandidate, questionText: '' },
-    clientReport: null,
-    serverValidationResult: null,
-    isValidationStale: false,
     configError: null,
   });
   assert(
@@ -75,9 +72,6 @@ function runTests() {
   const stateIncomplete = getStep01WorkflowState({
     hasCandidate: true,
     candidate: { ...baseCandidate, optionC: '', optionD: '' },
-    clientReport: null,
-    serverValidationResult: null,
-    isValidationStale: false,
     configError: null,
   });
   assert(
@@ -93,19 +87,6 @@ function runTests() {
       ...baseCandidate,
       mathematicalVerification: { status: 'VERIFIED', reason: 'Provably verified' },
     },
-    clientReport: {
-      isValid: true,
-      errors: [],
-      warnings: [],
-      mathematicalVerification: { status: 'VERIFIED' },
-    },
-    serverValidationResult: {
-      status: QuestionValidationStatus.VALID,
-      confidenceScore: 0.95,
-      errors: [],
-      warnings: [],
-    } as any,
-    isValidationStale: false,
     configError: null,
   });
   assert(
@@ -114,50 +95,34 @@ function runTests() {
     `Expected state=VALID, canContinue=true; got state=${stateValid.state}, canContinue=${stateValid.canContinue}`
   );
 
-  // TEST D: Unverified but structurally valid candidate -> Continue enabled (NEEDS_REVIEW)
+  // TEST D: Draft candidate ready for Step 02 Verification -> Continue enabled
   const stateNeedsReview = getStep01WorkflowState({
     hasCandidate: true,
     candidate: {
       ...baseCandidate,
       mathematicalVerification: { status: 'UNVERIFIED', reason: 'Independent review needed' },
     },
-    clientReport: {
-      isValid: true,
-      errors: [],
-      warnings: [],
-      mathematicalVerification: { status: 'UNVERIFIED' },
-    },
-    serverValidationResult: null,
-    isValidationStale: false,
     configError: null,
   });
   assert(
-    stateNeedsReview.state === 'NEEDS_REVIEW' && stateNeedsReview.canContinue === true,
-    'TEST D: Unverified but structurally valid candidate -> Continue enabled (NEEDS_REVIEW)',
-    `Expected state=NEEDS_REVIEW, canContinue=true; got state=${stateNeedsReview.state}, canContinue=${stateNeedsReview.canContinue}`
+    stateNeedsReview.state === 'VALID' && stateNeedsReview.canContinue === true,
+    'TEST D: Unverified draft candidate -> Continue enabled for Step 02',
+    `Expected state=VALID, canContinue=true; got state=${stateNeedsReview.state}, canContinue=${stateNeedsReview.canContinue}`
   );
 
-  // TEST E: Proven mathematical contradiction -> Continue disabled (INVALID)
+  // TEST E: Candidate draft with unverified math -> Stage 01 can still hand off to Stage 02
   const stateMathFailed = getStep01WorkflowState({
     hasCandidate: true,
     candidate: {
       ...baseCandidate,
       mathematicalVerification: { status: 'FAILED', reason: 'Calculated value 48 differs from option B 33.33' },
     },
-    clientReport: {
-      isValid: false,
-      errors: ['Calculated value differs from option B'],
-      warnings: [],
-      mathematicalVerification: { status: 'FAILED' },
-    },
-    serverValidationResult: null,
-    isValidationStale: false,
     configError: null,
   });
   assert(
-    stateMathFailed.state === 'INVALID' && stateMathFailed.canContinue === false,
-    'TEST E: Proven mathematical contradiction -> Continue disabled (INVALID)',
-    `Expected state=INVALID, canContinue=false; got state=${stateMathFailed.state}, canContinue=${stateMathFailed.canContinue}`
+    stateMathFailed.state === 'VALID' && stateMathFailed.canContinue === true,
+    'TEST E: Candidate draft with unverified math -> Stage 01 can still save draft and hand off to Stage 02',
+    `Expected state=VALID, canContinue=true; got state=${stateMathFailed.state}`
   );
 
   // TEST F: Duplicate options -> Continue disabled (INVALID)
@@ -168,9 +133,6 @@ function runTests() {
       optionA: '200 మీటర్లు',
       optionB: '200 మీటర్లు',
     },
-    clientReport: null,
-    serverValidationResult: null,
-    isValidationStale: false,
     configError: null,
   });
   assert(
@@ -179,64 +141,42 @@ function runTests() {
     `Expected state=INVALID, canContinue=false; got state=${stateDupOptions.state}, canContinue=${stateDupOptions.canContinue}`
   );
 
-  // TEST G: Edit candidate after validation -> previous validation becomes stale (ignores stale server INVALID)
+  // TEST G: Edit candidate after validation -> draft remains valid for Step 02 handoff
   const stateStaleEdit = getStep01WorkflowState({
     hasCandidate: true,
     candidate: {
       ...baseCandidate,
-      optionB: '180 మీటర్లు', // modified after previous server validation
-      mathematicalVerification: { status: 'UNVERIFIED' },
+      optionB: '180 మీటర్లు',
     },
-    clientReport: {
-      isValid: true,
-      errors: [],
-      warnings: [],
-      mathematicalVerification: { status: 'UNVERIFIED' },
-    },
-    serverValidationResult: {
-      status: QuestionValidationStatus.INVALID,
-      errors: ['Old error from before edit'],
-      warnings: [],
-    } as any,
-    isValidationStale: true, // Stale!
     configError: null,
   });
   assert(
-    stateStaleEdit.state === 'NEEDS_REVIEW' && stateStaleEdit.canContinue === true,
-    'TEST G: Edit candidate after validation -> previous server INVALID ignored because stale',
-    `Expected state=NEEDS_REVIEW, canContinue=true; got state=${stateStaleEdit.state}, canContinue=${stateStaleEdit.canContinue}`
+    stateStaleEdit.state === 'VALID' && stateStaleEdit.canContinue === true,
+    'TEST G: Edit candidate -> draft can be saved for Step 02',
+    `Expected state=VALID, canContinue=true; got state=${stateStaleEdit.state}`
   );
 
-  // TEST H: AI refinement after validation -> previous validation becomes stale
+  // TEST H: AI refinement -> draft can be saved for Step 02
   const stateRefinedStale = getStep01WorkflowState({
     hasCandidate: true,
     candidate: {
       ...baseCandidate,
       questionText: 'రైలు 90 km/h వేగంతో ప్రయాణిస్తూ 200 మీటర్ల ప్లాట్‌ఫారమ్‌ను దాటింది.',
-      mathematicalVerification: { status: 'UNVERIFIED' },
     },
-    clientReport: {
-      isValid: true,
-      errors: [],
-      warnings: [],
-      mathematicalVerification: { status: 'UNVERIFIED' },
-    },
-    serverValidationResult: null,
-    isValidationStale: true,
     configError: null,
   });
   assert(
-    stateRefinedStale.state === 'NEEDS_REVIEW' && stateRefinedStale.canContinue === true,
-    'TEST H: AI refinement after validation -> marked as fresh draft / pending re-validation',
-    `Expected state=NEEDS_REVIEW, canContinue=true; got state=${stateRefinedStale.state}`
+    stateRefinedStale.state === 'VALID' && stateRefinedStale.canContinue === true,
+    'TEST H: AI refinement -> draft can be saved for Step 02',
+    `Expected state=VALID, canContinue=true; got state=${stateRefinedStale.state}`
   );
 
-  // TEST I: Source Code Inspection: Only one Step 01 -> Step 02 primary continue action exists in QuestionStudio
+  // TEST I: Source Code Inspection: Only one primary continue action button in QuestionStudio
   const studioFileContent = readFileSync(resolve(process.cwd(), 'src/pages/QuestionStudioPage.tsx'), 'utf-8');
-  const continueMatches = studioFileContent.match(/Continue to Step 02/g) || [];
+  const continueMatches = studioFileContent.match(/Save Draft & Continue/g) || [];
   assert(
     continueMatches.length === 1,
-    'TEST I: Only one primary Continue to Step 02 button exists in QuestionStudioPage',
+    'TEST I: Only one primary Save Draft & Continue button exists in QuestionStudioPage',
     `Expected 1 continue match, found ${continueMatches.length}`
   );
 
