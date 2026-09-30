@@ -23,6 +23,7 @@ import {
   MyWorkSummary,
   Publishing,
   Question,
+  QuestionDraft,
   QuestionStatus,
   QuestionStudioConfigResponse,
   SpreadsheetHealthReport,
@@ -334,6 +335,28 @@ class ApiClient {
       method: 'POST',
       headers,
       body: JSON.stringify(payload),
+    });
+  }
+
+  public async saveQuestionDraft(payload: any): Promise<QuestionDraft> {
+    return this.request('/questions/draft', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  public async getQuestionDraft(id: string): Promise<QuestionDraft> {
+    return this.request(`/questions/draft/${encodeURIComponent(id)}`);
+  }
+
+  public async getQuestionDrafts(): Promise<QuestionDraft[]> {
+    return this.request('/questions/drafts');
+  }
+
+  public async approveQuestionDraft(id: string, notes?: string): Promise<Question> {
+    return this.request(`/questions/draft/${encodeURIComponent(id)}/approve`, {
+      method: 'POST',
+      body: JSON.stringify({ notes }),
     });
   }
 

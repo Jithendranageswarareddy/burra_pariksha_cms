@@ -409,6 +409,55 @@ export interface Question {
   updatedAt: string;
 }
 
+/**
+ * QuestionDraft Model (Stage 01 Question Studio Draft Contract)
+ * Decoupled from permanent Question ID allocation and multi-layer save gates.
+ */
+export interface QuestionDraft {
+  id: string; // e.g. BP-DFT-1042 or DFT-1727400000
+  topicId: string;
+  topicName?: string;
+  subtopicId: string;
+  subtopicName?: string;
+  categoryId?: string;
+  categoryName?: string;
+  difficulty: DifficultyLevel | string;
+  language?: QuestionLanguage | string;
+  questionText: string;
+  question?: string; // Alias for compatibility
+  options: {
+    a: string;
+    b: string;
+    c: string;
+    d: string;
+  };
+  optionA?: string;
+  optionB?: string;
+  optionC?: string;
+  optionD?: string;
+  correctAnswer: 'A' | 'B' | 'C' | 'D';
+  explanation: string;
+  realWorldContext?: string;
+  realLifeContext?: string;
+  challengeType?: string;
+  presentationType?: string;
+  questionStyle?: QuestionStyle | string;
+  generationMode?: 'SUBTOPIC' | 'RANDOM' | string;
+  tags?: string[];
+  source?: string;
+  sourceModel?: string;
+  generationLatencyMs?: number;
+  isFallback?: boolean;
+  mathematicalVerification?: any;
+  authorId?: string;
+  authorName?: string;
+  author?: string;
+  workflowStage?: string;
+  status: QuestionStatus | string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // ============================================================================
 // QUESTION_CONFIG Worksheet Data Models (Creator-Managed Studio Configuration)
 // ============================================================================
@@ -558,6 +607,8 @@ export interface ValidationResult {
   ambiguityResult: AmbiguityResult;
   mathematicalLogicalResult: MathematicalLogicalResult;
   modelEvidence?: ValidationEvidence[];
+  layers?: Record<string, any>;
+  layerList?: any[];
   isStale?: boolean;
   validatedBy?: string;
   createdAt: string;

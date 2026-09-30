@@ -71,6 +71,7 @@ export const VALID_VIDEO_TRANSITIONS: Record<VideoProductionStatus, VideoProduct
   ],
   [VideoProductionStatus.SCRIPT_READY]: [
     VideoProductionStatus.RECORDING,
+    VideoProductionStatus.RECORDED,
     VideoProductionStatus.ON_HOLD,
     VideoProductionStatus.CANCELLED,
   ],

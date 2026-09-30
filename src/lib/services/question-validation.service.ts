@@ -10,11 +10,13 @@
  */
 
 import { questionsRepository } from '../repositories/questions.repository';
+import { questionDraftsRepository } from '../repositories/question-drafts.repository';
 import { validationsRepository } from '../repositories/validations.repository';
 import { auditService } from './audit.service';
 import { QuestionValidationEngine, ValidationPipelineOptions } from '../validation/question-validation.engine';
 import {
   Question,
+  QuestionStatus,
   ValidationResult,
   QuestionValidationStatus,
 } from '../../types';
@@ -52,9 +54,16 @@ export class QuestionValidationService {
     actor?: ValidationActor | string,
     pipelineOptions: ValidationPipelineOptions = {}
   ): Promise<ValidationResult> {
-    const question = await questionsRepository.findById(questionId);
+    let question = await questionsRepository.findById(questionId);
+    let isDraft = false;
     if (!question) {
-      throw new QuestionNotFoundError(questionId);
+      const draft = await questionDraftsRepository.findById(questionId);
+      if (draft) {
+        question = draft as any;
+        isDraft = true;
+      } else {
+        throw new QuestionNotFoundError(questionId);
+      }
     }
 
     const actorId = typeof actor === 'object' ? actor.id : actor || 'SYSTEM_VALIDATOR';
@@ -78,13 +87,20 @@ export class QuestionValidationService {
     // Save validation result
     await validationsRepository.saveValidationResult(result);
 
-    // Update question record
-    await questionsRepository.update(questionId, {
-      validationStatus: result.status,
-      lastValidationId: result.id,
-      validationScore: result.confidenceScore,
-      updatedAt: new Date().toISOString(),
-    });
+    // Update question record (only if persistent question)
+    if (!isDraft) {
+      await questionsRepository.update(questionId, {
+        validationStatus: result.status,
+        lastValidationId: result.id,
+        validationScore: result.confidenceScore,
+        updatedAt: new Date().toISOString(),
+      });
+    } else {
+      await questionDraftsRepository.update(questionId, {
+        status: QuestionStatus.DRAFT,
+        updatedAt: new Date().toISOString(),
+      });
+    }
 
     await auditService.log(
       actorId,

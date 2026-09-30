@@ -89,7 +89,7 @@ export interface StudioCandidate {
   mathematicalVerification?: MathVerificationResult;
 }
 
-export type Step01WorkflowState = 'EMPTY' | 'INCOMPLETE' | 'VALID' | 'NEEDS_REVIEW' | 'INVALID';
+export type Step01WorkflowState = 'EMPTY' | 'INCOMPLETE' | 'VALID' | 'INVALID';
 
 export interface Step01StateEvaluation {
   state: Step01WorkflowState;
@@ -102,16 +102,10 @@ export interface Step01StateEvaluation {
 export function getStep01WorkflowState({
   hasCandidate,
   candidate,
-  clientReport,
-  serverValidationResult,
-  isValidationStale,
   configError,
 }: {
   hasCandidate: boolean;
   candidate: StudioCandidate;
-  clientReport: CandidateValidationReport | null;
-  serverValidationResult: ValidationResult | null;
-  isValidationStale: boolean;
   configError: string | null;
 }): Step01StateEvaluation {
   if (configError) {
@@ -145,8 +139,8 @@ export function getStep01WorkflowState({
 
   // STATE B — INCOMPLETE: Missing required question text length or required options
   const missingFieldErrors: string[] = [];
-  if (qText.length < 10) {
-    missingFieldErrors.push('Question statement must be at least 10 characters.');
+  if (qText.length < 5) {
+    missingFieldErrors.push('Question problem statement is required.');
   }
   if (!optA) missingFieldErrors.push('Option A is required.');
   if (!optB) missingFieldErrors.push('Option B is required.');
@@ -165,7 +159,7 @@ export function getStep01WorkflowState({
     };
   }
 
-  // Check fatal errors: Invalid correct answer choice
+  // Check correct answer choice
   if (!['A', 'B', 'C', 'D'].includes(declaredAnswer)) {
     return {
       state: 'INVALID',
@@ -176,7 +170,7 @@ export function getStep01WorkflowState({
     };
   }
 
-  // Check fatal errors: Duplicate or equivalent options
+  // Check for duplicate options (basic draft sanity)
   const rawOptions = [
     { key: 'A', text: optA.toLowerCase() },
     { key: 'B', text: optB.toLowerCase() },
@@ -197,72 +191,7 @@ export function getStep01WorkflowState({
     }
   }
 
-  // Check fatal errors: Client validation structural failures
-  if (clientReport && !clientReport.isValid) {
-    return {
-      state: 'INVALID',
-      canContinue: false,
-      reason: clientReport.errors[0] || 'Client validation failed.',
-      errors: clientReport.errors,
-      warnings: clientReport.warnings || [],
-    };
-  }
-
-  // Check fatal errors: Mathematical contradiction (FAILED)
-  const mathStatus = candidate.mathematicalVerification?.status || clientReport?.mathematicalVerification?.status;
-  if (mathStatus === 'FAILED') {
-    const mathReason = candidate.mathematicalVerification?.reason || clientReport?.mathematicalVerification?.reason || 'Deterministic mathematical contradiction established.';
-    return {
-      state: 'INVALID',
-      canContinue: false,
-      reason: `Mathematical contradiction: ${mathReason}`,
-      errors: [`Mathematical contradiction: ${mathReason}`],
-      warnings: [],
-    };
-  }
-
-  // Check fresh server validation result (only if not stale)
-  if (serverValidationResult && !isValidationStale) {
-    if (serverValidationResult.status === QuestionValidationStatus.INVALID) {
-      return {
-        state: 'INVALID',
-        canContinue: false,
-        reason: serverValidationResult.errors[0] || 'Server validation rejected candidate.',
-        errors: serverValidationResult.errors,
-        warnings: serverValidationResult.warnings || [],
-      };
-    }
-    if (serverValidationResult.status === QuestionValidationStatus.VALID) {
-      return {
-        state: 'VALID',
-        canContinue: true,
-        errors: [],
-        warnings: serverValidationResult.warnings || [],
-      };
-    }
-    if (serverValidationResult.status === QuestionValidationStatus.NEEDS_REVIEW) {
-      return {
-        state: 'NEEDS_REVIEW',
-        canContinue: true,
-        reason: 'Candidate structurally valid; pending editorial verification in Step 02.',
-        errors: [],
-        warnings: serverValidationResult.warnings || [],
-      };
-    }
-  }
-
-  // STATE D — NEEDS_REVIEW: Structurally valid, but math is UNVERIFIED or pending server validation
-  if (mathStatus === 'UNVERIFIED' || !mathStatus) {
-    return {
-      state: 'NEEDS_REVIEW',
-      canContinue: true,
-      reason: 'Mathematical verification pending in Step 02.',
-      errors: [],
-      warnings: ['Mathematical verification pending independent review in Step 02.'],
-    };
-  }
-
-  // STATE C — VALID: All checks passed and math is verified
+  // STATE C — VALID DRAFT: Structurally complete draft ready for Step 02 Verification
   return {
     state: 'VALID',
     canContinue: true,
@@ -949,25 +878,19 @@ export const QuestionStudioPage: React.FC = () => {
     return getStep01WorkflowState({
       hasCandidate,
       candidate,
-      clientReport,
-      serverValidationResult,
-      isValidationStale,
       configError,
     });
   }, [
     hasCandidate,
     candidate,
-    clientReport,
-    serverValidationResult,
-    isValidationStale,
     configError,
   ]);
 
-  // Canonical Save & Direct Navigation to Step 02 Verification
+  // Stage 01 Draft Save & Seamless Navigation to Step 02 Verification
   const handleSaveAndContinue = async () => {
     setHasAttemptedSave(true);
     if (!workflowState.canContinue) {
-      setErrorMessage(workflowState.reason || 'Cannot continue: please resolve validation errors before proceeding.');
+      setErrorMessage(workflowState.reason || 'Cannot save draft: please provide required question details.');
       return;
     }
 
@@ -975,8 +898,6 @@ export const QuestionStudioPage: React.FC = () => {
     setIsSaving(true);
 
     try {
-      const idempotencyKey = `studio-ai-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-
       const isRandomMode =
         selectedSubtopic === 'RANDOM' ||
         realLifeContext === 'RANDOM' ||
@@ -987,8 +908,7 @@ export const QuestionStudioPage: React.FC = () => {
           ? candidate.realLifeContext
           : (realLifeContext && realLifeContext !== 'RANDOM' ? realLifeContext : undefined);
 
-      const created = await apiClient.createQuestionCanonical({
-        creationMode: 'ai',
+      const savedDraft = await apiClient.saveQuestionDraft({
         topicId: selectedTopic,
         subtopicId: selectedSubtopic,
         difficulty: candidate.difficulty,
@@ -1009,19 +929,19 @@ export const QuestionStudioPage: React.FC = () => {
         correctAnswer: candidate.correctAnswer,
         explanation: candidate.explanation.trim(),
         tags: candidate.tags,
-        idempotencyKey,
+        source: 'AI Question Studio',
+        sourceModel: candidate.sourceModel,
+        generationLatencyMs: candidate.generationLatencyMs,
+        isFallback: candidate.isFallback,
         mathematicalVerification: candidate.mathematicalVerification || clientReport?.mathematicalVerification,
       });
 
-      setSavedQuestion(created);
-      setSavedSuccessInfo({ id: created.id, status: created.status });
       setIsDirty(false);
-      loadJourneyForQuestion(created.id, created);
 
       // Direct seamless navigation to Step 02: Verification
-      navigate(`/questions/${created.id}/verify`);
+      navigate(`/questions/${savedDraft.id}/verify`);
     } catch (err: any) {
-      setErrorMessage(err?.message || 'Failed to save question to library.');
+      setErrorMessage(err?.message || 'Unable to save the draft. Please try again.');
     } finally {
       setIsSaving(false);
     }
@@ -1076,20 +996,7 @@ export const QuestionStudioPage: React.FC = () => {
       {/* 1. PAGE HEADER */}
       <PageHeader
         title="AI Question Studio"
-        description="Generate high-yield Telugu aptitude question candidates with AI and hand off to Step 02 for verification."
-        actions={
-          <div className="flex items-center gap-2 flex-wrap">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleResetStudio}
-              icon={RotateCcw}
-              className="text-xs bg-white border-slate-200 shadow-2xs hover:bg-slate-50 text-slate-700 font-medium h-8"
-            >
-              + Draft Another Question
-            </Button>
-          </div>
-        }
+        description="Generate and refine high-yield Telugu aptitude question drafts, then continue to the next production stage."
       />
 
       {/* 2. PERMANENT 15-STAGE TIMELINE ANCHOR */}
@@ -1739,100 +1646,6 @@ export const QuestionStudioPage: React.FC = () => {
             </div>
           )}
 
-          {/* UNIFIED VALIDATION STRIP */}
-          {(hasCandidate || candidate.questionText.trim().length > 0) && !isGenerating && (
-            <div className="p-2.5 bg-slate-50 border border-slate-200/80 rounded-lg space-y-1">
-              <div className="flex flex-wrap items-center justify-between gap-1.5 text-xs">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <ShieldCheck className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-                  <span className="font-bold text-slate-900 text-[11px]">Validation:</span>
-
-                  {clientReport && (
-                    <span
-                      className={`font-bold text-[9px] px-1.5 py-0.2 rounded-full ${
-                        clientReport.isValid
-                          ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                          : 'bg-rose-100 text-rose-800 border border-rose-200'
-                      }`}
-                    >
-                      Client: {clientReport.isValid ? 'PASS' : 'FAIL'}
-                    </span>
-                  )}
-
-                  {clientReport?.mathematicalVerification && (
-                    <span
-                      className={`font-bold text-[9px] px-1.5 py-0.2 rounded-full ${
-                        clientReport.mathematicalVerification.status === 'VERIFIED'
-                          ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
-                          : clientReport.mathematicalVerification.status === 'FAILED'
-                          ? 'bg-rose-100 text-rose-900 border border-rose-300'
-                          : 'bg-amber-100 text-amber-900 border border-amber-300'
-                      }`}
-                    >
-                      Math: {clientReport.mathematicalVerification.status === 'UNVERIFIED' ? 'UNVERIFIED (Draft)' : clientReport.mathematicalVerification.status}
-                    </span>
-                  )}
-
-                  {isValidationStale ? (
-                    <span className="font-bold text-[9px] px-1.5 py-0.2 rounded-full bg-slate-100 text-slate-700 border border-slate-300">
-                      Server: Pending Re-validation
-                    </span>
-                  ) : serverValidationResult ? (
-                    <span
-                      className={`font-bold text-[9px] px-1.5 py-0.2 rounded-full ${
-                        serverValidationResult.status === QuestionValidationStatus.VALID
-                          ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
-                          : serverValidationResult.status === QuestionValidationStatus.NEEDS_REVIEW
-                          ? 'bg-amber-100 text-amber-900 border border-amber-300'
-                          : 'bg-rose-100 text-rose-900 border border-rose-300'
-                      }`}
-                    >
-                      Server: {
-                        serverValidationResult.status === QuestionValidationStatus.VALID
-                          ? 'VALID'
-                          : serverValidationResult.status === QuestionValidationStatus.NEEDS_REVIEW
-                          ? 'NEEDS REVIEW (Step 02)'
-                          : 'INVALID'
-                      }
-                    </span>
-                  ) : (
-                    <span className="text-[9px] text-slate-500 font-medium">Pending Server Check</span>
-                  )}
-                </div>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleServerValidate}
-                  isLoading={isValidatingServer}
-                  icon={FileCheck}
-                  className="bg-white border-indigo-200 text-indigo-900 hover:bg-indigo-50 text-[10px] py-0.5 px-2 h-6"
-                >
-                  Run Validation
-                </Button>
-              </div>
-
-              {/* Show errors if present */}
-              {((workflowState.state === 'INVALID' && workflowState.errors.length > 0) ||
-                (serverValidationResult && !isValidationStale && serverValidationResult.status === QuestionValidationStatus.INVALID)) && (
-                <div className="pt-1 text-[10px] text-rose-800 font-medium space-y-0.5 border-t border-rose-100/80 mt-1">
-                  {workflowState.errors.map((err, idx) => (
-                    <p key={`wf-err-${idx}`} className="flex items-center gap-1">
-                      <AlertCircle className="w-2.5 h-2.5 text-rose-600 shrink-0" />
-                      <span>{err}</span>
-                    </p>
-                  ))}
-                  {serverValidationResult && !isValidationStale && serverValidationResult.status === QuestionValidationStatus.INVALID && serverValidationResult.errors.map((err, idx) => (
-                    <p key={`server-err-${idx}`} className="flex items-center gap-1">
-                      <AlertCircle className="w-2.5 h-2.5 text-rose-600 shrink-0" />
-                      <span>Server Validation: {err}</span>
-                    </p>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
           {/* CANVAS FOOTER ACTION BAR */}
           <div className="mt-auto pt-3 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2">
             <Button
@@ -1842,13 +1655,13 @@ export const QuestionStudioPage: React.FC = () => {
               icon={RotateCcw}
               className="text-xs bg-white text-slate-700 border-slate-200 hover:bg-slate-50 h-8"
             >
-              Clear / Discard Draft
+              Clear / Start New Question
             </Button>
 
             <div className="flex items-center gap-2">
               {!workflowState.canContinue && workflowState.state !== 'EMPTY' && workflowState.reason && (
-                <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-rose-800 bg-rose-50 px-2 py-1 rounded border border-rose-200 max-w-xs truncate" title={workflowState.reason}>
-                  <AlertCircle className="w-3 h-3 text-rose-600 shrink-0" />
+                <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-600 bg-slate-100 px-2 py-1 rounded border border-slate-200 max-w-xs truncate" title={workflowState.reason}>
+                  <AlertCircle className="w-3 h-3 text-slate-500 shrink-0" />
                   <span className="truncate">{workflowState.reason}</span>
                 </span>
               )}
@@ -1858,11 +1671,11 @@ export const QuestionStudioPage: React.FC = () => {
                 size="md"
                 onClick={handleSaveAndContinue}
                 isLoading={isSaving}
-                disabled={!workflowState.canContinue || isSaving || isGenerating || isRefining || isValidatingServer}
+                disabled={!workflowState.canContinue || isSaving || isGenerating || isRefining}
                 icon={ArrowRight}
                 className="bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-bold shadow-xs cursor-pointer px-4 text-xs py-2 rounded-lg h-8 disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                Continue to Step 02: Verification →
+                Save Draft & Continue →
               </Button>
             </div>
           </div>

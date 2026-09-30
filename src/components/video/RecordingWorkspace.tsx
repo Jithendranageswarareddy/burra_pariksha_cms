@@ -224,10 +224,20 @@ export const RecordingWorkspace: React.FC<RecordingWorkspaceProps> = ({
         setRawAssets(incomingRaw);
       }
 
+      let currentStatus = video.status;
+      if (currentStatus === VideoProductionStatus.QUEUED) {
+        await apiClient.updateVideoStatus(
+          videoId,
+          VideoProductionStatus.SCRIPT_READY,
+          'Advancing QUEUED status to SCRIPT_READY for footage upload'
+        );
+        currentStatus = VideoProductionStatus.SCRIPT_READY;
+      }
+
       // Advance status to RECORDED if currently SCRIPT_READY or RECORDING
       if (
-        video.status === VideoProductionStatus.SCRIPT_READY ||
-        video.status === VideoProductionStatus.RECORDING
+        currentStatus === VideoProductionStatus.SCRIPT_READY ||
+        currentStatus === VideoProductionStatus.RECORDING
       ) {
         await apiClient.updateVideoStatus(
           videoId,
@@ -274,6 +284,16 @@ export const RecordingWorkspace: React.FC<RecordingWorkspaceProps> = ({
         notes: `${video.notes || ''}\nRaw Footage Drive URL: ${driveUrlInput.trim()}`.trim(),
         driveFolderUrl: driveUrlInput.trim(),
       });
+      let currentStatus = video.status;
+      if (currentStatus === VideoProductionStatus.QUEUED) {
+        await apiClient.updateVideoStatus(
+          videoId,
+          VideoProductionStatus.SCRIPT_READY,
+          'Advancing QUEUED status to SCRIPT_READY for footage linking'
+        );
+        currentStatus = VideoProductionStatus.SCRIPT_READY;
+      }
+
       await apiClient.updateVideoStatus(
         videoId,
         VideoProductionStatus.RECORDED,
@@ -312,12 +332,26 @@ export const RecordingWorkspace: React.FC<RecordingWorkspaceProps> = ({
         return;
       }
 
-      if (
-        video.status === VideoProductionStatus.RECORDED ||
-        video.status === VideoProductionStatus.QUEUED ||
-        video.status === VideoProductionStatus.SCRIPT_READY ||
-        video.status === VideoProductionStatus.RECORDING
-      ) {
+      let currentStatus = video.status;
+      if (currentStatus === VideoProductionStatus.QUEUED) {
+        await apiClient.updateVideoStatus(
+          videoId,
+          VideoProductionStatus.SCRIPT_READY,
+          'Advancing QUEUED status to SCRIPT_READY'
+        );
+        currentStatus = VideoProductionStatus.SCRIPT_READY;
+      }
+
+      if (currentStatus === VideoProductionStatus.SCRIPT_READY || currentStatus === VideoProductionStatus.RECORDING) {
+        await apiClient.updateVideoStatus(
+          videoId,
+          VideoProductionStatus.RECORDED,
+          'Advancing SCRIPT_READY/RECORDING to RECORDED (raw footage secured)'
+        );
+        currentStatus = VideoProductionStatus.RECORDED;
+      }
+
+      if (currentStatus === VideoProductionStatus.RECORDED) {
         await apiClient.updateVideoStatus(
           videoId,
           VideoProductionStatus.EDITING,
@@ -325,13 +359,18 @@ export const RecordingWorkspace: React.FC<RecordingWorkspaceProps> = ({
         );
         if (onStatusChange) onStatusChange();
       }
+
       if (onNavigateTab) {
         onNavigateTab('editing');
       } else {
         window.location.href = `/videos/${encodeURIComponent(videoId)}?tab=editing`;
       }
     } catch (err: any) {
-      setError(err?.message || 'Failed to advance to Editing stage.');
+      let friendlyError = err?.message || 'Failed to advance to Editing stage.';
+      if (friendlyError.includes('Illegal status transition')) {
+        friendlyError = `Recording stage not fully finalized. Current status is ${video.status}. Please ensure raw video is uploaded and marked as Recorded before proceeding to Video Editing.`;
+      }
+      setError(friendlyError);
     } finally {
       setIsUpdating(false);
     }

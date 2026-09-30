@@ -41,6 +41,8 @@ import {
   phase18ThumbnailIntelligenceService,
   phase14DriveService,
 } from '../lib/services';
+import { questionDraftService } from '../lib/services/question-draft.service';
+import { questionDraftsRepository } from '../lib/repositories/question-drafts.repository';
 import { thumbnailCandidatesRepository } from '../lib/repositories/thumbnail-candidates.repository';
 import { ThumbnailSafetyValidator } from '../lib/validators/thumbnail-safety.validator';
 import { geminiClient } from '../lib/ai/gemini.client';
@@ -1177,6 +1179,77 @@ apiRouter.post('/questions/smart-random', async (req: Request, res: Response) =>
   }
 });
 
+// ============================================================================
+// STAGE 01: QUESTION DRAFT ENDPOINTS (Decoupled from production ID allocation)
+// ============================================================================
+
+apiRouter.post('/questions/draft', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.QUESTION_EDITOR, UserRole.CONTENT_WRITER]), async (req: Request, res: Response) => {
+  try {
+    const actor = getRequestActor(req);
+    const draft = await questionDraftService.saveDraft(req.body, { id: actor.id, name: actor.name || 'Author' });
+    res.status(201).json(draft);
+  } catch (err: any) {
+    res.status(err?.statusCode || 400).json({
+      error: err?.name || 'Draft Save Failed',
+      message: err?.message || 'Failed to save question draft',
+    });
+  }
+});
+
+apiRouter.get('/questions/drafts', async (req: Request, res: Response) => {
+  try {
+    const drafts = await questionDraftService.getAllDrafts();
+    res.json(drafts);
+  } catch (err: any) {
+    res.status(500).json({
+      error: 'Failed to fetch drafts',
+      message: err?.message || 'Unknown error',
+    });
+  }
+});
+
+apiRouter.get('/questions/draft/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const draft = await questionDraftService.getDraftById(id);
+    if (!draft) {
+      return res.status(404).json({ error: `Question draft with ID "${id}" not found` });
+    }
+    res.json(draft);
+  } catch (err: any) {
+    res.status(500).json({
+      error: 'Failed to fetch question draft',
+      message: err?.message || 'Unknown error',
+    });
+  }
+});
+
+apiRouter.post('/questions/draft/:id/approve', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.QUESTION_EDITOR, UserRole.REVIEWER]), async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const actor = getRequestActor(req);
+    const notes = req.body?.notes || req.body?.remarks;
+    const approvedQuestion = await questionDraftService.approveDraft(id, actor, notes);
+    res.status(201).json(approvedQuestion);
+  } catch (err: any) {
+    res.status(err?.statusCode || 400).json({
+      error: err?.name || 'Approval Failed',
+      message: err?.message || 'Failed to approve and create question from draft',
+      details: err?.details || (err?.errors ? err.errors : undefined),
+    });
+  }
+});
+
+apiRouter.delete('/questions/draft/:id', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.QUESTION_EDITOR, UserRole.CONTENT_WRITER]), async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const deleted = await questionDraftService.deleteDraft(id);
+    res.json({ success: deleted });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || 'Failed to delete draft' });
+  }
+});
+
 apiRouter.post('/questions/create', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.QUESTION_EDITOR, UserRole.CONTENT_WRITER]), async (req: Request, res: Response) => {
   try {
     const actor = getRequestActor(req);
@@ -1243,8 +1316,12 @@ apiRouter.get('/questions/:id', async (req: Request, res: Response) => {
   try {
     const actor = getRequestActor(req);
     const { id } = req.params;
-    const question = await questionService.getQuestionById(id);
+    let question = await questionService.getQuestionById(id);
     if (!question) {
+      const draft = await questionDraftService.getDraftById(id);
+      if (draft) {
+        return res.json(draft);
+      }
       return res.status(404).json({ error: `Question with ID "${id}" not found` });
     }
     const canAccess = await objectAuthService.canAccessQuestion(actor, question);

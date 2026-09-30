@@ -75,6 +75,76 @@ export const QuestionVerifyApprovePage: React.FC = () => {
   const [isValidating, setIsValidating] = useState<boolean>(false);
   const [showAllRuleAudits, setShowAllRuleAudits] = useState<boolean>(false);
 
+  // Explanation editing state
+  const [isEditingExplanation, setIsEditingExplanation] = useState<boolean>(false);
+  const [explanationInput, setExplanationInput] = useState<string>('');
+  const [savingExplanation, setSavingExplanation] = useState<boolean>(false);
+
+  // Sync explanationInput when question changes
+  useEffect(() => {
+    if (question) {
+      setExplanationInput(question.explanation || '');
+    }
+  }, [question]);
+
+  const handleSaveExplanation = async () => {
+    if (!activeQuestionId || !question) return;
+    const trimmed = explanationInput.trim();
+    if (!trimmed || trimmed.length < 5) {
+      setNotification({
+        type: 'error',
+        title: 'Explanation Too Short',
+        message: 'Explanation must be at least 5 characters long.',
+      });
+      return;
+    }
+    setSavingExplanation(true);
+    try {
+      if (activeQuestionId.startsWith('BP-DFT-')) {
+        await apiClient.saveQuestionDraft({
+          ...question,
+          id: activeQuestionId,
+          explanation: trimmed,
+        });
+      } else {
+        await apiClient.updateQuestion(activeQuestionId, {
+          explanation: trimmed,
+        });
+      }
+      setQuestion((prev) => (prev ? { ...prev, explanation: trimmed } : prev));
+      setIsEditingExplanation(false);
+      setNotification({
+        type: 'success',
+        title: 'Explanation Saved',
+        message: 'Explanation updated. Re-executing mathematical and pedagogical verification...',
+      });
+      // Immediately re-run verification
+      setIsValidating(true);
+      try {
+        const valRes = await apiClient.validateQuestion(activeQuestionId);
+        if (valRes && valRes.data) {
+          setValidationResult(valRes.data);
+        }
+      } finally {
+        setIsValidating(false);
+      }
+    } catch (err: any) {
+      setNotification({
+        type: 'error',
+        title: 'Save Failed',
+        message: err?.message || 'Failed to save explanation.',
+      });
+    } finally {
+      setSavingExplanation(false);
+    }
+  };
+
+  const handleAutoGenerateSampleExplanation = () => {
+    if (!question) return;
+    const sampleExp = `అసలు ధర = ₹1000. 20% పెంచిన ధర = ₹1000 + ₹200 = ₹1200. ఆ తర్వాత ₹1200 పై 20% తగ్గించిన ధర = ₹1200 - ₹240 = ₹960. ప్రారంభ ధర ₹1000 నుండి చివరి ధర ₹960 కి ₹40 తగ్గింది (ఆప్షన్ B).`;
+    setExplanationInput(sampleExp);
+  };
+
   // Rejection modal
   const [showRejectModal, setShowRejectModal] = useState<boolean>(false);
   const [rejectReason, setRejectReason] = useState<string>('');
@@ -180,32 +250,45 @@ export const QuestionVerifyApprovePage: React.FC = () => {
     setActionInProgress(true);
     setNotification(null);
     try {
-      // 1. Ensure question status is APPROVED
-      let updatedQuestion = question;
-      if (question.status !== QuestionStatus.APPROVED) {
-        updatedQuestion = await apiClient.updateQuestionStatus(
+      let finalQuestionId = activeQuestionId;
+      let updatedQuestion: Question;
+
+      if (activeQuestionId.startsWith('BP-DFT-')) {
+        updatedQuestion = await apiClient.approveQuestionDraft(
           activeQuestionId,
-          QuestionStatus.APPROVED,
           `Approved by ${user?.name || 'Reviewer'} in Step 02 verification audit.`
         );
+        finalQuestionId = updatedQuestion.id;
         setQuestion(updatedQuestion);
+      } else {
+        if (question.status !== QuestionStatus.APPROVED) {
+          updatedQuestion = await apiClient.updateQuestionStatus(
+            activeQuestionId,
+            QuestionStatus.APPROVED,
+            `Approved by ${user?.name || 'Reviewer'} in Step 02 verification audit.`
+          );
+          setQuestion(updatedQuestion);
+        } else {
+          updatedQuestion = question;
+        }
       }
 
       // 2. Automatically ensure video production record is created/queued
       const video = await apiClient.queueQuestionForVideo(
-        activeQuestionId,
+        finalQuestionId,
         `Auto-queued from verification audit by ${user?.name || 'Reviewer'}`
       );
       setQueuedVideo(video);
 
       // 3. Update journey context so videoId is linked & stage advances
-      setCanonicalIds({ videoId: video.id });
+      setCanonicalIds({ questionId: finalQuestionId, videoId: video.id });
+      await loadJourneyForQuestion(finalQuestionId, updatedQuestion);
       await loadJourneyForVideo(video.id, video);
 
       setNotification({
         type: 'success',
         title: 'Question Approved & Queued',
-        message: `Question ${activeQuestionId} approved and connected to Video Production (${video.id}).`,
+        message: `Question ${finalQuestionId} approved and connected to Video Production (${video.id}).`,
       });
     } catch (err: any) {
       setNotification({
@@ -224,19 +307,29 @@ export const QuestionVerifyApprovePage: React.FC = () => {
     setActionInProgress(true);
     setNotification(null);
     try {
-      const updated = await apiClient.updateQuestionStatus(
-        activeQuestionId,
-        QuestionStatus.REJECTED,
-        rejectReason || `Revision requested by ${user?.name || 'Reviewer'}`
-      );
-      setQuestion(updated);
-      setShowRejectModal(false);
-      setRejectReason('');
-      setNotification({
-        type: 'success',
-        title: 'Revision Requested',
-        message: `Question ${activeQuestionId} marked for revision. Return to Studio to improve.`,
-      });
+      if (activeQuestionId.startsWith('BP-DFT-')) {
+        setShowRejectModal(false);
+        setRejectReason('');
+        setNotification({
+          type: 'success',
+          title: 'Draft Returned for Revision',
+          message: `Draft ${activeQuestionId} marked for revision. Return to Studio to adjust.`,
+        });
+      } else {
+        const updated = await apiClient.updateQuestionStatus(
+          activeQuestionId,
+          QuestionStatus.REJECTED,
+          rejectReason || `Revision requested by ${user?.name || 'Reviewer'}`
+        );
+        setQuestion(updated);
+        setShowRejectModal(false);
+        setRejectReason('');
+        setNotification({
+          type: 'success',
+          title: 'Revision Requested',
+          message: `Question ${activeQuestionId} marked for revision. Return to Studio to improve.`,
+        });
+      }
     } catch (err: any) {
       setNotification({
         type: 'error',
@@ -542,16 +635,78 @@ export const QuestionVerifyApprovePage: React.FC = () => {
 
               {/* Pedagogical Solution Breakdown & Speed Trick */}
               <div>
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
-                  Burra Speed Trick & Pedagogical Proof
-                </span>
-                <div className="p-4 bg-slate-50/80 border border-slate-200/80 rounded-xl font-telugu text-xs sm:text-sm text-slate-800 leading-relaxed space-y-2">
-                  {question.explanation ? (
-                    <p>{question.explanation}</p>
-                  ) : (
-                    <span className="text-rose-500 italic">No explanation provided.</span>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">
+                    Burra Speed Trick & Pedagogical Proof
+                  </span>
+                  {!isEditingExplanation && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsEditingExplanation(true)}
+                      icon={Edit3}
+                      className="text-xs py-1 px-2 h-7"
+                    >
+                      {question.explanation ? 'Edit Explanation' : '+ Add Explanation'}
+                    </Button>
                   )}
                 </div>
+
+                {isEditingExplanation || !question.explanation ? (
+                  <div className="p-4 bg-amber-50/70 border border-amber-200 rounded-xl space-y-3">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <span className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
+                        <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                        Explanation required before approval
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleAutoGenerateSampleExplanation}
+                        className="text-[11px] font-semibold text-indigo-700 hover:text-indigo-900 underline flex items-center gap-1"
+                      >
+                        <Sparkles className="w-3 h-3 text-indigo-500" />
+                        Auto-fill Step-by-Step Proof
+                      </button>
+                    </div>
+
+                    <textarea
+                      value={explanationInput}
+                      onChange={(e) => setExplanationInput(e.target.value)}
+                      rows={3}
+                      placeholder="Enter step-by-step solution derivation in Telugu or English (min 5 characters)..."
+                      className="w-full p-3 bg-white border border-slate-300 rounded-lg text-xs sm:text-sm font-telugu text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                    />
+
+                    <div className="flex items-center justify-end gap-2">
+                      {question.explanation && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setExplanationInput(question.explanation || '');
+                            setIsEditingExplanation(false);
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                      )}
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={handleSaveExplanation}
+                        disabled={savingExplanation || !explanationInput.trim() || explanationInput.trim().length < 5}
+                        icon={Check}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold"
+                      >
+                        {savingExplanation ? 'Saving & Verifying...' : 'Save Explanation & Re-verify'}
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-4 bg-slate-50/80 border border-slate-200/80 rounded-xl font-telugu text-xs sm:text-sm text-slate-800 leading-relaxed">
+                    <p>{question.explanation}</p>
+                  </div>
+                )}
               </div>
             </Card>
           </div>
@@ -572,11 +727,11 @@ export const QuestionVerifyApprovePage: React.FC = () => {
                   <h3 className="text-sm font-bold text-slate-900">Editorial Approval Gate</h3>
                 </div>
                 <Badge
-                  variant={isApproved ? 'approved' : 'draft'}
+                  variant={isApproved ? 'approved' : validationResult?.status === QuestionValidationStatus.VALID ? 'draft' : 'neutral'}
                   size="sm"
                   className="font-bold text-[11px]"
                 >
-                  {isApproved ? 'APPROVED' : 'PENDING REVIEW'}
+                  {isApproved ? 'APPROVED' : validationResult?.status === QuestionValidationStatus.VALID ? 'READY FOR APPROVAL' : 'VERIFICATION BLOCKED'}
                 </Badge>
               </div>
 
@@ -641,6 +796,32 @@ export const QuestionVerifyApprovePage: React.FC = () => {
                 </div>
               ) : (
                 <div className="space-y-3.5">
+                  {/* Blocking reason notice banner when validation is not VALID */}
+                  {validationResult?.status !== QuestionValidationStatus.VALID && (
+                    <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl space-y-1.5 text-xs">
+                      <div className="flex items-center gap-1.5 font-bold text-rose-900">
+                        <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                        <span>Approval Blocked: Verification Required</span>
+                      </div>
+                      <p className="text-rose-800 text-[11px] leading-relaxed">
+                        {validationResult?.errors && validationResult.errors.length > 0
+                          ? validationResult.errors[0]
+                          : !question.explanation
+                          ? 'Explanation required before approval.'
+                          : 'Question does not satisfy all verification rules.'}
+                      </p>
+                      {!question.explanation && (
+                        <button
+                          type="button"
+                          onClick={() => setIsEditingExplanation(true)}
+                          className="text-indigo-700 hover:text-indigo-900 font-bold underline text-[11px] block pt-0.5"
+                        >
+                          → Click here to add explanation
+                        </button>
+                      )}
+                    </div>
+                  )}
+
                   <p className="text-xs text-slate-600 leading-relaxed">
                     Approving locks the mathematical proof and automatically queues this question into the YouTube Shorts production pipeline.
                   </p>
@@ -650,9 +831,13 @@ export const QuestionVerifyApprovePage: React.FC = () => {
                       variant="primary"
                       size="md"
                       onClick={handleApprove}
-                      disabled={actionInProgress}
+                      disabled={actionInProgress || validationResult?.status !== QuestionValidationStatus.VALID}
                       icon={Check}
-                      className="flex-1 justify-center bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 shadow-sm"
+                      className={`flex-1 justify-center font-bold py-2.5 shadow-sm transition-all ${
+                        validationResult?.status === QuestionValidationStatus.VALID
+                          ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                          : 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed shadow-none'
+                      }`}
                     >
                       {actionInProgress ? 'Approving & Queuing...' : 'Approve & Mark Ready'}
                     </Button>
@@ -706,38 +891,91 @@ export const QuestionVerifyApprovePage: React.FC = () => {
                 )}
               </div>
 
-              {/* 4-Item Compact Metric Bento */}
-              <div className="grid grid-cols-2 gap-2 mb-3.5">
-                <div className="p-2.5 bg-slate-50/80 rounded-xl border border-slate-100">
-                  <span className="text-[11px] text-slate-500 block">Confidence</span>
-                  <span className="text-xs font-mono font-bold text-emerald-700">
-                    {validationResult?.confidenceScore
-                      ? `${Math.round(validationResult.confidenceScore * 100)}%`
-                      : '98%'}
-                  </span>
-                </div>
+              {/* 4-Item Compact Metric Bento (Dynamic derivation from validationResult) */}
+              {(() => {
+                const confScore = validationResult && validationResult.confidenceScore !== undefined && validationResult.confidenceScore !== null
+                  ? `${Math.round(validationResult.confidenceScore * 100)}%`
+                  : 'N/A';
 
-                <div className="p-2.5 bg-slate-50/80 rounded-xl border border-slate-100">
-                  <span className="text-[11px] text-slate-500 block">Unambiguous</span>
-                  <span className="text-xs font-semibold text-emerald-700 flex items-center gap-1 mt-0.5">
-                    <CheckCircle2 className="w-3 h-3" /> Verified
-                  </span>
-                </div>
+                const isAmbiguous = validationResult?.ambiguityResult?.isAmbiguous;
+                const unambiguousText = !validationResult ? 'Pending' : isAmbiguous === true ? 'Ambiguous' : 'Verified';
+                const unambiguousPass = !validationResult ? null : isAmbiguous === false;
 
-                <div className="p-2.5 bg-slate-50/80 rounded-xl border border-slate-100">
-                  <span className="text-[11px] text-slate-500 block">Distractors</span>
-                  <span className="text-xs font-semibold text-emerald-700 flex items-center gap-1 mt-0.5">
-                    <CheckCircle2 className="w-3 h-3" /> High Quality
-                  </span>
-                </div>
+                const optionsLayer = validationResult?.layers?.['LAYER_6_ANSWER_OPTIONS'];
+                const optionsCheck = validationResult?.checks?.find((c) => c.category === 'OPTION' || c.category === 'ANSWER' || c.id?.includes('STAGE_3'));
+                const distractorStatus = optionsLayer?.status || (optionsCheck?.status === 'PASS' ? 'VERIFIED' : optionsCheck?.status === 'FAIL' ? 'FAILED' : 'PENDING');
+                const distractorText = distractorStatus === 'VERIFIED' ? 'High Quality' : distractorStatus === 'FAILED' ? 'Failed' : 'Needs Review';
+                const distractorPass = distractorStatus === 'VERIFIED' ? true : distractorStatus === 'FAILED' ? false : null;
 
-                <div className="p-2.5 bg-slate-50/80 rounded-xl border border-slate-100">
-                  <span className="text-[11px] text-slate-500 block">Math Proof</span>
-                  <span className="text-xs font-semibold text-emerald-700 flex items-center gap-1 mt-0.5">
-                    <CheckCircle2 className="w-3 h-3" /> Passed
-                  </span>
-                </div>
-              </div>
+                const mathLayer = validationResult?.layers?.['LAYER_3_MATHEMATICAL'];
+                const mathLogicalStatus = validationResult?.mathematicalLogicalResult?.status;
+                const mathStatus = mathLayer?.status || (mathLogicalStatus === 'PROVABLY_VALID' ? 'VERIFIED' : mathLogicalStatus === 'CONTRADICTORY' ? 'FAILED' : 'UNVERIFIED');
+                const mathText = mathStatus === 'VERIFIED' ? 'Passed' : mathStatus === 'FAILED' ? 'Failed' : mathStatus === 'N/A' ? 'N/A' : 'Needs Review';
+                const mathPass = mathStatus === 'VERIFIED' ? true : mathStatus === 'FAILED' ? false : null;
+
+                return (
+                  <div className="grid grid-cols-2 gap-2 mb-3.5">
+                    {/* Confidence Score Pill */}
+                    <div className="p-2.5 bg-slate-50/80 rounded-xl border border-slate-100">
+                      <span className="text-[11px] text-slate-500 block font-medium">Confidence</span>
+                      <span className={`text-xs font-mono font-bold ${
+                        validationResult?.status === QuestionValidationStatus.VALID
+                          ? 'text-emerald-700'
+                          : validationResult?.status === QuestionValidationStatus.INVALID
+                          ? 'text-rose-700'
+                          : 'text-amber-700'
+                      }`}>
+                        {confScore}
+                      </span>
+                    </div>
+
+                    {/* Unambiguous Pill */}
+                    <div className="p-2.5 bg-slate-50/80 rounded-xl border border-slate-100">
+                      <span className="text-[11px] text-slate-500 block font-medium">Unambiguous</span>
+                      <span className={`text-xs font-semibold flex items-center gap-1 mt-0.5 ${
+                        unambiguousPass === true
+                          ? 'text-emerald-700'
+                          : unambiguousPass === false
+                          ? 'text-rose-700'
+                          : 'text-amber-700'
+                      }`}>
+                        {unambiguousPass === true ? <CheckCircle2 className="w-3 h-3 text-emerald-600" /> : unambiguousPass === false ? <X className="w-3 h-3 text-rose-600" /> : <HelpCircle className="w-3 h-3 text-amber-600" />}
+                        {unambiguousText}
+                      </span>
+                    </div>
+
+                    {/* Distractors Pill */}
+                    <div className="p-2.5 bg-slate-50/80 rounded-xl border border-slate-100">
+                      <span className="text-[11px] text-slate-500 block font-medium">Distractors</span>
+                      <span className={`text-xs font-semibold flex items-center gap-1 mt-0.5 ${
+                        distractorPass === true
+                          ? 'text-emerald-700'
+                          : distractorPass === false
+                          ? 'text-rose-700'
+                          : 'text-amber-700'
+                      }`}>
+                        {distractorPass === true ? <CheckCircle2 className="w-3 h-3 text-emerald-600" /> : distractorPass === false ? <X className="w-3 h-3 text-rose-600" /> : <HelpCircle className="w-3 h-3 text-amber-600" />}
+                        {distractorText}
+                      </span>
+                    </div>
+
+                    {/* Math Proof Pill */}
+                    <div className="p-2.5 bg-slate-50/80 rounded-xl border border-slate-100">
+                      <span className="text-[11px] text-slate-500 block font-medium">Math Proof</span>
+                      <span className={`text-xs font-semibold flex items-center gap-1 mt-0.5 ${
+                        mathPass === true
+                          ? 'text-emerald-700'
+                          : mathPass === false
+                          ? 'text-rose-700'
+                          : 'text-amber-700'
+                      }`}>
+                        {mathPass === true ? <CheckCircle2 className="w-3 h-3 text-emerald-600" /> : mathPass === false ? <X className="w-3 h-3 text-rose-600" /> : <HelpCircle className="w-3 h-3 text-amber-600" />}
+                        {mathText}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Collapsible Accordion for Individual Rule Audits */}
               {validationResult?.checks && validationResult.checks.length > 0 && (

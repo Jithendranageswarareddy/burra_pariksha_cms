@@ -374,8 +374,8 @@ export class ScriptService {
       throw new Error(`Video "${videoId}" not found.`);
     }
 
-    // If currently in SCRIPT_REQUIRED, advance state machine to SCRIPT_READY
-    if (video.status === VideoProductionStatus.SCRIPT_REQUIRED) {
+    // If currently in SCRIPT_REQUIRED or QUEUED, advance state machine to SCRIPT_READY
+    if (video.status === VideoProductionStatus.SCRIPT_REQUIRED || video.status === VideoProductionStatus.QUEUED) {
       await videoService.transitionStatus(
         videoId,
         VideoProductionStatus.SCRIPT_READY,

@@ -49,7 +49,9 @@ export const ProductionJourneyBar: React.FC<ProductionJourneyBarProps> = ({
 
   const stageCodeToNumber: Record<string, number> = {
     QUESTION: 1,
+    QUESTION_GENERATION: 1,
     VERIFICATION: 2,
+    QUESTION_VERIFICATION: 2,
     AUDIENCE_SCRIPT: 3,
     SCRIPTING: 3,
     TELEPROMPTER: 4,
@@ -115,12 +117,16 @@ export const ProductionJourneyBar: React.FC<ProductionJourneyBarProps> = ({
           </div>
 
           {/* Next Stage Context Pill */}
-          {stages.find((s) => s.stageNumber === effectiveCurrentStage + 1) && (
-            <span className="text-[11px] text-slate-500 hidden md:inline-flex items-center gap-1 font-medium bg-slate-50 px-2 py-0.5 rounded border border-slate-200/80">
-              <span className="text-slate-400">Next:</span>
-              <span className="text-slate-700 font-semibold">{stages.find((s) => s.stageNumber === effectiveCurrentStage + 1)?.shortLabel}</span>
-            </span>
-          )}
+          {stages.find((s) => s.stageNumber === effectiveCurrentStage + 1) && (() => {
+            const nextStage = stages.find((s) => s.stageNumber === effectiveCurrentStage + 1);
+            const nextLabel = nextStage?.stageNumber === 2 ? 'Step 02' : nextStage?.shortLabel;
+            return (
+              <span className="text-[11px] text-slate-500 hidden md:inline-flex items-center gap-1 font-medium bg-slate-50 px-2 py-0.5 rounded border border-slate-200/80">
+                <span className="text-slate-400">Next:</span>
+                <span className="text-slate-700 font-semibold">{nextLabel}</span>
+              </span>
+            );
+          })()}
 
           {/* Canonical correlation identifiers */}
           <div className="flex items-center gap-1 flex-wrap text-[10px] font-mono">
