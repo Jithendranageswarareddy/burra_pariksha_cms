@@ -6,7 +6,11 @@
  * Detailed schema formalization will occur in Phase 2 upon inspecting live sheet structures.
  */
 
-import { AIProvenance } from './phase24-ai';
+import { AIProvenance } from './ai';
+
+export * from './ai';
+export * from './consensus';
+export * from './copilot';
 
 // ============================================================================
 // 1. WORKFLOW & STATUS CONSTANTS / ENUMS

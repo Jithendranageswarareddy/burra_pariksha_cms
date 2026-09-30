@@ -43,7 +43,7 @@ import {
   SocialInvarianceValidator,
   SourceQuestionContext,
 } from '../validators/social-invariance.validator';
-import { phase24AIOrchestrator } from '../ai/phase24-orchestrator.service';
+import { aiOrchestrator } from '../ai/ai-orchestrator.service';
 import { AIProviderOptions } from '../ai/types';
 import { platformAdaptationsRepository } from '../repositories/platform-adaptations.repository';
 import { contentMastersRepository } from '../repositories/content-masters.repository';
@@ -456,7 +456,7 @@ export class PlatformAdaptationService {
       validationStatus: (sourceQuestion.validationStatus as QuestionValidationStatus) || QuestionValidationStatus.NOT_VALIDATED,
     };
 
-    const aiResult = await phase24AIOrchestrator.generatePlatformAdaptation(
+    const aiResult = await aiOrchestrator.generatePlatformAdaptation(
       sourceQuestion,
       canonicalMetadata,
       language as QuestionLanguage,
@@ -642,8 +642,8 @@ export class PlatformAdaptationService {
       throw new NotFoundError(`Canonical Content Master with ID "${contentId}" does not exist.`);
     }
 
-    const { phase20SocialReviewService } = await import('./phase20-social-review.service');
-    const pkg = await phase20SocialReviewService.assemblePackage(contentId);
+    const { socialQualityGateService } = await import('./social-quality-gate.service');
+    const pkg = await socialQualityGateService.assemblePackage(contentId);
 
     return {
       contentId,
@@ -688,7 +688,7 @@ export class PlatformAdaptationService {
     const baseQuestionText = question?.questionText || '';
 
     // If forceFallback or Phase24 Orchestrator unconfigured, build deterministic fallback
-    if (options?.forceFallback || !phase24AIOrchestrator.isConfigured()) {
+    if (options?.forceFallback || !aiOrchestrator.isConfigured()) {
       return this.buildDeterministicAdaptationRecommendation(platform, baseTitle, baseQuestionText, metadata);
     }
 
@@ -728,7 +728,7 @@ Respond in pure JSON matching this exact structure:
   "rationale": "string"
 }`;
 
-      const aiResponseResult = await phase24AIOrchestrator.executeTask({
+      const aiResponseResult = await aiOrchestrator.executeTask({
         task: 'GENERATION',
         prompt,
         systemInstruction: 'You are a social media adaptation expert for Telugu & English educational content. Output pure JSON only.',
@@ -1460,4 +1460,6 @@ Respond in pure JSON matching this exact structure:
 }
 
 export const platformAdaptationService = PlatformAdaptationService.getInstance();
+export const phase21PlatformAdaptationService = platformAdaptationService;
+export type Phase21PlatformAdaptationService = PlatformAdaptationService;
 

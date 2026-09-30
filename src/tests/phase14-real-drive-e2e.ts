@@ -6,7 +6,7 @@
 
 import crypto from 'crypto';
 import { googleDriveService } from '../lib/services/google-drive.service';
-import { phase14DriveService } from '../lib/services/phase14-drive.service';
+import { driveSyncService } from '../lib/services/drive-sync.service';
 import { contentMastersRepository } from '../lib/repositories/content-masters.repository';
 import { mediaAssetsRepository } from '../lib/repositories/media-assets.repository';
 import { ContentMasterStatus, MediaStage } from '../types';
@@ -107,7 +107,7 @@ export async function runPhase14RealDriveE2E() {
     // 4. REAL BINARY UPLOAD
     // -------------------------------------------------------------------------
     console.log(`STEP 4: Uploading unique test binary file "${testFileName}" (${testBuffer.length} bytes)...`);
-    const asset = await phase14DriveService.uploadProductionAsset({
+    const asset = await driveSyncService.uploadProductionAsset({
       contentId: testContentId,
       mediaStage: 'RAW',
       fileName: testFileName,

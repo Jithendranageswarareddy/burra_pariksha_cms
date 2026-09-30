@@ -1,6 +1,6 @@
 /**
  * BURRA PARIKSHA CMS - Services Barrel Export
- * Phase 6: Script, Thumbnail & Manual Publishing Management
+ * Clean domain services architecture
  */
 
 export * from './id.service';
@@ -41,22 +41,24 @@ export * from './full-snapshot-restore-execution.service';
 export * from './snapshot-history.service';
 export * from './durable-snapshot-archive.service';
 export * from './content-master.service';
-export * from './phase12-workflow.service';
-export * from './phase13-refinement.service';
+export * from './content-workflow.service';
+export * from './question-refinement.service';
 export * from './question-validation.service';
 export * from './object-auth.service';
 export * from './workflow-orchestration.service';
 export * from './question-config.service';
 export * from './google-drive.service';
-export * from './phase14-drive.service';
-export * from './phase15-script-production.service';
+export * from './drive-sync.service';
+export * from './script-production.service';
 export * from './analytics.service';
 export * from './social-performance-intelligence.service';
-export * from './phase17-video-production.service';
-export * from './phase18-thumbnail-intelligence.service';
-export * from './phase23-production.service';
-export * from './phase25-consensus.service';
-export * from './phase26-copilot.service';
+export * from './video-production.service';
+export * from './thumbnail-intelligence.service';
+export * from './pinned-comment-intelligence.service';
+export * from './social-quality-gate.service';
+export * from './production-dashboard.service';
+export * from './consensus.service';
+export * from './copilot.service';
 export * from './social-comments.service';
 export * from './platform-adaptation.service';
 export * from './social-review.service';
@@ -67,5 +69,3 @@ export * from './social-quality.service';
 export * from './production-asset-validation.service';
 export * from './deletion-safety.service';
 export * from './snapshot-scheduler.service';
-
-

@@ -12,7 +12,7 @@ import { QuestionCandidateZodSchema } from '../lib/ai/schemas/question-candidate
 import { QuestionCreationValidator } from '../lib/validators/question-creation.validator';
 import { GeminiProviderAdapter } from '../lib/ai/providers/gemini.adapter';
 import { CandidateValidator } from '../lib/ai/validators/candidate.validator';
-import { phase24AIOrchestrator } from '../lib/ai/phase24-orchestrator.service';
+import { aiOrchestrator } from '../lib/ai/ai-orchestrator.service';
 import { MathematicalLogicalEngine } from '../lib/validation/mathematical-logical.engine';
 import { QuestionValidationEngine } from '../lib/validation/question-validation.engine';
 import { DifficultyLevel, QuestionLanguage } from '../types';
@@ -187,7 +187,7 @@ async function runRegressionTests() {
     process.env.GEMINI_API_KEY = ''; // Simulate provider failure / unconfigured AI
     let threwError = false;
     try {
-      await phase24AIOrchestrator.generateQuestionCandidate(
+      await aiOrchestrator.generateQuestionCandidate(
         {
           categoryId: 'CAT-QA',
           topicId: 'INVALID_TOPIC',

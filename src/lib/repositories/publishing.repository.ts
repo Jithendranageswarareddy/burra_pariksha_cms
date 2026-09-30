@@ -140,4 +140,6 @@ export class PublishingRepository extends BaseRepository<Publishing> {
 }
 
 export const publishingRepository = PublishingRepository.getInstance();
+export const phase22PublishingRepository = publishingRepository;
+export type Phase22PublishingRepository = PublishingRepository;
 

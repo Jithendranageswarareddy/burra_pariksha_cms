@@ -18,8 +18,8 @@ import { idService } from './id.service';
 import { taxonomyService } from './taxonomy.service';
 import { AuditLogRepository } from '../repositories/audit-log.repository';
 import { geminiClient } from '../ai/gemini.client';
-import { phase24AIOrchestrator } from '../ai/phase24-orchestrator.service';
-import { AIProvenance } from '../../types/phase24-ai';
+import { aiOrchestrator } from '../ai/ai-orchestrator.service';
+import { AIProvenance } from '../../types/ai';
 import { PerformanceIntelligenceGenAISchema, PerformanceIntelligenceZodSchema, PerformanceIntelligenceAIOutput } from '../ai/schemas/performance-intelligence.schema';
 import { BURRA_PARIKSHA_PERFORMANCE_INTELLIGENCE_SYSTEM_INSTRUCTION, buildPerformanceIntelligencePrompt } from '../ai/prompts/performance-intelligence.prompt';
 import {
@@ -481,7 +481,7 @@ export class SocialPerformanceIntelligenceService {
       dimensionBreakdown: breakdown,
     });
 
-    const aiResponseResult = await phase24AIOrchestrator.executeTask({
+    const aiResponseResult = await aiOrchestrator.executeTask({
       task: 'ANALYSIS',
       prompt: promptText,
       systemInstruction: BURRA_PARIKSHA_PERFORMANCE_INTELLIGENCE_SYSTEM_INSTRUCTION,

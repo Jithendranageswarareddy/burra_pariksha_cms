@@ -33,7 +33,7 @@ import { contentMastersRepository } from '../lib/repositories/content-masters.re
 import { publishingRepository } from '../lib/repositories/publishing.repository';
 import { pinnedCommentsRepository, pinnedCommentVersionsRepository } from '../lib/repositories/pinned-comments.repository';
 import { pinnedCommentPackagesRepository } from '../lib/repositories/pinned-comment-packages.repository';
-import { phase19PinnedCommentIntelligenceService } from '../lib/services/phase19-pinned-comment-intelligence.service';
+import { pinnedCommentIntelligenceService } from '../lib/services/pinned-comment-intelligence.service';
 import { PinnedCommentSafetyValidator } from '../lib/validators/pinned-comment-safety.validator';
 import { auditService } from '../lib/services/audit.service';
 import {
@@ -197,7 +197,7 @@ export async function runPhase19Verification(): Promise<{
     // ----------------------------------------------------
     // P19-01: Content ID Correlation
     // ----------------------------------------------------
-    const generatedPackage = await phase19PinnedCommentIntelligenceService.generatePackageForContent(
+    const generatedPackage = await pinnedCommentIntelligenceService.generatePackageForContent(
       contentId,
       adminActor
     );
@@ -361,7 +361,7 @@ export async function runPhase19Verification(): Promise<{
     // ----------------------------------------------------
     let crossContentRejected = false;
     try {
-      await phase19PinnedCommentIntelligenceService.updatePackage(
+      await pinnedCommentIntelligenceService.updatePackage(
         generatedPackage.id,
         { contentId: 'BP-CNT-999999' }, // Attempt to hijack content ID
         adminActor
@@ -393,7 +393,7 @@ export async function runPhase19Verification(): Promise<{
     // ----------------------------------------------------
     // P19-13: Human Edit
     // ----------------------------------------------------
-    const updatedPackage = await phase19PinnedCommentIntelligenceService.updatePackage(
+    const updatedPackage = await pinnedCommentIntelligenceService.updatePackage(
       generatedPackage.id,
       {
         pinnedComment: 'Updated high-quality pinned comment with Telugu problem recap and step-by-step hint.',
@@ -421,7 +421,7 @@ export async function runPhase19Verification(): Promise<{
     // ----------------------------------------------------
     // P19-14: Version History
     // ----------------------------------------------------
-    const history = await phase19PinnedCommentIntelligenceService.getPackageHistory(contentId);
+    const history = await pinnedCommentIntelligenceService.getPackageHistory(contentId);
     const p19_14_pass =
       history.versions.length === 2 &&
       history.versions[0].versionNumber === 1 &&
@@ -436,7 +436,7 @@ export async function runPhase19Verification(): Promise<{
     // ----------------------------------------------------
     // P19-15: Review Workflow
     // ----------------------------------------------------
-    const submittedPackage = await phase19PinnedCommentIntelligenceService.submitForReview(
+    const submittedPackage = await pinnedCommentIntelligenceService.submitForReview(
       generatedPackage.id,
       adminActor,
       reviewerActor.id
@@ -457,7 +457,7 @@ export async function runPhase19Verification(): Promise<{
     // ----------------------------------------------------
     let unauthorizedBlocked = false;
     try {
-      await phase19PinnedCommentIntelligenceService.approvePackage(
+      await pinnedCommentIntelligenceService.approvePackage(
         generatedPackage.id,
         2,
         unauthorizedActor
@@ -478,7 +478,7 @@ export async function runPhase19Verification(): Promise<{
     let staleVersionBlocked = false;
     try {
       // Current package is version 2, try to approve stale version 1
-      await phase19PinnedCommentIntelligenceService.approvePackage(
+      await pinnedCommentIntelligenceService.approvePackage(
         generatedPackage.id,
         1,
         reviewerActor
@@ -496,7 +496,7 @@ export async function runPhase19Verification(): Promise<{
     // ----------------------------------------------------
     // Approval of current version (v2)
     // ----------------------------------------------------
-    const approvalResult = await phase19PinnedCommentIntelligenceService.approvePackage(
+    const approvalResult = await pinnedCommentIntelligenceService.approvePackage(
       generatedPackage.id,
       2,
       reviewerActor,
@@ -517,7 +517,7 @@ export async function runPhase19Verification(): Promise<{
     // ----------------------------------------------------
     // P19-18: Editing Approved Version Invalidates Approval
     // ----------------------------------------------------
-    const reEditedPackage = await phase19PinnedCommentIntelligenceService.updatePackage(
+    const reEditedPackage = await pinnedCommentIntelligenceService.updatePackage(
       generatedPackage.id,
       {
         notes: 'Post-approval tweak to add AP SI exam reference note.',
@@ -595,7 +595,7 @@ export async function runPhase19Verification(): Promise<{
       await contentMastersRepository.update(manualCM);
     }
 
-    const manualPackage = await phase19PinnedCommentIntelligenceService.createManualPackage(
+    const manualPackage = await pinnedCommentIntelligenceService.createManualPackage(
       {
         contentId: manualContentId,
         pinnedComment: '📐 Geometry Quick Check: What is the sum of interior angles in any Euclidean triangle?',
@@ -643,20 +643,20 @@ export async function runPhase19Verification(): Promise<{
     // P19-21: REAL E2E: Content -> AI Package -> Human Edit -> Review -> Approval -> Production-Ready
     // ----------------------------------------------------
     // Re-approve the package at version 3 for production readiness verification
-    await phase19PinnedCommentIntelligenceService.submitForReview(
+    await pinnedCommentIntelligenceService.submitForReview(
       generatedPackage.id,
       adminActor,
       reviewerActor.id
     );
 
-    await phase19PinnedCommentIntelligenceService.approvePackage(
+    await pinnedCommentIntelligenceService.approvePackage(
       generatedPackage.id,
       3,
       reviewerActor,
       contentId
     );
 
-    const readiness = await phase19PinnedCommentIntelligenceService.isProductionReady(generatedPackage.id);
+    const readiness = await pinnedCommentIntelligenceService.isProductionReady(generatedPackage.id);
     const p19_21_pass =
       readiness.isReady === true &&
       readiness.issues.length === 0 &&

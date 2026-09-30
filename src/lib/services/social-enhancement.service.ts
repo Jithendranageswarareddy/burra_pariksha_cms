@@ -28,7 +28,7 @@ import {
   SourceQuestionContext,
   EnhancedSocialScriptContext,
 } from '../validators/social-invariance.validator';
-import { phase24AIOrchestrator } from '../ai/phase24-orchestrator.service';
+import { aiOrchestrator } from '../ai/ai-orchestrator.service';
 import { PlatformAdaptationService } from './platform-adaptation.service';
 import { socialQualityService } from './social-quality.service';
 
@@ -231,7 +231,7 @@ export class SocialEnhancementService {
         ];
 
     // 2. Invoke Bounded Single AI Call
-    const aiResult = await phase24AIOrchestrator.generateSocialHooksAndStrategy(
+    const aiResult = await aiOrchestrator.generateSocialHooksAndStrategy(
       question,
       stylesToGenerate,
       targetLanguage as QuestionLanguage
@@ -385,7 +385,7 @@ export class SocialEnhancementService {
     const targetWpm = pacingWpm || 140;
 
     // 2. Invoke Bounded Single AI Call
-    const aiResult = await phase24AIOrchestrator.generateSpokenTeleprompterScript(
+    const aiResult = await aiOrchestrator.generateSpokenTeleprompterScript(
       question,
       selectedHookText,
       targetHookStyle,
@@ -524,7 +524,7 @@ export class SocialEnhancementService {
     const targetLanguage = language || question.language || QuestionLanguage.TELUGU;
 
     // 2. Invoke AI (or Fallback) via Phase24 AI Orchestrator in ONE call
-    const aiResult = await phase24AIOrchestrator.generateSocialMetadata(
+    const aiResult = await aiOrchestrator.generateSocialMetadata(
       question,
       selectedHookText,
       teleprompterScript,

@@ -29,9 +29,9 @@
  * P20-25 REAL E2E complete package → social review PASS
  */
 
-import { Phase20SocialReviewService, phase20SocialReviewService } from '../lib/services/phase20-social-review.service';
-import { Phase20SocialQualityGateValidator } from '../lib/validators/phase20-social-quality-gate.validator';
-import { phase20SocialReviewsRepository } from '../lib/repositories/phase20-social-reviews.repository';
+import { Phase20SocialReviewService, socialQualityGateService } from '../lib/services/social-quality-gate.service';
+import { Phase20SocialQualityGateValidator } from '../lib/validators/social-quality-gate.validator';
+import { phase20SocialReviewsRepository } from '../lib/repositories/social-reviews.repository';
 import { contentMastersRepository } from '../lib/repositories/content-masters.repository';
 import { questionsRepository } from '../lib/repositories/questions.repository';
 import { scriptsRepository, scriptVersionsRepository } from '../lib/repositories/scripts.repository';
@@ -41,7 +41,7 @@ import { thumbnailCandidatesRepository } from '../lib/repositories/thumbnail-can
 import { pinnedCommentPackagesRepository } from '../lib/repositories/pinned-comment-packages.repository';
 import { mediaAssetsRepository } from '../lib/repositories/media-assets.repository';
 import { auditLogRepository } from '../lib/repositories/audit-log.repository';
-import { phase14DriveService } from '../lib/services/phase14-drive.service';
+import { driveSyncService } from '../lib/services/drive-sync.service';
 import { googleDriveService } from '../lib/services/google-drive.service';
 import {
   QuestionValidationStatus,
@@ -116,7 +116,7 @@ export async function runPhase20Verification(): Promise<Phase20VerificationSumma
       language: 'ENGLISH',
     };
 
-    const hashes = phase20SocialReviewService.computeIntegrityHashes({
+    const hashes = socialQualityGateService.computeIntegrityHashes({
       contentId: validContentId,
       question: dummyQuestion,
     });
@@ -126,7 +126,7 @@ export async function runPhase20Verification(): Promise<Phase20VerificationSumma
 
     let invalidFormatCaught = false;
     try {
-      await phase20SocialReviewService.assemblePackage('INVALID-ID-123');
+      await socialQualityGateService.assemblePackage('INVALID-ID-123');
     } catch (e: any) {
       invalidFormatCaught = true;
     }
@@ -583,7 +583,7 @@ export async function runPhase20Verification(): Promise<Phase20VerificationSumma
     };
 
     // Submit for review
-    const reviewRecord = await phase20SocialReviewService.submitForReview(contentId, actorReviewer, undefined, {
+    const reviewRecord = await socialQualityGateService.submitForReview(contentId, actorReviewer, undefined, {
       question: initialQuestion,
       script: validScript,
       video: validVideo,
@@ -603,7 +603,7 @@ export async function runPhase20Verification(): Promise<Phase20VerificationSumma
 
     let staleRejected = false;
     try {
-      await phase20SocialReviewService.completeReview({
+      await socialQualityGateService.completeReview({
         reviewId: reviewRecord.id,
         decision: 'PASS',
         actor: actorReviewer,
@@ -720,7 +720,7 @@ export async function runPhase20Verification(): Promise<Phase20VerificationSumma
       } as any);
     }
 
-    const driveAsset = await phase14DriveService.uploadProductionAsset({
+    const driveAsset = await driveSyncService.uploadProductionAsset({
       contentId,
       mediaStage: 'FINAL',
       fileName: 'final_200016.mp4',
@@ -754,9 +754,9 @@ export async function runPhase20Verification(): Promise<Phase20VerificationSumma
       script: { ...pkgA.script, hookText: 'Mutated Hook Text' },
     };
 
-    const hashA = phase20SocialReviewService.computeIntegrityHashes(pkgA);
-    const hashB = phase20SocialReviewService.computeIntegrityHashes(pkgB);
-    const hashMutated = phase20SocialReviewService.computeIntegrityHashes(pkgMutated);
+    const hashA = socialQualityGateService.computeIntegrityHashes(pkgA);
+    const hashB = socialQualityGateService.computeIntegrityHashes(pkgB);
+    const hashMutated = socialQualityGateService.computeIntegrityHashes(pkgMutated);
 
     const isDeterministic = hashA.packageOverallHash === hashB.packageOverallHash;
     const isSensitivityHigh = hashA.packageOverallHash !== hashMutated.packageOverallHash;
@@ -787,8 +787,8 @@ export async function runPhase20Verification(): Promise<Phase20VerificationSumma
     };
     const m = { shortTitle: '25% Speed Trick', socialCaption: 'Calculate 25% quickly with division by 4.', hashtags: ['#BurraPariksha', '#MathTricks'] };
 
-    const review = await phase20SocialReviewService.submitForReview(contentId, actorReviewer, undefined, { question: q, script: s, video: v, thumbnail: t, pinnedCommentPackage: p, metadata: m });
-    const passedReview = await phase20SocialReviewService.completeReview({
+    const review = await socialQualityGateService.submitForReview(contentId, actorReviewer, undefined, { question: q, script: s, video: v, thumbnail: t, pinnedCommentPackage: p, metadata: m });
+    const passedReview = await socialQualityGateService.completeReview({
       reviewId: review.id,
       decision: 'PASS',
       actor: actorReviewer,
@@ -823,8 +823,8 @@ export async function runPhase20Verification(): Promise<Phase20VerificationSumma
     };
     const m = { shortTitle: '5% Math Hack', socialCaption: 'Calculate 5% in 2 seconds.', hashtags: ['#BurraPariksha', '#MathTricks'] };
 
-    const review = await phase20SocialReviewService.submitForReview(contentId, actorReviewer, undefined, { question: q, script: s, video: v, thumbnail: t, pinnedCommentPackage: p, metadata: m });
-    await phase20SocialReviewService.completeReview({
+    const review = await socialQualityGateService.submitForReview(contentId, actorReviewer, undefined, { question: q, script: s, video: v, thumbnail: t, pinnedCommentPackage: p, metadata: m });
+    await socialQualityGateService.completeReview({
       reviewId: review.id,
       decision: 'PASS',
       actor: actorReviewer,
@@ -832,11 +832,11 @@ export async function runPhase20Verification(): Promise<Phase20VerificationSumma
     });
 
     // Check readiness initially -> true
-    const readyBefore = await phase20SocialReviewService.verifyProductionReadiness(contentId, { question: q, script: s, video: v, thumbnail: t, pinnedCommentPackage: p, metadata: m });
+    const readyBefore = await socialQualityGateService.verifyProductionReadiness(contentId, { question: q, script: s, video: v, thumbnail: t, pinnedCommentPackage: p, metadata: m });
 
     // Now mutate the script (e.g. human editor modifies hook)
     const mutatedScript = { ...s, hookText: 'NEW UPDATED HOOK TEXT POST APPROVAL' };
-    const readyAfter = await phase20SocialReviewService.verifyProductionReadiness(contentId, { question: q, script: mutatedScript, video: v, thumbnail: t, pinnedCommentPackage: p, metadata: m });
+    const readyAfter = await socialQualityGateService.verifyProductionReadiness(contentId, { question: q, script: mutatedScript, video: v, thumbnail: t, pinnedCommentPackage: p, metadata: m });
 
     const passed = readyBefore.isProductionReady === true && readyAfter.isProductionReady === false && readyAfter.reviewRecord?.isInvalidated === true;
     addResult('P20-19', 'Change after review invalidates PASS', passed, 'Post-review artifact mutation triggered automatic invalidation and blocked production readiness.');
@@ -856,11 +856,11 @@ export async function runPhase20Verification(): Promise<Phase20VerificationSumma
     const p = { id: 'BP-PCP-200020', contentId, isApproved: true, pinnedComment: 'Method discussion', answerDiscussionPrompt: 'Discuss', audienceParticipationPrompt: 'Try 20% of 140' };
     const m = { shortTitle: '20% Speed Math', socialCaption: 'Calculate 20% quickly.', hashtags: ['#BurraPariksha', '#Shorts'] };
 
-    const review = await phase20SocialReviewService.submitForReview(contentId, actorReviewer, undefined, { question: q, script: s, video: v, thumbnail: t, pinnedCommentPackage: p, metadata: m });
+    const review = await socialQualityGateService.submitForReview(contentId, actorReviewer, undefined, { question: q, script: s, video: v, thumbnail: t, pinnedCommentPackage: p, metadata: m });
 
     let unauthorizedBlocked = false;
     try {
-      await phase20SocialReviewService.completeReview({
+      await socialQualityGateService.completeReview({
         reviewId: review.id,
         decision: 'PASS',
         actor: actorViewer, // VIEWER role!
@@ -889,8 +889,8 @@ export async function runPhase20Verification(): Promise<Phase20VerificationSumma
     const p = { id: 'BP-PCP-200021', contentId, isApproved: true, pinnedComment: 'Method discussion', answerDiscussionPrompt: 'Discuss', audienceParticipationPrompt: 'Try 30% of 120' };
     const m = { shortTitle: '30% Speed Math', socialCaption: 'Calculate 30% quickly.', hashtags: ['#BurraPariksha', '#Shorts'] };
 
-    const review = await phase20SocialReviewService.submitForReview(contentId, actorReviewer, undefined, { question: q, script: s, video: v, thumbnail: t, pinnedCommentPackage: p, metadata: m });
-    const changesReview = await phase20SocialReviewService.completeReview({
+    const review = await socialQualityGateService.submitForReview(contentId, actorReviewer, undefined, { question: q, script: s, video: v, thumbnail: t, pinnedCommentPackage: p, metadata: m });
+    const changesReview = await socialQualityGateService.completeReview({
       reviewId: review.id,
       decision: 'CHANGES_REQUIRED',
       reason: 'Thumbnail text contrast needs improvement for dark mode mobile viewports.',
@@ -919,8 +919,8 @@ export async function runPhase20Verification(): Promise<Phase20VerificationSumma
     const p = { id: 'BP-PCP-200022', contentId, isApproved: true, pinnedComment: 'Method discussion', answerDiscussionPrompt: 'Discuss', audienceParticipationPrompt: 'Try 40% of 150' };
     const m = { shortTitle: '40% Speed Math', socialCaption: 'Calculate 40% quickly.', hashtags: ['#BurraPariksha', '#Shorts'] };
 
-    const review = await phase20SocialReviewService.submitForReview(contentId, actorReviewer, undefined, { question: q, script: s, video: v, thumbnail: t, pinnedCommentPackage: p, metadata: m });
-    const rejectedReview = await phase20SocialReviewService.completeReview({
+    const review = await socialQualityGateService.submitForReview(contentId, actorReviewer, undefined, { question: q, script: s, video: v, thumbnail: t, pinnedCommentPackage: p, metadata: m });
+    const rejectedReview = await socialQualityGateService.completeReview({
       reviewId: review.id,
       decision: 'REJECTED',
       reason: 'Content concept violates brand guidelines and cannot be remediated without re-recording.',
@@ -972,7 +972,7 @@ export async function runPhase20Verification(): Promise<Phase20VerificationSumma
     }
 
     // AI recommendation endpoint provides advice, but does not dictate decision
-    const recommendation = await phase20SocialReviewService.generateAiReviewRecommendation(contentId);
+    const recommendation = await socialQualityGateService.generateAiReviewRecommendation(contentId);
     const hasRecommendation = Boolean(recommendation.recommendedDecision && recommendation.rationale);
     const isHumanAuthoritative = true; // Human review handles decisions deterministically
 
@@ -985,7 +985,7 @@ export async function runPhase20Verification(): Promise<Phase20VerificationSumma
   // P20-24: Audit / History Logging
   // ==========================================================================
   try {
-    const history = await phase20SocialReviewService.getReviewHistory('BP-CNT-200018');
+    const history = await socialQualityGateService.getReviewHistory('BP-CNT-200018');
     const logs = await auditLogRepository.findAll();
     const hasReviewLogs = logs.some((l) => l.action.includes('SOCIAL_REVIEW') || l.entityType === 'SOCIAL_REVIEW');
 
@@ -1061,7 +1061,7 @@ export async function runPhase20Verification(): Promise<Phase20VerificationSumma
     }
 
     // 4. Setup Real Drive Video Asset in repository
-    const videoUpload = await phase14DriveService.uploadProductionAsset({
+    const videoUpload = await driveSyncService.uploadProductionAsset({
       contentId,
       mediaStage: 'FINAL',
       fileName: 'final_render_200025.mp4',
@@ -1089,7 +1089,7 @@ export async function runPhase20Verification(): Promise<Phase20VerificationSumma
     }
 
     // 5. Setup Real Drive Thumbnail Asset & Candidate
-    const thumbUpload = await phase14DriveService.uploadProductionAsset({
+    const thumbUpload = await driveSyncService.uploadProductionAsset({
       contentId,
       mediaStage: 'THUMBNAIL',
       fileName: 'thumbnail_200025.png',
@@ -1137,14 +1137,14 @@ export async function runPhase20Verification(): Promise<Phase20VerificationSumma
     }
 
     // 7. Assemble live complete package
-    const assembledPackage = await phase20SocialReviewService.assemblePackage(contentId);
+    const assembledPackage = await socialQualityGateService.assemblePackage(contentId);
     const gateValidation = Phase20SocialQualityGateValidator.validate(assembledPackage);
 
     // 8. Submit for review
-    const reviewRecord = await phase20SocialReviewService.submitForReview(contentId, actorReviewer);
+    const reviewRecord = await socialQualityGateService.submitForReview(contentId, actorReviewer);
 
     // 9. Complete review with PASS
-    const passRecord = await phase20SocialReviewService.completeReview({
+    const passRecord = await socialQualityGateService.completeReview({
       reviewId: reviewRecord.id,
       decision: 'PASS',
       reason: 'All factual invariance, brand quality, Drive assets, and conversation hooks verified.',
@@ -1152,7 +1152,7 @@ export async function runPhase20Verification(): Promise<Phase20VerificationSumma
     });
 
     // 10. Verify Production Readiness
-    const readiness = await phase20SocialReviewService.verifyProductionReadiness(contentId);
+    const readiness = await socialQualityGateService.verifyProductionReadiness(contentId);
 
     const passed = 
       gateValidation.isValid &&

@@ -29,7 +29,7 @@
  * P21-25: REAL End-to-End Workflow: Genuine Content Package -> Multi-Platform Adaptations (YT/IG/FB) -> Review & Approval -> Immutable Audit Trail
  */
 
-import { Phase21PlatformAdaptationService, phase21PlatformAdaptationService } from '../lib/services/phase21-platform-adaptation.service';
+import { Phase21PlatformAdaptationService, phase21PlatformAdaptationService } from '../lib/services/platform-adaptation.service';
 import { platformAdaptationsRepository } from '../lib/repositories/platform-adaptations.repository';
 import { contentMastersRepository } from '../lib/repositories/content-masters.repository';
 import { questionsRepository } from '../lib/repositories/questions.repository';

@@ -18,8 +18,8 @@ import { commentIntelligenceRepository, CommentIntelligenceRepository } from '..
 import { contentMastersRepository } from '../repositories/content-masters.repository';
 import { idService } from './id.service';
 import { AuditLogRepository } from '../repositories/audit-log.repository';
-import { phase24AIOrchestrator } from '../ai/phase24-orchestrator.service';
-import { AIProvenance } from '../../types/phase24-ai';
+import { aiOrchestrator } from '../ai/ai-orchestrator.service';
+import { AIProvenance } from '../../types/ai';
 import {
   CommentIntelligenceGenAISchema,
   CommentIntelligenceZodSchema,
@@ -314,7 +314,7 @@ export class CommentIntelligenceService {
   }): Promise<{ aiOutput: CommentIntelligenceAIOutput; provenance: AIProvenance }> {
     const promptText = buildCommentIntelligencePrompt(input);
 
-    const aiResponseResult = await phase24AIOrchestrator.executeTask({
+    const aiResponseResult = await aiOrchestrator.executeTask({
       task: 'ANALYSIS',
       prompt: promptText,
       systemInstruction: BURRA_PARIKSHA_COMMENT_INTELLIGENCE_SYSTEM_INSTRUCTION,

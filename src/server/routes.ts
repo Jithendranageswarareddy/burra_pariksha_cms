@@ -39,14 +39,14 @@ import {
   phase15ScriptProductionService,
   phase17VideoProductionService,
   phase18ThumbnailIntelligenceService,
-  phase14DriveService,
+  driveSyncService,
 } from '../lib/services';
 import { questionDraftService } from '../lib/services/question-draft.service';
 import { questionDraftsRepository } from '../lib/repositories/question-drafts.repository';
 import { thumbnailCandidatesRepository } from '../lib/repositories/thumbnail-candidates.repository';
 import { ThumbnailSafetyValidator } from '../lib/validators/thumbnail-safety.validator';
 import { geminiClient } from '../lib/ai/gemini.client';
-import { phase24AIOrchestrator } from '../lib/ai/phase24-orchestrator.service';
+import { aiOrchestrator } from '../lib/ai/ai-orchestrator.service';
 import { googleSheetsClient } from '../lib/google-sheets/client';
 import { QuestionStatus, UserRole, SocialReviewStatus, RenderValidationStatus, VideoProductionStatus, WorkflowActor } from '../types';
 import { ProductionAssetValidationService } from '../lib/services/production-asset-validation.service';
@@ -1823,7 +1823,7 @@ apiRouter.patch('/videos/:id/status', requireRole([UserRole.ADMIN, UserRole.CONT
     }
 
     if ((status === VideoProductionStatus.EDITED || status === VideoProductionStatus.FINAL_REVIEW) && video.status === VideoProductionStatus.EDITING) {
-      const editedAssets = await phase14DriveService.listAssetsByStage(video.contentId || '', 'EDITED');
+      const editedAssets = await driveSyncService.listAssetsByStage(video.contentId || '', 'EDITED');
       if (editedAssets.length === 0) {
         return res.status(400).json({
           error: 'ValidationError',
@@ -1933,7 +1933,7 @@ apiRouter.post('/videos/:id/final-render/complete', requireRole([UserRole.ADMIN,
     }
 
     // Authoritative check: An edited video must be uploaded to Google Drive
-    const editedAssets = await phase14DriveService.listAssetsByStage(video.contentId || '', 'EDITED');
+    const editedAssets = await driveSyncService.listAssetsByStage(video.contentId || '', 'EDITED');
     if (editedAssets.length === 0) {
       return res.status(400).json({
         error: 'ValidationError',
@@ -3162,7 +3162,7 @@ apiRouter.get('/ai/status', (req: Request, res: Response) => {
 
 apiRouter.post('/ai/generate', async (req: Request, res: Response) => {
   try {
-    const result = await phase24AIOrchestrator.generateQuestionCandidate(req.body);
+    const result = await aiOrchestrator.generateQuestionCandidate(req.body);
     res.json(result);
   } catch (err: any) {
     const statusCode = err.statusCode || (err.code === 'QUOTA_EXHAUSTED' ? 429 : 500);
@@ -3176,7 +3176,7 @@ apiRouter.post('/ai/generate', async (req: Request, res: Response) => {
 
 apiRouter.post('/ai/refine', async (req: Request, res: Response) => {
   try {
-    const result = await phase24AIOrchestrator.refineQuestionCandidate(req.body);
+    const result = await aiOrchestrator.refineQuestionCandidate(req.body);
     res.json(result);
   } catch (err: any) {
     res.status(500).json({
@@ -3188,7 +3188,7 @@ apiRouter.post('/ai/refine', async (req: Request, res: Response) => {
 
 apiRouter.post('/ai/script/generate', async (req: Request, res: Response) => {
   try {
-    const result = await phase24AIOrchestrator.generateTeluguScript(req.body);
+    const result = await aiOrchestrator.generateTeluguScript(req.body);
     res.json(result);
   } catch (err: any) {
     res.status(500).json({
@@ -4023,7 +4023,7 @@ apiRouter.post('/planning/similarity-check', async (req: Request, res: Response)
 apiRouter.post('/planning/ai-recommendation', async (req: Request, res: Response) => {
   try {
     const validated = AiContentPlanRequestSchema.parse(req.body);
-    const recommendation = await phase24AIOrchestrator.generateContentPlanRecommendation(validated);
+    const recommendation = await aiOrchestrator.generateContentPlanRecommendation(validated);
     res.json(recommendation);
   } catch (err: any) {
     res.status(400).json({ error: 'Failed to generate AI plan recommendation', message: err?.message });
@@ -5662,8 +5662,8 @@ apiRouter.post(
         });
       }
 
-      const { phase25ConsensusService } = await import('../lib/services/phase25-consensus.service');
-      const response = await phase25ConsensusService.verifyCandidate({
+      const { consensusService } = await import('../lib/services/consensus.service');
+      const response = await consensusService.verifyCandidate({
         candidate,
         contentId,
         version,
@@ -5971,8 +5971,8 @@ apiRouter.post('/media/upload', requireAuth, async (req: Request, res: Response)
           return res.status(400).json({ error: 'ValidationError', message: 'No file provided in multipart upload body.' });
         }
 
-        const { phase14DriveService } = await import('../lib/services/phase14-drive.service');
-        const mediaAsset = await phase14DriveService.uploadProductionAsset({
+        const { driveSyncService } = await import('../lib/services/drive-sync.service');
+        const mediaAsset = await driveSyncService.uploadProductionAsset({
           contentId,
           mediaStage,
           fileName: uploadedFile.filename,
@@ -6026,8 +6026,8 @@ apiRouter.get('/media/download/:fileId', requireAuth, async (req: Request, res: 
 apiRouter.get('/media/list/:contentId', requireAuth, async (req: Request, res: Response) => {
   try {
     const { contentId } = req.params;
-    const { phase14DriveService } = await import('../lib/services/phase14-drive.service');
-    const list = await phase14DriveService.listAssets(contentId);
+    const { driveSyncService } = await import('../lib/services/drive-sync.service');
+    const list = await driveSyncService.listAssets(contentId);
     res.json({ success: true, data: list });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err?.message });
@@ -6037,8 +6037,8 @@ apiRouter.get('/media/list/:contentId', requireAuth, async (req: Request, res: R
 apiRouter.get('/media/latest/:contentId/:stage', requireAuth, async (req: Request, res: Response) => {
   try {
     const { contentId, stage } = req.params;
-    const { phase14DriveService } = await import('../lib/services/phase14-drive.service');
-    const latest = await phase14DriveService.getLatestAsset(contentId, stage as any);
+    const { driveSyncService } = await import('../lib/services/drive-sync.service');
+    const latest = await driveSyncService.getLatestAsset(contentId, stage as any);
     res.json({ success: true, data: latest });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err?.message });
@@ -6329,8 +6329,8 @@ apiRouter.get('/copilot/next-task', requireAuth, async (req: Request, res: Respo
       id: authReq.user?.id || 'USR-ANON',
       role: authReq.user?.role || UserRole.QUESTION_CREATOR,
     };
-    const { phase26CopilotService } = await import('../lib/services/phase26-copilot.service');
-    const result = await phase26CopilotService.recommendNextTask(actor);
+    const { copilotService } = await import('../lib/services/copilot.service');
+    const result = await copilotService.recommendNextTask(actor);
     res.json({ success: true, data: result });
   } catch (err: any) {
     res.status(err instanceof Error && err.name === 'CopilotAuthorizationError' ? 403 : 500).json({ success: false, error: err?.message });
@@ -6345,8 +6345,8 @@ apiRouter.get('/copilot/question-improvements/:contentId', requireAuth, async (r
       role: authReq.user?.role || UserRole.QUESTION_CREATOR,
     };
     const { contentId } = req.params;
-    const { phase26CopilotService } = await import('../lib/services/phase26-copilot.service');
-    const result = await phase26CopilotService.recommendQuestionImprovements(contentId, actor);
+    const { copilotService } = await import('../lib/services/copilot.service');
+    const result = await copilotService.recommendQuestionImprovements(contentId, actor);
     res.json({ success: true, data: result });
   } catch (err: any) {
     res.status(err instanceof Error && err.name === 'CopilotAuthorizationError' ? 403 : 500).json({ success: false, error: err?.message });
@@ -6361,8 +6361,8 @@ apiRouter.get('/copilot/difficulty/:contentId', requireAuth, async (req: Request
       role: authReq.user?.role || UserRole.QUESTION_CREATOR,
     };
     const { contentId } = req.params;
-    const { phase26CopilotService } = await import('../lib/services/phase26-copilot.service');
-    const result = await phase26CopilotService.recommendDifficulty(contentId, actor);
+    const { copilotService } = await import('../lib/services/copilot.service');
+    const result = await copilotService.recommendDifficulty(contentId, actor);
     res.json({ success: true, data: result });
   } catch (err: any) {
     res.status(err instanceof Error && err.name === 'CopilotAuthorizationError' ? 403 : 500).json({ success: false, error: err?.message });
@@ -6377,8 +6377,8 @@ apiRouter.get('/copilot/contexts/:contentId', requireAuth, async (req: Request, 
       role: authReq.user?.role || UserRole.QUESTION_CREATOR,
     };
     const { contentId } = req.params;
-    const { phase26CopilotService } = await import('../lib/services/phase26-copilot.service');
-    const result = await phase26CopilotService.suggestContexts(contentId, actor);
+    const { copilotService } = await import('../lib/services/copilot.service');
+    const result = await copilotService.suggestContexts(contentId, actor);
     res.json({ success: true, data: result });
   } catch (err: any) {
     res.status(err instanceof Error && err.name === 'CopilotAuthorizationError' ? 403 : 500).json({ success: false, error: err?.message });
@@ -6393,8 +6393,8 @@ apiRouter.get('/copilot/styles/:contentId', requireAuth, async (req: Request, re
       role: authReq.user?.role || UserRole.QUESTION_CREATOR,
     };
     const { contentId } = req.params;
-    const { phase26CopilotService } = await import('../lib/services/phase26-copilot.service');
-    const result = await phase26CopilotService.suggestQuestionStyles(contentId, actor);
+    const { copilotService } = await import('../lib/services/copilot.service');
+    const result = await copilotService.suggestQuestionStyles(contentId, actor);
     res.json({ success: true, data: result });
   } catch (err: any) {
     res.status(err instanceof Error && err.name === 'CopilotAuthorizationError' ? 403 : 500).json({ success: false, error: err?.message });
@@ -6409,8 +6409,8 @@ apiRouter.post('/copilot/script', requireAuth, async (req: Request, res: Respons
       role: authReq.user?.role || UserRole.QUESTION_CREATOR,
     };
     const { contentId, hookStyle } = req.body;
-    const { phase26CopilotService } = await import('../lib/services/phase26-copilot.service');
-    const result = await phase26CopilotService.generateScript(contentId, hookStyle || 'DIRECT', actor);
+    const { copilotService } = await import('../lib/services/copilot.service');
+    const result = await copilotService.generateScript(contentId, hookStyle || 'DIRECT', actor);
     res.json({ success: true, data: result });
   } catch (err: any) {
     res.status(err instanceof Error && err.name === 'CopilotAuthorizationError' ? 403 : 500).json({ success: false, error: err?.message });
@@ -6425,8 +6425,8 @@ apiRouter.get('/copilot/script-improvements/:contentId', requireAuth, async (req
       role: authReq.user?.role || UserRole.QUESTION_CREATOR,
     };
     const { contentId } = req.params;
-    const { phase26CopilotService } = await import('../lib/services/phase26-copilot.service');
-    const result = await phase26CopilotService.improveScript(contentId, actor);
+    const { copilotService } = await import('../lib/services/copilot.service');
+    const result = await copilotService.improveScript(contentId, actor);
     res.json({ success: true, data: result });
   } catch (err: any) {
     res.status(err instanceof Error && err.name === 'CopilotAuthorizationError' ? 403 : 500).json({ success: false, error: err?.message });
@@ -6441,8 +6441,8 @@ apiRouter.get('/copilot/thumbnails/:contentId', requireAuth, async (req: Request
       role: authReq.user?.role || UserRole.QUESTION_CREATOR,
     };
     const { contentId } = req.params;
-    const { phase26CopilotService } = await import('../lib/services/phase26-copilot.service');
-    const result = await phase26CopilotService.suggestThumbnails(contentId, actor);
+    const { copilotService } = await import('../lib/services/copilot.service');
+    const result = await copilotService.suggestThumbnails(contentId, actor);
     res.json({ success: true, data: result });
   } catch (err: any) {
     res.status(err instanceof Error && err.name === 'CopilotAuthorizationError' ? 403 : 500).json({ success: false, error: err?.message });
@@ -6457,8 +6457,8 @@ apiRouter.get('/copilot/pinned-comments/:contentId', requireAuth, async (req: Re
       role: authReq.user?.role || UserRole.QUESTION_CREATOR,
     };
     const { contentId } = req.params;
-    const { phase26CopilotService } = await import('../lib/services/phase26-copilot.service');
-    const result = await phase26CopilotService.suggestPinnedComments(contentId, actor);
+    const { copilotService } = await import('../lib/services/copilot.service');
+    const result = await copilotService.suggestPinnedComments(contentId, actor);
     res.json({ success: true, data: result });
   } catch (err: any) {
     res.status(err instanceof Error && err.name === 'CopilotAuthorizationError' ? 403 : 500).json({ success: false, error: err?.message });
@@ -6473,8 +6473,8 @@ apiRouter.get('/copilot/titles/:contentId', requireAuth, async (req: Request, re
       role: authReq.user?.role || UserRole.QUESTION_CREATOR,
     };
     const { contentId } = req.params;
-    const { phase26CopilotService } = await import('../lib/services/phase26-copilot.service');
-    const result = await phase26CopilotService.suggestTitles(contentId, actor);
+    const { copilotService } = await import('../lib/services/copilot.service');
+    const result = await copilotService.suggestTitles(contentId, actor);
     res.json({ success: true, data: result });
   } catch (err: any) {
     res.status(err instanceof Error && err.name === 'CopilotAuthorizationError' ? 403 : 500).json({ success: false, error: err?.message });
@@ -6489,8 +6489,8 @@ apiRouter.get('/copilot/captions/:contentId', requireAuth, async (req: Request, 
       role: authReq.user?.role || UserRole.QUESTION_CREATOR,
     };
     const { contentId } = req.params;
-    const { phase26CopilotService } = await import('../lib/services/phase26-copilot.service');
-    const result = await phase26CopilotService.suggestCaptions(contentId, actor);
+    const { copilotService } = await import('../lib/services/copilot.service');
+    const result = await copilotService.suggestCaptions(contentId, actor);
     res.json({ success: true, data: result });
   } catch (err: any) {
     res.status(err instanceof Error && err.name === 'CopilotAuthorizationError' ? 403 : 500).json({ success: false, error: err?.message });
@@ -6505,8 +6505,8 @@ apiRouter.get('/copilot/hashtags/:contentId', requireAuth, async (req: Request, 
       role: authReq.user?.role || UserRole.QUESTION_CREATOR,
     };
     const { contentId } = req.params;
-    const { phase26CopilotService } = await import('../lib/services/phase26-copilot.service');
-    const result = await phase26CopilotService.suggestHashtags(contentId, actor);
+    const { copilotService } = await import('../lib/services/copilot.service');
+    const result = await copilotService.suggestHashtags(contentId, actor);
     res.json({ success: true, data: result });
   } catch (err: any) {
     res.status(err instanceof Error && err.name === 'CopilotAuthorizationError' ? 403 : 500).json({ success: false, error: err?.message });
@@ -6520,8 +6520,8 @@ apiRouter.get('/copilot/bottlenecks', requireAuth, async (req: Request, res: Res
       id: authReq.user?.id || 'USR-ANON',
       role: authReq.user?.role || UserRole.QUESTION_CREATOR,
     };
-    const { phase26CopilotService } = await import('../lib/services/phase26-copilot.service');
-    const result = await phase26CopilotService.detectProductionBottlenecks(actor);
+    const { copilotService } = await import('../lib/services/copilot.service');
+    const result = await copilotService.detectProductionBottlenecks(actor);
     res.json({ success: true, data: result });
   } catch (err: any) {
     res.status(err instanceof Error && err.name === 'CopilotAuthorizationError' ? 403 : 500).json({ success: false, error: err?.message });
@@ -6536,8 +6536,8 @@ apiRouter.get('/copilot/review-feedback/:contentId', requireAuth, async (req: Re
       role: authReq.user?.role || UserRole.QUESTION_CREATOR,
     };
     const { contentId } = req.params;
-    const { phase26CopilotService } = await import('../lib/services/phase26-copilot.service');
-    const result = await phase26CopilotService.summarizeReviewFeedback(contentId, actor);
+    const { copilotService } = await import('../lib/services/copilot.service');
+    const result = await copilotService.summarizeReviewFeedback(contentId, actor);
     res.json({ success: true, data: result });
   } catch (err: any) {
     res.status(err instanceof Error && err.name === 'CopilotAuthorizationError' ? 403 : 500).json({ success: false, error: err?.message });
@@ -6547,8 +6547,8 @@ apiRouter.get('/copilot/review-feedback/:contentId', requireAuth, async (req: Re
 apiRouter.get('/copilot/suggestion/:suggestionId', requireAuth, async (req: Request, res: Response) => {
   try {
     const { suggestionId } = req.params;
-    const { phase26CopilotService } = await import('../lib/services/phase26-copilot.service');
-    const result = await phase26CopilotService.verifyStalenessAndRetrieve(suggestionId);
+    const { copilotService } = await import('../lib/services/copilot.service');
+    const result = await copilotService.verifyStalenessAndRetrieve(suggestionId);
     if (!result) {
       return res.status(404).json({ success: false, error: 'Suggestion not found.' });
     }

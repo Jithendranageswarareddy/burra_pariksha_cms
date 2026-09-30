@@ -1,18 +1,18 @@
 /**
  * BURRA PARIKSHA CMS - AI Module Index
- * Phase 6: AI Provider Abstraction & Registry
+ * Central AI Provider Abstraction, Registry & Orchestration
  */
 
 export * from './types';
-export * from '../../types/phase24-ai';
+export * from '../../types/ai';
 export * from './config';
 export * from './error';
 export * from './registry';
 export * from './gemini.client';
 export * from './gemini.service';
 export * from './orchestrator';
-export * from './phase24-registry';
-export * from './phase24-orchestrator.service';
+export { MultiAIProviderRegistry, multiAIProviderRegistry, phase24ProviderRegistry } from './provider-registry';
+export { AIOrchestrationService, aiOrchestrationService } from './ai-orchestrator.service';
 export * from './providers/base.adapter';
 export * from './providers/gemini.adapter';
 export * from './providers/openrouter.adapter';

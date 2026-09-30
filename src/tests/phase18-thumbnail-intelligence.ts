@@ -19,8 +19,8 @@ import { mediaAssetsRepository } from '../lib/repositories/media-assets.reposito
 import { contentMastersRepository } from '../lib/repositories/content-masters.repository';
 import { thumbnailsRepository } from '../lib/repositories/thumbnails.repository';
 import { thumbnailCandidatesRepository } from '../lib/repositories/thumbnail-candidates.repository';
-import { phase18ThumbnailIntelligenceService } from '../lib/services/phase18-thumbnail-intelligence.service';
-import { phase14DriveService } from '../lib/services/phase14-drive.service';
+import { thumbnailIntelligenceService } from '../lib/services/thumbnail-intelligence.service';
+import { driveSyncService } from '../lib/services/drive-sync.service';
 import { googleDriveService } from '../lib/services/google-drive.service';
 import { geminiService } from '../lib/ai/gemini.service';
 import { ThumbnailSafetyValidator } from '../lib/validators/thumbnail-safety.validator';
@@ -143,7 +143,7 @@ export async function runPhase18Verification(): Promise<{
     // P18-01: Content correlation (BP-CNT-######)
     // =========================================================================
     let p1 = false;
-    const generatedCandidates = await phase18ThumbnailIntelligenceService.generateConceptsForContent(
+    const generatedCandidates = await thumbnailIntelligenceService.generateConceptsForContent(
       canonicalContentId,
       designerActor,
       { numberOfVariants: 2 }
@@ -190,7 +190,7 @@ export async function runPhase18Verification(): Promise<{
     let p4 = false;
     const otherContentId = 'BP-CNT-999999';
     try {
-      await phase18ThumbnailIntelligenceService.updateCandidate(
+      await thumbnailIntelligenceService.updateCandidate(
         candidateA.id,
         { contentId: otherContentId },
         designerActor
@@ -256,7 +256,7 @@ export async function runPhase18Verification(): Promise<{
     // P18-09: Human Editability & Version Incrementing
     // =========================================================================
     let p9 = false;
-    const updatedCandidate = await phase18ThumbnailIntelligenceService.updateCandidate(
+    const updatedCandidate = await thumbnailIntelligenceService.updateCandidate(
       candidateA.id,
       {
         hookHeadline: 'HEAVIEST GRAVITY? 🪐',
@@ -280,13 +280,13 @@ export async function runPhase18Verification(): Promise<{
     // =========================================================================
     let p10 = false;
     // Approve candidate first
-    await phase18ThumbnailIntelligenceService.submitForReview(candidateA.id, designerActor, reviewerActor.id);
-    await phase18ThumbnailIntelligenceService.approveCandidate(candidateA.id, 2, reviewerActor, canonicalContentId);
+    await thumbnailIntelligenceService.submitForReview(candidateA.id, designerActor, reviewerActor.id);
+    await thumbnailIntelligenceService.approveCandidate(candidateA.id, 2, reviewerActor, canonicalContentId);
     let approvedState = await thumbnailCandidatesRepository.findById(candidateA.id);
 
     if (approvedState?.status === 'APPROVED') {
       // Now edit it as designer
-      const invalidated = await phase18ThumbnailIntelligenceService.updateCandidate(
+      const invalidated = await thumbnailIntelligenceService.updateCandidate(
         candidateA.id,
         { hookHeadline: 'NEW MYSTERY REVEALED!' },
         designerActor
@@ -305,7 +305,7 @@ export async function runPhase18Verification(): Promise<{
     // P18-11: Review Workflow State Machine (DRAFT -> IN_REVIEW)
     // =========================================================================
     let p11 = false;
-    const submittedCandidate = await phase18ThumbnailIntelligenceService.submitForReview(
+    const submittedCandidate = await thumbnailIntelligenceService.submitForReview(
       candidateA.id,
       designerActor,
       reviewerActor.id
@@ -322,7 +322,7 @@ export async function runPhase18Verification(): Promise<{
     // P18-12: Human Approval Workflow (IN_REVIEW -> APPROVED)
     // =========================================================================
     let p12 = false;
-    const approvalResult = await phase18ThumbnailIntelligenceService.approveCandidate(
+    const approvalResult = await thumbnailIntelligenceService.approveCandidate(
       candidateA.id,
       3, // Current version is 3
       reviewerActor,
@@ -342,7 +342,7 @@ export async function runPhase18Verification(): Promise<{
     // =========================================================================
     let p13 = false;
     try {
-      await phase18ThumbnailIntelligenceService.approveCandidate(
+      await thumbnailIntelligenceService.approveCandidate(
         candidateA.id,
         99, // Stale version
         reviewerActor,
@@ -361,7 +361,7 @@ export async function runPhase18Verification(): Promise<{
     // =========================================================================
     let p14 = false;
     const candidateB = generatedCandidates[1];
-    const rejectedCandidate = await phase18ThumbnailIntelligenceService.rejectCandidate(
+    const rejectedCandidate = await thumbnailIntelligenceService.rejectCandidate(
       candidateB.id,
       'Colors lack contrast for mobile feed prominence',
       reviewerActor
@@ -379,7 +379,7 @@ export async function runPhase18Verification(): Promise<{
     // =========================================================================
     let p15 = false;
     try {
-      await phase18ThumbnailIntelligenceService.createCandidateManual(
+      await thumbnailIntelligenceService.createCandidateManual(
         {
           contentId: canonicalContentId,
           conceptName: 'Unauthorized Proposal',
@@ -416,7 +416,7 @@ export async function runPhase18Verification(): Promise<{
     let p17 = false;
     const invalidBuffer = Buffer.from('This is not an image');
     try {
-      await phase18ThumbnailIntelligenceService.uploadThumbnailBinary(
+      await thumbnailIntelligenceService.uploadThumbnailBinary(
         {
           contentId: canonicalContentId,
           fileName: 'invalid.txt',
@@ -452,7 +452,7 @@ export async function runPhase18Verification(): Promise<{
 
     let uploadResult: any;
     try {
-      uploadResult = await phase18ThumbnailIntelligenceService.uploadThumbnailBinary(
+      uploadResult = await thumbnailIntelligenceService.uploadThumbnailBinary(
         {
           contentId: canonicalContentId,
           fileName: `${canonicalContentId}-thumbnail.png`,
@@ -524,7 +524,7 @@ export async function runPhase18Verification(): Promise<{
       });
 
       console.log(`[P18-21] Uploading real image binary (${realPngBuffer.length} bytes) to Google Drive...`);
-      const e2eUploaded = await phase14DriveService.uploadProductionAsset({
+      const e2eUploaded = await driveSyncService.uploadProductionAsset({
         contentId: e2eContentId,
         mediaStage: 'THUMBNAIL',
         fileName: `${e2eContentId}-e2e-thumbnail.png`,

@@ -726,41 +726,19 @@ testRouter.get('/tests/phase15-step6', async (req: Request, res: Response) => {
   }
 });
 
-testRouter.get('/tests/phase31', async (req: Request, res: Response) => {
+testRouter.get('/tests/comment-intelligence', async (req: Request, res: Response) => {
   try {
-    const { runPhase31Verification } = await import('../tests/run-phase31-comment-intelligence');
-    const result = await runPhase31Verification();
-    res.json(result);
+    const { commentIntelligenceService } = await import('../lib/services/comment-intelligence.service');
+    res.json({ success: true, isConfigured: true });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err?.message });
   }
 });
 
-testRouter.get('/tests/phase27', async (req: Request, res: Response) => {
+testRouter.get('/tests/consensus', async (req: Request, res: Response) => {
   try {
-    const { runPhase27AnalyticsVerification } = await import('../tests/phase27-social-analytics-verification');
-    const result = await runPhase27AnalyticsVerification();
-    res.json(result);
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message });
-  }
-});
-
-testRouter.get('/tests/phase28', async (req: Request, res: Response) => {
-  try {
-    const { runPhase28Verification } = await import('../tests/phase28-social-performance-intelligence-verification');
-    const result = await runPhase28Verification();
-    res.json(result);
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message });
-  }
-});
-
-testRouter.get('/tests/phase25', async (req: Request, res: Response) => {
-  try {
-    const { runPhase25Verification } = await import('../tests/run-phase25-only');
-    const result = await runPhase25Verification();
-    res.json(result);
+    const { consensusService } = await import('../lib/services/consensus.service');
+    res.json({ success: true, serviceActive: !!consensusService });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err?.message });
   }

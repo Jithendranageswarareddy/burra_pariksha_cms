@@ -19,8 +19,8 @@ import { scriptsRepository } from '../lib/repositories/scripts.repository';
 import { videosRepository } from '../lib/repositories/videos.repository';
 import { mediaAssetsRepository } from '../lib/repositories/media-assets.repository';
 import { contentMastersRepository } from '../lib/repositories/content-masters.repository';
-import { phase17VideoProductionService } from '../lib/services/phase17-video-production.service';
-import { phase14DriveService } from '../lib/services/phase14-drive.service';
+import { videoProductionService } from '../lib/services/video-production.service';
+import { driveSyncService } from '../lib/services/drive-sync.service';
 import { googleDriveService } from '../lib/services/google-drive.service';
 import { idService } from '../lib/services/id.service';
 import {
@@ -131,7 +131,7 @@ export async function runPhase17Verification(): Promise<{
     // P17-01: Content correlation: Canonical Content ID preservation
     // -------------------------------------------------------------------------
     let p01 = false;
-    let rawInitResult = await phase17VideoProductionService.initializeRawVideo(
+    let rawInitResult = await videoProductionService.initializeRawVideo(
       {
         scriptId,
         expectedContentId: canonicalContentId,
@@ -178,7 +178,7 @@ export async function runPhase17Verification(): Promise<{
     // -------------------------------------------------------------------------
     let p04 = false;
     try {
-      await phase17VideoProductionService.initializeRawVideo(
+      await videoProductionService.initializeRawVideo(
         {
           scriptId,
           expectedContentId: 'BP-CNT-WRONG999',
@@ -206,7 +206,7 @@ export async function runPhase17Verification(): Promise<{
         id: draftScriptId,
         status: 'DRAFT',
       });
-      await phase17VideoProductionService.initializeRawVideo(
+      await videoProductionService.initializeRawVideo(
         {
           scriptId: draftScriptId,
           expectedContentId: canonicalContentId,
@@ -239,7 +239,7 @@ export async function runPhase17Verification(): Promise<{
     // P17-07: Production state: Transition to EDITING
     // -------------------------------------------------------------------------
     let p07 = false;
-    const editingResult = await phase17VideoProductionService.transitionToEditing(
+    const editingResult = await videoProductionService.transitionToEditing(
       {
         videoId,
         expectedContentId: canonicalContentId,
@@ -261,7 +261,7 @@ export async function runPhase17Verification(): Promise<{
     // -------------------------------------------------------------------------
     let p08 = false;
     const editedPayload = Buffer.from('TEST_EDITED_VIDEO_BINARY_DATA_V1');
-    const editedResult = await phase17VideoProductionService.uploadEditedVideo(
+    const editedResult = await videoProductionService.uploadEditedVideo(
       {
         videoId,
         expectedContentId: canonicalContentId,
@@ -286,7 +286,7 @@ export async function runPhase17Verification(): Promise<{
     let p09 = false;
     try {
       // Attempting to transition to EDITING when already EDITED
-      await phase17VideoProductionService.transitionToEditing(
+      await videoProductionService.transitionToEditing(
         { videoId, expectedContentId: canonicalContentId },
         editorActor
       );
@@ -338,7 +338,7 @@ export async function runPhase17Verification(): Promise<{
     // -------------------------------------------------------------------------
     let p18 = false;
     const editedRev2Payload = Buffer.from('TEST_EDITED_VIDEO_BINARY_DATA_V2');
-    await phase17VideoProductionService.uploadEditedVideo(
+    await videoProductionService.uploadEditedVideo(
       {
         videoId,
         expectedContentId: canonicalContentId,
@@ -348,7 +348,7 @@ export async function runPhase17Verification(): Promise<{
       },
       editorActor
     );
-    const midHistory = await phase17VideoProductionService.getVideoProductionHistory(videoId);
+    const midHistory = await videoProductionService.getVideoProductionHistory(videoId);
     if (midHistory.editedAssets.length >= 2) {
       const v1 = midHistory.editedAssets.find((a) => a.version === 1);
       const v2 = midHistory.editedAssets.find((a) => a.version === 2);
@@ -363,7 +363,7 @@ export async function runPhase17Verification(): Promise<{
     // -------------------------------------------------------------------------
     let p13 = false;
     const finalPayload = Buffer.from('TEST_FINAL_VIDEO_BINARY_DATA_PASS');
-    const finalResult = await phase17VideoProductionService.approveFinalVideo(
+    const finalResult = await videoProductionService.approveFinalVideo(
       {
         videoId,
         expectedContentId: canonicalContentId,
@@ -390,7 +390,7 @@ export async function runPhase17Verification(): Promise<{
     // -------------------------------------------------------------------------
     let p14 = false;
     try {
-      await phase17VideoProductionService.initializeRawVideo(
+      await videoProductionService.initializeRawVideo(
         {
           scriptId,
           expectedContentId: canonicalContentId,
@@ -412,7 +412,7 @@ export async function runPhase17Verification(): Promise<{
     // -------------------------------------------------------------------------
     let p15 = false;
     try {
-      await phase17VideoProductionService.approveFinalVideo(
+      await videoProductionService.approveFinalVideo(
         {
           videoId,
           expectedContentId: canonicalContentId,
@@ -434,7 +434,7 @@ export async function runPhase17Verification(): Promise<{
     // Verify reviewer passes permission check
     try {
       // Re-run final approval with reviewer actor
-      const revApproved = await phase17VideoProductionService.approveFinalVideo(
+      const revApproved = await videoProductionService.approveFinalVideo(
         {
           videoId,
           expectedContentId: canonicalContentId,
@@ -456,7 +456,7 @@ export async function runPhase17Verification(): Promise<{
     // P17-17: Media versioning: Revision history preserved
     // -------------------------------------------------------------------------
     let p17 = false;
-    const history = await phase17VideoProductionService.getVideoProductionHistory(videoId);
+    const history = await videoProductionService.getVideoProductionHistory(videoId);
     if (
       history.rawAssets.length >= 1 &&
       history.editedAssets.length >= 1 &&
@@ -507,7 +507,7 @@ export async function runPhase17Verification(): Promise<{
 
       // 2. Upload real final video binary using Phase14DriveService directly to Final/ folder
       console.log(`[P17-20] Uploading real binary (${realBuffer.length} bytes) to Google Drive...`);
-      const uploadedAsset = await phase14DriveService.uploadProductionAsset({
+      const uploadedAsset = await driveSyncService.uploadProductionAsset({
         contentId: realE2EContentId,
         mediaStage: 'FINAL',
         fileName: realFileName,

@@ -23,7 +23,7 @@ import {
   SourceQuestionContext,
   EnhancedSocialScriptContext,
 } from '../validators/social-invariance.validator';
-import { phase24AIOrchestrator } from '../ai/phase24-orchestrator.service';
+import { aiOrchestrator } from '../ai/ai-orchestrator.service';
 import { AIProviderOptions } from '../ai/types';
 import { detectAnswerLeakage } from './platform-adaptation.service';
 
@@ -337,7 +337,7 @@ export class SocialQualityService {
 
     // Step 2: Skip AI or Force Fallback if requested
     if (options?.skipAI) {
-      const fallbackAI = phase24AIOrchestrator.createFallbackSocialQualityAssessment(sourceQuestion, enhancementPackage);
+      const fallbackAI = aiOrchestrator.createFallbackSocialQualityAssessment(sourceQuestion, enhancementPackage);
       return this.buildFinalPayload(
         payloadId,
         sourceQuestion.id,
@@ -357,7 +357,7 @@ export class SocialQualityService {
     let aiOutput: any = null;
 
     try {
-      const result = await phase24AIOrchestrator.generateSocialQualityAssessment(
+      const result = await aiOrchestrator.generateSocialQualityAssessment(
         sourceQuestion,
         enhancementPackage,
         platformAdaptations,
@@ -370,7 +370,7 @@ export class SocialQualityService {
       }
     } catch (err) {
       console.warn('[SocialQualityService] AI assessment error, using fallback:', err);
-      aiOutput = phase24AIOrchestrator.createFallbackSocialQualityAssessment(sourceQuestion, enhancementPackage);
+      aiOutput = aiOrchestrator.createFallbackSocialQualityAssessment(sourceQuestion, enhancementPackage);
       method = 'DETERMINISTIC_FALLBACK';
       aiCallsCount = 1;
     }

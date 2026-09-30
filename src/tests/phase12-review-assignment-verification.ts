@@ -16,7 +16,7 @@ import {
   workflowRepository,
   usersRepository,
 } from '../lib/repositories';
-import { phase12WorkflowService } from '../lib/services/phase12-workflow.service';
+import { phase12WorkflowService } from '../lib/services/content-workflow.service';
 import {
   ContentMasterStatus,
   UserRole,

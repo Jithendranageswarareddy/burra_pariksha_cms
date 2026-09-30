@@ -145,6 +145,8 @@ export class SocialReviewsRepository extends BaseRepository<SocialReviewRecord> 
 }
 
 export const socialReviewsRepository = SocialReviewsRepository.getInstance();
+export const phase20SocialReviewsRepository = socialReviewsRepository;
+export type Phase20SocialReviewsRepository = SocialReviewsRepository;
 
 
 

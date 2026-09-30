@@ -2,7 +2,7 @@
  * BURRA PARIKSHA CMS - Phase 24 OpenRouter Provider Adapter
  */
 
-import { AIProviderId, AIRequest } from '../../../types/phase24-ai';
+import { AIProviderId, AIRequest } from '../../../types/ai';
 import { BaseAIProviderAdapter } from './base.adapter';
 
 export class OpenRouterProviderAdapter extends BaseAIProviderAdapter {

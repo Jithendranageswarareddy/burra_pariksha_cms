@@ -15,7 +15,7 @@ import {
   AIRequest,
   AITaskType,
   IPhase24AIProvider,
-} from '../../../types/phase24-ai';
+} from '../../../types/ai';
 
 export abstract class BaseAIProviderAdapter implements IPhase24AIProvider {
   public abstract readonly providerId: AIProviderId;

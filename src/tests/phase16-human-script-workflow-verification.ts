@@ -1,6 +1,6 @@
 import { questionsRepository } from '../lib/repositories/questions.repository';
 import { scriptsRepository, scriptVersionsRepository } from '../lib/repositories/scripts.repository';
-import { phase15ScriptProductionService } from '../lib/services/phase15-script-production.service';
+import { scriptProductionService } from '../lib/services/script-production.service';
 import { idService } from '../lib/services/id.service';
 import { Question, DifficultyLevel, QuestionLanguage, UserRole, Script } from '../types';
 
@@ -88,7 +88,7 @@ export async function runPhase16Verification(): Promise<{
     addResult('P16-15', 'AI-independent manual workflow', true, 'Successfully seeded script independently of AI.');
 
     // P16-01: version creation & P16-02: human edit
-    const edit1 = await phase15ScriptProductionService.editScriptCandidate(scriptId, {
+    const edit1 = await scriptProductionService.editScriptCandidate(scriptId, {
       hookText: 'Edited Hook',
       createNewVersion: true
     }, editorActor);
@@ -101,7 +101,7 @@ export async function runPhase16Verification(): Promise<{
     addResult('P16-03', 'previous version preserved', !!v1 && parsedV1.hookText === 'Initial Hook', 'V1 is intact and immutable.');
 
     // P16-04: revert creates new version
-    const revertRes = await phase15ScriptProductionService.revertScript(scriptId, 1, adminActor);
+    const revertRes = await scriptProductionService.revertScript(scriptId, 1, adminActor);
     addResult('P16-04', 'revert creates new version', revertRes.script.currentVersion === 3 && revertRes.script.hookText === 'Initial Hook', 'Reverted to V1 content but version incremented to 3.');
 
     // P16-14: audit/history
@@ -110,10 +110,10 @@ export async function runPhase16Verification(): Promise<{
 
     // P16-05: readiness validation
     // Edit script to be invalid (missing required CTA section)
-    const invalidEdit = await phase15ScriptProductionService.editScriptCandidate(scriptId, { callToAction: ' ' }, editorActor);
+    const invalidEdit = await scriptProductionService.editScriptCandidate(scriptId, { callToAction: ' ' }, editorActor);
     let p05 = false;
     try {
-      await phase15ScriptProductionService.approveScript(scriptId, invalidEdit.script.currentVersion, adminActor);
+      await scriptProductionService.approveScript(scriptId, invalidEdit.script.currentVersion, adminActor);
     } catch (e: any) {
       if (e.message.includes('Missing Section') || e.message.includes('readiness validation')) {
         p05 = true;
@@ -122,37 +122,37 @@ export async function runPhase16Verification(): Promise<{
     addResult('P16-05', 'readiness validation', p05, 'Approval rejected missing CTA (readiness validation).');
 
     // Fix it back to valid
-    await phase15ScriptProductionService.editScriptCandidate(scriptId, { callToAction: 'Fixed CTA' }, editorActor);
+    await scriptProductionService.editScriptCandidate(scriptId, { callToAction: 'Fixed CTA' }, editorActor);
 
     // P16-06: review assignment
-    const reviewRes = await phase15ScriptProductionService.submitForReview(scriptId, 'U1', editorActor);
+    const reviewRes = await scriptProductionService.submitForReview(scriptId, 'U1', editorActor);
     addResult('P16-06', 'review assignment', reviewRes.status === 'IN_REVIEW' && reviewRes.assignedReviewerId === 'U1', 'Status set to IN_REVIEW with assigned reviewer.');
 
     // P16-07: correct reviewer authorization
     let p07 = false;
     try {
-      await phase15ScriptProductionService.approveScript(scriptId, reviewRes.currentVersion, badActor);
+      await scriptProductionService.approveScript(scriptId, reviewRes.currentVersion, badActor);
     } catch(e: any) {
       if (e.message.includes('not authorized')) p07 = true;
     }
     addResult('P16-07', 'correct reviewer authorization', p07, 'Unauthorized role rejected during approval.');
 
     // P16-08: approval
-    const approveRes = await phase15ScriptProductionService.approveScript(scriptId, reviewRes.currentVersion, adminActor);
+    const approveRes = await scriptProductionService.approveScript(scriptId, reviewRes.currentVersion, adminActor);
     addResult('P16-08', 'approval', approveRes.status === 'APPROVED' && approveRes.approvedBy === 'Admin', 'Script successfully approved by Admin.');
 
     // P16-09: approved-version locking
     addResult('P16-09', 'approved-version locking', approveRes.approvedVersion === reviewRes.currentVersion, 'Approval locked strictly to the current version.');
 
     // P16-10: edit invalidates approval
-    const postEditRes = await phase15ScriptProductionService.editScriptCandidate(scriptId, { hookText: 'Another edit' }, editorActor);
+    const postEditRes = await scriptProductionService.editScriptCandidate(scriptId, { hookText: 'Another edit' }, editorActor);
     addResult('P16-10', 'edit invalidates approval', postEditRes.script.status === 'DRAFT' && !postEditRes.script.approvedBy, 'Edit reset status to DRAFT and cleared approval fields.');
 
     // P16-11: stale approval rejected
     let p11 = false;
     try {
       // Trying to approve an older version (e.g., version 1, but current is higher)
-      await phase15ScriptProductionService.approveScript(scriptId, 1, adminActor);
+      await scriptProductionService.approveScript(scriptId, 1, adminActor);
     } catch(e: any) {
       if (e.message.includes('Stale approval rejected')) p11 = true;
     }
@@ -163,7 +163,7 @@ export async function runPhase16Verification(): Promise<{
     try {
       let rejectedTamper = false;
       try {
-        await phase15ScriptProductionService.editScriptCandidate(scriptId, { contentId: 'HACKED-CNT-999' } as any, editorActor);
+        await scriptProductionService.editScriptCandidate(scriptId, { contentId: 'HACKED-CNT-999' } as any, editorActor);
       } catch (err: any) {
         if (err.message.includes('Cannot modify canonical Content ID')) {
           rejectedTamper = true;
@@ -184,7 +184,7 @@ export async function runPhase16Verification(): Promise<{
       let rejectedMismatchedApproval = false;
       try {
         // Attempt approval with wrong expected Content ID
-        await phase15ScriptProductionService.approveScript(scriptId, postEditRes.script.currentVersion, adminActor, 'BP-CNT-WRONG-999');
+        await scriptProductionService.approveScript(scriptId, postEditRes.script.currentVersion, adminActor, 'BP-CNT-WRONG-999');
       } catch (err: any) {
         if (err.message.includes('Cross-content approval rejected')) {
           rejectedMismatchedApproval = true;
@@ -203,16 +203,16 @@ export async function runPhase16Verification(): Promise<{
     let p16 = false;
     try {
       // 1. Draft
-      const e2eRes = await phase15ScriptProductionService.generateScriptForQuestion(questionId);
+      const e2eRes = await scriptProductionService.generateScriptForQuestion(questionId);
       // 2. Edit
-      const edited = await phase15ScriptProductionService.editScriptCandidate(e2eRes.script.id, {
+      const edited = await scriptProductionService.editScriptCandidate(e2eRes.script.id, {
         hookText: 'This is a super cool hook that does not leak anything!',
         stepByStepSolution: e2eRes.script.stepByStepSolution + ' And here is a bit more explanation to be sure we pass.'
       }, editorActor);
       // 3. Review
-      await phase15ScriptProductionService.submitForReview(edited.script.id, undefined, editorActor);
+      await scriptProductionService.submitForReview(edited.script.id, undefined, editorActor);
       // 4. Approved
-      const approved = await phase15ScriptProductionService.approveScript(edited.script.id, edited.script.currentVersion, adminActor);
+      const approved = await scriptProductionService.approveScript(edited.script.id, edited.script.currentVersion, adminActor);
       
       if (approved.status === 'APPROVED') {
         p16 = true;

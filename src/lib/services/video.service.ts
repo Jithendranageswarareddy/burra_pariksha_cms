@@ -953,6 +953,12 @@ export class VideoService {
           existingVideo.status === VideoProductionStatus.RECORDING
         ) {
           updatePayload.status = VideoProductionStatus.RECORDED;
+          if (existingVideo.questionId) {
+            await questionsRepository.updateRecord(existingVideo.questionId, {
+              videoStatus: VideoProductionStatus.RECORDED,
+              updatedAt: now,
+            });
+          }
         }
         updatedVideo = (await videosRepository.update(existingVideo.id, updatePayload)) as Video;
       } else {

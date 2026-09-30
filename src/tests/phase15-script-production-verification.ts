@@ -7,7 +7,7 @@
 
 import { questionsRepository } from '../lib/repositories/questions.repository';
 import { scriptsRepository, scriptVersionsRepository } from '../lib/repositories/scripts.repository';
-import { phase15ScriptProductionService } from '../lib/services/phase15-script-production.service';
+import { scriptProductionService } from '../lib/services/script-production.service';
 import { Question, ContentMasterStatus, UserRole, DifficultyLevel, QuestionLanguage } from '../types';
 import { idService } from '../lib/services/id.service';
 
@@ -67,7 +67,7 @@ export async function runPhase15Verification(): Promise<{
     addResult('P15-01', 'Existing question loaded correctly', p1, `Successfully resolved source question with ID "${questionId}".`);
 
     // Execute generation to test output package via real Gemini provider
-    const response = await phase15ScriptProductionService.generateScriptForQuestion(questionId);
+    const response = await scriptProductionService.generateScriptForQuestion(questionId);
     const { script, version, validationErrors } = response;
 
     // -------------------------------------------------------------------------
@@ -166,7 +166,7 @@ export async function runPhase15Verification(): Promise<{
     // -------------------------------------------------------------------------
     const previousVersionNumber = script.currentVersion;
     // Generate a second candidate to trigger a new version snapshot
-    const secondResponse = await phase15ScriptProductionService.generateScriptForQuestion(questionId);
+    const secondResponse = await scriptProductionService.generateScriptForQuestion(questionId);
     const p17 = secondResponse.script.currentVersion === previousVersionNumber + 1;
     addResult('P15-17', 'Script versioning works', p17, `Version incremented successfully! New active script version: V${secondResponse.script.currentVersion}.`);
 
@@ -181,7 +181,7 @@ export async function runPhase15Verification(): Promise<{
     // P15-19: Human can edit candidate
     // -------------------------------------------------------------------------
     const editedHook = '✨ [HUMAN EDIT] This is an engaging human revised hook!';
-    const editRes = await phase15ScriptProductionService.editScriptCandidate(
+    const editRes = await scriptProductionService.editScriptCandidate(
       script.id,
       { hookText: editedHook, createNewVersion: true },
       { id: 'USR-MGR', name: 'Lead Editor', role: UserRole.CONTENT_MANAGER }
@@ -209,7 +209,7 @@ export async function runPhase15Verification(): Promise<{
     let p22 = false;
     try {
       // Trying to edit the script and inject a mismatched Content ID via cast
-      await phase15ScriptProductionService.editScriptCandidate(
+      await scriptProductionService.editScriptCandidate(
         script.id,
         { hookText: 'Malicious', contentId: 'HACKED-ID' } as any,
         { id: 'USR-BAD', name: 'Malicious actor', role: UserRole.CONTENT_MANAGER }

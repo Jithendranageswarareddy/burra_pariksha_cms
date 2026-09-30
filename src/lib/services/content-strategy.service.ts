@@ -15,9 +15,9 @@ import { taxonomyService } from './taxonomy.service';
 import { contentPlansRepository } from '../repositories/content-plans.repository';
 import { auditLogRepository } from '../repositories/audit-log.repository';
 import { idService } from './id.service';
-import { phase24AIOrchestrator } from '../ai/phase24-orchestrator.service';
+import { aiOrchestrator } from '../ai/ai-orchestrator.service';
 import { ContentStrategyRecommendation, ContentPlan, RecommendationStatus, QuestionLanguage, PriorityLevel, ContentPlanStatus, CommentIntelligenceRecord } from '../../types';
-import { AIProvenance } from '../../types/phase24-ai';
+import { AIProvenance } from '../../types/ai';
 
 export class ContentStrategyService {
   private static instance: ContentStrategyService | null = null;
@@ -187,7 +187,7 @@ Respond with a strictly formatted JSON object having these fields:
 
         const systemInstruction = 'You are an advanced media content strategist specializing in competitive aptitude micro-learning content for Burra Pariksha. Keep suggestions actionable, grounded in evidence from both performance analytics and audience comment intelligence, and strictly structured in JSON format.';
 
-        const aiResponse = await phase24AIOrchestrator.executeTask({
+        const aiResponse = await aiOrchestrator.executeTask({
           task: 'ANALYSIS',
           prompt,
           systemInstruction,

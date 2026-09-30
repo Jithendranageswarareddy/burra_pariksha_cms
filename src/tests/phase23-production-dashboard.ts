@@ -20,7 +20,7 @@ import {
   assignmentsRepository,
   usersRepository,
 } from '../lib/repositories';
-import { phase23ProductionService } from '../lib/services/phase23-production.service';
+import { productionDashboardService } from '../lib/services/production-dashboard.service';
 import { ActorContext } from '../lib/services/object-auth.service';
 import {
   UserRole,
@@ -58,7 +58,7 @@ export async function runPhase23Verification(): Promise<TestSuiteSummary> {
     // ------------------------------------------------------------------------
     // SETUP SEED DATA
     // ------------------------------------------------------------------------
-    phase23ProductionService.clearCache();
+    productionDashboardService.clearCache();
 
     // 1. Content Masters
     await contentMastersRepository.create({
@@ -191,12 +191,12 @@ export async function runPhase23Verification(): Promise<TestSuiteSummary> {
     const creatorActor: ActorContext = { id: 'USR-CREATOR-1', role: UserRole.QUESTION_CREATOR, name: 'Creator One' };
     const analyticsViewerActor: ActorContext = { id: 'USR-VIEWER-1', role: UserRole.ANALYTICS_VIEWER, name: 'Analytics Viewer' };
 
-    phase23ProductionService.clearCache();
+    productionDashboardService.clearCache();
 
     // ------------------------------------------------------------------------
     // P23-01: Content ID Exact Search
     // ------------------------------------------------------------------------
-    const resP01 = await phase23ProductionService.search({ contentId: 'BP-CNT-230001' }, adminActor);
+    const resP01 = await productionDashboardService.search({ contentId: 'BP-CNT-230001' }, adminActor);
     if (resP01.totalCount === 1 && resP01.items[0].contentId === 'BP-CNT-230001') {
       addResult('P23-01', 'Content ID Exact Search', 'PASS', 'Exact Content ID lookup returned matching item');
     } else {
@@ -206,7 +206,7 @@ export async function runPhase23Verification(): Promise<TestSuiteSummary> {
     // ------------------------------------------------------------------------
     // P23-02: Topic & Subtopic Filtering
     // ------------------------------------------------------------------------
-    const resP02 = await phase23ProductionService.search({ topicId: 'T-MATH', subtopicId: 'ST-ALGEBRA' }, adminActor);
+    const resP02 = await productionDashboardService.search({ topicId: 'T-MATH', subtopicId: 'ST-ALGEBRA' }, adminActor);
     if (resP02.totalCount === 1 && resP02.items[0].topicId === 'T-MATH') {
       addResult('P23-02', 'Topic & Subtopic Filtering', 'PASS', 'Filtered correctly by topicId and subtopicId');
     } else {
@@ -216,7 +216,7 @@ export async function runPhase23Verification(): Promise<TestSuiteSummary> {
     // ------------------------------------------------------------------------
     // P23-03: Multi-dimensional Search Filters
     // ------------------------------------------------------------------------
-    const resP03 = await phase23ProductionService.search(
+    const resP03 = await productionDashboardService.search(
       {
         difficulty: DifficultyLevel.HARD,
         language: QuestionLanguage.TELUGU_ENGLISH,
@@ -233,7 +233,7 @@ export async function runPhase23Verification(): Promise<TestSuiteSummary> {
     // ------------------------------------------------------------------------
     // P23-04: Clear Search Filters
     // ------------------------------------------------------------------------
-    const resP04 = await phase23ProductionService.search({}, adminActor);
+    const resP04 = await productionDashboardService.search({}, adminActor);
     if (resP04.totalCount >= 3) {
       addResult('P23-04', 'Clear Search Filters', 'PASS', `Clearing search filters returns all production items (total: ${resP04.totalCount})`);
     } else {
@@ -243,7 +243,7 @@ export async function runPhase23Verification(): Promise<TestSuiteSummary> {
     // ------------------------------------------------------------------------
     // P23-05: Search Pagination
     // ------------------------------------------------------------------------
-    const resP05 = await phase23ProductionService.search({ page: 1, limit: 2 }, adminActor);
+    const resP05 = await productionDashboardService.search({ page: 1, limit: 2 }, adminActor);
     if (resP05.returnedCount === 2 && resP05.totalCount >= 3 && resP05.totalPages >= 2) {
       addResult('P23-05', 'Search Pagination', 'PASS', `Pagination returned slice of ${resP05.returnedCount} out of ${resP05.totalCount} total items`);
     } else {
@@ -253,7 +253,7 @@ export async function runPhase23Verification(): Promise<TestSuiteSummary> {
     // ------------------------------------------------------------------------
     // P23-06: Authoritative Data Consistency
     // ------------------------------------------------------------------------
-    const resP06 = await phase23ProductionService.search({ contentId: 'BP-CNT-230001' }, adminActor);
+    const resP06 = await productionDashboardService.search({ contentId: 'BP-CNT-230001' }, adminActor);
     const itemP06 = resP06.items[0];
     if (itemP06 && itemP06.title === 'Indian History Vedic Period Challenge' && itemP06.difficulty === DifficultyLevel.EASY) {
       addResult('P23-06', 'Authoritative Data Consistency', 'PASS', 'Search result item data matches raw repository records exactly');
@@ -276,7 +276,7 @@ export async function runPhase23Verification(): Promise<TestSuiteSummary> {
     // ------------------------------------------------------------------------
     // P23-08: Content ID Drilldown Data
     // ------------------------------------------------------------------------
-    const detailsP08 = await phase23ProductionService.getContentIdDetails('BP-CNT-230003', adminActor);
+    const detailsP08 = await productionDashboardService.getContentIdDetails('BP-CNT-230003', adminActor);
     if (detailsP08 && detailsP08.contentMaster && detailsP08.question && detailsP08.video) {
       addResult('P23-08', 'Content ID Drilldown Data', 'PASS', 'Drilldown returned consolidated records across Master, Question, and Video');
     } else {
@@ -286,7 +286,7 @@ export async function runPhase23Verification(): Promise<TestSuiteSummary> {
     // ------------------------------------------------------------------------
     // P23-09: "MY WORK" Queue
     // ------------------------------------------------------------------------
-    const qMyWork = await phase23ProductionService.getQueue('MY_WORK', creatorActor);
+    const qMyWork = await productionDashboardService.getQueue('MY_WORK', creatorActor);
     const isAssignedToCreator = qMyWork.items.some((it) => it.contentId === 'BP-CNT-230001');
     if (isAssignedToCreator) {
       addResult('P23-09', '"MY WORK" Queue', 'PASS', 'MY WORK queue correctly contains items assigned to active creator');
@@ -297,7 +297,7 @@ export async function runPhase23Verification(): Promise<TestSuiteSummary> {
     // ------------------------------------------------------------------------
     // P23-10: "QUESTIONS" Queue
     // ------------------------------------------------------------------------
-    const qQuestions = await phase23ProductionService.getQueue('QUESTIONS', adminActor);
+    const qQuestions = await productionDashboardService.getQueue('QUESTIONS', adminActor);
     const hasDraftOrGen = qQuestions.items.some((it) => it.status === QuestionStatus.DRAFT || it.status === QuestionStatus.GENERATED);
     if (hasDraftOrGen) {
       addResult('P23-10', '"QUESTIONS" Queue', 'PASS', 'QUESTIONS queue derived items in DRAFT/GENERATED states');
@@ -308,13 +308,13 @@ export async function runPhase23Verification(): Promise<TestSuiteSummary> {
     // ------------------------------------------------------------------------
     // P23-11: "SCRIPTS" Queue
     // ------------------------------------------------------------------------
-    const qScripts = await phase23ProductionService.getQueue('SCRIPTS', adminActor);
+    const qScripts = await productionDashboardService.getQueue('SCRIPTS', adminActor);
     addResult('P23-11', '"SCRIPTS" Queue', 'PASS', `SCRIPTS queue evaluated state successfully (total: ${qScripts.totalCount})`);
 
     // ------------------------------------------------------------------------
     // P23-12: "VIDEOS" Queue
     // ------------------------------------------------------------------------
-    const qVideos = await phase23ProductionService.getQueue('VIDEOS', adminActor);
+    const qVideos = await productionDashboardService.getQueue('VIDEOS', adminActor);
     const hasVideoItem = qVideos.items.some((it) => it.contentId === 'BP-CNT-230003');
     if (hasVideoItem || qVideos.totalCount >= 0) {
       addResult('P23-12', '"VIDEOS" Queue', 'PASS', 'VIDEOS queue filtered video production stage items');
@@ -325,7 +325,7 @@ export async function runPhase23Verification(): Promise<TestSuiteSummary> {
     // ------------------------------------------------------------------------
     // P23-13: "REVIEWS" Queue
     // ------------------------------------------------------------------------
-    const qReviews = await phase23ProductionService.getQueue('REVIEWS', adminActor);
+    const qReviews = await productionDashboardService.getQueue('REVIEWS', adminActor);
     const hasPendingReview = qReviews.items.some((it) => it.contentId === 'BP-CNT-230002');
     if (hasPendingReview) {
       addResult('P23-13', '"REVIEWS" Queue', 'PASS', 'REVIEWS queue included question in GENERATED status requiring review');
@@ -336,7 +336,7 @@ export async function runPhase23Verification(): Promise<TestSuiteSummary> {
     // ------------------------------------------------------------------------
     // P23-14: "PUBLISHING" Queue
     // ------------------------------------------------------------------------
-    const qPub = await phase23ProductionService.getQueue('PUBLISHING', adminActor);
+    const qPub = await productionDashboardService.getQueue('PUBLISHING', adminActor);
     const hasPubItem = qPub.items.some((it) => it.contentId === 'BP-CNT-230003');
     if (hasPubItem) {
       addResult('P23-14', '"PUBLISHING" Queue', 'PASS', 'PUBLISHING queue caught item in READY_TO_UPLOAD status');
@@ -347,7 +347,7 @@ export async function runPhase23Verification(): Promise<TestSuiteSummary> {
     // ------------------------------------------------------------------------
     // P23-15: Queue RBAC Actionability
     // ------------------------------------------------------------------------
-    const qRbac = await phase23ProductionService.getQueue('QUESTIONS', adminActor);
+    const qRbac = await productionDashboardService.getQueue('QUESTIONS', adminActor);
     const allActionable = qRbac.items.every((it) => it.isActionableByCurrentActor === true);
     if (allActionable) {
       addResult('P23-15', 'Queue RBAC Actionability', 'PASS', 'isActionableByCurrentActor evaluated to true for Admin');
@@ -358,7 +358,7 @@ export async function runPhase23Verification(): Promise<TestSuiteSummary> {
     // ------------------------------------------------------------------------
     // P23-16: Analytics Viewer Queue Safety
     // ------------------------------------------------------------------------
-    const qViewer = await phase23ProductionService.getQueue('QUESTIONS', analyticsViewerActor);
+    const qViewer = await productionDashboardService.getQueue('QUESTIONS', analyticsViewerActor);
     if (qViewer.items.length === 0) {
       addResult('P23-16', 'Analytics Viewer Queue Safety', 'PASS', 'Analytics Viewer receives 0 actionable items in actionable queues');
     } else {
@@ -368,14 +368,14 @@ export async function runPhase23Verification(): Promise<TestSuiteSummary> {
     // ------------------------------------------------------------------------
     // P23-17: Self-Review Protection in Review Queue
     // ------------------------------------------------------------------------
-    const qSelfReview = await phase23ProductionService.getQueue('REVIEWS', creatorActor);
+    const qSelfReview = await productionDashboardService.getQueue('REVIEWS', creatorActor);
     // Creator Two created BP-CNT-230002. Creator One did not create BP-CNT-230002.
     addResult('P23-17', 'Self-Review Protection in Review Queue', 'PASS', 'Self-review rules and review authority checks executed successfully');
 
     // ------------------------------------------------------------------------
     // P23-18: Active Production Items Metric
     // ------------------------------------------------------------------------
-    const dashMetrics = await phase23ProductionService.getDashboard(adminActor);
+    const dashMetrics = await productionDashboardService.getDashboard(adminActor);
     if (dashMetrics.totalActiveProductionItems >= 3) {
       addResult('P23-18', 'Active Production Items Metric', 'PASS', `Active production items counted correctly: ${dashMetrics.totalActiveProductionItems}`);
     } else {
@@ -385,7 +385,7 @@ export async function runPhase23Verification(): Promise<TestSuiteSummary> {
     // ------------------------------------------------------------------------
     // P23-19: My Assigned Work Metric
     // ------------------------------------------------------------------------
-    const dashCreator = await phase23ProductionService.getDashboard(creatorActor);
+    const dashCreator = await productionDashboardService.getDashboard(creatorActor);
     if (dashCreator.myAssignedWork >= 1) {
       addResult('P23-19', 'My Assigned Work Metric', 'PASS', `My assigned work metric calculated correctly for creator: ${dashCreator.myAssignedWork}`);
     } else {
@@ -468,7 +468,7 @@ export async function runPhase23Verification(): Promise<TestSuiteSummary> {
       usersMap: new Map(),
     };
     // Call buildSearchResultItem or search on empty context
-    const emptySearchRes = await phase23ProductionService.search({ contentId: 'BP-CNT-NONEXISTENT' }, adminActor);
+    const emptySearchRes = await productionDashboardService.search({ contentId: 'BP-CNT-NONEXISTENT' }, adminActor);
     if (emptySearchRes.totalCount === 0 && emptySearchRes.items.length === 0) {
       addResult('P23-26', 'Zero-Data Dashboard Safety', 'PASS', 'Handled 0 items safely without error');
     } else {
@@ -479,7 +479,7 @@ export async function runPhase23Verification(): Promise<TestSuiteSummary> {
     // P23-27: No Mutations on Dashboard Render
     // ------------------------------------------------------------------------
     const countBefore = (await contentMastersRepository.findAll()).length;
-    await phase23ProductionService.getDashboard(adminActor);
+    await productionDashboardService.getDashboard(adminActor);
     const countAfter = (await contentMastersRepository.findAll()).length;
     if (countBefore === countAfter) {
       addResult('P23-27', 'No Mutations on Dashboard Render', 'PASS', 'Dashboard rendering performs 0 write mutations');
@@ -492,9 +492,9 @@ export async function runPhase23Verification(): Promise<TestSuiteSummary> {
     // ------------------------------------------------------------------------
     // Transition Q1 from DRAFT to GENERATED
     await questionsRepository.update('BP-Q-230001', { status: QuestionStatus.GENERATED } as any);
-    phase23ProductionService.clearCache();
+    productionDashboardService.clearCache();
 
-    const qReviewsUpdated = await phase23ProductionService.getQueue('REVIEWS', adminActor);
+    const qReviewsUpdated = await productionDashboardService.getQueue('REVIEWS', adminActor);
     const hasQ1InReviews = qReviewsUpdated.items.some((it) => it.contentId === 'BP-CNT-230001');
 
     if (hasQ1InReviews) {

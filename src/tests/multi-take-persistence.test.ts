@@ -3,7 +3,7 @@
  */
 
 import { videoService } from '../lib/services/video.service';
-import { phase17VideoProductionService } from '../lib/services/phase17-video-production.service';
+import { videoProductionService } from '../lib/services/video-production.service';
 import { mediaAssetsRepository } from '../lib/repositories/media-assets.repository';
 import { videosRepository } from '../lib/repositories/videos.repository';
 import { questionsRepository } from '../lib/repositories/questions.repository';
@@ -193,7 +193,7 @@ export async function runMultiTakeVerification(): Promise<{
 
   // 4. Verify History API Endpoint Service
   console.log('\n--- Step 3: Production History & Active Video Pointer ---');
-  const history = await phase17VideoProductionService.getVideoProductionHistory(videoId);
+  const history = await videoProductionService.getVideoProductionHistory(videoId);
   assert(
     history.rawAssets.length === 2,
     'MT-10',

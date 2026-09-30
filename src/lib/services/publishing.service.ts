@@ -2163,5 +2163,7 @@ export class PublishingService {
 }
 
 export const publishingService = PublishingService.getInstance();
+export const phase22PublishingHubService = publishingService;
+export type Phase22PublishingHubService = PublishingService;
 
 

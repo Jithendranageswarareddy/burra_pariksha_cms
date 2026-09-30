@@ -5,7 +5,7 @@
 import { contentMastersRepository } from '../lib/repositories/content-masters.repository';
 import { mediaAssetsRepository } from '../lib/repositories/media-assets.repository';
 import { googleDriveService } from '../lib/services/google-drive.service';
-import { phase14DriveService } from '../lib/services/phase14-drive.service';
+import { driveSyncService } from '../lib/services/drive-sync.service';
 import { ContentMasterStatus, UserRole } from '../types';
 import { ValidationError } from '../lib/google-sheets/errors';
 import { Readable } from 'stream';
@@ -80,7 +80,7 @@ export async function runPhase14Verification(): Promise<Phase14SuiteResult> {
     // 3. P14-03: MIME type validation accepts correct image formats for THUMBNAIL stage
     let passThumbMime = true;
     try {
-      phase14DriveService.validateMediaAsset({
+      driveSyncService.validateMediaAsset({
         mediaStage: 'THUMBNAIL',
         fileName: 'lesson_cover.png',
         mimeType: 'image/png',
@@ -98,7 +98,7 @@ export async function runPhase14Verification(): Promise<Phase14SuiteResult> {
     // 4. P14-04: Reject unsupported MIME type for THUMBNAIL stage (e.g. video/mp4)
     let rejectThumbMime = false;
     try {
-      phase14DriveService.validateMediaAsset({
+      driveSyncService.validateMediaAsset({
         mediaStage: 'THUMBNAIL',
         fileName: 'lesson_cover.mp4',
         mimeType: 'video/mp4',
@@ -118,7 +118,7 @@ export async function runPhase14Verification(): Promise<Phase14SuiteResult> {
     // 5. P14-05: Reject mismatched filename extension and MIME type (MIME hijacking defense)
     let rejectMismatchedThumb = false;
     try {
-      phase14DriveService.validateMediaAsset({
+      driveSyncService.validateMediaAsset({
         mediaStage: 'THUMBNAIL',
         fileName: 'malicious.png',
         mimeType: 'image/jpeg',
@@ -138,7 +138,7 @@ export async function runPhase14Verification(): Promise<Phase14SuiteResult> {
     // 6. P14-06: Size validation limits thumbnail uploads to configurable threshold (max 5MB)
     let rejectOversizedThumb = false;
     try {
-      phase14DriveService.validateMediaAsset({
+      driveSyncService.validateMediaAsset({
         mediaStage: 'THUMBNAIL',
         fileName: 'huge_cover.jpg',
         mimeType: 'image/jpeg',
@@ -158,7 +158,7 @@ export async function runPhase14Verification(): Promise<Phase14SuiteResult> {
     // 7. P14-07: MIME validation permits standard video formats for video stages
     let passVideoMime = true;
     try {
-      phase14DriveService.validateMediaAsset({
+      driveSyncService.validateMediaAsset({
         mediaStage: 'RAW',
         fileName: 'raw_recording.mov',
         mimeType: 'video/quicktime',
@@ -176,7 +176,7 @@ export async function runPhase14Verification(): Promise<Phase14SuiteResult> {
     // 8. P14-08: FINAL media stage strictly enforces standard video/mp4 format
     let rejectNonMp4Final = false;
     try {
-      phase14DriveService.validateMediaAsset({
+      driveSyncService.validateMediaAsset({
         mediaStage: 'FINAL',
         fileName: 'lesson_render.mov',
         mimeType: 'video/quicktime',
@@ -196,7 +196,7 @@ export async function runPhase14Verification(): Promise<Phase14SuiteResult> {
     // 9. P14-09: Size validation blocks oversized video uploads
     let rejectOversizedVideo = false;
     try {
-      phase14DriveService.validateMediaAsset({
+      driveSyncService.validateMediaAsset({
         mediaStage: 'RAW',
         fileName: 'gargantuan_render.mp4',
         mimeType: 'video/mp4',
@@ -216,7 +216,7 @@ export async function runPhase14Verification(): Promise<Phase14SuiteResult> {
     // 10. P14-10: Reject upload attempts referencing invalid or missing Content IDs
     let rejectInvalidContentId = false;
     try {
-      await phase14DriveService.uploadProductionAsset({
+      await driveSyncService.uploadProductionAsset({
         contentId: 'BP-CNT-UNKNOWN-99',
         mediaStage: 'RAW',
         fileName: 'raw_lesson.mp4',
@@ -236,7 +236,7 @@ export async function runPhase14Verification(): Promise<Phase14SuiteResult> {
 
     // 11. P14-11: Uploading a valid asset correctly yields a registered media asset metadata record
     const testVideoBuffer = Buffer.from('RAW_UNCOMPRESSED_VIDEO_FRAMES_E2E');
-    const assetV1 = await phase14DriveService.uploadProductionAsset({
+    const assetV1 = await driveSyncService.uploadProductionAsset({
       contentId: testContentId,
       mediaStage: 'RAW',
       fileName: 'raw_lesson_v1.mp4',
@@ -257,7 +257,7 @@ export async function runPhase14Verification(): Promise<Phase14SuiteResult> {
 
     // 12. P14-12: Replacement upload resolves next version number and preserves history
     const testVideoBufferV2 = Buffer.from('RAW_UNCOMPRESSED_VIDEO_FRAMES_E2E_VERSION_2');
-    const assetV2 = await phase14DriveService.uploadProductionAsset({
+    const assetV2 = await driveSyncService.uploadProductionAsset({
       contentId: testContentId,
       mediaStage: 'RAW',
       fileName: 'raw_lesson_v2.mp4',
@@ -288,7 +288,7 @@ export async function runPhase14Verification(): Promise<Phase14SuiteResult> {
 
     let rejectWithRollback = false;
     try {
-      await phase14DriveService.uploadProductionAsset({
+      await driveSyncService.uploadProductionAsset({
         contentId: testContentId,
         mediaStage: 'FINAL',
         fileName: 'final_lesson.mp4',

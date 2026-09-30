@@ -9,7 +9,7 @@ import {
   refinementCandidatesRepository,
   usersRepository,
 } from '../lib/repositories';
-import { phase13RefinementService, RefinementIntent } from '../lib/services/phase13-refinement.service';
+import { phase13RefinementService, RefinementIntent } from '../lib/services/question-refinement.service';
 import { geminiClient } from '../lib/ai/gemini.client';
 import {
   ContentMasterStatus,
