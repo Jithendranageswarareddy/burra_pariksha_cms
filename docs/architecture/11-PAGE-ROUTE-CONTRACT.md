@@ -19,10 +19,10 @@ Product Owner Acceptance:
 NOT USED IN ROUTINE STAGE CLOSURE
 
 Version:
-1.1.0 (Corrective Pass Reconciliation)
+1.2.0 (Authoritative RBAC Vocabulary Alignment)
 
 Purpose:
-Defines the authoritative page-level and route-level contract for the Burra Pariksha Content Management System (BP-CMS). Translates the Stage 10 Frontend & Information Architecture into an actionable, formal specification defining every route's purpose, hub ownership, domain resource context, canonical 15-step workflow alignment, required viewing capabilities (Stage 09 RBAC), permitted actions, existing or deferred API dependencies, five-dimensional state model integration (Stage 08), UI state behaviors (Loading, Empty, Error, 403, Success), and a phased retirement strategy for the 78 brownfield client routes.
+Defines the authoritative page-level and route-level contract for the Burra Pariksha Content Management System (BP-CMS). Translates the Stage 10 Frontend & Information Architecture into an actionable, formal specification defining every route's purpose, hub ownership, domain resource context, canonical 15-step workflow alignment, required viewing capabilities (strictly governed by the Stage 09 RBAC 28-resource and 23-action taxonomy), permitted actions, existing or deferred API dependencies, five-dimensional state model integration (Stage 08), UI state behaviors (Loading, Empty, Error, 403, Success), and a phased retirement strategy for the 78 brownfield client routes.
 
 ---
 
@@ -35,7 +35,7 @@ Defines the authoritative page-level and route-level contract for the Burra Pari
 | **Document Stage** | Stage 11 — Page & Route Contract | FACT |
 | **Authority** | Authoritative Route Architecture Specification & Page Contract | FACT |
 | **Status** | READY FOR GITHUB VERIFICATION | FACT |
-| **Version** | 1.1.0 (Corrective Pass Reconciliation) | FACT |
+| **Version** | 1.2.0 (Authoritative RBAC Vocabulary Alignment) | FACT |
 | **Preceding Verified Stages** | Stage 01 (`01-REQUIREMENTS-BASELINE.md` - 100% Accepted)<br>Stage 02 (`02-BUSINESS-ACCEPTANCE-CRITERIA.md` - 100% Accepted)<br>Stage 03 (`03-CURRENT-SYSTEM-BASELINE.md` - 100% Accepted & Closed)<br>Stage 04 (`04-ARCHITECTURE-PRINCIPLES.md` - 100% Accepted & Closed)<br>Stage 05 (`05-SYSTEM-BOUNDARY.md` - 100% Verified & Closed)<br>Stage 06 (`06-DOMAIN-MODEL.md` - 100% Verified & Closed)<br>Stage 07 (`07-CANONICAL-15-STEP-WORKFLOW.md` - 100% Verified & Closed)<br>Stage 08 (`08-STATE-MODEL.md` - 100% Verified & Closed)<br>Stage 09 (`09-RBAC-CAPABILITY-MATRIX.md` - 100% Verified & Closed)<br>Stage 10 (`10-FRONTEND-IA.md` - 100% Verified & Closed) | FACT |
 | **Subsequent Stages** | Stage 12+ (Data Architecture, Target Schemas, Physical Storage Models, Physical Route Refactoring) | FACT |
 | **Baseline Repository Commit** | `548ff5d2c1adcbcb6ea82425856a59032169ec2f` | FACT |
@@ -64,8 +64,10 @@ The Page & Route Contracts are governed by seven core architectural principles:
     hubs: HOME, QUESTIONS, PRODUCTION, PUBLISHING, ANALYTICS, MANAGEMENT & SYSTEM.
     System routes (/login, /404, /) exist outside the business hub topology.
 
- 3. ZERO-TRUST CAPABILITY GATING (Stage 09)
-    View access requires an explicit Stage 09 capability. Frontend visibility is
+ 3. ZERO-TRUST CAPABILITY GATING (Stage 09 Authoritative Alignment)
+    View access requires an explicit Stage 09 capability formed strictly as
+    <RESOURCE>:<ACTION> where <RESOURCE> is one of the 28 canonical Stage 09 resources
+    and <ACTION> is one of the 23 canonical Stage 09 actions. Frontend visibility is
     strictly ergonomic; backend authorization remains universally authoritative.
 
  4. CANONICAL 15-STEP WORKFLOW ALIGNMENT (Stage 07)
@@ -95,11 +97,11 @@ The Page & Route Contracts are governed by seven core architectural principles:
 
 Inspection of `src/App.tsx` and `src/pages` reveals a brownfield baseline of **31 page components** and **78 declared client routes**. Below is the exhaustive inventory of all 78 routes discovered in the codebase:
 
-| # | Discovered Route Path | Component / Handler in App.tsx | Current Hub Context | Entity / Resource | Target Disposition | Notes & Migration Observations |
+| # | Discovered Route Path | Component / Handler in App.tsx | Current Hub Context | Entity / Canonical Resource Context | Target Disposition | Notes & Migration Observations |
 | :-: | :--- | :--- | :--- | :--- | :---: | :--- |
 | 1 | `/` | `<Layout />` + `<Navigate>` | Root Shell | Application Shell | **KEEP (System)** | Root Shell redirect to role-specific landing route |
 | 2 | `/dashboard` | `DashboardPage` | HOME | `Content`, `AuditEvent` | **KEEP** | Operational pulse & metrics |
-| 3 | `/planning` | `PlanningPage` | MANAGEMENT & SYSTEM | `ContentPlan`, `Topic` | **KEEP** | Syllabus coverage & sprint batches |
+| 3 | `/planning` | `PlanningPage` | MANAGEMENT & SYSTEM | `Content` (Batches), `Configuration` (Taxonomy) | **KEEP** | Syllabus coverage & sprint batches (UI: ContentPlan, Topic) |
 | 4 | `/questions` | `QuestionLibraryPage` | QUESTIONS | `Question` | **KEEP** | Searchable master curriculum repository |
 | 5 | `/content-masters` | `ContentMasterPage` | MANAGEMENT & SYSTEM | `Content` | **KEEP** | Global aggregate lifecycle explorer |
 | 6 | `/content-masters/:id` | `ContentMasterDetailPage` | MANAGEMENT & SYSTEM | `Content` | **KEEP** | Canonical sub-resource detail view for aggregate root |
@@ -164,14 +166,14 @@ Inspection of `src/App.tsx` and `src/pages` reveals a brownfield baseline of **3
 | 65 | `/analytics/difficulty` | `AnalyticsDifficultyPage` | ANALYTICS | `AnalyticsSnapshot` | **COMPATIBILITY** | Redirects to `/analytics/engagement?view=difficulty` |
 | 66 | `/analytics/engagement` | `AnalyticsEngagementPage` | ANALYTICS | `AnalyticsSnapshot` | **KEEP** | Multi-platform watch time & retention drop-offs |
 | 67 | `/analytics/retention` | `AnalyticsRetentionPage` | ANALYTICS | `AnalyticsSnapshot` | **COMPATIBILITY** | Redirects to `/analytics/engagement?view=retention` |
-| 68 | `/analytics/intelligence`| `AnalyticsIntelligencePage` | ANALYTICS | `PedagogicalFeedback` | **KEEP** | Stage 15 pedagogical intelligence loopback |
-| 69 | `/analytics/strategy` | `AnalyticsStrategyPage` | ANALYTICS | `PedagogicalFeedback` | **COMPATIBILITY** | Redirects to `/analytics/intelligence?view=strategy` |
+| 68 | `/analytics/intelligence`| `AnalyticsIntelligencePage` | ANALYTICS | `IntelligenceInsight`, `Question` | **KEEP** | Stage 15 pedagogical intelligence loopback (UI: Pedagogical Feedback) |
+| 69 | `/analytics/strategy` | `AnalyticsStrategyPage` | ANALYTICS | `IntelligenceInsight` | **COMPATIBILITY** | Redirects to `/analytics/intelligence?view=strategy` |
 | 70 | `/social-analytics` | `SocialAnalyticsPage` | ANALYTICS | `AnalyticsSnapshot` | **COMPATIBILITY** | Redirects to `/analytics/engagement?view=social` |
 | 71 | `/social-analytics/:contentId` | `SocialAnalyticsDetailPage` | ANALYTICS | `AnalyticsSnapshot` | **COMPATIBILITY** | Redirects to `/analytics/engagement?contentId=:contentId` |
-| 72 | `/my-work` | `MyWorkPage` | HOME | `Content`, `Assignment` | **KEEP** | Personal task queue across all 15 stages |
-| 73 | `/team` | `TeamPage` | MANAGEMENT & SYSTEM | `User`, `Assignment` | **KEEP** | Operator capacity & task delegation |
-| 74 | `/team-work` | `TeamWorkPage` | MANAGEMENT & SYSTEM | `Assignment` | **COMPATIBILITY** | Redirects to `/team` |
-| 75 | `/settings` | `SettingsPage` | MANAGEMENT & SYSTEM | `Configuration`, `Topic` | **KEEP** | Taxonomy, integrations, & environment config |
+| 72 | `/my-work` | `MyWorkPage` | HOME | `Content` | **KEEP** | Personal task queue across all 15 stages (UI: Assigned Tasks) |
+| 73 | `/team` | `TeamPage` | MANAGEMENT & SYSTEM | `User`, `Content` | **KEEP** | Operator capacity & task delegation (UI: Assignments) |
+| 74 | `/team-work` | `TeamWorkPage` | MANAGEMENT & SYSTEM | `Content` | **COMPATIBILITY** | Redirects to `/team` |
+| 75 | `/settings` | `SettingsPage` | MANAGEMENT & SYSTEM | `Configuration` | **KEEP** | Taxonomy, integrations, & environment config (UI: Topics) |
 | 76 | `/recovery` | `RecoveryAdminPage` | MANAGEMENT & SYSTEM | `Configuration`, `AuditEvent` | **KEEP** | Admin DR console, backups & restoration |
 | 77 | `/admin` | `AdminPage` | MANAGEMENT & SYSTEM | `Configuration` | **COMPATIBILITY** | Redirects to `/recovery` |
 | 78 | `*` | `<Navigate to="/" />` | Root Shell | Application Shell | **KEEP (System)** | Catch-all redirect to `/404` or `/` |
@@ -311,12 +313,12 @@ To preserve operational continuity and prevent breaking deep bookmarks or extern
 
 ## 06. Page Ownership Model
 
-Every canonical page is owned by exactly one core hub and is stewarded by specific operational roles:
+Every canonical page is owned by exactly one core hub and is stewarded by specific operational roles bound to Stage 09 canonical domain resources:
 
-| # | Route | Page Name | Owning Hub | Primary Resource | Workflow Lifecycle Step | Primary Role Owner |
+| # | Route | Page Name | Owning Hub | Primary Stage 09 Resource | Workflow Lifecycle Step | Primary Role Owner |
 | :-: | :--- | :--- | :--- | :--- | :--- | :--- |
 | 1 | `/dashboard` | `DashboardPage` | HOME | `Content`, `AuditEvent` | NON-WORKFLOW | All Roles (Personalized Pulse) |
-| 2 | `/my-work` | `MyWorkPage` | HOME | `Content`, `Assignment` | CROSS-CUTTING | All Roles (Task Execution) |
+| 2 | `/my-work` | `MyWorkPage` | HOME | `Content` | CROSS-CUTTING | All Roles (Task Execution) |
 | 3 | `/questions` | `QuestionLibraryPage` | QUESTIONS | `Question` | CROSS-CUTTING | Topic Lead, Question Author |
 | 4 | `/studio` | `QuestionStudioPage` | QUESTIONS | `Question` | 01 — Question Generation | Question Author, Editor |
 | 5 | `/questions/:questionId` | `QuestionDetailPage` | QUESTIONS | `Question` | CROSS-CUTTING | Question Author, QA Reviewer |
@@ -329,15 +331,15 @@ Every canonical page is owned by exactly one core hub and is stewarded by specif
 | 12 | `/publishing` | `PublishingPage` | PUBLISHING | `PublishingPackage` | 10 — Setup, 11 — Published | Publishing Lead (AP-009 Gate) |
 | 13 | `/platform-packages` | `PlatformPackagesPage` | PUBLISHING | `Publication` | 12 — Platform Sync | Social Media Manager |
 | 14 | `/analytics/engagement` | `AnalyticsEngagementPage` | ANALYTICS | `AnalyticsSnapshot` | 13 — Retention, 14 — Metrics | Performance Analyst |
-| 15 | `/analytics/intelligence` | `AnalyticsIntelligencePage` | ANALYTICS | `PedagogicalFeedback` | 15 — Intelligence Loop | Content Strategy Lead |
-| 16 | `/planning` | `PlanningPage` | MANAGEMENT & SYSTEM | `ContentPlan`, `Topic` | NON-WORKFLOW | Content Strategy Lead |
-| 17 | `/team` | `TeamPage` | MANAGEMENT & SYSTEM | `User`, `Assignment` | NON-WORKFLOW | Production Lead, Admin |
+| 15 | `/analytics/intelligence` | `AnalyticsIntelligencePage` | ANALYTICS | `IntelligenceInsight`, `Question`| 15 — Intelligence Loop | Content Strategy Lead |
+| 16 | `/planning` | `PlanningPage` | MANAGEMENT & SYSTEM | `Content`, `Configuration` | NON-WORKFLOW | Content Strategy Lead |
+| 17 | `/team` | `TeamPage` | MANAGEMENT & SYSTEM | `User`, `Content` | NON-WORKFLOW | Production Lead, Admin |
 | 18 | `/content-masters` | `ContentMasterPage` | MANAGEMENT & SYSTEM | `Content` | CROSS-CUTTING (Global Roots) | Operations Lead, Admin |
 | 19 | `/settings` | `SettingsPage` | MANAGEMENT & SYSTEM | `Configuration` | NON-WORKFLOW | System Administrator |
 | 20 | `/recovery` | `RecoveryAdminPage` | MANAGEMENT & SYSTEM | `Configuration`, `AuditEvent` | NON-WORKFLOW | System Administrator |
-| 21 | `/` | Root Redirect | ROOT / SYSTEM | `ApplicationShell` | NON-WORKFLOW | All Roles |
+| 21 | `/` | Root Redirect | ROOT / SYSTEM | System Framework | NON-WORKFLOW | All Roles |
 | 22 | `/login` | `LoginPage` | ROOT / SYSTEM | `User` | NON-WORKFLOW | Unauthenticated / All Roles |
-| 23 | `/404` | `NotFoundPage` | ROOT / SYSTEM | `ApplicationShell` | NON-WORKFLOW | All Roles |
+| 23 | `/404` | `NotFoundPage` | ROOT / SYSTEM | System Framework | NON-WORKFLOW | All Roles |
 
 ---
 
@@ -361,15 +363,15 @@ The matrix below maps canonical pages to permitted user actions governed strictl
 | 12 | `/publishing` | `PUBLISHING_PACKAGE:VIEW`| `PUBLISHING_PACKAGE:CREATE`| `PUBLICATION:SCHEDULE`| — | `PUBLISHING_PACKAGE:APPROVE`| `PUBLISHING_PACKAGE:REJECT`| `PUBLICATION:PUBLISH`| — |
 | 13 | `/platform-packages` | `PUBLICATION:VIEW` | — | `PUBLICATION:SCHEDULE`| — | — | — | `PUBLICATION:SYNC` | — |
 | 14 | `/analytics/engagement`| `ANALYTICS_SNAPSHOT:VIEW`| — | — | — | — | — | — | `ANALYTICS_SNAPSHOT:EXPORT`|
-| 15 | `/analytics/intelligence`| `PEDAGOGICAL_FEEDBACK:VIEW`| — | — | — | — | — | `PEDAGOGICAL_FEEDBACK:DISPATCH`| — |
-| 16 | `/planning` | `CONTENT_PLAN:VIEW` | `CONTENT_PLAN:CREATE`| `CONTENT_PLAN:EDIT`| — | `CONTENT_PLAN:APPROVE`| — | `CONTENT_PLAN:DISPATCH`| — |
-| 17 | `/team` | `USER:VIEW` | — | `USER:EDIT` | — | — | — | `ASSIGNMENT:ASSIGN`| — |
+| 15 | `/analytics/intelligence`| `INTELLIGENCE_INSIGHT:VIEW`| — | — | — | `INTELLIGENCE_INSIGHT:APPROVE`| — | `CONTENT:SUBMIT`| `INTELLIGENCE_INSIGHT:ARCHIVE`|
+| 16 | `/planning` | `CONTENT:VIEW` | `CONTENT:CREATE`| `CONTENT:EDIT` | — | `CONTENT:APPROVE`| — | `WORKFLOW_INSTANCE:TRANSITION`| — |
+| 17 | `/team` | `USER:VIEW` | — | `USER:EDIT` | — | — | — | `CONTENT:ASSIGN` | — |
 | 18 | `/content-masters` | `CONTENT:VIEW` | — | `CONTENT:EDIT` | — | — | — | — | `CONTENT:ARCHIVE` |
 | 19 | `/settings` | `CONFIGURATION:ADMINISTER`| — | `CONFIGURATION:ADMINISTER`| — | — | — | — | — |
 | 20 | `/recovery` | `CONFIGURATION:ADMINISTER`| — | — | `CONFIGURATION:ADMINISTER`| — | — | — | `CONFIGURATION:RESTORE`|
-| 21 | `/` | `APPLICATION:VIEW` | — | — | — | — | — | — | — |
-| 22 | `/login` | `AUTHENTICATION:LOGIN` | — | — | — | — | — | — | — |
-| 23 | `/404` | `APPLICATION:VIEW` | — | — | — | — | — | — | — |
+| 21 | `/` | NONE (Public) | — | — | — | — | — | — | — |
+| 22 | `/login` | NONE (Public) | — | — | — | — | — | — | — |
+| 23 | `/404` | NONE (Public) | — | — | — | — | — | — | — |
 
 ---
 
@@ -415,14 +417,14 @@ Every canonical business page and system route possesses a formal, exhaustive co
 - **Purpose:** Serve as a personalized, filterable task queue showing all items assigned to the authenticated user across any of the 15 canonical steps.
 - **Hub:** `HOME`
 - **Workflow Step:** CROSS-CUTTING (Aggregates assignments spanning any of the 15 manufacturing steps)
-- **Resource / Domain Context:** `Content`, `Assignment`
+- **Resource / Domain Context:** `Content` (Domain Aggregate Root), Task Allocation (UI/Operational Concept)
 - **View Capability:** `CONTENT:VIEW`
 - **Permitted Actions:**
   * View Tasks: `CONTENT:VIEW`
   * Start Task: `CONTENT:EDIT`
   * Complete Task: `CONTENT:SUBMIT`
 - **Data Required:**
-  * List of active `Assignment` records where `assigneeId == currentUser.id`.
+  * List of active assigned content records where the authenticated user is designated as operator.
   * Linked `Content` metadata (ID, title, syllabus topic, current workflow step, deadline).
 - **API Dependencies:**
   * Fetch My Work: `GET /api/my-work` (Line 5115 in `src/server/routes.ts`)
@@ -843,12 +845,13 @@ Every canonical business page and system route possesses a formal, exhaustive co
 - **Purpose:** Synthesize audience drop-off points and student confusion signals into curriculum refinement recommendations, looping insights back to Stage 01 Question Studio.
 - **Hub:** `ANALYTICS`
 - **Workflow Step:** 15 — Intelligence Loop
-- **Resource / Domain Context:** `PedagogicalFeedback`, `Question`
-- **View Capability:** `PEDAGOGICAL_FEEDBACK:VIEW`
+- **Resource / Domain Context:** `IntelligenceInsight` (Stage 09 Canonical Resource #23), `Question` (Pedagogical Core Core), Pedagogical Feedback Signals (UI/Operational Concept)
+- **View Capability:** `INTELLIGENCE_INSIGHT:VIEW`
 - **Permitted Actions:**
-  * View Recommendations: `PEDAGOGICAL_FEEDBACK:VIEW`
-  * Dispatch Feedback to Question Studio: `PEDAGOGICAL_FEEDBACK:DISPATCH`
-  * Archive Feedback Signal: `PEDAGOGICAL_FEEDBACK:ARCHIVE`
+  * View Recommendations: `INTELLIGENCE_INSIGHT:VIEW`
+  * Approve Curriculum Insight: `INTELLIGENCE_INSIGHT:APPROVE`
+  * Archive Insight Signal: `INTELLIGENCE_INSIGHT:ARCHIVE`
+  * Trigger Curriculum Improvement: `QUESTION:CREATE`
 - **Data Required:**
   * Synthesized feedback reports correlating high drop-off timestamps with specific mathematical misconceptions or distractor flaws.
   * AI-generated curriculum advice for topic authors.
@@ -873,13 +876,14 @@ Every canonical business page and system route possesses a formal, exhaustive co
 - **Purpose:** Analyze syllabus topic coverage, detect curriculum gaps, check question similarity, and assemble content sprint batches for upcoming production cycles.
 - **Hub:** `MANAGEMENT & SYSTEM`
 - **Workflow Step:** NON-WORKFLOW (Curriculum planning and sprint generation prior to workflow execution)
-- **Resource / Domain Context:** `ContentPlan`, `Topic`, `Question`
-- **View Capability:** `CONTENT_PLAN:VIEW`
+- **Resource / Domain Context:** `Content` (Domain Aggregate Root for Batches & Production Items), `Configuration` (Syllabus Taxonomy & System Settings), Syllabus Plan & Topic (UI/Domain Concepts)
+- **View Capability:** `CONTENT:VIEW`
 - **Permitted Actions:**
-  * Create Content Plan: `CONTENT_PLAN:CREATE`
-  * Assemble Sprint Batch: `CONTENT_PLAN:EDIT`
+  * Create Planned Batch: `CONTENT:CREATE`
+  * Edit Planned Batch: `CONTENT:EDIT`
   * Check Question Similarity: `QUESTION:VIEW`
-  * Approve Batch: `CONTENT_PLAN:APPROVE`
+  * Approve Batch for Production: `CONTENT:APPROVE`
+  * Transition Batch to Workflow: `WORKFLOW_INSTANCE:TRANSITION`
 - **Data Required:**
   * Syllabus coverage matrix (Class, Subject, Chapter, Topic).
   * Topic gap analysis and questions-per-topic density.
@@ -910,12 +914,12 @@ Every canonical business page and system route possesses a formal, exhaustive co
 - **Purpose:** Track team operator capacity, monitor unassigned task queues across all 15 stages, and rebalance assignments among staff members.
 - **Hub:** `MANAGEMENT & SYSTEM`
 - **Workflow Step:** NON-WORKFLOW (Operator workload allocation and capacity tracking)
-- **Resource / Domain Context:** `User`, `Assignment`
+- **Resource / Domain Context:** `User` (Identity Resource), `Content` (Workload Aggregate Root), Operator Workload & Task Delegation (UI/Operational Concepts)
 - **View Capability:** `USER:VIEW`
 - **Permitted Actions:**
   * View Team Capacities: `USER:VIEW`
-  * Assign / Reassign Task: `ASSIGNMENT:ASSIGN`
-  * Update User Role: `USER:EDIT`
+  * Assign / Reassign Content Task: `CONTENT:ASSIGN`
+  * Update User Profile: `USER:EDIT`
 - **Data Required:**
   * User list with current active assignments count and online status.
   * Unassigned tasks list grouped by stage.
@@ -974,10 +978,10 @@ Every canonical business page and system route possesses a formal, exhaustive co
 - **Purpose:** System configuration management, academic syllabus taxonomy editor, Google Drive folder integrations, and external API status.
 - **Hub:** `MANAGEMENT & SYSTEM`
 - **Workflow Step:** NON-WORKFLOW (System taxonomy, integrations, and environment configuration)
-- **Resource / Domain Context:** `Configuration`, `Topic`
+- **Resource / Domain Context:** `Configuration` (Stage 09 Canonical Resource #28), Academic Taxonomy & Topics (UI/Domain Concepts)
 - **View Capability:** `CONFIGURATION:ADMINISTER`
 - **Permitted Actions:**
-  * Manage Taxonomy: `CONFIGURATION:ADMINISTER`
+  * Manage Taxonomy & Settings: `CONFIGURATION:ADMINISTER`
   * Test Google Drive Connection: `CONFIGURATION:ADMINISTER`
   * View System Readiness: `CONFIGURATION:ADMINISTER`
 - **Data Required:**
@@ -1041,10 +1045,10 @@ Every canonical business page and system route possesses a formal, exhaustive co
 - **Purpose:** Authenticate users, verify credentials, and establish secure session context.
 - **Hub:** ROOT / SYSTEM (Outside business hub taxonomy)
 - **Workflow Step:** NON-WORKFLOW (Identity & Authentication)
-- **Resource / Domain Context:** `User`, `ApplicationShell`
-- **View Capability:** `AUTHENTICATION:LOGIN` (Public / Unauthenticated)
+- **Resource / Domain Context:** `User` (Identity Resource), System Framework (UI/Client Shell)
+- **View Capability:** NONE (Public / Unauthenticated Route)
 - **Permitted Actions:**
-  * Authenticate: `AUTHENTICATION:LOGIN`
+  * Authenticate Credentials: NONE (Public Authentication Flow)
 - **Data Required:**
   * Login form state (Email, Password / OAuth Provider Token).
 - **API Dependencies:**
@@ -1067,10 +1071,10 @@ Every canonical business page and system route possesses a formal, exhaustive co
 - **Purpose:** Gracefully catch invalid routes, broken bookmarks, or unregistered paths and guide users back to safety.
 - **Hub:** ROOT / SYSTEM (Outside business hub taxonomy)
 - **Workflow Step:** NON-WORKFLOW (Error handling)
-- **Resource / Domain Context:** `ApplicationShell`
-- **View Capability:** `APPLICATION:VIEW` (Public / All Authenticated Users)
+- **Resource / Domain Context:** System Framework (UI/Client Shell)
+- **View Capability:** NONE (Public / Application Error Shell)
 - **Permitted Actions:**
-  * Return to Safety: `APPLICATION:VIEW`
+  * Return to Safety: NONE (Client Navigation CTA)
 - **Data Required:**
   * Attempted URL path string.
 - **API Dependencies:** None (Client-side presentation).
@@ -1091,10 +1095,10 @@ Every canonical business page and system route possesses a formal, exhaustive co
 - **Purpose:** Serve as the root entry point, evaluating user authentication status and primary role to deterministically route to the appropriate landing page.
 - **Hub:** ROOT / SYSTEM (Outside business hub taxonomy)
 - **Workflow Step:** NON-WORKFLOW (Application Routing)
-- **Resource / Domain Context:** `ApplicationShell`
-- **View Capability:** `APPLICATION:VIEW`
+- **Resource / Domain Context:** System Framework (UI/Client Shell)
+- **View Capability:** NONE (Public / Root Role Landing Redirect)
 - **Permitted Actions:**
-  * Evaluate Session: `APPLICATION:VIEW`
+  * Evaluate Session: NONE (Client-Side Route Evaluation)
 - **Data Required:**
   * Current authentication session and user active role.
 - **API Dependencies:**
@@ -1142,7 +1146,7 @@ The canonical 15-step workflow defined in Stage 07 is mapped to the target pages
 
 ## 10. Capability-to-Page/Action Mapping
 
-Every page and button action enforces the Stage 09 RBAC capability taxonomy using the canonical `RESOURCE:ACTION` syntax:
+Every page and button action enforces the Stage 09 RBAC capability taxonomy using the canonical `<RESOURCE>:<ACTION>` syntax, where `<RESOURCE>` is one of Stage 09's 28 canonical resources and `<ACTION>` is one of Stage 09's 23 canonical actions:
 
 ```
 ================================================================================
@@ -1169,6 +1173,7 @@ Every page and button action enforces the Stage 09 RBAC capability taxonomy usin
     - Approve Final QC (Stage 07):  VIDEO_EDIT:APPROVE (Human Gate AP-009)
     - Reject Final QC (Stage 07):   VIDEO_EDIT:REJECT (Human Gate AP-009)
     - Create Thumbnail (Stage 08):  THUMBNAIL:CREATE
+    - Edit Thumbnail (Stage 08):    THUMBNAIL:EDIT
 
   PUBLISHING ACTIONS:
     - Review 9:16 Mock (Stage 09):  SOCIAL_REVIEW:REVIEW
@@ -1180,8 +1185,25 @@ Every page and button action enforces the Stage 09 RBAC capability taxonomy usin
     - Dispatch Live (Stage 11):     PUBLICATION:PUBLISH
     - Re-sync Platform (Stage 12):  PUBLICATION:SYNC
 
+  PLANNING, TEAM & WORKFLOW ACTIONS:
+    - View Content / Batches:       CONTENT:VIEW
+    - Create Planned Batch:         CONTENT:CREATE
+    - Edit Planned Batch:           CONTENT:EDIT
+    - Approve Production Batch:     CONTENT:APPROVE
+    - Delegate Content Task:        CONTENT:ASSIGN
+    - Advance Workflow Instance:    WORKFLOW_INSTANCE:TRANSITION
+    - View Team Members:            USER:VIEW
+    - Edit User Profile:            USER:EDIT
+
+  ANALYTICS & INTELLIGENCE ACTIONS:
+    - View Retention Snapshots:     ANALYTICS_SNAPSHOT:VIEW
+    - Export Retention Metrics:     ANALYTICS_SNAPSHOT:EXPORT
+    - View Pedagogical Insights:    INTELLIGENCE_INSIGHT:VIEW
+    - Approve Curriculum Insight:   INTELLIGENCE_INSIGHT:APPROVE
+    - Archive Insight Signal:       INTELLIGENCE_INSIGHT:ARCHIVE
+
   SYSTEM & ADMINISTRATIVE ACTIONS:
-    - View Snapshots:               CONFIGURATION:ADMINISTER
+    - View Configuration / Health:  CONFIGURATION:ADMINISTER
     - Execute DR Dry Run:           CONFIGURATION:ADMINISTER
     - Restore Emergency Backup:     CONFIGURATION:RESTORE (Admin Only)
 
@@ -1450,7 +1472,7 @@ The Page & Route Contract establishes 100% bidirectional traceability to precedi
 | **Stage 06** | `06-DOMAIN-MODEL.md` | Binds pages strictly to canonical aggregate roots (Question, Content, Video) | 100% |
 | **Stage 07** | `07-CANONICAL-15-STEP-WORKFLOW.md` | Binds workspaces 1:1 to Steps 01–15 with clear rework and forward paths | 100% |
 | **Stage 08** | `08-STATE-MODEL.md` | Integrates 5-dimensional state display without conflating step and status | 100% |
-| **Stage 09** | `09-RBAC-CAPABILITY-MATRIX.md`| Enforces `RESOURCE:ACTION` capabilities for all view and mutate operations | 100% |
+| **Stage 09** | `09-RBAC-CAPABILITY-MATRIX.md`| Enforces Stage 09 canonical 28 resources and 23 actions for all capabilities | 100% |
 | **Stage 10** | `10-FRONTEND-IA.md` | Materializes the 6 core hubs, global shell, and workspace IA | 100% |
 
 ---
@@ -1475,7 +1497,7 @@ The following checklist establishes the deterministic verification requirements 
 - [x] Every canonical page has a full contract (All 20 canonical business pages + 3 system routes fully contracted in Section 08).
 - [x] No invented API endpoints (All endpoints verified against `src/server/routes.ts`; missing endpoints marked `DEFERRED — API CONTRACT STAGE`).
 - [x] Workflow steps accurately mapped (Steps 01 to 15 mapped accurately; non-manufacturing pages marked `NON-WORKFLOW` or `CROSS-CUTTING`).
-- [x] Stage 09 capabilities enforced (All view and action capabilities use valid `RESOURCE:ACTION` syntax; UI non-authoritative).
+- [x] Stage 09 capabilities enforced (Every capability string strictly satisfies RESOURCE ∈ Stage 09 28 canonical resources and ACTION ∈ Stage 09 23 canonical actions; zero non-canonical resources or actions; UI non-authoritative).
 - [x] Stage 08 5-state model integrated (Business Step, Entity, Media, Job, and Publication states strictly disentangled).
 - [x] Zero application code modified (No edits to React components, App.tsx, routes.ts, package.json, or schemas).
 - [x] Codebase lint and compilation pass cleanly (Zero errors).
@@ -1496,7 +1518,7 @@ The following checklist establishes the deterministic verification requirements 
 | Complete Page Contracts | Every canonical page (20 business + 3 system) has full contract in Section 08 | VERIFIED |
 | Workflow Mapping (Stage 07) | Steps 01 to 15 mapped; non-manufacturing marked NON-WORKFLOW / CROSS-CUTTING | VERIFIED |
 | API Dependency Authenticity | No invented APIs; unmapped endpoints marked DEFERRED — API CONTRACT STAGE | VERIFIED |
-| RBAC Integration (Stage 09) | Stage 09 capabilities enforced; UI non-authoritative | VERIFIED |
+| RBAC Vocabulary (Stage 09) | 100% compliant with Stage 09 28-resource and 23-action canonical vocabulary | VERIFIED |
 | State Disentanglement (Stage 08) | 5 state dimensions separated in UI contracts | VERIFIED |
 | UI State Behavior Contracts | Loading, Empty, Error, 403, Success defined for every contract | VERIFIED |
 | Route Retirement Strategy | Complete 78-route disposition ledger documented in Section 14 | VERIFIED |
@@ -1507,7 +1529,7 @@ The following checklist establishes the deterministic verification requirements 
 | Production Build Compilation (`npm run build`) | Zero errors | PASSED |
 | Implementation Status | Complete | COMPLETE |
 | Technical Verification | Google AI Studio verification passed | PASSED |
-| GitHub Verification | Corrective pass reconciled | PENDING GITHUB VERIFICATION |
+| GitHub Verification | Awaiting GitHub verification | PENDING GITHUB VERIFICATION |
 | Stage 11 Status | READY FOR GITHUB VERIFICATION | VERIFIED |
 
 ```
