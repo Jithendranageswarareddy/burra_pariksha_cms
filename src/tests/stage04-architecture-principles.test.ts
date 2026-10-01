@@ -12,6 +12,7 @@ import fs from 'fs';
 import path from 'path';
 import {
   CANONICAL_15_STEPS,
+  CanonicalStageIdentifier,
   validateCanonicalWorkflowTransition,
   CanonicalStageNumber,
 } from '../lib/workflow/canonical-workflow';
@@ -44,6 +45,29 @@ export async function runStage04ArchitectureTests() {
     assert(typeof step.responsibility === 'string', `Step ${expectedStepNum} must define responsibility`);
     assert(typeof step.canonicalRoute === 'string', `Step ${expectedStepNum} must define canonicalRoute`);
   });
+
+  // Verify authoritative step naming order (AP-001 single source of truth)
+  assert(CANONICAL_15_STEPS[8].id === 'social-review', 'Step 09 must be social-review');
+  assert(CANONICAL_15_STEPS[9].id === 'publishing-setup', 'Step 10 must be publishing-setup');
+  assert(CANONICAL_15_STEPS[10].id === 'published-live', 'Step 11 must be published-live');
+  assert(CANONICAL_15_STEPS[11].id === 'platform-sync', 'Step 12 must be platform-sync');
+  assert(CANONICAL_15_STEPS[12].id === 'social-analytics', 'Step 13 must be social-analytics');
+  assert(CANONICAL_15_STEPS[13].id === 'performance-review', 'Step 14 must be performance-review');
+  assert(CANONICAL_15_STEPS[14].id === 'performance-intelligence', 'Step 15 must be performance-intelligence');
+
+  // Verify CanonicalStageIdentifier derives directly without divergence (AP-001 & AP-010)
+  assert(
+    CanonicalStageIdentifier.STAGE_09_SOCIAL_REVIEW === CANONICAL_15_STEPS[8].id,
+    'CanonicalStageIdentifier.STAGE_09_SOCIAL_REVIEW must equal CANONICAL_15_STEPS[8].id'
+  );
+  assert(
+    CanonicalStageIdentifier.STAGE_10_PUBLISHING_SETUP === CANONICAL_15_STEPS[9].id,
+    'CanonicalStageIdentifier.STAGE_10_PUBLISHING_SETUP must equal CANONICAL_15_STEPS[9].id'
+  );
+  assert(
+    CanonicalStageIdentifier.STAGE_11_PUBLISHED_LIVE === CANONICAL_15_STEPS[10].id,
+    'CanonicalStageIdentifier.STAGE_11_PUBLISHED_LIVE must equal CANONICAL_15_STEPS[10].id'
+  );
   console.log('  -> PASS: All 15 canonical steps are sequentially ordered and valid.\n');
 
   // --------------------------------------------------------------------------
@@ -222,7 +246,21 @@ export async function runStage04ArchitectureTests() {
     workflowContent.includes('validateCanonicalWorkflowTransition'),
     'Transition validator must reside in src/lib/workflow/canonical-workflow.ts'
   );
-  console.log('  -> PASS: Centralized workflow authority confirmed.\n');
+
+  // Verify no duplicate list of stage definitions exists
+  const canonicalStepIds = CANONICAL_15_STEPS.map((s) => s.id);
+  const identifierValues = Object.values(CanonicalStageIdentifier);
+  assert(
+    identifierValues.length === 15,
+    `CanonicalStageIdentifier must have exactly 15 stage mappings, found ${identifierValues.length}`
+  );
+  identifierValues.forEach((val, i) => {
+    assert(
+      val === canonicalStepIds[i],
+      `CanonicalStageIdentifier index ${i} ("${val}") must match CANONICAL_15_STEPS[${i}].id ("${canonicalStepIds[i]}")`
+    );
+  });
+  console.log('  -> PASS: Centralized workflow authority and zero duplicate ownership confirmed.\n');
 
   // --------------------------------------------------------------------------
   // TEST 9: AP-011 & AP-012 — Modular Monolith & Cost Governance
@@ -253,7 +291,24 @@ export async function runStage04ArchitectureTests() {
   console.log('  -> PASS: Zero prohibited microservices or paid infrastructure dependencies found.\n');
 
   // --------------------------------------------------------------------------
-  // TEST 10: AP-014 — Historical Audit Evidence Preservation
+  // TEST 10: AP-013 — Incremental Migration & Backward Compatibility
+  // --------------------------------------------------------------------------
+  console.log('Checking AP-013: Incremental Migration Safety...');
+  const requiredCoreFiles = [
+    'src/lib/services/question.service.ts',
+    'src/lib/services/video.service.ts',
+    'src/lib/services/script.service.ts',
+    'src/lib/services/google-drive.service.ts',
+    'src/lib/schemas/google-sheets-schema.ts',
+    'src/server/routes.ts',
+  ];
+  requiredCoreFiles.forEach((f) => {
+    assert(fs.existsSync(path.resolve(process.cwd(), f)), `Core service file ${f} must be preserved for AP-013`);
+  });
+  console.log('  -> PASS: Incremental migration preserved; existing services remain intact.\n');
+
+  // --------------------------------------------------------------------------
+  // TEST 11: AP-014 — Historical Audit Evidence Preservation
   // --------------------------------------------------------------------------
   console.log('Checking AP-014: Historical Audit Evidence Preservation...');
   const auditPath = path.resolve(process.cwd(), 'docs/audit');
@@ -269,7 +324,7 @@ export async function runStage04ArchitectureTests() {
   console.log('  -> PASS: Historical audit archives are preserved.\n');
 
   // --------------------------------------------------------------------------
-  // TEST 11: AP-015 — Testability Requirement
+  // TEST 12: AP-015 — Testability Requirement
   // --------------------------------------------------------------------------
   console.log('Checking AP-015: Deterministic, Non-Mutating Test Execution...');
   assert(true, 'Test execution completed deterministically without production side effects');

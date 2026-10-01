@@ -582,23 +582,29 @@ export function getCanonicalStep(stepNumber: number): CanonicalStepDefinition | 
 
 export type CanonicalStageNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15;
 
-export enum CanonicalStageIdentifier {
-  STAGE_01_QUESTION_GENERATION = '01_QUESTION_GENERATION',
-  STAGE_02_QUESTION_VERIFICATION = '02_QUESTION_VERIFICATION',
-  STAGE_03_SCRIPT_TELEPROMPTER = '03_SCRIPT_TELEPROMPTER',
-  STAGE_04_STUDIO_RECORDING = '04_STUDIO_RECORDING',
-  STAGE_05_RAW_FOOTAGE_HANDOFF = '05_RAW_FOOTAGE_HANDOFF',
-  STAGE_06_VIDEO_EDITING = '06_VIDEO_EDITING',
-  STAGE_07_FINAL_QC = '07_FINAL_QC',
-  STAGE_08_THUMBNAIL_STUDIO = '08_THUMBNAIL_STUDIO',
-  STAGE_09_PINNED_COMMENT = '09_PINNED_COMMENT',
-  STAGE_10_SOCIAL_REVIEW = '10_SOCIAL_REVIEW',
-  STAGE_11_PUBLISHING_SETUP = '11_PUBLISHING_SETUP',
-  STAGE_12_PLATFORM_SYNC = '12_PLATFORM_SYNC',
-  STAGE_13_SOCIAL_ANALYTICS = '13_SOCIAL_ANALYTICS',
-  STAGE_14_PERFORMANCE_REVIEW = '14_PERFORMANCE_REVIEW',
-  STAGE_15_INTELLIGENCE_LOOP = '15_INTELLIGENCE_LOOP',
-}
+/**
+ * Single authoritative type-safe stage identifier derived directly from CANONICAL_15_STEPS.
+ * Enforces AP-001 (One canonical 15-step business workflow) and AP-010 (No duplicate ownership of business state).
+ */
+export const CanonicalStageIdentifier = {
+  STAGE_01_QUESTION_GENERATION: CANONICAL_15_STEPS[0].id,
+  STAGE_02_QUESTION_VERIFICATION: CANONICAL_15_STEPS[1].id,
+  STAGE_03_AUDIENCE_SCRIPT: CANONICAL_15_STEPS[2].id,
+  STAGE_04_TELEPROMPTER_RECORDING: CANONICAL_15_STEPS[3].id,
+  STAGE_05_RAW_VIDEO_HANDOFF: CANONICAL_15_STEPS[4].id,
+  STAGE_06_VIDEO_EDITING: CANONICAL_15_STEPS[5].id,
+  STAGE_07_FINAL_QC: CANONICAL_15_STEPS[6].id,
+  STAGE_08_THUMBNAIL_STUDIO: CANONICAL_15_STEPS[7].id,
+  STAGE_09_SOCIAL_REVIEW: CANONICAL_15_STEPS[8].id,
+  STAGE_10_PUBLISHING_SETUP: CANONICAL_15_STEPS[9].id,
+  STAGE_11_PUBLISHED_LIVE: CANONICAL_15_STEPS[10].id,
+  STAGE_12_PLATFORM_SYNC: CANONICAL_15_STEPS[11].id,
+  STAGE_13_SOCIAL_ANALYTICS: CANONICAL_15_STEPS[12].id,
+  STAGE_14_PERFORMANCE_REVIEW: CANONICAL_15_STEPS[13].id,
+  STAGE_15_PERFORMANCE_INTELLIGENCE: CANONICAL_15_STEPS[14].id,
+} as const;
+
+export type CanonicalStageIdentifier = (typeof CanonicalStageIdentifier)[keyof typeof CanonicalStageIdentifier];
 
 export interface StageTransitionActor {
   id: string;
@@ -643,7 +649,7 @@ export function validateCanonicalWorkflowTransition(
 
   // AP-009: AI Governance (AI cannot silently approve or mutate controlled business state)
   if (req.actor.isAiAgent) {
-    const humanGatedStages: CanonicalStageNumber[] = [2, 3, 7, 10, 11];
+    const humanGatedStages: CanonicalStageNumber[] = [2, 3, 7, 9, 10, 11];
     if (humanGatedStages.includes(req.targetStage) && !req.humanSignOff) {
       return {
         allowed: false,

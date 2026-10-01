@@ -95,19 +95,19 @@ Every future architecture decision record (ADR), design document, schema proposa
 
 ### 5.2 The Canonical 15 Business Stages
 ```
-[01: Question Generation] ──► [02: Verification & Approval] ──► [03: Script & Teleprompter]
+[01: Question Generation] ──► [02: Question Verification] ──► [03: Audience Script]
              │
              ▼
-[04: Studio Recording]    ──► [05: Raw Footage Handoff]     ──► [06: Video Editing]
+[04: Teleprompter & Filming] ─► [05: Raw Video Handoff]   ──► [06: Video Editing]
              │
              ▼
-[07: Final QC & Review]   ──► [08: Thumbnail Creation]      ──► [09: Pinned Comment]
+[07: Final QC]            ──► [08: Thumbnail Studio]      ──► [09: Social Review]
              │
              ▼
-[10: Social Adaptation]   ──► [11: Publishing Release]      ──► [12: Platform Sync]
+[10: Publishing Setup]    ──► [11: Published / Live]      ──► [12: Platform Sync]
              │
              ▼
-[13: Social Analytics]    ──► [14: Performance Review]      ──► [15: Intelligence Loop]
+[13: Social Analytics]    ──► [14: Performance Review]    ──► [15: Performance Intelligence]
 ```
 
 ### 5.3 Rationale
