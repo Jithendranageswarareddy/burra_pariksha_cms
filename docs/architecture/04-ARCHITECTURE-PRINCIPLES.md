@@ -4,13 +4,22 @@
 Stage: 04 — Architecture Principles
 
 STATUS:
-COMPLETE — AWAITING PRODUCT OWNER ACCEPTANCE
+ACCEPTED — COMPLETE — CLOSED
 
 Implementation Status:
-ARCHITECTURE PRINCIPLES BASELINE COMPLETE
+COMPLETE
 
-Approval:
-PENDING PRODUCT OWNER ACCEPTANCE
+Technical Verification:
+PASSED
+
+Product Owner Acceptance:
+ACCEPTED
+
+Stage Closure:
+CLOSED
+
+Closure Date:
+2026-10-01
 
 Version:
 1.0.0
@@ -27,6 +36,9 @@ Establishes the foundational, inviolable architecture principles, boundary const
 | **Document Title** | BP-CMS Stage 04 Architecture Principles | FACT |
 | **File Path** | `docs/architecture/04-ARCHITECTURE-PRINCIPLES.md` | FACT |
 | **Document Stage** | Stage 04 — Architecture Principles | FACT |
+| **Status** | ACCEPTED — COMPLETE — CLOSED | FACT |
+| **Closure Date** | 2026-10-01 | FACT |
+| **Verified Git Commit** | `cf2c5d18e176a5fbc38094b8bf5d1bdfe09fd292` | FACT |
 | **Authority** | Authoritative Architecture Governance Specification | FACT |
 | **Preceding Verified Stages**| Stage 01 (`01-REQUIREMENTS-BASELINE.md` - 100% Accepted)<br>Stage 02 (`02-BUSINESS-ACCEPTANCE-CRITERIA.md` - 100% Accepted)<br>Stage 03 (`03-CURRENT-SYSTEM-BASELINE.md` - 100% Accepted & Closed) | FACT |
 | **Subsequent Stages** | Stage 05+ (Architecture Decisions, Data Architecture, Pipeline Design) | FACT |
@@ -535,13 +547,59 @@ To satisfy Stage 04 completion, the following criteria must be met:
 
 ## 24. Stage 04 Closure Record
 
+### 24.1 Controlled Closure Verification Evidence
+* **Closure Execution Date:** 2026-10-01
+* **Verified GitHub Commit:** `cf2c5d18e176a5fbc38094b8bf5d1bdfe09fd292` (refactor: align canonical 15-stage workflow)
+* **Preceding Implementation Commit:** `8075a562a76357a9772a8a33a38faa0a5fa2fdef`
+* **Canonical 15-Step Workflow:** All 15 stages verified in `CANONICAL_15_STEPS` as single source of truth; zero duplicate enum or sequence definitions (`CanonicalStageIdentifier` strictly derived).
+* **Authoritative Transition Engine:** Centralized transition validator `validateCanonicalWorkflowTransition` enforces sequential boundaries, actor credentials, and AI human-in-the-loop sign-off.
+* **Architecture Principles Verification:** Deterministic test suite `src/tests/stage04-architecture-principles.test.ts` passed 100% (AP-001 through AP-015).
+* **Type Check (`npm run lint` / `tsc --noEmit`):** PASSED with 0 errors.
+* **Production Build (`npm run build`):** PASSED (Vite + esbuild bundled).
+* **Runtime Health (`GET /api/health`):** PASSED (HTTP 200 OK, `GOOGLE_SHEETS_PRODUCTION` active).
+* **Production Mutation:** NONE (zero modifications to Google Sheets, Google Drive, databases, or infrastructure).
+
+### 24.2 Acceptance Table
+
+| Item | Status |
+|------|--------|
+| Architecture Principles AP-001–AP-015 | VERIFIED |
+| Canonical 15-Step Workflow | VERIFIED |
+| Single Workflow Source of Truth | VERIFIED |
+| Authoritative Transition Mechanism | VERIFIED |
+| Backend Authorization Authority | VERIFIED |
+| Backend Business-Rule Authority | VERIFIED |
+| Frontend Boundary | VERIFIED |
+| Media Storage Boundary | VERIFIED |
+| AI Human-Gating | VERIFIED |
+| Single State Ownership | VERIFIED |
+| Modular Monolith Constraint | VERIFIED |
+| Cost / Infrastructure Constraint | VERIFIED |
+| Incremental Migration Safety | VERIFIED |
+| Historical Audit Preservation | VERIFIED |
+| Deterministic Testability | VERIFIED |
+| Type Check | PASSED |
+| Build | PASSED |
+| Runtime Health | PASSED |
+| Product Owner Acceptance | ACCEPTED |
+| Stage 04 | CLOSED |
+
 ```
 ================================================================================
 STAGE 04 — ARCHITECTURE PRINCIPLES
-STATUS: COMPLETE — AWAITING PRODUCT OWNER ACCEPTANCE
+STATUS: ACCEPTED — COMPLETE — CLOSED
+IMPLEMENTATION: COMPLETE
+TECHNICAL VERIFICATION: PASSED
+PRODUCT OWNER ACCEPTANCE: ACCEPTED
+STAGE 04 CLOSED: YES
 APPLICATION CODE MODIFIED: NONE
 DATA / STORAGE MODIFIED: NONE
 DEPLOYMENT PERFORMED: NO
-STAGE 04 CLOSED: NO
+NEXT STAGE: STAGE 05 — NOT STARTED
 ================================================================================
 ```
+
+STAGE 04 CLOSED: YES
+
+NEXT STAGE:
+STAGE 05 — NOT STARTED
