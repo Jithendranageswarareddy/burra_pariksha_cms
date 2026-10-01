@@ -15,7 +15,13 @@ import { googleDriveService } from './src/lib/services/google-drive.service';
 async function startServer() {
   const app = express();
   app.set('trust proxy', 1);
-  const PORT = 3000;
+  // Determine port and host from CLI args or environment variables
+  const portArgIndex = process.argv.indexOf('--port');
+  const portFromArg = portArgIndex !== -1 && process.argv[portArgIndex + 1] ? parseInt(process.argv[portArgIndex + 1], 10) : NaN;
+  const PORT = !isNaN(portFromArg) ? portFromArg : (parseInt(process.env.PORT || '3000', 10) || 3000);
+
+  const hostArgIndex = process.argv.indexOf('--host');
+  const HOST = hostArgIndex !== -1 && process.argv[hostArgIndex + 1] ? process.argv[hostArgIndex + 1] : (process.env.HOST || '0.0.0.0');
 
   // Log Google Drive OAuth configuration status without revealing secrets
   const driveStatus = googleDriveService.getDriveConfigurationStatus();
@@ -53,8 +59,8 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Burra Pariksha CMS server running on http://0.0.0.0:${PORT}`);
+  app.listen(PORT, HOST, () => {
+    console.log(`Burra Pariksha CMS server running on http://${HOST}:${PORT}`);
   });
 }
 
