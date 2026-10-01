@@ -618,7 +618,7 @@ export const SocialAnalyticsPage: React.FC = () => {
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition shadow-xs cursor-pointer"
             >
               <ArrowRight className="w-3.5 h-3.5" />
-              <span>Stage 14: Performance Review →</span>
+              <span>Step 14: Performance Review →</span>
             </Link>
             {selectedContentId && (
               <>
@@ -1480,7 +1480,7 @@ export const SocialAnalyticsPage: React.FC = () => {
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold border border-indigo-200 transition cursor-pointer"
               >
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>Stage 15: Pedagogical Insights →</span>
+                <span>Step 15: Pedagogical Insights →</span>
               </Link>
             </div>
           </div>

@@ -35,17 +35,17 @@ import {
   VideoProductionStatus,
   SocialReviewStatus,
   UserRole,
-  Phase23QueueType,
-  Phase23SearchOptions,
-  Phase23SearchResultItem,
-  Phase23SearchResult,
-  Phase23QueueItem,
-  Phase23QueueResult,
-  Phase23DashboardMetrics,
-  Phase23ContentIdDetails,
+  ProductionQueueType,
+  ProductionSearchOptions,
+  ProductionSearchResultItem,
+  ProductionSearchResult,
+  ProductionQueueItem,
+  ProductionQueueResult,
+  ProductionDashboardMetrics,
+  ProductionContentDetails,
 } from '../../types';
 
-export interface Phase23ContextData {
+export interface ProductionContextData {
   allMasters: any[];
   allQuestions: any[];
   allVideos: any[];
@@ -66,8 +66,8 @@ export interface Phase23ContextData {
 export class ProductionDashboardService {
   private static instance: ProductionDashboardService | null = null;
 
-  private contextCache: { timestamp: number; data: Phase23ContextData } | null = null;
-  private contextInFlight: Promise<Phase23ContextData> | null = null;
+  private contextCache: { timestamp: number; data: ProductionContextData } | null = null;
+  private contextInFlight: Promise<ProductionContextData> | null = null;
   private readonly CACHE_TTL_MS = 20_000; // 20 seconds TTL
 
   private constructor() {}
@@ -88,7 +88,7 @@ export class ProductionDashboardService {
    * Single-pass parallel fetch of all authoritative records from repositories
    * with a 20s in-memory TTL cache to prevent redundant sheet scans.
    */
-  public async buildContext(forceRefresh = false): Promise<Phase23ContextData> {
+  public async buildContext(forceRefresh = false): Promise<ProductionContextData> {
     const now = Date.now();
     if (!forceRefresh && this.contextCache && now - this.contextCache.timestamp < this.CACHE_TTL_MS) {
       return this.contextCache.data;
@@ -148,7 +148,7 @@ export class ProductionDashboardService {
         if (u.id) usersMap.set(u.id, u);
       });
 
-      const data: Phase23ContextData = {
+      const data: ProductionContextData = {
         allMasters,
         allQuestions,
         allVideos,
@@ -263,7 +263,7 @@ export class ProductionDashboardService {
   /**
    * Helper to build a canonical Search Result Item for a given Content ID
    */
-  public buildSearchResultItem(contentId: string, ctx: Phase23ContextData): Phase23SearchResultItem {
+  public buildSearchResultItem(contentId: string, ctx: ProductionContextData): ProductionSearchResultItem {
     const master = ctx.allMasters.find((m) => m.contentId === contentId || m.id === contentId);
 
     const question = ctx.allQuestions.find(
@@ -426,7 +426,7 @@ export class ProductionDashboardService {
    * Filterable by Content ID, Topic, Subtopic, Difficulty, Language, Challenge Type,
    * Presentation Type, Question Style, Status, Assignee.
    */
-  public async search(options: Phase23SearchOptions = {}, actor?: ActorContext): Promise<Phase23SearchResult> {
+  public async search(options: ProductionSearchOptions = {}, actor?: ActorContext): Promise<ProductionSearchResult> {
     const ctx = await this.buildContext();
 
     // 1. Collect all unique Content IDs across Masters, Questions, Videos
@@ -448,7 +448,7 @@ export class ProductionDashboardService {
     });
 
     // Build Search Result Items
-    const allItems: Phase23SearchResultItem[] = Array.from(contentIdSet).map((cid) =>
+    const allItems: ProductionSearchResultItem[] = Array.from(contentIdSet).map((cid) =>
       this.buildSearchResultItem(cid, ctx)
     );
 
@@ -558,8 +558,8 @@ export class ProductionDashboardService {
     const sortOrder = options.sortOrder || 'desc';
 
     filtered.sort((a, b) => {
-      let valA: any = a[sortBy as keyof Phase23SearchResultItem] || '';
-      let valB: any = b[sortBy as keyof Phase23SearchResultItem] || '';
+      let valA: any = a[sortBy as keyof ProductionSearchResultItem] || '';
+      let valB: any = b[sortBy as keyof ProductionSearchResultItem] || '';
 
       if (sortBy === 'updatedAt' || sortBy === 'createdAt') {
         valA = new Date(valA).getTime() || 0;
@@ -600,10 +600,10 @@ export class ProductionDashboardService {
    * MY WORK, QUESTIONS, SCRIPTS, VIDEOS, REVIEWS, PUBLISHING
    */
   public async getQueue(
-    queueType: Phase23QueueType,
+    queueType: ProductionQueueType,
     actor: ActorContext,
     options: { page?: number; limit?: number } = {}
-  ): Promise<Phase23QueueResult> {
+  ): Promise<ProductionQueueResult> {
     const ctx = await this.buildContext();
     const searchRes = await this.search({ limit: 0 }, actor);
     const allSearchItems = searchRes.items;
@@ -614,7 +614,7 @@ export class ProductionDashboardService {
     const isManagerOrAdmin = objectAuthService.isManagerOrAdmin(actor);
 
     // Queue safety: if analytics viewer, they cannot perform actions, so queue actionable items are empty or marked non-actionable
-    const queueItems: Phase23QueueItem[] = [];
+    const queueItems: ProductionQueueItem[] = [];
 
     for (const item of allSearchItems) {
       let isMatch = false;
@@ -809,7 +809,7 @@ export class ProductionDashboardService {
    * SECTION 5: Production Dashboard
    * Comprehensive aggregate metrics & active blockers.
    */
-  public async getDashboard(actor: ActorContext): Promise<Phase23DashboardMetrics> {
+  public async getDashboard(actor: ActorContext): Promise<ProductionDashboardMetrics> {
     const ctx = await this.buildContext();
     const searchRes = await this.search({ limit: 0 }, actor);
     const items = searchRes.items;
@@ -946,7 +946,7 @@ export class ProductionDashboardService {
    * SECTION 7: Content ID Drilldown
    * Consolidated lifecycle details for a given Content ID.
    */
-  public async getContentIdDetails(contentId: string, actor?: ActorContext): Promise<Phase23ContentIdDetails | null> {
+  public async getContentIdDetails(contentId: string, actor?: ActorContext): Promise<ProductionContentDetails | null> {
     const ctx = await this.buildContext();
 
     const master = ctx.allMasters.find((m) => m.contentId === contentId || m.id === contentId);
@@ -1060,5 +1060,3 @@ export class ProductionDashboardService {
 }
 
 export const productionDashboardService = ProductionDashboardService.getInstance();
-export const phase23ProductionService = productionDashboardService;
-export type Phase23ProductionService = ProductionDashboardService;

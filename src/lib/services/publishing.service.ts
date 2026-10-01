@@ -53,8 +53,8 @@ import {
   PublisherPackage,
   PublishingReadinessEvaluation,
   PublishingBlockerCode,
-  Phase22PublishingRecord,
-  Phase22PublishingStatus,
+  PublishingPlatformRecord,
+  PublishingPlatformStatus,
   PublisherPackageSearchFilters,
   MarkManuallyPublishedInput,
   MarkPublishingFailedInput,
@@ -1535,7 +1535,7 @@ export class PublishingService {
     }
 
     // 3. Phase 20 Social Review PASS / APPROVED
-    const socialReview = await socialReviewsRepository.getLatestPhase20ByContentId(contentId);
+    const socialReview = await socialReviewsRepository.getLatestSocialReviewByContentId(contentId);
     const socialReviewApproved = !!(
       socialReview &&
       ((socialReview.status as string) === 'PASS' || (socialReview.status as string) === 'APPROVED') &&
@@ -1758,8 +1758,8 @@ export class PublishingService {
       contentId,
       platform
     );
-    const socialReview = await socialReviewsRepository.getLatestPhase20ByContentId(contentId);
-    const publishingRecord = await publishingRepository.findPhase22ByContentIdAndPlatform(
+    const socialReview = await socialReviewsRepository.getLatestSocialReviewByContentId(contentId);
+    const publishingRecord = await publishingRepository.findPublishingPlatformByContentIdAndPlatform(
       contentId,
       platform
     );
@@ -1942,7 +1942,7 @@ export class PublishingService {
   public async markManuallyPublished(
     input: MarkManuallyPublishedInput,
     actor: WorkflowActor
-  ): Promise<Phase22PublishingRecord> {
+  ): Promise<PublishingPlatformRecord> {
     this.verifyPublishingRole(actor, 'MARK_MANUALLY_PUBLISHED');
 
     const platform = this.normalizePlatform(input.platform);
@@ -1957,14 +1957,14 @@ export class PublishingService {
     const pkg = await this.getPublisherPackage(input.contentId, platform);
 
     // Idempotency check: check if record exists for contentId + platform + adaptationVersion
-    let existingRecord = await publishingRepository.findPhase22ByContentIdPlatformAndVersion(
+    let existingRecord = await publishingRepository.findPublishingPlatformByContentIdPlatformAndVersion(
       input.contentId,
       platform,
       pkg.source.adaptationVersion
     );
 
     if (!existingRecord) {
-      existingRecord = await publishingRepository.findPhase22ByContentIdAndPlatform(
+      existingRecord = await publishingRepository.findPublishingPlatformByContentIdAndPlatform(
         input.contentId,
         platform
       );
@@ -1974,7 +1974,7 @@ export class PublishingService {
     const publishedAt = input.publishedAt || now;
     const recordId = existingRecord ? existingRecord.id : publishingRepository.generateId();
 
-    const record: Phase22PublishingRecord = {
+    const record: PublishingPlatformRecord = {
       id: recordId,
       contentId: input.contentId,
       platform,
@@ -2001,7 +2001,7 @@ export class PublishingService {
       updatedAt: now,
     };
 
-    const saved = await publishingRepository.savePhase22Record(record);
+    const saved = await publishingRepository.savePublishingPlatformRecord(record);
 
     await auditService.log(
       actor.id,
@@ -2029,12 +2029,12 @@ export class PublishingService {
   public async markContentPublishingFailed(
     input: MarkPublishingFailedInput,
     actor: WorkflowActor
-  ): Promise<Phase22PublishingRecord> {
+  ): Promise<PublishingPlatformRecord> {
     this.verifyPublishingRole(actor, 'MARK_PUBLISHING_FAILED');
     const platform = this.normalizePlatform(input.platform);
 
     const pkg = await this.getPublisherPackage(input.contentId, platform);
-    let existingRecord = await publishingRepository.findPhase22ByContentIdAndPlatform(
+    let existingRecord = await publishingRepository.findPublishingPlatformByContentIdAndPlatform(
       input.contentId,
       platform
     );
@@ -2042,7 +2042,7 @@ export class PublishingService {
     const now = new Date().toISOString();
     const recordId = existingRecord ? existingRecord.id : publishingRepository.generateId();
 
-    const record: Phase22PublishingRecord = {
+    const record: PublishingPlatformRecord = {
       id: recordId,
       contentId: input.contentId,
       platform,
@@ -2066,7 +2066,7 @@ export class PublishingService {
       updatedAt: now,
     };
 
-    const saved = await publishingRepository.savePhase22Record(record);
+    const saved = await publishingRepository.savePublishingPlatformRecord(record);
 
     await auditService.log(
       actor.id,
@@ -2093,12 +2093,12 @@ export class PublishingService {
     platformInput: string | PlatformType,
     actor: WorkflowActor,
     notes?: string
-  ): Promise<Phase22PublishingRecord> {
+  ): Promise<PublishingPlatformRecord> {
     this.verifyPublishingRole(actor, 'RETRY_PUBLISHING');
     const platform = this.normalizePlatform(platformInput);
 
     const readiness = await this.evaluateReadiness(contentId, platform);
-    let existingRecord = await publishingRepository.findPhase22ByContentIdAndPlatform(
+    let existingRecord = await publishingRepository.findPublishingPlatformByContentIdAndPlatform(
       contentId,
       platform
     );
@@ -2129,7 +2129,7 @@ export class PublishingService {
         : `Retry note: ${notes}`;
     }
 
-    const saved = await publishingRepository.savePhase22Record(existingRecord);
+    const saved = await publishingRepository.savePublishingPlatformRecord(existingRecord);
 
     await auditService.log(
       actor.id,
@@ -2156,14 +2156,12 @@ export class PublishingService {
   public async getPublishingRecord(
     contentId: string,
     platformInput: string | PlatformType
-  ): Promise<Phase22PublishingRecord | null> {
+  ): Promise<PublishingPlatformRecord | null> {
     const platform = this.normalizePlatform(platformInput);
-    return publishingRepository.findPhase22ByContentIdAndPlatform(contentId, platform);
+    return publishingRepository.findPublishingPlatformByContentIdAndPlatform(contentId, platform);
   }
 }
 
 export const publishingService = PublishingService.getInstance();
-export const phase22PublishingHubService = publishingService;
-export type Phase22PublishingHubService = PublishingService;
 
 

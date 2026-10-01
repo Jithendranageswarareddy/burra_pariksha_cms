@@ -35,7 +35,7 @@ import {
   TransitionToEditingInput,
   UploadEditedVideoInput,
   ApproveFinalVideoInput,
-  Phase17VideoWorkflowStateResult,
+  VideoWorkflowStateResult,
 } from '../../types';
 import { ValidationError } from '../google-sheets/errors';
 
@@ -112,7 +112,7 @@ export class VideoProductionService {
   public async initializeRawVideo(
     input: InitializeRawVideoInput,
     actor: WorkflowActor
-  ): Promise<Phase17VideoWorkflowStateResult> {
+  ): Promise<VideoWorkflowStateResult> {
     this.verifyRole(
       actor,
       [UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.STUDIO_PRESENTER, UserRole.SPEAKER, UserRole.CREATOR],
@@ -272,7 +272,7 @@ export class VideoProductionService {
   public async transitionToEditing(
     input: TransitionToEditingInput,
     actor: WorkflowActor
-  ): Promise<Phase17VideoWorkflowStateResult> {
+  ): Promise<VideoWorkflowStateResult> {
     this.verifyRole(
       actor,
       [UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.VIDEO_EDITOR, UserRole.EDITOR],
@@ -353,7 +353,7 @@ export class VideoProductionService {
   public async uploadEditedVideo(
     input: UploadEditedVideoInput,
     actor: WorkflowActor
-  ): Promise<Phase17VideoWorkflowStateResult> {
+  ): Promise<VideoWorkflowStateResult> {
     this.verifyRole(
       actor,
       [UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.VIDEO_EDITOR, UserRole.EDITOR],
@@ -469,7 +469,7 @@ export class VideoProductionService {
   public async approveFinalVideo(
     input: ApproveFinalVideoInput,
     actor: WorkflowActor
-  ): Promise<Phase17VideoWorkflowStateResult> {
+  ): Promise<VideoWorkflowStateResult> {
     this.verifyRole(
       actor,
       [UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.REVIEWER],
@@ -661,5 +661,3 @@ export class VideoProductionService {
 }
 
 export const videoProductionService = VideoProductionService.getInstance();
-export const phase17VideoProductionService = videoProductionService;
-export type Phase17VideoProductionService = VideoProductionService;

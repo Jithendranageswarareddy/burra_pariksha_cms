@@ -11,7 +11,7 @@ export * from './registry';
 export * from './gemini.client';
 export * from './gemini.service';
 export * from './orchestrator';
-export { MultiAIProviderRegistry, multiAIProviderRegistry, phase24ProviderRegistry } from './provider-registry';
+export { MultiAIProviderRegistry, multiAIProviderRegistry } from './provider-registry';
 export { AIOrchestrationService, aiOrchestrationService } from './ai-orchestrator.service';
 export * from './providers/base.adapter';
 export * from './providers/gemini.adapter';

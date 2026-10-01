@@ -144,5 +144,3 @@ export interface IAIProvider {
   recordFailure(category: AIFailureCategory, errorMsg: string, retryAfterMs?: number): void;
 }
 
-// Backward-compatible alias
-export type IPhase24AIProvider = IAIProvider;

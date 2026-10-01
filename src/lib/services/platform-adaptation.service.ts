@@ -1460,6 +1460,4 @@ Respond in pure JSON matching this exact structure:
 }
 
 export const platformAdaptationService = PlatformAdaptationService.getInstance();
-export const phase21PlatformAdaptationService = platformAdaptationService;
-export type Phase21PlatformAdaptationService = PlatformAdaptationService;
 

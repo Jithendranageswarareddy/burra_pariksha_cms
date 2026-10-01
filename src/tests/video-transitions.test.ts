@@ -223,7 +223,16 @@ export async function runVideoTransitionTests() {
   // --------------------------------------------------------------------------
   // TEST 8: Video status and Question.videoStatus must remain synchronized
   // --------------------------------------------------------------------------
-  // After upload, status is updated. Let's verify associated Question.videoStatus is synchronized.
+  // Reset video to SCRIPT_READY, then transition to RECORDED and verify question synchronization
+  await videosRepository.update(video.id, { status: VideoProductionStatus.SCRIPT_READY });
+  await videoService.transitionStatus(
+    video.id,
+    VideoProductionStatus.RECORDED,
+    mockActor,
+    'Sync verification',
+    undefined,
+    true
+  );
   const updatedQuestion = await questionsRepository.findById(question.id);
   assert(
     updatedQuestion?.videoStatus === VideoProductionStatus.RECORDED,

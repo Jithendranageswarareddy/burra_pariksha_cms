@@ -531,5 +531,3 @@ export class ScriptProductionService {
 }
 
 export const scriptProductionService = ScriptProductionService.getInstance();
-export const phase15ScriptProductionService = scriptProductionService;
-export type Phase15ScriptProductionService = ScriptProductionService;

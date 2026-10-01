@@ -291,7 +291,7 @@ export const VideoRecordPage: React.FC = () => {
       const updated = await apiClient.updateVideoStatus(
         targetId,
         newStatus,
-        `Stage advanced from Stage 04 Recording Studio: ${hostNotes || 'Recording completed'}`
+        `Step advanced from Step 04 Recording Studio: ${hostNotes || 'Recording completed'}`
       );
       setSelectedVideo(updated);
       setSuccessMessage(`Production status transitioned to ${newStatus}.`);
@@ -517,7 +517,7 @@ export const VideoRecordPage: React.FC = () => {
       <div className="space-y-6 max-w-6xl mx-auto pb-16">
         <PageHeader
           title="Teleprompter & Recording Studio"
-          description="Stage 04: Teleprompter studio view, host assignment, raw footage capture, and Drive intake"
+          description="Step 04: Teleprompter studio view, host assignment, raw footage capture, and Drive intake"
         />
 
         {error && (
@@ -602,7 +602,7 @@ export const VideoRecordPage: React.FC = () => {
               {selectedVideo?.id || videoId}
             </span>
             <span className="text-xs font-semibold px-2 py-0.5 bg-red-100 text-red-800 rounded">
-              Stage 04 • Teleprompter &amp; Filming
+              Step 04 • Teleprompter &amp; Filming
             </span>
           </div>
           <h1 className="text-xl font-bold text-slate-900">Teleprompter &amp; Recording Studio</h1>
@@ -1072,7 +1072,7 @@ export const VideoRecordPage: React.FC = () => {
               <div className="bg-white rounded-xl border border-indigo-200 p-5 shadow-xs space-y-3">
                 <div className="flex items-center gap-2 text-indigo-700 font-bold text-xs">
                   <Film className="w-4 h-4 text-indigo-600" />
-                  <span>Stage 06: Video Editing</span>
+                  <span>Step 06: Video Editing</span>
                 </div>
                 <p className="text-xs text-slate-600">
                   Raw recording captured? Proceed to Video Editing to sync Telugu motion graphics, countdown timers, and check 50–59s pacing.
@@ -1088,7 +1088,7 @@ export const VideoRecordPage: React.FC = () => {
                   icon={ArrowRight}
                   className="w-full text-xs justify-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
                 >
-                  Proceed to Stage 06: Video Editing
+                  Proceed to Step 06: Video Editing
                 </Button>
               </div>
             </div>

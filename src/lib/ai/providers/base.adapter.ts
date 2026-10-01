@@ -14,10 +14,10 @@ import {
   AIRetryPolicy,
   AIRequest,
   AITaskType,
-  IPhase24AIProvider,
+  IAIProvider,
 } from '../../../types/ai';
 
-export abstract class BaseAIProviderAdapter implements IPhase24AIProvider {
+export abstract class BaseAIProviderAdapter implements IAIProvider {
   public abstract readonly providerId: AIProviderId;
   public abstract readonly displayName: string;
   public isEnabled: boolean = true;

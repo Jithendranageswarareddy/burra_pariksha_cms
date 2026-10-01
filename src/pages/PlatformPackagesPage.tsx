@@ -639,7 +639,7 @@ export const PlatformPackagesPage: React.FC = () => {
               className="text-xs font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-1.5"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Back to Stage 10: Publishing Station</span>
+              <span>Back to Step 10: Publishing Station</span>
             </Link>
 
             <div className="flex items-center gap-3">
@@ -649,7 +649,7 @@ export const PlatformPackagesPage: React.FC = () => {
                   size="sm"
                   className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold cursor-pointer"
                 >
-                  <span>Proceed to Stage 13: Social Analytics →</span>
+                  <span>Proceed to Step 13: Social Analytics →</span>
                 </Button>
               </Link>
             </div>

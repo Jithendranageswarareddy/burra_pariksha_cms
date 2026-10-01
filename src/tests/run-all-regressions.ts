@@ -13,7 +13,7 @@ import { runTask8EVerificationSuite } from './task8e-social-metadata-generator-v
 import { runTask8FVerificationSuite } from './task8f-multi-platform-adaptation-verification';
 import { runTask8GVerificationSuite } from './task8g-social-quality-engagement-verification';
 import { runTask8hVerification } from './task8h-social-review-workflow-verification';
-import { runPhase8iSecurityVerification } from './phase8i-security-qa-verification';
+import { runPhase8iSecurityVerification } from './security-qa.integration.test';
 
 async function runAll() {
   console.log('=== STARTING BURRA PARIKSHA CMS COMPREHENSIVE REGRESSION SUITE ===\n');

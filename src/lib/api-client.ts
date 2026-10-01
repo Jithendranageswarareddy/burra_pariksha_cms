@@ -284,8 +284,8 @@ class ApiClient {
     return this.request('/taxonomy/metrics');
   }
 
-  public async runPhase04Verification(): Promise<any> {
-    return this.request('/tests/phase04-verification', {
+  public async runTaxonomyVerification(): Promise<any> {
+    return this.request('/tests/taxonomy-verification', {
       method: 'POST',
     });
   }
@@ -576,7 +576,7 @@ class ApiClient {
       headers['Authorization'] = `Bearer ${this.sessionToken}`;
     }
 
-    const res = await fetch(`/api/phase17/video/${encodeURIComponent(videoId)}/edited`, {
+    const res = await fetch(`/api/videos/${encodeURIComponent(videoId)}/edited`, {
       method: 'POST',
       headers,
       body: formData,
@@ -597,7 +597,7 @@ class ApiClient {
     editedAssets: any[];
     finalAssets: any[];
   }> {
-    return this.request(`/phase17/video/${encodeURIComponent(videoId)}/history`);
+    return this.request(`/videos/${encodeURIComponent(videoId)}/production-history`);
   }
 
   public async completeFinalRender(id: string, remarks?: string): Promise<Video> {
@@ -1072,24 +1072,8 @@ class ApiClient {
     });
   }
 
-  public async runPhase4Verification(): Promise<{ success: boolean; totalTests: number; passedTests: number; results: any[] }> {
-    return this.request('/tests/phase4');
-  }
-
-  public async runPhase5Verification(): Promise<{ success: boolean; totalTests: number; passedTests: number; results: any[] }> {
-    return this.request('/tests/phase5');
-  }
-
-  public async runPhase6Verification(): Promise<{ success: boolean; totalTests: number; passedTests: number; results: any[] }> {
-    return this.request('/tests/phase6');
-  }
-
-  public async runPhase7Verification(): Promise<{ success: boolean; totalTests: number; passedTests: number; results: any[] }> {
-    return this.request('/tests/phase7');
-  }
-
-  public async runPhase8aVerification(): Promise<{ success: boolean; totalTests: number; passedTests: number; results: any[] }> {
-    return this.request('/tests/phase8a');
+  public async runDataIntegrityVerification(): Promise<{ success: boolean; totalTests: number; passedTests: number; results: any[] }> {
+    return this.request('/tests/data-integrity');
   }
 
   public async getOperationalHealth(): Promise<import('./services/operational-health.service').OperationalHealthReport> {
@@ -1359,20 +1343,16 @@ class ApiClient {
     }
   }
 
-  public async runPhase8bVerification(): Promise<{ success: boolean; totalTests: number; passedTests: number; results: any[] }> {
-    return this.request('/tests/phase8b');
+  public async runOperationalRecoveryVerification(): Promise<{ success: boolean; totalTests: number; passedTests: number; results: any[] }> {
+    return this.request('/tests/operational-recovery');
   }
 
-  public async runPhase9Verification(): Promise<{ success: boolean; totalTests: number; passedTests: number; results: any[] }> {
-    return this.request('/tests/phase9');
+  public async runPlanningVerification(): Promise<{ success: boolean; totalTests: number; passedTests: number; results: any[] }> {
+    return this.request('/tests/planning');
   }
 
-  public async runPhase10Verification(): Promise<{ success: boolean; totalTests: number; passedTests: number; results: any[] }> {
-    return this.request('/tests/phase10');
-  }
-
-  public async runPhase11bVerification(): Promise<{ success: boolean; totalTests: number; passedTests: number; results: any[] }> {
-    return this.request('/tests/phase11b');
+  public async runTeamOperationsVerification(): Promise<{ success: boolean; totalTests: number; passedTests: number; results: any[] }> {
+    return this.request('/tests/team-operations');
   }
 
   public async runTask3E1Verification(): Promise<{ success: boolean; totalTests: number; passedTests: number; results: any[] }> {

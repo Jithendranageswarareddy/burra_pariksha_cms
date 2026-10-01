@@ -68,14 +68,14 @@ export class CopilotAuthorizationError extends Error {
 export class CopilotService {
   private static instance: CopilotService | null = null;
   private readonly authService: ObjectAuthorizationService;
-  private readonly phase23Service: ProductionDashboardService;
+  private readonly productionDashboardService: ProductionDashboardService;
   
   // Persistent suggestion log representing saved advisory items
   private suggestionStore: Map<string, CopilotBaseSuggestion<any>> = new Map();
 
   private constructor() {
     this.authService = ObjectAuthorizationService.getInstance();
-    this.phase23Service = ProductionDashboardService.getInstance();
+    this.productionDashboardService = ProductionDashboardService.getInstance();
   }
 
   public static getInstance(): CopilotService {
@@ -238,8 +238,8 @@ export class CopilotService {
   public async recommendNextTask(actor: ActorContext): Promise<CopilotBaseSuggestion<NextTaskRecommendationData>> {
     this.checkAccess(actor);
 
-    // Fetch live system state from Phase 23 Production Service
-    const dbContext = await this.phase23Service.buildContext();
+    // Fetch live system state from Production Dashboard Service
+    const dbContext = await this.productionDashboardService.buildContext();
     
     // Evaluate deterministic items needing attention
     // Look for pending reviews, stale platform adaptations, or blocked assignments
@@ -1067,7 +1067,7 @@ Hook Style: ${hookStyle}`;
     this.checkAccess(actor);
 
     // Dynamic, purely deterministic scan of state repositories
-    const dbContext = await this.phase23Service.buildContext();
+    const dbContext = await this.productionDashboardService.buildContext();
 
     const bottlenecks: any[] = [];
     let urgentActionRequired = false;
@@ -1177,7 +1177,7 @@ Hook Style: ${hookStyle}`;
     this.checkAccess(actor);
 
     // Retrieve actual reviews for this specific content item
-    const dbContext = await this.phase23Service.buildContext();
+    const dbContext = await this.productionDashboardService.buildContext();
     const itemReviews = dbContext.allSocialReviews.filter(r => r.contentId === contentId || r.id === contentId);
 
     const prompt = `Summarize reviews for Content ID ${contentId}:
@@ -1237,5 +1237,3 @@ Highlight recurring flaws, strengths, and generate action items. Preserve refere
 }
 
 export const copilotService = CopilotService.getInstance();
-export const phase26CopilotService = copilotService;
-export type Phase26CopilotService = CopilotService;

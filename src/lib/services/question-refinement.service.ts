@@ -641,5 +641,3 @@ export class QuestionRefinementService {
 }
 
 export const questionRefinementService = QuestionRefinementService.getInstance();
-export const phase13RefinementService = questionRefinementService;
-export type Phase13RefinementService = QuestionRefinementService;

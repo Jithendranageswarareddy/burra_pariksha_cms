@@ -227,8 +227,10 @@ export const SocialReviewWorkspace: React.FC<SocialReviewWorkspaceProps> = ({
     reviewHistory,
   } = bundle;
 
-  const getStatusBadge = (status: SocialReviewStatus) => {
+  const getStatusBadge = (status?: SocialReviewStatus | string) => {
     switch (status) {
+      case 'PASS':
+      case SocialReviewStatus.PASS:
       case SocialReviewStatus.APPROVED:
         return (
           <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300">

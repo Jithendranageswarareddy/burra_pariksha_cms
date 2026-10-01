@@ -15,14 +15,14 @@
 
 import crypto from 'crypto';
 import {
-  Phase20SocialReviewStatus,
-  Phase20ReviewDecision,
-  Phase20PackageArtifactHashes,
-  Phase20PackageVersionLock,
-  Phase20CompleteContentPackage,
-  Phase20SocialReviewRecord,
-  Phase20ProductionReadinessResult,
-  Phase20SocialQualityGateReport,
+  SocialReviewStatus,
+  SocialReviewDecision,
+  PackageArtifactHashes,
+  PackageVersionLock,
+  CompleteContentPackage,
+  SocialReviewRecord,
+  ProductionReadinessResult,
+  SocialQualityGateReport,
   WorkflowActor,
   UserRole,
   VideoProductionStatus,
@@ -91,7 +91,7 @@ export class SocialQualityGateService {
     pinnedCommentPackage?: any;
     pinnedCommentVersionNumber?: number;
     metadata?: any;
-  }): Phase20PackageArtifactHashes {
+  }): PackageArtifactHashes {
     // 1. Question Hash
     const q = pkg.question || {};
     let optionsNormalized: Array<{ identifier: string; text: string }> = [];
@@ -236,7 +236,7 @@ export class SocialQualityGateService {
       metadata?: any;
       platformAdaptations?: any;
     }
-  ): Promise<Phase20CompleteContentPackage> {
+  ): Promise<CompleteContentPackage> {
     const canonicalIdRegex = /^BP-CNT-\d{6}$/;
     if (!contentId || !canonicalIdRegex.test(contentId)) {
       throw new ValidationError(`Invalid canonical Content ID format: "${contentId}". Must match BP-CNT-######.`);
@@ -393,7 +393,7 @@ export class SocialQualityGateService {
       metadata,
     });
 
-    const versionLock: Phase20PackageVersionLock = {
+    const versionLock: PackageVersionLock = {
       contentId,
       questionId: question.id,
       questionVersion: (question as any).version || 1,
@@ -437,7 +437,7 @@ export class SocialQualityGateService {
     actor: WorkflowActor,
     assignedReviewerId?: string,
     overrides?: any
-  ): Promise<Phase20SocialReviewRecord> {
+  ): Promise<SocialReviewRecord> {
     this.verifyRole(actor, ['ADMIN', 'CONTENT_MANAGER', 'REVIEWER', 'TOPIC_LEAD', 'SCRIPT_WRITER', 'VIDEO_EDITOR'], 'submit content package for social review');
 
     const pkg = await this.assemblePackage(contentId, overrides);
@@ -446,7 +446,7 @@ export class SocialQualityGateService {
     const now = new Date().toISOString();
     const recordId = `BP-SRV-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
-    const reviewRecord: Phase20SocialReviewRecord = {
+    const reviewRecord: SocialReviewRecord = {
       id: recordId,
       contentId,
       status: 'IN_REVIEW',
@@ -463,7 +463,7 @@ export class SocialQualityGateService {
       updatedAt: now,
     };
 
-    await socialReviewsRepository.createPhase20Record(reviewRecord);
+    await socialReviewsRepository.createSocialReviewRecord(reviewRecord);
 
     await auditService.log(
       actor.id,
@@ -482,20 +482,20 @@ export class SocialQualityGateService {
    */
   public async completeReview(params: {
     reviewId: string;
-    decision: Phase20ReviewDecision;
+    decision: SocialReviewDecision;
     reason?: string;
     feedbackCategories?: string[];
     actor: WorkflowActor;
-    expectedVersionLock?: Phase20PackageVersionLock;
+    expectedVersionLock?: PackageVersionLock;
     overrides?: any;
-  }): Promise<Phase20SocialReviewRecord> {
+  }): Promise<SocialReviewRecord> {
     const { reviewId, decision, reason, feedbackCategories, actor, expectedVersionLock, overrides } = params;
 
     // 1. RBAC check: only authorized reviewers can complete review
     this.verifyRole(actor, ['ADMIN', 'CONTENT_MANAGER', 'REVIEWER', 'TOPIC_LEAD'], 'complete social review decision');
 
     // 2. Fetch review record
-    const existingReview = await socialReviewsRepository.findPhase20ById(reviewId);
+    const existingReview = await socialReviewsRepository.findSocialReviewById(reviewId);
     if (!existingReview) {
       throw new ReferenceIntegrityError(`Social review record "${reviewId}" does not exist.`);
     }
@@ -516,7 +516,7 @@ export class SocialQualityGateService {
 
     // 5. Validate decision specific gates
     const now = new Date().toISOString();
-    let updatedRecord: Phase20SocialReviewRecord;
+    let updatedRecord: SocialReviewRecord;
 
     if (decision === 'PASS') {
       const report = SocialQualityGateValidator.validate(livePackage);
@@ -526,7 +526,7 @@ export class SocialQualityGateService {
         );
       }
 
-      updatedRecord = await socialReviewsRepository.updatePhase20Record(reviewId, {
+      updatedRecord = await socialReviewsRepository.updateSocialReviewRecord(reviewId, {
         status: 'PASS',
         decision: 'PASS',
         decisionReason: reason || 'Approved all quality gate and invariance checks.',
@@ -559,7 +559,7 @@ export class SocialQualityGateService {
         throw new ValidationError('A detailed reason containing at least 10 meaningful characters is required when requesting changes.');
       }
 
-      updatedRecord = await socialReviewsRepository.updatePhase20Record(reviewId, {
+      updatedRecord = await socialReviewsRepository.updateSocialReviewRecord(reviewId, {
         status: 'CHANGES_REQUIRED',
         decision: 'CHANGES_REQUIRED',
         decisionReason: reasonText,
@@ -586,7 +586,7 @@ export class SocialQualityGateService {
         throw new ValidationError('A detailed reason containing at least 10 meaningful characters is required when rejecting a package.');
       }
 
-      updatedRecord = await socialReviewsRepository.updatePhase20Record(reviewId, {
+      updatedRecord = await socialReviewsRepository.updateSocialReviewRecord(reviewId, {
         status: 'REJECTED',
         decision: 'REJECTED',
         decisionReason: reasonText,
@@ -619,7 +619,7 @@ export class SocialQualityGateService {
    * Human review remains authoritative. AI failure never corrupts production packages.
    */
   public async generateAiReviewRecommendation(contentId: string): Promise<{
-    recommendedDecision: Phase20ReviewDecision;
+    recommendedDecision: SocialReviewDecision;
     confidence: number;
     rationale: string;
     flaggedIssues: string[];
@@ -669,9 +669,9 @@ export class SocialQualityGateService {
   public async verifyProductionReadiness(
     contentId: string,
     overrides?: any
-  ): Promise<Phase20ProductionReadinessResult> {
+  ): Promise<ProductionReadinessResult> {
     const livePackage = await this.assemblePackage(contentId, overrides);
-    const latestReview = await socialReviewsRepository.getLatestPhase20ByContentId(contentId);
+    const latestReview = await socialReviewsRepository.getLatestSocialReviewByContentId(contentId);
 
     if (!latestReview) {
       return {
@@ -708,7 +708,7 @@ export class SocialQualityGateService {
 
     if (liveHash !== reviewedHash) {
       // Invalidate the stale review
-      const invalidatedRecord = await socialReviewsRepository.updatePhase20Record(latestReview.id, {
+      const invalidatedRecord = await socialReviewsRepository.updateSocialReviewRecord(latestReview.id, {
         isInvalidated: true,
         invalidatedReason: 'Artifact modification detected after social review approval',
         invalidatedAt: new Date().toISOString(),
@@ -757,7 +757,7 @@ export class SocialQualityGateService {
    * Invalidates existing PASS reviews for a content ID when an upstream artifact changes.
    */
   public async invalidateReviewIfArtifactsChanged(contentId: string, reason: string): Promise<boolean> {
-    const count = await socialReviewsRepository.invalidatePhase20ReviewsForContent(contentId, reason);
+    const count = await socialReviewsRepository.invalidateSocialReviewsForContent(contentId, reason);
     if (count > 0) {
       await auditService.log(
         'SYSTEM',
@@ -775,11 +775,9 @@ export class SocialQualityGateService {
   /**
    * Retrieves full review history for a Content ID.
    */
-  public async getReviewHistory(contentId: string): Promise<Phase20SocialReviewRecord[]> {
-    return socialReviewsRepository.findPhase20ByContentId(contentId);
+  public async getReviewHistory(contentId: string): Promise<SocialReviewRecord[]> {
+    return socialReviewsRepository.findSocialReviewByContentId(contentId);
   }
 }
 
 export const socialQualityGateService = SocialQualityGateService.getInstance();
-export const phase20SocialReviewService = socialQualityGateService;
-export type Phase20SocialReviewService = SocialQualityGateService;

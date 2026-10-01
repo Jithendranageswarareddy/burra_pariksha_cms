@@ -536,5 +536,3 @@ export class ContentWorkflowService {
 }
 
 export const contentWorkflowService = ContentWorkflowService.getInstance();
-export const phase12WorkflowService = contentWorkflowService;
-export type Phase12WorkflowService = ContentWorkflowService;

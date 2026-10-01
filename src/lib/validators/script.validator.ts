@@ -110,5 +110,3 @@ export class ScriptValidator {
 }
 
 // Backward-compatibility aliases
-export const Phase15ScriptValidator = ScriptValidator;
-export type Phase15ValidationReport = ScriptValidationReport;

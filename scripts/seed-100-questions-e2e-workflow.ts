@@ -29,7 +29,6 @@ import {
   publishingRepository,
   contentMastersRepository,
   socialReviewsRepository,
-  phase20SocialReviewsRepository,
   analyticsRepository,
 } from '../src/lib/repositories';
 
@@ -553,7 +552,6 @@ async function seed100QuestionsE2EWorkflow() {
         createdAt: questionRecord.createdAt,
         updatedAt: questionRecord.updatedAt,
       };
-      await phase20SocialReviewsRepository.create(socialReviewRecord as any);
       await upsertRecord(socialReviewsRepository, {
         id: revId,
         questionId,

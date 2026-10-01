@@ -5,14 +5,14 @@
 
 import crypto from 'crypto';
 import {
-  Phase25CandidateVerificationRequest,
-  Phase25ConsensusProvenance,
-  Phase25ConsensusStatus,
-  Phase25ReconciliationResult,
-  Phase25VerificationOptions,
-  Phase25VerificationResponse,
-  Phase25Verdict,
-  Phase25VerifierResult,
+  CandidateVerificationRequest,
+  ConsensusProvenance,
+  ConsensusStatus,
+  ReconciliationResult,
+  VerificationOptions,
+  VerificationResponse,
+  ConsensusVerdict,
+  VerifierResult,
 } from '../../types/consensus';
 import { QuestionCandidate } from '../ai/types';
 import { multiAIProviderRegistry } from '../ai/provider-registry';
@@ -28,7 +28,7 @@ export class AuthorizationError extends Error {
 
 export class ConsensusService {
   private static instance: ConsensusService | null = null;
-  private consensusStore: Map<string, Phase25ConsensusProvenance> = new Map();
+  private consensusStore: Map<string, ConsensusProvenance> = new Map();
 
   public static getInstance(): ConsensusService {
     if (!ConsensusService.instance) {
@@ -77,8 +77,8 @@ export class ConsensusService {
    * performs deterministic reconciliation, and records consensus provenance.
    */
   public async verifyCandidate(
-    request: Phase25CandidateVerificationRequest
-  ): Promise<Phase25VerificationResponse> {
+    request: CandidateVerificationRequest
+  ): Promise<VerificationResponse> {
     const { candidate, options } = request;
     const contentId = request.contentId || options?.contentId || 'BP-CNT-UNKNOWN';
     const version = request.version || options?.version || 1;
@@ -91,7 +91,7 @@ export class ConsensusService {
     // 2. Compute canonical candidate hash
     const candidateHash = this.computeCandidateHash(candidate);
 
-    // 3. Retrieve eligible verification providers from Phase 24 Registry
+    // 3. Retrieve eligible verification providers from Multi AI Provider Registry
     const minCoverage = options?.minVerifierCoverage ?? 2;
     let eligibleProviders = multiAIProviderRegistry.getEligibleProvidersForTask(
       'VERIFICATION',
@@ -105,12 +105,12 @@ export class ConsensusService {
     }
 
     // 4. Run verification on each independent provider
-    const verifierResults: Phase25VerifierResult[] = [];
+    const verifierResults: VerifierResult[] = [];
     
     if (eligibleProviders.length === 0) {
       // Zero provider scenario (e.g. ₹0 / no configured providers or all degraded)
       const reconciliation = this.reconcileVerifierResults([], minCoverage);
-      const provenance: Phase25ConsensusProvenance = {
+      const provenance: ConsensusProvenance = {
         consensusId: `BP-CNS-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
         contentId,
         candidateHash,
@@ -153,7 +153,7 @@ export class ConsensusService {
 
     // 6. Assemble Consensus Provenance Record
     const consensusId = `BP-CNS-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
-    const provenance: Phase25ConsensusProvenance = {
+    const provenance: ConsensusProvenance = {
       consensusId,
       contentId,
       candidateHash,
@@ -195,7 +195,7 @@ export class ConsensusService {
     providerAdapter: any,
     candidate: QuestionCandidate,
     timeoutMs: number
-  ): Promise<Phase25VerifierResult> {
+  ): Promise<VerifierResult> {
     const startTime = Date.now();
     const verifierId = `VRF-${providerAdapter.providerId.toUpperCase()}-${Math.floor(Math.random() * 1000)}`;
 
@@ -301,7 +301,7 @@ Respond ONLY in valid JSON matching this exact structure:
    * Safely parses JSON output from verifier response with fallback.
    */
   private parseVerifierJsonResponse(rawText: string): {
-    verdict: Phase25Verdict;
+    verdict: ConsensusVerdict;
     confidence: number;
     correctnessAssessment: boolean;
     identifiedIssues: string[];
@@ -319,7 +319,7 @@ Respond ONLY in valid JSON matching this exact structure:
 
       const obj = JSON.parse(cleanJson);
       const verdict = ['CORRECT', 'INCORRECT', 'AMBIGUOUS', 'UNCERTAIN'].includes(obj.verdict?.toUpperCase())
-        ? (obj.verdict.toUpperCase() as Phase25Verdict)
+        ? (obj.verdict.toUpperCase() as ConsensusVerdict)
         : 'UNCERTAIN';
 
       const confidence = typeof obj.confidence === 'number' && obj.confidence >= 0 && obj.confidence <= 1
@@ -346,7 +346,7 @@ Respond ONLY in valid JSON matching this exact structure:
     } catch (_e) {
       // Fallback heuristics if model outputs text
       const upper = rawText.toUpperCase();
-      let verdict: Phase25Verdict = 'UNCERTAIN';
+      let verdict: ConsensusVerdict = 'UNCERTAIN';
       if (upper.includes('INCORRECT') || upper.includes('WRONG') || upper.includes('ERROR')) {
         verdict = 'INCORRECT';
       } else if (upper.includes('AMBIGUOUS') || upper.includes('CONFUSING')) {
@@ -370,15 +370,15 @@ Respond ONLY in valid JSON matching this exact structure:
    * Classifies verifier results into VERIFIED, FAILED, or REVIEW status based on explicit rules.
    */
   public reconcileVerifierResults(
-    results: Phase25VerifierResult[],
+    results: VerifierResult[],
     minVerifierCoverage: number = 2
-  ): Phase25ReconciliationResult {
+  ): ReconciliationResult {
     const totalVerifiers = results.length;
     const successful = results.filter((r) => r.status === 'SUCCESS');
     const failedVerifiers = totalVerifiers - successful.length;
     const successfulVerifiersCount = successful.length;
 
-    const verdictBreakdown: Record<Phase25Verdict, number> = {
+    const verdictBreakdown: Record<ConsensusVerdict, number> = {
       CORRECT: 0,
       INCORRECT: 0,
       AMBIGUOUS: 0,
@@ -407,9 +407,9 @@ Respond ONLY in valid JSON matching this exact structure:
       (verdictBreakdown.INCORRECT > 0 || verdictBreakdown.AMBIGUOUS > 0 || verdictBreakdown.UNCERTAIN > 0);
 
     // Determine majority verdict
-    let majorityVerdict: Phase25Verdict | null = null;
+    let majorityVerdict: ConsensusVerdict | null = null;
     let maxVotes = 0;
-    (Object.keys(verdictBreakdown) as Phase25Verdict[]).forEach((v) => {
+    (Object.keys(verdictBreakdown) as ConsensusVerdict[]).forEach((v) => {
       if (verdictBreakdown[v] > maxVotes) {
         maxVotes = verdictBreakdown[v];
         majorityVerdict = v;
@@ -433,7 +433,7 @@ Respond ONLY in valid JSON matching this exact structure:
     const penalty = criticalIssuesFound.length * 0.15;
     const overallConfidence = Math.max(0, Math.min(1.0, (avgConfidence * agreementRatio) - penalty));
 
-    let consensusStatus: Phase25ConsensusStatus = 'REVIEW';
+    let consensusStatus: ConsensusStatus = 'REVIEW';
     const notes: string[] = [];
 
     // Deterministic Classification Rules
@@ -483,9 +483,9 @@ Respond ONLY in valid JSON matching this exact structure:
    * Lock verification to exact candidate hash. If mutated, returns isStale: true.
    */
   public validateConsensusIntegrity(
-    provenance: Phase25ConsensusProvenance,
+    provenance: ConsensusProvenance,
     currentCandidate: QuestionCandidate
-  ): { isStale: boolean; currentHash: string; status: Phase25ConsensusStatus; message: string } {
+  ): { isStale: boolean; currentHash: string; status: ConsensusStatus; message: string } {
     const currentHash = this.computeCandidateHash(currentCandidate);
     if (currentHash !== provenance.candidateHash) {
       return {
@@ -507,7 +507,7 @@ Respond ONLY in valid JSON matching this exact structure:
   /**
    * Retrieves stored consensus record by ID.
    */
-  public getConsensus(consensusId: string): Phase25ConsensusProvenance | undefined {
+  public getConsensus(consensusId: string): ConsensusProvenance | undefined {
     return this.consensusStore.get(consensusId);
   }
 
@@ -520,5 +520,3 @@ Respond ONLY in valid JSON matching this exact structure:
 }
 
 export const consensusService = ConsensusService.getInstance();
-export const phase25ConsensusService = consensusService;
-export type Phase25ConsensusService = ConsensusService;

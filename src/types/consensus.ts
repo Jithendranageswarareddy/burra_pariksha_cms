@@ -97,14 +97,3 @@ export interface VerificationResponse {
   message: string;
 }
 
-// Aliases for compatibility during transition
-export type Phase25Verdict = ConsensusVerdict;
-export type Phase25ConsensusStatus = ConsensusStatus;
-export type Phase25MathVerificationDetail = MathVerificationDetail;
-export type Phase25LanguageVerificationDetail = LanguageVerificationDetail;
-export type Phase25VerifierResult = VerifierResult;
-export type Phase25ReconciliationResult = ReconciliationResult;
-export type Phase25ConsensusProvenance = ConsensusProvenance;
-export type Phase25VerificationOptions = VerificationOptions;
-export type Phase25CandidateVerificationRequest = CandidateVerificationRequest;
-export type Phase25VerificationResponse = VerificationResponse;

@@ -63,7 +63,7 @@ export const QuestionWorkflowHeader: React.FC<QuestionWorkflowHeaderProps> = ({
             Question Lifecycle
           </Badge>
           <span className="text-xs text-slate-500 hidden md:inline">
-            Canonical Stage 01 &amp; Stage 02 Question Authoring &amp; Verification
+            Canonical Step 01 &amp; Step 02 Question Authoring &amp; Verification
           </span>
         </div>
 
@@ -81,7 +81,7 @@ export const QuestionWorkflowHeader: React.FC<QuestionWorkflowHeaderProps> = ({
         )}
       </div>
 
-      {/* Canonical Question Stages (01 & 02) */}
+      {/* Canonical Question Steps (01 & 02) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
         {QUESTION_STEPS.map((step) => {
           const isCurrent = step.stepNumber === currentStep;

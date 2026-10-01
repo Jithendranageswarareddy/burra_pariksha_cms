@@ -271,7 +271,7 @@ export const VideoEditPage: React.FC = () => {
       const updated = await apiClient.updateVideoStatus(
         targetId,
         VideoProductionStatus.FINAL_REVIEW,
-        `Stage advanced from Stage 05 Video Editing: ${editorNotes || 'Cut finalized'}`
+        `Step advanced from Step 05 Video Editing: ${editorNotes || 'Cut finalized'}`
       );
       setSelectedVideo(updated);
       setSuccessMessage('Production status transitioned to FINAL_REVIEW.');

@@ -718,5 +718,3 @@ export class PinnedCommentIntelligenceService {
 }
 
 export const pinnedCommentIntelligenceService = PinnedCommentIntelligenceService.getInstance();
-export const phase19PinnedCommentIntelligenceService = pinnedCommentIntelligenceService;
-export type Phase19PinnedCommentIntelligenceService = PinnedCommentIntelligenceService;

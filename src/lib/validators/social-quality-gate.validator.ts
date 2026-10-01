@@ -10,8 +10,8 @@
  */
 
 import {
-  Phase20CompleteContentPackage,
-  Phase20SocialQualityGateReport,
+  CompleteContentPackage,
+  SocialQualityGateReport,
   VideoProductionStatus,
 } from '../../types';
 import { ThumbnailSafetyValidator } from './thumbnail-safety.validator';
@@ -32,7 +32,7 @@ export class SocialQualityGateValidator {
   /**
    * Validates the complete content package against all Social Quality Gate rules.
    */
-  public static validate(pkg: Phase20CompleteContentPackage): Phase20SocialQualityGateReport {
+  public static validate(pkg: CompleteContentPackage): SocialQualityGateReport {
     const issues: string[] = [];
     const warnings: string[] = [];
     const checksPassed: string[] = [];
@@ -366,7 +366,3 @@ export class SocialQualityGateValidator {
     };
   }
 }
-
-// Backward-compatibility aliases
-export const Phase20SocialQualityGateValidator = SocialQualityGateValidator;
-export type SocialQualityGateReport = Phase20SocialQualityGateReport;

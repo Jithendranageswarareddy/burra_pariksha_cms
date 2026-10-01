@@ -764,5 +764,3 @@ function existingThumbnail(val: any): boolean {
 }
 
 export const thumbnailIntelligenceService = ThumbnailIntelligenceService.getInstance();
-export const phase18ThumbnailIntelligenceService = thumbnailIntelligenceService;
-export type Phase18ThumbnailIntelligenceService = ThumbnailIntelligenceService;

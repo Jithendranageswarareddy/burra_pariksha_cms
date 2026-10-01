@@ -2084,34 +2084,66 @@ export interface SocialQualityAssessmentPayload {
 }
 
 // ============================================================================
-// PHASE 8H: SOCIAL CONTENT REVIEW & HUMAN APPROVAL CONTRACTS
+// SOCIAL CONTENT REVIEW & HUMAN APPROVAL CONTRACTS
 // ============================================================================
 
 export enum SocialReviewStatus {
+  DRAFT = 'DRAFT',
   PENDING_REVIEW = 'PENDING_REVIEW',
+  IN_REVIEW = 'IN_REVIEW',
+  PASS = 'PASS',
   APPROVED = 'APPROVED',
   CHANGES_REQUESTED = 'CHANGES_REQUESTED',
+  CHANGES_REQUIRED = 'CHANGES_REQUIRED',
   REJECTED = 'REJECTED',
   STALE_REVISION_REQUIRED = 'STALE_REVISION_REQUIRED',
 }
 
+export type SocialReviewDecision = 'PASS' | 'APPROVED' | 'CHANGES_REQUIRED' | 'CHANGES_REQUESTED' | 'REJECTED';
+
 export interface SocialReviewRecord {
   id: string;
-  questionId: string;
+  questionId?: string;
   contentId?: string;
   contentMasterId?: string;
-  reviewedVersionHash: string;
-  reviewerId: string;
-  reviewerName: string;
-  reviewerRole: UserRole | string;
-  decision: SocialReviewStatus;
+  status?: SocialReviewStatus | string;
+  reviewedVersionHash?: string;
+  reviewerId?: string;
+  reviewerName?: string;
+  reviewerRole?: UserRole | string;
+  decision?: SocialReviewStatus | SocialReviewDecision | string;
   previousStatus?: SocialReviewStatus;
   reason?: string;
+  decisionReason?: string;
   feedbackCategories?: string[];
-  overallQualityScoreAtReview: number;
-  qualityStatusAtReview: SocialQualityStatus;
+  overallQualityScoreAtReview?: number;
+  qualityStatusAtReview?: SocialQualityStatus;
   isAdminOverride?: boolean;
-  reviewedAt: string;
+  reviewedAt?: string;
+  assignedReviewerId?: string;
+  reviewedBy?: string;
+  reviewedByName?: string;
+  reviewedByRole?: string;
+  versionLock?: PackageVersionLock;
+  validationSummary?: {
+    isValid: boolean;
+    issues: string[];
+    warnings: string[];
+    checksPassed: string[];
+  };
+  aiRecommendation?: {
+    recommendedDecision: SocialReviewDecision;
+    confidence: number;
+    rationale: string;
+    flaggedIssues: string[];
+    isAiGenerated: boolean;
+    modelUsed: string;
+  };
+  isInvalidated?: boolean;
+  invalidatedReason?: string;
+  invalidatedAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface SocialReviewPackageBundle {
@@ -2437,7 +2469,7 @@ export interface ApproveFinalVideoInput {
   mimeType?: string;
 }
 
-export interface Phase17VideoWorkflowStateResult {
+export interface VideoWorkflowStateResult {
   video: Video;
   currentWorkflowState: VideoProductionWorkflowState;
   latestMediaAsset?: MediaAsset;
@@ -2447,13 +2479,10 @@ export interface Phase17VideoWorkflowStateResult {
 }
 
 // ============================================================================
-// PHASE 20: SOCIAL REVIEW & QUALITY GATE TYPES
+// SOCIAL REVIEW & QUALITY GATE TYPES
 // ============================================================================
 
-export type Phase20SocialReviewStatus = 'DRAFT' | 'IN_REVIEW' | 'PASS' | 'CHANGES_REQUIRED' | 'REJECTED';
-export type Phase20ReviewDecision = 'PASS' | 'CHANGES_REQUIRED' | 'REJECTED';
-
-export interface Phase20PackageArtifactHashes {
+export interface PackageArtifactHashes {
   questionHash: string;
   scriptHash: string;
   videoHash: string;
@@ -2463,7 +2492,7 @@ export interface Phase20PackageArtifactHashes {
   packageOverallHash: string;
 }
 
-export interface Phase20PackageVersionLock {
+export interface PackageVersionLock {
   contentId: string;
   questionId: string;
   questionVersion: number;
@@ -2475,10 +2504,10 @@ export interface Phase20PackageVersionLock {
   thumbnailVersion: number;
   pinnedCommentPackageId: string;
   pinnedCommentVersion: number;
-  hashes: Phase20PackageArtifactHashes;
+  hashes: PackageArtifactHashes;
 }
 
-export interface Phase20CompleteContentPackage {
+export interface CompleteContentPackage {
   contentId: string;
   contentMaster: ContentMaster;
   question: Question;
@@ -2495,52 +2524,18 @@ export interface Phase20CompleteContentPackage {
   pinnedCommentVersionNumber: number;
   metadata: SocialMetadataPayload | Record<string, any>;
   platformAdaptations?: MultiPlatformAdaptationPayload;
-  versionLock: Phase20PackageVersionLock;
+  versionLock: PackageVersionLock;
 }
 
-export interface Phase20SocialReviewRecord {
-  id: string;
-  contentId: string;
-  status: Phase20SocialReviewStatus;
-  assignedReviewerId?: string;
-  reviewedBy?: string;
-  reviewedByName?: string;
-  reviewedByRole?: string;
-  reviewedAt?: string;
-  decision?: Phase20ReviewDecision;
-  decisionReason?: string;
-  feedbackCategories?: string[];
-  versionLock: Phase20PackageVersionLock;
-  validationSummary: {
-    isValid: boolean;
-    issues: string[];
-    warnings: string[];
-    checksPassed: string[];
-  };
-  aiRecommendation?: {
-    recommendedDecision: Phase20ReviewDecision;
-    confidence: number;
-    rationale: string;
-    flaggedIssues: string[];
-    isAiGenerated: boolean;
-    modelUsed: string;
-  };
-  isInvalidated: boolean;
-  invalidatedReason?: string;
-  invalidatedAt?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface Phase20ProductionReadinessResult {
+export interface ProductionReadinessResult {
   isProductionReady: boolean;
   contentId: string;
-  reviewRecord?: Phase20SocialReviewRecord;
+  reviewRecord?: SocialReviewRecord;
   issues: string[];
   hashesMatch: boolean;
 }
 
-export interface Phase20SocialQualityGateReport {
+export interface SocialQualityGateReport {
   isValid: boolean;
   contentId: string;
   issues: string[];
@@ -2786,7 +2781,7 @@ export interface AiAdaptationRecommendation {
  * PHASE 22: PUBLISHING HUB TYPES & INTERFACES
  */
 
-export type Phase22PublishingStatus =
+export type PublishingPlatformStatus =
   | 'NOT_READY'
   | 'READY_TO_PUBLISH'
   | 'PUBLISHING'
@@ -2898,11 +2893,11 @@ export interface PublisherPackage {
     adaptationStatus: PlatformAdaptationStatus;
     socialReviewStatus: SocialReviewStatus;
     publishingReadiness: 'READY_TO_PUBLISH' | 'NOT_READY';
-    publishingStatus: Phase22PublishingStatus;
+    publishingStatus: PublishingPlatformStatus;
   };
 }
 
-export interface Phase22PublishingRecord {
+export interface PublishingPlatformRecord {
   id: string; // e.g. BP-PUB-000001
   contentId: string;
   platform: PlatformType;
@@ -2916,7 +2911,7 @@ export interface Phase22PublishingRecord {
   thumbnailVersion: number;
   pinnedCommentPackageId?: string;
   pinnedCommentVersion?: number;
-  status: Phase22PublishingStatus;
+  status: PublishingPlatformStatus;
   publishedAt?: string;
   publishedBy?: string;
   publishedByName?: string;
@@ -2937,7 +2932,7 @@ export interface PublisherPackageSearchFilters {
   contentId?: string;
   platform?: PlatformType | string;
   readiness?: boolean | 'READY_TO_PUBLISH' | 'NOT_READY';
-  publishingStatus?: Phase22PublishingStatus | string;
+  publishingStatus?: PublishingPlatformStatus | string;
   adaptationStatus?: PlatformAdaptationStatus | string;
 }
 
@@ -2961,7 +2956,7 @@ export interface MarkPublishingFailedInput {
 // Phase 23: Production Search, Queues & Dashboard Data Models
 // ============================================================================
 
-export type Phase23QueueType =
+export type ProductionQueueType =
   | 'MY_WORK'
   | 'QUESTIONS'
   | 'SCRIPTS'
@@ -2969,7 +2964,7 @@ export type Phase23QueueType =
   | 'REVIEWS'
   | 'PUBLISHING';
 
-export interface Phase23SearchOptions {
+export interface ProductionSearchOptions {
   contentId?: string;
   search?: string;
   topicId?: string;
@@ -2987,7 +2982,7 @@ export interface Phase23SearchOptions {
   sortOrder?: 'asc' | 'desc';
 }
 
-export interface Phase23SearchResultItem {
+export interface ProductionSearchResultItem {
   contentId: string;
   masterId?: string;
   questionId?: string;
@@ -3019,16 +3014,16 @@ export interface Phase23SearchResultItem {
   createdAt: string;
 }
 
-export interface Phase23SearchResult {
+export interface ProductionSearchResult {
   totalCount: number;
   returnedCount: number;
   page: number;
   limit: number;
   totalPages: number;
-  items: Phase23SearchResultItem[];
+  items: ProductionSearchResultItem[];
 }
 
-export interface Phase23QueueItem {
+export interface ProductionQueueItem {
   id: string;
   contentId: string;
   type: 'QUESTION' | 'SCRIPT' | 'VIDEO' | 'REVIEW' | 'PUBLISHING';
@@ -3048,13 +3043,13 @@ export interface Phase23QueueItem {
   updatedAt: string;
 }
 
-export interface Phase23QueueResult {
-  queueType: Phase23QueueType;
+export interface ProductionQueueResult {
+  queueType: ProductionQueueType;
   totalCount: number;
-  items: Phase23QueueItem[];
+  items: ProductionQueueItem[];
 }
 
-export interface Phase23DashboardMetrics {
+export interface ProductionDashboardMetrics {
   totalActiveProductionItems: number;
   myAssignedWork: number;
   questionsNeedingAction: number;
@@ -3072,10 +3067,10 @@ export interface Phase23DashboardMetrics {
     unreadyPublishing: number;
     unassignedWork: number;
   };
-  recentlyUpdatedItems: Phase23SearchResultItem[];
+  recentlyUpdatedItems: ProductionSearchResultItem[];
 }
 
-export interface Phase23ContentIdDetails {
+export interface ProductionContentDetails {
   contentId: string;
   contentMaster?: any;
   question?: any;

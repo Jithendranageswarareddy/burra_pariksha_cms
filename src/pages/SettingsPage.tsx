@@ -166,14 +166,14 @@ export const SettingsPage: React.FC = () => {
   const handleRunVerificationSuite04 = async () => {
     setIsRunningTests04(true);
     try {
-      const res = await apiClient.runPhase04Verification();
+      const res = await apiClient.runTaxonomyVerification();
       setTestResults04(res);
       setNotification({
-        text: `Phase 04 Taxonomy Verification Suite finished: ${res.passedTests}/${res.totalTests} checks passed. Gate Status: ${res.gateStatus}.`,
+        text: `Taxonomy Verification Suite finished: ${res.passedTests}/${res.totalTests} checks passed. Gate Status: ${res.gateStatus}.`,
         type: res.gateStatus === 'PASS' ? 'success' : 'error',
       });
     } catch (err: any) {
-      setNotification({ text: `Phase 04 test run failed: ${err?.message || 'Error'}`, type: 'error' });
+      setNotification({ text: `Taxonomy test run failed: ${err?.message || 'Error'}`, type: 'error' });
     } finally {
       setIsRunningTests04(false);
     }
@@ -342,14 +342,14 @@ export const SettingsPage: React.FC = () => {
   const handleRunVerificationSuite8a = async () => {
     setIsRunningTests8a(true);
     try {
-      const res = await apiClient.runPhase8aVerification();
+      const res = await apiClient.runDataIntegrityVerification();
       setTestResults8a(res);
       setNotification({
-        text: `Phase 8A Verification Suite finished: ${res.passedTests}/${res.totalTests} tests passed.`,
+        text: `Data Integrity Verification Suite finished: ${res.passedTests}/${res.totalTests} tests passed.`,
         type: res.success ? 'success' : 'error',
       });
     } catch (err: any) {
-      setNotification({ text: `Phase 8A test run failed: ${err?.message || 'Error'}`, type: 'error' });
+      setNotification({ text: `Data integrity test run failed: ${err?.message || 'Error'}`, type: 'error' });
     } finally {
       setIsRunningTests8a(false);
     }
@@ -358,14 +358,14 @@ export const SettingsPage: React.FC = () => {
   const handleRunVerificationSuite8b = async () => {
     setIsRunningTests8b(true);
     try {
-      const res = await apiClient.runPhase8bVerification();
+      const res = await apiClient.runOperationalRecoveryVerification();
       setTestResults8b(res);
       setNotification({
-        text: `Phase 8B Verification Suite finished: ${res.passedTests}/${res.totalTests} tests passed.`,
+        text: `Operational Recovery Verification Suite finished: ${res.passedTests}/${res.totalTests} tests passed.`,
         type: res.success ? 'success' : 'error',
       });
     } catch (err: any) {
-      setNotification({ text: `Phase 8B test run failed: ${err?.message || 'Error'}`, type: 'error' });
+      setNotification({ text: `Operational recovery test run failed: ${err?.message || 'Error'}`, type: 'error' });
     } finally {
       setIsRunningTests8b(false);
     }
@@ -374,14 +374,14 @@ export const SettingsPage: React.FC = () => {
   const handleRunVerificationSuite9 = async () => {
     setIsRunningTests9(true);
     try {
-      const res = await apiClient.runPhase9Verification();
+      const res = await apiClient.runPlanningVerification();
       setTestResults9(res);
       setNotification({
-        text: `Phase 9 Content Planning Verification Suite finished: ${res.passedTests}/${res.totalTests} tests passed.`,
+        text: `Content Planning Verification Suite finished: ${res.passedTests}/${res.totalTests} tests passed.`,
         type: res.success ? 'success' : 'error',
       });
     } catch (err: any) {
-      setNotification({ text: `Phase 9 test run failed: ${err?.message || 'Error'}`, type: 'error' });
+      setNotification({ text: `Planning test run failed: ${err?.message || 'Error'}`, type: 'error' });
     } finally {
       setIsRunningTests9(false);
     }
@@ -390,14 +390,14 @@ export const SettingsPage: React.FC = () => {
   const handleRunVerificationSuite10 = async () => {
     setIsRunningTests10(true);
     try {
-      const res = await apiClient.runPhase10Verification();
+      const res = await apiClient.runTeamOperationsVerification();
       setTestResults10(res);
       setNotification({
-        text: `Phase 10 Team Operations Verification Suite finished: ${res.passedTests}/${res.totalTests} tests passed.`,
+        text: `Team Operations Verification Suite finished: ${res.passedTests}/${res.totalTests} tests passed.`,
         type: res.success ? 'success' : 'error',
       });
     } catch (err: any) {
-      setNotification({ text: `Phase 10 test run failed: ${err?.message || 'Error'}`, type: 'error' });
+      setNotification({ text: `Team operations test run failed: ${err?.message || 'Error'}`, type: 'error' });
     } finally {
       setIsRunningTests10(false);
     }
@@ -620,7 +620,7 @@ export const SettingsPage: React.FC = () => {
                   className="flex items-center gap-1.5 text-xs font-semibold"
                 >
                   <PlayCircle className={`w-4 h-4 ${isRunningTests8b ? 'animate-spin' : ''}`} />
-                  {isRunningTests8b ? 'Running Phase 8B...' : 'Run Phase 8B Suite'}
+                  {isRunningTests8b ? 'Running Operational Recovery...' : 'Run Recovery Suite'}
                 </Button>
                 <Button
                   variant="primary"
@@ -630,7 +630,7 @@ export const SettingsPage: React.FC = () => {
                   className="flex items-center gap-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700"
                 >
                   <PlayCircle className={`w-4 h-4 ${isRunningTests9 ? 'animate-spin' : ''}`} />
-                  {isRunningTests9 ? 'Running Phase 9...' : 'Run Phase 9 Verification'}
+                  {isRunningTests9 ? 'Running Planning Suite...' : 'Run Planning Verification'}
                 </Button>
               </div>
             </div>
@@ -1040,7 +1040,7 @@ export const SettingsPage: React.FC = () => {
                   className="flex items-center gap-1.5 text-xs font-semibold"
                 >
                   <PlayCircle className={`w-4 h-4 ${isRunningTests8a ? 'animate-spin' : ''}`} />
-                  {isRunningTests8a ? 'Running Verification...' : 'Run Phase 8A Test Suite'}
+                  {isRunningTests8a ? 'Running Verification...' : 'Run Data Integrity Suite'}
                 </Button>
               </div>
             </div>
@@ -1624,7 +1624,7 @@ export const SettingsPage: React.FC = () => {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-slate-200">
               <div>
                 <div className="flex items-center gap-2">
-                  <h3 className="text-base font-bold text-slate-900">Pure Topic / Subtopic Taxonomy (Phase 04)</h3>
+                  <h3 className="text-base font-bold text-slate-900">Pure Topic / Subtopic Taxonomy</h3>
                   <span className="text-[10px] font-mono px-2 py-0.5 rounded-full font-bold bg-amber-50 text-amber-700 border border-amber-200">
                     Target: 100 &times; 100 = 10,000
                   </span>
@@ -1642,7 +1642,7 @@ export const SettingsPage: React.FC = () => {
                   className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50"
                 >
                   <PlayCircle className={`w-3.5 h-3.5 ${isRunningTests04 ? 'animate-spin' : ''}`} />
-                  <span>{isRunningTests04 ? 'Running Phase 04 Checks...' : 'Run Phase 04 Test Suite'}</span>
+                  <span>{isRunningTests04 ? 'Running Taxonomy Checks...' : 'Run Taxonomy Test Suite'}</span>
                 </button>
 
                 <button
@@ -1738,12 +1738,12 @@ export const SettingsPage: React.FC = () => {
                 <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                 <div className="space-y-1">
                   <p className="font-semibold text-amber-950">
-                    Phase 04 Integrity Rule 3 &amp; 6 Strict Enforcement:
+                    Taxonomy Integrity Rule 3 &amp; 6 Strict Enforcement:
                   </p>
                   <p className="text-amber-800 text-[11px] leading-relaxed">
                     Production taxonomy contains exactly 100 approved Topics (BP-TOP-001 through BP-TOP-100) and exactly 100 approved Subtopics (under BP-TOP-001).
                     The remaining 9,900 Subtopics across Topics BP-TOP-002 through BP-TOP-100 do not yet exist in any authoritative source.
-                    In accordance with strict system rules, <strong>no synthetic or auto-filled records have been manufactured</strong>. The Phase 04 gate remains intentionally blocked on authoritative business data availability.
+                    In accordance with strict system rules, <strong>no synthetic or auto-filled records have been manufactured</strong>. The taxonomy gate remains intentionally blocked on authoritative business data availability.
                   </p>
                 </div>
               </div>
@@ -1755,7 +1755,7 @@ export const SettingsPage: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                    <span className="text-xs font-bold text-slate-900">Phase 04 Deterministic Verification Report</span>
+                    <span className="text-xs font-bold text-slate-900">Taxonomy Deterministic Verification Report</span>
                   </div>
                   <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full font-mono ${testResults04.gateStatus === 'PASS' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
                     {testResults04.passedTests}/{testResults04.totalTests} Unit Checks Passed &bull; Gate: {testResults04.gateStatus}
@@ -2471,7 +2471,7 @@ export const SettingsPage: React.FC = () => {
         {activeTab === 'ai' && (
           <div className="space-y-5">
             <div>
-              <h3 className="text-sm font-bold text-slate-900">Gemini AI Configuration (Phase 4 Hook)</h3>
+              <h3 className="text-sm font-bold text-slate-900">Gemini AI Configuration</h3>
               <p className="text-xs text-slate-500 mt-0.5">
                 Model selection and prompt parameters for aptitude question generation.
               </p>
@@ -2480,7 +2480,7 @@ export const SettingsPage: React.FC = () => {
             <div className="p-3.5 bg-indigo-50 border border-indigo-200 rounded-lg text-xs text-indigo-900 flex items-start gap-2.5">
               <Sparkles className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
               <p className="leading-relaxed">
-                Gemini API is integrated server-side via <code className="font-mono bg-indigo-100 px-1 py-0.5 rounded">@google/genai</code> SDK in Phase 4. API keys are kept securely server-side.
+                Gemini API is integrated server-side via <code className="font-mono bg-indigo-100 px-1 py-0.5 rounded">@google/genai</code> SDK. API keys are kept securely server-side.
               </p>
             </div>
           </div>
@@ -2492,14 +2492,14 @@ export const SettingsPage: React.FC = () => {
         {activeTab === 'drive' && (
           <div className="space-y-5">
             <div>
-              <h3 className="text-sm font-bold text-slate-900">Google Drive Media Store (Phase 3 Hook)</h3>
+              <h3 className="text-sm font-bold text-slate-900">Google Drive Media Store</h3>
               <p className="text-xs text-slate-500 mt-0.5">Cloud asset storage for vertical video footage and thumbnails.</p>
             </div>
 
             <div className="p-3.5 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-900 flex items-start gap-2.5">
               <HardDrive className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
               <p className="leading-relaxed">
-                Google Drive folder structures are integrated in Phase 3 for media file attachments.
+                Google Drive folder structures are integrated for media file attachments.
               </p>
             </div>
           </div>

@@ -5,12 +5,12 @@
 
 import { BaseRepository } from './base.repository';
 import { SHEET_SCHEMAS, SHEET_TABS } from '../schemas/google-sheets-schema';
-import { Publishing, Phase22PublishingRecord, PlatformType } from '../../types';
+import { Publishing, PublishingPlatformRecord, PlatformType } from '../../types';
 import { MOCK_PUBLISHING_RECORDS } from '../mock-data/publishing';
 
 export class PublishingRepository extends BaseRepository<Publishing> {
   private static instance: PublishingRepository | null = null;
-  private phase22Store = new Map<string, Phase22PublishingRecord>();
+  private publishingPlatformStore = new Map<string, PublishingPlatformRecord>();
   private idCounter = 1;
 
   private constructor() {
@@ -57,23 +57,23 @@ export class PublishingRepository extends BaseRepository<Publishing> {
     return `BP-PUB-${num.toString().padStart(6, '0')}`;
   }
 
-  public async savePhase22Record(record: Phase22PublishingRecord): Promise<Phase22PublishingRecord> {
+  public async savePublishingPlatformRecord(record: PublishingPlatformRecord): Promise<PublishingPlatformRecord> {
     const clone = JSON.parse(JSON.stringify(record));
-    this.phase22Store.set(clone.id, clone);
+    this.publishingPlatformStore.set(clone.id, clone);
     return JSON.parse(JSON.stringify(clone));
   }
 
-  public async findPhase22ById(id: string): Promise<Phase22PublishingRecord | null> {
-    const rec = this.phase22Store.get(id);
+  public async findPublishingPlatformById(id: string): Promise<PublishingPlatformRecord | null> {
+    const rec = this.publishingPlatformStore.get(id);
     return rec ? JSON.parse(JSON.stringify(rec)) : null;
   }
 
-  public async findPhase22ByContentIdAndPlatform(
+  public async findPublishingPlatformByContentIdAndPlatform(
     contentId: string,
     platform: PlatformType | string
-  ): Promise<Phase22PublishingRecord | null> {
+  ): Promise<PublishingPlatformRecord | null> {
     const normalizedPlatform = String(platform).toUpperCase();
-    for (const rec of this.phase22Store.values()) {
+    for (const rec of this.publishingPlatformStore.values()) {
       if (rec.contentId === contentId && String(rec.platform).toUpperCase() === normalizedPlatform) {
         return JSON.parse(JSON.stringify(rec));
       }
@@ -81,13 +81,13 @@ export class PublishingRepository extends BaseRepository<Publishing> {
     return null;
   }
 
-  public async findPhase22ByContentIdPlatformAndVersion(
+  public async findPublishingPlatformByContentIdPlatformAndVersion(
     contentId: string,
     platform: PlatformType | string,
     version: number
-  ): Promise<Phase22PublishingRecord | null> {
+  ): Promise<PublishingPlatformRecord | null> {
     const normalizedPlatform = String(platform).toUpperCase();
-    for (const rec of this.phase22Store.values()) {
+    for (const rec of this.publishingPlatformStore.values()) {
       if (
         rec.contentId === contentId &&
         String(rec.platform).toUpperCase() === normalizedPlatform &&
@@ -99,9 +99,9 @@ export class PublishingRepository extends BaseRepository<Publishing> {
     return null;
   }
 
-  public async findPhase22ByContentId(contentId: string): Promise<Phase22PublishingRecord[]> {
-    const results: Phase22PublishingRecord[] = [];
-    for (const rec of this.phase22Store.values()) {
+  public async findPublishingPlatformByContentId(contentId: string): Promise<PublishingPlatformRecord[]> {
+    const results: PublishingPlatformRecord[] = [];
+    for (const rec of this.publishingPlatformStore.values()) {
       if (rec.contentId === contentId) {
         results.push(JSON.parse(JSON.stringify(rec)));
       }
@@ -109,16 +109,16 @@ export class PublishingRepository extends BaseRepository<Publishing> {
     return results;
   }
 
-  public async findAllPhase22(): Promise<Phase22PublishingRecord[]> {
-    return Array.from(this.phase22Store.values()).map((r) => JSON.parse(JSON.stringify(r)));
+  public async findAllPublishingPlatforms(): Promise<PublishingPlatformRecord[]> {
+    return Array.from(this.publishingPlatformStore.values()).map((r) => JSON.parse(JSON.stringify(r)));
   }
 
-  public async searchPhase22(filters: {
+  public async searchPublishingPlatforms(filters: {
     contentId?: string;
     platform?: string;
     status?: string;
-  }): Promise<Phase22PublishingRecord[]> {
-    let list = Array.from(this.phase22Store.values());
+  }): Promise<PublishingPlatformRecord[]> {
+    let list = Array.from(this.publishingPlatformStore.values());
 
     if (filters.contentId) {
       list = list.filter((r) => r.contentId === filters.contentId);
@@ -134,12 +134,10 @@ export class PublishingRepository extends BaseRepository<Publishing> {
     return list.map((r) => JSON.parse(JSON.stringify(r)));
   }
 
-  public async clearPhase22Store(): Promise<void> {
-    this.phase22Store.clear();
+  public async clearPublishingPlatformStore(): Promise<void> {
+    this.publishingPlatformStore.clear();
   }
 }
 
 export const publishingRepository = PublishingRepository.getInstance();
-export const phase22PublishingRepository = publishingRepository;
-export type Phase22PublishingRepository = PublishingRepository;
 

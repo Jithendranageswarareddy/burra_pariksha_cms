@@ -36,9 +36,9 @@ import {
   workflowOrchestrationService,
   analyticsService,
   socialReviewService,
-  phase15ScriptProductionService,
-  phase17VideoProductionService,
-  phase18ThumbnailIntelligenceService,
+  scriptProductionService,
+  videoProductionService,
+  thumbnailIntelligenceService,
   driveSyncService,
 } from '../lib/services';
 import { questionDraftService } from '../lib/services/question-draft.service';
@@ -2083,28 +2083,28 @@ apiRouter.post('/videos/:videoId/script/return-to-editing', requireRole([UserRol
 });
 
 // ----------------------------------------------------
-// Phase 15: AI Script & Hook Production Endpoints
+// AI Script Production & Hook Endpoints
 // ----------------------------------------------------
 
-apiRouter.post('/phase15/script/generate', requireAuth, async (req: Request, res: Response) => {
+apiRouter.post(['/scripts/generate', '/phase15/script/generate'], requireAuth, async (req: Request, res: Response) => {
   try {
     const { questionId } = req.body || {};
     if (!questionId) {
       return res.status(400).json({ error: 'Missing questionId parameter' });
     }
     const actor = getRequestActor(req);
-    const result = await phase15ScriptProductionService.generateScriptForQuestion(questionId, actor);
+    const result = await scriptProductionService.generateScriptForQuestion(questionId, actor);
     res.status(200).json(result);
   } catch (err: any) {
     res.status(500).json({ error: err?.message || 'Failed to generate script candidate' });
   }
 });
 
-apiRouter.post('/phase15/script/:scriptId/edit', requireAuth, async (req: Request, res: Response) => {
+apiRouter.post(['/scripts/:scriptId/edit', '/phase15/script/:scriptId/edit'], requireAuth, async (req: Request, res: Response) => {
   try {
     const { scriptId } = req.params;
     const actor = getRequestActor(req);
-    const result = await phase15ScriptProductionService.editScriptCandidate(scriptId, req.body, actor);
+    const result = await scriptProductionService.editScriptCandidate(scriptId, req.body, actor);
     res.status(200).json(result);
   } catch (err: any) {
     res.status(400).json({ error: err?.message || 'Failed to edit script candidate' });
@@ -2112,9 +2112,9 @@ apiRouter.post('/phase15/script/:scriptId/edit', requireAuth, async (req: Reques
 });
 
 // ----------------------------------------------------
-// Script Production & Workflow Endpoints (Phase 16)
+// Script Production & Workflow Endpoints
 // ----------------------------------------------------
-apiRouter.post('/phase16/script/:scriptId/revert', requireAuth, async (req: Request, res: Response) => {
+apiRouter.post(['/scripts/:scriptId/revert', '/phase16/script/:scriptId/revert'], requireAuth, async (req: Request, res: Response) => {
   try {
     const { scriptId } = req.params;
     const { targetVersionNumber } = req.body || {};
@@ -2122,26 +2122,26 @@ apiRouter.post('/phase16/script/:scriptId/revert', requireAuth, async (req: Requ
       return res.status(400).json({ error: 'Valid targetVersionNumber is required.' });
     }
     const actor = getRequestActor(req);
-    const result = await phase15ScriptProductionService.revertScript(scriptId, targetVersionNumber, actor);
+    const result = await scriptProductionService.revertScript(scriptId, targetVersionNumber, actor);
     res.status(200).json(result);
   } catch (err: any) {
     res.status(400).json({ error: err?.message || 'Failed to revert script' });
   }
 });
 
-apiRouter.post('/phase16/script/:scriptId/submit-review', requireAuth, async (req: Request, res: Response) => {
+apiRouter.post(['/scripts/:scriptId/submit-review', '/phase16/script/:scriptId/submit-review'], requireAuth, async (req: Request, res: Response) => {
   try {
     const { scriptId } = req.params;
     const { reviewerId } = req.body || {};
     const actor = getRequestActor(req);
-    const result = await phase15ScriptProductionService.submitForReview(scriptId, reviewerId, actor);
+    const result = await scriptProductionService.submitForReview(scriptId, reviewerId, actor);
     res.status(200).json(result);
   } catch (err: any) {
     res.status(400).json({ error: err?.message || 'Failed to submit script for review' });
   }
 });
 
-apiRouter.post('/phase16/script/:scriptId/approve', requireAuth, async (req: Request, res: Response) => {
+apiRouter.post(['/scripts/:scriptId/approve', '/phase16/script/:scriptId/approve'], requireAuth, async (req: Request, res: Response) => {
   try {
     const { scriptId } = req.params;
     const { versionNumber, expectedContentId } = req.body || {};
@@ -2149,14 +2149,14 @@ apiRouter.post('/phase16/script/:scriptId/approve', requireAuth, async (req: Req
       return res.status(400).json({ error: 'versionNumber is required to approve script.' });
     }
     const actor = getRequestActor(req);
-    const result = await phase15ScriptProductionService.approveScript(scriptId, versionNumber, actor, expectedContentId);
+    const result = await scriptProductionService.approveScript(scriptId, versionNumber, actor, expectedContentId);
     res.status(200).json(result);
   } catch (err: any) {
     res.status(400).json({ error: err?.message || 'Failed to approve script' });
   }
 });
 
-apiRouter.post('/phase16/script/:scriptId/reject', requireAuth, async (req: Request, res: Response) => {
+apiRouter.post(['/scripts/:scriptId/reject', '/phase16/script/:scriptId/reject'], requireAuth, async (req: Request, res: Response) => {
   try {
     const { scriptId } = req.params;
     const { reason } = req.body || {};
@@ -2164,14 +2164,14 @@ apiRouter.post('/phase16/script/:scriptId/reject', requireAuth, async (req: Requ
       return res.status(400).json({ error: 'Rejection reason is required.' });
     }
     const actor = getRequestActor(req);
-    const result = await phase15ScriptProductionService.rejectScript(scriptId, reason, actor);
+    const result = await scriptProductionService.rejectScript(scriptId, reason, actor);
     res.status(200).json(result);
   } catch (err: any) {
     res.status(400).json({ error: err?.message || 'Failed to reject script' });
   }
 });
 
-apiRouter.get('/phase16/script/:scriptId/versions', requireAuth, async (req: Request, res: Response) => {
+apiRouter.get(['/scripts/:scriptId/versions', '/phase16/script/:scriptId/versions'], requireAuth, async (req: Request, res: Response) => {
   try {
     const { scriptId } = req.params;
     const versions = await scriptService.getScriptVersions(scriptId);
@@ -2249,7 +2249,7 @@ const handleRawVideoUploadRoute = async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'scriptId or valid videoId with associated script is required.' });
           }
 
-          const result = await phase17VideoProductionService.initializeRawVideo(
+          const result = await videoProductionService.initializeRawVideo(
             {
               scriptId: targetScriptId,
               expectedContentId: targetContentId,
@@ -2279,7 +2279,7 @@ const handleRawVideoUploadRoute = async (req: Request, res: Response) => {
     }
 
     const rawBinaryBuffer = Buffer.from(binaryBase64, 'base64');
-    const result = await phase17VideoProductionService.initializeRawVideo(
+    const result = await videoProductionService.initializeRawVideo(
       {
         scriptId: finalScriptId,
         expectedContentId: expectedContentId || targetContentId,
@@ -2295,16 +2295,16 @@ const handleRawVideoUploadRoute = async (req: Request, res: Response) => {
   }
 };
 
-apiRouter.post('/phase17/video/raw', requireAuth, handleRawVideoUploadRoute);
-apiRouter.post('/phase17/video/:videoId/raw', requireAuth, handleRawVideoUploadRoute);
+apiRouter.post(['/videos/raw', '/phase17/video/raw'], requireAuth, handleRawVideoUploadRoute);
+apiRouter.post(['/videos/:videoId/raw', '/phase17/video/:videoId/raw'], requireAuth, handleRawVideoUploadRoute);
 
-apiRouter.post('/phase17/video/:videoId/transition-editing', requireAuth, async (req: Request, res: Response) => {
+apiRouter.post(['/videos/:videoId/transition-editing', '/phase17/video/:videoId/transition-editing'], requireAuth, async (req: Request, res: Response) => {
   try {
     const { videoId } = req.params;
     const actor = getRequestActor(req);
     const { expectedContentId, assignedEditorId } = req.body || {};
 
-    const result = await phase17VideoProductionService.transitionToEditing(
+    const result = await videoProductionService.transitionToEditing(
       {
         videoId,
         expectedContentId,
@@ -2319,7 +2319,7 @@ apiRouter.post('/phase17/video/:videoId/transition-editing', requireAuth, async 
 });
 
 apiRouter.post(
-  '/phase17/video/:videoId/edited',
+  ['/videos/:videoId/edited', '/phase17/video/:videoId/edited'],
   requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.VIDEO_EDITOR, UserRole.EDITOR]),
   async (req: Request, res: Response) => {
     try {
@@ -2369,7 +2369,7 @@ apiRouter.post(
               return res.status(400).json({ error: 'No video file provided in multipart upload body.' });
             }
             const advanceStatus = advanceStatusStr !== 'false';
-            const result = await phase17VideoProductionService.uploadEditedVideo(
+            const result = await videoProductionService.uploadEditedVideo(
               {
                 videoId,
                 expectedContentId: expectedContentId || video.contentId,
@@ -2399,7 +2399,7 @@ apiRouter.post(
       }
 
       const editedBinaryBuffer = Buffer.from(binaryBase64, 'base64');
-      const result = await phase17VideoProductionService.uploadEditedVideo(
+      const result = await videoProductionService.uploadEditedVideo(
         {
           videoId,
           expectedContentId: expectedContentId || video.contentId,
@@ -2417,7 +2417,7 @@ apiRouter.post(
   }
 );
 
-apiRouter.post('/phase17/video/:videoId/approve-final', requireAuth, async (req: Request, res: Response) => {
+apiRouter.post(['/videos/:videoId/approve-final', '/phase17/video/:videoId/approve-final'], requireAuth, async (req: Request, res: Response) => {
   try {
     const { videoId } = req.params;
     const actor = getRequestActor(req);
@@ -2428,7 +2428,7 @@ apiRouter.post('/phase17/video/:videoId/approve-final', requireAuth, async (req:
       finalBinaryBuffer = Buffer.from(binaryBase64, 'base64');
     }
 
-    const result = await phase17VideoProductionService.approveFinalVideo(
+    const result = await videoProductionService.approveFinalVideo(
       {
         videoId,
         expectedContentId,
@@ -2444,10 +2444,10 @@ apiRouter.post('/phase17/video/:videoId/approve-final', requireAuth, async (req:
   }
 });
 
-apiRouter.get('/phase17/video/:videoId/history', requireAuth, async (req: Request, res: Response) => {
+apiRouter.get(['/videos/:videoId/production-history', '/phase17/video/:videoId/history'], requireAuth, async (req: Request, res: Response) => {
   try {
     const { videoId } = req.params;
-    const history = await phase17VideoProductionService.getVideoProductionHistory(videoId);
+    const history = await videoProductionService.getVideoProductionHistory(videoId);
     res.status(200).json(history);
   } catch (err: any) {
     res.status(500).json({ error: err?.message || 'Failed to fetch video production history' });
@@ -2458,14 +2458,14 @@ apiRouter.get('/phase17/video/:videoId/history', requireAuth, async (req: Reques
 // Phase 18 — AI Thumbnail Intelligence & Workflow Endpoints
 // ----------------------------------------------------
 
-apiRouter.post('/phase18/thumbnails/generate-concepts', requireAuth, async (req: Request, res: Response) => {
+apiRouter.post(['/thumbnails/generate-concepts', '/phase18/thumbnails/generate-concepts'], requireAuth, async (req: Request, res: Response) => {
   try {
     const actor = getRequestActor(req);
     const { contentId, numberOfVariants } = req.body;
     if (!contentId) {
       return res.status(400).json({ error: 'contentId is required' });
     }
-    const result = await phase18ThumbnailIntelligenceService.generateConceptsForContent(
+    const result = await thumbnailIntelligenceService.generateConceptsForContent(
       contentId,
       actor,
       { numberOfVariants: numberOfVariants ? Number(numberOfVariants) : undefined }
@@ -2476,40 +2476,40 @@ apiRouter.post('/phase18/thumbnails/generate-concepts', requireAuth, async (req:
   }
 });
 
-apiRouter.post('/phase18/thumbnails/manual-candidate', requireAuth, async (req: Request, res: Response) => {
+apiRouter.post(['/thumbnails/manual-candidate', '/phase18/thumbnails/manual-candidate'], requireAuth, async (req: Request, res: Response) => {
   try {
     const actor = getRequestActor(req);
-    const result = await phase18ThumbnailIntelligenceService.createCandidateManual(req.body, actor);
+    const result = await thumbnailIntelligenceService.createCandidateManual(req.body, actor);
     res.status(201).json(result);
   } catch (err: any) {
     res.status(400).json({ error: err?.message || 'Failed to create manual thumbnail candidate' });
   }
 });
 
-apiRouter.put('/phase18/thumbnails/candidates/:candidateId', requireAuth, async (req: Request, res: Response) => {
+apiRouter.put(['/thumbnails/candidates/:candidateId', '/phase18/thumbnails/candidates/:candidateId'], requireAuth, async (req: Request, res: Response) => {
   try {
     const { candidateId } = req.params;
     const actor = getRequestActor(req);
-    const result = await phase18ThumbnailIntelligenceService.updateCandidate(candidateId, req.body, actor);
+    const result = await thumbnailIntelligenceService.updateCandidate(candidateId, req.body, actor);
     res.status(200).json(result);
   } catch (err: any) {
     res.status(400).json({ error: err?.message || 'Failed to update thumbnail candidate' });
   }
 });
 
-apiRouter.post('/phase18/thumbnails/candidates/:candidateId/submit-review', requireAuth, async (req: Request, res: Response) => {
+apiRouter.post(['/thumbnails/candidates/:candidateId/submit-review', '/phase18/thumbnails/candidates/:candidateId/submit-review'], requireAuth, async (req: Request, res: Response) => {
   try {
     const { candidateId } = req.params;
     const actor = getRequestActor(req);
     const { reviewerId } = req.body || {};
-    const result = await phase18ThumbnailIntelligenceService.submitForReview(candidateId, actor, reviewerId);
+    const result = await thumbnailIntelligenceService.submitForReview(candidateId, actor, reviewerId);
     res.status(200).json(result);
   } catch (err: any) {
     res.status(400).json({ error: err?.message || 'Failed to submit candidate for review' });
   }
 });
 
-apiRouter.post('/phase18/thumbnails/candidates/:candidateId/approve', requireAuth, async (req: Request, res: Response) => {
+apiRouter.post(['/thumbnails/candidates/:candidateId/approve', '/phase18/thumbnails/candidates/:candidateId/approve'], requireAuth, async (req: Request, res: Response) => {
   try {
     const { candidateId } = req.params;
     const actor = getRequestActor(req);
@@ -2517,7 +2517,7 @@ apiRouter.post('/phase18/thumbnails/candidates/:candidateId/approve', requireAut
     if (!targetVersion) {
       return res.status(400).json({ error: 'targetVersion is required' });
     }
-    const result = await phase18ThumbnailIntelligenceService.approveCandidate(
+    const result = await thumbnailIntelligenceService.approveCandidate(
       candidateId,
       Number(targetVersion),
       actor,
@@ -2529,7 +2529,7 @@ apiRouter.post('/phase18/thumbnails/candidates/:candidateId/approve', requireAut
   }
 });
 
-apiRouter.post('/phase18/thumbnails/candidates/:candidateId/reject', requireAuth, async (req: Request, res: Response) => {
+apiRouter.post(['/thumbnails/candidates/:candidateId/reject', '/phase18/thumbnails/candidates/:candidateId/reject'], requireAuth, async (req: Request, res: Response) => {
   try {
     const { candidateId } = req.params;
     const actor = getRequestActor(req);
@@ -2537,14 +2537,14 @@ apiRouter.post('/phase18/thumbnails/candidates/:candidateId/reject', requireAuth
     if (!reason) {
       return res.status(400).json({ error: 'reason is required for rejection' });
     }
-    const result = await phase18ThumbnailIntelligenceService.rejectCandidate(candidateId, reason, actor);
+    const result = await thumbnailIntelligenceService.rejectCandidate(candidateId, reason, actor);
     res.status(200).json(result);
   } catch (err: any) {
     res.status(400).json({ error: err?.message || 'Failed to reject candidate' });
   }
 });
 
-apiRouter.post('/phase18/thumbnails/upload-binary', requireAuth, async (req: Request, res: Response) => {
+apiRouter.post(['/thumbnails/upload-binary', '/phase18/thumbnails/upload-binary'], requireAuth, async (req: Request, res: Response) => {
   try {
     const actor = getRequestActor(req);
     const { contentId, fileName, mimeType, base64Data, candidateId, designerNotes } = req.body;
@@ -2552,7 +2552,7 @@ apiRouter.post('/phase18/thumbnails/upload-binary', requireAuth, async (req: Req
       return res.status(400).json({ error: 'contentId, fileName, mimeType, and base64Data are required' });
     }
     const fileBuffer = Buffer.from(base64Data, 'base64');
-    const result = await phase18ThumbnailIntelligenceService.uploadThumbnailBinary(
+    const result = await thumbnailIntelligenceService.uploadThumbnailBinary(
       {
         contentId,
         fileName,
@@ -2569,27 +2569,27 @@ apiRouter.post('/phase18/thumbnails/upload-binary', requireAuth, async (req: Req
   }
 });
 
-apiRouter.get('/phase18/thumbnails/:contentId/candidates', requireAuth, async (req: Request, res: Response) => {
+apiRouter.get(['/thumbnails/:contentId/candidates', '/phase18/thumbnails/:contentId/candidates'], requireAuth, async (req: Request, res: Response) => {
   try {
     const { contentId } = req.params;
-    const candidates = await phase18ThumbnailIntelligenceService.getCandidatesForContent(contentId);
+    const candidates = await thumbnailIntelligenceService.getCandidatesForContent(contentId);
     res.status(200).json(candidates);
   } catch (err: any) {
     res.status(500).json({ error: err?.message || 'Failed to fetch candidates' });
   }
 });
 
-apiRouter.get('/phase18/thumbnails/:contentId/history', requireAuth, async (req: Request, res: Response) => {
+apiRouter.get(['/thumbnails/:contentId/history', '/phase18/thumbnails/:contentId/history'], requireAuth, async (req: Request, res: Response) => {
   try {
     const { contentId } = req.params;
-    const history = await phase18ThumbnailIntelligenceService.getProductionHistory(contentId);
+    const history = await thumbnailIntelligenceService.getProductionHistory(contentId);
     res.status(200).json(history);
   } catch (err: any) {
     res.status(500).json({ error: err?.message || 'Failed to fetch thumbnail production history' });
   }
 });
 
-apiRouter.post('/phase18/thumbnails/validate-safety', requireAuth, async (req: Request, res: Response) => {
+apiRouter.post(['/thumbnails/validate-safety', '/phase18/thumbnails/validate-safety'], requireAuth, async (req: Request, res: Response) => {
   try {
     const { hookHeadline, questionId } = req.body;
     if (!hookHeadline || !questionId) {

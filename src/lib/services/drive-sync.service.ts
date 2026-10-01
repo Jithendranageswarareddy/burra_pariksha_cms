@@ -253,5 +253,3 @@ export class DriveSyncService {
 }
 
 export const driveSyncService = DriveSyncService.getInstance();
-export const phase14DriveService = driveSyncService;
-export type Phase14DriveService = DriveSyncService;

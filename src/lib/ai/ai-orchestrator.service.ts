@@ -473,5 +473,3 @@ export class AIOrchestrationService {
 export const aiOrchestrator = new AIOrchestrationService();
 export const aiOrchestratorService = aiOrchestrator;
 export const aiOrchestrationService = aiOrchestrator;
-export const phase24AIOrchestrator = aiOrchestrator;
-export type Phase24AIOrchestrator = AIOrchestrationService;

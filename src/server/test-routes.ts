@@ -36,16 +36,6 @@ testRouter.all('/test/task4', async (req: Request, res: Response) => {
   }
 });
 
-testRouter.all('/test/phase5', async (req: Request, res: Response) => {
-  try {
-    const { runPhase05QuestionContractVerification } = await import('../tests/phase-5-question-model');
-    const report = await runPhase05QuestionContractVerification();
-    res.json(report);
-  } catch (err: any) {
-    res.status(500).json({ error: 'Phase 05 verification failed', message: err?.message || 'Unknown error' });
-  }
-});
-
 testRouter.get('/tests/task3f4', async (req: Request, res: Response) => {
   try {
     const { runTask3F4SnapshotVerification } = await import('../tests/task3f4-snapshot-exporter-verification');
@@ -53,16 +43,6 @@ testRouter.get('/tests/task3f4', async (req: Request, res: Response) => {
     res.json(result);
   } catch (err: any) {
     res.status(500).json({ success: false, error: err?.message || 'Task 3F.4 tests failed' });
-  }
-});
-
-testRouter.get('/tests/phase5', async (req: Request, res: Response) => {
-  try {
-    const { runPhase05QuestionContractVerification } = await import('../tests/phase-5-question-model');
-    const result = await runPhase05QuestionContractVerification();
-    res.json(result);
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message || 'Phase 05 tests failed' });
   }
 });
 
@@ -126,43 +106,43 @@ testRouter.get('/tests/task2', async (req: Request, res: Response) => {
   }
 });
 
-testRouter.get('/tests/phase8b', async (req: Request, res: Response) => {
+testRouter.get('/tests/operational-recovery', async (req: Request, res: Response) => {
   try {
-    const { runPhase8bVerification } = await import('../tests/phase8b-verification');
+    const { runPhase8bVerification } = await import('../tests/operational-recovery.integration.test');
     const result = await runPhase8bVerification();
     res.json({ success: true, ...result });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message || 'Phase 8b tests failed' });
+    res.status(500).json({ success: false, error: err?.message || 'Operational recovery tests failed' });
   }
 });
 
-testRouter.get('/tests/phase9', async (req: Request, res: Response) => {
+testRouter.get('/tests/planning', async (req: Request, res: Response) => {
   try {
-    const { runPhase9Verification } = await import('../tests/phase9-verification');
+    const { runPhase9Verification } = await import('../tests/multi-layer-verification.integration.test');
     const result = await runPhase9Verification();
     res.json({ success: true, ...result });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message || 'Phase 9 tests failed' });
+    res.status(500).json({ success: false, error: err?.message || 'Planning tests failed' });
   }
 });
 
-testRouter.get('/tests/phase10', async (req: Request, res: Response) => {
+testRouter.get('/tests/team-operations', async (req: Request, res: Response) => {
   try {
-    const { runPhase10Verification } = await import('../tests/phase10-verification');
+    const { runPhase10Verification } = await import('../tests/team-operations.integration.test');
     const result = await runPhase10Verification();
     res.json({ success: true, ...result });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message || 'Phase 10 tests failed' });
+    res.status(500).json({ success: false, error: err?.message || 'Team operations tests failed' });
   }
 });
 
-testRouter.get('/tests/phase11b', async (req: Request, res: Response) => {
+testRouter.get('/tests/team-auth', async (req: Request, res: Response) => {
   try {
-    const { runPhase11bAuthVerification } = await import('../tests/phase11b-auth-verification');
+    const { runPhase11bAuthVerification } = await import('../tests/team-auth.integration.test');
     const result = await runPhase11bAuthVerification();
     res.json({ success: true, ...result });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message || 'Phase 11b tests failed' });
+    res.status(500).json({ success: false, error: err?.message || 'Team auth tests failed' });
   }
 });
 
@@ -356,33 +336,13 @@ testRouter.get('/tests/task8h', async (req: Request, res: Response) => {
   }
 });
 
-testRouter.get('/tests/task8i', async (req: Request, res: Response) => {
+testRouter.get('/tests/security-qa', async (req: Request, res: Response) => {
   try {
-    const { runPhase8iSecurityVerification } = await import('../tests/phase8i-security-qa-verification');
+    const { runPhase8iSecurityVerification } = await import('../tests/security-qa.integration.test');
     const result = await runPhase8iSecurityVerification();
     res.json({ success: true, ...result });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message || 'Phase 8i tests failed' });
-  }
-});
-
-testRouter.get('/tests/phase9-workflow', async (req: Request, res: Response) => {
-  try {
-    const { runPhase9WorkflowVerification } = await import('../tests/phase9-content-workflow-verification');
-    const result = await runPhase9WorkflowVerification();
-    res.json({ success: true, ...result });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message || 'Phase 9 workflow tests failed' });
-  }
-});
-
-testRouter.get('/tests/phase13-step4', async (req: Request, res: Response) => {
-  try {
-    const { runPhase13Step4Tests } = await import('../tests/phase13-step4-publishing-assignments');
-    const result = await runPhase13Step4Tests();
-    res.json({ success: true, ...result });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message || 'Phase 13.4 tests failed' });
+    res.status(500).json({ success: false, error: err?.message || 'Security QA tests failed' });
   }
 });
 
@@ -396,83 +356,23 @@ testRouter.get('/tests/task3f55', async (req: Request, res: Response) => {
   }
 });
 
-testRouter.get('/tests/phase2', async (req: Request, res: Response) => {
+testRouter.all('/tests/taxonomy-verification', async (req: Request, res: Response) => {
   try {
-    const { runPhase2Verification } = await import('../tests/phase2-verification');
-    const result = await runPhase2Verification();
-    res.json({ success: true, ...result });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message || 'Phase 2 tests failed' });
-  }
-});
-
-testRouter.get('/tests/phase3', async (req: Request, res: Response) => {
-  try {
-    const { runPhase3Verification } = await import('../tests/phase3-verification');
-    const result = await runPhase3Verification();
-    res.json({ success: true, ...result });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message || 'Phase 3 tests failed' });
-  }
-});
-
-testRouter.get('/tests/phase4', async (req: Request, res: Response) => {
-  try {
-    const { runPhase4Verification } = await import('../tests/phase4-verification');
-    const result = await runPhase4Verification();
-    res.json({ success: true, ...result });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message || 'Phase 4 tests failed' });
-  }
-});
-
-testRouter.all('/tests/phase04-verification', async (req: Request, res: Response) => {
-  try {
-    const { runPhase04TaxonomyVerification } = await import('../tests/phase04-taxonomy-verification');
+    const { runPhase04TaxonomyVerification } = await import('../tests/taxonomy-verification.test');
     const result = await runPhase04TaxonomyVerification();
     res.json({ success: true, ...result });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message || 'Phase 04 taxonomy verification failed' });
+    res.status(500).json({ success: false, error: err?.message || 'Taxonomy verification failed' });
   }
 });
 
-testRouter.get('/tests/phase04-taxonomy', async (req: Request, res: Response) => {
+testRouter.get('/tests/data-integrity', async (req: Request, res: Response) => {
   try {
-    const { runPhase04TaxonomyVerification } = await import('../tests/phase04-taxonomy-verification');
-    const result = await runPhase04TaxonomyVerification();
-    res.json({ success: true, ...result });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message || 'Phase 04 taxonomy verification failed' });
-  }
-});
-
-testRouter.get('/tests/phase6', async (req: Request, res: Response) => {
-  try {
-    const { runPhase6Verification } = await import('../tests/phase6-verification');
-    const result = await runPhase6Verification();
-    res.json({ success: true, ...result });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message || 'Phase 6 tests failed' });
-  }
-});
-
-testRouter.get('/tests/phase7', async (req: Request, res: Response) => {
-  try {
-    const { runPhase7Verification } = await import('../tests/phase7-verification');
-    const result = await runPhase7Verification();
-    res.json({ success: true, ...result });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message || 'Phase 7 tests failed' });
-  }
-});
-
-testRouter.get('/tests/phase8a', async (req: Request, res: Response) => {
-  try {
-    const { runPhase8aVerification } = await import('../tests/phase8a-verification');
+    const { runPhase8aVerification } = await import('../tests/data-integrity.integration.test');
     const result = await runPhase8aVerification();
     res.json({ success: true, ...result });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message || 'Phase 8A tests failed' });
+    res.status(500).json({ success: false, error: err?.message || 'Data integrity tests failed' });
   }
 });
 
@@ -716,16 +616,6 @@ testRouter.get('/tests/task3f410f', async (req: Request, res: Response) => {
   }
 });
 
-testRouter.get('/tests/phase15-step6', async (req: Request, res: Response) => {
-  try {
-    const { runPhase15Step6Verification } = await import('../tests/phase15-step6-assignment-deduplication-verification');
-    const result = await runPhase15Step6Verification();
-    res.json(result);
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message });
-  }
-});
-
 testRouter.get('/tests/comment-intelligence', async (req: Request, res: Response) => {
   try {
     const { commentIntelligenceService } = await import('../lib/services/comment-intelligence.service');
@@ -739,16 +629,6 @@ testRouter.get('/tests/consensus', async (req: Request, res: Response) => {
   try {
     const { consensusService } = await import('../lib/services/consensus.service');
     res.json({ success: true, serviceActive: !!consensusService });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message });
-  }
-});
-
-testRouter.get('/tests/phase29', async (req: Request, res: Response) => {
-  try {
-    const { runPhase29Verification } = await import('../tests/phase29-controlled-strategy-integration-verification');
-    const result = await runPhase29Verification();
-    res.json(result);
   } catch (err: any) {
     res.status(500).json({ success: false, error: err?.message });
   }

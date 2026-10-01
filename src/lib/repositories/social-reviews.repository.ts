@@ -5,11 +5,11 @@
 
 import { BaseRepository } from './base.repository';
 import { SHEET_SCHEMAS, SHEET_TABS } from '../schemas/google-sheets-schema';
-import { SocialReviewRecord, Phase20SocialReviewRecord, SocialQualityStatus, SocialReviewStatus } from '../../types';
+import { SocialReviewRecord, SocialQualityStatus, SocialReviewStatus } from '../../types';
 
 export class SocialReviewsRepository extends BaseRepository<SocialReviewRecord> {
   private static instance: SocialReviewsRepository | null = null;
-  private phase20ReviewStore = new Map<string, Phase20SocialReviewRecord>();
+  private socialReviewStore = new Map<string, SocialReviewRecord>();
 
   private constructor() {
     super(SHEET_SCHEMAS[SHEET_TABS.SOCIAL_REVIEWS]);
@@ -44,8 +44,8 @@ export class SocialReviewsRepository extends BaseRepository<SocialReviewRecord> 
   }
 
   // Canonical Phase 20 Social Review record support integrated into canonical repo
-  public async createPhase20Record(record: Phase20SocialReviewRecord): Promise<Phase20SocialReviewRecord> {
-    this.phase20ReviewStore.set(record.id, { ...record });
+  public async createSocialReviewRecord(record: SocialReviewRecord): Promise<SocialReviewRecord> {
+    this.socialReviewStore.set(record.id, { ...record });
 
     let decisionEnum = SocialReviewStatus.PENDING_REVIEW;
     const rawStatus = String(record.status || record.decision || '').toUpperCase();
@@ -81,52 +81,52 @@ export class SocialReviewsRepository extends BaseRepository<SocialReviewRecord> 
     return { ...record };
   }
 
-  public async findPhase20ById(id: string): Promise<Phase20SocialReviewRecord | null> {
-    const found = this.phase20ReviewStore.get(id);
+  public async findSocialReviewById(id: string): Promise<SocialReviewRecord | null> {
+    const found = this.socialReviewStore.get(id);
     return found ? { ...found } : null;
   }
 
-  public async findPhase20ByContentId(contentId: string): Promise<Phase20SocialReviewRecord[]> {
-    return Array.from(this.phase20ReviewStore.values())
+  public async findSocialReviewByContentId(contentId: string): Promise<SocialReviewRecord[]> {
+    return Array.from(this.socialReviewStore.values())
       .filter((r) => r.contentId === contentId)
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .map((r) => ({ ...r }));
   }
 
-  public async getLatestPhase20ByContentId(contentId: string): Promise<Phase20SocialReviewRecord | null> {
-    const reviews = await this.findPhase20ByContentId(contentId);
+  public async getLatestSocialReviewByContentId(contentId: string): Promise<SocialReviewRecord | null> {
+    const reviews = await this.findSocialReviewByContentId(contentId);
     return reviews.length > 0 ? { ...reviews[0] } : null;
   }
 
-  public async getLatestByContentId(contentId: string): Promise<Phase20SocialReviewRecord | null> {
-    return this.getLatestPhase20ByContentId(contentId);
+  public async getLatestByContentId(contentId: string): Promise<SocialReviewRecord | null> {
+    return this.getLatestSocialReviewByContentId(contentId);
   }
 
-  public async updatePhase20Record(
+  public async updateSocialReviewRecord(
     id: string,
-    updates: Partial<Phase20SocialReviewRecord>
-  ): Promise<Phase20SocialReviewRecord> {
-    const existing = this.phase20ReviewStore.get(id);
+    updates: Partial<SocialReviewRecord>
+  ): Promise<SocialReviewRecord> {
+    const existing = this.socialReviewStore.get(id);
     if (!existing) {
       throw new Error(`Social review record with ID "${id}" does not exist.`);
     }
 
-    const updated: Phase20SocialReviewRecord = {
+    const updated: SocialReviewRecord = {
       ...existing,
       ...updates,
       updatedAt: new Date().toISOString(),
     };
 
-    this.phase20ReviewStore.set(id, updated);
+    this.socialReviewStore.set(id, updated);
     return { ...updated };
   }
 
-  public async invalidatePhase20ReviewsForContent(contentId: string, reason: string): Promise<number> {
+  public async invalidateSocialReviewsForContent(contentId: string, reason: string): Promise<number> {
     let count = 0;
     const now = new Date().toISOString();
-    for (const [id, record] of this.phase20ReviewStore.entries()) {
+    for (const [id, record] of this.socialReviewStore.entries()) {
       if (record.contentId === contentId && !record.isInvalidated && record.status === 'PASS') {
-        this.phase20ReviewStore.set(id, {
+        this.socialReviewStore.set(id, {
           ...record,
           isInvalidated: true,
           invalidatedReason: reason,
@@ -139,14 +139,12 @@ export class SocialReviewsRepository extends BaseRepository<SocialReviewRecord> 
     return count;
   }
 
-  public async clearPhase20Store(): Promise<void> {
-    this.phase20ReviewStore.clear();
+  public async clearSocialReviewStore(): Promise<void> {
+    this.socialReviewStore.clear();
   }
 }
 
 export const socialReviewsRepository = SocialReviewsRepository.getInstance();
-export const phase20SocialReviewsRepository = socialReviewsRepository;
-export type Phase20SocialReviewsRepository = SocialReviewsRepository;
 
 
 

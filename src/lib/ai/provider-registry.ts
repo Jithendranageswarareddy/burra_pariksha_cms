@@ -100,5 +100,3 @@ export class MultiAIProviderRegistry {
 }
 
 export const multiAIProviderRegistry = new MultiAIProviderRegistry();
-export const phase24ProviderRegistry = multiAIProviderRegistry;
-export type Phase24ProviderRegistry = MultiAIProviderRegistry;
