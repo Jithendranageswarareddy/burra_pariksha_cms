@@ -19,10 +19,10 @@ Product Owner Acceptance:
 NOT USED IN ROUTINE STAGE CLOSURE
 
 Version:
-1.0.0
+1.1.0 (Corrective Pass — Reconciled Architectural Decisions & Capability Consistency)
 
 Purpose:
-Defines the authoritative Role-Based Access Control (RBAC) and Capability Architecture for the Burra Pariksha Content Management System (BP-CMS). Formally transitions the platform from the brownfield "Role -> random page access" navigation paradigm to the canonical, zero-trust authorization pipeline: User -> Role -> Capabilities -> Resource -> Action -> Authorization Decision. Establishes the authoritative 28-resource taxonomy (tracing directly to Stage 06), canonical action vocabulary, granular capability definitions, brownfield 20-role disposition matrix, human-gated approval boundaries, segregation of duties (anti-self-approval), and deterministic server-side decision flow across all 20 architectural sections.
+Defines the authoritative Role-Based Access Control (RBAC) and Capability Architecture for the Burra Pariksha Content Management System (BP-CMS). Formally transitions the platform from the brownfield "Role -> random page access" navigation paradigm to the canonical, zero-trust authorization pipeline: User -> Role -> Capabilities -> Resource -> Action -> Authorization Decision. Establishes the authoritative 28-resource taxonomy (tracing directly to Stage 06), canonical action vocabulary, granular capability definitions (enforcing strict Capability = RESOURCE : ACTION syntax), brownfield 20-role disposition matrix, human-gated approval boundaries, segregation of duties (anti-self-approval), and deterministic server-side decision flow across all 21 architectural sections.
 
 ---
 
@@ -37,7 +37,7 @@ Defines the authoritative Role-Based Access Control (RBAC) and Capability Archit
 | **Status** | READY FOR GITHUB VERIFICATION | FACT |
 | **Preceding Verified Stages** | Stage 01 (`01-REQUIREMENTS-BASELINE.md` - 100% Accepted)<br>Stage 02 (`02-BUSINESS-ACCEPTANCE-CRITERIA.md` - 100% Accepted)<br>Stage 03 (`03-CURRENT-SYSTEM-BASELINE.md` - 100% Accepted & Closed)<br>Stage 04 (`04-ARCHITECTURE-PRINCIPLES.md` - 100% Accepted & Closed)<br>Stage 05 (`05-SYSTEM-BOUNDARY.md` - 100% Verified & Closed)<br>Stage 06 (`06-DOMAIN-MODEL.md` - 100% Verified & Closed)<br>Stage 07 (`07-CANONICAL-15-STEP-WORKFLOW.md` - 100% Verified & Closed)<br>Stage 08 (`08-STATE-MODEL.md` - 100% Verified & Closed) | FACT |
 | **Subsequent Stages** | Stage 10+ (Data Architecture, Target Schemas, Physical Storage Models, API Contracts, Authorization Middleware) | FACT |
-| **Baseline Repository Commit** | `26e445a0fbd68455fe63f9eb7d36148d277b9abb` | FACT |
+| **Baseline Repository Commit** | `548ff5d2c1adcbcb6ea82425856a59032169ec2f` | FACT |
 | **Architectural Scope** | Formally defines roles, capabilities, resources, actions, segregation-of-duties rules, and decision graphs without declaring physical database tables or implementing runtime middleware | FACT |
 
 ### Architectural Deferral Declaration
@@ -135,7 +135,7 @@ BP-CMS establishes a deterministic, six-stage authorization pipeline replacing t
 ┌──────────┐
 │   User   │ Authenticated subject with identity (USR-xxxxxx)
 └────┬─────┘
-     │ 1:N (possesses active role assignment)
+     │ 1:N (possesses role assignment)
      ▼
 ┌──────────┐
 │   Role   │ Functional organizational role (e.g. QA_REVIEWER, VIDEO_EDITOR)
@@ -173,26 +173,31 @@ BP-CMS establishes a deterministic, six-stage authorization pipeline replacing t
 
 ### 3.3 Role Assignment & Cardinality Rules
 
-#### Single Role vs Multiple Roles
-- **Baseline Evidence:** In the Stage 03 brownfield baseline (`src/types/index.ts`), `User` defined `role: UserRole` as a primary role string, with an optional secondary `roles?: (UserRole | string)[]` array.
-- **Authoritative Target Policy:**
-  * A `User` possesses exactly **one primary active role** per operational session.
-  * A `User` may be assigned **multiple eligible roles** in their identity profile (e.g., an operator who acts as both `Question Author` and `Video Scriptwriter`).
-  * When executing operations, permissions are evaluated against the user's **effective capability set**, formed by the union of capabilities granted by their active assigned roles.
-  * For segregation of duties (e.g., anti-self-approval), the user's individual identity (`actorUserId`), not their role, governs author/approver conflict.
+#### 1. Brownfield Baseline Evidence
+In the Stage 03 brownfield baseline:
+- `User` entity (`src/types/index.ts`, line 216–217) defines a primary role string `role: UserRole | string` along with an optional multi-role array `roles?: (UserRole | string)[]`.
+- `resolveCanonicalRole()` (`src/config/roles.ts`, lines 103–183) accepts a single raw role string or enum and resolves it to a single `CanonicalRole`.
+- Runtime navigation checks (`hasNavigationCapability`) operate on a single role string argument.
 
-#### Role Inheritance & Role Combinations
-- **Inheritance Stance:** **FLAT CAPABILITY GROUPING.** Role inheritance trees (e.g., Role A extends Role B extends Role C) are explicitly rejected to avoid hidden privilege escalation and opaque debugging. Roles map directly to flat lists of atomic capabilities.
-- **Administrative Superuser:** The `ADMIN` role is explicitly assigned all capabilities across all resources, but even `ADMIN` cannot bypass human-gating rules if executing as an automated script.
-- **Architectural Decision Deferred:** Hierarchical role delegation and dynamic context-dependent role activation (session role switching) are **ARCHITECTURAL DECISION DEFERRED** to Stage 10.
+#### 2. Target Architecture vs. Deferred Policy Decisions
+To avoid inventing unapproved policies while establishing a clean foundation, the role assignment architecture is partitioned as follows:
+
+| Policy Dimension | Status | Architectural Specification / Evidence |
+| :--- | :---: | :--- |
+| **Primary Identifier** | **TARGET ARCHITECTURE** | A user identity is represented by a unique canonical identifier (`USR-xxxxxx`). Authorization evaluates the actor's resolved capabilities. |
+| **Single Primary Role vs Multiple Roles** | **ARCHITECTURAL DECISION DEFERRED** | Brownfield supports both `role` and `roles?`. Whether the target system enforces strictly one role per user, multiple concurrent active roles, or session-scoped role selection is deferred to Stage 10 data modeling. |
+| **Capability Combination / Union** | **ARCHITECTURAL DECISION DEFERRED** | Whether a multi-role user exercises the full union of capabilities across all assigned roles or must explicitly switch operational context is deferred to Stage 10. |
+| **Role Inheritance Model** | **ARCHITECTURAL DECISION DEFERRED** | Whether roles use flat capability assignment or hierarchical inheritance (e.g. Senior Editor inheriting Editor) has not been decided in Stages 01–08 and is deferred to Stage 10. |
+| **Dynamic Role Activation / Delegation** | **ARCHITECTURAL DECISION DEFERRED** | Time-bounded role delegation or dynamic step-based capability elevation is deferred to future authorization design. |
+| **Anti-Self-Approval Identity Basis** | **TARGET ARCHITECTURE** | Segregation-of-duties rules (GAR-02) evaluate individual subject identity (`actorUserId`), completely independent of role or capability assignment. |
 
 ---
 
 ## 04. Resource Model
 
-The BP-CMS authorization resource taxonomy traces directly to the authoritative Stage 06 Domain Model (all 27 candidate entities + 1 operational configuration resource). No unauthorized entities are introduced.
+The BP-CMS authorization resource taxonomy traces directly to the authoritative Stage 06 Domain Model (all 27 candidate entities + 1 operational configuration resource). No unauthorized entities are introduced into the canonical taxonomy.
 
-### 4.1 Canonical Resource Taxonomy
+### 4.1 Canonical Resource Taxonomy (28 Resources)
 
 | # | Resource Key | Domain Owner | Stage 06 Entity Traced | Description & Scope |
 | :-: | :--- | :--- | :--- | :--- |
@@ -223,11 +228,14 @@ The BP-CMS authorization resource taxonomy traces directly to the authoritative 
 | **25** | `WORKFLOW_TRANSITION`| Workflow | `WorkflowTransition`| Immutable historical step advance/rework transition log |
 | **26** | `NOTIFICATION` | Operations | `Notification` | In-app operational alerts, task assignments, rework alerts |
 | **27** | `AUDIT_EVENT` | Governance | `AuditEvent` | Authoritative, append-only system audit ledger (AP-014) |
-| **28** | `CONFIGURATION` | Governance | Proposed Operational | Global system settings, taxonomies, prompts, platform keys |
+| **28** | `CONFIGURATION` | Governance | Operational / Proposed | Global system settings, taxonomies, prompts, platform keys |
 
 ### 4.2 Proposed Sub-Resources / Operational Resources (Deferred)
-- `QUALITY_CONTROL_REVIEW`: Documented in Stage 06 as a PROPOSED ADDITION for Stage 07 Final QC. For authorization in Stage 09, QC actions are evaluated under `VIDEO_EDIT:APPROVE` and `VIDEO_EDIT:REJECT`. Formalization of `QUALITY_CONTROL_REVIEW` as a standalone resource is **ARCHITECTURAL DECISION DEFERRED**.
-- `BATCH_OPERATION`: Bulk question generation or mass publishing actions are evaluated as sets of individual resource actions. Dedicated batch authorization is **ARCHITECTURAL DECISION DEFERRED**.
+The following candidate operational concepts exist in brownfield code or operational discussions but are **NOT** part of the canonical 28-resource taxonomy. They are formally documented as deferred:
+- `ASSIGNMENT` (PROPOSED / ARCHITECTURAL DECISION DEFERRED): Brownfield `AssignmentRole` / `AssignmentEntityType` in `types/index.ts`. In Stage 06, task delegation is an operational attribute of `Content` or `User`. Creating a distinct `ASSIGNMENT` resource is deferred to Stage 10.
+- `DATABASE` (NOT A CANONICAL RESOURCE): Database disaster recovery and backups operate on `CONFIGURATION` or physical infrastructure, not an application domain resource.
+- `QUALITY_CONTROL_REVIEW` (PROPOSED ADDITION IN STAGE 06 / ARCHITECTURAL DECISION DEFERRED): Final QC audit records are evaluated under `VIDEO_EDIT:APPROVE` and `VIDEO_EDIT:REJECT`. Standalone resource creation is deferred.
+- `BATCH_OPERATION` (PROPOSED / ARCHITECTURAL DECISION DEFERRED): Bulk operations are evaluated as sets of individual resource actions.
 
 ---
 
@@ -271,7 +279,10 @@ The authorization system defines ten primary actions and thirteen specialized op
 ================================================================================
 ```
 
-### 5.2 Critical Semantic Distinctions
+### 5.2 Non-Canonical / Proposed Verbs (Deferred)
+- `RECORD` (NON-CANONICAL / DEFERRED): Filming session activity in studio is modeled using canonical verbs: updating session status via `VIDEO:EDIT` and registering takes via `VIDEO_TAKE:CREATE`. An independent `RECORD` action is not part of the primary action vocabulary.
+
+### 5.3 Critical Semantic Distinctions
 Authorization bugs occur when distinct business verbs are conflated into a generic "WRITE" or "UPDATE" action. The following semantic boundaries are inviolable:
 
 1. **EDIT ≠ APPROVE:**
@@ -296,25 +307,32 @@ Authorization bugs occur when distinct business verbs are conflated into a gener
 
 ## 06. Capability Model
 
-### 6.1 Capability Definition & Syntax
-A **Capability** is an explicit, atomic authorization token formatted as:
+### 6.1 Capability Definition & Syntax Rule
+A **Capability** is an explicit, atomic authorization token formatted strictly as:
 
 $$	ext{Capability} = 	ext{RESOURCE} : 	ext{ACTION}$$
 
-Examples:
+Every valid capability must satisfy two strict criteria:
+1. **$	ext{RESOURCE}$** must exist in the authoritative Section 04 resource taxonomy (one of the 28 declared resources).
+2. **$	ext{ACTION}$** must exist in the authoritative Section 05 action vocabulary (one of the 23 declared actions).
+
+Any identifier failing either criterion (e.g. `VIDEO:RECORD`, `ASSIGNMENT:ASSIGN`, `DATABASE:RESTORE`) is non-canonical and prohibited in the authoritative model.
+
+### 6.2 Canonical Capability Examples
 - `QUESTION:VIEW` — Read access to questions and options.
 - `QUESTION:CREATE` — Permission to draft new questions.
 - `QUESTION:EDIT` — Permission to modify unapproved question drafts.
 - `QUESTION:APPROVE` — Authority to sign off on Stage 02 Question Verification (Human-Gated).
 - `QUESTION:REJECT` — Authority to reject a question at Stage 02 with defect feedback.
-- `VIDEO:RECORD` — Authority to log studio takes and update recording status.
-- `VIDEO_EDIT:EDIT` — Video editor authority to upload cuts and manage edit timelines.
+- `VIDEO:EDIT` — Video editor authority to update post-production parameters.
+- `VIDEO_TAKE:CREATE` — Authority to log studio camera takes.
+- `VIDEO_EDIT:CREATE` — Video editor authority to register a rendered cut.
 - `VIDEO_EDIT:APPROVE` — QC Lead authority to certify Stage 07 Final QC (Human-Gated).
-- `PUBLISHING_PACKAGE:APPROVE` — Publishing Lead sign-off on Stage 10 packaging.
+- `PUBLISHING_PACKAGE:APPROVE` — Publishing Lead sign-off on Stage 10 packaging (Human-Gated).
 - `PUBLICATION:PUBLISH` — Distribution authority to execute live dispatch (Stage 11).
 - `USER:ADMINISTER` — System Administrator permission to manage user credentials.
 
-### 6.2 Capability Lifecycle & Governance
+### 6.3 Capability Lifecycle & Governance
 - **Immutability:** Capabilities are platform constants. They are declared in architecture contracts and cannot be dynamically created or modified by runtime users.
 - **Uniqueness:** Every capability string is globally unique across BP-CMS.
 - **Ownership:** Capabilities are owned by the system architecture; roles are assigned bundles of capabilities.
@@ -324,17 +342,17 @@ Examples:
 
 ## 07. Role Model: Brownfield 20-Role Evaluation
 
-BP-CMS contains 20 distinct roles in its Stage 03 brownfield baseline (`UserRole` in `src/types/index.ts`). In accordance with strict governance instructions, these roles are not blindly deleted. Each role is rigorously evaluated below:
+BP-CMS contains 20 distinct roles in its Stage 03 brownfield baseline (`UserRole` in `src/types/index.ts`). In accordance with strict governance instructions, these roles are not blindly deleted. Each role is rigorously evaluated below using strictly canonical capability syntax:
 
 ### 7.1 Detailed Evaluation of the 20 Brownfield Roles
 
 #### 1. ADMIN
 - **Role Name:** `ADMIN` (System Administrator)
 - **Purpose:** Full platform administration, disaster recovery, configuration, role assignment, and audit oversight.
-- **Candidate Capabilities:** All capabilities across all 28 resources (`*:*`), including `USER:ADMINISTER`, `ROLE:ADMINISTER`, `CONFIGURATION:ADMINISTER`, `AUDIT_EVENT:VIEW`.
+- **Candidate Capabilities:** Canonical capabilities across domain resources, including `USER:ADMINISTER`, `ROLE:ADMINISTER`, `CAPABILITY:ADMINISTER`, `CONFIGURATION:ADMINISTER`, `AUDIT_EVENT:VIEW`, `CONTENT:ARCHIVE`, `MEDIA_ASSET:RESTORE`, `QUESTION:DELETE`.
 - **Resources Interacted With:** All 28 domain resources.
-- **Actions Permitted:** All actions (subject to anti-self-approval when acting as content author).
-- **Human-Gated Actions:** Can execute human-gated approvals when acting in a qualified human capacity.
+- **Actions Permitted:** VIEW, CREATE, EDIT, APPROVE, REJECT, ARCHIVE, RESTORE, DELETE, ADMINISTER.
+- **Human-Gated Actions:** Can execute human-gated approvals when acting in a qualified human capacity (subject to anti-self-approval).
 - **Administrative Actions:** Complete administrative control.
 - **Brownfield Evidence:** `UserRole.ADMIN`, `CanonicalRole.ADMIN` in `roles.ts`.
 - **Target Status:** **PRESERVE** (Core administrative role).
@@ -342,10 +360,10 @@ BP-CMS contains 20 distinct roles in its Stage 03 brownfield baseline (`UserRole
 #### 2. PUBLISHER
 - **Role Name:** `PUBLISHER` (Distribution Operator)
 - **Purpose:** Pre-publishing packaging setup, live dispatch execution, and channel URL verification.
-- **Candidate Capabilities:** `PUBLISHING_PACKAGE:VIEW`, `PUBLISHING_PACKAGE:EDIT`, `PUBLICATION:PUBLISH`, `PUBLICATION:SYNC`, `PLATFORM:VIEW`.
+- **Candidate Capabilities:** `PUBLISHING_PACKAGE:VIEW`, `PUBLISHING_PACKAGE:EDIT`, `PUBLICATION:SCHEDULE`, `PUBLICATION:PUBLISH`, `PUBLICATION:SYNC`, `PLATFORM:VIEW`.
 - **Resources Interacted With:** `PublishingPackage`, `Publication`, `Platform`, `Content`.
-- **Actions Permitted:** VIEW, EDIT, PUBLISH, SYNC.
-- **Human-Gated Actions:** Stage 10 Publishing Setup, Stage 11 Live Publication.
+- **Actions Permitted:** VIEW, EDIT, SCHEDULE, PUBLISH, SYNC.
+- **Human-Gated Actions:** Stage 10 Publishing Setup (when approved).
 - **Administrative Actions:** None.
 - **Brownfield Evidence:** `UserRole.PUBLISHER`, maps to `CanonicalRole.PUBLISHING_LEAD` in `roles.ts`.
 - **Target Status:** **CONSOLIDATE** with `PUBLISHING_MANAGER` into canonical `PUBLISHING_LEAD`.
@@ -353,10 +371,10 @@ BP-CMS contains 20 distinct roles in its Stage 03 brownfield baseline (`UserRole
 #### 3. CONTENT_MANAGER
 - **Role Name:** `CONTENT_MANAGER` (Content & Editorial Lead)
 - **Purpose:** End-to-end editorial pipeline oversight, curriculum planning, team assignments, and final operational sign-offs.
-- **Candidate Capabilities:** `CONTENT:VIEW`, `CONTENT:CREATE`, `CONTENT:EDIT`, `QUESTION:APPROVE`, `SCRIPT:APPROVE`, `WORKFLOW_INSTANCE:TRANSITION`, `ASSIGNMENT:ASSIGN`.
-- **Resources Interacted With:** `Content`, `Question`, `Script`, `Video`, `WorkflowInstance`.
-- **Actions Permitted:** VIEW, CREATE, EDIT, APPROVE, REJECT, ASSIGN, TRANSITION.
-- **Human-Gated Actions:** Stage 02, Stage 14, Stage 15 sign-offs.
+- **Candidate Capabilities:** `CONTENT:VIEW`, `CONTENT:CREATE`, `CONTENT:EDIT`, `QUESTION:APPROVE`, `VIDEO_EDIT:APPROVE`, `WORKFLOW_INSTANCE:TRANSITION`, `PERFORMANCE_RECORD:REVIEW`, `INTELLIGENCE_INSIGHT:APPROVE`.
+- **Resources Interacted With:** `Content`, `Question`, `Script`, `Video`, `WorkflowInstance`, `PerformanceRecord`, `IntelligenceInsight`.
+- **Actions Permitted:** VIEW, CREATE, EDIT, APPROVE, REJECT, TRANSITION, REVIEW.
+- **Human-Gated Actions:** Stage 07 Final QC, Stage 14 Performance Review, Stage 15 Intelligence Loop.
 - **Administrative Actions:** Operational team assignment and planning management.
 - **Brownfield Evidence:** `UserRole.CONTENT_MANAGER`, maps to `CanonicalRole.CONTENT_LEAD`.
 - **Target Status:** **PRESERVE** as canonical `CONTENT_LEAD`.
@@ -364,7 +382,7 @@ BP-CMS contains 20 distinct roles in its Stage 03 brownfield baseline (`UserRole
 #### 4. TOPIC_LEAD
 - **Role Name:** `TOPIC_LEAD` (Subject Curriculum Lead)
 - **Purpose:** Domain-specific curriculum topic oversight (e.g. Mathematics Lead, Science Lead).
-- **Candidate Capabilities:** `QUESTION:VIEW`, `QUESTION:CREATE`, `QUESTION:EDIT`, `QUESTION:APPROVE`, `QUESTION_REVIEW:VERIFY`.
+- **Candidate Capabilities:** `QUESTION:VIEW`, `QUESTION:CREATE`, `QUESTION:EDIT`, `QUESTION:APPROVE`, `QUESTION:REJECT`, `QUESTION_REVIEW:VERIFY`.
 - **Resources Interacted With:** `Question`, `QuestionVersion`, `QuestionReview`, `Content`.
 - **Actions Permitted:** VIEW, CREATE, EDIT, VERIFY, APPROVE, REJECT.
 - **Human-Gated Actions:** Stage 02 Question Verification.
@@ -408,10 +426,10 @@ BP-CMS contains 20 distinct roles in its Stage 03 brownfield baseline (`UserRole
 #### 8. STUDIO_PRESENTER
 - **Role Name:** `STUDIO_PRESENTER` (On-Camera Talent / Host)
 - **Purpose:** Delivering presentation in studio filming booth, operating teleprompter, submitting camera takes.
-- **Candidate Capabilities:** `SCRIPT:VIEW`, `VIDEO:VIEW`, `VIDEO:RECORD`, `VIDEO_TAKE:CREATE`, `VIDEO_TAKE:UPLOAD`.
-- **Resources Interacted With:** `Script`, `Video`, `VideoTake`.
-- **Actions Permitted:** VIEW, RECORD, UPLOAD.
-- **Human-Gated Actions:** Step 04 Filming session logging.
+- **Candidate Capabilities:** `SCRIPT:VIEW`, `VIDEO:VIEW`, `VIDEO:EDIT`, `VIDEO_TAKE:CREATE`, `MEDIA_REFERENCE:UPLOAD`.
+- **Resources Interacted With:** `Script`, `Video`, `VideoTake`, `MediaReference`.
+- **Actions Permitted:** VIEW, EDIT, CREATE, UPLOAD.
+- **Human-Gated Actions:** None.
 - **Administrative Actions:** None.
 - **Brownfield Evidence:** `UserRole.STUDIO_PRESENTER`, `CanonicalRole.PRESENTER`.
 - **Target Status:** **PRESERVE** as canonical `PRESENTER`.
@@ -463,10 +481,10 @@ BP-CMS contains 20 distinct roles in its Stage 03 brownfield baseline (`UserRole
 #### 13. PUBLISHING_MANAGER
 - **Role Name:** `PUBLISHING_MANAGER` (Release & Distribution Lead)
 - **Purpose:** Managing release calendar, approving social packaging, scheduling multi-platform releases, and monitoring sync.
-- **Candidate Capabilities:** `PUBLISHING_PACKAGE:VIEW`, `PUBLISHING_PACKAGE:EDIT`, `PUBLISHING_PACKAGE:APPROVE`, `PUBLICATION:SCHEDULE`, `PUBLICATION:PUBLISH`, `SOCIAL_REVIEW:APPROVE`.
+- **Candidate Capabilities:** `PUBLISHING_PACKAGE:VIEW`, `PUBLISHING_PACKAGE:EDIT`, `PUBLISHING_PACKAGE:APPROVE`, `PUBLICATION:SCHEDULE`, `PUBLICATION:PUBLISH`, `PUBLICATION:SYNC`, `SOCIAL_REVIEW:APPROVE`, `SOCIAL_REVIEW:REJECT`.
 - **Resources Interacted With:** `PublishingPackage`, `Publication`, `SocialReview`, `Platform`.
-- **Actions Permitted:** VIEW, EDIT, APPROVE, SCHEDULE, PUBLISH, SYNC.
-- **Human-Gated Actions:** Stage 09 Social Review, Stage 10 Publishing Setup, Stage 11 Live Publication.
+- **Actions Permitted:** VIEW, EDIT, APPROVE, REJECT, SCHEDULE, PUBLISH, SYNC.
+- **Human-Gated Actions:** Stage 09 Social Review, Stage 10 Publishing Setup.
 - **Administrative Actions:** Publishing schedule coordination.
 - **Brownfield Evidence:** `UserRole.PUBLISHING_MANAGER`, `CanonicalRole.PUBLISHING_LEAD`.
 - **Target Status:** **PRESERVE** as canonical `PUBLISHING_LEAD`.
@@ -476,7 +494,7 @@ BP-CMS contains 20 distinct roles in its Stage 03 brownfield baseline (`UserRole
 - **Purpose:** Managing pinned comments, student replies, comment challenges, and engagement feedback.
 - **Candidate Capabilities:** `PUBLICATION:VIEW`, `ANALYTICS_SNAPSHOT:VIEW`, `CONTENT:VIEW`, `NOTIFICATION:VIEW`.
 - **Resources Interacted With:** `Publication`, `AnalyticsSnapshot`, `Notification`.
-- **Actions Permitted:** VIEW, SYNC.
+- **Actions Permitted:** VIEW.
 - **Human-Gated Actions:** None.
 - **Administrative Actions:** None.
 - **Brownfield Evidence:** `UserRole.COMMUNITY_MANAGER` in `types/index.ts`.
@@ -531,7 +549,7 @@ BP-CMS contains 20 distinct roles in its Stage 03 brownfield baseline (`UserRole
 - **Purpose:** Legacy brownfield alias for `STUDIO_PRESENTER`.
 - **Candidate Capabilities:** Identical to `STUDIO_PRESENTER`.
 - **Resources Interacted With:** `Script`, `VideoTake`.
-- **Actions Permitted:** VIEW, RECORD.
+- **Actions Permitted:** VIEW, CREATE.
 - **Human-Gated Actions:** None.
 - **Administrative Actions:** None.
 - **Brownfield Evidence:** `UserRole.SPEAKER` in `types/index.ts`, mapped to `PRESENTER` in `roles.ts`.
@@ -561,7 +579,7 @@ BP-CMS contains 20 distinct roles in its Stage 03 brownfield baseline (`UserRole
 | `SCRIPT_WRITER` | `SCRIPTWRITER` | **PRESERVE** | Short-form presenter script authoring |
 | `STUDIO_PRESENTER` | `PRESENTER` | **PRESERVE** | Studio teleprompter and camera takes |
 | `VIDEO_EDITOR` | `VIDEO_EDITOR` | **PRESERVE** | Master cut video post-production |
-| `DESIGNER` | `DESIGNER` | **PRESERVE** | Cover artwork and graphic assets |
+| `DESIGNER` | `DESIGNER` | **PRESERVE** | Cover artwork and visual assets |
 | `ANALYTICS_VIEWER` | `ANALYST` | **PRESERVE** | Audience metrics and performance insights |
 | `TOPIC_LEAD` | `TOPIC_LEAD` | **MODIFY** | Scoped curriculum category review |
 | `TELUGU_TRANSLATOR` | `TELUGU_TRANSLATOR` | **MODIFY** | Specialized Telugu linguistic localization |
@@ -577,7 +595,7 @@ BP-CMS contains 20 distinct roles in its Stage 03 brownfield baseline (`UserRole
 
 ## 08. Role → Capability Matrix
 
-The following authoritative matrix binds functional roles to explicit capabilities, resources, actions, and human-gated boundaries:
+The following authoritative matrix binds functional roles to explicit capabilities, resources, actions, and human-gated boundaries. Every capability strictly follows the `RESOURCE:ACTION` syntax where `RESOURCE` is one of the 28 declared resources and `ACTION` is one of the declared canonical actions. Human gates correspond strictly to the 6 established human-gated workflow checkpoints (Stages 02, 07, 09, 10, 14, 15):
 
 | Canonical Role | Capability Identifier | Target Resource | Permitted Action | Human Gate? | Operational Notes & Constraints |
 | :--- | :--- | :--- | :--- | :---: | :--- |
@@ -590,41 +608,42 @@ The following authoritative matrix binds functional roles to explicit capabiliti
 | **QUESTION_EDITOR**| `QUESTION:EDIT` | `QUESTION` | `EDIT` | NO | Edit assigned question drafts |
 | **QUESTION_EDITOR**| `QUESTION:SUBMIT` | `QUESTION` | `SUBMIT` | NO | Re-submit refined question to review |
 | **QA_REVIEWER** | `QUESTION:VIEW` | `QUESTION` | `VIEW` | NO | Inspect question and mathematical proof |
-| **QA_REVIEWER** | `QUESTION_REVIEW:VERIFY`| `QUESTION_REVIEW` | `VERIFY` | **YES** | 10-point pedagogical audit (AP-009) |
-| **QA_REVIEWER** | `QUESTION:APPROVE` | `QUESTION` | `APPROVE` | **YES** | Stage 02 gate sign-off (Anti-self-approval enforced) |
-| **QA_REVIEWER** | `QUESTION:REJECT` | `QUESTION` | `REJECT` | **YES** | Reject with mandatory defect reasons |
+| **QA_REVIEWER** | `QUESTION_REVIEW:VERIFY`| `QUESTION_REVIEW` | `VERIFY` | **YES** | Stage 02 10-point pedagogical audit (AP-009) |
+| **QA_REVIEWER** | `QUESTION:APPROVE` | `QUESTION` | `APPROVE` | **YES** | Stage 02 sign-off (Anti-self-approval enforced) |
+| **QA_REVIEWER** | `QUESTION:REJECT` | `QUESTION` | `REJECT` | **YES** | Stage 02 reject with mandatory defect reasons |
 | **QA_REVIEWER** | `SOCIAL_REVIEW:REVIEW` | `SOCIAL_REVIEW` | `REVIEW` | NO | 9:16 mobile framing simulator audit |
-| **QA_REVIEWER** | `SOCIAL_REVIEW:APPROVE`| `SOCIAL_REVIEW` | `APPROVE` | **YES** | Stage 09 social sign-off |
-| **QA_REVIEWER** | `SOCIAL_REVIEW:REJECT` | `SOCIAL_REVIEW` | `REJECT` | **YES** | Reject packaging with defect codes |
+| **QA_REVIEWER** | `SOCIAL_REVIEW:APPROVE`| `SOCIAL_REVIEW` | `APPROVE` | **YES** | Stage 09 social sign-off (Human Gate) |
+| **QA_REVIEWER** | `SOCIAL_REVIEW:REJECT` | `SOCIAL_REVIEW` | `REJECT` | **YES** | Stage 09 reject packaging with defect codes |
 | **SCRIPTWRITER** | `SCRIPT:CREATE` | `SCRIPT` | `CREATE` | NO | Draft teleprompter script for approved question |
 | **SCRIPTWRITER** | `SCRIPT:EDIT` | `SCRIPT` | `EDIT` | NO | Edit unapproved script drafts |
 | **SCRIPTWRITER** | `SCRIPT:SUBMIT` | `SCRIPT` | `SUBMIT` | NO | Submit script for teleprompter readiness |
 | **SCRIPTWRITER** | `SCRIPT_VERSION:CREATE` | `SCRIPT_VERSION` | `CREATE` | NO | Create versioned script revision |
 | **PRESENTER** | `SCRIPT:VIEW` | `SCRIPT` | `VIEW` | NO | View teleprompter script in studio mode |
-| **PRESENTER** | `VIDEO:RECORD` | `VIDEO` | `RECORD` | NO | Activate studio filming session |
-| **PRESENTER** | `VIDEO_TAKE:CREATE` | `VIDEO_TAKE` | `CREATE` | NO | Log studio camera take |
-| **PRESENTER** | `VIDEO_TAKE:UPLOAD` | `VIDEO_TAKE` | `UPLOAD` | NO | Attach raw camera footage to Drive |
+| **PRESENTER** | `VIDEO:VIEW` | `VIDEO` | `VIEW` | NO | View filming queue and session details |
+| **PRESENTER** | `VIDEO:EDIT` | `VIDEO` | `EDIT` | NO | Update filming session status |
+| **PRESENTER** | `VIDEO_TAKE:CREATE` | `VIDEO_TAKE` | `CREATE` | NO | Log studio camera take metadata |
+| **PRESENTER** | `MEDIA_REFERENCE:UPLOAD`| `MEDIA_REFERENCE`| `UPLOAD` | NO | Attach raw camera footage to Drive |
 | **VIDEO_EDITOR** | `VIDEO:EDIT` | `VIDEO` | `EDIT` | NO | Update post-production edit status |
 | **VIDEO_EDITOR** | `VIDEO_EDIT:CREATE` | `VIDEO_EDIT` | `CREATE` | NO | Register new master cut render |
 | **VIDEO_EDITOR** | `VIDEO_EDIT:EDIT` | `VIDEO_EDIT` | `EDIT` | NO | Adjust edit cut parameters and subtitles |
 | **VIDEO_EDITOR** | `VIDEO_EDIT:SUBMIT` | `VIDEO_EDIT` | `SUBMIT` | NO | Submit cut to Stage 07 Final QC queue |
 | **VIDEO_EDITOR** | `MEDIA_REFERENCE:UPLOAD`| `MEDIA_REFERENCE`| `UPLOAD` | NO | Link master MP4 Drive URL |
-| **CONTENT_LEAD** | `VIDEO_EDIT:APPROVE` | `VIDEO_EDIT` | `APPROVE` | **YES** | Stage 07 Final QC certification |
+| **CONTENT_LEAD** | `VIDEO_EDIT:APPROVE` | `VIDEO_EDIT` | `APPROVE` | **YES** | Stage 07 Final QC certification (Human Gate) |
 | **CONTENT_LEAD** | `VIDEO_EDIT:REJECT` | `VIDEO_EDIT` | `REJECT` | **YES** | Stage 07 QC rejection with defect codes |
 | **CONTENT_LEAD** | `CONTENT:CREATE` | `CONTENT` | `CREATE` | NO | Initialize content project container |
-| **CONTENT_LEAD** | `ASSIGNMENT:ASSIGN` | `ASSIGNMENT` | `ASSIGN` | NO | Delegate tasks to creators/editors |
-| **CONTENT_LEAD** | `WORKFLOW_INSTANCE:TRANSITION`| `WORKFLOW_INSTANCE`| `TRANSITION`| **YES** | Advance/rework workflow (AP-001, AP-003) |
-| **CONTENT_LEAD** | `PERFORMANCE_RECORD:REVIEW`| `PERFORMANCE_RECORD`| `REVIEW` | **YES** | Stage 14 Performance Review sign-off |
-| **CONTENT_LEAD** | `INTELLIGENCE_INSIGHT:APPROVE`| `INTELLIGENCE_INSIGHT`| `APPROVE`| **YES** | Stage 15 Loopback to Question Studio |
+| **CONTENT_LEAD** | `CONTENT:EDIT` | `CONTENT` | `EDIT` | NO | Edit content project parameters and assignments |
+| **CONTENT_LEAD** | `WORKFLOW_INSTANCE:TRANSITION`| `WORKFLOW_INSTANCE`| `TRANSITION`| NO | Execute validated workflow transitions |
+| **CONTENT_LEAD** | `PERFORMANCE_RECORD:REVIEW`| `PERFORMANCE_RECORD`| `REVIEW` | **YES** | Stage 14 Performance Review sign-off (Human Gate)|
+| **CONTENT_LEAD** | `INTELLIGENCE_INSIGHT:APPROVE`| `INTELLIGENCE_INSIGHT`| `APPROVE`| **YES** | Stage 15 Loopback sign-off (Human Gate) |
 | **DESIGNER** | `THUMBNAIL:CREATE` | `THUMBNAIL` | `CREATE` | NO | Draft thumbnail design variant |
 | **DESIGNER** | `THUMBNAIL:EDIT` | `THUMBNAIL` | `EDIT` | NO | Refine typography, contrast, visual hooks |
 | **DESIGNER** | `THUMBNAIL:SUBMIT` | `THUMBNAIL` | `SUBMIT` | NO | Submit thumbnail to packaging review |
 | **DESIGNER** | `MEDIA_REFERENCE:UPLOAD`| `MEDIA_REFERENCE`| `UPLOAD` | NO | Upload high-res PNG to Google Drive |
 | **PUBLISHING_LEAD**| `PUBLISHING_PACKAGE:CREATE`| `PUBLISHING_PACKAGE`| `CREATE`| NO | Assemble multi-platform release staging |
 | **PUBLISHING_LEAD**| `PUBLISHING_PACKAGE:EDIT`| `PUBLISHING_PACKAGE`| `EDIT` | NO | Edit titles, tags, pinned comments |
-| **PUBLISHING_LEAD**| `PUBLISHING_PACKAGE:APPROVE`| `PUBLISHING_PACKAGE`| `APPROVE`| **YES** | Stage 10 Publishing Setup sign-off |
+| **PUBLISHING_LEAD**| `PUBLISHING_PACKAGE:APPROVE`| `PUBLISHING_PACKAGE`| `APPROVE`| **YES** | Stage 10 Publishing Setup sign-off (Human Gate)|
 | **PUBLISHING_LEAD**| `PUBLICATION:SCHEDULE`| `PUBLICATION` | `SCHEDULE` | NO | Set broadcast release schedule |
-| **PUBLISHING_LEAD**| `PUBLICATION:PUBLISH` | `PUBLICATION` | `PUBLISH` | **YES** | Stage 11 Live publication execution |
+| **PUBLISHING_LEAD**| `PUBLICATION:PUBLISH` | `PUBLICATION` | `PUBLISH` | NO | Execute live dispatch (Stage 11 live broadcast)|
 | **PUBLISHING_LEAD**| `PUBLICATION:SYNC` | `PUBLICATION` | `SYNC` | NO | Stage 12 Cross-platform sync verification |
 | **ANALYST** | `ANALYTICS_SNAPSHOT:VIEW`| `ANALYTICS_SNAPSHOT`| `VIEW` | NO | Inspect 24h/7d platform performance data |
 | **ANALYST** | `PERFORMANCE_RECORD:VIEW`| `PERFORMANCE_RECORD`| `VIEW` | NO | View retention curves and scorecards |
@@ -672,10 +691,10 @@ User interface routes, workspaces, and navigation affordances **consume capabili
 | **Question Studio** (`/studio`) | `QUESTION:VIEW` | `QUESTION:CREATE`<br>`QUESTION:EDIT`<br>`QUESTION:SUBMIT` | `QUESTION_AUTHOR`<br>`QUESTION_EDITOR` |
 | **Question Verification** (`/questions/:id/verify`) | `QUESTION_REVIEW:VERIFY` | `QUESTION:APPROVE`<br>`QUESTION:REJECT` | `QA_REVIEWER`<br>`CONTENT_LEAD` |
 | **Script Workbench** (`/videos/:id?tab=script`) | `SCRIPT:VIEW` | `SCRIPT:CREATE`<br>`SCRIPT:EDIT`<br>`SCRIPT:SUBMIT` | `SCRIPTWRITER` |
-| **Recording Studio** (`/queue`, `/videos/:id?tab=recording`) | `VIDEO:RECORD` | `VIDEO_TAKE:CREATE`<br>`VIDEO_TAKE:UPLOAD` | `PRESENTER`<br>`VIDEO_EDITOR` |
-| **Editing Bay** (`/production`, `/videos/:id?tab=editing`) | `VIDEO:EDIT` | `VIDEO_EDIT:CREATE`<br>`VIDEO_EDIT:EDIT`<br>`VIDEO_EDIT:SUBMIT` | `VIDEO_EDITOR` |
+| **Recording Studio** (`/queue`, `/videos/:id?tab=recording`) | `VIDEO:VIEW` | `VIDEO:EDIT`<br>`VIDEO_TAKE:CREATE`<br>`MEDIA_REFERENCE:UPLOAD` | `PRESENTER`<br>`VIDEO_EDITOR` |
+| **Editing Bay** (`/production`, `/videos/:id?tab=editing`) | `VIDEO:EDIT` | `VIDEO_EDIT:CREATE`<br>`VIDEO_EDIT:EDIT`<br>`VIDEO_EDIT:SUBMIT`<br>`MEDIA_REFERENCE:UPLOAD` | `VIDEO_EDITOR` |
 | **Final QC Workbench** (`/videos/:id?tab=final-review`) | `VIDEO_EDIT:APPROVE` | `VIDEO_EDIT:APPROVE`<br>`VIDEO_EDIT:REJECT` | `CONTENT_LEAD`<br>`QA_REVIEWER` |
-| **Thumbnail Studio** (`/videos/:id?tab=thumbnail`) | `THUMBNAIL:VIEW` | `THUMBNAIL:CREATE`<br>`THUMBNAIL:EDIT`<br>`THUMBNAIL:SUBMIT` | `DESIGNER` |
+| **Thumbnail Studio** (`/videos/:id?tab=thumbnail`) | `THUMBNAIL:VIEW` | `THUMBNAIL:CREATE`<br>`THUMBNAIL:EDIT`<br>`THUMBNAIL:SUBMIT`<br>`MEDIA_REFERENCE:UPLOAD` | `DESIGNER` |
 | **Social Review Workbench** (`/social-review`) | `SOCIAL_REVIEW:REVIEW` | `SOCIAL_REVIEW:APPROVE`<br>`SOCIAL_REVIEW:REJECT` | `QA_REVIEWER`<br>`PUBLISHING_LEAD` |
 | **Publishing Dashboard** (`/publishing`) | `PUBLISHING_PACKAGE:VIEW` | `PUBLISHING_PACKAGE:APPROVE`<br>`PUBLICATION:SCHEDULE`<br>`PUBLICATION:PUBLISH` | `PUBLISHING_LEAD` |
 | **Platform Sync Hub** (`/platform-packages`) | `PUBLICATION:SYNC` | `PUBLICATION:SYNC` | `PUBLISHING_LEAD` |
@@ -732,7 +751,8 @@ Every API endpoint protecting domain resources must execute the following server
 | `/api/questions/:id/approve` | `POST` | `QUESTION:APPROVE` | Verify 10/10 audit checklist; **Assert ActorID != AuthorID** | `QUESTION_APPROVED` |
 | `/api/questions/:id/reject` | `POST` | `QUESTION:REJECT` | Verify mandatory defect feedback string | `QUESTION_REJECTED` |
 | `/api/scripts/:id` | `PUT` | `SCRIPT:EDIT` | Assert script is unapproved; teleprompter word-count check | `SCRIPT_EDITED` |
-| `/api/videos/:id/record` | `POST` | `VIDEO:RECORD` | Assert script is `SCRIPT_READY`; studio session logging | `VIDEO_RECORDED` |
+| `/api/videos/:id/record` | `POST` | `VIDEO:EDIT` | Assert script is `SCRIPT_READY`; studio session logging | `VIDEO_RECORDED` |
+| `/api/videos/:id/takes` | `POST` | `VIDEO_TAKE:CREATE` | Assert video is in `RECORDING`; take metadata stored | `VIDEO_TAKE_LOGGED` |
 | `/api/videos/:id/cuts` | `POST` | `VIDEO_EDIT:CREATE` | Assert video is in `EDITING`; media locator provided | `VIDEO_CUT_CREATED` |
 | `/api/videos/:id/qc/approve` | `POST` | `VIDEO_EDIT:APPROVE` | Verify 6-point Master QC checklist; assert final cut exists | `QC_APPROVED` |
 | `/api/videos/:id/qc/reject` | `POST` | `VIDEO_EDIT:REJECT` | Verify recorded QC failure defect codes | `QC_REJECTED` |
@@ -756,7 +776,7 @@ $$	ext{Permitted Operation} = 	ext{Authoritative Capability} \land 	ext{Business
 3. **Result:** Operation is **REJECTED** with `FORBIDDEN_BY_BUSINESS_RULE`. Capability authorization succeeded, but domain preconditions failed.
 
 ### 11.2 The AI Human-Gating Axiom (AP-009)
-The Burra Pariksha media manufacturing process enforces mandatory human sign-off at six critical architectural boundaries:
+The Burra Pariksha media manufacturing process enforces mandatory human sign-off at six critical architectural boundaries established in Stage 04, Stage 07, and Stage 08:
 - **Stage 02:** Question Verification (10-point pedagogical audit)
 - **Stage 07:** Final QC (6-point master technical & audio check)
 - **Stage 09:** Social Review (9:16 mobile framing and simulator audit)
@@ -821,7 +841,7 @@ Administrative capabilities grant privileged platform management rights. They ar
 | `CONFIGURATION:ADMINISTER`| `CONFIGURATION` | Update platform API keys, LLM prompts, taxonomies | **CRITICAL** | `ADMIN` |
 | `AUDIT_EVENT:VIEW` | `AUDIT_EVENT` | Read-only access to immutable forensic ledger | **ELEVATED** | `ADMIN` |
 | `MEDIA_ASSET:RESTORE` | `MEDIA_ASSET` | Rehydrate archived media from cold cloud storage | **ELEVATED** | `ADMIN` |
-| `DATABASE:RESTORE` | `CONFIGURATION` | Trigger disaster recovery point-in-time snapshot restore | **CRITICAL** | `ADMIN` |
+| `CONFIGURATION:RESTORE` | `CONFIGURATION` | Restore system configurations from backup snapshot | **CRITICAL** | `ADMIN` |
 
 Production content roles (`QUESTION_AUTHOR`, `SCRIPTWRITER`, `VIDEO_EDITOR`, `DESIGNER`, `PUBLISHING_LEAD`, `ANALYST`) shall **NEVER** receive administrative capabilities.
 
@@ -998,6 +1018,7 @@ To maintain strict compliance with SDLC stage boundaries, the following implemen
 6. **UI Capability Hooks:** React context providers, `useCapability()` hooks, and UI button-disabling directives are deferred to Stage 10+.
 7. **Role Administration Interface:** User management UI screens and role assignment panels are deferred to Stage 10+.
 8. **Production Role Data Migration:** Running scripts to migrate legacy user accounts in Google Sheets or PostgreSQL is deferred to Stage 10+.
+9. **Role Policy Details:** Dynamic role activation, session role switching, multi-role capability union vs primary active role, and hierarchical role inheritance are deferred to Stage 10.
 
 ---
 
@@ -1005,16 +1026,18 @@ To maintain strict compliance with SDLC stage boundaries, the following implemen
 
 The following checklist establishes the deterministic verification requirements for Stage 09:
 
-- [x] Authoritative document `docs/architecture/09-RBAC-CAPABILITY-MATRIX.md` created.
+- [x] Authoritative document `docs/architecture/09-RBAC-CAPABILITY-MATRIX.md` created and corrected.
 - [x] Canonical authorization model established: User -> Role -> Capability -> Resource -> Action -> Authorization Decision.
 - [x] Resource taxonomy rigorously accounts for all Stage 06 domain entities (28 resources total).
 - [x] Canonical action vocabulary established (10 primary actions + 13 specialized operational actions).
-- [x] Crucial semantic distinctions defined (EDIT ≠ APPROVE, APPROVE ≠ PUBLISH, ARCHIVE ≠ DELETE, RESTORE ≠ EDIT).
+- [x] Strict capability syntax enforced: Capability = RESOURCE : ACTION across all sections.
+- [x] Inconsistent capabilities removed/deferred (e.g. `VIDEO:RECORD`, `ASSIGNMENT:ASSIGN`, `DATABASE:RESTORE`).
 - [x] All 20 brownfield roles cataloged, analyzed, and assigned formal architectural dispositions.
-- [x] Full Role -> Capability Matrix established across all domains.
+- [x] Undecided role policies (single vs multi-role union, role inheritance, session switching) explicitly marked as ARCHITECTURAL DECISION DEFERRED.
+- [x] Full Role -> Capability Matrix established using strictly valid resources, actions, and human-gate indicators.
 - [x] Capability -> Page/Workspace mapping defined with explicit non-authoritative UI declaration.
 - [x] Capability -> API conceptual mapping defined with server-side validation pipeline.
-- [x] Human-gated authorization boundaries protected (AP-009) for Stages 02, 07, 09, 10, 14, 15.
+- [x] Human-gated authorization boundaries protected (AP-009) strictly for Stages 02, 07, 09, 10, 14, 15.
 - [x] Segregation of duties & anti-self-approval (GAR-02, NEG-01) formally integrated into authorization pipeline.
 - [x] Administrative capabilities strictly segregated from routine production permissions.
 - [x] 12 explicit negative authorization rules established.
@@ -1037,8 +1060,10 @@ The following checklist establishes the deterministic verification requirements 
 | Canonical Authorization Pipeline | User -> Role -> Capability -> Resource -> Action -> Decision | VERIFIED |
 | Resource Taxonomy Coverage | 28 resources tracing to Stage 06 | VERIFIED |
 | Canonical Action Vocabulary | 23 actions defined with semantic distinctions | VERIFIED |
+| Strict Capability Syntax | All capabilities satisfy Capability = RESOURCE : ACTION | VERIFIED |
+| Undecided Role Policies | Marked as ARCHITECTURAL DECISION DEFERRED | VERIFIED |
 | Brownfield 20-Role Disposition | All 20 brownfield roles cataloged & analyzed | VERIFIED |
-| Role -> Capability Matrix | Comprehensive matrix spanning all domains | VERIFIED |
+| Role -> Capability Matrix | Fully reconciled with canonical syntax & human gates | VERIFIED |
 | Workspace & API Mapping | Conceptual mappings established; UI non-authoritative | VERIFIED |
 | Human-Gated Authorization (AP-009)| Stages 02, 07, 09, 10, 14, 15 protected from AI | VERIFIED |
 | Anti-Self-Approval (GAR-02) | Server-side creator/approver segregation enforced | VERIFIED |
