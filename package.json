@@ -12,6 +12,7 @@
     "test:regression": "tsx src/tests/draft-workflow-separation.test.ts && tsx src/tests/video-transitions.test.ts && tsx src/tests/targeted-bugfixes.test.ts",
     "test:workflow": "tsx src/tests/step01-question-studio-workflow-state.test.ts",
     "test:publishing": "tsx src/tests/publishing-workflow.test.ts",
+    "test:architecture": "tsx src/tests/stage04-architecture-principles.test.ts",
     "test:all": "npm run test:unit && npm run test:workflow && npm run test:publishing",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit"

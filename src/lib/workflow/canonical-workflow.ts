@@ -575,3 +575,126 @@ export function mapPublishingToWorkflowState(
 export function getCanonicalStep(stepNumber: number): CanonicalStepDefinition | undefined {
   return CANONICAL_15_STEPS.find((s) => s.stepNumber === stepNumber);
 }
+
+// ============================================================================
+// 4. STAGE 04 ARCHITECTURE ENFORCEMENT: CANONICAL 15-STAGE ENGINE (AP-001..AP-006, AP-009)
+// ============================================================================
+
+export type CanonicalStageNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15;
+
+export enum CanonicalStageIdentifier {
+  STAGE_01_QUESTION_GENERATION = '01_QUESTION_GENERATION',
+  STAGE_02_QUESTION_VERIFICATION = '02_QUESTION_VERIFICATION',
+  STAGE_03_SCRIPT_TELEPROMPTER = '03_SCRIPT_TELEPROMPTER',
+  STAGE_04_STUDIO_RECORDING = '04_STUDIO_RECORDING',
+  STAGE_05_RAW_FOOTAGE_HANDOFF = '05_RAW_FOOTAGE_HANDOFF',
+  STAGE_06_VIDEO_EDITING = '06_VIDEO_EDITING',
+  STAGE_07_FINAL_QC = '07_FINAL_QC',
+  STAGE_08_THUMBNAIL_STUDIO = '08_THUMBNAIL_STUDIO',
+  STAGE_09_PINNED_COMMENT = '09_PINNED_COMMENT',
+  STAGE_10_SOCIAL_REVIEW = '10_SOCIAL_REVIEW',
+  STAGE_11_PUBLISHING_SETUP = '11_PUBLISHING_SETUP',
+  STAGE_12_PLATFORM_SYNC = '12_PLATFORM_SYNC',
+  STAGE_13_SOCIAL_ANALYTICS = '13_SOCIAL_ANALYTICS',
+  STAGE_14_PERFORMANCE_REVIEW = '14_PERFORMANCE_REVIEW',
+  STAGE_15_INTELLIGENCE_LOOP = '15_INTELLIGENCE_LOOP',
+}
+
+export interface StageTransitionActor {
+  id: string;
+  name?: string;
+  role: string;
+  isAiAgent?: boolean;
+}
+
+export interface StageTransitionRequest {
+  contentMasterId: string;
+  currentStage: CanonicalStageNumber;
+  targetStage: CanonicalStageNumber;
+  actor: StageTransitionActor;
+  prerequisitesMet?: boolean;
+  humanSignOff?: boolean;
+  remarks?: string;
+}
+
+export interface StageTransitionValidationResult {
+  allowed: boolean;
+  error?: string;
+  violatedPrinciple?: string;
+  targetStage?: CanonicalStageNumber;
+}
+
+/**
+ * AP-001 & AP-003: Authoritative server-side transition validator.
+ * Validates stage boundaries, actor credentials, AI human-in-the-loop requirements,
+ * and business prerequisites.
+ */
+export function validateCanonicalWorkflowTransition(
+  req: StageTransitionRequest
+): StageTransitionValidationResult {
+  // AP-004: Backend Authorization Authority
+  if (!req.actor || !req.actor.id || req.actor.id.trim() === '') {
+    return {
+      allowed: false,
+      error: 'Unauthenticated actor: Transition requires an authenticated actor context.',
+      violatedPrinciple: 'AP-004',
+    };
+  }
+
+  // AP-009: AI Governance (AI cannot silently approve or mutate controlled business state)
+  if (req.actor.isAiAgent) {
+    const humanGatedStages: CanonicalStageNumber[] = [2, 3, 7, 10, 11];
+    if (humanGatedStages.includes(req.targetStage) && !req.humanSignOff) {
+      return {
+        allowed: false,
+        error: `AI safety policy violation: AI agent cannot advance content to Stage ${req.targetStage} without explicit human sign-off.`,
+        violatedPrinciple: 'AP-009',
+      };
+    }
+  }
+
+  // AP-001 & AP-003: Sequential stage enforcement
+  if (req.targetStage < 1 || req.targetStage > 15) {
+    return {
+      allowed: false,
+      error: `Invalid target stage: ${req.targetStage}. Must be between 1 and 15.`,
+      violatedPrinciple: 'AP-001',
+    };
+  }
+
+  if (req.currentStage < 1 || req.currentStage > 15) {
+    return {
+      allowed: false,
+      error: `Invalid current stage: ${req.currentStage}. Must be between 1 and 15.`,
+      violatedPrinciple: 'AP-001',
+    };
+  }
+
+  // Allow backward revision (e.g. Stage 7 QC reject back to Stage 6 Editing)
+  const isBackwardRevision = req.targetStage < req.currentStage;
+  const isDirectNextStep = req.targetStage === req.currentStage + 1;
+  const isIdempotentSame = req.targetStage === req.currentStage;
+  const isLoopback = req.currentStage === 15 && req.targetStage === 1;
+
+  if (!isDirectNextStep && !isBackwardRevision && !isIdempotentSame && !isLoopback) {
+    return {
+      allowed: false,
+      error: `Illegal workflow jump: Cannot jump directly from Stage ${req.currentStage} to Stage ${req.targetStage}. Must proceed sequentially.`,
+      violatedPrinciple: 'AP-001',
+    };
+  }
+
+  // AP-005 & AP-006: Server-side business rule validation
+  if (isDirectNextStep && req.prerequisitesMet === false) {
+    return {
+      allowed: false,
+      error: `Prerequisites not satisfied for advancing to Stage ${req.targetStage}.`,
+      violatedPrinciple: 'AP-005',
+    };
+  }
+
+  return {
+    allowed: true,
+    targetStage: req.targetStage,
+  };
+}
