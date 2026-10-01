@@ -65,8 +65,8 @@ export async function runStage04ArchitectureTests() {
     'CanonicalStageIdentifier.STAGE_10_PUBLISHING_SETUP must equal CANONICAL_15_STEPS[9].id'
   );
   assert(
-    CanonicalStageIdentifier.STAGE_11_PUBLISHED_LIVE === CANONICAL_15_STEPS[10].id,
-    'CanonicalStageIdentifier.STAGE_11_PUBLISHED_LIVE must equal CANONICAL_15_STEPS[10].id'
+    CanonicalStageIdentifier.STAGE_11_PUBLISHED === CANONICAL_15_STEPS[10].id,
+    'CanonicalStageIdentifier.STAGE_11_PUBLISHED must equal CANONICAL_15_STEPS[10].id'
   );
   console.log('  -> PASS: All 15 canonical steps are sequentially ordered and valid.\n');
 

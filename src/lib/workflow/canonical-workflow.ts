@@ -132,7 +132,7 @@ export const CANONICAL_15_STEPS: CanonicalStepDefinition[] = [
   {
     stepNumber: 5,
     id: 'raw-video-handoff',
-    label: '05 Raw Video Handoff',
+    label: '05 Raw Video',
     shortLabel: 'Raw Video',
     responsibility: 'Raw camera video asset ingestion, Drive folder attachment & handoff to editing bay',
     canonicalPage: 'VideoDetailPage',
@@ -150,7 +150,7 @@ export const CANONICAL_15_STEPS: CanonicalStepDefinition[] = [
   {
     stepNumber: 6,
     id: 'video-editing',
-    label: '06 Video Editing',
+    label: '06 Editing Bay',
     shortLabel: 'Editing Bay',
     responsibility: 'Editing bay master cut, dynamic Telugu subtitles, sound effects & timer overlay',
     canonicalPage: 'VideoDetailPage',
@@ -186,7 +186,7 @@ export const CANONICAL_15_STEPS: CanonicalStepDefinition[] = [
   {
     stepNumber: 8,
     id: 'thumbnail-studio',
-    label: '08 Thumbnail Studio',
+    label: '08 Thumbnail',
     shortLabel: 'Thumbnail',
     responsibility: 'High-CTR curiosity framing thumbnail design with mobile preview and Drive asset link',
     canonicalPage: 'VideoDetailPage',
@@ -240,7 +240,7 @@ export const CANONICAL_15_STEPS: CanonicalStepDefinition[] = [
   {
     stepNumber: 11,
     id: 'published-live',
-    label: '11 Published / Live',
+    label: '11 Published',
     shortLabel: 'Published',
     responsibility: 'Live publication on YouTube Shorts, Instagram Reels & Facebook Video + regex URL verification',
     canonicalPage: 'PublishingPage',
@@ -275,7 +275,7 @@ export const CANONICAL_15_STEPS: CanonicalStepDefinition[] = [
   {
     stepNumber: 13,
     id: 'social-analytics',
-    label: '13 Social Analytics',
+    label: '13 Analytics',
     shortLabel: 'Analytics',
     responsibility: '24h / 7d engagement metrics collection (Views, Likes, Retention %, Audience comments)',
     canonicalPage: 'SocialAnalyticsPage',
@@ -309,7 +309,7 @@ export const CANONICAL_15_STEPS: CanonicalStepDefinition[] = [
   {
     stepNumber: 15,
     id: 'performance-intelligence',
-    label: '15 Performance Intelligence',
+    label: '15 Intelligence Loop',
     shortLabel: 'Intelligence Loop',
     responsibility: 'AI pedagogical insights synthesis, topic recommendation generation & loopback to Step 01',
     canonicalPage: 'AnalyticsExperiencePage',
@@ -590,18 +590,18 @@ export const CanonicalStageIdentifier = {
   STAGE_01_QUESTION_GENERATION: CANONICAL_15_STEPS[0].id,
   STAGE_02_QUESTION_VERIFICATION: CANONICAL_15_STEPS[1].id,
   STAGE_03_AUDIENCE_SCRIPT: CANONICAL_15_STEPS[2].id,
-  STAGE_04_TELEPROMPTER_RECORDING: CANONICAL_15_STEPS[3].id,
-  STAGE_05_RAW_VIDEO_HANDOFF: CANONICAL_15_STEPS[4].id,
-  STAGE_06_VIDEO_EDITING: CANONICAL_15_STEPS[5].id,
+  STAGE_04_TELEPROMPTER_FILMING: CANONICAL_15_STEPS[3].id,
+  STAGE_05_RAW_VIDEO: CANONICAL_15_STEPS[4].id,
+  STAGE_06_EDITING_BAY: CANONICAL_15_STEPS[5].id,
   STAGE_07_FINAL_QC: CANONICAL_15_STEPS[6].id,
-  STAGE_08_THUMBNAIL_STUDIO: CANONICAL_15_STEPS[7].id,
+  STAGE_08_THUMBNAIL: CANONICAL_15_STEPS[7].id,
   STAGE_09_SOCIAL_REVIEW: CANONICAL_15_STEPS[8].id,
   STAGE_10_PUBLISHING_SETUP: CANONICAL_15_STEPS[9].id,
-  STAGE_11_PUBLISHED_LIVE: CANONICAL_15_STEPS[10].id,
+  STAGE_11_PUBLISHED: CANONICAL_15_STEPS[10].id,
   STAGE_12_PLATFORM_SYNC: CANONICAL_15_STEPS[11].id,
-  STAGE_13_SOCIAL_ANALYTICS: CANONICAL_15_STEPS[12].id,
+  STAGE_13_ANALYTICS: CANONICAL_15_STEPS[12].id,
   STAGE_14_PERFORMANCE_REVIEW: CANONICAL_15_STEPS[13].id,
-  STAGE_15_PERFORMANCE_INTELLIGENCE: CANONICAL_15_STEPS[14].id,
+  STAGE_15_INTELLIGENCE_LOOP: CANONICAL_15_STEPS[14].id,
 } as const;
 
 export type CanonicalStageIdentifier = (typeof CanonicalStageIdentifier)[keyof typeof CanonicalStageIdentifier];
@@ -649,7 +649,7 @@ export function validateCanonicalWorkflowTransition(
 
   // AP-009: AI Governance (AI cannot silently approve or mutate controlled business state)
   if (req.actor.isAiAgent) {
-    const humanGatedStages: CanonicalStageNumber[] = [2, 3, 7, 9, 10, 11];
+    const humanGatedStages: CanonicalStageNumber[] = [2, 7, 9, 10, 14, 15];
     if (humanGatedStages.includes(req.targetStage) && !req.humanSignOff) {
       return {
         allowed: false,
