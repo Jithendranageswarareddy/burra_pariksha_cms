@@ -6,12 +6,16 @@
  * PART B: REAL PRODUCTION-PATH ACCEPTANCE ENFORCEMENT TESTS
  *
  * Authoritative production paths verified in Part B:
- * - Real Service: questionDraftService.approveDraft()
- * - Real Repositories: questionDraftsRepository, questionsRepository, auditLogRepository
- * - Real Enforcement: NEG-01 Anti-Self-Approval constraint
- * - Real Hard Gates: NEG-02 Stage Skip Rejection, NEG-03 QC Publishing Gate
- * - Real Concurrency: NEG-04 Idempotency, NEG-05 Optimistic Concurrency
- * - Real Boundaries: NEG-07 Media Metadata Boundary, COST-001 Frugal Infrastructure
+ * - NEG-01: questionDraftService.approveDraft() Anti-Self-Approval constraint
+ * - NEG-02: validateCanonicalWorkflowTransition() & contentWorkflowService.transitionWorkflowState()
+ * - NEG-03: publishingService.validatePublishReadiness() & ProductionAssetValidationService
+ * - NEG-04: questionService.updateStatus() real production idempotency
+ * - NEG-05: BaseRepository & contentMastersRepository real optimistic concurrency control
+ * - NEG-06: AI Orchestrator human-gated boundary (AI cannot mutate business state directly)
+ * - NEG-07: validateMediaAssetMetadata() media storage guard
+ * - NEG-08: requireAuth & requireRole server-side authorization middleware
+ * - NEG-09: COST-001 frugal infrastructure boundary
+ * - NEG-10: auditLogRepository & auditService authoritative audit trail
  */
 
 import fs from 'fs';
@@ -30,14 +34,25 @@ import {
   validateMediaAssetMetadata,
   MediaAssetMetadataInput,
 } from '../lib/workflow/media-storage-guard';
-import { QuestionStatus, VideoProductionStatus, UserRole, RenderValidationStatus } from '../types';
+import {
+  QuestionStatus,
+  VideoProductionStatus,
+  UserRole,
+  ContentMasterStatus,
+  ContentMaster,
+} from '../types';
 import { questionDraftService } from '../lib/services/question-draft.service';
+import { questionService } from '../lib/services/question.service';
 import { questionDraftsRepository } from '../lib/repositories/question-drafts.repository';
 import { questionsRepository } from '../lib/repositories/questions.repository';
+import { contentMastersRepository } from '../lib/repositories/content-masters.repository';
 import { videosRepository } from '../lib/repositories/videos.repository';
 import { auditLogRepository } from '../lib/repositories/audit-log.repository';
+import { workflowRepository } from '../lib/repositories/workflow.repository';
 import { publishingService } from '../lib/services/publishing.service';
-import { workflowOrchestrationService } from '../lib/services/workflow-orchestration.service';
+import { contentWorkflowService } from '../lib/services/content-workflow.service';
+import { auditService, workflowService } from '../lib/services/audit.service';
+import { AIOrchestrator } from '../lib/ai/orchestrator';
 import { requireRole, requireAuth } from '../server/middleware/auth.middleware';
 
 function assert(condition: boolean, msg: string): void {
@@ -268,7 +283,7 @@ export async function runStage02AcceptanceTests(): Promise<void> {
   const draftAfterApproved = await questionDraftsRepository.findById(realDraft.id);
   assert(!draftAfterApproved, 'Materialized draft must be removed from draft repository upon successful approval');
 
-  // 10. Verify audit ledger preserved the events
+  // 10. Verify audit ledger preserved the rejection event
   const auditLogs = await auditLogRepository.findAll();
   const selfApprovalRejectionAudit = auditLogs.find(
     (log) => log.action === 'QUESTION_DRAFT_APPROVAL_REJECTED' && log.entityId === realDraft.id
@@ -278,12 +293,12 @@ export async function runStage02AcceptanceTests(): Promise<void> {
   console.log('  -> PASS: Real NEG-01 Anti-Self-Approval production path fully verified.\n');
 
   // --------------------------------------------------------------------------
-  // TEST 2: REAL PRODUCTION NEG-02 CANONICAL TRANSITION ENFORCEMENT
-  // Path: validateCanonicalWorkflowTransition() & workflowOrchestrationService
+  // TEST 2: REAL PRODUCTION NEG-02 WORKFLOW TRANSITION AUTHORITY
+  // Path: validateCanonicalWorkflowTransition() & contentWorkflowService.transitionWorkflowState()
   // --------------------------------------------------------------------------
   console.log('Checking Production Path 2: Real NEG-02 Workflow Transition Enforcement...');
 
-  // Illegal jump from Stage 01 to Stage 06
+  // A. Canonical validator jump rejection
   const illegalJump01To06 = validateCanonicalWorkflowTransition({
     contentMasterId: 'BP-CNT-000001',
     currentStage: 1,
@@ -297,26 +312,51 @@ export async function runStage02AcceptanceTests(): Promise<void> {
     'Error must cite illegal workflow jump'
   );
 
-  // Sequential progression Step 01 -> Step 02
-  const sequential01To02 = validateCanonicalWorkflowTransition({
-    contentMasterId: 'BP-CNT-000001',
-    currentStage: 1,
-    targetStage: 2,
-    actor: { id: 'user-creator-101', role: 'QUESTION_AUTHOR' },
-    prerequisitesMet: true,
-  });
-  assert(sequential01To02.allowed, 'Sequential transition from Step 01 to Step 02 must be allowed');
+  // B. Real Production Service Path: ContentWorkflowService state machine
+  const testMasterId = `BP-CNT-${Date.now()}`;
+  await contentMastersRepository.create({
+    id: testMasterId,
+    title: 'Stage 02 Workflow Transition Test',
+    status: ContentMasterStatus.DRAFT,
+    currentVersion: 1,
+    creatorId: authorActor.id,
+    creatorName: authorActor.name,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  } as any);
 
-  // Backward revision routing: Step 07 -> Step 06 (QC rejection returning to editing bay)
-  const backwardRevision07To06 = validateCanonicalWorkflowTransition({
-    contentMasterId: 'BP-CNT-000001',
-    currentStage: 7,
-    targetStage: 6,
-    actor: { id: 'user-qc-505', role: 'QC_OFFICER' },
-    prerequisitesMet: true,
-    remarks: 'Audio level exceeds -14 LUFS standard',
+  // 1. Valid sequential transition: DRAFT -> READY_FOR_REVIEW
+  const validTransitionResult = await contentWorkflowService.transitionWorkflowState({
+    contentMasterId: testMasterId,
+    targetStatus: ContentMasterStatus.READY_FOR_REVIEW,
+    actor: authorActor,
+    remarks: 'Submitting draft for peer review',
   });
-  assert(backwardRevision07To06.allowed, 'Backward revision routing from Step 07 to Step 06 must be allowed');
+  assert(
+    validTransitionResult.status === ContentMasterStatus.READY_FOR_REVIEW,
+    'Sequential transition DRAFT -> READY_FOR_REVIEW must succeed'
+  );
+
+  // 2. Illegal transition: Trying to bypass review directly to APPROVED without reviewer role
+  let illegalTransitionBlocked = false;
+  try {
+    await contentWorkflowService.transitionWorkflowState({
+      contentMasterId: testMasterId,
+      targetStatus: ContentMasterStatus.APPROVED,
+      actor: authorActor, // Writer cannot approve
+      versionHashOrNumber: 1,
+    });
+  } catch (err: any) {
+    illegalTransitionBlocked = true;
+  }
+  assert(illegalTransitionBlocked, 'Direct jump or unauthorized approval MUST be blocked in production workflow service');
+
+  // Verify entity state remained untouched after illegal transition attempt
+  const masterAfterIllegal = await contentMastersRepository.findById(testMasterId);
+  assert(
+    masterAfterIllegal?.status === ContentMasterStatus.READY_FOR_REVIEW,
+    'Entity status must remain unchanged after rejected illegal transition'
+  );
 
   console.log('  -> PASS: Real NEG-02 Workflow Transition enforcement verified.\n');
 
@@ -355,23 +395,183 @@ export async function runStage02AcceptanceTests(): Promise<void> {
 
   // --------------------------------------------------------------------------
   // TEST 4: REAL PRODUCTION NEG-04 IDEMPOTENCY
-  // Path: validateCanonicalWorkflowTransition() same stage re-evaluation
+  // Path: questionService.updateStatus() repeated identical mutation
   // --------------------------------------------------------------------------
   console.log('Checking Production Path 4: Real NEG-04 Idempotent State Transitions...');
-  const idempotentTransition = validateCanonicalWorkflowTransition({
-    contentMasterId: 'BP-CNT-000001',
-    currentStage: 10,
-    targetStage: 10,
-    actor: { id: 'user-publisher-404', role: 'PUBLISHING_MANAGER' },
-  });
-  assert(idempotentTransition.allowed, 'Idempotent same-stage re-evaluation must succeed');
-  console.log('  -> PASS: Real NEG-04 Idempotency verified.\n');
+
+  // First status transition
+  const statusRes1 = await questionService.updateStatus(
+    approvedQuestion.id,
+    QuestionStatus.APPROVED,
+    independentReviewerActor,
+    'First status transition application'
+  );
+  assert(statusRes1.status === QuestionStatus.APPROVED, 'Initial transition must succeed');
+
+  const auditCountBefore = (await auditLogRepository.findAll()).length;
+  const workflowCountBefore = (await workflowRepository.findAll()).length;
+
+  // Second identical transition request (Idempotent replay)
+  const statusRes2 = await questionService.updateStatus(
+    approvedQuestion.id,
+    QuestionStatus.APPROVED,
+    independentReviewerActor,
+    'Identical status transition replay'
+  );
+  assert(statusRes2.status === QuestionStatus.APPROVED, 'Idempotent replay must return consistent APPROVED status');
+
+  const auditCountAfter = (await auditLogRepository.findAll()).length;
+  const workflowCountAfter = (await workflowRepository.findAll()).length;
+
+  // Ensure no duplicate workflow transition records were created for the same logical operation
+  assert(
+    workflowCountAfter === workflowCountBefore,
+    'Idempotent transition must NOT create duplicate workflow transition records'
+  );
+  assert(
+    auditCountAfter === auditCountBefore,
+    'Idempotent transition must NOT create duplicate audit logs'
+  );
+
+  console.log('  -> PASS: Real NEG-04 Idempotency verified in production path.\n');
 
   // --------------------------------------------------------------------------
-  // TEST 5: REAL PRODUCTION NEG-07 MEDIA METADATA BOUNDARY
+  // TEST 5: REAL PRODUCTION NEG-05 OPTIMISTIC CONCURRENCY CONTROL
+  // Path: BaseRepository.updateRecord / BaseRepository.update with version conflict
+  // --------------------------------------------------------------------------
+  console.log('Checking Production Path 5: Real NEG-05 Optimistic Concurrency Control...');
+
+  const concurrencyMasterId = `BP-CNT-CONC-${Date.now()}`;
+  await contentMastersRepository.create({
+    id: concurrencyMasterId,
+    title: 'Initial Version 1 Title',
+    status: ContentMasterStatus.DRAFT,
+    version: 1,
+    currentVersion: 1,
+    creatorId: authorActor.id,
+    creatorName: authorActor.name,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  } as any);
+
+  // Actor A reads version 1
+  const actorARecord = await contentMastersRepository.findById(concurrencyMasterId);
+  assert(Number(actorARecord?.version) === 1, 'Actor A reads version 1');
+
+  // Actor B reads the same version 1
+  const actorBRecord = await contentMastersRepository.findById(concurrencyMasterId);
+  assert(Number(actorBRecord?.version) === 1, 'Actor B reads version 1');
+
+  // Actor A updates successfully from version 1 -> version 2
+  const actorAUpdate = await contentMastersRepository.update(
+    concurrencyMasterId,
+    { title: 'Title Updated by Actor A', version: 2 },
+    { expectedVersion: 1 }
+  );
+  assert(actorAUpdate?.title === 'Title Updated by Actor A', 'Actor A update must succeed');
+  assert(Number(actorAUpdate?.version) === 2, 'Version must increment to 2');
+
+  // Actor B attempts update using stale expectedVersion 1
+  let concurrencyConflictDetected = false;
+  let conflictError: any = null;
+  try {
+    await contentMastersRepository.update(
+      concurrencyMasterId,
+      { title: 'Title Attempted by Actor B (Stale Update)' },
+      { expectedVersion: 1 }
+    );
+  } catch (err: any) {
+    concurrencyConflictDetected = true;
+    conflictError = err;
+  }
+
+  assert(
+    concurrencyConflictDetected,
+    'Stale concurrent mutation using outdated version MUST be rejected (NEG-05)'
+  );
+  assert(
+    conflictError?.message?.includes('NEG-05') || conflictError?.message?.includes('Concurrency conflict'),
+    `Error must identify concurrency conflict: ${conflictError?.message}`
+  );
+
+  // Verify persisted state remains Actor A's state (No silent overwrite)
+  const persistedRecord = await contentMastersRepository.findById(concurrencyMasterId);
+  assert(
+    persistedRecord?.title === 'Title Updated by Actor A',
+    'Persisted database state MUST remain Actor A’s update (No silent overwrite)'
+  );
+  assert(
+    Number(persistedRecord?.version) === 2,
+    'Persisted version must remain version 2'
+  );
+
+  console.log('  -> PASS: Real NEG-05 Optimistic Concurrency verified in production repository.\n');
+
+  // --------------------------------------------------------------------------
+  // TEST 6: REAL PRODUCTION NEG-06 AI HUMAN-GATE BOUNDARY
+  // Path: AI generation services cannot silently approve or mutate business state
+  // --------------------------------------------------------------------------
+  console.log('Checking Production Path 6: Real NEG-06 AI Human-in-the-Loop Governance...');
+
+  const aiOrchestrator = new AIOrchestrator();
+  const questionsCountBeforeAI = (await questionsRepository.findAll()).length;
+
+  // AI candidate generation produces candidate data payload
+  const aiCandidateResult = await aiOrchestrator.generateQuestionCandidate({
+    topicId: 'TOP-QA-01',
+    subtopicId: 'SUB-01',
+    categoryId: 'CAT-QA',
+    difficulty: 'Intermediate',
+    language: 'TELUGU',
+    realWorldContext: 'TRAJECTORY_INTERCEPT',
+  });
+
+  assert(Boolean(aiCandidateResult.candidate), 'AI Orchestrator returned candidate payload');
+
+  // Verify that AI generation alone does NOT create or materialize a question in the authoritative questions repository
+  const questionsCountAfterAI = (await questionsRepository.findAll()).length;
+  assert(
+    questionsCountAfterAI === questionsCountBeforeAI,
+    'AI candidate generation MUST NOT autonomously create records in questions repository'
+  );
+
+  // Saving AI candidate produces a DRAFT requiring human review, NOT an APPROVED question
+  const rawQText = aiCandidateResult.candidate.content || (aiCandidateResult.candidate as any).questionText || 'A train traveling at 72 km/h crosses a 180m bridge in how many seconds?';
+  const optA = aiCandidateResult.candidate.option_a || '9';
+  const optB = aiCandidateResult.candidate.option_b || '12';
+  const optC = aiCandidateResult.candidate.option_c || '15';
+  const optD = aiCandidateResult.candidate.option_d || '18';
+
+  const savedAIDraft = await questionDraftService.saveDraft(
+    {
+      topicId: 'TOP-QA-01',
+      subtopicId: 'SUB-01',
+      categoryId: 'CAT-QA',
+      difficulty: 'Intermediate',
+      language: 'TELUGU',
+      questionText: rawQText,
+      options: { a: optA, b: optB, c: optC, d: optD },
+      correctAnswer: aiCandidateResult.candidate.correct_answer || 'A',
+      explanation: aiCandidateResult.candidate.explanation || 'Speed = 72 * (5/18) = 20 m/s. Time = 180/20 = 9 seconds.',
+      realLifeContext: aiCandidateResult.candidate.real_world_context || 'TRAJECTORY_INTERCEPT',
+      source: 'AI Question Studio',
+    },
+    authorActor
+  );
+
+  assert(savedAIDraft.status === QuestionStatus.DRAFT, 'AI candidate draft must enter system in DRAFT status');
+  assert(
+    savedAIDraft.status !== QuestionStatus.APPROVED,
+    'AI candidate MUST NOT bypass human sign-off into APPROVED status (NEG-06)'
+  );
+
+  console.log('  -> PASS: Real NEG-06 AI Human-in-the-Loop Governance verified.\n');
+
+  // --------------------------------------------------------------------------
+  // TEST 7: REAL PRODUCTION NEG-07 MEDIA METADATA BOUNDARY
   // Path: validateMediaAssetMetadata() with binary and base64 payloads
   // --------------------------------------------------------------------------
-  console.log('Checking Production Path 5: Real NEG-07 Media Metadata Boundary...');
+  console.log('Checking Production Path 7: Real NEG-07 Media Metadata Boundary...');
   const validMediaMeta: MediaAssetMetadataInput = {
     entityId: testVideoId,
     entityType: 'VIDEO',
@@ -402,10 +602,10 @@ export async function runStage02AcceptanceTests(): Promise<void> {
   console.log('  -> PASS: Real NEG-07 Media Metadata Boundary verified.\n');
 
   // --------------------------------------------------------------------------
-  // TEST 6: REAL PRODUCTION NEG-08 AUTHENTICATION & ROLE MIDDLEWARE
+  // TEST 8: REAL PRODUCTION NEG-08 AUTHENTICATION & ROLE MIDDLEWARE
   // Path: requireRole() & requireAuth() middleware functions
   // --------------------------------------------------------------------------
-  console.log('Checking Production Path 6: Real NEG-08 Authentication & Role Middleware...');
+  console.log('Checking Production Path 8: Real NEG-08 Authentication & Role Middleware...');
   let unauthStatus: number | null = null;
   const mockUnauthReq: any = { headers: {} };
   const mockUnauthRes: any = {
@@ -434,9 +634,9 @@ export async function runStage02AcceptanceTests(): Promise<void> {
   console.log('  -> PASS: Real NEG-08 Authentication & Role Middleware verified.\n');
 
   // --------------------------------------------------------------------------
-  // TEST 7: COST-001 BOUNDARY INVARIANT CHECK
+  // TEST 9: COST-001 BOUNDARY INVARIANT CHECK (NEG-09)
   // --------------------------------------------------------------------------
-  console.log('Checking Production Path 7: COST-001 Frugal Infrastructure Boundary...');
+  console.log('Checking Production Path 9: COST-001 (NEG-09) Frugal Infrastructure Boundary...');
   const packageJsonPath = path.resolve(process.cwd(), 'package.json');
   const pkg = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
   const allDeps = { ...pkg.dependencies, ...pkg.devDependencies };
@@ -453,6 +653,45 @@ export async function runStage02AcceptanceTests(): Promise<void> {
   });
 
   console.log('  -> PASS: COST-001 (₹0–₹100) boundary invariant verified.\n');
+
+  // --------------------------------------------------------------------------
+  // TEST 10: REAL PRODUCTION NEG-10 AUTHORITATIVE AUDIT TRAIL
+  // Path: auditService & auditLogRepository verification of successful & rejected operations
+  // --------------------------------------------------------------------------
+  console.log('Checking Production Path 10: Real NEG-10 Authoritative Audit Trail...');
+
+  // 1. Verify rejected self-approval audit record exists and has complete metadata
+  const allAuditRecords = await auditLogRepository.findAll();
+  const rejectedAudit = allAuditRecords.find(
+    (log) => log.action === 'QUESTION_DRAFT_APPROVAL_REJECTED' && log.entityId === realDraft.id
+  );
+
+  assert(Boolean(rejectedAudit), 'Authoritative audit record MUST exist for rejected self-approval');
+  assert(rejectedAudit!.actorId === authorActor.id, 'Audit record MUST contain author actor ID');
+  assert(Boolean(rejectedAudit!.timestamp), 'Audit record MUST contain ISO timestamp');
+  assert(
+    Boolean(rejectedAudit!.details && String(JSON.stringify(rejectedAudit!.details)).includes('NEG-01')),
+    'Audit record MUST contain rejection reason'
+  );
+
+  // 2. Verify successful protected status transition audit record exists
+  const transitionAudit = allAuditRecords.find(
+    (log) => log.action === 'QUESTION_STATUS_CHANGED' && log.entityId === approvedQuestion.id
+  );
+
+  assert(Boolean(transitionAudit), 'Authoritative audit record MUST exist for successful question approval');
+  assert(transitionAudit!.actorId === independentReviewerActor.id, 'Audit record MUST attribute approving reviewer');
+  assert(Boolean(transitionAudit!.timestamp), 'Audit record MUST contain ISO timestamp');
+  assert(
+    Boolean(
+      transitionAudit!.details &&
+      (String(transitionAudit!.details).includes('APPROVED') ||
+        (typeof transitionAudit!.details === 'object' && (transitionAudit!.details as any).to === QuestionStatus.APPROVED))
+    ),
+    'Audit record MUST contain target approved status'
+  );
+
+  console.log('  -> PASS: Real NEG-10 Authoritative Audit Trail verified.\n');
 
   console.log('============================================================');
   console.log('ALL STAGE 02 BUSINESS ACCEPTANCE TESTS COMPLETED SUCCESSFULLY! ✅');

@@ -453,9 +453,16 @@ export class ContentWorkflowService {
 
     // 5. Authorizations / RBAC Enforcements
     if (targetStatus === ContentMasterStatus.READY_FOR_REVIEW) {
-      // Submitting for review is typically done by the owner, Content Manager, or Admin
-      // But let's check roles
-      this.enforceRole(actor.role, [UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.REVIEWER, UserRole.QUESTION_CREATOR, UserRole.CREATOR]);
+      // Submitting for review is typically done by the owner, Content Manager, Admin, Creator, or Writer
+      this.enforceRole(actor.role, [
+        UserRole.ADMIN,
+        UserRole.CONTENT_MANAGER,
+        UserRole.REVIEWER,
+        UserRole.QUESTION_CREATOR,
+        UserRole.CREATOR,
+        UserRole.CONTENT_WRITER,
+        UserRole.QUESTION_EDITOR,
+      ]);
     }
 
     if (targetStatus === ContentMasterStatus.CHANGES_REQUESTED || targetStatus === ContentMasterStatus.APPROVED) {

@@ -347,9 +347,13 @@ export abstract class BaseRepository<T extends Record<string, any>> {
   }
 
   /**
-   * Updates an existing record by primary key with record-level serialization.
+   * Updates an existing record by primary key with record-level serialization and optimistic concurrency control (NEG-05).
    */
-  public async updateRecord(id: string, updates: Partial<T>): Promise<T | null> {
+  public async updateRecord(
+    id: string,
+    updates: Partial<T>,
+    options?: { expectedVersion?: number }
+  ): Promise<T | null> {
     if (!id) return null;
 
     return this.withRecordLock(id, async () => {
@@ -358,10 +362,32 @@ export abstract class BaseRepository<T extends Record<string, any>> {
       const sheetStore = BaseRepository.fallbackStore.get(this.schema.sheetName)!;
       const localExisting = sheetStore.get(id);
 
+      // Evaluate expectedVersion if specified in options or updates (NEG-05 Optimistic Concurrency Control)
+      const expectedVer = options?.expectedVersion ?? (updates as any)?.expectedVersion;
+      if (expectedVer !== undefined && localExisting) {
+        const currentVer = (localExisting as any)?.version ?? (localExisting as any)?.currentVersion ?? (localExisting as any)?.versionNumber;
+        if (currentVer !== undefined && Number(currentVer) !== Number(expectedVer)) {
+          throw new Error(`[NEG-05] Concurrency conflict: record "${id}" has version ${currentVer}, expected ${expectedVer}`);
+        }
+      }
+
       // If Google Sheets is NOT configured, operate strictly in local fallback store mode
       if (!this.client.isConfigured(this.getTargetSpreadsheetId())) {
         if (!localExisting) return null;
-        const updated = { ...localExisting, ...updates, updatedAt: new Date().toISOString() };
+        const currentVer = (localExisting as any)?.version ?? (localExisting as any)?.currentVersion ?? (localExisting as any)?.versionNumber;
+        const nextVer = (updates as any)?.version !== undefined
+          ? (updates as any).version
+          : (typeof currentVer === 'number' ? currentVer + 1 : undefined);
+
+        const cleanUpdates = { ...updates };
+        delete (cleanUpdates as any).expectedVersion;
+
+        const updated = {
+          ...localExisting,
+          ...cleanUpdates,
+          ...(nextVer !== undefined ? { version: nextVer } : {}),
+          updatedAt: new Date().toISOString(),
+        };
         sheetStore.set(id, updated);
         return updated as unknown as T;
       }
@@ -386,10 +412,26 @@ export abstract class BaseRepository<T extends Record<string, any>> {
           return null;
         }
 
+        if (expectedVer !== undefined) {
+          const currentVer = (existingRecord as any)?.version ?? (existingRecord as any)?.currentVersion ?? (existingRecord as any)?.versionNumber;
+          if (currentVer !== undefined && Number(currentVer) !== Number(expectedVer)) {
+            throw new Error(`[NEG-05] Concurrency conflict: record "${id}" has version ${currentVer}, expected ${expectedVer}`);
+          }
+        }
+
+        const currentVer = (existingRecord as any)?.version ?? (existingRecord as any)?.currentVersion ?? (existingRecord as any)?.versionNumber;
+        const nextVer = (updates as any)?.version !== undefined
+          ? (updates as any).version
+          : (typeof currentVer === 'number' ? currentVer + 1 : undefined);
+
+        const cleanUpdates = { ...updates };
+        delete (cleanUpdates as any).expectedVersion;
+
         const mergedRecord = {
           ...(localExisting || {}),
           ...existingRecord,
-          ...updates,
+          ...cleanUpdates,
+          ...(nextVer !== undefined ? { version: nextVer } : {}),
           updatedAt: new Date().toISOString(),
         } as unknown as T;
         sheetStore.set(id, mergedRecord);
@@ -409,16 +451,20 @@ export abstract class BaseRepository<T extends Record<string, any>> {
   }
 
   /**
-   * Alias for updateRecord supporting both update(id, updates).
+   * Alias for updateRecord supporting both update(id, updates, options).
    */
-  public async update(recordOrId: T | string, updates?: Partial<T>): Promise<T | null> {
+  public async update(
+    recordOrId: T | string,
+    updates?: Partial<T>,
+    options?: { expectedVersion?: number }
+  ): Promise<T | null> {
     if (typeof recordOrId === 'string') {
-      return this.updateRecord(recordOrId, updates || {});
+      return this.updateRecord(recordOrId, updates || {}, options);
     }
     const pkProp = this.getPrimaryKeyProperty();
     const id = recordOrId[pkProp];
     if (!id) return null;
-    return this.updateRecord(String(id), recordOrId as Partial<T>);
+    return this.updateRecord(String(id), recordOrId as Partial<T>, options);
   }
 
   /**
