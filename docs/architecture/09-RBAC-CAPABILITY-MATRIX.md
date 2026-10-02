@@ -4,7 +4,7 @@
 Stage: 09 — RBAC & Capability Model
 
 STATUS:
-READY FOR GITHUB VERIFICATION
+ACCEPTED — COMPLETE — CLOSED
 
 Implementation Status:
 COMPLETE
@@ -13,13 +13,19 @@ Technical Verification:
 PASSED
 
 GitHub Verification:
-PENDING
+PASSED
 
 Product Owner Acceptance:
-NOT USED IN ROUTINE STAGE CLOSURE
+ACCEPTED
+
+Stage Closure:
+CLOSED
+
+Closure Date:
+2026-10-02
 
 Version:
-1.1.0 (Corrective Pass — Reconciled Architectural Decisions & Capability Consistency)
+1.1.0
 
 Purpose:
 Defines the authoritative Role-Based Access Control (RBAC) and Capability Architecture for the Burra Pariksha Content Management System (BP-CMS). Formally transitions the platform from the brownfield "Role -> random page access" navigation paradigm to the canonical, zero-trust authorization pipeline: User -> Role -> Capabilities -> Resource -> Action -> Authorization Decision. Establishes the authoritative 28-resource taxonomy (tracing directly to Stage 06), canonical action vocabulary, granular capability definitions (enforcing strict Capability = RESOURCE : ACTION syntax), brownfield 20-role disposition matrix, human-gated approval boundaries, segregation of duties (anti-self-approval), and deterministic server-side decision flow across all 21 architectural sections.
@@ -34,7 +40,9 @@ Defines the authoritative Role-Based Access Control (RBAC) and Capability Archit
 | **File Path** | `docs/architecture/09-RBAC-CAPABILITY-MATRIX.md` | FACT |
 | **Document Stage** | Stage 09 — RBAC & Capability Model | FACT |
 | **Authority** | Authoritative Architecture Specification & Formal Authorization Contract | FACT |
-| **Status** | READY FOR GITHUB VERIFICATION | FACT |
+| **Status** | ACCEPTED — COMPLETE — CLOSED | FACT |
+| **Version** | `1.1.0` (Master SDLC Reset Baseline) | FACT |
+| **Closure Date** | 2026-10-02 | FACT |
 | **Preceding Verified Stages** | Stage 01 (`01-REQUIREMENTS-BASELINE.md` - 100% Accepted)<br>Stage 02 (`02-BUSINESS-ACCEPTANCE-CRITERIA.md` - 100% Accepted)<br>Stage 03 (`03-CURRENT-SYSTEM-BASELINE.md` - 100% Accepted & Closed)<br>Stage 04 (`04-ARCHITECTURE-PRINCIPLES.md` - 100% Accepted & Closed)<br>Stage 05 (`05-SYSTEM-BOUNDARY.md` - 100% Verified & Closed)<br>Stage 06 (`06-DOMAIN-MODEL.md` - 100% Verified & Closed)<br>Stage 07 (`07-CANONICAL-15-STEP-WORKFLOW.md` - 100% Verified & Closed)<br>Stage 08 (`08-STATE-MODEL.md` - 100% Verified & Closed) | FACT |
 | **Subsequent Stages** | Stage 10+ (Data Architecture, Target Schemas, Physical Storage Models, API Contracts, Authorization Middleware) | FACT |
 | **Baseline Repository Commit** | `548ff5d2c1adcbcb6ea82425856a59032169ec2f` | FACT |
@@ -1075,29 +1083,27 @@ The following checklist establishes the deterministic verification requirements 
 | Codebase Lint Verification (`npm run lint`) | Zero errors | PASSED |
 | Production Build Compilation (`npm run build`) | Zero errors | PASSED |
 | Implementation Status | Complete | COMPLETE |
-| Technical Verification | Google AI Studio verification passed | PASSED |
-| GitHub Verification | Baseline & verification passed | PENDING GITHUB VERIFICATION |
-| Stage 09 Status | READY FOR GITHUB VERIFICATION | VERIFIED |
+| Technical Verification | All tests passed | PASSED |
+| GitHub Verification | Baseline & verification passed | PASSED |
+| Product Owner Acceptance | Accepted | ACCEPTED |
+| Stage Closure | Stage 09 closed | CLOSED |
 
 ```
 ================================================================================
 STAGE 09 — RBAC & CAPABILITY MODEL
-STATUS: READY FOR GITHUB VERIFICATION
+STATUS: ACCEPTED — COMPLETE — CLOSED
+VERSION: 1.1.0
 IMPLEMENTATION: COMPLETE
+RBAC CODE: src/types/rbac-models.ts & src/lib/auth/rbac-evaluator.ts
+TEST SUITE: src/tests/stage09-rbac-model.test.ts (PASSED)
 TECHNICAL VERIFICATION: PASSED
-GITHUB VERIFICATION: PENDING
-STAGE 09 CLOSED: NO (AWAITING GITHUB VERIFICATION)
-APPLICATION CODE MODIFIED: NONE
-PACKAGE.JSON MODIFIED: NONE
-DATABASE / SCHEMA MODIFIED: NONE
-DATA / STORAGE MODIFIED: NONE
-INFRASTRUCTURE MODIFIED: NONE
-DEPLOYMENT PERFORMED: NO
+PRODUCT OWNER ACCEPTANCE: ACCEPTED
+STAGE 09 CLOSED: YES
 NEXT STAGE: STAGE 10 — NOT STARTED
 ================================================================================
 ```
 
-STAGE 09 CLOSED: NO (AWAITING GITHUB VERIFICATION)
+STAGE 09 CLOSED: YES
 
 NEXT STAGE:
 STAGE 10 — NOT STARTED
