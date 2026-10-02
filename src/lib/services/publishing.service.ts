@@ -360,12 +360,17 @@ export class PublishingService {
       blockers.push(`Video "${videoId}" has no linked questionId.`);
     }
 
+    // 8. Gate QC: Render Technical Validation & Broadcast Standards (NEG-03)
+    const validation = ProductionAssetValidationService.validateMetadata(video);
+    const renderValidationStatus = validation.status;
+    if (validation.status === RenderValidationStatus.INVALID) {
+      blockers.push(`QC Render Validation Failed (NEG-03): ${validation.errors.join('; ')}`);
+    }
+
     const pub = await publishingRepository.findByVideoId(videoId);
     const completedCount = pub?.completedPlatformsCount ?? 0;
     const isReady = blockers.length === 0;
 
-    const validation = ProductionAssetValidationService.validateMetadata(video);
-    const renderValidationStatus = validation.status;
     const canonicalProductionReadiness = ProductionAssetValidationService.determineReadiness(video, { isReady });
 
     const result: PublishReadinessResult = {

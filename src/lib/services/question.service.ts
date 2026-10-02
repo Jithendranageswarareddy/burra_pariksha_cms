@@ -1006,7 +1006,8 @@ export class QuestionService {
     if (actor.role) {
       const r = String(actor.role).toUpperCase();
       if (newStatus === QuestionStatus.APPROVED) {
-        if (r !== UserRole.ADMIN && r !== UserRole.CONTENT_MANAGER) {
+        const approverRoles = [UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.QUESTION_EDITOR, UserRole.REVIEWER];
+        if (!approverRoles.includes(r as any)) {
           throw new Error(`Unauthorized: Role "${actor.role}" is not allowed to approve questions.`);
         }
       } else {

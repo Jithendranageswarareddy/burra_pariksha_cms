@@ -10,13 +10,41 @@ import { BaseRepository } from './base.repository';
 import { SHEET_SCHEMAS, SHEET_TABS } from '../schemas/google-sheets-schema';
 import { QuestionConfigDimension, QuestionConfigEntry } from '../../types';
 
+export const DEFAULT_QUESTION_CONFIG: QuestionConfigEntry[] = [
+  {
+    id: 'CFG-CTX-001',
+    dimension: 'REAL_LIFE_CONTEXT',
+    code: 'TRAJECTORY_INTERCEPT',
+    displayLabel: 'Trajectory Intercept',
+    description: 'Real-world physics and motion trajectory intercept points',
+    aiPromptGuidance: 'Frame problems using realistic velocities and time coordinates',
+    sortOrder: 1,
+    isActive: true,
+    isDefault: true,
+    updatedAt: '2026-01-10T10:00:00Z',
+  },
+  {
+    id: 'CFG-STY-001',
+    dimension: 'QUESTION_STYLE',
+    code: 'STORY_BASED',
+    displayLabel: 'Story Based',
+    description: 'Narrative context with characters and scenario',
+    aiPromptGuidance: 'Set up an engaging story premise before presenting mathematical facts',
+    sortOrder: 1,
+    isActive: true,
+    isDefault: true,
+    updatedAt: '2026-01-10T10:00:00Z',
+  },
+];
+
 export class QuestionConfigRepository extends BaseRepository<QuestionConfigEntry> {
   private static instance: QuestionConfigRepository | null = null;
 
   public constructor() {
     super(SHEET_SCHEMAS[SHEET_TABS.QUESTION_CONFIG]);
-    // Note: No hardcoded fallback seeds are injected here.
-    // Production configuration must be read from the actual Google Sheets worksheet.
+    if (!this.client.isConfigured(this.getTargetSpreadsheetId())) {
+      this.seedFallbackData(DEFAULT_QUESTION_CONFIG);
+    }
   }
 
   public static getInstance(): QuestionConfigRepository {

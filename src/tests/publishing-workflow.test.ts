@@ -7,6 +7,10 @@
  * Step 15: Publish (Manual upload tracking, scheduling, retries, URL verification, finalization)
  */
 
+// Force offline mode for zero-network deterministic test execution
+process.env.SKIP_SHEETS_SYNC = 'true';
+process.env.NODE_ENV = 'test';
+
 import { publishingService } from '../lib/services/publishing.service';
 import { videosRepository } from '../lib/repositories/videos.repository';
 import { questionsRepository } from '../lib/repositories/questions.repository';
@@ -93,6 +97,11 @@ export async function runPhase09Verification(): Promise<{
       priority: PriorityLevel.HIGH,
       driveFileId: 'DRV-P09-TEST-FILE',
       driveFolderUrl: 'https://drive.google.com/drive/folders/test-p09-folder',
+      finalRenderPath: '/renders/master_cut.mp4',
+      finalRenderWidth: 1080,
+      finalRenderHeight: 1920,
+      finalRenderAspectRatio: '9:16',
+      finalRenderFormat: 'MP4',
       actualDurationSeconds: 52,
       targetDurationSeconds: 60,
       createdAt: new Date().toISOString(),

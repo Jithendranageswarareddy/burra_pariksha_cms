@@ -25,6 +25,14 @@ export class TopicsRepository extends BaseRepository<Topic> {
     return TopicsRepository.instance;
   }
 
+  public override async findAll(): Promise<Topic[]> {
+    const sheetStore = BaseRepository.fallbackStore.get(this.schema.sheetName);
+    if (!this.client.isConfigured(this.getTargetSpreadsheetId()) && (!sheetStore || sheetStore.size === 0)) {
+      this.seedFallbackData(MOCK_TOPICS);
+    }
+    return super.findAll();
+  }
+
   public async findByCategoryId(categoryId: string): Promise<Topic[]> {
     const all = await this.findAll();
     return all.filter((t) => t.categoryId === categoryId);

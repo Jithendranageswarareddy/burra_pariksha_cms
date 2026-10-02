@@ -25,6 +25,14 @@ export class SubtopicsRepository extends BaseRepository<Subtopic> {
     return SubtopicsRepository.instance;
   }
 
+  public override async findAll(): Promise<Subtopic[]> {
+    const sheetStore = BaseRepository.fallbackStore.get(this.schema.sheetName);
+    if (!this.client.isConfigured(this.getTargetSpreadsheetId()) && (!sheetStore || sheetStore.size === 0)) {
+      this.seedFallbackData(MOCK_SUBTOPICS);
+    }
+    return super.findAll();
+  }
+
   public async findByTopicId(topicId: string): Promise<Subtopic[]> {
     const all = await this.findAll();
     return all.filter((s) => s.topicId === topicId);

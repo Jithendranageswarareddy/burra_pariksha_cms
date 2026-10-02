@@ -25,6 +25,14 @@ export class CategoriesRepository extends BaseRepository<Category> {
     return CategoriesRepository.instance;
   }
 
+  public override async findAll(): Promise<Category[]> {
+    const sheetStore = BaseRepository.fallbackStore.get(this.schema.sheetName);
+    if (!this.client.isConfigured(this.getTargetSpreadsheetId()) && (!sheetStore || sheetStore.size === 0)) {
+      this.seedFallbackData(MOCK_CATEGORIES);
+    }
+    return super.findAll();
+  }
+
   public async findBySlug(slug: string): Promise<Category | null> {
     const all = await this.findAll();
     return all.find((c) => c.slug === slug) || null;

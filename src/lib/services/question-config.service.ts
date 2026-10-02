@@ -199,7 +199,15 @@ export class QuestionConfigService {
       return this.configCache;
     }
 
-    const rawRecords = await this.repository.findAll();
+    let rawRecords = await this.repository.findAll();
+
+    if (!rawRecords || rawRecords.length === 0) {
+      if (typeof (this.repository as any).seedFallbackData === 'function') {
+        const { DEFAULT_QUESTION_CONFIG } = await import('../repositories/question-config.repository');
+        (this.repository as any).seedFallbackData(DEFAULT_QUESTION_CONFIG);
+        rawRecords = await this.repository.findAll();
+      }
+    }
 
     if (!rawRecords || rawRecords.length === 0) {
       throw new QuestionConfigError(
