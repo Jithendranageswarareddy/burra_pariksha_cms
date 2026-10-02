@@ -37,7 +37,7 @@ Freezes and documents the ACTUAL CURRENT SYSTEM as it exists today. This is a br
 | **Preceding Verified Stages** | Stage 01 (`01-REQUIREMENTS-BASELINE.md` - Accepted v1.1.0), Stage 02 (`02-BUSINESS-ACCEPTANCE-CRITERIA.md` - Accepted v1.1.0) | FACT |
 | **Automated Test Script** | `npm run test:stage03` (`tsx src/tests/stage03-current-system-baseline.test.ts`) | FACT |
 | **Audit Methodology** | Static Source Code Analysis, AST Symbol Tracing, Runtime Environment Probe | FACT |
-| **Source of Truth Commit** | Baseline frozen at commit `7bf393d78991a2b476514e80096cc88a7d1205e4` | FACT |
+| **Source of Truth Commit** | Baseline frozen at commit `2ff0ade21d638cf58f056ee23699e060082151b7` | FACT |
 
 ### Categorical Separation & Semantic Definitions
 Throughout this document, the following operational classifications are strictly enforced:
@@ -401,19 +401,19 @@ Google Sheets API v4 is the **sole authoritative database** in the current syste
 
 ## 03.18 GitHub Evidence & Numbers Reconciliation Table
 
-| Metric / Dimension | Previous Baseline (Commit `548ff5d`) | Current Audited HEAD (`7bf393d`) | Status / Evidence |
+| Metric / Dimension | Historical Baseline (Commit `7bf393d`) | Current Audited HEAD (`2ff0ade`) | Status / Evidence |
 | :--- | :---: | :---: | :--- |
-| **Source-of-Truth Commit** | `548ff5d2c1adcbcb6ea82425856a59032169ec2f` | `7bf393d78991a2b476514e80096cc88a7d1205e4` | **FACT:** Verified against GitHub repository commit log |
-| **Standalone Test Files** | 145 | 171 | **FACT:** Physical file scan in `src/tests/*.ts` |
-| **Production API Endpoints** | 247 | 271 | **FACT:** AST route extraction from `src/server/routes.ts` |
+| **Source-of-Truth Commit** | `7bf393d78991a2b476514e80096cc88a7d1205e4` | `2ff0ade21d638cf58f056ee23699e060082151b7` | **FACT:** Verified against GitHub repository HEAD commit |
+| **Standalone Test Files** | 171 | 171 | **FACT:** Physical file scan in `src/tests/*.ts` |
+| **Production API Endpoints** | 271 | 271 | **FACT:** AST route extraction from `src/server/routes.ts` |
 | **Internal Test API Endpoints** | 59 | 59 | **FACT:** AST route extraction from `src/server/test-routes.ts` |
-| **Design System Components** | 12 | 18 | **FACT:** Physical file scan in `src/design-system/components/*.tsx` |
+| **Design System Components** | 18 | 18 | **FACT:** Physical file scan in `src/design-system/components/*.tsx` |
 | **Routed React Pages** | 31 | 31 | **FACT:** Physical file scan in `src/pages/*.tsx` |
-| **Client Route Declarations** | 79 (78 + wildcard) | 79 (78 + wildcard) | **FACT:** Regex match of `<Route path=` in `src/App.tsx` |
+| **Client Route Declarations** | 78 | 78 | **FACT:** Regex match of `<Route path=` in `src/App.tsx` |
 | **Domain Services** | 69 | 69 | **FACT:** Physical file scan in `src/lib/services/*.ts` (~39,888 LOC) |
 | **Domain Repositories** | 37 | 37 | **FACT:** Physical file scan in `src/lib/repositories/*.ts` |
 | **Authoritative Sheets Worksheets** | 25 | 25 | **FACT:** `ALL_SHEET_TABS` in `src/lib/schemas/google-sheets-schema.ts` |
-| **Defined User Roles** | 20 | 20 | **FACT:** `Role` enum in `src/types/index.ts` |
+| **Defined User Roles** | 20 | 20 | **FACT:** `UserRole` enum in `src/types/index.ts` |
 
 ---
 

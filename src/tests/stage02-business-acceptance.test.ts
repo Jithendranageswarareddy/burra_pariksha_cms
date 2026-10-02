@@ -40,6 +40,8 @@ import {
   UserRole,
   ContentMasterStatus,
   ContentMaster,
+  DifficultyLevel,
+  QuestionLanguage,
 } from '../types';
 import { questionDraftService } from '../lib/services/question-draft.service';
 import { questionService } from '../lib/services/question.service';
@@ -456,20 +458,20 @@ export async function runStage02AcceptanceTests(): Promise<void> {
 
   // Actor A reads version 1
   const actorARecord = await contentMastersRepository.findById(concurrencyMasterId);
-  assert(Number(actorARecord?.version) === 1, 'Actor A reads version 1');
+  assert(Number((actorARecord as any)?.version ?? (actorARecord as any)?.currentVersion) === 1, 'Actor A reads version 1');
 
   // Actor B reads the same version 1
   const actorBRecord = await contentMastersRepository.findById(concurrencyMasterId);
-  assert(Number(actorBRecord?.version) === 1, 'Actor B reads version 1');
+  assert(Number((actorBRecord as any)?.version ?? (actorBRecord as any)?.currentVersion) === 1, 'Actor B reads version 1');
 
   // Actor A updates successfully from version 1 -> version 2
   const actorAUpdate = await contentMastersRepository.update(
     concurrencyMasterId,
-    { title: 'Title Updated by Actor A', version: 2 },
+    { title: 'Title Updated by Actor A', currentVersion: 2 } as any,
     { expectedVersion: 1 }
   );
   assert(actorAUpdate?.title === 'Title Updated by Actor A', 'Actor A update must succeed');
-  assert(Number(actorAUpdate?.version) === 2, 'Version must increment to 2');
+  assert(Number((actorAUpdate as any)?.version ?? (actorAUpdate as any)?.currentVersion) === 2, 'Version must increment to 2');
 
   // Actor B attempts update using stale expectedVersion 1
   let concurrencyConflictDetected = false;
@@ -501,7 +503,7 @@ export async function runStage02AcceptanceTests(): Promise<void> {
     'Persisted database state MUST remain Actor A’s update (No silent overwrite)'
   );
   assert(
-    Number(persistedRecord?.version) === 2,
+    Number((persistedRecord as any)?.version ?? (persistedRecord as any)?.currentVersion) === 2,
     'Persisted version must remain version 2'
   );
 
@@ -521,8 +523,8 @@ export async function runStage02AcceptanceTests(): Promise<void> {
     topicId: 'TOP-QA-01',
     subtopicId: 'SUB-01',
     categoryId: 'CAT-QA',
-    difficulty: 'Intermediate',
-    language: 'TELUGU',
+    difficulty: DifficultyLevel.MEDIUM,
+    language: QuestionLanguage.TELUGU,
     realWorldContext: 'TRAJECTORY_INTERCEPT',
   });
 
