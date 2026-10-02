@@ -37,7 +37,7 @@ Freezes and documents the ACTUAL CURRENT SYSTEM as it exists today. This is a br
 | **Preceding Verified Stages** | Stage 01 (`01-REQUIREMENTS-BASELINE.md` - Accepted v1.1.0), Stage 02 (`02-BUSINESS-ACCEPTANCE-CRITERIA.md` - Accepted v1.1.0) | FACT |
 | **Automated Test Script** | `npm run test:stage03` (`tsx src/tests/stage03-current-system-baseline.test.ts`) | FACT |
 | **Audit Methodology** | Static Source Code Analysis, AST Symbol Tracing, Runtime Environment Probe | FACT |
-| **Source of Truth Commit** | Baseline frozen at commit `548ff5d2c1adcbcb6ea82425856a59032169ec2f` | FACT |
+| **Source of Truth Commit** | Baseline frozen at commit `7bf393d78991a2b476514e80096cc88a7d1205e4` | FACT |
 
 ### Categorical Separation & Semantic Definitions
 Throughout this document, the following operational classifications are strictly enforced:
@@ -60,7 +60,7 @@ The repository is structured as a full-stack TypeScript project running Express 
 | `/src/` | Primary TypeScript source tree | - | ACTIVE | `src/App.tsx`, `src/index.css` |
 | `/src/pages/` | Routed full-screen React page views | 31 | ACTIVE | 31 `.tsx` files (`src/pages/*.tsx`) |
 | `/src/components/` | Presentation, domain, and workflow UI components | 80+ | ACTIVE | Subdirectories: `assignments`, `common`, `dashboard`, `layout`, `production`, `publishing`, `questions`, `queue`, `social`, `video` |
-| `/src/design-system/` | Design system component tokens & UI primitives | 12 | ACTIVE (DUPLICATE) | `src/design-system/components/` (coexists with `src/components/common/`) |
+| `/src/design-system/` | Design system component tokens & UI primitives | 18 | ACTIVE (DUPLICATE) | `src/design-system/components/` (coexists with `src/components/common/`) |
 | `/src/server/` | Express API router, middleware, and test routers | 4 | ACTIVE | `src/server/routes.ts` (6,571 lines), `src/server/test-routes.ts`, `src/server/middleware/` |
 | `/src/lib/services/` | Business logic singletons and domain orchestrators | 69 | ACTIVE | `src/lib/services/*.ts` (~39,888 lines) |
 | `/src/lib/repositories/` | Data access layer wrapping Google Sheets and local caches | 37 | ACTIVE | `src/lib/repositories/*.ts` |
@@ -70,7 +70,7 @@ The repository is structured as a full-stack TypeScript project running Express 
 | `/src/lib/workflow/` | State machine engines, transition guards, step definitions | 6 | ACTIVE | `src/lib/workflow/` (`canonical-workflow.ts`, `media-storage-guard.ts`, etc.) |
 | `/src/contexts/` | React Context providers (Auth, Production Journey) | 2 | ACTIVE | `src/contexts/AuthContext.tsx`, `ProductionJourneyContext.tsx` |
 | `/src/types/` | Global TypeScript enums, interfaces, domain types | 4 | ACTIVE | `src/types/index.ts` (3,277 lines), `ai.ts`, `copilot.ts`, `consensus.ts` |
-| `/src/tests/` | Standalone test scripts and regression suites | 145 | ACTIVE | Executed individually via `tsx` runner |
+| `/src/tests/` | Standalone test scripts and regression suites | 171 | ACTIVE | Executed individually via `tsx` runner |
 | `/docs/` | Repository documentation, audit archives, engineering plans | 300+ | ACTIVE | `docs/audit/`, `docs/engineering/`, `docs/requirements/`, `docs/acceptance/` |
 
 ### Package Dependencies (`package.json`)
@@ -154,7 +154,7 @@ The frontend contains **exactly 31 React page components** located in `src/pages
 - Mounts Helmet security headers with permissive CSP for iframe preview.
 - Mounts `aiRateLimiter` on AI endpoints.
 - Mounts `extractSessionToken` middleware to parse cookies and Bearer headers.
-- Implements 247 production API routes.
+- Implements 271 production API routes.
 
 ---
 
@@ -301,9 +301,9 @@ Google Sheets API v4 is the **sole authoritative database** in the current syste
 
 ---
 
-## 03.12 Existing Automated Tests Inventory (145 Test Files)
+## 03.12 Existing Automated Tests Inventory (171 Test Files)
 
-- `src/tests/` contains **145 test files**.
+- `src/tests/` contains **171 test files**.
 - Executed as standalone Node.js scripts via `tsx`.
 - Key scripts in `package.json`:
   - `npm run test:stage02`: Evaluates Stage 02 business acceptance criteria (7 checks).
@@ -355,6 +355,81 @@ Google Sheets API v4 is the **sole authoritative database** in the current syste
 3. **Missing Client Route Guards (`SEC-HIGH-01`):** Client router relies solely on backend API 403s rather than blocking unauthorized URL navigation.
 4. **Dual Drive Folder Hierarchy (`DRIVE-MED-01`):** Coexistence of flat Phase 7 folders and nested Phase 14 directory structures creates fragmented storage locations.
 5. **Sequence Number Jumps (`SEQ-MED-01`):** Un-sanitized regex parsing in sequence allocations caused 13-digit timestamp test IDs to threaten sequence numbering bounds.
+
+---
+
+## 03.16 19-Dimension Forensic Summary
+
+| # | Forensic Dimension | Current Implementation Reality | Status Classification | Evidence & Key Artifacts |
+| :-: | :--- | :--- | :---: | :--- |
+| 1 | **Frontend View Layer** | React 19 SPA, Tailwind CSS v4, Motion animations, Lucide icons, Vite tooling | **IMPLEMENTED** | `package.json`, `src/App.tsx`, `src/index.css` |
+| 2 | **Frontend IA & Pages** | 31 full-screen React pages organized across 6 core operational hubs | **IMPLEMENTED** | `src/pages/*.tsx` (31 `.tsx` files) |
+| 3 | **UI Component System** | Dual component hierarchy: 18 design-system tokens/primitives coexisting with legacy common components | **DUPLICATED / COMPETING** | `src/design-system/components/` (18 files), `src/components/common/` |
+| 4 | **Client Routing & Navigation** | React Router DOM v7 with 79 route definitions (78 explicit + wildcard fallback) | **PARTIALLY IMPLEMENTED** | `src/App.tsx` (Route declarations present; fine-grained role route guards missing) |
+| 5 | **Server Entry & API Runtime** | Monolithic Express server (`server.ts` + `routes.ts`), 271 production API endpoints, 59 internal test endpoints | **IMPLEMENTED** | `server.ts`, `src/server/routes.ts`, `src/server/test-routes.ts` |
+| 6 | **Domain Business Logic** | 69 domain service singletons handling workflow, media, AI orchestration, and planning | **IMPLEMENTED** | `src/lib/services/*.ts` (~39,888 LOC) |
+| 7 | **Data Access Layer** | 37 repositories extending `BaseRepository` with in-memory `Map` caching | **IMPLEMENTED** | `src/lib/repositories/*.ts` |
+| 8 | **Primary Database & Persistence**| Google Sheets API v4 with 25 authoritative worksheets acting as relational backing store | **IMPLEMENTED** | `src/lib/schemas/google-sheets-schema.ts`, `ALL_SHEET_TABS` (25 tabs) |
+| 9 | **Modern Relational Persistence**| PostgreSQL, Cloud SQL, Firebase Firestore | **DOCUMENTED ONLY** | `docs/architecture/29-target/` (No active SQL/Firestore DB connection in runtime) |
+| 10 | **Binary Media Storage** | Google Drive API v3 with OAuth refresh token for raw video, master MP4s, and thumbnails | **IMPLEMENTED** | `src/lib/services/google-drive.service.ts`, `src/lib/workflow/media-storage-guard.ts` |
+| 11 | **Background & Job Queues** | Redis, BullMQ asynchronous job queues | **DOCUMENTED ONLY** | Only in-memory scheduler `snapshotSchedulerService` runs; no active Redis/BullMQ |
+| 12 | **Real-Time Collaboration** | WebSockets, Socket.io live cursor / multi-user presence | **DOCUMENTED ONLY** | Standard HTTP REST polling utilized across UI |
+| 13 | **AI & Spoken Script Generation**| `@google/genai` Gemini API client for question refinement and spoken script drafting | **IMPLEMENTED** | `src/lib/ai/gemini.client.ts`, `ai-orchestrator.service.ts` |
+| 14 | **Authentication & Sessions** | Native Scrypt password hashing, HMAC-SHA256 session tokens, versioned user invalidation | **IMPLEMENTED** | `src/lib/services/auth.service.ts`, `src/server/routes.ts` |
+| 15 | **Role-Based Access Control** | 20 defined user roles, backend `requireRole` middleware | **PARTIALLY IMPLEMENTED** | `src/types/index.ts`, `src/server/routes.ts` (Backend enforced; client route bypasses exist) |
+| 16 | **State Machine & Workflow** | Canonical 15-step workflow engine coexisting with legacy entity status enums | **PARTIALLY IMPLEMENTED** | `src/lib/workflow/canonical-workflow.ts` coexists with `QuestionStatus`, `VideoProductionStatus` |
+| 17 | **Observability & Audit Logging**| In-sheet `AUDIT_LOG` worksheet, structured console logger, request duration logging | **IMPLEMENTED** | `src/lib/repositories/audit-log.repository.ts`, `src/server/routes.ts` |
+| 18 | **Test Automation & Quality Gate**| 171 standalone test files, stage-by-stage verification suites (Stages 02–29) | **IMPLEMENTED** | `src/tests/*.ts` (171 test files), `package.json` scripts |
+| 19 | **Deployment & Containerization**| Multi-stage Dockerfile (builder + runner), Cloud Run compatible, scale-to-zero | **IMPLEMENTED** | `Dockerfile`, `dist/server.cjs` entry |
+
+---
+
+## 03.17 Documentation vs Reality Findings
+
+| Architectural Domain | Target / Roadmap Documentation Claim | Audited Repository Reality | Gap & Risk Impact |
+| :--- | :--- | :--- | :--- |
+| **Primary Persistence** | Cloud SQL / PostgreSQL with Drizzle ORM or Firestore | Google Sheets API v4 (25 worksheets) is the sole active persistence mechanism | Sheets quota (300 req/min) and lack of multi-table ACID transactions (`DB-CRIT-01`) |
+| **Binary Media Storage** | Google Cloud Storage (GCS) buckets with signed upload URLs | Google Drive API v3 OAuth streaming upload | Dual folder hierarchy (`DRIVE-MED-01`) and OAuth refresh token expiration risks |
+| **Async Background Jobs** | Redis + BullMQ distributed workers | In-process synchronous execution and Node timer (`snapshotSchedulerService`) | Memory leaks, job drops on container restart, unbuffered external spikes |
+| **Real-Time Collaboration**| WebSocket / Socket.io live presence | Client REST polling and manual React state refreshes | Latency in collaborative editorial changes |
+| **RBAC Route Security** | Granular client-side route guards per role matrix | General auth wrapper in `App.tsx`; route protection relies entirely on backend 403s | Soft break `SEC-HIGH-01`: unauthorized role UI views accessible via direct URL navigation |
+| **Workflow State Model** | Strict 15-step linear canonical progression | Dual status tracking: Canonical engine + legacy status enums | Soft break `BRK-SF-01` / `BRK-SF-02`: split-brain desynchronization between tabs |
+| **Test Execution CLI** | Direct CLI script invocation across platforms | Standalone test files require path normalization for Windows CLI runners | Cross-platform execution guard required across test suites |
+| **Typecheck / Linting** | Standard `tsc --noEmit` invocation | Monolithic codebase scale exceeds default 2GB Node heap | Requires `--max-old-space-size=4096` in `npm run lint` |
+
+---
+
+## 03.18 GitHub Evidence & Numbers Reconciliation Table
+
+| Metric / Dimension | Previous Baseline (Commit `548ff5d`) | Current Audited HEAD (`7bf393d`) | Status / Evidence |
+| :--- | :---: | :---: | :--- |
+| **Source-of-Truth Commit** | `548ff5d2c1adcbcb6ea82425856a59032169ec2f` | `7bf393d78991a2b476514e80096cc88a7d1205e4` | **FACT:** Verified against GitHub repository commit log |
+| **Standalone Test Files** | 145 | 171 | **FACT:** Physical file scan in `src/tests/*.ts` |
+| **Production API Endpoints** | 247 | 271 | **FACT:** AST route extraction from `src/server/routes.ts` |
+| **Internal Test API Endpoints** | 59 | 59 | **FACT:** AST route extraction from `src/server/test-routes.ts` |
+| **Design System Components** | 12 | 18 | **FACT:** Physical file scan in `src/design-system/components/*.tsx` |
+| **Routed React Pages** | 31 | 31 | **FACT:** Physical file scan in `src/pages/*.tsx` |
+| **Client Route Declarations** | 79 (78 + wildcard) | 79 (78 + wildcard) | **FACT:** Regex match of `<Route path=` in `src/App.tsx` |
+| **Domain Services** | 69 | 69 | **FACT:** Physical file scan in `src/lib/services/*.ts` (~39,888 LOC) |
+| **Domain Repositories** | 37 | 37 | **FACT:** Physical file scan in `src/lib/repositories/*.ts` |
+| **Authoritative Sheets Worksheets** | 25 | 25 | **FACT:** `ALL_SHEET_TABS` in `src/lib/schemas/google-sheets-schema.ts` |
+| **Defined User Roles** | 20 | 20 | **FACT:** `Role` enum in `src/types/index.ts` |
+
+---
+
+## 03.19 Baseline Limitations & Unknowns
+
+1. **Google Sheets Concurrency & Rate Quotas (`UNVERIFIED` in heavy multi-user production):**
+   - Read quota: 300 requests/minute/project; Write quota: 300 requests/minute/project.
+   - High-concurrency operations under concurrent multi-editor load remain unverified in production conditions without stress testing.
+2. **Dual Drive Storage Hierarchy (`KNOWN DEFECT DRIVE-MED-01`):**
+   - Flat folder structure from Phase 7 and nested directory structure from Phase 14 coexist. File migration to a unified hierarchy remains pending.
+3. **Google Drive OAuth Refresh Token Lifecycle (`OPERATIONAL UNKNOWN`):**
+   - Relies on offline OAuth refresh tokens without automated headless renewal if refresh token is revoked or invalidated.
+4. **Client-Side Route Guard Vulnerability (`KNOWN SOFT BREAK SEC-HIGH-01`):**
+   - Fine-grained client-side role authorization guards are not enforced in React Router, allowing users to view restricted UI frames before backend 403 blocks data fetch.
+5. **Architectural Scaling Ceiling (`ARCHITECTURAL LIMITATION`):**
+   - Single-spreadsheet multi-tab persistence model will encounter performance degradation as worksheet row counts exceed tens of thousands.
 
 ---
 

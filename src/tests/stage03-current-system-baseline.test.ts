@@ -261,8 +261,17 @@ export async function runStage03BaselineTests(): Promise<void> {
   console.log('============================================================');
 }
 
-// Direct CLI invocation
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Cross-platform direct CLI execution guard
+const isDirectCli = Boolean(
+  process.argv[1] &&
+  (
+    import.meta.url === `file://${process.argv[1]}` ||
+    import.meta.url === `file:///${process.argv[1].replace(/\\/g, '/')}` ||
+    process.argv[1].replace(/\\/g, '/').endsWith('src/tests/stage03-current-system-baseline.test.ts')
+  )
+);
+
+if (isDirectCli) {
   runStage03BaselineTests().catch((err) => {
     console.error('Stage 03 Baseline Test Failure:', err);
     process.exit(1);
