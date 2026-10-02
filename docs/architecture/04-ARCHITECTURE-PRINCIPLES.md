@@ -19,10 +19,10 @@ Stage Closure:
 CLOSED
 
 Closure Date:
-2026-10-01
+2026-10-02
 
 Version:
-1.0.0
+1.1.0
 
 Purpose:
 Establishes the foundational, inviolable architecture principles, boundary constraints, and governance rules that all future Burra Pariksha CMS (BP-CMS) design, migration, refactoring, and implementation activities must strictly adhere to.
@@ -37,10 +37,11 @@ Establishes the foundational, inviolable architecture principles, boundary const
 | **File Path** | `docs/architecture/04-ARCHITECTURE-PRINCIPLES.md` | FACT |
 | **Document Stage** | Stage 04 — Architecture Principles | FACT |
 | **Status** | ACCEPTED — COMPLETE — CLOSED | FACT |
-| **Closure Date** | 2026-10-01 | FACT |
+| **Version** | `1.1.0` (Master SDLC Reset Baseline) | FACT |
+| **Closure Date** | 2026-10-02 | FACT |
 | **Verified Git Commit** | `cf2c5d18e176a5fbc38094b8bf5d1bdfe09fd292` | FACT |
 | **Authority** | Authoritative Architecture Governance Specification | FACT |
-| **Preceding Verified Stages**| Stage 01 (`01-REQUIREMENTS-BASELINE.md` - 100% Accepted)<br>Stage 02 (`02-BUSINESS-ACCEPTANCE-CRITERIA.md` - 100% Accepted)<br>Stage 03 (`03-CURRENT-SYSTEM-BASELINE.md` - 100% Accepted & Closed) | FACT |
+| **Preceding Verified Stages**| Stage 01 (`01-REQUIREMENTS-BASELINE.md` - 100% Accepted)<br>Stage 02 (`02-BUSINESS-ACCEPTANCE-CRITERIA.md` - 100% Accepted)<br>Stage 03 (`03-CURRENT-SYSTEM-BASELINE.md` - 100% Accepted & Closed at commit `717ef3d1d794f0bf36279b89ed7ef89133ac5840`) | FACT |
 | **Subsequent Stages** | Stage 05+ (Architecture Decisions, Data Architecture, Pipeline Design) | FACT |
 | **Technology Mandate Stance**| **Strictly Technology-Neutral**: Establishes behavioral and structural boundaries without prematurely declaring unapproved databases, queues, or cloud infrastructure | FACT |
 
@@ -548,7 +549,9 @@ To satisfy Stage 04 completion, the following criteria must be met:
 ## 24. Stage 04 Closure Record
 
 ### 24.1 Controlled Closure Verification Evidence
-* **Closure Execution Date:** 2026-10-01
+* **Closure Execution Date:** 2026-10-02
+* **Version:** 1.1.0 (Master SDLC Reset Baseline)
+* **Preceding Verified Stages:** Stage 01 (Accepted), Stage 02 (Accepted), Stage 03 (Accepted & Closed at commit `717ef3d1d794f0bf36279b89ed7ef89133ac5840`)
 * **Verified GitHub Commit:** `cf2c5d18e176a5fbc38094b8bf5d1bdfe09fd292` (refactor: align canonical 15-stage workflow)
 * **Preceding Implementation Commit:** `8075a562a76357a9772a8a33a38faa0a5fa2fdef`
 * **Canonical 15-Step Workflow:** All 15 stages verified in `CANONICAL_15_STEPS` as single source of truth; zero duplicate enum or sequence definitions (`CanonicalStageIdentifier` strictly derived).
@@ -588,6 +591,7 @@ To satisfy Stage 04 completion, the following criteria must be met:
 ================================================================================
 STAGE 04 — ARCHITECTURE PRINCIPLES
 STATUS: ACCEPTED — COMPLETE — CLOSED
+VERSION: 1.1.0
 IMPLEMENTATION: COMPLETE
 TECHNICAL VERIFICATION: PASSED
 PRODUCT OWNER ACCEPTANCE: ACCEPTED

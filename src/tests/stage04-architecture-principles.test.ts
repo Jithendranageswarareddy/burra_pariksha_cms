@@ -335,8 +335,17 @@ export async function runStage04ArchitectureTests() {
   console.log('============================================================');
 }
 
-// Direct CLI invocation
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Cross-platform direct CLI execution guard
+const isDirectCli = Boolean(
+  process.argv[1] &&
+  (
+    import.meta.url === `file://${process.argv[1]}` ||
+    import.meta.url === `file:///${process.argv[1].replace(/\\/g, '/')}` ||
+    process.argv[1].replace(/\\/g, '/').endsWith('src/tests/stage04-architecture-principles.test.ts')
+  )
+);
+
+if (isDirectCli) {
   runStage04ArchitectureTests().catch((err) => {
     console.error('Architecture Principles Test Failure:', err);
     process.exit(1);
