@@ -18,6 +18,7 @@ export * from './security-architecture';
 export * from './analytics-architecture';
 export * from './audit-observability';
 export * from './cost-architecture';
+export * from './migration-architecture';
 
 // ============================================================================
 // 1. WORKFLOW & STATUS CONSTANTS / ENUMS
