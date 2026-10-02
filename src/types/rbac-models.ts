@@ -158,6 +158,8 @@ export const HUMAN_GATED_CAPABILITIES: readonly CapabilityString[] = [
   'INTELLIGENCE_INSIGHT:APPROVE',
 ] as const;
 
+export const HUMAN_GATED_APPROVAL_CAPABILITIES = HUMAN_GATED_CAPABILITIES;
+
 export function isHumanGatedCapability(capability: string): boolean {
   return HUMAN_GATED_CAPABILITIES.includes(capability as CapabilityString);
 }
@@ -300,20 +302,38 @@ export const ROLE_CAPABILITIES_MAP: Record<CanonicalRbacRole, readonly Capabilit
     'CONTENT:ARCHIVE',
     'MEDIA_ASSET:RESTORE',
     'QUESTION:DELETE',
-    // Oversight across operations
+    // Oversight and supervisory capabilities across all 6 hubs
     'QUESTION:VIEW',
     'QUESTION:CREATE',
     'QUESTION:EDIT',
     'QUESTION:APPROVE',
     'QUESTION:REJECT',
+    'SCRIPT:VIEW',
+    'VIDEO:VIEW',
+    'VIDEO:EDIT',
+    'VIDEO_EDIT:CREATE',
     'VIDEO_EDIT:APPROVE',
     'VIDEO_EDIT:REJECT',
+    'THUMBNAIL:VIEW',
+    'SOCIAL_REVIEW:REVIEW',
     'SOCIAL_REVIEW:APPROVE',
+    'SOCIAL_REVIEW:REJECT',
+    'PUBLISHING_PACKAGE:VIEW',
     'PUBLISHING_PACKAGE:APPROVE',
+    'PUBLICATION:SCHEDULE',
     'PUBLICATION:PUBLISH',
+    'PUBLICATION:SYNC',
+    'PLATFORM:VIEW',
+    'ANALYTICS_SNAPSHOT:VIEW',
+    'PERFORMANCE_RECORD:VIEW',
+    'INTELLIGENCE_INSIGHT:VIEW',
+    'CONTENT:CREATE',
+    'CONTENT:EDIT',
     'WORKFLOW_INSTANCE:TRANSITION',
   ],
 };
+
+export const ROLE_CAPABILITY_REGISTRY = ROLE_CAPABILITIES_MAP;
 
 // ============================================================================
 // 8. BROWNFIELD 20-ROLE DISPOSITION MAPPING (Section 07)

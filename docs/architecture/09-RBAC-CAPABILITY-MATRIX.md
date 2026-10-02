@@ -43,9 +43,9 @@ Defines the authoritative Role-Based Access Control (RBAC) and Capability Archit
 | **Status** | ACCEPTED — COMPLETE — CLOSED | FACT |
 | **Version** | `1.1.0` (Master SDLC Reset Baseline) | FACT |
 | **Closure Date** | 2026-10-02 | FACT |
-| **Preceding Verified Stages** | Stage 01 (`01-REQUIREMENTS-BASELINE.md` - 100% Accepted)<br>Stage 02 (`02-BUSINESS-ACCEPTANCE-CRITERIA.md` - 100% Accepted)<br>Stage 03 (`03-CURRENT-SYSTEM-BASELINE.md` - 100% Accepted & Closed)<br>Stage 04 (`04-ARCHITECTURE-PRINCIPLES.md` - 100% Accepted & Closed)<br>Stage 05 (`05-SYSTEM-BOUNDARY.md` - 100% Verified & Closed)<br>Stage 06 (`06-DOMAIN-MODEL.md` - 100% Verified & Closed)<br>Stage 07 (`07-CANONICAL-15-STEP-WORKFLOW.md` - 100% Verified & Closed)<br>Stage 08 (`08-STATE-MODEL.md` - 100% Verified & Closed) | FACT |
+| **Preceding Verified Stages** | Stage 01 (`01-REQUIREMENTS-BASELINE.md` - 100% Accepted)<br>Stage 02 (`02-BUSINESS-ACCEPTANCE-CRITERIA.md` - 100% Accepted)<br>Stage 03 (`03-CURRENT-SYSTEM-BASELINE.md` - 100% Accepted & Closed)<br>Stage 04 (`04-ARCHITECTURE-PRINCIPLES.md` - 100% Accepted & Closed)<br>Stage 05 (`05-SYSTEM-BOUNDARY.md` - 100% Verified & Closed)<br>Stage 06 (`06-DOMAIN-MODEL.md` - 100% Verified & Closed)<br>Stage 07 (`07-CANONICAL-15-STEP-WORKFLOW.md` - 100% Verified & Closed)<br>Stage 08 (`08-STATE-MODEL.md` - 100% Verified & Closed at commit `5049d57`) | FACT |
 | **Subsequent Stages** | Stage 10+ (Data Architecture, Target Schemas, Physical Storage Models, API Contracts, Authorization Middleware) | FACT |
-| **Baseline Repository Commit** | `548ff5d2c1adcbcb6ea82425856a59032169ec2f` | FACT |
+| **Baseline Repository Commit** | `5049d57` | FACT |
 | **Architectural Scope** | Formally defines roles, capabilities, resources, actions, segregation-of-duties rules, and decision graphs without declaring physical database tables or implementing runtime middleware | FACT |
 
 ### Architectural Deferral Declaration

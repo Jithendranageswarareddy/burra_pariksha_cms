@@ -324,7 +324,33 @@ export function evaluateAuthorization(request: AuthorizationRequest): Authorizat
     };
   }
 
-  // Step 7: Evaluate Business & State Preconditions (AP-005)
+  // Step 7: Evaluate Business Preconditions & Immutability (NEG-06 / AP-005)
+  if (
+    request.action === AuthorizationAction.EDIT &&
+    (request.targetContext?.status === 'APPROVED' || request.targetContext?.status === 'LOCKED')
+  ) {
+    return {
+      allowed: false,
+      errorCode: AuthorizationErrorCode.FORBIDDEN_BY_BUSINESS_RULE,
+      errorMessage: 'Cannot edit locked or approved version. Create a new revision instead (NEG-06).',
+      evaluatedCapability: capability,
+      actorId,
+      resolvedRole: canonicalRole,
+      timestamp,
+      auditEvent: {
+        eventId: `AUD-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+        actorUserId: actorId,
+        actorRole: canonicalRole,
+        actionVerb: request.action,
+        targetResourceType: request.resource,
+        targetResourceId: request.targetContext?.resourceId,
+        timestamp,
+        verdict: 'DENIED',
+        reason: 'FORBIDDEN_BY_BUSINESS_RULE',
+      },
+    };
+  }
+
   if (request.targetContext?.isPreconditionsMet === false) {
     return {
       allowed: false,

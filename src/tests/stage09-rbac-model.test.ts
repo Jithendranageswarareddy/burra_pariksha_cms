@@ -360,7 +360,23 @@ export async function runStage09RbacModelTests() {
     'Expected FORBIDDEN_BY_BUSINESS_RULE'
   );
 
-  // 4. Valid operation with Audit Event emission (AP-014)
+  // 4. Immutability violation: attempting to edit approved/locked artifact (NEG-06)
+  const lockedEditDecision = evaluateAuthorization({
+    actor: { id: 'USR-AUTHOR-01', role: CanonicalRbacRole.QUESTION_AUTHOR },
+    resource: AuthorizationResource.QUESTION,
+    action: AuthorizationAction.EDIT,
+    targetContext: {
+      resourceId: 'BP-Q-00100',
+      status: 'APPROVED',
+    },
+  });
+  assert(lockedEditDecision.allowed === false, 'Editing approved question must be rejected');
+  assert(
+    lockedEditDecision.errorCode === AuthorizationErrorCode.FORBIDDEN_BY_BUSINESS_RULE,
+    'Expected FORBIDDEN_BY_BUSINESS_RULE on editing approved version (NEG-06)'
+  );
+
+  // 5. Valid operation with Audit Event emission (AP-014)
   const validDecision = evaluateAuthorization({
     actor: { id: 'USR-AUTHOR-01', role: CanonicalRbacRole.QUESTION_AUTHOR },
     resource: AuthorizationResource.QUESTION,
