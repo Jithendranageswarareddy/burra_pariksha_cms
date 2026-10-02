@@ -393,7 +393,7 @@ export function generateEventId(date = new Date()): string {
   return `EVT-${yyyy}${mm}${dd}-${seq}`;
 }
 
-export function createRealtimeEnvelope<T extends Record<string, unknown>>(
+export function createRealtimeEnvelope<T extends object = Record<string, unknown>>(
   type: RealtimeEventType,
   channel: string,
   actorId: string,

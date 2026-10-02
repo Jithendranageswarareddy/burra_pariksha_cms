@@ -12,6 +12,7 @@ export * from './ai';
 export * from './consensus';
 export * from './copilot';
 export * from './realtime-architecture';
+export * from './job-architecture';
 
 // ============================================================================
 // 1. WORKFLOW & STATUS CONSTANTS / ENUMS
