@@ -14,6 +14,7 @@
     "test:publishing": "tsx src/tests/publishing-workflow.test.ts",
     "test:stage02": "tsx src/tests/stage02-business-acceptance.test.ts",
     "test:stage03": "tsx src/tests/stage03-current-system-baseline.test.ts",
+    "test:stage04": "tsx src/tests/stage04-architecture-principles.test.ts",
     "test:architecture": "tsx src/tests/stage04-architecture-principles.test.ts",
     "test:all": "npm run test:unit && npm run test:workflow && npm run test:publishing",
     "clean": "rm -rf dist server.js",
