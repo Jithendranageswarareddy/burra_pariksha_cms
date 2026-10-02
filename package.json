@@ -36,6 +36,7 @@
     "test:stage22": "tsx src/tests/stage22-cost-architecture.test.ts",
     "test:stage23": "tsx src/tests/stage23-migration-architecture.test.ts",
     "test:stage24": "tsx src/tests/stage24-test-architecture.test.ts",
+    "test:stage25": "tsx src/tests/stage25-dependency-graph.test.ts",
     "test:all": "npm run test:unit && npm run test:workflow && npm run test:publishing",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit"
