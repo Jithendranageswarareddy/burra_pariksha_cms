@@ -515,8 +515,17 @@ export async function runStage02AcceptanceTests(): Promise<void> {
   console.log('============================================================');
 }
 
-// Direct CLI invocation
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Cross-platform direct CLI execution guard
+const isDirectCli = Boolean(
+  process.argv[1] &&
+  (
+    import.meta.url === `file://${process.argv[1]}` ||
+    import.meta.url === `file:///${process.argv[1].replace(/\\/g, '/')}` ||
+    process.argv[1].replace(/\\/g, '/').endsWith('src/tests/stage02-business-acceptance.test.ts')
+  )
+);
+
+if (isDirectCli) {
   runStage02AcceptanceTests().catch((err) => {
     console.error('Stage 02 Acceptance Test Failure:', err);
     process.exit(1);
