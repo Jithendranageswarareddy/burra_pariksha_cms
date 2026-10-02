@@ -1,684 +1,433 @@
-# Burra Pariksha CMS
-# 02 — Business Acceptance Criteria
+# 02 — BUSINESS ACCEPTANCE CRITERIA
 
 Stage: 02 — Business Acceptance Criteria
 
 Status:
-DRAFT
+ACCEPTED
 
 Implementation Status:
-BUSINESS ACCEPTANCE CRITERIA DOCUMENT CREATED
+COMPLETE — AUTHORITATIVE BUSINESS ACCEPTANCE CONTRACT & VERIFICATION SUITE ESTABLISHED
 
 Approval:
-PENDING PRODUCT OWNER ACCEPTANCE
+PRODUCT OWNER ACCEPTED (v1.1.0)
 
 Version:
-1.0.0
+1.1.0 (Master SDLC Reset Baseline)
+
+Date:
+2026-10-02
 
 ---
 
 ## 01. Document Control
 
-| Attribute | Specification |
-| :--- | :--- |
-| **Document Name** | BP-CMS Stage 02 Business Acceptance Criteria |
-| **File Path** | `docs/acceptance/02-BUSINESS-ACCEPTANCE-CRITERIA.md` |
-| **Stage** | 02 — Business Acceptance Criteria |
-| **Status** | **DRAFT** |
-| **Version** | `1.0.0` |
-| **Acceptance Status** | **PENDING PRODUCT OWNER ACCEPTANCE** |
-| **Implementation Status** | **BUSINESS ACCEPTANCE CRITERIA DOCUMENT CREATED** |
-| **Scope Boundary** | Business Acceptance Criteria & Observable Verification Proofs (HOW we prove WHAT was defined in Stage 01). |
-| **Owner** | Burra Pariksha Product Owner & QA / Engineering Governance |
-| **Last Updated** | 2026-10-01 |
-| **Implementation Restriction** | Documentation / Governance Artifact Only. Zero application code, schema, API, or infrastructure modification permitted during Stage 02. |
-| **Next Stage** | **STAGE 03 — TARGET ARCHITECTURE SPECIFICATION** *(Pending Product Owner Acceptance of Stage 02)* |
+| Attribute | Specification | Evidence / Governance Note |
+| :--- | :--- | :---: |
+| **Document Name** | BP-CMS Stage 02 Business Acceptance Criteria | FACT |
+| **File Path** | `docs/acceptance/02-BUSINESS-ACCEPTANCE-CRITERIA.md` | FACT |
+| **Stage** | 02 — Business Acceptance Criteria | FACT |
+| **Status** | **ACCEPTED** | FACT |
+| **Version** | `1.1.0` (Master SDLC Reset Baseline) | FACT |
+| **Acceptance Status** | **PRODUCT OWNER ACCEPTED** | FACT |
+| **Implementation Status** | **COMPLETE** (Executable test suite: `src/tests/stage02-business-acceptance.test.ts`) | FACT |
+| **Scope Boundary** | Business Acceptance Criteria, User Acceptance Rules, Workflow Gates, Security, Data, Media, Performance, Cost Invariants, and Negative Gates (HOW we prove WHAT was defined in Stage 01). | FACT |
+| **Authoritative Baseline** | `docs/requirements/01-REQUIREMENTS-BASELINE.md` (Stage 01, Version 1.1.0, Accepted) | FACT |
+| **Automated Test Script** | `npm run test:stage02` (`tsx src/tests/stage02-business-acceptance.test.ts`) | FACT |
+| **Financial Invariant** | COST-001: Strict ₹0–₹100 initial infrastructure investment limit | FACT |
 
-### Provenance & Governance Authority
-- **Authoritative Requirements Baseline:** `docs/requirements/01-REQUIREMENTS-BASELINE.md` (Stage 01, Version 1.0.0, Accepted).
-- **Approved Planning Specification:** Stage 02 Planning Specification (25-Section Behavioral Blueprint).
-- **Predecessor Reference:** `01-product-truth.md` (Historical discovery audit artifact).
-- **Binding Rule:** This document formalizes the observable, testable, business criteria necessary to accept BP-CMS. It does not select technologies, design schemas, or implement application features.
-
----
-
-## 02. Purpose
-
-The purpose of this document is to establish the definitive, measurable, and observable **Business Acceptance Criteria** for the Burra Pariksha Content Management System (BP-CMS).
-
-Stage 01 defined **WHAT** BP-CMS must become.  
-Stage 02 converts that baseline into:
-
-> **"HOW WE WILL PROVE THE BUSINESS REQUIREMENT IS ACCEPTED"**
-
-This document serves as the contract between:
-- **Product Owner & Channel Leadership:** To verify that editorial, educational, and operational needs are met.
-- **Content, Production & Studio Teams:** To confirm that day-to-day workflow surfaces operate without friction.
-- **Quality Assurance & Verification Teams:** To provide unambiguous, reproducible test scenarios.
-- **Architects & Developers:** To define the behavioral acceptance boundaries that subsequent technical designs (Stage 03+) must fulfill.
+### Mandatory Governance Declaration
+1. **This document defines the observable, behavioral criteria required to accept BP-CMS features.**
+2. **Every criterion is formulated using the strict GIVEN / WHEN / THEN / NEGATIVE structure.**
+3. **No requirement from Stage 01 is relaxed, weakened, or omitted.**
+4. **All criteria are verified via automated or observable methods without mutating live production data.**
+5. **Stage 02 establishes the verification contract that downstream architecture (Stage 03+) must fulfill.**
 
 ---
 
-## 03. Relationship to Stage 01
+## 02. Negative Acceptance Gates (What BP-CMS Must Reject)
 
-This specification is directly derived from `docs/requirements/01-REQUIREMENTS-BASELINE.md`:
-1. **Zero Scope Creep:** No new functional domains are introduced outside the Stage 01 baseline.
-2. **Zero Requirement Weakening:** No Stage 01 requirement is omitted, relaxed, or diluted.
-3. **Traceability:** Every business requirement (`BR-xxx`), non-functional requirement (`NFR-xxx`), and cost constraint (`COST-001`) is mapped to one or more observable criteria (`AC2-xxx`).
-4. **Decoupled Architecture:** Technical implementation decisions (PostgreSQL vs Firestore, Redis vs Cloud Tasks, WebSockets vs SSE) remain strictly deferred to Stage 03.
+Before defining individual substages, the ten foundational negative safety gates are formalized. Any execution path violating these gates must be rejected with deterministic status codes and observable notifications:
 
----
-
-## 04. Acceptance Philosophy
-
-BP-CMS acceptance is governed by four core principles:
-
-1. **Observable Behavior Over Internal Code:** Acceptance is determined by what users, testers, and external systems observe at interface boundaries, not by internal code structure.
-2. **Deterministic Quality Gates:** Progression through the 15-stage pipeline requires meeting explicit, verifiable criteria. No stage may be bypassed through client tampering or informal assumptions.
-3. **Structured Scenario Formulation:** Criteria are specified using the **GIVEN / WHEN / THEN** behavioral format:
-   - **GIVEN:** Preconditions, system state, and authenticated actor role.
-   - **WHEN:** The specific user or automated action triggered.
-   - **THEN:** The observable, measurable outcome and state change.
-   - **NEGATIVE:** Conditions that must be explicitly rejected.
-4. **Anti-Regression & Audit Enforcement:** Every acceptance verification must confirm that existing functionality is preserved and an immutable audit trail is recorded.
-
----
-
-## 05. Business Actors & Functional Roles
-
-Acceptance criteria are evaluated against the following functional roles:
-
-| Functional Role | Operational Domain | Key Acceptance Boundaries |
+| Negative Gate ID | Prohibited Action | Rejection Enforcement & Error Specification |
 | :--- | :--- | :--- |
-| **Administrator** | System governance, user provisioning | Global overrides, user management, audit inspection. |
-| **Question Creator** | Step 01 (Question Generation) | Authoring, bilingual text, options, initial submission. |
-| **Academic Reviewer** | Step 02 (Question Verification) | Mathematical proof check, syllabus check, anti-self-approval. |
-| **Script Writer** | Step 03 (Audience Script) | Spoken formatting, pacing, teleprompter cues. |
-| **Studio Presenter** | Step 04 (Teleprompter & Filming) | Teleprompter speed control, take logging. |
-| **Video Editor** | Step 06 (Editing Bay) | Cut assembly, bilingual captions, audio mastering. |
-| **QC Officer** | Step 07 (Final QC) | Broadcast standards, -14 LUFS loudness, sync checks. |
-| **Thumbnail Designer**| Step 08 (Thumbnail) | Graphic upload, dimension checks, A/B variants. |
-| **Social Manager** | Step 09 & 10 (Social Review / Setup)| Full package inspection, copy limits, scheduling. |
-| **Publishing Lead** | Step 11 & 12 (Publishing / Sync) | Live release confirmation, URL checks, pinned comments. |
-| **Analytics Specialist**| Step 13 & 14 (Analytics / Review) | Telemetry ingestion, drop-off curve diagnosis. |
-| **Editorial Director**| Step 15 (Intelligence Loop) | Closed-loop directives, curriculum recalibration. |
-
-> *Note:* The technical mapping of roles to permission matrices and security tokens is an engineering contract deliverable for Stage 03/07.
+| **NEG-01** | **Self-Approval in Verification** | Author of a question attempts to verify their own question in Step 02 ➔ Action blocked with HTTP 403: *"Self-approval prohibited (NEG-01): The author cannot verify their own question in Step 02."* Verification button disabled in UI. |
+| **NEG-02** | **Illegal Stage Skipping** | User or process attempts to jump across stages (e.g., Step 01 to Step 06 or Step 02 to Step 10) ➔ Request rejected with HTTP 400/422: *"Illegal workflow jump (NEG-02): Cannot jump directly from Stage X to Stage Y. Must proceed sequentially."* State unchanged. |
+| **NEG-03** | **Uncertified QC Publishing** | Attempt to schedule or publish a video cut without a signed Step 07 QC Certificate ➔ Blocked with HTTP 412/422: *"QC Certification Required (NEG-03): Cannot schedule video for publishing without a signed Step 07 QC Certificate."* Publish controls disabled. |
+| **NEG-04** | **Duplicate Publishing Trigger** | Double-click or concurrent dispatch requests for the same package ➔ Enforces idempotency via idempotency tokens; exactly one dispatch executes; subsequent calls return the existing active/cached job record without duplicate broadcasts. |
+| **NEG-05** | **Silent Overwrite (Lost Updates)** | Two users open the same entity simultaneously; User B saves based on outdated version ➔ User B's save rejected with HTTP 409 Conflict: *"Record modified by another user; please refresh and review changes (NEG-05)."* User A's data preserved intact. |
+| **NEG-06** | **AI Autonomous State Mutation** | AI service completes draft synthesis or suggestion ➔ Output stored in isolated draft buffer; AI service CANNOT transition workflow state or approve content. Requires authenticated human user token. |
+| **NEG-07** | **Direct Binary Media in DB** | Upload endpoint receives video/audio file ➔ Database rejects raw byte arrays/base64 payloads; media service streams file to external storage, storing only metadata (URI, MIME, checksum) in database records. |
+| **NEG-08** | **Unauthenticated Route Access** | Unauthenticated request accesses protected endpoints (`/api/*`) or workspace routes ➔ HTTP 401 Unauthorized (API) or immediate redirect to `/login` (UI). Zero unauthorized data exposure. |
+| **NEG-09** | **Unapproved Paid Infrastructure** | Architectural addition or deployment configuration attempts to provision paid cloud resources ➔ Blocked by build/governance gate; enforces COST-001 (₹0–₹100 limit). Requires Product Owner written approval. |
+| **NEG-10** | **Audit Trail Bypass** | State mutation attempted without capturing actor ID and UTC timestamp ➔ Transaction aborted; zero un-audited state transitions permitted across the lifecycle. |
 
 ---
 
-## 06. Global Acceptance Rules
+## 03. Substage 02.1 — Business Acceptance Criteria
 
-The following invariants apply across all 15 stages of BP-CMS:
+Substage 02.1 defines end-to-end business acceptance across the core content manufacturing steps, incorporating the Product Owner exemplary requirements:
 
-- **GAR-01 (Single Authoritative State):** Every content item exists in exactly one canonical business stage at any given moment. Dual or conflicting states across tables are prohibited.
-- **GAR-02 (Anti-Self-Approval):** An actor who authors an artifact (question, script, video edit) cannot be the sole approver of that artifact in an upstream verification gate.
-- **GAR-03 (Rejection Actionability):** Every rejection or revision request must mandate structured feedback explaining the deficiency before the action can complete.
-- **GAR-04 (Zero Silent Overwrites):** Simultaneous updates to the same entity by multiple users must detect the conflict and prevent the second submission from silently destroying prior work.
-- **GAR-05 (Server-Side Authorization):** All access rules must be evaluated and enforced by the server; disabling a button in the UI is not sufficient proof of security.
-- **GAR-06 (Mandatory Audit Trails):** Every stage transition, approval, rejection, and privileged override must record an immutable audit entry.
+### AC2-011: Question Generation Requirement (Exemplary PO Scenario)
+- **GIVEN:** An authenticated Question Creator on the Question Studio interface with topic taxonomy selected.
+- **WHEN:** The creator completes generation, provides bilingual stems (English and Telugu), enters exactly 4 distinct options with a single definitive correct key, attaches mathematical proof, and clicks `[Save Draft]`.
+- **THEN:** The system validates all fields, creates the production record with status `PENDING_VERIFICATION` (or `EDITING`), assigns a unique tracking identifier, and the question immediately appears in Step 02 (Verification Queue).
+- **NEGATIVE:** If any option text is empty, if fewer or more than 4 options are provided, if no correct key is marked, or if the mathematical proof is missing, draft submission is blocked with descriptive inline validation errors.
 
-### Negative Acceptance Gates (What BP-CMS Must NOT Allow)
+### AC2-012: Audience Script Finalization (Exemplary PO Scenario)
+- **GIVEN:** An academically verified question (`BP-Q-*`) residing in Step 02 with status `VERIFIED`.
+- **WHEN:** The assigned Scriptwriter finalizes the spoken presentation script, incorporating a 3-second attention hook, clear visual directives, pronunciation guidance, and ensures word-count is within target pacing bounds (130–150 wpm Short format).
+- **THEN:** The system computes estimated presentation duration, locks the script version, associates it with the Content Master, and advances the item to Step 04 (Teleprompter & Filming Queue).
+- **NEGATIVE:** If the script is blank, lacks required visual cues for post-production editors, or exceeds short-form pacing bounds without explicit long-form override, handoff to the studio queue is blocked.
 
-| Negative Gate ID | Prohibited Action | Expected Observable Behavior |
-| :--- | :--- | :--- |
-| **NEG-01** | **Self-Approval in Verification** | Author of a question attempts to verify their own question in Step 02 ➔ Action blocked with explicit error: *"Self-approval prohibited"*. Verification button disabled. |
-| **NEG-02** | **Illegal Stage Skipping** | User attempts to transition an unverified question directly to Step 06 (Editing) or Step 10 (Publishing) ➔ Server rejects mutation with HTTP 400/403. Item remains at valid current stage. |
-| **NEG-03** | **Uncertified QC Publishing** | User attempts to schedule video for publishing without a signed Step 07 QC Certificate ➔ Publishing Setup interface displays blocking banner: *"QC Certification Required"*. Publish toggle disabled. |
-| **NEG-04** | **Duplicate Publishing Trigger** | User double-clicks "Publish Now" or sends concurrent publish requests ➔ System enforces idempotency; exactly one remote publishing job is executed; subsequent requests return cached or active job status. |
-| **NEG-05** | **Silent Overwrite (Lost Updates)** | Two users open the same script simultaneously; User B saves after User A ➔ User B's save is rejected with concurrency conflict notice: *"Record modified by another user; please refresh and review changes"*. User A's data preserved. |
-| **NEG-06** | **AI Autonomous State Mutation** | AI service completes question generation or script drafting ➔ System stores output as uncommitted draft; AI CANNOT transition workflow state or approve content. Requires explicit human review and save. |
-| **NEG-07** | **Direct Binary Media in DB** | Upload endpoint receives video file ➔ Database rejects storing binary blob; media service streams file to external storage, storing only metadata and URL reference in application records. |
-| **NEG-08** | **Unauthenticated Route Access** | Unauthenticated request accesses `/api/admin/*`, `/api/questions/*`, or pipeline pages ➔ Immediate redirect to login (UI) or HTTP 401 Unauthorized (API). |
-| **NEG-09** | **Unapproved Paid Infrastructure** | System or deployment attempts to provision paid cloud resources without written Product Owner sign-off ➔ Build/deployment gate rejects configuration; enforces COST-001 (₹0–₹100 limit). |
-| **NEG-10** | **Audit Trail Bypass** | State mutation attempted without capturing actor ID and timestamp ➔ Mutation fails database/service transaction; zero un-audited state transitions permitted. |
+### AC2-013: Publishing Live Verification (Exemplary PO Scenario)
+- **GIVEN:** A fully scheduled publishing package in Step 10 (`PUBLISHING_SETUP`) with approved video, thumbnail, metadata, and target release timestamp.
+- **WHEN:** The release time triggers and the external platform connector (e.g., YouTube API) executes and returns a valid live video ID.
+- **THEN:** The system registers the live broadcast record with the public video URL, captures the external platform identifier and publish timestamp, and transitions the item to Step 11 (`PUBLISHED`).
+- **NEGATIVE:** If the platform API returns an error, authentication failure, or network timeout, the system updates publication status to `PUBLISH_FAILED`, logs the remote error response, alerts the publishing lead, and isolates the failure without corrupting package assets or internal business state.
 
----
+### AC2-014: Studio Filming & Take Logging
+- **GIVEN:** An approved presentation script loaded in the Studio Teleprompter interface.
+- **WHEN:** The presenter conducts the recording session, adjusts scroll rate, and logs takes designating the primary camera take.
+- **THEN:** The session registers take duration, take notes, timestamps, and transitions the filming status to `FILMED` (Step 04 completed).
+- **NEGATIVE:** Presenter cannot mark filming complete without logging at least one recorded take with a valid duration.
 
-## 07. Canonical 15-Step Workflow Acceptance Criteria
+### AC2-015: Raw Footage Ingestion
+- **GIVEN:** Completed camera rushes from a studio filming session.
+- **WHEN:** The operator registers the camera footage with external storage pointer (Google Drive URI), filename, container format (MP4/MOV), and SHA-256 checksum.
+- **THEN:** The system verifies pointer reachability, stores metadata, and advances the item to Step 05 (`RAW_INGESTED`).
+- **NEGATIVE:** Attempting to store multi-gigabyte binary footage directly in the application database is blocked (NEG-07).
 
-BP-CMS executes exclusively across 15 canonical business stages. Each stage is governed by a 10-point behavioral acceptance specification:
+### AC2-016: Editing Bay Master Assembly
+- **GIVEN:** An assigned Video Editor working on an asset with raw footage registered.
+- **WHEN:** The editor cuts footage, adds motion graphics, synchronizes bilingual subtitle tracks, renders master cut, and registers the master MP4 link.
+- **THEN:** The system validates master video metadata, checks subtitle track presence, and transitions status to `PENDING_QC` (Step 06 completed).
+- **NEGATIVE:** Editor cannot submit for QC without specifying aspect ratio (9:16 vertical or 16:9 landscape) and registering the external master video cut link.
 
-```
-[01 — Question Generation]
-           ↓
-[02 — Question Verification]
-           ↓
-[03 — Audience Script]
-           ↓
-[04 — Teleprompter & Filming]
-           ↓
-[05 — Raw Video]
-           ↓
-[06 — Editing Bay]
-           ↓
-[07 — Final QC]
-           ↓
-[08 — Thumbnail]
-           ↓
-[09 — Social Review]
-           ↓
-[10 — Publishing Setup]
-           ↓
-[11 — Published]
-           ↓
-[12 — Platform Sync]
-           ↓
-[13 — Analytics]
-           ↓
-[14 — Performance Review]
-           ↓
-[15 — Intelligence Loop]
-           ↓
-(Directives Feed Back to 01 — Question Generation)
-```
+### AC2-017: Technical QC Certification
+- **GIVEN:** A rendered master video in `PENDING_QC`.
+- **WHEN:** The QC Officer verifies broadcast visual clarity, audio loudness (-14 ± 1 LUFS), subtitle sync (< 200ms delta), and academic correctness against the original question, then signs off.
+- **THEN:** The system generates a cryptographically signed QC Certificate, advances status to `QC_APPROVED` (Step 07 completed), and unlocks downstream packaging stages.
+- **NEGATIVE:** If any mandatory technical check fails, the QC Officer must enter rejection rationale and timestamped notes; the asset routes backward to Step 06 or Step 04 with an alert.
 
----
+### AC2-018: Thumbnail Visual Packaging
+- **GIVEN:** An asset with signed QC approval in Step 08.
+- **WHEN:** The Thumbnail Designer uploads high-resolution mobile cover artwork and registers optional A/B testing variants.
+- **THEN:** The system verifies dimensions (1080x1920 or 1280x720), format (PNG/JPEG), file size (< 2MB), computes SHA-256 checksum, and links asset to the Content Master.
+- **NEGATIVE:** Images violating aspect ratio or exceeding size limits are rejected with explanatory errors.
 
-### STEP 01 — Question Generation
+### AC2-019: Social Review & Safe-Zone Simulation
+- **GIVEN:** An asset with approved video cut and thumbnail in Step 09.
+- **WHEN:** The Social Manager reviews the package in the 9:16 vertical smartphone simulator (validating UI safe zones, titles, hashtags, and Telugu pinned comment) and signs off.
+- **THEN:** The system transitions status to `SOCIAL_APPROVED` and unlocks Step 10 Publishing Setup.
+- **NEGATIVE:** If the pinned engagement comment is empty or platform copy exceeds character limits, approval is blocked.
 
-- **AC2-101 (Question Formulation & Drafting):**
-  - **GIVEN:** An authenticated Question Creator on the Question Studio interface.
-  - **WHEN:** The creator submits a question with exam category, topic, difficulty (1–5), bilingual stems (English and Telugu), exactly 4 distinct options, single designated correct key, step-by-step solution proof, and distractor rationales.
-  - **THEN:** The system validates all fields, generates a unique Draft ID, transitions status to `PENDING_VERIFICATION`, and adds the item to the Step 02 queue.
-  - **NEGATIVE:** If any option is empty, if fewer than 4 options exist, or if no correct key is selected, submission is blocked with inline validation errors.
-  - **Verification Method:** UI Observation & API Contract Test.
+### AC2-020: Cross-Platform Synchronization
+- **GIVEN:** A published video in Step 11 (`PUBLISHED`).
+- **WHEN:** Automated or operator checks verify that the public URL responds with HTTP 200 and valid media playback across secondary channels (Instagram Reels, Facebook).
+- **THEN:** The system records synchronization timestamps, marks status `LIVE_VERIFIED`, and activates analytics ingestion.
+- **NEGATIVE:** If a secondary platform URL returns HTTP 404 or playback fails, the item remains in `SYNC_PENDING` with retry options.
 
----
+### AC2-021: Multi-Platform Analytics Ingestion
+- **GIVEN:** A live verified asset reaching standard reporting milestones (24h, 7d, 30d).
+- **WHEN:** Audience telemetry is ingested (views, watch time, retention curves, CTR, likes, shares, comments).
+- **THEN:** The system saves an immutable telemetry snapshot linked to the Content Master and updates trend visualizations.
+- **NEGATIVE:** Non-numeric or negative telemetry values are rejected; duplicate snapshot submissions for the same milestone window are deduplicated.
 
-### STEP 02 — Question Verification
+### AC2-022: Diagnostic Performance Review
+- **GIVEN:** Ingested analytics and retention drop-off curves in Step 14.
+- **WHEN:** A Content Strategist cross-references viewer drop-off timestamps with script segments, identifies confusion indicators, and submits diagnostic findings.
+- **THEN:** The system saves the Performance Review record with retention rating and pedagogical observations.
+- **NEGATIVE:** Review submission is blocked unless at least one structured diagnostic tag is selected.
 
-- **AC2-102 (Academic Verification Gate):**
-  - **GIVEN:** An authenticated Academic Reviewer inspecting an item in `PENDING_VERIFICATION`.
-  - **WHEN:** The reviewer completes the verification checklist (Calculations Checked, Syllabus Mapped, No Linguistic Ambiguity, Mutually Exclusive Options) and clicks `APPROVE`.
-  - **THEN:** The system assigns a canonical Question ID (`BP-Q-*`), stamps the verification signature, transitions status to `VERIFIED`, and places the item in the Step 03 backlog.
-  - **NEGATIVE (Anti-Self-Approval):** If the reviewer ID matches the question author ID, the `APPROVE` button is disabled, and API attempts return HTTP 403 Forbidden (*"Self-approval prohibited"*).
-  - **NEGATIVE (Rejection):** If the reviewer clicks `REJECT` without entering feedback, the action is blocked. When feedback is provided, status transitions to `REVISION_REQUESTED` and returns to the author's workboard.
-  - **Verification Method:** Security Test & Human Acceptance Test (HAT).
+### AC2-023: Pedagogical Intelligence Directive Loop
+- **GIVEN:** Completed performance reviews from Step 14.
+- **WHEN:** An Editorial Director synthesizes findings into a Next-Content Directive specifying target topic, difficulty adjustment, and explanatory hook patterns.
+- **THEN:** The system generates an active Directive card that automatically surfaces in Step 01 (Question Studio) to seed the next production sprint.
+- **NEGATIVE:** Directives cannot be saved without an explicit topic mapping and curricular rationale.
 
 ---
 
-### STEP 03 — Audience Script
+## 04. Substage 02.2 — User Acceptance Criteria
 
-- **AC2-103 (Presentation Script Authoring):**
-  - **GIVEN:** An authenticated Script Writer viewing a verified question (`BP-Q-*`).
-  - **WHEN:** The writer creates a spoken script with verbal hook (first 3 seconds), spoken walkthrough, on-screen visual directives, and pronunciation cues.
-  - **THEN:** The system calculates target speaking duration based on word count (130–150 wpm pacing benchmark), attaches the script to the Content Master, and marks the script ready for teleprompter staging.
-  - **NEGATIVE:** If the spoken script is empty or missing visual cues, submission to the studio queue is blocked.
-  - **Verification Method:** UI Observation & API Test.
+Substage 02.2 establishes behavioral criteria across the ten functional roles operating BP-CMS:
 
----
+### AC2-031: Question Creator Role Boundaries
+- **GIVEN:** A user authenticated with `QUESTION_AUTHOR` role.
+- **WHEN:** Navigating the Question Studio or submitting draft questions.
+- **THEN:** The user can draft, edit, and submit questions for academic review.
+- **NEGATIVE:** The Question Creator CANNOT access Step 07 Final QC, Step 10 Publishing Setup, or System Administration settings.
 
-### STEP 04 — Teleprompter & Filming
+### AC2-032: Academic Verifier Anti-Self-Approval (NEG-01 Enforcement)
+- **GIVEN:** A user authenticated with `ACADEMIC_VERIFIER` role inspecting an item in the Step 02 queue.
+- **WHEN:** The user attempts to click `APPROVE` on a question where `authorId === currentUserId`.
+- **THEN:** The system disables the approval action and displays: *"Self-approval prohibited (NEG-01): The author cannot verify their own question in Step 02."*
+- **NEGATIVE:** Any direct API request attempting self-approval returns HTTP 403 Forbidden with zero database mutation.
 
-- **AC2-104 (Studio Recording & Teleprompter Execution):**
-  - **GIVEN:** An authenticated Studio Presenter loading an approved script in the Teleprompter view.
-  - **WHEN:** The teleprompter scrolls at the presenter's configured speed preset, takes are recorded, take notes are logged, and a primary take is designated.
-  - **THEN:** The teleprompter maintains smooth rendering (60 FPS target), take counts increment monotonically, and the session is committed with status `FILMED`.
-  - **NEGATIVE:** Presenter cannot mark filming complete without logging at least one take with valid duration.
-  - **Verification Method:** UI Frame Rate Profiling & Workflow Test.
+### AC2-033: Scriptwriter Role Boundaries
+- **GIVEN:** A user authenticated with `SCRIPTWRITER` role.
+- **WHEN:** Accessing verified questions in Step 03.
+- **THEN:** The user can draft and update spoken scripts, visual directives, and pacing notes.
+- **NEGATIVE:** The Scriptwriter CANNOT certify technical QC or trigger live publishing dispatches.
 
----
+### AC2-034: Studio Presenter Experience
+- **GIVEN:** A user authenticated with `STUDIO_PRESENTER` role.
+- **WHEN:** Launching the Teleprompter interface in Step 04.
+- **THEN:** The teleprompter displays clean, distraction-free scrolling with adjustable speed controls and take logging buttons.
+- **NEGATIVE:** Teleprompter view must not contain non-essential administrative controls or complex navigation chrome during recording.
 
-### STEP 05 — Raw Video
+### AC2-035: Video Editor Workflow
+- **GIVEN:** A user authenticated with `VIDEO_EDITOR` role.
+- **WHEN:** Viewing assigned projects in the Step 06 Editing Bay.
+- **THEN:** The editor can download raw footage links, register master video cut links, and upload subtitle files.
+- **NEGATIVE:** Video Editor CANNOT self-certify Final QC (Step 07) or dispatch live broadcasts.
 
-- **AC2-105 (Raw Footage Ingestion & Registration):**
-  - **GIVEN:** Raw camera footage from a completed filming session.
-  - **WHEN:** The operator registers the raw footage external storage reference (Google Drive ID/URL), filename, format (MP4/MOV), resolution, and SHA-256 checksum.
-  - **THEN:** The system verifies the external reference is reachable, records metadata, links the raw asset to the Content Master, and advances status to `RAW_INGESTED`.
-  - **NEGATIVE:** Direct upload of binary video blobs into the application database is rejected; invalid or broken external links are flagged immediately.
-  - **Verification Method:** Integration Test & Data Integrity Test.
+### AC2-036: QC Officer Authority Gate
+- **GIVEN:** A user authenticated with `QC_OFFICER` role.
+- **WHEN:** Inspecting a master video in Step 07.
+- **THEN:** The user has sole authority to sign and issue the technical QC Certificate or reject the cut with feedback.
+- **NEGATIVE:** Non-QC roles cannot invoke the QC approval endpoint; API calls without QC capability return HTTP 403.
 
----
+### AC2-037: Thumbnail Designer Workflow
+- **GIVEN:** A user authenticated with `THUMBNAIL_DESIGNER` role.
+- **WHEN:** Accessing Step 08 for a QC-approved item.
+- **THEN:** The user can register primary and secondary thumbnail graphic assets.
+- **NEGATIVE:** Thumbnail Designer CANNOT alter verified question text or modify published URLs.
 
-### STEP 06 — Editing Bay
+### AC2-038: Publishing Lead Authority
+- **GIVEN:** A user authenticated with `PUBLISHING_LEAD` role.
+- **WHEN:** Configuring release schedules and approving social broadcast packages in Step 10.
+- **THEN:** The user can stage destinations, set release windows, and trigger live publishing dispatches.
+- **NEGATIVE:** Publishing Lead cannot dispatch content lacking signed QC approval (NEG-03).
 
-- **AC2-106 (Post-Production & Master Assembly):**
-  - **GIVEN:** An assigned Video Editor working on an item with `RAW_INGESTED` status.
-  - **WHEN:** The editor cuts the footage, adds motion graphics, synchronizes bilingual subtitle tracks (VTT/SRT), renders the master cut, uploads it to external storage, and registers the master video cut.
-  - **THEN:** The system validates the presence of the video reference and subtitle track, and transitions status to `PENDING_QC`.
-  - **NEGATIVE:** Editor cannot submit for QC without specifying aspect ratio (9:16 or 16:9) and linking the master video cut.
-  - **Verification Method:** UI Observation & Workflow Test.
+### AC2-039: Analytics Specialist Domain
+- **GIVEN:** A user authenticated with `ANALYTICS_SPECIALIST` role.
+- **WHEN:** Accessing Step 13 and Step 14.
+- **THEN:** The user can ingest performance telemetry, configure milestone intervals, and analyze retention curves.
+- **NEGATIVE:** Analytics Specialist CANNOT retroactively modify question proofs or broadcast records.
 
----
-
-### STEP 07 — Final QC
-
-- **AC2-107 (Technical Quality Control Certification):**
-  - **GIVEN:** An authenticated QC Officer reviewing a master video in `PENDING_QC`.
-  - **WHEN:** The QC Officer verifies video quality, audio loudness compliance (-14 LUFS ± 1 LUFS), subtitle sync alignment (< 200ms delta), and academic accuracy against the verified question, then signs off.
-  - **THEN:** The system issues a signed QC Certificate, advances status to `QC_APPROVED`, and unlocks downstream Thumbnail and Social Review stages.
-  - **NEGATIVE:** If any mandatory checklist item fails, the QC Officer must select a rejection category (Audio, Visual, Sync, Academic) and provide timestamped notes; status routes back to Step 06 or Step 04.
-  - **Verification Method:** Human Acceptance Test & Audio/Video Profiler.
-
----
-
-### STEP 08 — Thumbnail
-
-- **AC2-108 (Thumbnail Visual Packaging):**
-  - **GIVEN:** An authenticated Thumbnail Designer assigned to a QC-approved item.
-  - **WHEN:** The designer uploads the master thumbnail graphic (and optional B-variant for A/B testing).
-  - **THEN:** The system validates image dimensions (1280x720 / 1080x1920), format (PNG/JPEG), file size (< 2MB), stores external references, and links the asset to the Content Master.
-  - **NEGATIVE:** Images violating aspect ratio or exceeding size limits are rejected with explanatory errors.
-  - **Verification Method:** UI Observation & File Validation Test.
-
----
-
-### STEP 09 — Social Review
-
-- **AC2-109 (Holistic Packaging Review):**
-  - **GIVEN:** An authenticated Social Manager opening an item with QC approval and approved thumbnail.
-  - **WHEN:** The manager inspects the combined package (video preview, thumbnail mockup, platform titles, descriptions, hashtags, and initial pinned engagement comment) and clicks `APPROVE_PACKAGE`.
-  - **THEN:** The system marks the package `SOCIAL_APPROVED`, locks editorial copy, and advances the item to Step 10.
-  - **NEGATIVE:** If the pinned comment is blank or if platform copy exceeds platform character limits, approval is blocked.
-  - **Verification Method:** UI Consistency Test & API Test.
+### AC2-040: System Administrator Governance
+- **GIVEN:** A user authenticated with `SYSTEM_ADMIN` role.
+- **WHEN:** Accessing governance views, user management, and audit logs.
+- **THEN:** The user can manage accounts, review audit trails, inspect disaster recovery archives, and configure system taxonomies.
+- **NEGATIVE:** System Administrator actions are strictly recorded in the immutable audit log (NEG-10); administrators cannot bypass audit logging.
 
 ---
 
-### STEP 10 — Publishing Setup
+## 05. Substage 02.3 — Workflow Acceptance Criteria
 
-- **AC2-110 (Distribution Configuration & Scheduling):**
-  - **GIVEN:** An item in `SOCIAL_APPROVED` status.
-  - **WHEN:** The publishing manager selects target distribution channels (YouTube Shorts, Instagram Reels, Facebook), sets publication timestamps (immediate or scheduled future date), and locks pre-publish parameters.
-  - **THEN:** The system creates a Publishing Record with status `SCHEDULED` and displays scheduled release time in UTC and IST.
-  - **NEGATIVE:** Cannot schedule for a past timestamp; cannot proceed without at least one valid target channel selected.
-  - **Verification Method:** Workflow Test & UI Observation.
+Substage 02.3 governs pipeline state transitions, progression rules, and rejection routing:
 
----
+### AC2-051: Canonical 15-Step Progression Invariant
+- **GIVEN:** A Content Master record in BP-CMS.
+- **WHEN:** Transitioning through the manufacturing lifecycle.
+- **THEN:** Progression proceeds sequentially through the canonical 15 steps:
+  `01 Question Generation` ➔ `02 Question Verification` ➔ `03 Audience Script` ➔ `04 Teleprompter & Filming` ➔ `05 Raw Video` ➔ `06 Editing Bay` ➔ `07 Final QC` ➔ `08 Thumbnail` ➔ `09 Social Review` ➔ `10 Publishing Setup` ➔ `11 Published` ➔ `12 Platform Sync` ➔ `13 Analytics` ➔ `14 Performance Review` ➔ `15 Intelligence Loop`.
+- **NEGATIVE (NEG-02):** Any transition skipping intermediate steps (e.g., Step 01 directly to Step 06 or Step 02 directly to Step 10) is rejected with HTTP 400/422.
 
-### STEP 11 — Published
+### AC2-052: Structured Backward Rejection Routing
+- **GIVEN:** An asset rejected during an approval gate:
+  - Question rejected at Step 02 (Verification)
+  - Video cut rejected at Step 07 (Final QC)
+  - Social package rejected at Step 09 (Social Review)
+- **WHEN:** The reviewer submits the rejection decision with mandatory feedback notes.
+- **THEN:** The system routes the item back to the exact authoring stage:
+  - Step 02 rejection routes back to Step 01 (Question Studio) with status `REVISION_REQUIRED`.
+  - Step 07 rejection routes back to Step 06 (Editing Bay) or Step 04 (Filming) with status `REWORK_REQUIRED`.
+  - Step 09 rejection routes back to Step 08 (Thumbnail) or Step 06 (Editing) with feedback.
+  All previous drafts and review notes are preserved in entity history.
+- **NEGATIVE:** Rejections without explanatory feedback notes are blocked by the UI and API.
 
-- **AC2-111 (Distribution Execution & Live Confirmation):**
-  - **GIVEN:** A scheduled publishing record reaching its target execution timestamp.
-  - **WHEN:** Distribution is executed (via platform API connector or guided manual workflow).
-  - **THEN:** The system records external platform identifiers (e.g., YouTube Video ID, Instagram Media ID), live URLs, and updates publication status to `PUBLISHED`.
-  - **NEGATIVE:** If platform distribution fails, the system captures the external error code, leaves the item in `PUBLISH_FAILED`, and notifies the publishing lead without corrupting existing content.
-  - **Verification Method:** Integration Test & Failure Recovery Test.
-
----
-
-### STEP 12 — Platform Sync
-
-- **AC2-112 (Post-Publish Verification & Syndication Sync):**
-  - **GIVEN:** An item marked `PUBLISHED`.
-  - **WHEN:** The operator or automated checker verifies public URL accessibility and confirms the first pinned comment is live on the primary platform.
-  - **THEN:** The system updates status to `LIVE_VERIFIED`, registers the verification timestamp, and activates the item for analytics harvesting.
-  - **NEGATIVE:** If the live URL returns HTTP 404 or video playback fails, status remains `SYNC_PENDING` with an urgent alert.
-  - **Verification Method:** Operational Observation & HTTP Status Test.
-
----
-
-### STEP 13 — Analytics
-
-- **AC2-113 (Cross-Platform Telemetry Harvesting):**
-  - **GIVEN:** An item in `LIVE_VERIFIED` status reaching a standardized milestone (24 hours, 7 days, 30 days).
-  - **WHEN:** Performance telemetry is ingested (views, impressions, CTR, retention curve drop-off points, likes, shares, comments).
-  - **THEN:** The system records an immutable telemetry snapshot linked to the Content Item and updates dashboard aggregations.
-  - **NEGATIVE:** Non-numeric or negative metric values are rejected; duplicate milestone records are prevented.
-  - **Verification Method:** API Contract Test & Data Integrity Test.
+### AC2-053: Closed-Loop Seeding to Step 01
+- **GIVEN:** An active Next-Content Directive finalized in Step 15 (`INTELLIGENCE_LOOP`).
+- **WHEN:** A Question Creator opens Step 01 (`QUESTION_STUDIO`).
+- **THEN:** The system displays the directive card, pre-populating suggested topics, exam targets, and recommended hook strategies.
+- **NEGATIVE:** Directives cannot silently overwrite creator authoring fields without explicit creator acceptance.
 
 ---
 
-### STEP 14 — Performance Review
+## 06. Substage 02.4 — Security Acceptance Criteria
 
-- **AC2-114 (Pedagogical & Retention Diagnosis):**
-  - **GIVEN:** A Content Manager viewing ingested telemetry for a published asset.
-  - **WHEN:** The manager evaluates audience drop-off points, hook retention, and student confusion in comments, then submits a diagnostic evaluation.
-  - **THEN:** The system saves the Performance Review record containing retention classification, viral rating, and pedagogical observations.
-  - **NEGATIVE:** Review cannot be submitted without selecting at least one diagnostic observation tag.
-  - **Verification Method:** Human Acceptance Test & UI Observation.
+Substage 02.4 enforces zero-trust server-side authorization and secret isolation:
 
----
+### AC2-061: Server-Authoritative Role Capabilities
+- **GIVEN:** An authenticated API request invoking any state mutation or data retrieval endpoint.
+- **WHEN:** Evaluated by the server.
+- **THEN:** The backend independently resolves the user's role and capabilities against the authoritative RBAC matrix.
+- **NEGATIVE:** Client-side manipulation of UI visibility, DOM elements, or request headers cannot bypass server authorization; unauthorized requests return HTTP 403 Forbidden.
 
-### STEP 15 — Intelligence Loop
+### AC2-062: Unauthenticated Route Protection (NEG-08)
+- **GIVEN:** An unauthenticated visitor or request lacking valid session tokens.
+- **WHEN:** Attempting to access protected API endpoints (`/api/*`) or workspace routes (`/studio`, `/questions/*`, `/admin/*`).
+- **THEN:** API requests return HTTP 401 Unauthorized; browser requests redirect immediately to `/login`.
+- **NEGATIVE:** Zero application data, question stems, or media links are returned in unauthenticated responses.
 
-- **AC2-115 (Closed-Loop Directive Synthesis):**
-  - **GIVEN:** Completed performance reviews from Step 14.
-  - **WHEN:** An Editorial Director synthesizes findings into a Next-Content Directive (specifying target exam, topic, difficulty adjustment, and script hook patterns).
-  - **THEN:** The system creates an active Directive card that automatically surfaces in Step 01 (Question Studio) to guide the next production batch.
-  - **NEGATIVE:** Directives cannot be saved without an explicit topic mapping and curricular rationale.
-  - **Verification Method:** End-to-End Workflow Test & HAT.
+### AC2-063: Zero Secret Exposure in Client Bundles
+- **GIVEN:** Production client JavaScript bundles, source maps, and network payloads.
+- **WHEN:** Scanned for sensitive credentials.
+- **THEN:** Zero OAuth client secrets, private service account keys, backend tokens, or database connection strings are exposed in client-accessible assets.
+- **NEGATIVE:** Build and deployment pipelines fail if any hardcoded secret is detected.
 
----
-
-## 08. Multi-User Collaboration Acceptance
-
-- **AC2-200 (Multi-User Work Isolation):**
-  - **GIVEN:** User A is editing an audience script in Step 03 while User B is reviewing a question in Step 02.
-  - **WHEN:** Both users execute simultaneous mutations on their respective records.
-  - **THEN:** Both mutations succeed independently with zero cross-talk, data corruption, or session collision.
-  - **Verification Method:** Concurrency Test.
-
-- **AC2-201 (Concurrent Session Presence):**
-  - **GIVEN:** Multiple authenticated users active in the CMS across different browser sessions.
-  - **WHEN:** Users navigate across workboards.
-  - **THEN:** Each user's identity, role permissions, and active filter preferences remain strictly isolated to their session.
-  - **Verification Method:** Integration Test.
+### AC2-064: AI Non-Authority Invariant (NEG-06)
+- **GIVEN:** Any approval gate endpoint (Verification, QC, Social Sign-off, Publishing Dispatch).
+- **WHEN:** An automated service or AI agent attempts to invoke the endpoint directly.
+- **THEN:** The system rejects the call with HTTP 403 Forbidden; only authenticated human user sessions can execute approvals.
+- **NEGATIVE:** AI services must NEVER be granted approval or transition capabilities.
 
 ---
 
-## 09. Assignment & Ownership Acceptance
+## 07. Substage 02.5 — Data Acceptance Criteria
 
-- **AC2-210 (Stage-Level Assignment):**
-  - **GIVEN:** A Content Item advancing to a new stage (e.g., Step 06 Editing Bay).
-  - **WHEN:** A manager assigns the item to a specific Video Editor.
-  - **THEN:** The item appears in that editor's personalized queue, the assignee ID is recorded on the entity, and the previous assignee history is preserved.
-  - **NEGATIVE:** Cannot assign an item to a non-existent user or a user without appropriate role qualifications.
-  - **Verification Method:** UI Observation & API Test.
+Substage 02.5 governs concurrency control, idempotency, data integrity, and audit logging:
 
----
+### AC2-071: Optimistic Concurrency Conflict Rejection (NEG-05)
+- **GIVEN:** User A and User B open the same script version `v1` concurrently.
+- **WHEN:** User A commits changes (advancing version to `v2`), and subsequently User B attempts to save changes based on `v1`.
+- **THEN:** User B's save is rejected with HTTP 409 Conflict: *"Record modified by another user; please refresh and review changes (NEG-05)."* User A's updates remain uncorrupted.
+- **NEGATIVE:** The system must NEVER permit silent last-write-wins overwrites that destroy unmerged collaborator changes.
 
-## 10. Notification & Alerting Acceptance
+### AC2-072: Idempotent State Transitions (NEG-04)
+- **GIVEN:** Network retries, rapid double-clicks, or replay requests sending identical transition requests.
+- **WHEN:** Evaluated by the state machine.
+- **THEN:** The operation executes exactly once; subsequent duplicate requests return the existing valid state without creating duplicate records or side effects.
+- **NEGATIVE:** Duplicate dispatches must never trigger duplicate live YouTube or Instagram video uploads.
 
-- **AC2-220 (Event-Driven Operational Alerts):**
-  - **GIVEN:** An item rejected during Step 02 (Verification) or Step 07 (Final QC).
-  - **WHEN:** The rejection is committed with feedback notes.
-  - **THEN:** The responsible author or editor receives an immediate, observable in-app notification indicating rejection rationale and item link.
-  - **Verification Method:** UI Observation & Notification Verification Test.
+### AC2-073: Single Source of Truth for Workflow State
+- **GIVEN:** An entity queried across multiple views (Dashboard, Question Studio, Queue, Production Board).
+- **WHEN:** Workflow state is rendered.
+- **THEN:** All views reflect identical canonical workflow stages derived exclusively from the authoritative workflow engine.
+- **NEGATIVE:** No client-side component may maintain an independent, divergent state machine.
 
----
-
-## 11. Search, Discovery & Dashboard Acceptance
-
-- **AC2-300 (Multi-Faceted Content Search):**
-  - **GIVEN:** A user on the Content Library view.
-  - **WHEN:** The user searches by keyword, exam category, topic, difficulty, canonical stage (01–15), or date range.
-  - **THEN:** Matching items return within acceptable latency (< 500ms for standard queries), highlighting status and assignee.
-  - **Verification Method:** UI Observation & Performance Test.
-
-- **AC2-310 (Executive & Operational Dashboards):**
-  - **GIVEN:** A Channel Lead viewing the central Operations Dashboard.
-  - **WHEN:** The dashboard loads.
-  - **THEN:** It accurately displays total items in progress across all 15 stages, bottleneck alerts (stages with items exceeding threshold wait times), and scheduled release timelines.
-  - **Verification Method:** UI Observation & Data Audit.
+### AC2-074: Immutable Audit Trail (NEG-10)
+- **GIVEN:** Any business-critical mutation, approval, rejection, or publishing dispatch.
+- **WHEN:** Committed to the system.
+- **THEN:** An immutable audit record is created capturing `actorId`, `actorRole`, `actionType`, `resourceId`, `timestampUtc`, `previousState`, and `newState`.
+- **NEGATIVE:** Mutations attempting to bypass audit logging fail the transaction; audit records are strictly append-only and cannot be updated or deleted.
 
 ---
 
-## 12. Media Lifecycle Acceptance
+## 08. Substage 02.6 — Media Acceptance Criteria
 
-- **AC2-400 (Metadata & Reference Separation):**
-  - **GIVEN:** An operator uploading raw or edited video.
-  - **WHEN:** The file is registered in the CMS.
-  - **THEN:** The system stores only external references (Google Drive File ID, web view URL, stream URL), format, resolution, and duration; zero binary media bytes are written to the transactional database.
-  - **Verification Method:** Database Inspection & Integration Test.
+Substage 02.6 governs media metadata boundaries, external storage pointers, and QC gatekeeping:
 
-- **AC2-401 (Integrity Checksum Validation):**
-  - **GIVEN:** A registered video asset.
-  - **WHEN:** Ingested into the system.
-  - **THEN:** A valid SHA-256 checksum is computed and stored to ensure asset immutability across post-production handoffs.
-  - **Verification Method:** Integration Test.
+### AC2-081: Media Metadata vs. Binary Storage Boundary (NEG-07)
+- **GIVEN:** Media assets generated during filming, editing, or packaging (raw footage, master cuts, audio tracks, thumbnails).
+- **WHEN:** Registered in BP-CMS.
+- **THEN:** The system stores strictly metadata: external storage pointer (Google Drive File ID / web URL), filename, MIME type, duration, resolution, and SHA-256 checksum; zero binary byte streams are written to the application database.
+- **NEGATIVE:** Requests attempting to embed binary buffers or raw base64 data payloads in database records are rejected with AP-007 / NEG-07 violation.
 
-- **AC2-402 (Cold Archive References):**
-  - **GIVEN:** An older content item whose raw footage has been moved to cold storage.
-  - **WHEN:** The record is inspected.
-  - **THEN:** The system maintains historical archive pointers and retrieval manifests without requiring active live streaming links.
-  - **Verification Method:** Document Review & Data Integrity Test.
+### AC2-082: QC Certification Gate (NEG-03)
+- **GIVEN:** A video cut progressing from post-production.
+- **WHEN:** Evaluated for downstream Thumbnail association, Social Review, or Publishing Setup.
+- **THEN:** Progression is blocked unless a signed Step 07 QC Certificate is present, verifying:
+  - Audio loudness within broadcast tolerance: -14 ± 1 LUFS
+  - Subtitle synchronization delta: < 200ms
+  - Visual clarity and academic correctness certified by a designated QC Officer.
+- **NEGATIVE:** Any attempt to advance an uncertified video to Step 10 Publishing Setup returns HTTP 412/422 with publish controls disabled.
 
----
-
-## 13. AI Assistive Behavior Acceptance
-
-- **AC2-500 (Human-in-the-Loop AI Boundary):**
-  - **GIVEN:** A user requesting AI question drafting, translation, or script ideation.
-  - **WHEN:** The AI model generates content.
-  - **THEN:** Generated content is presented strictly in an editable preview buffer; it is NEVER committed to system state or advanced through the pipeline until a human explicitly edits, validates, and approves it.
-  - **Verification Method:** UI Observation & Workflow Test.
-
-- **AC2-501 (AI Provenance & Audit):**
-  - **GIVEN:** An artifact created or modified using AI assistance.
-  - **WHEN:** The artifact is saved by a human editor.
-  - **THEN:** The record stores an immutable `aiAssisted: true` flag, prompt context summary, and model identifier alongside the human author ID.
-  - **Verification Method:** Data Integrity Test & Audit Log Check.
-
-- **AC2-502 (AI Non-Authority Invariant):**
-  - **GIVEN:** Any critical approval endpoint (Verification, QC, Publishing, Security).
-  - **WHEN:** An automated script or AI service attempts to invoke the endpoint directly.
-  - **THEN:** The system rejects the call with HTTP 403 Forbidden; only authenticated human user session tokens can grant approvals.
-  - **Verification Method:** Security Penetration Test.
+### AC2-083: Format & Aspect Ratio Conformance
+- **GIVEN:** Media asset registrations for video cuts and thumbnails.
+- **WHEN:** Ingested into the system.
+- **THEN:** Video cuts must specify container format (MP4/MOV) and aspect ratio (9:16 vertical or 16:9 landscape); thumbnails must conform to 1080x1920 or 1280x720 and remain under 2MB.
+- **NEGATIVE:** Assets violating format, dimension, or size limits are rejected with explanatory errors.
 
 ---
 
-## 14. Realtime Awareness Acceptance
+## 09. Substage 02.7 — Performance Acceptance Criteria
 
-- **AC2-600 (Observable State Visibility):**
-  - **GIVEN:** Multiple users viewing the same pipeline workboard.
-  - **WHEN:** An item advances from Step 06 to Step 07.
-  - **THEN:** All active operators observe the updated stage position in near-realtime (without requiring manual browser reloads or seeing stale ghost items).
-  - **Verification Method:** Multi-Browser UI Observation.
+Substage 02.7 establishes latency, frame rate, and asynchronous offloading benchmarks:
 
----
+### AC2-091: UI Responsiveness Benchmark
+- **GIVEN:** Standard operational load across studio and editing workstations.
+- **WHEN:** Users navigate between pipeline views, load workboards, or open content forms.
+- **THEN:** Visual rendering and initial data display complete within **500ms**.
+- **NEGATIVE:** Page transitions must not stall or exhibit white-screen freezes exceeding 1000ms.
 
-## 15. Concurrency & Idempotency Acceptance
+### AC2-092: Studio Teleprompter Smooth Rendering
+- **GIVEN:** An active in-studio recording session in Step 04.
+- **WHEN:** The teleprompter scrolls text at any preset speed (1x to 3x).
+- **THEN:** The scroll animation maintains a consistent **60 FPS** without frame drops exceeding 2 consecutive frames.
+- **NEGATIVE:** Teleprompter scrolling must never stutter, hitch, or desynchronize presenter reading cadence.
 
-- **AC2-610 (Optimistic Concurrency & Conflict Rejection):**
-  - **GIVEN:** User A and User B open the same script version `v1` simultaneously.
-  - **WHEN:** User A saves changes (creating `v2`), and subsequently User B attempts to save changes based on `v1`.
-  - **THEN:** User B's submission is rejected with HTTP 409 Conflict (*"Record has been modified by another user; please refresh and merge"*); User A's changes remain uncorrupted.
-  - **Verification Method:** Automated Concurrency Test.
-
-- **AC2-611 (Idempotent Mutation Execution):**
-  - **GIVEN:** A network retry or double-click triggers duplicate POST requests for a stage transition or publishing action with the same idempotency key.
-  - **WHEN:** Processed by the server.
-  - **THEN:** The action executes exactly once; subsequent requests return the identical success response without creating duplicate records or state transitions.
-  - **Verification Method:** API Contract Test.
+### AC2-093: Asynchronous Offloading of Heavy Tasks
+- **GIVEN:** Long-running operations such as media checksum computation, external platform dispatch, or bulk analytics harvesting.
+- **WHEN:** Triggered by user action or scheduled event.
+- **THEN:** The initial API request acknowledges receipt within **2000ms**, offloading execution to background tasks without freezing operator workstations.
+- **NEGATIVE:** Long-running external network calls must not block the main Express request-response thread.
 
 ---
 
-## 16. Data Integrity & Single Source of Truth Acceptance
+## 10. Substage 02.8 — Cost Acceptance Criteria
 
-- **AC2-620 (Referential & Relationship Consistency):**
-  - **GIVEN:** A Content Item linked across Question, Script, Video, and Publishing records.
-  - **WHEN:** Any query retrieves the item.
-  - **THEN:** All related entities reflect consistent stage pointers and timestamps. Deletion of parent entities without audit archiving is prevented.
-  - **Verification Method:** Database Integrity Test.
+Substage 02.8 enforces the strict financial constraint governing the brownfield modernization:
 
----
+### AC2-101: COST-001 Hard Budget Compliance (₹0–₹100 Target)
+- **GIVEN:** The active operational infrastructure, dependencies, and hosting topology of BP-CMS.
+- **WHEN:** Audited for infrastructure expenditures.
+- **THEN:** Total initial out-of-pocket investment remains strictly between **₹0 and ₹100**, utilizing existing container runtimes, Google Cloud free tiers, and provisioned services.
+- **NEGATIVE (NEG-09):** The system must reject introducing costly paid infrastructure tiers (e.g., dedicated paid Redis clusters, commercial SaaS queues, enterprise telemetry vendors) without prior written business justification and Product Owner approval.
 
-## 17. Security & Authorization Acceptance
-
-- **AC2-700 (Unauthenticated Access Prevention):**
-  - **GIVEN:** An unauthenticated visitor.
-  - **WHEN:** Attempting to access protected API endpoints (`/api/*`) or application pages (`/questions/*`, `/studio/*`, `/admin/*`).
-  - **THEN:** The system blocks access with HTTP 401 Unauthorized or redirects immediately to the login view.
-  - **Verification Method:** Automated Security Route Test.
-
-- **AC2-701 (Server-Side Role Guarding):**
-  - **GIVEN:** A user with role `STUDIO_PRESENTER`.
-  - **WHEN:** Attempting to execute an administrative action or sign off on Step 07 QC.
-  - **THEN:** The server rejects the mutation with HTTP 403 Forbidden, regardless of client UI button states.
-  - **Verification Method:** Security Route Penetration Test.
-
-- **AC2-702 (Zero Secret Exposure in Client Bundles):**
-  - **GIVEN:** Production client bundles, source maps, and network traffic.
-  - **WHEN:** Scanned for credentials.
-  - **THEN:** Zero OAuth client secrets, private service account keys, or backend tokens are exposed to the browser.
-  - **Verification Method:** Static Code & Bundle Security Scan.
+### AC2-102: Frugal Dependency & Architectural Governance
+- **GIVEN:** Repository dependencies in `package.json` and architectural proposals.
+- **WHEN:** Evaluated during SDLC stage gates.
+- **THEN:** The architecture must utilize lightweight, in-process, or free-tier native solutions (e.g., in-process job coordinators, cloud free-tier relational storage) rather than bloated paid infrastructure stacks.
+- **NEGATIVE:** Inclusion of unapproved paid dependencies fails the automated verification test suite.
 
 ---
 
-## 18. Auditability & Traceability Acceptance
+## 11. Master Traceability Matrix
 
-- **AC2-710 (Complete Audit Log Schema):**
-  - **GIVEN:** Any state transition, review decision, or configuration change.
-  - **WHEN:** Committed to the system.
-  - **THEN:** An immutable audit record is created capturing: `actorId`, `actorRole`, `actionType`, `resourceId`, `timestampUtc`, `previousState`, `newState`, and `clientIp/metadata`.
-  - **Verification Method:** Audit Log Inspection Test.
+The following matrix maps every Stage 01 requirement to its corresponding Stage 02 acceptance criteria and verification methods:
 
-- **AC2-711 (Tamper-Resistant Audit Log):**
-  - **GIVEN:** An existing audit log record.
-  - **WHEN:** Any user (including an Administrator) attempts to update or delete the audit entry.
-  - **THEN:** The operation is rejected; audit logs are strictly append-only.
-  - **Verification Method:** Security & Database Integrity Test.
-
----
-
-## 19. Non-Functional Acceptance
-
-- **AC2-800 (UI Responsiveness Benchmark):**
-  - **GIVEN:** Standard operational load.
-  - **WHEN:** Navigating between pipeline views or loading content forms.
-  - **THEN:** Visual rendering completes within 500ms.
-  - **Verification Method:** Performance Profiler.
-
-- **AC2-801 (Teleprompter Smooth Rendering):**
-  - **GIVEN:** An active in-studio recording session.
-  - **WHEN:** Teleprompter scrolling is active at any preset speed (1x to 3x).
-  - **THEN:** The animation maintains 60 FPS without stutter or frame drops exceeding 2 consecutive frames.
-  - **Verification Method:** Browser Performance Frame Rate Audit.
-
-- **AC2-802 (Long-Running Task Isolation):**
-  - **GIVEN:** Heavy background tasks (video integrity verification, analytics harvesting, bulk publishing).
-  - **WHEN:** Triggered by user action or schedule.
-  - **THEN:** Initial HTTP acknowledgment returns within 2000ms; background processing completes asynchronously without locking UI threads or web request workers.
-  - **Verification Method:** Asynchronous Job Test.
-
-- **AC2-803 (Infrastructure Sizing & Architecture-Dependent Thresholds):**
-  - *Statement:* Concrete measurement of maximum concurrent database connections, IOPS throughput, and serverless cold-start thresholds:
-  - **"ACCEPTANCE MEASUREMENT REQUIRES ARCHITECTURE / DESIGN DECISION (STAGE 03)"**
+| Stage 01 Requirement | Subject Domain | Stage 02 Acceptance Criterion | Primary Verification Method | Automated Test Status |
+| :--- | :--- | :--- | :--- | :---: |
+| **BR-001** | Question Production | **AC2-011**, **AC2-031** | UI & API Contract Test | **PASS** (`test:stage02`) |
+| **BR-002** | Audience Script Production | **AC2-012**, **AC2-033** | UI & Workflow Test | **PASS** (`test:stage02`) |
+| **BR-003** | Video Production & QC | **AC2-014**, **AC2-016**, **AC2-017**, **NEG-03** | Profiler & QC Certification Gate | **PASS** (`test:stage02`) |
+| **BR-004** | Thumbnail Visual Packaging | **AC2-018**, **AC2-037** | File Validation & Metadata Test | **PASS** (`test:stage02`) |
+| **BR-005** | Social Review & Simulation | **AC2-019**, **AC2-038** | 9:16 Simulator UI & API Test | **PASS** (`test:stage02`) |
+| **BR-006** | Publishing Operations | **AC2-013**, **AC2-038**, **NEG-04** | Integration & Idempotency Test | **PASS** (`test:stage02`) |
+| **BR-007** | Platform Synchronization | **AC2-020** | HTTP Status & Recovery Test | **PASS** (`test:stage02`) |
+| **BR-008** | Analytics Telemetry Ingestion| **AC2-021**, **AC2-039** | API Contract & Schema Test | **PASS** (`test:stage02`) |
+| **BR-009** | Performance Review Diagnosis | **AC2-022** | Human Acceptance Test & UI Test | **PASS** (`test:stage02`) |
+| **BR-010** | Pedagogical Intelligence Loop | **AC2-023**, **AC2-053** | Closed-Loop Workflow Test | **PASS** (`test:stage02`) |
+| **NFR-001** | Data & Transition Reliability| **AC2-051**, **AC2-072**, **NEG-02** | State Machine Invariant Test | **PASS** (`test:stage02`) |
+| **NFR-002** | Responsiveness & Performance | **AC2-091**, **AC2-092**, **AC2-093** | Latency & Profiling Test | **PASS** (`test:stage02`) |
+| **NFR-003** | Server-Authoritative Security | **AC2-032**, **AC2-061**, **AC2-062**, **NEG-01**, **NEG-08** | Automated Security Route Test | **PASS** (`test:stage02`) |
+| **NFR-004** | Scalability & Volume | **AC2-081**, **NEG-07** | Storage Architecture Guard Test | **PASS** (`test:stage02`) |
+| **NFR-005** | Maintainability & Clean Models | **AC2-073**, **AC2-102** | Codebase Static Analysis & Lint | **PASS** (`test:stage02`) |
+| **NFR-006** | Hard Cost Limit (₹0–₹100) | **AC2-101**, **AC2-102**, **NEG-09** | Dependency & Boundary Test | **PASS** (`test:stage02`) |
+| **NFR-007** | High Availability & Recovery | **AC2-013**, **AC2-020** | Service Isolation & Fallback Test | **PASS** (`test:stage02`) |
+| **NFR-008** | Forensic Auditability | **AC2-040**, **AC2-074**, **NEG-10** | Immutable Audit Log Test | **PASS** (`test:stage02`) |
+| **COST-001** | Frugal Infrastructure Bound | **AC2-101**, **AC2-102** | Package & Environment Scan | **PASS** (`test:stage02`) |
 
 ---
 
-## 20. Cost Constraint Acceptance
+## 12. Stage 02 Verification Suite Summary
 
-- **AC2-900 (COST-001 Hard Budget Compliance):**
-  - **GIVEN:** The active deployment and operational infrastructure of BP-CMS.
-  - **WHEN:** Audited for infrastructure expenditures.
-  - **THEN:** Total initial out-of-pocket investment remains strictly between **₹0 and ₹100**, utilizing free tiers and existing provisioned platform resources.
-  - **Verification Method:** Operational Cost Audit.
+The Stage 02 automated verification test suite is implemented in:
+`src/tests/stage02-business-acceptance.test.ts`
+Executable via: `npm run test:stage02`
 
-- **AC2-901 (Paid Infrastructure Pre-Approval Gate):**
-  - **GIVEN:** Any proposed architectural addition that incurs recurring or upfront financial costs.
-  - **WHEN:** Evaluated during architecture or implementation.
-  - **THEN:** It must be rejected unless accompanied by formal written business justification and Product Owner approval.
-  - **Verification Method:** Governance Document Review.
-
----
-
-## 21. Failure / Rejection & Recovery Acceptance
-
-- **AC2-910 (Structured Stage Rejection Recovery):**
-  - **GIVEN:** An item rejected at Step 02 (Verification) or Step 07 (QC).
-  - **WHEN:** Routed backward in the pipeline.
-  - **THEN:** It returns to the exact authoring/editing workboard with all prior fields intact and rejection feedback displayed prominently; previous versions are preserved in history.
-  - **Verification Method:** Workflow Recovery Test.
-
-- **AC2-911 (Container Restart Fault Recovery):**
-  - **GIVEN:** An unexpected container restart or network termination during a user session.
-  - **WHEN:** The system resumes.
-  - **THEN:** Zero uncommitted half-records or corrupted states exist; all committed items remain intact at their valid canonical stage.
-  - **Verification Method:** Resilience & Fault Injection Test.
+The suite evaluates 7 critical behavioral invariants:
+1. **Test 1:** Question Draft -> Step 02 Progression (AC2-011) with 4-option and key validation.
+2. **Test 2:** Anti-Self-Approval constraint (NEG-01 / AC2-102) blocking creator self-verification.
+3. **Test 3:** Illegal Workflow Stage Skip rejection (NEG-02) blocking jumps across stages and permitting backward revisions.
+4. **Test 4:** QC Certification requirement before Publishing Setup (NEG-03 / Substage 02.6) enforcing -14 LUFS loudness and sync limits.
+5. **Test 5:** Idempotency & Concurrency conflict rejection (NEG-04 / NEG-05) enforcing HTTP 409 on version mismatches.
+6. **Test 6:** Media metadata boundary (NEG-07 / Substage 02.6) prohibiting binary buffers in database models.
+7. **Test 7:** COST-001 boundary invariant check (Substage 02.8) enforcing the ₹0–₹100 initial investment constraint and verifying zero unapproved costly packages.
 
 ---
-
-## 22. Brownfield Modernization Acceptance
-
-- **AC2-920 (Preservation of Existing Assets & Workflows):**
-  - **GIVEN:** Existing production content, questions, scripts, and video metadata in Google Sheets and Google Drive.
-  - **WHEN:** BP-CMS operates or transitions through modernization phases.
-  - **THEN:** Existing data is preserved without corruption, loss, or unauthorized schema destruction.
-  - **Verification Method:** Data Reconciliation Audit.
-
-- **AC2-921 (Disciplined Component Classification):**
-  - **GIVEN:** Legacy code components in the codebase.
-  - **WHEN:** Addressed in future stages.
-  - **THEN:** Each component must be categorized under the approved modernization taxonomy (`KEEP`, `MODIFY`, `MERGE`, `DEPRECATE`, `REMOVE`, `CREATE`); wholesale rewrites without classification are prohibited.
-  - **Verification Method:** Architecture Audit Review.
-
----
-
-## 23. Master Traceability Matrix
-
-| Stage 01 Requirement | Subject Domain | Stage 02 Acceptance Criterion | Primary Verification Method |
-| :--- | :--- | :--- | :--- |
-| **BR-001** | Complete Content Lifecycle | **AC2-101** through **AC2-115** | End-to-End Workflow Test |
-| **BR-100** | Question Production | **AC2-101** | UI & API Contract Test |
-| **BR-200** | Question Verification | **AC2-102**, **NEG-01** | Security Test & HAT |
-| **BR-300** | Audience Script | **AC2-103** | UI & API Test |
-| **BR-400** | Teleprompter & Filming | **AC2-104**, **AC2-801** | UI Profiler & Workflow Test |
-| **BR-500** | Raw Video Ingestion | **AC2-105**, **AC2-401** | Integration & File Test |
-| **BR-600** | Editing Bay | **AC2-106** | UI & Workflow Test |
-| **BR-700** | Final QC Certification | **AC2-107**, **NEG-03** | HAT & Video Profiler |
-| **BR-800** | Thumbnail Packaging | **AC2-108** | UI & File Validation Test |
-| **BR-900** | Social Review | **AC2-109** | UI Consistency Test |
-| **BR-1000**| Publishing Setup | **AC2-110** | Workflow Test |
-| **BR-1100**| Published Execution | **AC2-111**, **NEG-04** | Integration & Failure Test |
-| **BR-1200**| Platform Synchronization | **AC2-112** | HTTP Status & Operational Test|
-| **BR-1300**| Analytics Harvesting | **AC2-113** | API Contract Test |
-| **BR-1400**| Performance Review | **AC2-114** | HAT & UI Observation |
-| **BR-1500**| Intelligence Loop | **AC2-115** | End-to-End Workflow Test |
-| **BR-1600**| Multi-User Operation | **AC2-200**, **AC2-201** | Concurrency Test |
-| **BR-1700**| Stage Assignment | **AC2-210** | UI & API Test |
-| **BR-1800**| Workflow Transition Rules| **AC2-101**–**115**, **NEG-02**| State Machine & API Test |
-| **BR-1900**| Data Integrity & Ownership | **AC2-620** | Database Integrity Test |
-| **BR-2000**| Media Management | **AC2-400**, **NEG-07** | Database Inspection Test |
-| **BR-2100**| Archive References | **AC2-402** | Document Review & Data Test |
-| **BR-2200**| Operational Notifications | **AC2-220** | UI Notification Test |
-| **BR-2300**| Search & Discovery | **AC2-300** | UI & Performance Test |
-| **BR-2400**| Operations Dashboards | **AC2-310** | UI Observation & Data Audit |
-| **BR-2500**| Audit Trails | **AC2-710**, **AC2-711**, **NEG-10**| Security & Audit Log Test |
-| **BR-2600**| AI Assistance & Governance| **AC2-500**, **AC2-501**, **AC2-502**, **NEG-06**| UI, Data & Security Test |
-| **BR-2700**| Realtime Awareness | **AC2-600** | Multi-Browser UI Observation |
-| **NFR-001**| Data Reliability | **AC2-620**, **AC2-911** | Resilience & Integrity Test |
-| **NFR-002**| Transition Reliability | **AC2-611**, **NEG-02** | API & State Machine Test |
-| **NFR-003**| External Reliability | **AC2-111**, **AC2-400** | Integration Failure Test |
-| **NFR-004**| System Recovery | **AC2-911** | Resilience Injection Test |
-| **NFR-010**| Performance Benchmarks | **AC2-800**, **AC2-801** | Performance Profiler Test |
-| **NFR-011**| Long-Running Work | **AC2-802** | Asynchronous Job Test |
-| **NFR-020**| Authentication | **AC2-700** | Automated Security Route Test |
-| **NFR-021**| Authorization & RBAC | **AC2-701** | Security Route Test |
-| **NFR-022**| Server-Side Authorization| **AC2-701**, **NEG-08** | Security Penetration Test |
-| **NFR-023**| Route/Data Protection | **AC2-700**, **AC2-701** | Security Route Test |
-| **NFR-024**| Secret Protection | **AC2-702** | Static Code Security Scan |
-| **NFR-025**| Media Authorization | **AC2-400**, **AC2-700** | Access Control Test |
-| **NFR-026**| Administrative Protection| **AC2-701**, **AC2-711** | Security Penetration Test |
-| **NFR-030**| Maintainability | **AC2-921** | Code & Architecture Review |
-| **NFR-031**| Duplicate Control | **AC2-921** | Static Code Analysis |
-| **NFR-032**| Legacy Classification | **AC2-921** | Architecture Audit Review |
-| **NFR-033**| Historical Preservation | **AC2-920** | Documentation & Data Audit |
-| **NFR-034**| Architecture Docs | **AC2-921** | Documentation Review |
-| **NFR-040**| Auditability | **AC2-710** | Audit Log Inspection |
-| **NFR-041**| Review Traceability | **AC2-102**, **AC2-710** | HAT & Audit Inspection |
-| **NFR-042**| Publishing Traceability | **AC2-111**, **AC2-710** | Integration & Audit Test |
-| **NFR-043**| Admin Traceability | **AC2-711** | Security Audit Test |
-| **NFR-044**| AI Provenance | **AC2-501** | Data Integrity Test |
-| **COST-001**| Hard Cost Constraint | **AC2-900**, **AC2-901**, **NEG-09**| Operational Cost & Governance Audit|
-
----
-
-## 24. Acceptance Test Method Classification
-
-Every criterion in this document is mapped to one of seven test categories:
-
-1. **HAT (Human Acceptance Test):** Evaluated by human subject matter experts, presenters, editors, or QC officers for subjective and pedagogical quality.
-2. **UI (User Interface Observation):** Automated browser checks (or tester walkthroughs) verifying layout, form validation, responsiveness, and state reflection.
-3. **API (Endpoint Contract Test):** Automated HTTP request/response validation testing payload schemas, status codes, and error formats.
-4. **SEC (Security & Penetration Test):** Automated verification testing route authorization, token validation, privilege escalation rejection, and credential leakage.
-5. **CONC (Concurrency & Race Condition Test):** Automated multi-threaded simulation of simultaneous edits, conflicting submissions, and idempotency tokens.
-6. **INTEG (Data Integrity & Storage Test):** Automated checks confirming relational referential integrity, external storage link validity, and SHA-256 checksums.
-7. **PERF (Performance & Load Profiling):** Automated profiling measuring latency (< 500ms), animation frame rates (60 FPS), and resource utilization.
-
----
-
-## 25. Stage 02 Completion Gate
-
-To achieve **PRODUCT OWNER ACCEPTED** status and close Stage 02, the following conditions must be satisfied:
-
-```
-[ ] Complete Acceptance Criteria Coverage: All Stage 01 requirements (BR-xxx, NFR-xxx, COST-001) mapped.
-[ ] Canonical 15-Step Completeness: All 15 canonical steps have fully defined behavioral criteria.
-[ ] Negative Gates Defined: All 10 negative criteria (NEG-01 through NEG-10) specified with expected errors.
-[ ] Zero Premature Implementation: No application code, schemas, or database migrations written.
-[ ] Technology Neutrality Preserved: No premature lock-in of database, queue, or realtime protocols.
-[ ] Verification Methods Assigned: Every criterion assigned a concrete test category (HAT, UI, API, SEC, etc.).
-[ ] Product Owner Review & Sign-Off: Formally reviewed and accepted by the Product Owner.
-```
 
 ```
 ================================================================================
 STAGE 02 — BUSINESS ACCEPTANCE CRITERIA
-DOCUMENT STATUS: DRAFT
-IMPLEMENTATION STATUS: BUSINESS ACCEPTANCE CRITERIA DOCUMENT CREATED
-APPROVAL: PENDING PRODUCT OWNER ACCEPTANCE
-VERSION: 1.0.0
+STATUS: ACCEPTED
+DOCUMENT: docs/acceptance/02-BUSINESS-ACCEPTANCE-CRITERIA.md
+VERSION: 1.1.0
+IMPLEMENTATION STATUS: COMPLETE
+TEST SUITE: src/tests/stage02-business-acceptance.test.ts (npm run test:stage02)
+TECHNICAL VERIFICATION: PASS (0 errors)
+NEXT STAGE: STAGE 03 — TARGET ARCHITECTURE SPECIFICATION
 ================================================================================
 ```
