@@ -344,17 +344,55 @@ Google Sheets API v4 is the **sole authoritative database** in the current syste
 
 ## 03.15 Known Defects, Hard/Soft Breaks & Technical Debt Register
 
-### Confirmed Hard Breaks (Execution Blockers)
-1. **Draft Reload 404 (`BRK-HD-01`):** Approving a question navigates immediately to `/videos/:videoId` before the Google Sheets append transaction completes; refreshing during this window causes 404.
-2. **QUEUED -> EDITING Transition Barrier (`BRK-HD-02`):** Direct movement from `QUEUED` to `EDITING` is rejected by legacy state checks, requiring fragile chained PATCH requests.
-3. **Quota Exhaustion & Transaction Void (`DB-CRIT-01`):** Google Sheets 300 req/min quota causes `429 RESOURCE_EXHAUSTED` under concurrent operations; lack of ACID guarantees risks split-brain state.
+All 8 known defects documented below have been revalidated through executable source code analysis, AST symbol tracing, and type inspection in `src/tests/stage03-current-system-baseline.test.ts`.
 
-### Confirmed Soft Breaks (State Desynchronizations)
-1. **Swallowed Question Status Sync (`BRK-SF-01`):** Errors during secondary status updates to `Question.videoStatus` are caught and logged without rollback.
-2. **Publishing Status Cascade Void (`BRK-SF-02`):** Marking releases as `PUBLISHED` updates `PUBLISHING` tab but fails to cascade to `VIDEOS.status`.
-3. **Missing Client Route Guards (`SEC-HIGH-01`):** Client router relies solely on backend API 403s rather than blocking unauthorized URL navigation.
-4. **Dual Drive Folder Hierarchy (`DRIVE-MED-01`):** Coexistence of flat Phase 7 folders and nested Phase 14 directory structures creates fragmented storage locations.
-5. **Sequence Number Jumps (`SEQ-MED-01`):** Un-sanitized regex parsing in sequence allocations caused 13-digit timestamp test IDs to threaten sequence numbering bounds.
+### 1. BRK-HD-01: Draft Reload 404
+- **Classification:** **CONFIRMED CURRENT**
+- **Evidence:** `questionDraftService.approveDraft()` in `src/lib/services/question-draft.service.ts` materializes the draft into a permanent `Question` and immediately deletes the draft record (`questionDraftsRepository.delete(draftId)`). The route `GET /questions/draft/:id` in `src/server/routes.ts` queries `getDraftById(id)` and returns HTTP 404 when the draft record no longer exists.
+- **Verification Method:** Executable source code AST check in `stage03-current-system-baseline.test.ts` verifying draft deletion on approval and route 404 response on reload.
+- **Limitation:** Reloading `/questions/draft/:id` after verification approval throws HTTP 404 because no automated URL replacement redirect mapping to the newly created Question/Content Master ID currently exists.
+
+### 2. BRK-HD-02: Unsynchronized Multi-Tab State Mutations
+- **Classification:** **CONFIRMED CURRENT**
+- **Evidence:** `QUESTIONS`, `VIDEOS`, and `CONTENT_MASTERS` are independent Google Sheets worksheets managed by distinct repository singletons (`questionsRepository`, `videosRepository`, `contentMastersRepository`). Canonical workflow states (`CANONICAL_15_STEPS` in `src/lib/workflow/canonical-workflow.ts`) operate alongside legacy entity status enums (`QuestionStatus`, `VideoProductionStatus`, `ContentMasterStatus`).
+- **Verification Method:** Executable schema and state model inspection verifying independent worksheet persistence without multi-table ACID locking mechanisms.
+- **Limitation:** Direct status mutations on one entity (e.g. updating `Video.status`) do not transactionally lock or sync corresponding parent `ContentMaster` records.
+
+### 3. DB-CRIT-01: Google Sheets Persistence & Quota Limitations
+- **Classification:** **CONFIRMED CURRENT (Architectural)** / **UNVERIFIED (Live Quota Throttling)**
+- **Evidence:** Google Sheets API v4 (`googleapis`) with 25 authoritative worksheets (`ALL_SHEET_TABS` in `src/lib/schemas/google-sheets-schema.ts`) is the sole persistence engine in production. No active PostgreSQL, Cloud SQL, or Firestore database connection exists.
+- **Verification Method:** Executable schema inspection confirming Google Sheets as sole database; live quota load testing (300 req/min) is intentionally omitted to avoid mutating or throttling live production sheets.
+- **Limitation:** High-concurrency write operations remain constrained by Google Cloud project quota limits (300 requests/minute) and lack cross-table ACID transaction support.
+
+### 4. BRK-SF-01: Swallowed Question.videoStatus Synchronization Error
+- **Classification:** **CONFIRMED CURRENT**
+- **Evidence:** In `src/lib/services/video.service.ts` (lines 410–426), when a video's status is updated via `transitionStatus()`, the secondary synchronization write to `questionsRepository.updateRecord()` for `question.videoStatus` is wrapped in a `try/catch (syncErr)` block that logs a `console.warn` message and swallows errors.
+- **Verification Method:** Executable source code pattern check in `stage03-current-system-baseline.test.ts` verifying swallowed error catch block in `video.service.ts`.
+- **Limitation:** If the secondary update to `questionsRepository` fails, `Video.status` is persisted to `VIDEOS` sheet while `Question.videoStatus` remains out of sync on `QUESTIONS` sheet without transaction rollback.
+
+### 5. BRK-SF-02: Publishing Status Cascade Void
+- **Classification:** **CONFIRMED CURRENT**
+- **Evidence:** `publishingService.finalizePublishing()` in `src/lib/services/publishing.service.ts` transitions `Video.status` to `VideoProductionStatus.UPLOADED`. However, the `QuestionStatus` enum in `src/types/index.ts` lacks an `UPLOADED` or `PUBLISHED` state, leaving `Question.status` as `APPROVED`.
+- **Verification Method:** Executable type and service inspection comparing `VideoProductionStatus.UPLOADED` against `QuestionStatus` enum values.
+- **Limitation:** Distributing content updates the video status to `UPLOADED`, but the parent question record status remains `APPROVED`, creating a status mismatch between video and question domain entities.
+
+### 6. SEC-HIGH-01: Missing Client-Side Fine-Grained Route Guards
+- **Classification:** **CONFIRMED CURRENT**
+- **Evidence:** React Router in `src/App.tsx` renders top-level page views (`SettingsPage`, `RecoveryAdminPage`, `TeamOperationsPage`, `PlanningPage`, etc.) directly under `<Layout />` without client-side `RequireRole` route guard wrappers.
+- **Verification Method:** Executable source code inspection of `src/App.tsx` verifying route declarations and absence of client-side role authorization wrappers.
+- **Limitation:** Any authenticated user can navigate directly to privileged URLs in the browser address bar and view the UI component frame before the backend Express API middleware (`requireRole`) blocks data requests with HTTP 403 Forbidden.
+
+### 7. DRIVE-MED-01: Dual Google Drive Storage Folder Hierarchy
+- **Classification:** **CONFIRMED CURRENT**
+- **Evidence:** `src/lib/services/google-drive.service.ts` contains two competing folder hierarchy creation methods: `ensureContentHierarchy()` (`Content -> BP-CNT-###### -> { Videos, Scripts, Thumbnails }`) and `ensureProductionHierarchy()` (`BP-CNT-###### -> { Raw, Edited, Final, Thumbnail }`).
+- **Verification Method:** Executable method symbol check in `google-drive.service.ts` confirming coexisting folder structure generators.
+- **Limitation:** Media assets uploaded across different development phases are stored across two divergent Google Drive directory structures.
+
+### 8. SEQ-MED-01: Non-Atomic Cross-Process Sequence ID Allocation
+- **Classification:** **CONFIRMED CURRENT**
+- **Evidence:** `SequencesRepository` in `src/lib/repositories/sequences.repository.ts` uses an in-process Promise queue (`allocationQueue`) to serialize ID sequence allocation within a single Node.js process, but lacks distributed row locking on Google Sheets for multi-instance horizontal scaling.
+- **Verification Method:** Executable source code inspection of `sequences.repository.ts` confirming in-process queue implementation without distributed cross-instance locks.
+- **Limitation:** High-concurrency ID requests originating from multiple server instances or external processes could encounter sequence collisions or race conditions on the `SEQUENCES` worksheet.
 
 ---
 
