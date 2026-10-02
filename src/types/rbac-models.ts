@@ -136,6 +136,7 @@ export enum CanonicalRbacRole {
 }
 
 export const CANONICAL_RBAC_ROLES = Object.values(CanonicalRbacRole);
+export { CanonicalRbacRole as CanonicalRole };
 
 // ============================================================================
 // 5. HUMAN-GATED BOUNDARIES (AP-009)
