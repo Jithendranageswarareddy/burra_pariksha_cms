@@ -648,7 +648,13 @@ export function validateCanonicalWorkflowTransition(
   }
 
   // AP-009: AI Governance (AI cannot silently approve or mutate controlled business state)
-  if (req.actor.isAiAgent) {
+  const isAiActor = Boolean(
+    req.actor.isAiAgent ||
+    req.actor.role === 'AI_BOT' ||
+    req.actor.role === 'AI_AGENT' ||
+    req.actor.id.startsWith('AI-')
+  );
+  if (isAiActor) {
     const humanGatedStages: CanonicalStageNumber[] = [2, 7, 9, 10, 14, 15];
     if (humanGatedStages.includes(req.targetStage) && !req.humanSignOff) {
       return {

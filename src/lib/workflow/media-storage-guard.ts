@@ -15,13 +15,15 @@ export interface MediaAssetMetadataInput {
   externalUrl?: string;
   fileName: string;
   mimeType: string;
-  fileSizeBytes: number;
+  fileSizeBytes?: number;
+  byteSize?: number;
   rawBinaryData?: unknown;
   [key: string]: unknown;
 }
 
 export interface MediaGuardValidationResult {
   valid: boolean;
+  isValid: boolean;
   error?: string;
   violatedPrinciple?: 'AP-007' | 'AP-008';
 }
@@ -37,6 +39,7 @@ export function validateMediaAssetMetadata(
   if (input.rawBinaryData !== undefined && input.rawBinaryData !== null) {
     return {
       valid: false,
+      isValid: false,
       error: 'AP-007 Violation: Raw binary media data cannot be stored in application database models.',
       violatedPrinciple: 'AP-007',
     };
@@ -53,6 +56,7 @@ export function validateMediaAssetMetadata(
       ) {
         return {
           valid: false,
+          isValid: false,
           error: `AP-007 Violation: Field "${key}" contains base64/binary media payload. Binaries must remain in external storage.`,
           violatedPrinciple: 'AP-007',
         };
@@ -64,6 +68,7 @@ export function validateMediaAssetMetadata(
   if (!input.entityId || input.entityId.trim() === '') {
     return {
       valid: false,
+      isValid: false,
       error: 'AP-008 Violation: Media asset record must be linked to an authoritative entityId.',
       violatedPrinciple: 'AP-008',
     };
@@ -72,6 +77,7 @@ export function validateMediaAssetMetadata(
   if (!input.entityType || input.entityType.trim() === '') {
     return {
       valid: false,
+      isValid: false,
       error: 'AP-008 Violation: Media asset record must specify an authoritative entityType.',
       violatedPrinciple: 'AP-008',
     };
@@ -83,10 +89,11 @@ export function validateMediaAssetMetadata(
   if (!hasDriveRef && !hasExternalRef) {
     return {
       valid: false,
+      isValid: false,
       error: 'AP-008 Violation: Media asset record must maintain a valid external reference (driveFileId or externalUrl).',
       violatedPrinciple: 'AP-008',
     };
   }
 
-  return { valid: true };
+  return { valid: true, isValid: true };
 }
