@@ -29,6 +29,7 @@
     "test:stage15": "tsx src/tests/stage15-api-contract.test.ts",
     "test:stage16": "tsx src/tests/stage16-realtime-architecture.test.ts",
     "test:stage17": "tsx src/tests/stage17-job-architecture.test.ts",
+    "test:stage18": "tsx src/tests/stage18-ai-architecture.test.ts",
     "test:all": "npm run test:unit && npm run test:workflow && npm run test:publishing",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit"
