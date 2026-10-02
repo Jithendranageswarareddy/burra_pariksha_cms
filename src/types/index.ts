@@ -21,6 +21,7 @@ export * from './cost-architecture';
 export * from './migration-architecture';
 export * from './test-architecture';
 export * from './dependency-graph';
+export * from './feature-contracts';
 
 // ============================================================================
 // 1. WORKFLOW & STATUS CONSTANTS / ENUMS
