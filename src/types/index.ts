@@ -11,6 +11,7 @@ import { AIProvenance } from './ai';
 export * from './ai';
 export * from './consensus';
 export * from './copilot';
+export * from './realtime-architecture';
 
 // ============================================================================
 // 1. WORKFLOW & STATUS CONSTANTS / ENUMS
