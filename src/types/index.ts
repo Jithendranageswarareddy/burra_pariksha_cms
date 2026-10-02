@@ -22,6 +22,7 @@ export * from './migration-architecture';
 export * from './test-architecture';
 export * from './dependency-graph';
 export * from './feature-contracts';
+export * from './implementation-cycle';
 
 // ============================================================================
 // 1. WORKFLOW & STATUS CONSTANTS / ENUMS
