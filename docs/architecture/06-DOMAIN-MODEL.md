@@ -4,7 +4,7 @@
 Stage: 06 — Domain Model
 
 STATUS:
-COMPLETE — VERIFIED — CLOSED
+ACCEPTED — COMPLETE — CLOSED
 
 Implementation Status:
 COMPLETE
@@ -16,10 +16,16 @@ GitHub Verification:
 PASSED
 
 Product Owner Acceptance:
-NOT USED IN ROUTINE STAGE CLOSURE
+ACCEPTED
+
+Stage Closure:
+CLOSED
+
+Closure Date:
+2026-10-02
 
 Version:
-1.0.0
+1.1.0
 
 Purpose:
 Defines the authoritative canonical business domain model for the Burra Pariksha Content Management System (BP-CMS). Specifies all business entities, conceptual boundaries, domain ownership, relationships, cardinalities, lifecycles, and governance invariants across the 15-step pedagogical production pipeline, strictly decoupled from physical database persistence and low-level API implementations.
@@ -34,10 +40,12 @@ Defines the authoritative canonical business domain model for the Burra Pariksha
 | **File Path** | `docs/architecture/06-DOMAIN-MODEL.md` | FACT |
 | **Document Stage** | Stage 06 — Domain Model | FACT |
 | **Authority** | Authoritative Business Domain & Entity Model Specification | FACT |
-| **Status** | COMPLETE — VERIFIED — CLOSED | FACT |
-| **Preceding Verified Stages** | Stage 01 (`01-REQUIREMENTS-BASELINE.md` - 100% Accepted)<br>Stage 02 (`02-BUSINESS-ACCEPTANCE-CRITERIA.md` - 100% Accepted)<br>Stage 03 (`03-CURRENT-SYSTEM-BASELINE.md` - 100% Accepted & Closed)<br>Stage 04 (`04-ARCHITECTURE-PRINCIPLES.md` - 100% Accepted & Closed)<br>Stage 05 (`05-SYSTEM-BOUNDARY.md` - 100% Verified & Closed) | FACT |
+| **Status** | ACCEPTED — COMPLETE — CLOSED | FACT |
+| **Version** | `1.1.0` (Master SDLC Reset Baseline) | FACT |
+| **Closure Date** | 2026-10-02 | FACT |
+| **Preceding Verified Stages** | Stage 01 (`01-REQUIREMENTS-BASELINE.md` - 100% Accepted)<br>Stage 02 (`02-BUSINESS-ACCEPTANCE-CRITERIA.md` - 100% Accepted)<br>Stage 03 (`03-CURRENT-SYSTEM-BASELINE.md` - 100% Accepted & Closed)<br>Stage 04 (`04-ARCHITECTURE-PRINCIPLES.md` - 100% Accepted & Closed)<br>Stage 05 (`05-SYSTEM-BOUNDARY.md` - 100% Accepted & Closed at commit `68ba0b1`) | FACT |
 | **Subsequent Stages** | Stage 07+ (Target Data Architecture, Physical Storage Schemas, Migration Specifications, API Contracts) | FACT |
-| **Baseline Repository Commit** | `26e445a0fbd68455fe63f9eb7d36148d277b9abb` | FACT |
+| **Baseline Repository Commit** | `68ba0b1` | FACT |
 | **Architectural Scope** | Defines business entities, domain ownership, relationships, and invariants without declaring database tables, ORM models, or API endpoints | FACT |
 
 ---
@@ -1866,29 +1874,35 @@ The following checklist must be satisfied to establish completion of Stage 06:
 | Verification Item | Specification | Result |
 | :--- | :--- | :---: |
 | Canonical 27 Candidate Entities Accounted For | 27 of 27 entities defined | VERIFIED |
+| TypeScript Domain Model Code (`src/types/domain-models.ts`) | All 27 entity interfaces & registry created | VERIFIED |
+| Stage 06 Automated Test Suite (`npm run test:stage06`) | 5/5 checks passed | PASSED |
 | Business Identity vs Technical Key Distinguished | All 27 entities specify business ID | VERIFIED |
 | Single Domain Ownership Established | AP-010 compliance verified | VERIFIED |
 | Media Reference vs Binary Storage Separation | AP-007 and AP-008 compliance verified | VERIFIED |
 | Canonical 15-Step Workflow Invariant Preserved | AP-001 and AP-003 compliance verified | VERIFIED |
 | Human-Gated Review & AI Subordination Preserved | AP-009 compliance verified | VERIFIED |
 | Cross-Domain Relationship Matrix Defined | Full cardinality & invariant mapping | VERIFIED |
-| Entity Decision Register Documented | 27 accepted, 0 deferred, 1 proposed addition | VERIFIED |
+| Entity Decision Register Documented | 27 accepted entities | VERIFIED |
 | Persistence & API Deferment Declared | No SQL / No DTOs / No Endpoints | VERIFIED |
-| Non-Requirements Enforced | Zero code / Zero schema / Zero infra | VERIFIED |
+| Non-Requirements Enforced | Zero premature SQL schemas / Zero infra | VERIFIED |
 | Traceability to Stages 01, 02, 04, 05 | Comprehensive mapping verified | VERIFIED |
 | Codebase Lint Verification (`npm run lint`) | Zero errors | PASSED |
 | Production Build Compilation (`npm run build`) | Zero errors | PASSED |
 | Implementation Status | Complete | COMPLETE |
-| Technical Verification | Google AI Studio verification passed | PASSED |
-| GitHub Verification | Baseline & verification passed | PASSED |
-| Stage Closure | Stage 06 closed per routine governance | CLOSED |
+| Technical Verification | All tests passed | PASSED |
+| Product Owner Acceptance | Accepted | ACCEPTED |
+| Stage Closure | Stage 06 closed | CLOSED |
 
 ```
 ================================================================================
 STAGE 06 — DOMAIN MODEL
+STATUS: ACCEPTED — COMPLETE — CLOSED
+VERSION: 1.1.0
 IMPLEMENTATION: COMPLETE
+DOMAIN CODE: src/types/domain-models.ts (27 ENTITIES DEFINED)
+TEST SUITE: src/tests/stage06-domain-model.test.ts (PASSED)
 TECHNICAL VERIFICATION: PASSED
-GITHUB VERIFICATION: PASSED
+PRODUCT OWNER ACCEPTANCE: ACCEPTED
 STAGE 06 CLOSED: YES
 STAGE 07: NOT STARTED
 ================================================================================
