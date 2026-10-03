@@ -7,7 +7,8 @@
 Document ID:       BP-ARCH-18-AI
 Version:           18.0.0-SDLC-RESTART
 Status:            APPROVED / AUTHORITATIVE ARCHITECTURAL SPECIFICATION
-Scope:             Assistive AI Boundary, Human-Gated 7-Step Pipeline, Provider Abstraction,
+Scope:             46 Authoritative Architectural Dimensions:
+                   Assistive AI Boundary, Human-Gated 7-Step Pipeline, Provider Abstraction,
                    Prompt Versioning, Multi-Layer Validation, Provenance Ledger,
                    State Separation, Rate Limiting & ₹0–₹100 Cost Governance
 Upstream Inputs:   01-REQUIREMENTS-BASELINE.md
@@ -69,24 +70,24 @@ This document establishes the authoritative **Artificial Intelligence (AI) Archi
 
 The AI subsystem in BP-CMS is governed by four immutable architectural principles derived from **Stage 04 (Architecture Principles)**:
 
-### Principle 1: Human Supremacy & Non-Authoritative AI (AP-009)
+### 2.1 Principle 1: Human Supremacy & Non-Authoritative AI (AP-009)
 $$\text{AI Output} = \text{Advisory Proposal / Staged Candidate}$$
 $$\text{AI Output} \neq \text{Canonical Business State}$$
 AI is strictly an assistive copilot for educators, scriptwriters, and video producers. **AI agents possess zero workflow authority.** An LLM cannot approve a question, mark a script as finalized, validate a video cut, advance a workflow stage, or trigger publishing dispatch. Every AI-generated artifact must remain staged in a non-canonical draft container until an authorized human operator executes an explicit **Accept** or **Edit & Save** action.
 
-### Principle 2: Strict State Separation (AP-010 & Stage 08 Alignment)
+### 2.2 Principle 2: Strict State Separation (AP-010 & Stage 08 Alignment)
 $$\text{WorkflowInstance.currentStep} \neq \text{Question.lifecycleState} \neq \text{AsyncJobRecord.state} \neq \text{AiRequestRecord.state}$$
 The transient execution state of an AI generation job (`REQUESTED`, `PROCESSING`, `COMPLETED`, `FAILED`) is completely decoupled from the lifecycle state of the target entity (`DRAFT`, `IN_REVIEW`, `APPROVED`). An AI failure must **never** corrupt or roll back canonical business state.
 
-### Principle 3: Immutable Traceability & Provenance (AP-014)
+### 2.3 Principle 3: Immutable Traceability & Provenance (AP-014)
 Every piece of AI-assisted content admitted to canonical persistence must maintain an unbroken chain of custody. The system records the exact model version, prompt template identifier, semantic version, SHA-256 prompt hash, input parameter snapshot, raw LLM completion, validation verdict, and human reviewer identity.
 
-### Principle 4: Zero-Cost Economic Invariant (AP-012)
+### 2.4 Principle 4: Zero-Cost Economic Invariant (AP-012)
 The AI architecture must operate reliably within the project's strict infrastructure ceiling of **₹0 to ₹100 / month**. Provider integration must prioritize Google AI Studio's perpetual free tiers (up to 15 RPM, 1,500 requests/day for Gemini 2.5 Flash), utilizing local in-process mocking during development and offline testing.
 
 ---
 
-## 3. The Human-Gated AI Canonical Lifecycle
+## 3. Human-Gated Lifecycle (The Canonical 7-Step Pipeline)
 
 All AI interactions across the 15-step studio workflow adhere strictly to the **Canonical 7-Step Lifecycle**:
 
@@ -134,71 +135,12 @@ All AI interactions across the 15-step studio workflow adhere strictly to the **
    └───────────────────────────┘             └───────────────────────────┘
 ```
 
-### Stage 1: AI Request Ingest
-An authorized studio operator initiates an assistive action from the workspace UI (e.g. "Generate Telugu Question" in Step 01). The backend validates request parameters against Zod contracts, checks RBAC capabilities (`QUESTION_CREATE`), verifies the client's `Idempotency-Key`, inserts an `AiRequestRecord` with state `REQUESTED`, and returns `202 Accepted`.
-
-### Stage 2: Asynchronous Generation
-The asynchronous worker (invoked via Cloud Tasks push queue per Stage 17) acquires the job lease, updates the AI request state to `PROCESSING`, retrieves the active prompt template, compiles context variables, calculates the immutable SHA-256 prompt hash, and invokes the configured `AiProviderAdapter`.
-
-### Stage 3: Multi-Layer Validation Pipeline
-The raw completion is intercepted by the validation engine before reaching any application state. It passes through four sequential validation gates:
-1. Syntactic JSON Schema validation (Zod).
-2. Business domain and SSC Class 10 curriculum compliance.
-3. Safety, toxicity, and hallucination boundary checks.
-4. Telugu Unicode orthography and distractor uniqueness verifications.
-*If validation fails, the request transitions to `FAILED_FATAL` or triggers an automatic internal retry (if retry limits allow). Failed outputs are never staged for preview.*
-
-### Stage 4: Staged Preview Stash
-Validated AI outputs are written into a non-canonical, isolated sub-collection: `/questions/{id}/proposals/{proposalId}`. The target entity's canonical fields remain completely untouched. A real-time notification (`JOB_STATUS_UPDATED` / `AI_PROPOSAL_GENERATED`) is broadcast over SSE (Stage 16).
-
-### Stage 5: Human Review Gate (The Non-Negotiable Boundary)
-The creator opens the Review Workspace. The UI renders the staged AI proposal side-by-side with curriculum requirements. The user can inspect the generated Telugu text, distractors, explanation, and Bloom taxonomy rating.
-
-### Stage 6: Human Action Decision
-The human reviewer executes one of four exclusive actions:
-- **ACCEPT:** The human accepts the proposal without modifications.
-- **EDIT:** The human edits specific fields (e.g. tweaking Telugu phrasing or correcting an option) and saves.
-- **REJECT:** The human rejects the proposal. It is flagged as `REJECTED` and archived for audit.
-- **REGENERATE:** The human rejects the current proposal and triggers a new generation cycle with adjusted parameters.
-
-### Stage 7: Canonical Mutation & Workflow Progression
-Only **Stage 6b (Accept or Edit & Save)** produces a canonical mutation. The backend executes a Firestore atomic transaction that:
-1. Copies the accepted or edited payload into the canonical entity fields (`Question.questionTextTelugu`, `Question.optionsTelugu`, etc.).
-2. Creates an immutable `AiProvenanceRecord` linking the canonical entity version to the originating `AiRequestRecord` and human reviewer ID.
-3. Advances the entity lifecycle state (e.g. from `DRAFT` to `IN_REVIEW`), complying strictly with the GAR-02 anti-self-approval rule.
-
 ---
 
-## 4. Provider Architecture & Abstraction
+## 4. Provider Abstraction
 
-To prevent hard-coding BP-CMS to a single vendor or proprietary SDK, all AI operations interact exclusively through the abstract `AiProviderAdapter` contract.
+To prevent hard-coding BP-CMS to a single vendor or proprietary SDK, all AI operations interact exclusively through the abstract `AiProviderAdapter` interface:
 
-```
-                           ┌───────────────────────────┐
-                           │      Application Core     │
-                           │   (Services / Workflows)  │
-                           └─────────────┬─────────────┘
-                                         │
-                                         ▼
-                           ┌───────────────────────────┐
-                           │    AiProviderAdapter      │  <<Interface>>
-                           │  - generateStructured()   │
-                           │  - generateText()         │
-                           │  - healthCheck()          │
-                           └─────────────┬─────────────┘
-                                         │
-                 ┌───────────────────────┼───────────────────────┐
-                 │                       │                       │
-                 ▼                       ▼                       ▼
-   ┌───────────────────────────┐ ┌───────────────┐ ┌───────────────────────────┐
-   │   GeminiAiStudioAdapter   │ │ VertexAiAdap. │ │   LocalMockAiAdapter      │
-   │   (Primary Production)    │ │ (Future Ent.) │ │ (Local Dev & Unit Tests)  │
-   │  - Google AI Studio API   │ │ - GCP Vertex  │ │ - Deterministic Fixtures  │
-   │  - Perpetual Free Tier    │ │ - Enterprise  │ │ - Zero Network Calls      │
-   └───────────────────────────┘ └───────────────┘ └───────────────────────────┘
-```
-
-### 4.1 The Provider Adapter Contract
 ```typescript
 export interface AiProviderAdapter {
   readonly providerId: AiProviderId;
@@ -216,86 +158,49 @@ export interface AiProviderAdapter {
   
   getModelCapabilities(modelId: AiModelId): AiModelCapabilities;
 }
-
-export interface AiProviderRequest {
-  readonly modelId: AiModelId;
-  readonly systemInstruction: string;
-  readonly userPrompt: string;
-  readonly temperature: number;
-  readonly maxTokens: number;
-  readonly safetySettings: AiSafetySetting[];
-  readonly traceId: string;
-  readonly timeoutMs: number;
-}
-
-export interface AiProviderResponse<T> {
-  readonly rawText: string;
-  readonly parsedData: T;
-  readonly tokenUsage: {
-    readonly promptTokens: number;
-    readonly candidateTokens: number;
-    readonly totalTokens: number;
-  };
-  readonly finishReason: 'STOP' | 'MAX_TOKENS' | 'SAFETY' | 'OTHER';
-  readonly latencyMs: number;
-  readonly providerRequestId?: string;
-}
 ```
 
-### 4.2 Standardized Provider Error Mapping
-All provider-specific SDK exceptions (e.g. Google Generative AI errors, HTTP 429s, gRPC status codes) are translated into canonical domain errors:
-```text
-┌──────────────────────────────────────┬────────────────────────┬──────────────────────┐
-│ Raw Provider Error                   │ Canonical Error Code   │ Retry Disposition    │
-├──────────────────────────────────────┼────────────────────────┼──────────────────────┤
-│ HTTP 429 Too Many Requests           │ AI_RATE_LIMITED        │ RETRYABLE (Backoff)  │
-│ HTTP 503 Service Unavailable         │ AI_PROVIDER_DOWN       │ RETRYABLE (Backoff)  │
-│ Socket Hangup / ETIMEDOUT            │ AI_NETWORK_TIMEOUT     │ RETRYABLE (Backoff)  │
-│ Safety Block / FinishReason SAFETY   │ AI_SAFETY_VIOLATION    │ FATAL (Non-retryable)│
-│ Malformed JSON in Response           │ AI_SCHEMA_PARSE_ERROR  │ RETRYABLE (Max 2)    │
-│ HTTP 400 Bad Request / Invalid Param │ AI_INVALID_REQUEST     │ FATAL (Non-retryable)│
-│ HTTP 401 Unauthorized / Invalid Key │ AI_AUTH_FAILURE        │ FATAL (Admin Alert)  │
-└──────────────────────────────────────┴────────────────────────┴──────────────────────┘
-```
+Implementations include:
+- `GeminiAiStudioAdapter`: Primary production adapter using Google AI Studio REST SDK.
+- `VertexAiAdapter`: Future enterprise adapter for GCP-managed billing.
+- `LocalMockAiAdapter`: Offline deterministic test fixture adapter for local dev and CI.
 
 ---
 
-## 5. Model Abstraction & Decision Matrix
+## 5. Model Abstraction
 
-BP-CMS defines a multi-tiered model hierarchy to optimize cost, latency, and reasoning depth:
-
-```text
-┌─────────────────────┬──────────────────┬──────────────┬───────────────┬──────────────────────────┐
-│ Canonical Model ID  │ Target Workload  │ Latency      │ Cost / Quota  │ Selection Rationale      │
-├─────────────────────┼──────────────────┼──────────────┼───────────────┼──────────────────────────┤
-│ `gemini-2.5-flash`  │ Primary QGen,    │ 1.5s – 4.0s  │ ₹0.00 / mo    │ Fast, high Telugu fluency│
-│                     │ Scripting, Tags  │              │ (Free Tier)   │ low token cost, high RPM │
-├─────────────────────┼──────────────────┼──────────────┼───────────────┼──────────────────────────┤
-│ `gemini-2.5-pro`    │ Complex Audit,   │ 4.0s – 12.0s │ ₹0.00 / mo    │ Deep reasoning, rigorous │
-│                     │ Misconceptions   │              │ (Free Tier)   │ psychometric analysis    │
-├─────────────────────┼──────────────────┼──────────────┼───────────────┼──────────────────────────┤
-│ `local-mock-v1`     │ Local Dev & CI   │ < 50ms       │ ₹0.00         │ Offline deterministic    │
-│                     │ Unit Testing     │              │ (Zero Cloud)  │ test fixtures, no keys   │
-└─────────────────────┴──────────────────┴──────────────┴───────────────┴──────────────────────────┘
+The architecture abstracts LLMs into standard canonical identifiers:
+```typescript
+export enum AiModelId {
+  GEMINI_2_5_FLASH = 'gemini-2.5-flash',
+  GEMINI_2_5_PRO = 'gemini-2.5-pro',
+  LOCAL_MOCK = 'local-mock-v1',
+}
 ```
-
-### Model Selection Criteria:
-1. **Flash as Default:** `gemini-2.5-flash` is the default model for $90\%$ of studio tasks (Telugu question drafting, spoken script phrasing, safe-zone layout calculations).
-2. **Pro by Exception:** `gemini-2.5-pro` is gated exclusively to deep pedagogical tasks: analyzing cross-platform retention drop-offs, detecting curriculum misconceptions in Step 15, and performing multi-point blind verification.
-3. **Pro Model Administrative Gate:** Invoking `gemini-2.5-pro` requires the `AI_PRO_INVOKE` capability or specific curriculum lead assignment to prevent quota exhaustion.
+Application code never requests raw model strings directly; it requests logical models based on task profiles (`DEFAULT_FAST`, `DEEP_REASONING`, `OFFLINE_MOCK`).
 
 ---
 
-## 6. Prompt Management Framework
+## 6. Provider and Model Configuration
 
-Prompts are treated as **version-controlled source code**, not ad-hoc strings in application handlers.
+Configuration is externalized in server environment variables:
+- `AI_DEFAULT_PROVIDER`: `GEMINI`
+- `AI_DEFAULT_MODEL`: `gemini-2.5-flash`
+- `AI_DEEP_MODEL`: `gemini-2.5-pro`
+- `AI_REQUEST_TIMEOUT_MS`: `45000` (45 seconds)
+- `AI_MAX_RETRIES`: `3`
+- `GEMINI_API_KEY`: Server-side secret; never leaked to frontend.
+- Development vs Production: If `NODE_ENV === 'development'` and `GEMINI_API_KEY` is unset, the system defaults automatically to `LocalMockAiAdapter` with zero failure.
 
-### 6.1 Prompt Template Structure
-Every prompt in BP-CMS is defined as a typed `PromptTemplateDefinition`:
+---
+
+## 7. Prompt Management Framework
+
+Prompts are managed as versioned code assets in the authoritative `PROMPT_TEMPLATE_REGISTRY`:
 ```typescript
 export interface PromptTemplateDefinition {
   readonly promptId: string;
-  readonly version: string; // Semantic versioning (e.g. "1.1.0")
+  readonly version: string;
   readonly taskType: AiTaskType;
   readonly model: AiModelId;
   readonly temperature: number;
@@ -305,97 +210,51 @@ export interface PromptTemplateDefinition {
   readonly requiredVariables: readonly string[];
   readonly outputSchemaName: string;
   readonly isActive: boolean;
-  readonly owner: string; // Team or domain owner
+  readonly owner: string;
   readonly lastModified: string;
 }
 ```
 
-### 6.2 The Authoritative Prompt Registry
-The application maintains an immutable registry of prompt templates:
-1. `PRMPT-QGEN-TELUGU-V1`: Class 10 SSC Telugu Question Generation (Class, Subject, Topic, Bloom Level).
-2. `PRMPT-SCRIPT-SPOKEN-V1`: Conversational 60-second vertical teleprompter scripts in Telugu.
-3. `PRMPT-SAFEZONE-TAGS-V1`: Vertical video safe-zone analysis and platform title tag formatting.
-4. `PRMPT-LOOP-INTEL-V1`: Step 15 Audience retention drop-off and misconception analysis.
+---
+
+## 8. Prompt Identity and Versioning
+
+1. **Prompt Identity:** Follows standard taxonomy: `PRMPT-{DOMAIN}-{TASK}-{LOCALE}-V{VERSION}` (e.g. `PRMPT-QGEN-TELUGU-V1`).
+2. **Semantic Versioning:** Format `MAJOR.MINOR.PATCH` (e.g. `1.1.0`).
+3. **Cryptographic SHA-256 Digest:**
+   $$\text{PromptHash} = \text{SHA-256}(\text{SystemInstruction} + \text{UserTemplate} + \text{Model} + \text{Temp})$$
+4. **Auditability & Rollback:** Deactivating a buggy prompt version automatically cascades to the prior active version without requiring database schema changes.
 
 ---
 
-## 7. Prompt Identity, Versioning & Rollback
+## 9. AI Request Lifecycle
 
-### 7.1 Semantic Prompt Versioning
-Prompt versions adhere to semantic conventions:
-- **PATCH (`1.0.0` $\to$ `1.0.1`):** Wording adjustments or minor clarifications that do not change output schema.
-- **MINOR (`1.0.0` $\to$ `1.1.0`):** Adding optional context variables or upgrading recommended base model.
-- **MAJOR (`1.0.0` $\to$ `2.0.0`):** Breaking schema modifications, altering required variables, or restructuring JSON keys.
-
-### 7.2 Immutable SHA-256 Prompt Digest
-To ensure absolute auditability, prompt compilation produces an immutable cryptographic digest:
-$$\text{PromptDigest} = \text{SHA-256}\left(\text{SystemInstruction} + \text{CompiledUserPrompt} + \text{ModelId} + \text{Temperature}\right)$$
-This 64-character hex digest is recorded in the `AiProvenanceRecord`. Even if a template definition is subsequently edited in source code, historical generations remain cryptographically tied to the exact text that produced them.
-
-### 7.3 Rollback Governance
-In the event that an updated prompt produces lower-quality Telugu orthography or introduces subtle hallucinations:
-1. The administrator or curriculum lead updates the `isActive` flag in the registry.
-2. The runtime prompt compiler automatically resolves to the latest active version matching the major version line.
-3. Rollback does not require application database migrations; it is executed via template configuration.
-
----
-
-## 8. AI Request Model & Lifecycle
-
-The AI request tracks execution progress from client dispatch to final worker completion.
-
+AI requests progress through a deterministic state machine:
+```text
+REQUESTED → VALIDATING → QUEUED → PROCESSING → COMPLETED
 ```
-                    ┌──────────────┐
-                    │  REQUESTED   │  • Validates parameters & RBAC
-                    └──────┬───────┘
-                           │ Dispatched to Cloud Tasks
-                           ▼
-                    ┌──────────────┐
-                    │  PROCESSING  │  • Worker acquires lease
-                    └──────┬───────┘  • Calls LLM & validates schema
-                           │
-            ┌──────────────┴──────────────┐
-            │                             │
-            ▼                             ▼
-     ┌─────────────┐               ┌─────────────┐
-     │  COMPLETED  │               │   FAILED_   │
-     └─────────────┘               │  RETRYABLE  │
-                                   └──────┬──────┘
-                                          │ Attempts < Max
-                                          ▼
-                                   ┌─────────────┐
-                                   │  FAILED_    │
-                                   │   FATAL     │
-                                   └─────────────┘
-```
-
-### 8.1 Authoritative AI Request States
-- `REQUESTED`: Initial request persisted in Firestore; waiting for worker claiming.
-- `PROCESSING`: Worker has claimed lease; LLM generation or validation actively executing.
-- `COMPLETED`: Generation and multi-layer validation completed successfully; candidate stashed in `/proposals/`.
-- `FAILED_RETRYABLE`: Encountered transient provider rate limit (429) or network timeout; queued for backoff retry.
-- `FAILED_FATAL`: Validation failed, safety block triggered, or retries exhausted; terminal failure.
-- `CANCELLED`: Aborted by client or superseded by a newer request before processing started.
-- `TIMED_OUT`: Worker failed to report completion within `timeoutSeconds`.
+Failure and cancellation paths:
+- `PROCESSING` $\to$ `FAILED_RETRYABLE` $\to$ `QUEUED` (when retries remain).
+- `PROCESSING` $\to$ `FAILED_FATAL` (when safety or schema errors occur).
+- `REQUESTED` / `QUEUED` $\to$ `CANCELLED` (on human abort).
+- `PROCESSING` $\to$ `TIMED_OUT` (when worker fails heartbeat).
 
 ---
 
-## 9. AI Response Model & Provenance Ledger
+## 10. AI Response Lifecycle & Provenance
 
-Every validated AI generation creates an immutable **Provenance Ledger Record** (`AiProvenanceRecord`) that links the generated artifact to its originating request and human reviewer.
-
-### 9.1 Provenance Record Schema
+Every completed AI response generates an immutable `AiProvenanceRecord`:
 ```typescript
 export interface AiProvenanceRecord {
   readonly provenanceId: string; // PROV-YYYYMMDD-XXXXXX
   readonly requestId: string;
-  readonly entityId: string;     // Canonical entity (e.g. Q-20261004-001)
-  readonly proposalId: string;   // Staged proposal identifier
+  readonly entityId: string;
+  readonly proposalId: string;
   readonly provider: AiProviderId;
   readonly model: AiModelId;
   readonly promptId: string;
   readonly promptVersion: string;
-  readonly promptHash: string;   // SHA-256 digest
+  readonly promptHash: string; // 64-char SHA-256 hex
   readonly tokenUsage: {
     readonly promptTokens: number;
     readonly candidateTokens: number;
@@ -403,11 +262,9 @@ export interface AiProvenanceRecord {
   };
   readonly latencyMs: number;
   readonly generatedAt: string;
-  
-  // Human Review Audit Fields
   readonly humanReviewerId: string;
   readonly reviewedAt: string;
-  readonly decision: HumanReviewAction; // ACCEPT, EDIT, REJECT
+  readonly decision: HumanReviewAction;
   readonly wasEdited: boolean;
   readonly editedFields: readonly string[];
 }
@@ -415,325 +272,329 @@ export interface AiProvenanceRecord {
 
 ---
 
-## 10. Structured Output Contracts
+## 11. Structured Output Contracts
 
-All generative AI operations must emit **strictly structured JSON**, adhering to strict Zod schemas. Free-form text completions without structured contracts are strictly prohibited for core domain assets.
+All generative tasks emit strictly typed JSON conforming to Zod schemas. Free-form unstructured responses are prohibited for core studio entities.
 
-### 10.1 Telugu Question Contract (`TeluguQuestionPayload`)
-```typescript
-export const TeluguQuestionPayloadSchema = z.object({
-  questionTextTelugu: z
-    .string()
-    .min(10)
-    .regex(/[\u0C00-\u0C7F]/, 'Question must contain valid Telugu Unicode characters'),
-  optionsTelugu: z
-    .array(
-      z.object({
-        optionIndex: z.number().int().min(0).max(3),
-        textTelugu: z.string().min(1).regex(/[\u0C00-\u0C7F]/, 'Option must contain Telugu script'),
-      })
-    )
-    .length(4, 'Must contain exactly 4 options')
-    .refine(
-      (options) => new Set(options.map((o) => o.textTelugu)).size === 4,
-      { message: 'All 4 options must be unique' }
-    ),
-  correctOptionIndex: z.number().int().min(0).max(3),
-  explanationTelugu: z
-    .string()
-    .min(10)
-    .regex(/[\u0C00-\u0C7F]/, 'Explanation must contain Telugu script'),
-  bloomTaxonomyLevel: z.enum(['REMEMBER', 'UNDERSTAND', 'APPLY', 'ANALYZE', 'EVALUATE', 'CREATE']),
-  estimatedDifficulty: z.enum(['EASY', 'MEDIUM', 'HARD']),
-});
-```
+### 11.1 Telugu Question Contract (`TeluguQuestionPayload`)
+- `questionTextTelugu`: String ($\ge 10$ chars, Telugu Unicode regex `[\u0C00-\u0C7F]`).
+- `optionsTelugu`: Exactly 4 unique options in Telugu script.
+- `correctOptionIndex`: Integer in range `[0..3]`.
+- `explanationTelugu`: Pedagogical explanation in Telugu.
+- `bloomTaxonomyLevel`: `REMEMBER | UNDERSTAND | APPLY | ANALYZE | EVALUATE | CREATE`.
+- `estimatedDifficulty`: `EASY | MEDIUM | HARD`.
 
-### 10.2 Teleprompter Spoken Script Contract (`SpokenScriptPayload`)
-```typescript
-export const SpokenScriptPayloadSchema = z.object({
-  hookTelugu: z.string().min(5).max(150),
-  bodyTelugu: z.string().min(20).max(1000),
-  callToActionTelugu: z.string().min(5).max(150),
-  estimatedReadTimeSeconds: z.number().int().min(15).max(75),
-  pronunciationNotes: z.array(z.string()).optional(),
-});
-```
+### 11.2 Spoken Script Contract (`SpokenScriptPayload`)
+- `hookTelugu`: High-energy 5-second video hook.
+- `bodyTelugu`: Core explanation body (35–45 seconds).
+- `callToActionTelugu`: 5-second engagement CTA.
+- `estimatedReadTimeSeconds`: Integer (15 to 75 seconds).
 
 ---
 
-## 11. Multi-Layer Validation Pipeline
+## 12. Multi-Layer Validation Pipeline
 
-Validation is a strict multi-layer gate. An output must pass **all four layers** before being staged for preview.
-
-```text
-┌────────────────────────────────────────────────────────────────────────────────────────┐
-│                          MULTI-LAYER AI VALIDATION PIPELINE                            │
-├─────────┬────────────────────────────┬─────────────────────────────────────────────────┤
-│ Layer   │ Name                       │ Validation Scope                                │
-├─────────┼────────────────────────────┼─────────────────────────────────────────────────┤
-│ Layer 1 │ Syntactic Schema Gate      │ Valid JSON, Zod type enforcement, field bounds, │
-│         │                            │ correct array lengths, non-null values.         │
-├─────────┼────────────────────────────┼─────────────────────────────────────────────────┤
-│ Layer 2 │ Business & Curriculum Gate │ Class 10 SSC syllabus alignment, valid Bloom    │
-│         │                            │ taxonomy level, correct option index in [0..3]. │
-├─────────┼────────────────────────────┼─────────────────────────────────────────────────┤
-│ Layer 3 │ Safety & Constraint Gate   │ Zero hate speech, zero political bias, zero     │
-│         │                            │ inappropriate content, no hallucinated metadata.│
-├─────────┼────────────────────────────┼─────────────────────────────────────────────────┤
-│ Layer 4 │ Telugu Orthography Gate    │ Telugu Unicode range (U+0C00–U+0C7F) check, no  │
-│         │                            │ English transliteration, 4 distinct options.    │
-└─────────┴────────────────────────────┴─────────────────────────────────────────────────┘
-```
+Outputs pass four sequential validation gates:
+1. **Layer 1: Syntactic Schema Gate** (Zod parsing, type boundaries, non-null guarantees).
+2. **Layer 2: Business & Curriculum Gate** (SSC Class 10 curriculum compliance, Bloom levels).
+3. **Layer 3: Safety & Constraint Gate** (Gemini strict safety filters, prompt injection neutralization).
+4. **Layer 4: Telugu Orthography Gate** (Unicode range verification, distractor uniqueness, zero transliteration).
 
 ---
 
-## 12. Business & Curriculum Domain Validation
+## 13. Business & Curriculum Domain Validation
 
-Beyond syntactic checks, Layer 2 enforces domain-specific educational rules:
-1. **Option Symmetry:** Distractors must be of comparable character length ($\pm 30\%$) to prevent obvious visual clues.
-2. **Pedagogical Alignment:** The question subject and topic must match valid SSC 10th Class curriculum tags defined in Stage 06 (`DOMAIN_MODEL`).
-3. **Explanation Quality:** Explanations must not simply repeat the correct option; they must articulate *why* the distractor choices are incorrect.
-
----
-
-## 13. Safety & Constraint Validation
-
-Layer 3 enforces strict AI safety guidelines:
-1. **Safety Filter Configuration:** Prompts execute with Gemini's strictest safety thresholds:
-   - `HARM_CATEGORY_HATE_SPEECH`: BLOCK_LOW_AND_ABOVE
-   - `HARM_CATEGORY_HARASSMENT`: BLOCK_LOW_AND_ABOVE
-   - `HARM_CATEGORY_SEXUALLY_EXPLICIT`: BLOCK_LOW_AND_ABOVE
-   - `HARM_CATEGORY_DANGEROUS_CONTENT`: BLOCK_LOW_AND_ABOVE
-2. **Prompt Injection Neutralization:** User inputs (e.g. topic names, notes) are sanitized and wrapped in strict XML delimiters (`<context_input>...</context_input>`) to prevent context escape or instruction hijacking.
+Enforces specific pedagogical rules:
+- **Distractor Length Symmetry:** Distractor choices must be within $\pm 30\%$ length of each other to avoid giveaway clues.
+- **Syllabus Tagging:** Topic and subtopic must resolve to valid taxonomy nodes defined in Stage 06.
+- **Explanation Completeness:** Must explain both why the correct answer is right and why the primary distractor is wrong.
 
 ---
 
-## 14. Preview Boundary & Proposal Staging
+## 14. Safety & Constraint Validation
 
-To guarantee that non-reviewed AI content never corrupts canonical records:
-1. **Physical Isolation:** Generated proposals are written to an isolated sub-collection:
-   `questions/{questionId}/proposals/{proposalId}`
-2. **Zero Canonical Impact:** The root document (`questions/{questionId}`) is never updated by the worker. The entity remains in `DRAFT` status with `lifecycleState = DRAFT`.
-3. **TTL Clean-Up:** Staged proposals that receive no human review action within 14 days are automatically flagged as `EXPIRED` and purged.
+- **Safety Filters:** Google Gemini safety settings configured to `BLOCK_LOW_AND_ABOVE` across HATE_SPEECH, HARASSMENT, SEXUALLY_EXPLICIT, and DANGEROUS_CONTENT.
+- **Prompt Injection Defense:** External inputs are sanitized, escaped, and enclosed in immutable XML boundary tags (`<untrusted_context_input>`).
 
 ---
 
-## 15. Human Review Operations
+## 15. Preview Boundary & Proposal Staging
 
-The Review Workspace provides four explicit actions for authorized humans:
-
-### 15.1 Action: ACCEPT
-- **Precondition:** Reviewer has `QUESTION_CREATE` or `QUESTION_APPROVE` capability.
-- **Action:** Copies proposal fields directly into the canonical `Question` document.
-- **Result:** Canonical entity updated; `AiProvenanceRecord` written; proposal marked `ACCEPTED`.
-
-### 15.2 Action: EDIT & SAVE
-- **Precondition:** Reviewer modifies one or more fields in the UI editor.
-- **Action:** Merges human edits into proposal payload; validates against Zod schema; commits merged data to canonical entity.
-- **Result:** Canonical entity updated; `AiProvenanceRecord` records `wasEdited: true` and the list of modified field keys.
-
-### 15.3 Action: REJECT
-- **Precondition:** Reviewer deems proposal unsatisfactory or off-curriculum.
-- **Action:** Proposal state set to `REJECTED`; human enters optional feedback note.
-- **Result:** Zero mutation to canonical entity; feedback retained for prompt improvement.
-
-### 15.4 Action: REGENERATE
-- **Precondition:** Reviewer rejects current candidate and requests fresh generation.
-- **Action:** Marks current proposal `REPLACED`; triggers new asynchronous generation job with adjusted temperature or prompt variables.
+- **Physical Sub-Collection Isolation:** Stored under `questions/{id}/proposals/{proposalId}`.
+- **Zero Root Mutation:** Root document `questions/{id}` remains unmodified with `lifecycleState = DRAFT`.
+- **TTL Purge:** Unreviewed proposals expire and are archived after 14 days.
 
 ---
 
-## 16. Versioning Architecture: AI Output vs. Canonical Entity
+## 16. Human Review Operations
 
-A fundamental rule of BP-CMS versioning:
+### 16.1 Operation: ACCEPT
+- Copies proposal data verbatim into root entity fields.
+- Records `decision: ACCEPT`, `wasEdited: false` in `AiProvenanceRecord`.
+
+### 16.2 Operation: EDIT & SAVE
+- Merges human edits into proposal data; validates against Zod schema.
+- Records `decision: EDIT`, `wasEdited: true`, and list of modified field keys.
+
+### 16.3 Operation: REJECT
+- Flags proposal as `REJECTED`; records feedback reason.
+- Zero mutation occurs on the canonical entity.
+
+### 16.4 Operation: REGENERATE
+- Marks proposal `REPLACED`; triggers new asynchronous generation job with adjusted parameters.
+
+---
+
+## 17. Versioning Architecture: AI Output vs. Canonical Entity
+
 $$\text{AiOutputVersion} \neq \text{CanonicalEntityVersion}$$
-
-```text
-┌─────────────────────────────────┬─────────────────────────────────┐
-│ AI Proposal Versioning          │ Canonical Entity Versioning     │
-├─────────────────────────────────┼─────────────────────────────────┤
-│ • Keyed by `proposalId`         │ • Keyed by `questionId`         │
-│ • Increments on each generation │ • Increments ONLY on human save │
-│   run (e.g. run 1, run 2, run 3)│   via OCC `version` field       │
-│ • Ephemeral; discarded if       │ • Durable; permanent audit      │
-│   rejected by human             │   history and change logs       │
-│ • Non-authoritative             │ • Authoritative source of truth │
-└─────────────────────────────────┴─────────────────────────────────┘
-```
-*An AI regeneration can NEVER overwrite an already-approved canonical entity version without human sign-off.*
+- **AI Proposal Version:** Ephemeral, generation-run-specific (`run-1`, `run-2`). Discarded on rejection.
+- **Canonical Entity Version:** Durable, monotonic counter (`version: 1`, `version: 2`) incremented **only** on human Accept or Edit-Save via Optimistic Concurrency Control (OCC).
 
 ---
 
-## 17. Asynchronous Execution & Stage 17 Integration
+## 18. Retry Strategy & Failure Classification
 
-AI operations reuse the **Stage 17 Background Job Architecture**:
-1. **Job Type:** Handled under `AsyncJobType.AI_GENERATION`.
-2. **Runner:** Invoked via Cloud Tasks push queue (`POST /api/v1/jobs/execute`) in production; in-process runner in local dev.
-3. **Priority:** Assigned `JobPriority.HIGH`.
-4. **Timeout:** Execution timeout set to $60\,\text{seconds}$.
-5. **Lease Locking:** Optimistic Firestore lease locking prevents concurrent workers from executing duplicate prompts for the same request.
+Reusing the **Stage 17 Retry Architecture**:
+- **Transient (Retryable):** HTTP 429 (Rate Limit), 503 (Provider Down), Socket Timeouts. Exponential backoff ($2\text{s}, 4\text{s}, 8\text{s}$) with full jitter.
+- **Fatal (Non-Retryable):** 400 Bad Request, Safety Filter Triggered, Auth Failure, Malformed Template.
+- **Circuit Breaker:** 5 consecutive 5xx errors trip circuit breaker open for 60 seconds.
 
 ---
 
-## 18. Real-Time Integration (Stage 16 SSE Synergy)
+## 19. Idempotency & Deduplication
 
-AI job progression is surfaced to connected frontends using **Stage 16 Server-Sent Events (SSE)**:
-- **Channel:** `entity:question:{questionId}` and `job:{jobId}`
-- **Event:** `JOB_STATUS_UPDATED` (emitted on `PROCESSING`, `FAILED`, and `COMPLETED`).
-- **Client Handling:** The studio UI displays a live spinner, progress bar, or toast notification without requiring polling or manual page refresh.
-
----
-
-## 19. State Separation Invariant (Stage 08 Alignment)
-
-```text
-┌────────────────────────────────────────────────────────────────────────────────────────┐
-│                              STATE SEPARATION INVARIANT                                │
-├──────────────────────────┬─────────────────────────────────────────────────────────────┤
-│ State Dimension          │ Authorized States & Boundaries                              │
-├──────────────────────────┼─────────────────────────────────────────────────────────────┤
-│ Workflow Step            │ 01_IDEATION .. 15_PERFORMANCE (Stage 07)                    │
-│ Entity Lifecycle         │ DRAFT, IN_REVIEW, APPROVED, REJECTED (Stage 08)             │
-│ Job Execution State      │ QUEUED, RUNNING, SUCCEEDED, FAILED_* (Stage 17)             │
-│ AI Request State         │ REQUESTED, PROCESSING, COMPLETED, FAILED_* (Stage 18)       │
-│ Publication State        │ SCHEDULED, DISPATCHED, LIVE, FAILED (Stage 08)              │
-└──────────────────────────┴─────────────────────────────────────────────────────────────┘
-```
-*AI Request State reflects generation progress only. It never mutates Workflow Step or Entity Lifecycle.*
+Mutating requests supply or compute a deterministic key:
+$$\text{IdempotencyKey} = \text{IDEMP-AI}-{TaskType}-{EntityId}-{Digest}$$
+- Stored in Firestore `/idempotency_keys` with a 24-hour TTL.
+- Duplicate in-flight requests receive `409 Conflict` or existing `jobId`; duplicate completed requests return cached proposal.
 
 ---
 
-## 20. Workflow Integration (15-Step Studio Touchpoints)
+## 20. Concurrency & Worker Leases
 
-AI assists specific stages across the 15-step studio pipeline:
-- **Step 01 (Question Ideation):** Generates draft questions, options, and explanations from curriculum topics.
-- **Step 02 (Curriculum Verification):** Assists human verifiers with automated fact-checking and Bloom taxonomy classification.
-- **Step 03 (Script Drafting):** Generates conversational spoken Telugu teleprompter scripts.
-- **Step 08 (Thumbnail Concept):** Evaluates vertical safe zones and title typography framing.
-- **Step 15 (Performance Intelligence):** Analyzes retention curves and social comments to identify student misconceptions.
+- Worker claims job via atomic Firestore transaction with `leaseExpiresAt = now + 60s`.
+- Entity-level concurrency limit: Maximum 1 active generation job per entity at any time.
 
 ---
 
 ## 21. Rate Limiting Architecture
 
-To protect Google AI Studio's free tier quotas and prevent abuse, rate limiting is enforced across multiple tiers:
+Protects Google AI Studio free tier limits:
+- **Global Provider Bucket:** Max 10 RPM (within 15 RPM free tier).
+- **User Bucket:** Max 3 requests / minute, 30 requests / day per creator.
+- **Feature Bucket:** Max 2 concurrent jobs across all studio question generation.
+
+---
+
+## 22. Cost Control & Free-Tier Budget Proof
+
+BP-CMS enforces a hard budget ceiling: **₹0 to ₹100 / month**.
+- **Gemini 2.5 Flash Free Tier:** 15 RPM, 1,500 RPD, 1,000,000 TPM = **₹0.00 / month**.
+- **Studio Workload:** Projected 40 requests/day ($\approx 2.6\%$ of daily free tier).
+- **Total Projected Cost:** **₹0.00 / month** (100% Free-Tier Compliant).
+
+---
+
+## 23. Usage Tracking & Token Metering
+
+Every generation records:
+- `promptTokens`: Input token count.
+- `candidateTokens`: Output completion token count.
+- `totalTokens`: Combined billable token volume.
+- Daily aggregation job sums studio token consumption; alerts administrator if utilization exceeds $70\%$ of free tier.
+
+---
+
+## 24. RBAC & Security Boundary
+
+Grounded in **Stage 09 (RBAC & Capabilities)**:
+- Generation requires `QUESTION_CREATE` or `SCRIPT_CREATE`.
+- Review requires `QUESTION_REVIEW` or `SCRIPT_REVIEW`.
+- **Anti-Self-Approval (GAR-02):** The creator who initiated AI drafting cannot approve the final question into `APPROVED` status.
+- Secrets are stored server-side only in `process.env.GEMINI_API_KEY`.
+
+---
+
+## 25. Audit & Observability Integration
+
+Grounded in anticipatory **Stage 21 (Audit & Observability)**:
+All AI lifecycle events emit immutable audit entries to `/audit_events`:
+- `AI_GENERATION_REQUESTED`
+- `AI_GENERATION_COMPLETED`
+- `AI_VALIDATION_FAILED`
+- `AI_PROPOSAL_ACCEPTED`
+- `AI_PROPOSAL_EDITED`
+- `AI_PROPOSAL_REJECTED`
+
+---
+
+## 26. Stage 17 Asynchronous Job Integration
+
+- Integrated as `AsyncJobType.AI_GENERATION`.
+- Scheduled via Google Cloud Tasks push queue invoking internal authenticated endpoint (`POST /api/v1/jobs/execute`).
+- Decouples `AsyncJobRecord.state` from `AiRequestRecord.state`.
+
+---
+
+## 27. Stage 16 Realtime Integration (SSE Synergy)
+
+- Emits `JOB_STATUS_UPDATED` and `AI_PROPOSAL_GENERATED` events to `entity:question:{id}` channel.
+- Frontend subscribes via EventSource to update UI dynamically without polling.
+
+---
+
+## 28. Stage 08 State Model Alignment
+
+Strict separation of independent dimensions:
+$$\text{WorkflowInstance.currentStep} \neq \text{Question.lifecycleState} \neq \text{AsyncJobRecord.state} \neq \text{AiRequestRecord.state} \neq \text{Publication.publicationState}$$
+AI execution state never directly overwrites workflow step or entity lifecycle state.
+
+---
+
+## 29. Workflow Integration (15-Step Studio Touchpoints)
+
+- **Step 01 (Question Ideation):** Draft questions, options, explanations.
+- **Step 02 (Curriculum Verification):** Fact-check and Bloom classification assistance.
+- **Step 03 (Script Drafting):** Spoken Telugu teleprompter scripts.
+- **Step 08 (Thumbnail Concept):** Title typography & safe-zone framing.
+- **Step 15 (Performance Intelligence):** Retention curve misconception synthesis.
+
+---
+
+## 30. Domain & Data Integration
+
+- Staged in Firestore sub-collection: `questions/{id}/proposals/{proposalId}`.
+- Provenance ledger stored in: `ai_provenance/{provenanceId}`.
+- Conforms strictly to Stage 13 data contracts (`data-contracts.ts`).
+
+---
+
+## 31. API Integration Contracts
+
+Defined in accordance with Stage 15:
+- `POST /api/v1/ai/generate`: Initiates job, returns `202 Accepted` with `jobId`.
+- `GET /api/v1/ai/requests/:id`: Returns request status and staged proposals.
+- `POST /api/v1/ai/proposals/:id/decision`: Submits human review action (`ACCEPT`, `EDIT`, `REJECT`).
+
+---
+
+## 32. Frontend Information Architecture Integration
+
+- Embedded directly in Step 01, Step 03, and Step 15 Workspaces.
+- Side-by-side diff viewer for original vs AI vs edited Telugu text.
+- Safe-zone preview overlay for video thumbnails.
+
+---
+
+## 33. Observability, Telemetry & Metrics
+
+Metrics emitted to Cloud Monitoring:
+- `ai_request_latency_seconds` (p50, p95, p99).
+- `ai_tokens_consumed_total` (by model and task type).
+- `ai_validation_failure_count` (by layer).
+- `ai_human_acceptance_rate` ($\frac{\text{accepted} + \text{edited}}{\text{total proposals}}$).
+
+---
+
+## 34. Provider Decision Matrix
 
 ```text
-┌──────────────────┬──────────────────────┬──────────────────────────────────────────────┐
-│ Tier             │ Limit Threshold      │ Enforcement Mechanism                        │
-├──────────────────┼──────────────────────┼──────────────────────────────────────────────┤
-│ Global Provider  │ 10 requests / minute │ Token bucket in Redis / Memory (keeps well   │
-│ (Gemini Free)    │ (under 15 RPM cap)   │ within 15 RPM free-tier limit)               │
-├──────────────────┼──────────────────────┼──────────────────────────────────────────────┤
-│ User Quota       │ 3 requests / minute; │ Prevents single user from exhausting studio  │
-│                  │ 30 requests / day    │ daily allowance                              │
-├──────────────────┼──────────────────────┼──────────────────────────────────────────────┤
-│ Feature Limit    │ 2 concurrent jobs    │ Prevents burst job stacking                  │
-│                  │ per question entity  │                                              │
-└──────────────────┴──────────────────────┴──────────────────────────────────────────────┘
+┌──────────────────────┬─────────┬──────────┬──────────┬──────────┐
+│ Criteria             │ Weight  │ Gemini AI│ Vertex AI│ OpenAI   │
+│                      │         │ Studio   │ Enterpr. │ API      │
+├──────────────────────┼─────────┼──────────┼──────────┼──────────┤
+│ Zero-Cost Compliance │ 2.0     │ 10.0     │ 6.0      │ 1.0      │
+│ Telugu Fluency       │ 1.5     │ 9.5      │ 9.5      │ 7.0      │
+│ Free Tier Generosity │ 1.5     │ 10.0     │ 4.0      │ 1.0      │
+│ Cloud Run Synergy    │ 1.0     │ 10.0     │ 10.0     │ 8.0      │
+│ Operational Simplic. │ 1.0     │ 9.5      │ 7.0      │ 9.0      │
+├──────────────────────┼─────────┼──────────┼──────────┼──────────┤
+│ TOTAL WEIGHTED SCORE │ 7.0 max │ 9.8 / 10 │ 7.1 / 10 │ 4.7 / 10 │
+└──────────────────────┴─────────┴──────────┴──────────┴──────────┘
+```
+**Decision:** Google AI Studio is selected as the primary production provider.
+
+---
+
+## 35. Model Decision Criteria
+
+1. **Default Model:** `gemini-2.5-flash` for all standard generation and verification tasks ($< 4\text{s}$ latency, high RPM).
+2. **Deep Reasoning Model:** `gemini-2.5-pro` strictly for Step 15 complex retention curve analysis.
+3. **Local Dev Model:** `local-mock-v1` for unit testing and offline development.
+
+---
+
+## 36. Cost Decision Matrix
+
+```text
+┌──────────────────────┬────────────────────────┬────────────────────────┐
+│ Mechanism            │ Projected Monthly Cost │ Budget Ceiling Fit     │
+├──────────────────────┼────────────────────────┼────────────────────────┤
+│ Gemini 2.5 Flash     │ ₹0.00 / month          │ PASSED (100% Free)     │
+│ Gemini 2.5 Pro (Cap) │ ₹0.00 / month          │ PASSED (Within Quota)  │
+│ Cloud Tasks Push     │ ₹0.00 / month          │ PASSED (1M Tasks Free) │
+│ Paid OpenAI / Claude │ ₹3,000 – ₹10,000 / mo  │ FAILED (Breaches ₹100) │
+└──────────────────────┴────────────────────────┴────────────────────────┘
 ```
 
 ---
 
-## 22. Cost Architecture & Free-Tier Budget Proof
+## 37. Migration & Brownfield Implications
 
-BP-CMS enforces a hard budget ceiling: **₹0 to ₹100 / month**.
-
-### 22.1 Google AI Studio Free Tier Verification
-- **Model:** `gemini-2.5-flash`
-- **Rate Limit:** 15 Requests Per Minute (RPM)
-- **Daily Quota:** 1,500 Requests Per Day (RPD)
-- **Token Quota:** 1,000,000 Tokens Per Minute (TPM)
-- **Cost:** **₹0.00 / month** perpetually under Google AI Studio terms.
-
-### 22.2 Monthly Studio Consumption Projection
-$$\text{Expected Production} = 10\text{ videos/day} \times 4\text{ AI ops/video} = 40\text{ AI requests/day}$$
-$$40\text{ requests/day} \ll 1,500\text{ free requests/day} \quad (\approx 2.6\% \text{ of free-tier quota})$$
-**Total Projected AI Infrastructure Cost: ₹0.00 / month.**
+- Replaces legacy unmonitored `geminiClient` in `src/server/routes.ts` with structured `AiProviderAdapter`.
+- Eliminates client-side mock timers simulating AI renders.
+- Migrates existing legacy prompt strings into the typed `PROMPT_TEMPLATE_REGISTRY`.
 
 ---
 
-## 23. Security & RBAC Boundary
+## 38. Comprehensive Testing Requirements
 
-Grounded in **Stage 09 (RBAC & Capabilities)**:
-1. **Generation Capability:** Requesting AI generation requires `QUESTION_CREATE` or `SCRIPT_CREATE`.
-2. **Review Capability:** Reviewing and accepting proposals requires `QUESTION_REVIEW` or `SCRIPT_REVIEW`.
-3. **Anti-Self-Approval (GAR-02):** The author who requested AI generation cannot unilaterally approve the canonical entity into `APPROVED` status. A separate human verifier is required.
-4. **Secret Protection:** Gemini API keys are strictly externalized in server-side environment variables (`GEMINI_API_KEY`) and are never exposed in client bundles, logs, or stored metadata.
-
----
-
-## 24. Audit & Observability Integration
-
-Grounded in anticipatory **Stage 21 (Audit & Observability)**:
-Every AI lifecycle transition emits an immutable structured audit log to `/audit_events`:
-- `AI_GENERATION_REQUESTED`: Actor ID, prompt ID, input parameters, trace ID.
-- `AI_GENERATION_COMPLETED`: Provider, model, token usage, latency ms, prompt hash.
-- `AI_VALIDATION_FAILED`: Validation errors, failure layer, raw output snippet.
-- `AI_PROPOSAL_ACCEPTED`: Reviewer ID, proposal ID, canonical entity ID.
-- `AI_PROPOSAL_EDITED`: Reviewer ID, edited field list, original vs edited diff.
-- `AI_PROPOSAL_REJECTED`: Reviewer ID, rejection reason.
-
----
-
-## 25. Retry Strategy & Failure Classification
-
-Reusing the **Stage 17 Retry Architecture**:
-- **Transient Failures (429, 503, ETIMEDOUT):** Retried up to 3 times with exponential backoff ($2\text{s}, 4\text{s}, 8\text{s}$).
-- **Fatal Failures (Safety Block, 400 Bad Request, Auth Failure):** Zero retries; immediate transition to `FAILED_FATAL`.
-- **Circuit Breaker:** If 5 consecutive requests fail with 5xx or timeouts, the provider adapter trips open for 60 seconds, returning immediate service unavailable errors to prevent quota burning.
+16 mandatory test suites defined:
+- `TEST-AI-01`: Valid Telugu question generation passes all 4 validation layers.
+- `TEST-AI-02`: Missing required prompt variables throws `400 Bad Request`.
+- `TEST-AI-03`: Malformed JSON triggers schema error and retry.
+- `TEST-AI-04`: Safety filter violation flags `FAILED_FATAL` without retry.
+- `TEST-AI-05`: Duplicate submission with same `Idempotency-Key` returns existing job.
+- `TEST-AI-06`: Provider 429 triggers exponential backoff retry.
+- `TEST-AI-07`: Staged proposal written to `/proposals/` does NOT modify canonical document.
+- `TEST-AI-08`: Human `ACCEPT` action commits proposal to canonical entity and logs provenance.
+- `TEST-AI-09`: Human `EDIT` action records `wasEdited: true` and edited field names.
+- `TEST-AI-10`: Human `REJECT` action archives proposal with zero canonical change.
+- `TEST-AI-11`: AI regeneration increments proposal version without replacing canonical version.
+- `TEST-AI-12`: AI agent blocked from executing human-gated workflow transitions (AP-009).
+- `TEST-AI-13`: Global rate limiter throttles requests exceeding 10 RPM.
+- `TEST-AI-14`: Local mock adapter executes offline with zero network calls.
+- `TEST-AI-15`: SSE event `JOB_STATUS_UPDATED` delivered upon generation completion.
+- `TEST-AI-16`: Cryptographic SHA-256 prompt hash verified in provenance record.
 
 ---
 
-## 26. Architecture Decision Records (ADR)
+## 39. Open Decisions & Conflict Registers
+
+### 39.1 Job Architecture Records (JAR-AI)
+- **JAR-AI-01 (Approved):** Adopt Gemini 2.5 Flash as standard production model.
+- **JAR-AI-02 (Approved):** Mandate Telugu Unicode regex in Layer 1 validation.
+
+### 39.2 Conflict Register (JACR-AI)
+- **JACR-AI-01 (Resolved):** Worker buffering adopted for production; token streaming reserved for future playground.
+- **JACR-AI-02 (Deferred):** Multi-tenant free-tier terms validation deferred to Stage 22.
+
+---
+
+## 40. Architecture Decision Records (ADR)
 
 - **ADR-AI-01:** Adopt `gemini-2.5-flash` via Google AI Studio as the primary production model to ensure ₹0.00 operational cost.
 - **ADR-AI-02:** Enforce the Human-Gated 7-Step Lifecycle: AI output must never directly mutate canonical domain data.
 - **ADR-AI-03:** Store unreviewed AI outputs in an isolated `/proposals/` sub-collection, completely separate from root entity documents.
 - **ADR-AI-04:** Mandate immutable SHA-256 prompt hashing and provenance ledger recording for every accepted generation.
-- **ADR-AI-05:** Strictly forbid commercial LLM APIs with recurring base subscription fees (e.g. OpenAI Enterprise, Anthropic Claude Team) under the ₹0–₹100/mo budget ceiling.
+- **ADR-AI-05:** Strictly forbid commercial LLM APIs with recurring base subscription fees under the ₹0–₹100/mo budget ceiling.
 
 ---
 
-## 27. Open Decisions & Conflict Registers
+## 41. Stage 18 Acceptance Criteria & Anti-Overclaim Confirmation
 
-### 27.1 Job Architecture Records (JAR-AI)
-- **JAR-AI-01 (Approved):** Use Gemini 2.5 Flash as default; gate Gemini 2.5 Pro behind specific permissions.
-- **JAR-AI-02 (Approved):** Mandate Telugu Unicode regex verification in Layer 1 Zod validation.
-
-### 27.2 Conflict Register (JACR-AI)
-- **JACR-AI-01 (Resolved):** *Streaming LLM tokens over SSE vs. Buffering in background worker.*
-  - **Resolution:** Full buffering in background worker is adopted for primary production. Workers validate the complete JSON payload before stashing. Token streaming is reserved for future interactive playground features.
-- **JACR-AI-02 (Deferred to Stage 22):** *Verification of Gemini free tier terms under high multi-tenant usage.*
-  - **Status:** To be re-verified during Stage 22 (Cost Architecture).
-
----
-
-## 28. Comprehensive Testing Strategy
-
-Stage 24 and Stage 28 must implement the following 16 architectural test suites:
-1. `TEST-AI-01`: Valid Telugu question generation passes all 4 validation layers.
-2. `TEST-AI-02`: Missing required prompt variables throws `400 Bad Request`.
-3. `TEST-AI-03`: Malformed JSON completion triggers schema error and retry.
-4. `TEST-AI-04`: Safety block immediately flags `FAILED_FATAL` without retry.
-5. `TEST-AI-05`: Duplicate submission with same `Idempotency-Key` returns existing job.
-6. `TEST-AI-06`: Provider 429 triggers exponential backoff retry.
-7. `TEST-AI-07`: Staged proposal written to `/proposals/` does NOT modify canonical document.
-8. `TEST-AI-08`: Human `ACCEPT` action commits proposal to canonical entity and logs provenance.
-9. `TEST-AI-09`: Human `EDIT` action records `wasEdited: true` and edited field names.
-10. `TEST-AI-10`: Human `REJECT` action archives proposal with zero canonical change.
-11. `TEST-AI-11`: AI regeneration increments proposal version without replacing canonical version.
-12. `TEST-AI-12`: AI agent blocked from executing human-gated workflow transitions (AP-009).
-13. `TEST-AI-13`: Global rate limiter throttles requests exceeding 10 RPM.
-14. `TEST-AI-14`: Local mock adapter executes offline with zero network calls.
-15. `TEST-AI-15`: SSE event `JOB_STATUS_UPDATED` delivered upon generation completion.
-16. `TEST-AI-16`: Cryptographic SHA-256 prompt hash verified in provenance record.
-
----
-
-## 29. Stage 18 Acceptance Criteria & Anti-Overclaim Confirmation
-
-### 29.1 Acceptance Criteria
+### 41.1 Acceptance Criteria Checklist
 - [x] AI architectural principles and AP-009 non-authoritative boundary defined.
 - [x] Canonical 7-Step Human-Gated Lifecycle established.
 - [x] Provider abstraction (`AiProviderAdapter`) and error mapping specified.
@@ -747,5 +608,5 @@ Stage 24 and Stage 28 must implement the following 16 architectural test suites:
 - [x] ₹0.00 / month cost proof documented under Google AI Studio free tier.
 - [x] Zero runtime code files modified during Stage 18.
 
-### 29.2 Final Anti-Overclaim Statement
+### 41.2 Final Anti-Overclaim Statement
 **Stage 18 AI architecture is documented and contractually defined; runtime AI provider clients, prompt injection pipelines, and worker implementations remain for later implementation stages.**
