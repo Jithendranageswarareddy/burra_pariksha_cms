@@ -1,609 +1,661 @@
-# Burra Pariksha CMS
-# 04 — Architecture Principles
+# Burra Pariksha Content Management System (BP-CMS)
+# Stage 04 — Architecture Principles
 
-Stage: 04 — Architecture Principles
-
-STATUS:
-ACCEPTED — COMPLETE — CLOSED
-
-Implementation Status:
-COMPLETE
-
-Technical Verification:
-PASSED
-
-Product Owner Acceptance:
-ACCEPTED
-
-Stage Closure:
-CLOSED
-
-Closure Date:
-2026-10-02
-
-Version:
-1.1.0
-
-Purpose:
-Establishes the foundational, inviolable architecture principles, boundary constraints, and governance rules that all future Burra Pariksha CMS (BP-CMS) design, migration, refactoring, and implementation activities must strictly adhere to.
+**Document Stage:** Stage 04 — Architecture Principles  
+**Document Status:** ACCEPTED & ESTABLISHED  
+**Version:** 2.0.0 (Master Architecture Baseline)  
+**Date:** 2026-10-03  
+**Preceding Authoritative Baselines:**
+- Stage 01: `docs/requirements/01-REQUIREMENTS-BASELINE.md` (Version 1.1.0)
+- Stage 02: `docs/acceptance/02-BUSINESS-ACCEPTANCE-CRITERIA.md` (Version 1.1.0)
+- Stage 03: `docs/baseline/03-CURRENT-SYSTEM-BASELINE.md` (Version 1.1.0)
 
 ---
 
-## 01. Document Control
+## 1. Document Control & Purpose
 
-| Attribute | Specification | Evidence / Governance Note |
-| :--- | :--- | :---: |
-| **Document Title** | BP-CMS Stage 04 Architecture Principles | FACT |
-| **File Path** | `docs/architecture/04-ARCHITECTURE-PRINCIPLES.md` | FACT |
-| **Document Stage** | Stage 04 — Architecture Principles | FACT |
-| **Status** | ACCEPTED — COMPLETE — CLOSED | FACT |
-| **Version** | `1.1.0` (Master SDLC Reset Baseline) | FACT |
-| **Closure Date** | 2026-10-02 | FACT |
-| **Verified Git Commit** | `cf2c5d18e176a5fbc38094b8bf5d1bdfe09fd292` | FACT |
-| **Authority** | Authoritative Architecture Governance Specification | FACT |
-| **Preceding Verified Stages**| Stage 01 (`01-REQUIREMENTS-BASELINE.md` - 100% Accepted)<br>Stage 02 (`02-BUSINESS-ACCEPTANCE-CRITERIA.md` - 100% Accepted)<br>Stage 03 (`03-CURRENT-SYSTEM-BASELINE.md` - 100% Accepted & Closed at commit `717ef3d1d794f0bf36279b89ed7ef89133ac5840`) | FACT |
-| **Subsequent Stages** | Stage 05+ (Architecture Decisions, Data Architecture, Pipeline Design) | FACT |
-| **Technology Mandate Stance**| **Strictly Technology-Neutral**: Establishes behavioral and structural boundaries without prematurely declaring unapproved databases, queues, or cloud infrastructure | FACT |
+### 1.1 Purpose
+This document establishes the permanent, non-negotiable architectural principles, boundaries, data integrity rules, and governance policies for BP-CMS. It acts as the technical constitution for all downstream architecture specifications (Stages 05–26), implementation cycles (Stage 27), and release gates (Stages 28–30).
+
+### 1.2 Non-Negotiable Governance Declarations
+1. **Constitutional Invariant:** These principles govern all future engineering design and code modifications across BP-CMS.
+2. **Implementation Scope Boundary:** This document defines architectural invariants and structural rules. It does **NOT** implement features or modify database schemas.
+3. **No Unapproved Fallbacks or Mocks:** Synthetic business-content fallback generators, test-bypass backdoors, and production mock engines are permanently barred from the system.
+4. **Strict Traceability:** Every principle directly enforces one or more Stage 01 Requirements (`BR-*`, `NFR-*`, `BND-*`, `OPS-*`) and Stage 02 Acceptance Criteria (`AC2-*`, `NEG-*`).
 
 ---
 
-## 02. Purpose
+## 2. The 30 Operational Architecture Principles
 
-The purpose of this document is to define the binding engineering constitution for BP-CMS. As the system moves from the brownfield baseline frozen in Stage 03 into modernization and migration planning, these principles guarantee:
-1. **Consistency:** All domain workflows, entities, APIs, and interfaces operate under a single unified lifecycle contract.
-2. **Safety & Zero Regression:** Critical defects identified in the Stage 03 baseline (such as state machine bypasses, split-brain status sync, and client-side authorization bypasses) are permanently precluded from future designs.
-3. **Frugality & Reliability:** Infrastructure complexity, cost, and distributed operational burdens are bounded by strict justification rules.
-4. **Human Accountability:** AI automation remains strictly assistive and bounded by explicit human checkpoints.
-
----
-
-## 03. Relationship to Stage 01, Stage 02 and Stage 03
-
-BP-CMS follows a strict sequential SDLC progression:
-- **Stage 01 (`docs/requirements/01-REQUIREMENTS-BASELINE.md`):** Defines **WHAT** the system must become (Business requirements, user personas, operational scope, cost constraints, non-functional requirements).
-- **Stage 02 (`docs/acceptance/02-BUSINESS-ACCEPTANCE-CRITERIA.md`):** Defines **HOW ACCEPTANCE IS PROVEN** (Objective, observable, testable acceptance criteria AC2-001 through AC2-025, negative gates NEG-01 through NEG-10).
-- **Stage 03 (`docs/baseline/03-CURRENT-SYSTEM-BASELINE.md`):** Freezes **WHAT THE SYSTEM ACTUALLY IS TODAY** (Empirical brownfield baseline of Express, React 19, Google Sheets 25-tab persistence, Google Drive storage, 271 endpoints, and documented breaks).
-- **Stage 04 (`docs/architecture/04-ARCHITECTURE-PRINCIPLES.md`):** Establishes **HOW ARCHITECTURE MUST BE GOVERNED** (The inviolable structural principles AP-001 through AP-015 that bridge requirements to future implementation without premature technology lock-in).
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│  Stage 01: Requirements Baseline (What Must Exist)          │
-└──────────────────────────────┬──────────────────────────────┘
-                               │
-┌──────────────────────────────▼─────────────────────────────┐
-│  Stage 02: Business Acceptance Criteria (How to Prove It)   │
-└──────────────────────────────┬──────────────────────────────┘
-                               │
-┌──────────────────────────────▼─────────────────────────────┐
-│  Stage 03: Current System Baseline (What Actually Exists)   │
-└──────────────────────────────┬──────────────────────────────┘
-                               │
-┌──────────────────────────────▼─────────────────────────────┐
-│  Stage 04: Architecture Principles (Inviolable Rules)       │
-│  - AP-001 to AP-015 Engineering Constitution                │
-└──────────────────────────────┬──────────────────────────────┘
-                               │
-                               ▼
-            [ Future Architecture & Implementation ]
-```
+### 04.01 Single Source of Truth
+- **Principle ID:** `AP-04.01`
+- **Name:** Single Source of Truth (SSOT)
+- **Rule:** Every domain entity, workflow state, and configuration parameter MUST have exactly one authoritative storage owner at runtime. Redundant state stores or dual-writing without a single authoritative coordinator are strictly prohibited.
+- **Why it exists:** Prevents split-brain state, contradictory workflow statuses, and race conditions between storage layers.
+- **Applies to:** All domain services, repositories, workflow controllers, and storage adapters.
+- **MUST:** Designate one primary store for every entity type and route all mutations through its authoritative repository.
+- **MUST NOT:** Maintain dual, unsynchronized copies of primary business records across independent databases or sheets without master-replica coordination.
+- **Verification Method:** Automated multi-repository write audit; inspection of state mutation pipelines.
+- **Related Stage 01 Requirement(s):** `BR-001`, `BR-006`, `NFR-001`, `BND-001`
+- **Related Stage 02 Acceptance Criteria:** `AC2-001`, `NEG-05`, `NEG-10`
+- **Dependencies on Later Stages:** Stage 06 (Domain Model), Stage 12 (Database Decision), Stage 13 (Data Contract).
 
 ---
 
-## 04. Architecture Governance Rules
-
-Every future architecture decision record (ADR), design document, schema proposal, and code contribution must comply with the following meta-governance rules:
-1. **No Speculative Architecture:** Technology choices must never precede requirement needs.
-2. **Explicit Derivation:** Every technical component must trace directly back to an approved Stage 01 requirement or Stage 02 acceptance criterion.
-3. **Non-Bypassable Controls:** Any architectural design that allows client-side code, external webhooks, or automated scripts to mutate business state without server-side validation is invalid by definition.
-4. **Zero Silent Breaking Changes:** In brownfield modernization, legacy paths must remain verifiable or be retired through incremental cutover protocols.
-
----
-
-## 05. Principle AP-001: Canonical 15-Step Workflow Principle
-
-### 5.1 Identity & Statement
-* **Principle ID:** `AP-001`
-* **Principle Name:** One Canonical 15-Step Business Workflow
-* **Rule:** The BP-CMS production lifecycle consists of exactly one linear, canonical 15-step business workflow. All content items must progress through these sequential stages, and no stage may be skipped, reordered, hidden, or bypassed unless an explicit conditional rule is authorized by the backend business engine.
-
-### 5.2 The Canonical 15 Business Stages
-```
-[01: Question Generation] ──► [02: Question Verification] ──► [03: Audience Script]
-             │
-             ▼
-[04: Teleprompter & Filming] ─► [05: Raw Video Handoff]   ──► [06: Video Editing]
-             │
-             ▼
-[07: Final QC]            ──► [08: Thumbnail Studio]      ──► [09: Social Review]
-             │
-             ▼
-[10: Publishing Setup]    ──► [11: Published / Live]      ──► [12: Platform Sync]
-             │
-             ▼
-[13: Social Analytics]    ──► [14: Performance Review]    ──► [15: Performance Intelligence]
-```
-
-### 5.3 Rationale
-In the Stage 03 baseline, workflow stages were fragmented across disparate UI pages (`VideoDetailPage` tabs, `ProductionTrackerPage`, `PublishingPage`) and state enums (`QuestionStatus`, `VideoProductionStatus`, `SocialPublishStatus`), leading to hidden barriers (e.g., `QUEUED -> EDITING` 3-hop workaround). A single canonical pipeline establishes unambiguous domain boundaries and unified operational tracking for creators, reviewers, and leadership.
-
-### 5.4 Implementation Consequence
-- The system must model the 15 stages as first-class domain milestones.
-- Work item progress across dashboards, queues, assignments, and audit logs must map deterministically to these 15 canonical steps.
-- UI views may consolidate steps for ergonomic editing (e.g., a unified workspace tab strip), but the underlying domain engine must track and validate each step transition independently.
-
-### 5.5 Explicit Forbidden Patterns
-- Introducing parallel, competing workflow pipelines that bypass the 15 stages.
-- Allowing content to jump directly from Stage 01 (Draft) to Stage 04 (Recording) without Stage 02 (Verification) approval.
-- Hardcoding custom stage sequences for specific content types without an approved architecture variance.
-
-### 5.6 Verification Expectation
-Automated end-to-end workflow tests must prove that an entity cannot reach Stage 11 (Publishing) without recorded, verifiable transitions through Stages 01 through 10.
+### 04.02 Separation of Concerns
+- **Principle ID:** `AP-04.02`
+- **Name:** Separation of Concerns (SoC)
+- **Rule:** Software layers MUST strictly separate presentation (UI), transport/routing (HTTP/API), business logic (Domain/Services), state coordination (Workflow Engine), and persistence (Repositories/Adapters).
+- **Why it exists:** Prevents monolithic spaghetti code where UI components execute database queries, or persistence adapters execute business rules.
+- **Applies to:** Frontend components, Express routes, Domain Services, Repositories.
+- **MUST:** Keep UI components purely presentational, service classes pure business logic, and repositories pure data access.
+- **MUST NOT:** Embed SQL queries, sheet mutations, or workflow transitions inside React components or API route handlers.
+- **Verification Method:** Static code analysis, dependency linting, architectural module boundary tests.
+- **Related Stage 01 Requirement(s):** `NFR-005`
+- **Related Stage 02 Acceptance Criteria:** `AC2-024`
+- **Dependencies on Later Stages:** Stage 05 (System Boundary), Stage 10 (Frontend IA), Stage 15 (API Contract).
 
 ---
 
-## 06. Principle AP-002: Business Stage vs Technical State
-
-### 6.1 Identity & Statement
-* **Principle ID:** `AP-002`
-* **Principle Name:** Business Stage is Not the Same Thing as Technical State
-* **Rule:** The high-level business stage of a content item (where it sits in the 15-step production journey) must be architecturally decoupled from low-level technical states, operational sub-states, media processing flags, and entity status columns.
-
-### 6.2 Rationale
-Stage 03 audit uncovered critical desynchronization defects (`BRK-SF-01`, `BRK-SF-02`) because business progress was conflated with technical entity fields (e.g., updating `PUBLISHING.status = PUBLISHED` while `VIDEOS.status` remained `READY_TO_UPLOAD`, or `Question.videoStatus` diverging from `Video.status`). Technical tasks (such as video rendering, thumbnail image compression, or webhook delivery) operate within a business stage and do not constitute independent business stages.
-
-### 6.3 Implementation Consequence
-- The data model must maintain an authoritative business stage indicator for the master content item.
-- Entity-specific technical states (e.g., `RenderStatus: IN_PROGRESS`, `UploadStatus: CHUNKING`, `TranscodeStatus: COMPLETED`) must be modeled as child properties or technical flags subordinate to the current business stage.
-- Technical failures (e.g., thumbnail generation timeout) pause progression within that stage rather than corrupting the overall business stage position.
-
-### 6.4 Explicit Forbidden Patterns
-- Using raw database row statuses (e.g., `VideoProductionStatus.QUEUED`) as the sole proxy for overall content lifecycle stage across multiple entities.
-- Updating an entity's technical state in a way that silently advances the business stage without executing the business stage transition validator.
-
-### 6.5 Verification Expectation
-State inspection queries must prove that modifying a technical child property (such as adding a third thumbnail variant) never alters the master content item's canonical business stage.
+### 04.03 Frontend/Backend Boundary
+- **Principle ID:** `AP-04.03`
+- **Name:** Frontend/Backend Boundary
+- **Rule:** The frontend is an untrusted presentation tier. All security, workflow authorization, business rule enforcement, and data validation MUST occur server-side behind explicit API boundaries.
+- **Why it exists:** Client-side checks can be bypassed via direct HTTP calls, browser developer tools, or automated scripts.
+- **Applies to:** React Single Page Application (SPA), Express API server, REST endpoints.
+- **MUST:** Validate every request on the server regardless of frontend form validation.
+- **MUST NOT:** Trust client-computed permissions, client-assigned roles, or client-asserted state transitions.
+- **Verification Method:** Direct API penetration testing bypassing frontend forms with invalid payloads.
+- **Related Stage 01 Requirement(s):** `NFR-003`, `BND-001`
+- **Related Stage 02 Acceptance Criteria:** `AC2-006`, `NEG-01`, `NEG-08`
+- **Dependencies on Later Stages:** Stage 05 (System Boundary), Stage 09 (RBAC), Stage 15 (API Contract).
 
 ---
 
-## 07. Principle AP-003: Authoritative Workflow Transition Mechanism
-
-### 7.1 Identity & Statement
-* **Principle ID:** `AP-003`
-* **Principle Name:** One Authoritative Workflow Transition Mechanism
-* **Rule:** All workflow state transitions must execute through a single, authoritative, centralized server-side workflow transition mechanism. Direct database row updates, ad-hoc service mutations, and client-driven field patches that alter workflow status are strictly forbidden.
-
-### 7.2 Rationale
-Stage 03 identified multiple competing state mutators (`videoService`, `publishingService`, `questionService`, and test harnesses) modifying status columns directly, causing race conditions and partial writes (`DB-CRIT-01`). A single transition engine ensures validation guards, precondition checks, audit logging, and post-transition events execute atomically.
-
-### 7.3 Implementation Consequence
-- A centralized workflow transition engine must intercept all transition requests.
-- Every transition must evaluate:
-  1. Identity & RBAC permissions of the acting user.
-  2. Validity of the transition against an explicit State Transition Graph.
-  3. Precondition checklist (e.g., required assets present, validations passed).
-  4. Atomic persistence of the new state.
-  5. Immutable emission of an audit log entry.
-- Direct status mutations in entity repositories must be locked or restricted to internal engine calls.
-
-### 7.4 Explicit Forbidden Patterns
-- Bypassing the transition engine via direct `PATCH /api/videos/:id` calls containing `{ status: 'EDITED' }`.
-- Implementing multi-hop client workarounds (e.g., chaining three separate API calls to jump across an illegal state boundary as seen in `BRK-HD-02`).
-- Silent background processes modifying workflow status without passing through the transition validator.
-
-### 7.5 Verification Expectation
-Attempting to invoke an invalid transition (e.g., `DRAFT -> PUBLISHED`) or bypassing the transition controller via direct repository mutation must result in a rejected transaction and a logged security violation.
+### 04.04 API-First Communication
+- **Principle ID:** `AP-04.04`
+- **Name:** API-First Communication
+- **Rule:** All interactions between the frontend, backend, background workers, and external systems MUST occur over strictly defined, versioned, and schema-validated API contracts (JSON REST / RPC).
+- **Why it exists:** Decouples client rendering from server architecture and enables independent verification and testing.
+- **Applies to:** All HTTP routes, controllers, API client SDKs.
+- **MUST:** Define explicit request/response schemas (e.g., Zod / OpenAPI) for every endpoint.
+- **MUST NOT:** Expose internal repository structures, raw database rows, or unvalidated payload buffers directly over HTTP.
+- **Verification Method:** Schema validation middleware automated tests; OpenAPI schema compliance checks.
+- **Related Stage 01 Requirement(s):** `NFR-005`, `OPS-003`
+- **Related Stage 02 Acceptance Criteria:** `AC2-024`
+- **Dependencies on Later Stages:** Stage 15 (API Contract), Stage 26 (Feature Contracts).
 
 ---
 
-## 08. Principle AP-004: Backend Authorization Authority
-
-### 8.1 Identity & Statement
-* **Principle ID:** `AP-004`
-* **Principle Name:** Backend is Authoritative for Authorization
-* **Rule:** All authorization decisions, role verifications, ownership checks, and capability assessments must be executed and enforced authoritatively on the backend server. The client application is considered untrusted.
-
-### 8.2 Rationale
-Stage 03 revealed that `App.tsx` lacked route-level role guards (`SEC-HIGH-01`), relying solely on UI element visibility and navigation hiding. Any user could type administrative routes directly into the browser. Authorization cannot depend on the client's compliance.
-
-### 8.3 Implementation Consequence
-- Every API endpoint and server action must validate the caller's session token and enforce role/capability requirements via server-side middleware or policy evaluators before inspecting or mutating data.
-- Object-level authorization (verifying whether a user is the assigned editor or creator of a specific item) must be computed server-side from authoritative persistence records.
-- Unauthenticated or unauthorized requests must fail immediately with `401 Unauthorized` or `403 Forbidden` JSON payloads.
-
-### 8.4 Explicit Forbidden Patterns
-- Relying on hidden UI buttons, disabled input fields, or React Router redirects as the primary security mechanism.
-- Passing user role claims from client-side storage (e.g., localStorage or unverified query params) without server-side cryptographic session verification.
-- Allowing administrative, recovery, or batch actions to run without explicit role checks.
-
-### 8.5 Verification Expectation
-Automated integration tests must demonstrate that firing unauthorized HTTP requests directly to protected endpoints (e.g., `/api/recovery/snapshot` or `/api/questions/:id/approve` using an `ANALYTICS_VIEWER` session) consistently returns HTTP 403.
+### 04.05 Domain Ownership
+- **Principle ID:** `AP-04.05`
+- **Name:** Domain Ownership & Bounded Contexts
+- **Rule:** Each business domain (Curriculum/Questions, Scripts, Video Production, Quality Control, Publishing, Analytics, Identity) MUST encapsulate its own entities, rules, and repository operations within bounded contexts.
+- **Why it exists:** Prevents cross-domain coupling where a change in Video Production breaks Question taxonomy or Publishing logic.
+- **Applies to:** Domain models, repository packages, service modules.
+- **MUST:** Access external domain entities exclusively through public service interfaces or domain events.
+- **MUST NOT:** Allow cross-domain repository mutations (e.g., Script Service writing directly to Question tables).
+- **Verification Method:** Modular dependency boundary analysis and import restriction lint rules.
+- **Related Stage 01 Requirement(s):** `BR-001` through `BR-010`, `NFR-005`
+- **Related Stage 02 Acceptance Criteria:** `AC2-001` through `AC2-020`
+- **Dependencies on Later Stages:** Stage 06 (Domain Model), Stage 13 (Data Contract).
 
 ---
 
-## 09. Principle AP-005: Backend Business-Rule Authority
-
-### 09.1 Identity & Statement
-* **Principle ID:** `AP-005`
-* **Principle Name:** Backend is Authoritative for Business Rules
-* **Rule:** All domain validation rules, mathematical consistency checks, curricular constraints, completeness thresholds, and stage entry/exit criteria must be authoritatively evaluated and enforced on the backend.
-
-### 9.2 Rationale
-Client-side validation improves user experience by giving immediate feedback, but it can be bypassed, disabled, or manipulated. Stage 03 audit documented instances where client forms permitted partial submissions that created malformed records in the Google Sheets persistence layer.
-
-### 9.3 Implementation Consequence
-- Server-side validators (e.g., Zod schemas and domain rule evaluators) must independently validate all payloads regardless of any client-side validation that previously occurred.
-- A workflow stage cannot advance unless the backend confirms that all mandatory prerequisites for that stage are satisfied.
-- Validation failures on the backend must return structured, actionable error details to the client.
-
-### 9.4 Explicit Forbidden Patterns
-- Assuming an incoming payload is valid because the frontend UI form passed HTML5 or React Hook Form checks.
-- Advancing a content item to Stage 02 (Verification) when required options or explanations are blank.
-- Storing unvalidated or syntactically invalid question formats in the authoritative database.
-
-### 9.5 Verification Expectation
-Submitting a malformed payload (e.g., multiple choice question missing correct answer index) directly to the API must result in HTTP 400 with validation failure details, leaving persistence unchanged.
+### 04.06 Workflow Authority
+- **Principle ID:** `AP-04.06`
+- **Name:** Authoritative Canonical Workflow Engine
+- **Rule:** All state transitions along the canonical 15-step digital assembly line MUST be evaluated and executed solely by the server-side Workflow Engine.
+- **Why it exists:** Prevents illegal stage skipping, unverified releases, and uncontrolled workflow divergence.
+- **Applies to:** `ContentMaster`, `Question`, `Script`, `Video`, `PublishPackage`.
+- **MUST:** Enforce sequential step gates, prerequisites, and role capabilities before advancing or reworking content.
+- **MUST NOT:** Allow frontend code or individual CRUD endpoints to mutate workflow step fields directly.
+- **Verification Method:** Automated state-machine transition matrix tests; negative jump attempts (`NEG-02`).
+- **Related Stage 01 Requirement(s):** Section 5 (Canonical 15-Step Workflow), `NFR-001`
+- **Related Stage 02 Acceptance Criteria:** `AC2-001`, `AC2-002`, `NEG-02`
+- **Dependencies on Later Stages:** Stage 07 (Canonical 15-Step Workflow), Stage 08 (State Model).
 
 ---
 
-## 10. Principle AP-006: Frontend Responsibility Boundaries
-
-### 10.1 Identity & Statement
-* **Principle ID:** `AP-006`
-* **Principle Name:** Frontend Never Decides Whether a Transition is Valid
-* **Rule:** The frontend user interface is strictly a presentation and interaction layer. It displays current system state, captures user intent, offers valid available actions based on backend guidance, and reflects server responses. It never authoritatively decides state, validity, or permissions.
-
-### 10.2 Rationale
-When frontends assume state authority, race conditions, stale UI caches, and optimistic UI desynchronizations proliferate. In Stage 03, the client navigating immediately to `/videos/:id` before the server finished appending rows caused fatal 404 reload errors (`BRK-HD-01`).
-
-### 10.3 Implementation Consequence
-- The frontend requests actions (e.g., "Request Approval", "Submit Edit") and awaits server confirmation before transitioning UI views or updating local application state.
-- Allowed actions displayed in the UI (e.g., which buttons are enabled) should be informed by backend metadata (HATEOAS-style or capabilities metadata).
-- If the server rejects an action, the frontend must remain on the current screen, present the server's error message, and preserve unsaved user input.
-
-### 10.4 Explicit Forbidden Patterns
-- Optimistically transitioning master workflow state in client storage or React context before the backend returns HTTP 200/201.
-- Replacing the browser URL to point to a new entity ID before the server confirms that the entity exists in authoritative persistence.
-- Calculating role authorization client-side to bypass backend error states.
-
-### 10.5 Verification Expectation
-Simulating server-side network errors or artificial latency during a transition must result in the frontend maintaining current state without route corruption or data loss.
+### 04.07 Server-Side Business Rules
+- **Principle ID:** `AP-04.07`
+- **Name:** Server-Side Business Rules Enforcement
+- **Rule:** Core business invariants (e.g., exactly 4 distinct options per MCQ, -14 LUFS audio compliance check, valid mathematical proof requirement) MUST be executed in server-side domain services.
+- **Why it exists:** Guarantees educational accuracy and broadcast compliance regardless of client platform or tool used.
+- **Applies to:** Question Validator, Script Validator, QC Service, Publishing Validator.
+- **MUST:** Execute domain validators before persisting state transitions or issuing approvals.
+- **MUST NOT:** Rely on frontend UI flags (e.g., `isValid: true`) transmitted in HTTP request bodies.
+- **Verification Method:** Unit and integration tests executing domain validators against valid and corrupted payloads.
+- **Related Stage 01 Requirement(s):** `BR-001`, `BR-003`, `BR-005`, `NFR-001`
+- **Related Stage 02 Acceptance Criteria:** `AC2-011`, `AC2-016`, `AC2-017`
+- **Dependencies on Later Stages:** Stage 06 (Domain Model), Stage 26 (Feature Contracts).
 
 ---
 
-## 11. Media Storage and Reference Ownership (AP-007 & AP-008)
-
-### 11.1 Principle AP-007: Media Binaries Remain External to Application Database
-* **Principle ID:** `AP-007`
-* **Principle Name:** Media Binaries Remain External to the Application Database
-* **Rule:** Large binary media files (raw video footage, edited MP4s, multi-take video streams, audio stems, high-res graphic PSD/PNG files) must NEVER be stored directly inside the transactional application database.
-* **Rationale:** Databases are optimized for structured queries, indexing, and transactional integrity; storing multi-gigabyte video binaries bloats database backups, degrades query performance, and incurs severe cloud storage costs.
-* **Required Implementation Consequence:** Binaries are stored in external object storage systems (such as Google Drive in the current baseline, or designated cloud object storage buckets in future architecture). Upload pipelines must stream chunks directly from client to external storage without buffering large binaries into server RAM.
-* **Explicit Forbidden Patterns:** Storing base64-encoded video or image binary strings in database columns or Google Sheets cells; storing large media blobs in database backups.
-* **Verification Expectation:** Database schema audit and payload inspections confirm that zero media binary payloads or base64 data strings are persisted in database columns.
-
-### 11.2 Principle AP-008: Media References Belong to Application Data Model
-* **Principle ID:** `AP-008`
-* **Principle Name:** Media References Belong to the Application Data Model
-* **Rule:** Media metadata, storage identifiers, access URLs, byte sizes, MIME types, version hashes, and entity linkage records MUST be first-class citizens in the application data model.
-* **Rationale:** Storing media files externally without strict database references creates orphaned assets, broken links, untracked storage costs, and zero auditability.
-* **Required Implementation Consequence:** The application database stores deterministic metadata records (`media_asset_id`, `entity_type`, `entity_id`, `storage_provider`, `external_file_id`, `web_view_url`, `checksum`, `file_size_bytes`, `created_at`). Deleting or archiving an entity must coordinate soft-deletion of metadata without causing untracked orphan binaries.
-* **Explicit Forbidden Patterns:** Uploading files to external storage without creating a corresponding linked record in the application database; relying on unstructured, manually typed external drive links without system-validated file IDs.
-* **Verification Expectation:** Audit checks must verify that all media upload flows produce a valid `MEDIA_ASSETS` record with a verified file ID, linking the external binary deterministically to the target business entity.
+### 04.08 Server-Side Authorization & RBAC
+- **Principle ID:** `AP-04.08`
+- **Name:** Server-Side Authorization & Anti-Self-Approval
+- **Rule:** User authentication tokens, roles, and granular capabilities MUST be verified server-side on every request. Anti-self-approval rules (author cannot verify own question/script/video) MUST be strictly enforced by the server.
+- **Why it exists:** Protects system integrity and enforces peer-review governance across all human quality gates.
+- **Applies to:** Express authentication middleware, authorization guards, review endpoints.
+- **MUST:** Reject unauthenticated requests with HTTP 401 and unauthorized actions with HTTP 403.
+- **MUST NOT:** Permit UI role-switching without re-authenticating with server-verified credentials.
+- **Verification Method:** Automated security tests attempting self-approval (`NEG-01`) and unauthorized role execution (`NEG-08`).
+- **Related Stage 01 Requirement(s):** `NFR-003`, `BND-001`
+- **Related Stage 02 Acceptance Criteria:** `AC2-006`, `NEG-01`, `NEG-08`
+- **Dependencies on Later Stages:** Stage 09 (RBAC Capability Matrix), Stage 19 (Security Architecture).
 
 ---
 
-## 12. Principle AP-009: AI Governance
-
-### 12.1 Identity & Statement
-* **Principle ID:** `AP-009`
-* **Principle Name:** AI Assists Humans; AI Does Not Silently Approve or Mutate Workflow
-* **Rule:** Artificial Intelligence (AI) components, LLMs, and automated agents operate exclusively in an assistive, draft-generating, and advisory capacity. AI must never autonomously approve, reject, publish, or advance content across workflow stage gates without explicit, authenticated human review and sign-off.
-
-### 12.2 Rationale
-BP-CMS produces educational content for competitive exam preparation where factual accuracy, pedagogical soundness, and cultural/linguistic nuance (e.g., authentic Telugu translation) are paramount. Hallucinations or automated bypasses compromise educational integrity and student trust.
-
-### 12.3 Implementation Consequence
-- AI-generated outputs (question drafts, teleprompter scripts, thumbnail prompts, performance tags) must be clearly flagged with an `IS_AI_GENERATED` indicator and assigned to a human reviewer.
-- Advancing from Stage 01 to Stage 02, or Stage 02 to Stage 03, requires the credentials and signature of an authenticated human user (`VERIFIER`, `CONTENT_LEAD`, or `ADMIN`).
-- Automated background workers may invoke AI to generate suggestions or enrich metadata, but the resulting state must remain in a `PENDING_REVIEW` state until confirmed by a human actor.
-
-### 12.4 Explicit Forbidden Patterns
-- Implementing cron jobs or webhooks that call Gemini and automatically mark questions as `APPROVED` or `READY_FOR_RECORDING`.
-- Allowing AI to overwrite human-edited text without explicit human acceptance.
-- Removing or hiding human review gates to accelerate publishing throughput.
-
-### 12.5 Verification Expectation
-Workflow transition code inspection must prove that the transition validator rejects any transition to `APPROVED` or `PUBLISHED` if the actor ID matches a system or AI service account without human co-signature.
+### 04.09 Persistence Integrity
+- **Principle ID:** `AP-04.09`
+- **Name:** Persistence Integrity & Referential Consistency
+- **Rule:** All relationships between entities (e.g., `ContentMaster` ↔ `Question` ↔ `Script` ↔ `Video` ↔ `QC Record`) MUST maintain strict referential integrity. Orphaned child records and dangling pointers are forbidden.
+- **Why it exists:** Prevents data corruption where video files or published records lose their originating question proof or author identity.
+- **Applies to:** Database repositories, schema migrations, sheet adapters.
+- **MUST:** Verify foreign key / parent entity existence before creating or linking sub-records.
+- **MUST NOT:** Hard-delete parent aggregate roots while active child production assets exist.
+- **Verification Method:** Database consistency check scripts, integrity validation test suite.
+- **Related Stage 01 Requirement(s):** `NFR-001`, `NFR-005`
+- **Related Stage 02 Acceptance Criteria:** `AC2-008`, `AC2-009`
+- **Dependencies on Later Stages:** Stage 12 (Database Decision), Stage 13 (Data Contract).
 
 ---
 
-## 13. Principle AP-010: Business-State Ownership
-
-### 13.1 Identity & Statement
-* **Principle ID:** `AP-010`
-* **Principle Name:** No Duplicate Ownership of Business State
-* **Rule:** Every piece of business state must have exactly one authoritative owner in the system architecture. Duplicate, mirrored, or competing state writers for the same logical domain attribute are strictly prohibited.
-
-### 13.2 Rationale
-In Stage 03, both `QUESTIONS` and `VIDEOS` maintained competing status representations (`Question.videoStatus` vs `Video.status`), and `PUBLISHING` maintained release statuses separate from `VIDEOS`. This dual-writer model led directly to split-brain data corruption where video production was complete but question records reported the item as un-recorded.
-
-### 13.3 Implementation Consequence
-- A single authoritative entity represents each business concept (e.g., the master content record owns canonical stage progression).
-- Downstream views and query APIs must derive cross-domain statuses by reading the single authoritative source or using foreign key relations, rather than maintaining replicated copies.
-- If denormalized views or cache projections are introduced for read performance, they must be strictly read-only and maintained by deterministic, centralized sync workers.
-
-### 13.4 Explicit Forbidden Patterns
-- Writing the same status value to multiple independent database tables in non-atomic operations.
-- Storing overlapping status enums where two distinct services can issue conflicting status updates to the same logical content item.
-- Exposing separate API endpoints that mutate the same underlying business state through different domain services.
-
-### 13.5 Verification Expectation
-Database schema audit must demonstrate that each business lifecycle milestone exists in exactly one authoritative table column, with zero competing writable duplicates.
+### 04.10 Auditability & Append-Only Ledger
+- **Principle ID:** `AP-04.10`
+- **Name:** Forensic Auditability & Immutability
+- **Rule:** Every business mutation, workflow transition, review decision, and administrative override MUST emit an immutable audit log record containing entity ID, actor ID, action name, before/after values, and UTC timestamp.
+- **Why it exists:** Provides complete forensic traceability for academic accuracy, compliance disputes, and operational accountability.
+- **Applies to:** `AuditLogRepository`, all service mutation methods.
+- **MUST:** Record audit entries atomically with or immediately following the business transaction.
+- **MUST NOT:** Provide API endpoints or database operations that update, overwrite, or delete audit log entries.
+- **Verification Method:** Automated mutation audit verification; attempt to modify audit table records (`NEG-10`).
+- **Related Stage 01 Requirement(s):** `NFR-001`, `NFR-003`, Section 3.1 Item 17
+- **Related Stage 02 Acceptance Criteria:** `AC2-005`, `NEG-10`
+- **Dependencies on Later Stages:** Stage 21 (Audit & Observability).
 
 ---
 
-## 14. Principle AP-011: Service Architecture & Microservice Constraint
-
-### 14.1 Identity & Statement
-* **Principle ID:** `AP-011`
-* **Principle Name:** No Unnecessary Microservices
-* **Rule:** BP-CMS must be designed and maintained as a modular, cohesive, well-bounded monolith unless an explicit, documented, and approved business requirement demands physical service decomposition.
-
-### 14.2 Rationale
-Microservice architectures introduce network latency, distributed transaction failure modes, complex distributed tracing, high cloud hosting costs, and immense deployment overhead. For BP-CMS's team size, traffic profile, and domain requirements, a modular monolith guarantees fast development, simple zero-downtime deployments, atomic transactions, and zero distributed failure cascades.
-
-### 14.3 Implementation Consequence
-- Application code must be structured into clean, decoupled domain modules (e.g., `modules/questions`, `modules/video`, `modules/publishing`, `modules/auth`) sharing a single backend runtime process.
-- Communication between modules must occur via clean in-process service interfaces, domain events, or shared data access layers, rather than inter-service HTTP/gRPC network hops.
-- Asynchronous tasks (video transcoding, thumbnail generation, AI drafting) should be handled via background worker threads or bounded in-process task queues rather than standalone microservice fleets.
-
-### 14.4 Explicit Forbidden Patterns
-- Splitting the backend into separate microservice repositories (e.g., a standalone "Question Service", standalone "Auth Service", standalone "Publishing Service") without PO approval.
-- Introducing service meshes (e.g., Istio, Linkerd) or complex distributed consensus protocols.
-- Fragmenting frontend SPAs into micro-frontends.
-
-### 14.5 Verification Expectation
-Deployment manifests must confirm the entire application runs as a cohesive, single-service deployable container (e.g., on Cloud Run) with unified logging and zero inter-service network boundaries.
+### 04.11 Versioning & Immutability
+- **Principle ID:** `AP-04.11`
+- **Name:** Entity Versioning & Historical Immutability
+- **Rule:** Questions, Scripts, QC Certifications, and Publishing Packages MUST increment version counters upon material revision. Historical approved versions MUST remain immutable and readable.
+- **Why it exists:** Video editors and presenters must know precisely which script revision they recorded, and past broadcast records must reflect the exact verified text.
+- **Applies to:** `ContentMaster`, `Question`, `Script`, `VideoMetadata`.
+- **MUST:** Create a new revision/version record when content is modified post-approval.
+- **MUST NOT:** Overwrite previously approved and recorded versions in-place.
+- **Verification Method:** Version increment tests; historical version retrieval verification.
+- **Related Stage 01 Requirement(s):** `BR-001`, `BR-002`, `NFR-001`
+- **Related Stage 02 Acceptance Criteria:** `AC2-008`, `AC2-009`
+- **Dependencies on Later Stages:** Stage 06 (Domain Model), Stage 13 (Data Contract).
 
 ---
 
-## 15. Principle AP-012: Infrastructure and Cost Governance
-
-### 15.1 Identity & Statement
-* **Principle ID:** `AP-012`
-* **Principle Name:** No Infrastructure Purchased Without a Cost Justification
-* **Rule:** No cloud resource, managed service, third-party subscription, database cluster, caching tier, or background queue infrastructure may be introduced into BP-CMS without an explicit, approved cost-benefit justification aligned with the Stage 01 cost constraint (`COST-001`).
-
-### 15.2 Rationale
-Uncontrolled infrastructure sprawl inflates operational expenditure, introduces unnecessary maintenance burdens, and risks vendor lock-in. Stage 01 established the mandate for lean, frugal, cost-effective operations.
-
-### 15.3 Implementation Consequence
-- Every proposed infrastructure change must document:
-  1. Business problem solved.
-  2. Estimated monthly cost at current scale and 10x scale.
-  3. Verification that existing zero-cost or low-cost primitives (e.g., container memory, SQLite, managed serverless tiers) are insufficient.
-- Preference must always be given to serverless, scale-to-zero, or high-density shared primitives.
-
-### 15.4 Explicit Forbidden Patterns
-- Provisioning dedicated, always-on multi-node clusters (e.g., dedicated Redis enterprise clusters, managed Kubernetes) when lightweight or serverless alternatives suffice.
-- Adopting paid third-party SaaS tools for capabilities that can be satisfied natively or via existing Google Cloud commitments.
-- Adding infrastructure components that require full-time DevOps administration.
-
-### 15.5 Verification Expectation
-Stage completion reviews must verify that the projected infrastructure bill remains within the approved Stage 01 budget envelopes before infrastructure provisioning can proceed.
+### 04.12 Optimistic Concurrency Control
+- **Principle ID:** `AP-04.12`
+- **Name:** Optimistic Concurrency Control (OCC)
+- **Rule:** Concurrent mutations on domain entities MUST validate the entity's version or updated timestamp against the client's expected version before applying updates.
+- **Why it exists:** Prevents "lost update" anomalies when two editors or reviewers collaborate on the same item simultaneously.
+- **Applies to:** Repositories, service update methods, REST PUT/PATCH controllers.
+- **MUST:** Return HTTP 409 Conflict when a mutation is attempted on a stale entity version.
+- **MUST NOT:** Silently overwrite unread remote modifications with stale local state.
+- **Verification Method:** Concurrency collision test suite simulating simultaneous edits (`NEG-05`).
+- **Related Stage 01 Requirement(s):** `NFR-001`, `NFR-005`
+- **Related Stage 02 Acceptance Criteria:** `AC2-010`, `NEG-05`
+- **Dependencies on Later Stages:** Stage 13 (Data Contract), Stage 15 (API Contract).
 
 ---
 
-## 16. Principle AP-013: Incremental Brownfield Migration
-
-### 16.1 Identity & Statement
-* **Principle ID:** `AP-013`
-* **Principle Name:** Existing Functionality is Migrated Incrementally
-* **Rule:** All modernization, database transitions, and architectural refactoring must proceed through disciplined, reversible, incremental migration steps. "Big bang" rewrites that discard working systems are strictly forbidden.
-
-### 16.2 Rationale
-The Stage 03 baseline proved that BP-CMS has 31 working pages, 271 active endpoints, and hundreds of verified operational behaviors. Complete rewrites introduce catastrophic delivery risk, business interruption, and regression proliferation.
-
-### 16.3 Implementation Consequence
-- Migrations must use established patterns (such as Strangler Fig, branch by abstraction, or dual-read/dual-write verification).
-- Each migration increment must be independently deployable, testable, and capable of operating alongside existing functionality.
-- Rollback mechanisms must be engineered and tested prior to cutover for every increment.
-
-### 16.4 Explicit Forbidden Patterns
-- Halting ongoing production to execute a multi-month total rewrite.
-- Deleting existing Google Sheets repositories before target persistence has reached verified 100% data and behavioral parity.
-- Introducing breaking API changes that instantly invalidate existing frontend clients.
-
-### 16.5 Verification Expectation
-Migration plans must demonstrate step-by-step coexistence with measurable milestone gates and validated rollback checkpoints at each phase.
+### 04.13 Idempotency
+- **Principle ID:** `AP-04.13`
+- **Name:** Idempotent Action Execution
+- **Rule:** All mutating operations that initiate external dispatches, publishing releases, or state transitions MUST accept and enforce an idempotency key.
+- **Why it exists:** Prevents duplicate video publishing, double billing, or repeated notifications caused by network retries or double-clicks.
+- **Applies to:** Publishing service, job dispatchers, webhook handlers, sync triggers.
+- **MUST:** Return identical successful results for repeated requests carrying the same idempotency key without re-executing side effects.
+- **MUST NOT:** Fire multiple external API dispatch calls when identical requests are received concurrently.
+- **Verification Method:** Automated idempotent retry tests against publishing endpoints (`NEG-04`).
+- **Related Stage 01 Requirement(s):** `BR-006`, `BR-007`, `NFR-001`
+- **Related Stage 02 Acceptance Criteria:** `AC2-007`, `NEG-04`
+- **Dependencies on Later Stages:** Stage 15 (API Contract), Stage 17 (Job Architecture).
 
 ---
 
-## 17. Principle AP-014: Historical Audit Preservation
-
-### 17.1 Identity & Statement
-* **Principle ID:** `AP-014`
-* **Principle Name:** Historical Audit Evidence is Preserved
-* **Rule:** Historical audit files, forensic discovery records, problem registers, and compliance evidence documents must never be deleted, overwritten, or modified to make current implementations look cleaner. Audit history is immutable.
-
-### 17.2 Rationale
-The BP-CMS repository contains 30 comprehensive audit steps (`docs/audit/`) that provide critical forensic evidence regarding known bugs, edge cases, and historical evolutions. Erasing historical documents destroys institutional memory and conceals unresolved risks.
-
-### 17.3 Implementation Consequence
-- Historical files under `docs/audit/`, `01-product-truth.md`, and previous stage baselines must remain preserved and read-only.
-- New architecture artifacts must reference historical findings by their established IDs (e.g., `BRK-HD-01`, `DB-CRIT-01`, `1789891450880`) rather than creating competing numbering schemes.
-- Discrepancies between historical documents and current reality must be resolved through explicit superseding declarations in new documents, not silent retroactive edits.
-
-### 17.4 Explicit Forbidden Patterns
-- Deleting `docs/audit/` directories during repository cleanup.
-- Editing past audit reports to change their findings or remove documented failure logs.
-- Fabricating Git history or claiming test passes where failures occurred.
-
-### 17.5 Verification Expectation
-Repository integrity checks must verify that all 30 audit step folders and historical markdown files remain present and unmutated across SDLC stages.
+### 04.14 Strict Schema Validation
+- **Principle ID:** `AP-04.14`
+- **Name:** Boundary Schema Validation
+- **Rule:** All input data entering the system from HTTP requests, AI service responses, external platform webhooks, or spreadsheet rows MUST be validated against strict type-safe schemas (e.g., Zod) before processing.
+- **Why it exists:** Eliminates runtime crashes, injection vulnerabilities, and malformed entity records at the system boundary.
+- **Applies to:** Route request body parsers, AI output parsers, external API client adapters.
+- **MUST:** Reject malformed payloads immediately with descriptive validation errors before executing business logic.
+- **MUST NOT:** Pass unchecked `any` or raw JSON objects into domain services or repositories.
+- **Verification Method:** Schema validation fuzz testing and boundary error assertion suites.
+- **Related Stage 01 Requirement(s):** `NFR-001`, `NFR-003`, `NFR-005`
+- **Related Stage 02 Acceptance Criteria:** `AC2-024`
+- **Dependencies on Later Stages:** Stage 13 (Data Contract), Stage 15 (API Contract), Stage 18 (AI Architecture).
 
 ---
 
-## 18. Principle AP-015: Testability Requirement
-
-### 18.1 Identity & Statement
-* **Principle ID:** `AP-015`
-* **Principle Name:** Every Implementation Must be Testable
-* **Rule:** Every business rule, workflow transition, API endpoint, and data mutation must be accompanied by an automated, executable, and reproducible verification test. Code that cannot be tested automatically without corrupting production data is unacceptable.
-
-### 18.2 Rationale
-Stage 03 revealed 144 standalone test scripts under `src/tests/` that lacked a unified test runner, with some tests (`special-investigation-1789891450880.md`) directly mutating live production Google Sheets because sandbox isolation was missing. Reliable delivery requires fast, isolated, automated test execution.
-
-### 18.3 Implementation Consequence
-- All business logic and domain services must be designed with dependency injection or clear boundary interfaces allowing test execution against isolated mocks, fixtures, or ephemeral test databases.
-- Test suites must be executable via standard npm scripts (`npm test`, `npm run test:unit`) with zero production side effects.
-- Automated tests must provide clean setup and teardown (`afterEach`, `finally`) to guarantee zero test data contamination.
-
-### 18.4 Explicit Forbidden Patterns
-- Writing business logic tightly coupled to live third-party cloud services without mock or local test adapters.
-- Committing test scripts that append records to production spreadsheets or production Drive folders.
-- Skipping automated test authoring in favor of purely manual UI clicking.
-
-### 18.5 Verification Expectation
-Continuous integration pipelines must execute the automated test suite on every pull request, requiring a 100% pass rate before merge approval.
+### 04.15 Explicit Error Handling & Classification
+- **Principle ID:** `AP-04.15`
+- **Name:** Explicit Error Handling & Sanitization
+- **Rule:** All errors MUST be explicitly caught, classified (e.g., `VALIDATION_ERROR`, `AUTH_ERROR`, `NOT_FOUND`, `CONFLICT`, `PROVIDER_ERROR`), and sanitized. Secrets and API keys MUST NEVER appear in error messages or client responses.
+- **Why it exists:** Protects system security, prevents information leakage, and provides actionable feedback to operators.
+- **Applies to:** Global Express error middleware, AI adapters, cloud storage adapters.
+- **MUST:** Sanitize all outgoing error messages using regex redaction (`AIza...`, `sk-...`).
+- **MUST NOT:** Return raw stack traces, database connection strings, or unredacted keys in API responses.
+- **Verification Method:** Error response security scanning and redactor unit tests.
+- **Related Stage 01 Requirement(s):** `NFR-003`, `NFR-005`
+- **Related Stage 02 Acceptance Criteria:** `AC2-006`, `NEG-08`
+- **Dependencies on Later Stages:** Stage 15 (API Contract), Stage 19 (Security Architecture).
 
 ---
 
-## 19. Cross-Principle Implementation Rules
-
-When implementing features across multiple domains, the following interaction rules apply:
-1. **Security Supercedes Convenience (AP-004 + AP-006):** In any conflict between frontend UI ergonomics and backend authorization rigor, backend enforcement always takes precedence.
-2. **Workflow Integrity Binds All Entities (AP-001 + AP-002 + AP-003):** An entity's state changes cannot be processed outside the context of the canonical 15-stage workflow.
-3. **Data Integrity Trumps Velocity (AP-010 + AP-013):** Incremental migration must halt immediately if dual-writer divergence or split-brain records are detected.
-4. **Human Authority Bounds AI Velocity (AP-009 + AP-005):** Batch AI operations must queue items for human review rather than mass-advancing workflow stages.
+### 04.16 AI as an Assistive Capability
+- **Principle ID:** `AP-04.16`
+- **Name:** AI as Assistive Intelligence (Zero Autonomous Authority)
+- **Rule:** Generative AI is strictly an assistive drafting, translation, and analysis capability. AI models MUST NEVER autonomously transition workflow states, approve content, or bypass human review gates.
+- **Why it exists:** Guarantees absolute pedagogical correctness and legal compliance by retaining human accountability.
+- **Applies to:** Gemini Service, Question Studio, Script Assistant, Thumbnail Intelligence.
+- **MUST:** Place AI outputs in unverified draft buffers requiring explicit human operator review and sign-off.
+- **MUST NOT:** Permit AI service workers or automated prompts to mark questions as `VERIFIED` or videos as `QC_APPROVED`.
+- **Verification Method:** Workflow gate inspection verifying that AI responses require human actor tokens to advance (`NEG-06`).
+- **Related Stage 01 Requirement(s):** `BR-001`, `BR-010`, `NFR-001`
+- **Related Stage 02 Acceptance Criteria:** `AC2-004`, `NEG-06`
+- **Dependencies on Later Stages:** Stage 18 (AI Architecture).
 
 ---
 
-## 20. Forbidden Architecture Patterns
+### 04.17 Mandatory Human Approval Gates
+- **Principle ID:** `AP-04.17`
+- **Name:** Mandatory Human Approval Gates
+- **Rule:** Content progression across the four critical quality checkpoints (Step 02 Question Verification, Step 07 Final QC, Step 09 Social Review, Step 10 Publishing Setup) REQUIRES explicit human sign-off with authenticated operator credentials.
+- **Why it exists:** Prevents defective academic questions, flawed audio/video renders, and misconfigured social posts from reaching public broadcasts.
+- **Applies to:** Steps 02, 07, 09, 10 workflow controllers and UI review desks.
+- **MUST:** Require verified human operator action to sign QC certificates and publishing authorizations.
+- **MUST NOT:** Implement automated timer-based "auto-approval" bypasses for quality gates.
+- **Verification Method:** Automated workflow audit ensuring zero transitions occur through human gates without valid human signatures (`NEG-03`).
+- **Related Stage 01 Requirement(s):** `BR-001` through `BR-006`, Section 5
+- **Related Stage 02 Acceptance Criteria:** `AC2-002`, `AC2-003`, `NEG-01`, `NEG-03`
+- **Dependencies on Later Stages:** Stage 07 (Canonical Workflow), Stage 09 (RBAC).
 
-The following patterns are categorically prohibited in BP-CMS:
+---
 
-| Anti-Pattern ID | Anti-Pattern Name | Description | Violates Principle(s) |
+### 04.18 Separation of Media Binaries and Metadata
+- **Principle ID:** `AP-04.18`
+- **Name:** Media Binary & Metadata Storage Separation
+- **Rule:** High-volume binary assets (camera footage, master MP4s, WAV audio, high-res PNGs) MUST be stored in dedicated object/file storage (Google Drive / Cloud Storage). Database and spreadsheet stores MUST ONLY contain media metadata, URIs, and cryptographic checksums.
+- **Why it exists:** Prevents database bloat, payload memory exhaustion, and performance degradation.
+- **Applies to:** Video ingestion, Thumbnail uploads, File repositories.
+- **MUST:** Stream binary files directly to object storage and record metadata pointers (`URI`, `MIME`, `SHA-256`, `durationMs`) in application storage.
+- **MUST NOT:** Store Base64-encoded video/audio files or raw byte arrays in database tables or Google Sheets cells.
+- **Verification Method:** Database payload schema validation rejecting large binary data fields (`NEG-07`).
+- **Related Stage 01 Requirement(s):** `BR-003`, `BR-004`, `NFR-001`, `NFR-002`, `BND-002`
+- **Related Stage 02 Acceptance Criteria:** `AC2-015`, `NEG-07`
+- **Dependencies on Later Stages:** Stage 14 (Media Architecture).
+
+---
+
+### 04.19 Storage Provider Responsibility & Decoupling
+- **Principle ID:** `AP-04.19`
+- **Name:** Storage Provider Responsibility & Interface Decoupling
+- **Rule:** Persistence implementations (e.g., Google Sheets adapter, relational database adapter) MUST be hidden behind abstract Repository interfaces. Business services MUST remain completely agnostic of underlying storage mechanics.
+- **Why it exists:** Allows seamless migration from Google Sheets to relational databases (e.g., PostgreSQL / Cloud SQL) without rewriting core domain services.
+- **Applies to:** All Repository interfaces and concrete storage implementations.
+- **MUST:** Interact with data stores strictly via Repository interfaces (`findById`, `save`, `update`, `findAll`).
+- **MUST NOT:** Leak storage-specific query objects, sheet range strings, or driver connections into domain service layers.
+- **Verification Method:** Repository interface mock tests; implementation swap verification.
+- **Related Stage 01 Requirement(s):** `NFR-005`, `NFR-006`
+- **Related Stage 02 Acceptance Criteria:** `AC2-024`
+- **Dependencies on Later Stages:** Stage 12 (Database Decision), Stage 13 (Data Contract), Stage 23 (Migration Architecture).
+
+---
+
+### 04.20 Real-Time State Notification & Synchronization
+- **Principle ID:** `AP-04.20`
+- **Name:** Real-Time Team State Notification
+- **Rule:** Asynchronous state changes (e.g., background render completion, QC review sign-off, live publishing execution) MUST notify active operator sessions through non-blocking event-driven communication (e.g., Server-Sent Events / WebSockets / polling fallbacks).
+- **Why it exists:** Eliminates operator confusion, prevents duplicate working on the same project, and accelerates assembly-line throughput.
+- **Applies to:** Workflow engine, UI notification hub, queue listeners.
+- **MUST:** Emit event payloads containing entity ID, new workflow step, and actor upon state transition.
+- **MUST NOT:** Cause client browser tabs to hang or lock up while waiting for long-running background tasks.
+- **Verification Method:** Real-time event propagation tests; multi-client UI synchronization assertions.
+- **Related Stage 01 Requirement(s):** `NFR-002`, `NFR-008`
+- **Related Stage 02 Acceptance Criteria:** `AC2-021`
+- **Dependencies on Later Stages:** Stage 16 (Realtime Architecture).
+
+---
+
+### 04.21 Observability, Telemetry & Structured Logging
+- **Principle ID:** `AP-04.21`
+- **Name:** Observability & Structured Health Telemetry
+- **Rule:** The system MUST emit structured JSON logs with correlation IDs, latency metrics, and standardized health check endpoints (`/api/health`, `/api/ready`) across all runtime services.
+- **Why it exists:** Enables rapid diagnosis of production incidents, bottleneck detection, and infrastructure monitoring.
+- **Applies to:** Express server, background jobs, external API adapters.
+- **MUST:** Include `timestamp`, `level`, `requestId`, `component`, and `message` in every structured log.
+- **MUST NOT:** Log unformatted plain text strings or sensitive user credentials / API keys.
+- **Verification Method:** Health check integration tests; log format parsing automated verification.
+- **Related Stage 01 Requirement(s):** `NFR-001`, `NFR-009`, `OPS-003`
+- **Related Stage 02 Acceptance Criteria:** `AC2-023`
+- **Dependencies on Later Stages:** Stage 21 (Audit & Observability).
+
+---
+
+### 04.22 Centralized & Environment-Driven Configuration
+- **Principle ID:** `AP-04.22`
+- **Name:** Configuration Management & 12-Factor Compliance
+- **Rule:** All operational configurations (port, storage bucket names, API URLs, model IDs) MUST be injected via environment variables (`.env`). Secrets MUST NEVER be committed to Git.
+- **Why it exists:** Enforces 12-factor application design, prevents secret leakage, and simplifies environment staging.
+- **Applies to:** Configuration loaders, deployment manifests, environment files.
+- **MUST:** Provide `.env.example` documenting all configuration keys without default secret values.
+- **MUST NOT:** Hardcode API keys, service account credentials, or environment-specific URLs in source code.
+- **Verification Method:** Automated repository secret scan (git-secrets / gitleaks).
+- **Related Stage 01 Requirement(s):** `NFR-003`, `OPS-001`
+- **Related Stage 02 Acceptance Criteria:** `AC2-022`
+- **Dependencies on Later Stages:** Stage 19 (Security Architecture), Stage 29 (Deployment & Release).
+
+---
+
+### 04.23 Defense-in-Depth Security
+- **Principle ID:** `AP-04.23`
+- **Name:** Defense-in-Depth & Least Privilege Security
+- **Rule:** Security controls MUST operate in multiple overlapping layers (CORS restrictions, rate limiting, authentication middleware, capability checks, input sanitization, output encoding).
+- **Why it exists:** Ensures that a failure in one defensive layer does not compromise the security of the entire platform.
+- **Applies to:** Network gateways, Express middleware, authentication handlers, data access layers.
+- **MUST:** Restrict API routes with rate limiters and strict CORS headers matching verified application origins.
+- **MUST NOT:** Expose administrative endpoints or internal database tooling to public unauthenticated traffic.
+- **Verification Method:** OWASP Top 10 automated security scan, penetration test suite.
+- **Related Stage 01 Requirement(s):** `NFR-003`, `BND-001`
+- **Related Stage 02 Acceptance Criteria:** `AC2-006`, `NEG-08`
+- **Dependencies on Later Stages:** Stage 19 (Security Architecture).
+
+---
+
+### 04.24 High Performance & Low Latency
+- **Principle ID:** `AP-04.24`
+- **Name:** High Performance & Responsive Execution
+- **Rule:** Interactive UI actions MUST respond in <200ms; standard API read endpoints MUST return in <500ms; long-running operations MUST be offloaded to background workers.
+- **Why it exists:** Maintains high operator velocity across fast-paced studio teleprompter and editing bay workflows.
+- **Applies to:** API controllers, database query builders, frontend state caches.
+- **MUST:** Index frequently queried fields and cache static taxonomy structures.
+- **MUST NOT:** Perform synchronous external API calls or large file operations within interactive UI request-response cycles.
+- **Verification Method:** Automated load and latency benchmarking tests under simulated 50-user load.
+- **Related Stage 01 Requirement(s):** `NFR-002`
+- **Related Stage 02 Acceptance Criteria:** `AC2-025`
+- **Dependencies on Later Stages:** Stage 15 (API Contract), Stage 17 (Job Architecture).
+
+---
+
+### 04.25 Horizontal Scalability & Statelessness
+- **Principle ID:** `AP-04.25`
+- **Name:** Stateless API & Scalability
+- **Rule:** The API application tier MUST remain completely stateless. User session state and operational data MUST reside in external persistent stores.
+- **Why it exists:** Enables container instances (e.g., Cloud Run) to scale horizontally from 0 to N without session stickiness or state loss.
+- **Applies to:** Server entry point, session handling, background task managers.
+- **MUST:** Store session tokens and transient locks in shared databases or token stores.
+- **MUST NOT:** Rely on in-memory globals or local server disk storage for multi-instance request coordination.
+- **Verification Method:** Multi-instance deployment simulation tests verifying session consistency across restarts.
+- **Related Stage 01 Requirement(s):** `NFR-004`, `OPS-001`
+- **Related Stage 02 Acceptance Criteria:** `AC2-024`
+- **Dependencies on Later Stages:** Stage 12 (Database Decision), Stage 29 (Deployment & Release).
+
+---
+
+### 04.26 Modular Extensibility & Open/Closed Design
+- **Principle ID:** `AP-04.26`
+- **Name:** Modular Extensibility (Open for Extension, Closed for Modification)
+- **Rule:** New social distribution platforms (e.g., LinkedIn Video), new AI providers, or new storage adapters MUST be addable via pluggable interface contracts without modifying existing core workflow code.
+- **Why it exists:** Allows BP-CMS to adapt to emerging social video platforms and generative models without risking regression.
+- **Applies to:** Provider registries, publishing connectors, analytics harvesters.
+- **MUST:** Implement new connectors against established interfaces (e.g., `PublishingPlatformAdapter`, `AIProvider`).
+- **MUST NOT:** Add hardcoded `if (platform === 'NEW_PLATFORM')` conditionals throughout core domain services.
+- **Verification Method:** Unit tests registering and executing dynamic provider plugins.
+- **Related Stage 01 Requirement(s):** `BR-006`, `BR-007`, `NFR-005`
+- **Related Stage 02 Acceptance Criteria:** `AC2-013`, `AC2-018`
+- **Dependencies on Later Stages:** Stage 05 (System Boundary), Stage 18 (AI Architecture).
+
+---
+
+### 04.27 Brownfield Modernization & Zero Operational Disruption
+- **Principle ID:** `AP-04.27`
+- **Name:** Brownfield Modernization & Data Preservation
+- **Rule:** Modernization activities MUST preserve all historical production questions, published records, and media links created under prior iterations. Live production operations MUST NOT experience uncoordinated data loss.
+- **Why it exists:** Protects years of valuable competitive exam intellectual property and active broadcast analytics.
+- **Applies to:** Schema migrations, repository refactorings, storage transitions.
+- **MUST:** Implement non-destructive migration scripts with rollback capability and data verification checkpoints.
+- **MUST NOT:** Truncate production tables or wipe Google Sheets data during system upgrades.
+- **Verification Method:** End-to-end data migration dry-run and parity verification test suite.
+- **Related Stage 01 Requirement(s):** Section 1.1 Item 15, `NFR-001`, `OPS-002`
+- **Related Stage 02 Acceptance Criteria:** `AC2-022`, `NEG-09`
+- **Dependencies on Later Stages:** Stage 23 (Migration Architecture), Stage 30 (Production Baseline).
+
+---
+
+### 04.28 Legacy Isolation & Structured Refactoring
+- **Principle ID:** `AP-04.28`
+- **Name:** Legacy Code Classification & Quarantine
+- **Rule:** Existing legacy components MUST be explicitly classified as `KEEP`, `MODIFY`, `MERGE`, `DEPRECATE`, `REMOVE`, or `CREATE`. Unused legacy code MUST be decommissioned systematically with verified dependency analysis.
+- **Why it exists:** Eliminates dead code, stale mock engines, and confusing duplicates while preventing accidental breaking of hidden dependencies.
+- **Applies to:** All legacy files in `src/`, legacy routes, old test artifacts.
+- **MUST:** Document dependency impacts before removing or modifying legacy service methods.
+- **MUST NOT:** Delete legacy endpoints without verifying that frontend routes and background jobs no longer reference them.
+- **Verification Method:** Repository-wide dead code scans and route reference validation suites.
+- **Related Stage 01 Requirement(s):** `NFR-005`
+- **Related Stage 02 Acceptance Criteria:** `AC2-024`
+- **Dependencies on Later Stages:** Stage 25 (Implementation Dependency Graph), Stage 27 (Implementation Cycle).
+
+---
+
+### 04.29 Realistic Test Architecture (Zero Production Mocks)
+- **Principle ID:** `AP-04.29`
+- **Name:** Realistic Testing & Production Mock Prohibition
+- **Rule:** Automated test suites MUST execute against realistic integration boundaries. Mock data generators, fake in-memory stores, and authentication bypass backdoors MUST NEVER be compiled into production artifacts or active runtime services.
+- **Why it exists:** Prevents deceptive test passes where mock engines mask real-world API breaks, database schema mismatches, or live permission failures.
+- **Applies to:** Test suites, production service classes, build pipelines.
+- **MUST:** Isolate test mocks strictly inside test files (`*.test.ts`, `tests/`) and execute production builds with zero test backdoors.
+- **MUST NOT:** Include `if (isTest || isMock)` branching inside production domain services or repository classes.
+- **Verification Method:** Production artifact string scan verifying zero occurrences of `MOCK_DEVELOPMENT`, `forceFallback`, or test bypasses.
+- **Related Stage 01 Requirement(s):** `NFR-001`, `NFR-005`, `NFR-009`
+- **Related Stage 02 Acceptance Criteria:** `AC2-024`
+- **Dependencies on Later Stages:** Stage 24 (Test Architecture), Stage 28 (Verification & Human Testing).
+
+---
+
+### 04.30 Deployment Independence & Infrastructure Frugality
+- **Principle ID:** `AP-04.30`
+- **Name:** Deployment Independence & Cost Invariant (COST-001)
+- **Rule:** The platform MUST support containerized deployment (e.g., Docker / Google Cloud Run) within strict frugality constraints (**Target: ₹0 – ₹100 initial infrastructure investment**).
+- **Why it exists:** Maximizes operational runway and prevents unbudgeted cloud infrastructure expenses during channel growth.
+- **Applies to:** `Dockerfile`, deployment scripts, cloud provisioning configs.
+- **MUST:** Leverage free-tier cloud quotas, scale-to-zero container hosting, and existing Google Workspace resources.
+- **MUST NOT:** Provision expensive dedicated managed clusters, commercial SaaS, or multi-zone paid databases without explicit Product Owner approval.
+- **Verification Method:** Cloud infrastructure cost audit and deployment configuration budget verification (`NEG-09`).
+- **Related Stage 01 Requirement(s):** `NFR-006`, `OPS-001`
+- **Related Stage 02 Acceptance Criteria:** `AC2-022`, `NEG-09`
+- **Dependencies on Later Stages:** Stage 22 (Cost Architecture), Stage 29 (Deployment & Release).
+
+---
+
+## 3. Architectural Boundaries Matrix
+
+| Architectural Boundary | Owns | Reads | Writes | Validates | Authorizes | Must NOT Control |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **FRONTEND** | View state, UI input state, teleprompter scroll, form ergonomics | API responses, cached reference data | Dispatches HTTP requests | Form presence & UI formatting | Nothing (Untrusted) | Database mutations, workflow authorization, server state transitions |
+| **BACKEND / API** | HTTP Routing, transport parsing, request correlation, error formatting | Incoming HTTP headers & bodies | HTTP responses, structured error payloads | Request headers, schema conformance | Route access, session authentication | Business rule domain calculations, persistent storage mechanics |
+| **DOMAIN / SERVICES** | Business entities, mathematical logic, pedagogical rules | Repositories, Domain models | Entities, verification results | MCQ options (4 distinct), proofs, pacing | Feature-specific business permissions | Direct database SQL/Sheets queries, raw HTTP transport formatting |
+| **WORKFLOW ENGINE** | 15-Stage assembly line transitions, step pre-conditions | Aggregate statuses, QC certificates | State transition events, step updates | Step sequence, prerequisite completion | Workflow forward/rework progression | Presentation formatting, binary media streaming |
+| **REPOSITORIES / DATA ACCESS** | Data mapping, query execution, OCC checks | Storage tables, Google Sheets | Storage records, version increments | Schema data types, foreign keys | Storage connection credentials | Workflow state transition rules, academic validation |
+| **DATABASE / PERSISTENCE** | Physical table schemas, indexes, transaction journals | Stored rows, sheet cells | Committed rows, sheet cells | Storage constraints, uniqueness | Database engine permissions | UI presentation logic, AI model orchestration |
+| **MEDIA STORAGE** | Binary files, video takes, master cuts, image thumbnails | Object blobs, files | Uploaded streams, deletion markers | File sizes, container MIME types | Storage bucket IAM permissions | Domain workflow state, publishing schedules |
+| **AI SERVICES** | AI Prompt construction, model failover, output parsing | Unverified drafts, taxonomy context | Structured suggestions, draft buffers | AI response JSON schemas | Nothing (Assistive only) | Final verification approval, workflow advancement, live publishing |
+| **AUDIT SYSTEM** | Immutable audit logs, change history ledgers | Mutation event streams | Append-only audit entries | Audit record structure, timestamps | Audit log query access | Business state mutation, entity deletion |
+| **ANALYTICS ENGINE** | Retention metrics, view telemetry, drop-off curves | External platform metrics | Ingested metric snapshots | Metric ranges, timestamp validity | Analytics access permissions | Production content drafting, publishing dispatch |
+| **EXTERNAL PLATFORM INTEGRATIONS**| External API client adapters, token refresh flows | Social platform status responses | Live publish requests, sync queries | Platform-specific parameters | Social platform API keys | Internal 15-stage workflow state transitions |
+
+---
+
+## 4. Source-of-Truth Policy
+
+| Domain Entity / Data Category | Authoritative Source of Truth | Permitted Replicas / Caches | Conflict Resolution Strategy |
 | :--- | :--- | :--- | :--- |
-| **ANTI-01** | **Client-Side Workflow Mutation** | Allowing the frontend to send arbitrary `{ status: 'APPROVED' }` updates directly to generic PATCH endpoints. | `AP-003`, `AP-005`, `AP-006` |
-| **ANTI-02** | **Multi-Hop Barrier Workarounds** | Chaining multiple artificial API requests on the client to hop over a backend state barrier. | `AP-001`, `AP-003`, `AP-006` |
-| **ANTI-03** | **Split-Brain Status Mirroring** | Writing the same workflow stage progress to two separate tables without atomic transactions. | `AP-002`, `AP-010` |
-| **ANTI-04** | **Un-Gated AI Auto-Approval** | Allowing an LLM or background job to mark questions or videos as approved without human review. | `AP-009` |
-| **ANTI-05** | **Binary Database Bloat** | Storing raw video files, base64 strings, or multi-megabyte thumbnails inside database rows. | `AP-007` |
-| **ANTI-06** | **Unbounded Microservice Sprawl**| Decomposing the application into multiple independent networked services without cost/complexity justification. | `AP-011`, `AP-012` |
-| **ANTI-07** | **Big-Bang Rewrite** | Discarding the existing working application and attempting a ground-up rewrite from scratch. | `AP-013` |
-| **ANTI-08** | **Production Test Contamination** | Running automated test scripts that mutate live production sheets or drive assets without sandbox isolation. | `AP-014`, `AP-015` |
-| **ANTI-09** | **UI-Only Role Protection** | Hiding links in the navigation sidebar while leaving the underlying React routes completely un-guarded. | `AP-004`, `AP-006` |
-| **ANTI-10** | **Speculative Tech Adoption** | Introducing complex database, queue, or cloud infrastructure before an approved architecture requirement exists. | `AP-012` |
+| **User Identity & Accounts** | Central Authentication Database / User Repository | Transient JWT claims in client memory | Server-authoritative token verification |
+| **Roles & Granular Capabilities** | Central RBAC Permission Matrix | Client session store (UI rendering only) | Server capability guard re-evaluation on every request |
+| **Taxonomy (Class, Topic, Subtopic)**| Central Taxonomy Repository | Frontend in-memory cache (TTL: 1 hour) | Server taxonomy version check upon entity save |
+| **Questions (Text, Options, Proofs)**| Question Repository (`BP-Q-*`) | Unverified drafts in Question Studio UI | Optimistic Concurrency Control (Version increment) |
+| **Content Masters (`BP-CNT-*`)** | Content Master Repository | Dashboard table cache (React Query) | Server-side OCC version validation (HTTP 409 on conflict) |
+| **Workflow State (Steps 01–15)** | Workflow Engine State Table | UI Stage Indicators (Presentational) | Workflow Engine state machine is absolute authority |
+| **Workflow History & State Logs** | Immutable Workflow History Ledger | None (Read-only historical view) | Append-only timestamped ledger |
+| **Audience Scripts (`BP-SCR-*`)** | Script Repository | Teleprompter local buffer during filming | Script version binding to Content Master |
+| **Studio Takes & Recording Logs** | Video Production Repository | Presenter local log before save | Primary take designated and locked by human presenter |
+| **Media Binary Files** | Google Drive / Cloud Storage Bucket | None (Streaming URLs / Presigned URIs) | SHA-256 checksum recorded in Video Repository |
+| **Video Metadata & Cuts (`BP-VID-*`)** | Video Metadata Repository | Editing desk preview cache | Media Storage locator validation |
+| **QC Certification Records** | QC Repository (`BP-QC-*`) | UI certificate modal view | Cryptographically signed human QC officer signature |
+| **Thumbnail Assets & Packaging** | Thumbnail Repository (`BP-THM-*`) | Social Review 9:16 simulator cache | Approved variant ID locked to Content Master |
+| **Publishing Setup & Schedules** | Publishing Repository (`BP-PUB-*`) | Calendar schedule view | Server cron / release scheduler authority |
+| **Platform Broadcast Records** | Platform Sync Repository | Social dashboard links | Verified live URL HTTP 200 response check |
+| **Analytics & Retention Telemetry** | Analytics Telemetry Store | Trend chart cache | Standardized snapshot interval ingestion (24h, 7d, 30d) |
+| **Forensic Audit Records** | Append-Only Audit Log Repository | None (Immutable read-only query view) | Append-only storage invariant; zero mutation permitted |
+| **System Configuration** | Environment Variables & Config Store | Process environment memory | Server restart / config reload trigger |
 
 ---
 
-## 21. Architecture Decision Traceability
+## 5. AI Architecture Rules (Assistive Intelligence)
 
-The principles in this document directly remediate the confirmed problems identified in Stages 01, 02, and 03:
-
-| Architecture Principle | Remediation Target / Requirement | Stage 01/02 Traceability | Stage 03 Baseline Problem Addressed |
-| :--- | :--- | :--- | :--- |
-| **AP-001** (15-Step Workflow) | Unified pipeline definition | `BR-001`, `AC2-001` to `AC2-015` | Stage fragmentation across disparate views |
-| **AP-002** (Stage vs State) | Separation of business & technical state | `BR-003`, `AC2-017` | `BRK-SF-01`, `BRK-SF-02` status desynchronizations |
-| **AP-003** (Transition Engine) | Authoritative state engine | `BR-002`, `AC2-016`, `NEG-02` | `BRK-HD-02` (`QUEUED -> EDITING` 3-hop barrier) |
-| **AP-004** (Backend Auth) | Zero-trust backend authorization | `BR-008`, `AC2-020`, `NEG-05` | `SEC-HIGH-01` (Missing React Router guards) |
-| **AP-005** (Backend Rules) | Server-side validation authority | `BR-004`, `AC2-018`, `NEG-01` | Partial form submissions corrupting sheets |
-| **AP-006** (Frontend Boundary)| Passive presentation layer | `BR-002`, `AC2-016` | `BRK-HD-01` (Draft reload 404 URL race) |
-| **AP-007 / AP-008** (Media) | External binary storage & metadata | `BR-006`, `AC2-019` | `DRIVE-MED-01` (Dual folder convention fragmentation) |
-| **AP-009** (AI Governance) | Human-in-the-loop AI assistance | `BR-007`, `AC2-021`, `NEG-04` | Uncontrolled automated generation risks |
-| **AP-010** (State Ownership) | Single source of truth for status | `BR-001`, `AC2-017` | Dual writers between `QUESTIONS` and `VIDEOS` |
-| **AP-011** (Modular Monolith) | Maintainable, cohesive service structure | `NFR-004` (Operational Simplicity) | Over-engineering and distributed latency risks |
-| **AP-012** (Cost Governance) | Lean infrastructure constraint | `COST-001`, `AC2-023` | Uncontrolled cloud subscription inflation |
-| **AP-013** (Brownfield Migration)| Incremental system modernization | `NFR-005` (Zero-Downtime Migration) | Big-bang rewrite failure risks |
-| **AP-014** (Audit Preservation) | Immutable forensic audit history | `BR-010`, `AC2-024` | Accidental deletion of Step 01–30 audit findings |
-| **AP-015** (Testability) | Automated, isolated verification | `NFR-006`, `AC2-025` | `1789891450880` production sheet test contamination |
+1. **AI is Exclusively Assistive:** AI services generate drafts, translations, distractor recommendations, and retention insights. AI has zero autonomous authority to approve, sign off, or advance workflow items.
+2. **Mandatory Schema Validation:** Every AI completion MUST be validated against strict Zod schemas before being returned to services or presentation layers.
+3. **Explicit Error States:** If the AI provider fails, times out, or returns invalid schemas, the system MUST return an explicit `AIProviderError` (`AUTH_ERROR`, `QUOTA_EXHAUSTED`, `INVALID_REQUEST`).
+4. **Prohibition of Synthetic Business Fallbacks:** Under NO circumstances may the system manufacture synthetic replacement business content (fake questions, mock scripts, or canned comments) to disguise an AI provider failure.
+5. **Human Review Buffer:** All AI-generated suggestions MUST be placed in unverified draft buffers where a human operator must review, edit, and approve the content before it enters the verified production pipeline.
+6. **Provenance Tracking:** Every AI-assisted candidate record MUST retain provenance metadata detailing the model ID, prompt version, latency, and timestamp of generation.
 
 ---
 
-## 22. Future Implementation Compliance Gate
+## 6. Authoritative Workflow Governance
 
-Before any future code, schema, or infrastructure pull request is merged, it must pass the following Stage 04 Architecture Compliance Gate:
-1. **Principle Verification:** Does the proposed change comply with all 15 principles (AP-001 through AP-015)?
-2. **Anti-Pattern Check:** Does the implementation introduce any of the 10 forbidden patterns (ANTI-01 through ANTI-10)?
-3. **Traceability Confirmation:** Does the change trace directly back to an approved requirement and acceptance criterion?
-4. **Boundary Compliance:** Are workflow transitions, authorization, and validation authoritatively enforced on the server?
-5. **Test Isolation:** Does the change include automated tests that run without mutating production data?
-
----
-
-## 23. Stage 04 Completion Criteria
-
-To satisfy Stage 04 completion, the following criteria must be met:
-- [x] Canonical architecture governance document `docs/architecture/04-ARCHITECTURE-PRINCIPLES.md` created.
-- [x] All 15 canonical architecture principles (AP-001 to AP-015) fully documented with rule, rationale, implementation consequence, forbidden patterns, and verification expectations.
-- [x] Canonical 15-step business workflow preserved without alteration.
-- [x] Strict technology neutrality maintained; no premature technology lock-in.
-- [x] Comprehensive forbidden patterns cataloged (ANTI-01 to ANTI-10).
-- [x] Full traceability to Stage 01 requirements, Stage 02 acceptance criteria, and Stage 03 baseline defects established.
-- [x] Zero application source code, schemas, databases, or infrastructure modified.
-- [x] Build and runtime health verified.
+1. **Sequential Assembly Line:** Content progression strictly follows the canonical 15-stage sequence:
+   - `01. Question Generation` ➔ `02. Question Verification` ➔ `03. Audience Script` ➔ `04. Teleprompter & Filming` ➔ `05. Raw Video` ➔ `06. Editing Bay` ➔ `07. Final QC` ➔ `08. Thumbnail` ➔ `09. Social Review` ➔ `10. Publishing Setup` ➔ `11. Published` ➔ `12. Platform Sync` ➔ `13. Analytics` ➔ `14. Performance Review` ➔ `15. Intelligence Loop`.
+2. **Zero Stage Skipping (`NEG-02`):** Forward progress requires completing all intermediate quality gates and prerequisite data attachments. Jumping over stages is rejected server-side.
+3. **Rework and Rejection Routing:** When content fails a review gate (e.g., Step 07 QC rejection), the Workflow Engine routes the entity back to the precise rework stage (e.g., Step 06 Editing Bay or Step 04 Filming) with mandatory human rejection remarks.
+4. **Anti-Self-Approval Enforcement (`NEG-01`):** A human operator cannot approve their own authored content at review gates (e.g., Question Author cannot sign Step 02 Question Verification).
+5. **Atomic State Mutations:** Workflow state transitions MUST update the entity step, write an audit log entry, and notify subscribers in a single coordinated transaction.
 
 ---
 
-## 24. Stage 04 Closure Record
+## 7. Data Integrity Invariants
 
-### 24.1 Controlled Closure Verification Evidence
-* **Closure Execution Date:** 2026-10-02
-* **Version:** 1.1.0 (Master SDLC Reset Baseline)
-* **Preceding Verified Stages:** Stage 01 (Accepted), Stage 02 (Accepted), Stage 03 (Accepted & Closed at commit `717ef3d1d794f0bf36279b89ed7ef89133ac5840`)
-* **Verified GitHub Commit:** `cf2c5d18e176a5fbc38094b8bf5d1bdfe09fd292` (refactor: align canonical 15-stage workflow)
-* **Preceding Implementation Commit:** `8075a562a76357a9772a8a33a38faa0a5fa2fdef`
-* **Canonical 15-Step Workflow:** All 15 stages verified in `CANONICAL_15_STEPS` as single source of truth; zero duplicate enum or sequence definitions (`CanonicalStageIdentifier` strictly derived).
-* **Authoritative Transition Engine:** Centralized transition validator `validateCanonicalWorkflowTransition` enforces sequential boundaries, actor credentials, and AI human-in-the-loop sign-off.
-* **Architecture Principles Verification:** Deterministic test suite `src/tests/stage04-architecture-principles.test.ts` passed 100% (AP-001 through AP-015).
-* **Type Check (`npm run lint` / `tsc --noEmit`):** PASSED with 0 errors.
-* **Production Build (`npm run build`):** PASSED (Vite + esbuild bundled).
-* **Runtime Health (`GET /api/health`):** PASSED (HTTP 200 OK, `GOOGLE_SHEETS_PRODUCTION` active).
-* **Production Mutation:** NONE (zero modifications to Google Sheets, Google Drive, databases, or infrastructure).
+1. **Deterministic Canonical Identifiers:** Every entity is assigned a permanent, human-readable, domain-prefixed identifier:
+   - `BP-CNT-######` (Content Master)
+   - `BP-Q-######` (Question)
+   - `BP-SCR-######` (Script)
+   - `BP-VID-######` (Video Metadata)
+   - `BP-QC-######` (QC Certificate)
+   - `BP-THM-######` (Thumbnail Package)
+   - `BP-PUB-######` (Publishing Package)
+   - `BP-AUD-######` (Audit Record)
+2. **Optimistic Concurrency Control:** Updates to domain aggregates must supply the current entity version. Stale updates fail immediately with HTTP 409 Conflict.
+3. **Idempotent Operations:** Mutating actions supporting retries must supply an `idempotencyKey` to guarantee that exactly one execution takes place.
+4. **Cryptographic Checksums:** Media files registered in Step 05 (Raw Video) and Step 06 (Master MP4) must record SHA-256 checksums to detect file corruption or tampering.
+5. **No Loss of Historical Data:** Reworking or updating content increments version counters; historical approved records remain immutable.
 
-### 24.2 Acceptance Table
+---
 
-| Item | Status |
-|------|--------|
-| Architecture Principles AP-001–AP-015 | VERIFIED |
-| Canonical 15-Step Workflow | VERIFIED |
-| Single Workflow Source of Truth | VERIFIED |
-| Authoritative Transition Mechanism | VERIFIED |
-| Backend Authorization Authority | VERIFIED |
-| Backend Business-Rule Authority | VERIFIED |
-| Frontend Boundary | VERIFIED |
-| Media Storage Boundary | VERIFIED |
-| AI Human-Gating | VERIFIED |
-| Single State Ownership | VERIFIED |
-| Modular Monolith Constraint | VERIFIED |
-| Cost / Infrastructure Constraint | VERIFIED |
-| Incremental Migration Safety | VERIFIED |
-| Historical Audit Preservation | VERIFIED |
-| Deterministic Testability | VERIFIED |
-| Type Check | PASSED |
-| Build | PASSED |
-| Runtime Health | PASSED |
-| Product Owner Acceptance | ACCEPTED |
-| Stage 04 | CLOSED |
+## 8. Legacy / Brownfield Modernization Rules
 
-```
-================================================================================
-STAGE 04 — ARCHITECTURE PRINCIPLES
-STATUS: ACCEPTED — COMPLETE — CLOSED
-VERSION: 1.1.0
-IMPLEMENTATION: COMPLETE
-TECHNICAL VERIFICATION: PASSED
-PRODUCT OWNER ACCEPTANCE: ACCEPTED
-STAGE 04 CLOSED: YES
-APPLICATION CODE MODIFIED: NONE
-DATA / STORAGE MODIFIED: NONE
-DEPLOYMENT PERFORMED: NO
-NEXT STAGE: STAGE 05 — NOT STARTED
-================================================================================
-```
+Existing legacy codebase modules MUST be categorized under one of the six standard modernization classifications:
 
-STAGE 04 CLOSED: YES
+1. **`KEEP`:** High-quality, compliant production code retained without modification.
+2. **`MODIFY`:** Production code updated to align with schema validation, error classification, or OCC rules.
+3. **`MERGE`:** Redundant or fragmented implementations consolidated into a single authoritative service.
+4. **`DEPRECATE`:** Legacy paths flagged for retirement, maintained with warnings until callers migrate.
+5. **`REMOVE`:** Dead code, obsolete mock utilities, and duplicate files removed after dependency analysis.
+6. **`CREATE`:** New architectural modules implemented to fulfill missing Stage 01/02 requirements.
 
-NEXT STAGE:
-STAGE 05 — NOT STARTED
+---
+
+## 9. Test Architecture Principles
+
+1. **Realistic Test Execution:** Automated tests must verify real production paths without injecting fake workflows or mock data into production service classes.
+2. **Strict Test Pyramid:**
+   - **Unit Tests:** Fast, isolated validation of algorithms, mathematical proofs, pacing calculations, and schema parsers.
+   - **Integration Tests:** Verification of repository operations, database transactions, and service coordination.
+   - **API Contract Tests:** Validation of endpoint request/response contracts, HTTP status codes, and error sanitization.
+   - **Workflow Acceptance Tests:** Full execution of 15-step state machine flows and negative gates (`NEG-01` to `NEG-10`).
+   - **Security & Concurrency Tests:** Penetration tests verifying RBAC enforcement, OCC collision handling, and secret redaction.
+3. **No Production Test Bypasses:** Production builds must contain zero test-only bypass headers, mock flags, or simulated authorization overrides.
+
+---
+
+## 10. Deployment Principles
+
+1. **Containerized Stateless Packaging:** The backend API and frontend assets compile into standardized, lightweight container images (e.g., Docker).
+2. **Cloud Run / Scalable Container Hosting:** Deployed to zero-scale container infrastructure (Google Cloud Run) to maintain 99.9% availability while honoring the **₹0–₹100 cost invariant (COST-001)**.
+3. **Environment Parity:** Staging and production environments use identical container images, differentiated purely through environment variables.
+4. **Non-Destructive Migrations:** Database and schema updates execute via versioned, backward-compatible migration scripts.
+5. **Zero-Downtime Rollbacks:** Deployment pipelines must support instant rollbacks to previous stable container revisions in the event of health check failures.
+
+---
+
+## 11. Traceability Matrix
+
+| Principle ID | Principle Name | Stage 01 Req | Stage 02 AC / Negative Gate | Future SDLC Stage | Verification Method |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **AP-04.01** | Single Source of Truth | `BR-001`, `NFR-001`, `BND-001` | `AC2-001`, `NEG-05` | Stages 06, 12, 13 | Multi-store write audit |
+| **AP-04.02** | Separation of Concerns | `NFR-005` | `AC2-024` | Stages 05, 10, 15 | Static code boundary linting |
+| **AP-04.03** | Frontend/Backend Boundary | `NFR-003`, `BND-001` | `AC2-006`, `NEG-08` | Stages 05, 09, 15 | Direct API bypass testing |
+| **AP-04.04** | API-First Communication | `NFR-005`, `OPS-003` | `AC2-024` | Stages 15, 26 | Schema compliance tests |
+| **AP-04.05** | Domain Ownership | `BR-001` to `BR-010` | `AC2-001` to `AC2-020`| Stages 06, 13 | Dependency boundary analysis |
+| **AP-04.06** | Workflow Authority | Sec 5, `NFR-001` | `AC2-001`, `NEG-02` | Stages 07, 08 | State machine transition tests |
+| **AP-04.07** | Server-Side Business Rules | `BR-001`, `BR-003`, `NFR-001` | `AC2-011`, `AC2-016` | Stages 06, 26 | Server validator unit tests |
+| **AP-04.08** | Server-Side Authorization | `NFR-003`, `BND-001` | `AC2-006`, `NEG-01`, `NEG-08`| Stages 09, 19 | RBAC penetration test suite |
+| **AP-04.09** | Persistence Integrity | `NFR-001`, `NFR-005` | `AC2-008`, `AC2-009` | Stages 12, 13 | Referential integrity scripts |
+| **AP-04.10** | Forensic Auditability | `NFR-001`, `NFR-003` | `AC2-005`, `NEG-10` | Stage 21 | Mutation audit verification |
+| **AP-04.11** | Versioning & Immutability | `BR-001`, `BR-002`, `NFR-001` | `AC2-008`, `AC2-009` | Stages 06, 13 | Version increment tests |
+| **AP-04.12** | Optimistic Concurrency Control | `NFR-001`, `NFR-005` | `AC2-010`, `NEG-05` | Stages 13, 15 | Concurrency collision tests |
+| **AP-04.13** | Idempotency | `BR-006`, `NFR-001` | `AC2-007`, `NEG-04` | Stages 15, 17 | Idempotent retry tests |
+| **AP-04.14** | Boundary Schema Validation | `NFR-001`, `NFR-005` | `AC2-024` | Stages 13, 15, 18 | Schema fuzz testing suite |
+| **AP-04.15** | Explicit Error Handling | `NFR-003`, `NFR-005` | `AC2-006`, `NEG-08` | Stages 15, 19 | Key redactor unit tests |
+| **AP-04.16** | AI as Assistive Capability | `BR-001`, `BR-010` | `AC2-004`, `NEG-06` | Stage 18 | AI authority gate tests |
+| **AP-04.17** | Mandatory Human Quality Gates | `BR-001` to `BR-006` | `AC2-002`, `NEG-03` | Stages 07, 09 | Human signature audit |
+| **AP-04.18** | Media & Metadata Separation | `BR-003`, `NFR-001`, `BND-002` | `AC2-015`, `NEG-07` | Stage 14 | Database payload size audit |
+| **AP-04.19** | Storage Decoupling | `NFR-005`, `NFR-006` | `AC2-024` | Stages 12, 13, 23 | Repository interface tests |
+| **AP-04.20** | Real-Time State Notification | `NFR-002`, `NFR-008` | `AC2-021` | Stage 16 | Multi-client sync tests |
+| **AP-04.21** | Observability & Telemetry | `NFR-001`, `NFR-009`, `OPS-003`| `AC2-023` | Stage 21 | Structured log parser tests |
+| **AP-04.22** | Centralized Configuration | `NFR-003`, `OPS-001` | `AC2-022` | Stages 19, 29 | Repository secret scan |
+| **AP-04.23** | Defense-in-Depth Security | `NFR-003`, `BND-001` | `AC2-006`, `NEG-08` | Stage 19 | OWASP Top 10 security scan |
+| **AP-04.24** | High Performance Execution | `NFR-002` | `AC2-025` | Stages 15, 17 | Latency benchmark suites |
+| **AP-04.25** | Horizontal Scalability | `NFR-004`, `OPS-001` | `AC2-024` | Stages 12, 29 | Stateless multi-instance tests|
+| **AP-04.26** | Modular Extensibility | `BR-006`, `NFR-005` | `AC2-013`, `AC2-018` | Stages 05, 18 | Dynamic plugin registration |
+| **AP-04.27** | Brownfield Modernization | Sec 1.1 Item 15, `NFR-001` | `AC2-022`, `NEG-09` | Stages 23, 30 | Migration dry-run parity test |
+| **AP-04.28** | Legacy Code Isolation | `NFR-005` | `AC2-024` | Stages 25, 27 | Dead code reference scan |
+| **AP-04.29** | Realistic Test Architecture | `NFR-001`, `NFR-005` | `AC2-024` | Stages 24, 28 | Production mock string scan |
+| **AP-04.30** | Deployment Independence & Cost | `NFR-006`, `OPS-001` | `AC2-022`, `NEG-09` | Stages 22, 29 | Infrastructure budget audit |
+
+---
+
+## 12. Prohibited Architectural Anti-Patterns
+
+The following design and implementation patterns are strictly prohibited across all future BP-CMS engineering:
+
+1. **Frontend-Owned Business State:** Storing canonical workflow status or permissions only in React component state.
+2. **Client-Only Authorization:** Rendering UI buttons based on client-asserted roles without backend API capability checks.
+3. **Direct Database Queries from Presentation:** Invoking SQL queries, sheet row updates, or file uploads directly from browser code.
+4. **Duplicated Workflow Authorities:** Implementing competing state-machine logic in multiple services or UI pages.
+5. **Silent Fallback Business Content:** Catching AI provider errors and fabricating substitute questions or scripts without throwing explicit errors.
+6. **AI Autonomous Quality Sign-off:** Permitting AI completions to mark content as verified, certified, or published.
+7. **Hidden State Mutations:** Mutating related entity fields without emitting audit log records.
+8. **Silent Overwrites (Lost Updates):** Saving database updates without checking optimistic concurrency version counters.
+9. **Unaudited State Mutations:** Performing database inserts, updates, or deletes without recording actor ID and timestamp.
+10. **Illegal Stage Skipping:** Advancing a Content Master to downstream steps without completing prerequisite reviews.
+11. **Test Authentication Bypasses in Production:** Adding `if (req.headers['x-bypass-auth'])` backdoors into production middleware.
+12. **Production Mock Engines:** Packaging fake in-memory repositories or synthetic database stores into production builds.
+13. **Duplicated Sources of Truth:** Storing canonical question data in multiple independently updated spreadsheets or databases.
+14. **Undocumented Legacy Bypasses:** Maintaining unmonitored legacy endpoints that circumvent the 15-step workflow.
+15. **Hardcoded Secrets & Credentials:** Storing API keys, JWT secrets, or database passwords in code files or public repositories.
+16. **Environment-Specific Production Logic:** Branching core business rules based on `NODE_ENV === 'production'`.
+
+---
+
+## 13. Stage 04 Sign-Off & Verification
+
+This document has been compiled and verified against the Stage 01 Requirements Baseline and Stage 02 Business Acceptance Criteria. It is closed and ready to serve as the binding architecture contract for all subsequent SDLC stages.
