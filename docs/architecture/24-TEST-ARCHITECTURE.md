@@ -1,17 +1,18 @@
 # 24 — TEST ARCHITECTURE
 ## Burra Pariksha Content Management System (BP-CMS)
-### Stage 24 of 30-Stage Modernization Program — Comprehensive Multi-Tier Testing Pyramid, 15×9 Workflow Matrix, Security Proofs, Concurrency Verification & Quality Gates
+### Stage 24 of 30-Stage Modernization Program — Comprehensive Multi-Tier Testing Pyramid, Canonical 15×9 Workflow Matrix (135 Scenarios), Security Proofs, Concurrency Verification & Quality Gates
 
 ```
 ================================================================================
 Document ID:       BP-ARCH-24-TEST-ARCHITECTURE
 Version:           24.0.0-SDLC-RESTART
 Status:            APPROVED / AUTHORITATIVE ARCHITECTURAL SPECIFICATION
-Scope:             9-Level Testing Pyramid, Canonical 15×9 Workflow Matrix (135 Scenarios),
+Scope:             9-Level Testing Pyramid (Unit to Production Verification),
+                   Canonical 15×9 Workflow Matrix (135 Concrete Scenarios),
                    Empirical Baseline Audit (0% Automated Coverage Ground Truth),
-                   Unit, Component, Integration, API, Security, E2E, Human & Smoke Specs,
+                   Universal 7-Case API Matrix, Zero-Trust Security Test Suite,
                    Deterministic Test Data Architecture, Failure/Recovery Taxonomy,
-                   Concurrency & OCC Testing, Test Gates & ₹0–₹100 Financial Governance
+                   Concurrency & OCC Testing, Test Traceability & Gate Governance
 Upstream Inputs:   01-REQUIREMENTS-BASELINE.md (BR-001..011, NFR-001..008)
                    02-BUSINESS-ACCEPTANCE-CRITERIA.md (DAC-001..006, CAC-001..005)
                    03-CURRENT-SYSTEM-BASELINE.md (Zero Automated Tests Discovered)
@@ -39,7 +40,8 @@ Downstream Stages: 25-IMPLEMENTATION-DEPENDENCY-PLAN.md
                    26-FEATURE-CONTRACTS.md
                    27-IMPLEMENTATION.md
                    28-INTEGRATION-HUMAN-TESTING.md
-Core Axiom:        Build Validation (tsc/build) ≠ Behavioral Testing.
+Core Axiom:        TESTING MUST EXIST BEFORE LARGE IMPLEMENTATION.
+                   Build Validation (tsc/build) ≠ Behavioral Testing.
                    Documentation Complete ≠ Implementation Verified.
                    Frontend Permission Tests = UX Proof; Backend Authorization Tests = Security Proof.
 15×9 Matrix:       Mandatory 135 explicit test conditions across all 15 workflow stages.
@@ -83,7 +85,7 @@ Testing must exist conceptually, contractually, and structurally before large-sc
 
 ## 2. Empirical Current-State Test Baseline
 
-In strict adherence to the mandate to inspect the real repository rather than relying on abstract assumptions, an exhaustive empirical audit of `Jithendranageswarareddy/burra_pariksha_cms` at commit `d6ce566` establishes the following ground truth:
+In strict adherence to the mandate to inspect the real repository rather than relying on abstract assumptions, an exhaustive empirical audit of `Jithendranageswarareddy/burra_pariksha_cms` at commit `24b3a77` establishes the following ground truth:
 
 ```
 ===========================================================================================================================================
@@ -111,7 +113,7 @@ In strict adherence to the mandate to inspect the real repository rather than re
 
 ## 3. The Authoritative 9-Level Testing Pyramid
 
-BP-CMS structures verification across a rigorous 9-level testing pyramid. Tests are not interchangeable; each level possesses an explicit purpose, execution speed, and failure boundary:
+BP-CMS structures verification across a rigorous 9-level testing pyramid. Tests are not interchangeable; each level possesses an explicit purpose, scope, inputs, outputs, dependencies, isolation strategy, failure behavior, and exit criteria:
 
 ```text
                               ┌─────────────────────────┐
@@ -137,7 +139,7 @@ BP-CMS structures verification across a rigorous 9-level testing pyramid. Tests 
 
 ### 3.1 Pyramid Level Responsibilities & Failure Ownership
 
-| Level | Testing Layer | Scope & Responsibility | Typical Execution Time | Failure Classification & Boundary |
+| Level | Testing Layer | Scope & Responsibility | Typical Speed | Failure Classification & Boundary |
 | :---: | :--- | :--- | :---: | :--- |
 | **L1** | **Unit Tests** | Pure business functions, validators, Zod schemas, state transition rules, metric calculations, ID parsing. | < 5 ms / test | Algorithmic error, schema mismatch, calculation bug. |
 | **L2** | **Component Tests** | React component rendering, loading/empty/error states, form validation, permission UX, dialogs. | < 50 ms / test | Broken UI layout, unhandled state, missing ARIA role. |
@@ -192,11 +194,15 @@ Component tests verify React components rendered in a virtual DOM (happy, loadin
 Integration tests verify that distinct architectural modules communicate properly across system boundaries without relying on live paid cloud infrastructure.
 
 ### 6.1 Integration Boundaries
-1. **Service $\to$ Repository:** Validates that domain services (`QuestionWorkspaceService`) invoke repository methods (`QuestionsRepository`) with correct entities and handle repository exceptions.
-2. **Repository $\to$ Database Adapter:** Tests Firestore queries, transactions, and Optimistic Concurrency Control using the **Firebase Local Emulator Suite**.
-3. **Service $\to$ Audit:** Verifies that every business mutation dispatches an immutable audit event to `AuditLogRepository`.
-4. **Service $\to$ Media Storage:** Verifies that file registration invokes the Google Drive mock adapter and records verified SHA-256 checksums.
-5. **Service $\to$ AI Adapter:** Verifies that the assistive pipeline invokes the offline Gemini mock client and enforces schema parsing.
+1. **Frontend $\to$ API:** Client `apiClient` dispatches HTTP requests and properly unwraps `ApiResponseEnvelope<T>` and handles 401/403/409 errors.
+2. **API $\to$ Service:** Controllers invoke domain services with validated DTOs.
+3. **Service $\to$ Repository:** Validates that domain services (`QuestionWorkspaceService`) invoke repository methods (`QuestionsRepository`) with correct entities and handle repository exceptions.
+4. **Repository $\to$ Firestore Adapter:** Tests Firestore queries, transactions, and Optimistic Concurrency Control using the **Firebase Local Emulator Suite**.
+5. **Workflow $\to$ Audit:** Verifies that every business mutation dispatches an immutable audit event to `AuditLogRepository`.
+6. **Workflow $\to$ Notification:** Verifies that state transitions trigger appropriate SSE events to connected clients.
+7. **Job $\to$ Worker:** Validates that background jobs dispatched to Cloud Tasks queue execute the designated worker handler with valid lease tokens.
+8. **AI $\to$ Human-Gating Boundary:** Verifies that AI suggestions remain quarantined in preview collections and cannot mutate canonical entities.
+9. **Media $\to$ Storage Reference:** Verifies that file registration invokes the Google Drive mock adapter and records verified SHA-256 checksums in Firestore.
 
 ---
 
@@ -225,14 +231,47 @@ Every protected endpoint in BP-CMS must pass the **Universal 7-Case API Matrix**
 
 ---
 
-## 8. Workflow Test Architecture
+## 8. Workflow Test Architecture & 15-Step Matrix
 
 The canonical 15-step workflow is the primary business test surface of BP-CMS. Workflow tests verify that the sequential state engine strictly enforces prerequisites, anti-self-approval rules (`GAR-02`), and optimistic locking across the entire manufacturing pipeline.
 
-### 8.1 Complete Cross-Step Chain Tests
-- **Full Manufacturing Flow:** Step 01 $\to$ 02 $\to$ 03 $\to$ 04 $\to$ 05 $\to$ 06 $\to$ 07 $\to$ 08 $\to$ 09 $\to$ 10 $\to$ 11 $\to$ 12 $\to$ 13 $\to$ 14 $\to$ 15 $\to$ 01 (Intelligence Loop feedback).
-- **Illegal Step Skip Rejections:** Attempting 01 $\to$ 03 (skipping verification), 04 $\to$ 06 (skipping raw video review), or 07 $\to$ 11 (skipping publishing setup) must be rejected with HTTP 400 Invalid Transition.
-- **Anti-Self-Approval (`GAR-02`):** When Creator `USR-002` authors a question in Step 01, `USR-002` is strictly barred from approving it in Step 02, even if assigned the `QC_REVIEWER` role.
+### 8.1 The 9 Required Test Scenarios per Workflow Step
+For **EVERY ONE** of the 15 canonical workflow steps, the test architecture defines 9 mandatory scenarios:
+1. **Happy Path:** Valid entry condition, authorized actor, required input, expected action, expected output, resulting state, next valid step, audit, notification.
+2. **Validation Failure:** Invalid input, missing required field, invalid format, invalid business value, expected rejection (400), state unchanged, audit log.
+3. **Authorization Failure:** Unauthenticated actor (401), wrong role or missing capability (403), anti-self-approval violation (`GAR-02`), state unchanged.
+4. **Invalid Transition:** Skipping required stages, illegal backwards transition without revision ticket, repeating completed transition, rejection (400), state consistent.
+5. **Missing Data:** Missing parent Question, Script, Video, MediaAsset, Review, or Publication reference; clean error response (404/400), recovery path.
+6. **Concurrency:** Simultaneous approvals, concurrent edits, duplicate publish requests, stale OCC version updates rejected with HTTP 409 Conflict.
+7. **Media Failure:** Missing media binary, broken Drive reference, upload/download drop, checksum mismatch, unsupported MIME type, recovery behavior.
+8. **Network Failure:** API timeout, external platform timeout, Drive drop, AI provider failure, Cloud Tasks drop, SSE disconnect, retryable vs fatal.
+9. **Recovery:** Retry, resume, revision, rollback, manual intervention, stale state recovery, re-execution without authorization bypass.
+
+### 8.2 Canonical 15×9 Workflow Test Matrix (Complete 135-Cell Specification)
+
+```
+===================================================================================================================================================================================================================
+                                                               CANONICAL 15×9 WORKFLOW TEST MATRIX (135 EXPLICIT SPECIFICATIONS)
+===================================================================================================================================================================================================================
+| Step | 1. Happy Path | 2. Validation Failure | 3. Auth Failure | 4. Invalid Transition | 5. Missing Data | 6. Concurrency | 7. Media Failure | 8. Network Failure | 9. Recovery |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **01. Question Generation** | Valid question text, 4 options, syllabus topic, and correct key submitted; transitions to `DRAFT`. | Rejects question with < 4 options or missing explanation (HTTP 400). | Non-Creator role blocked from drafting new questions (HTTP 403). | Attempting to transition directly from `IDEA` to `APPROVED` blocked. | Missing target exam category returns field validation error. | Two Creators drafting same syllabus topic assigned distinct IDs. | N/A (Text payload; zero media dependencies). | Client drops during draft submit; draft cached in sessionStorage. | Creator reopens page; restores draft from sessionStorage key. |
+| **02. Question Verification** | Verifier reviews, confirms academic accuracy, and approves; transitions to Step 03. | Rejects approval if Telugu grammar contains severe syntax errors. | Creator who authored question blocked from approving (`GAR-02`). | Attempting verification on an unsubmitted draft rejected. | Missing verified reference source blocks approval button. | Two Verifiers approve simultaneously; OCC rejects second approval. | N/A (Text review; zero media dependencies). | Network timeout during review submit; transaction aborted cleanly. | Verifier retries approval; Firestore transaction succeeds. |
+| **03. Audience Script** | Telugu script (40–55s duration, spoken hooks) authored and approved for filming. | Rejects script exceeding 60 seconds spoken duration estimate. | Non-Scriptwriter blocked from editing approved question script. | Attempting script creation before Question Verification approved blocked. | Missing teleprompter cue formatting flags validation warning. | Scriptwriter edits script while Lead reviews; OCC version mismatch. | Audio pronunciation guide missing; fallback to standard lexicon. | Disconnect during script save; local draft auto-saved. | Author recovers unsaved script from local storage draft buffer. |
+| **04. Teleprompter & Filming** | Spoken script loaded onto teleprompter; filming completed; marked filmed. | Rejects filming completion if recorded duration is < 30 seconds. | Non-Presenter blocked from marking teleprompter session completed. | Attempting filming completion without an approved script blocked. | Missing teleprompter asset ID prevents recording initiation. | Presenter marks complete while script edited; transition locked. | Teleprompter font render failure falls back to system monospace. | Stream disconnect during live teleprompter session pauses timer. | Teleprompter reconnects; resumes scrolling from exact marker. |
+| **05. Raw Video** | Raw vertical MP4 (1080x1920) uploaded to Drive; checksum registered. | Rejects upload of horizontal (16:9) video or non-MP4 container. | Non-Presenter / non-Editor blocked from registering raw video. | Attempting raw video registration before filming step completed blocked. | Missing Google Drive file ID blocks video record creation. | Simultaneous raw video uploads for same question deduplicated. | Corrupt video file triggers `CHECKSUM_MISMATCH`; rejects record. | Upload socket drops at 85%; resumable Drive upload resumes byte. | Upload worker retries chunk; completes SHA-256 verification. |
+| **06. Editing Bay** | Video Editor trims, adds Telugu captions, loudness normalized to -14 LUFS. | Rejects cut short exceeding 59 seconds total running time. | Non-Video Editor blocked from claiming editing workbench ticket. | Attempting edit bay submission before raw video registered blocked. | Missing caption track metadata blocks transition to QC. | Two Editors attempt to claim same edit ticket; first lock wins. | Drive streaming URL expired; automatic token refresh succeeds. | Render drop during export; intermediate timeline state saved. | Editor re-opens timeline; resumes from last rendered clip cache. |
+| **07. Final QC** | QC Reviewer validates broadcast safe-zones, loudness, audio sync; approves. | Rejects video with audio loudness > -12 LUFS (broadcast violation). | Editor who edited video blocked from acting as QC reviewer (`GAR-02`). | Attempting Final QC approval before Editing Bay completed blocked. | Missing mobile safe-zone compliance tag prevents approval. | Simultaneous QC reviews resolved via optimistic concurrency. | Corrupted preview video stream displays error; prompts re-transcode. | Disconnect during review submit; approval state remains pending. | QC Reviewer reloads; submits approval successfully. |
+| **08. Thumbnail** | High-contrast vertical WebP thumbnail generated, contrast validated, approved. | Rejects thumbnail containing question answer text (spoiler check). | Non-Designer / non-Editor blocked from uploading thumbnail asset. | Attempting thumbnail approval before Final QC passes blocked. | Missing thumbnail image dimensions (1080x1920) rejected. | Simultaneous thumbnail variant uploads versioned (`v1`, `v2`). | Corrupted image binary rejected during SHA-256 calculation. | Thumbnail upload drops; client prompts retry without resetting form. | Designer re-selects file; upload and hash succeed. |
+| **09. Social Review** | Community manager audits title, hashtags, exam tags, and Telugu spelling. | Rejects title exceeding 100 characters or missing #Shorts tag. | Content Creator blocked from self-approving social metadata. | Attempting social review before thumbnail and QC approved blocked. | Missing exam syllabus tags prevents social review sign-off. | Concurrent metadata updates merged via field-level OCC. | Thumbnail preview fails to load; displays fallback placeholder. | Network drop during tag submission; form state preserved. | Reviewer clicks retry; tags committed to Firestore. |
+| **10. Publishing Setup** | Release package assembled with platform schedule; queued for dispatch. | Rejects scheduled release time set in the past. | Non-Publisher role blocked from scheduling content dispatch. | Attempting publishing setup before Social Review approved blocked. | Missing YouTube channel credential blocks package assembly. | Two Publishers schedule same video; duplicate schedule rejected. | Video asset inaccessible on Drive; halts dispatch queue. | Network timeout during package queuing; Cloud Tasks retries. | Cloud Tasks re-executes package assembly idempotently. |
+| **11. Published** | Content dispatched to YouTube API; published public; status marked `COMPLETED`. | Rejects publish if YouTube API returns invalid video ID. | Automated service worker only; unauthorized user blocked from publish. | Attempting publication of unapproved package rejected. | Missing YouTube video privacy setting defaults to `private`. | Duplicate dispatch worker invocations deduplicated by jobId. | YouTube upload fails (quota limit); moves to retry queue. | Network drop during YouTube API call; idempotent retry executes. | Publisher triggers manual retry; video publishes successfully. |
+| **12. Platform Sync** | Telemetry worker verifies live status on YouTube; captures external URLs. | Rejects sync record if external URL does not match canonical regex. | Automated sync runner only; unauthorized actors blocked. | Attempting platform sync before video marked Published blocked. | Missing YouTube video ID aborts sync worker gracefully. | Multiple sync runners for same video update single sync doc. | YouTube video deleted externally; flags `EXTERNAL_DELETION_ALERT`.| YouTube API timeout; worker retries on next 15-minute cron. | Sync worker recovers on subsequent cycle; captures live metrics. |
+| **13. Analytics** | Batch worker captures views, likes, comments, and retention ratios (6-hr cron). | Rejects telemetry record containing negative view/retention counts. | Unauthorized access to raw analytics ingestion endpoint blocked. | Attempting analytics harvest on unpublished video rejected. | Missing platform snapshot record creates zero-baseline entry. | Concurrent analytics writes aggregated via BigQuery export. | YouTube Analytics API 429 quota; worker delays 60 minutes. | Transient API socket error; worker moves to next video cleanly. | Scheduled job runs on subsequent window; backfills missing snapshot. |
+| **14. Performance Review** | Performance reviewed against exam batch benchmarks; categorized by decile. | Rejects review if benchmark comparison dataset is unseeded. | Reviewer role required; unprivileged users view read-only summary. | Attempting performance review before analytics harvested blocked. | Missing 7-day retention metric blocks top-decile classification. | Concurrent review ratings merged via average score aggregation. | Metric visualization graph error falls back to tabular display. | Disconnect during review submit; review cached locally. | Lead re-submits review rating; committed to audit ledger. |
+| **15. Intelligence Loop** | High-performing question patterns synthesized into new syllabus ideas for Step 01. | Rejects recommendation lacking correlation to exam syllabus topic. | Non-Lead roles blocked from approving intelligence recommendations. | Attempting intelligence synthesis without performance review blocked. | Missing topic correlation tags prevents recommendation creation. | Two Leads approving recommendation deduplicated by topic ID. | Report PDF generation failure falls back to in-app markdown. | Disconnect during loop commit; recommendation queued in Firestore.| System processes queued recommendation; populates Step 01 intake. |
+===================================================================================================================================================================================================================
+```
 
 ---
 
@@ -490,7 +529,49 @@ No feature, refactoring, or migration cutover may proceed without satisfying its
 
 ---
 
-## 28. Test Architecture Decision Register (ADR-TEST-01 to ADR-TEST-06)
+## 28. Test Traceability & Identification Taxonomy
+
+To maintain 100% traceability from requirements to verification, test identifiers follow a deterministic taxonomy:
+
+```text
+┌────────────────────────────────────────────────────────────────────────┐
+│                        TEST IDENTIFIER TAXONOMY                        │
+├────────────────────────┬───────────────────────────────────────────────┤
+│ Category Prefix        │ Scope & Verification Target                   │
+├────────────────────────┼───────────────────────────────────────────────┤
+│ `TEST-UNIT-xxx`        │ Isolated unit tests for functions & schemas   │
+│ `TEST-COMP-xxx`        │ React component rendering & UX behavior tests │
+│ `TEST-INT-xxx`         │ Inter-service & database integration tests    │
+│ `TEST-API-xxx`         │ REST envelope contract tests                  │
+│ `TEST-WF-[01-15]-[SC]` │ 15-step workflow tests (135 matrix scenarios) │
+│ `TEST-SEC-xxx`         │ Security, auth, and privilege escalation tests│
+│ `TEST-E2E-xxx`         │ End-to-end browser journeys                   │
+│ `TEST-HUMAN-xxx`       │ Manual editorial acceptance test scripts      │
+│ `TEST-PROD-xxx`        │ Post-deployment live smoke checks             │
+└────────────────────────┴───────────────────────────────────────────────┘
+```
+
+### 28.1 Canonical 135 Workflow Test Identifiers
+Every cell in the 15×9 matrix is assigned a permanent identifier:
+- Step 01: `TEST-WF-01-HAPPY` through `TEST-WF-01-RECOVERY`
+- Step 02: `TEST-WF-02-HAPPY` through `TEST-WF-02-RECOVERY`
+- Step 03: `TEST-WF-03-HAPPY` through `TEST-WF-03-RECOVERY`
+- Step 04: `TEST-WF-04-HAPPY` through `TEST-WF-04-RECOVERY`
+- Step 05: `TEST-WF-05-HAPPY` through `TEST-WF-05-RECOVERY`
+- Step 06: `TEST-WF-06-HAPPY` through `TEST-WF-06-RECOVERY`
+- Step 07: `TEST-WF-07-HAPPY` through `TEST-WF-07-RECOVERY`
+- Step 08: `TEST-WF-08-HAPPY` through `TEST-WF-08-RECOVERY`
+- Step 09: `TEST-WF-09-HAPPY` through `TEST-WF-09-RECOVERY`
+- Step 10: `TEST-WF-10-HAPPY` through `TEST-WF-10-RECOVERY`
+- Step 11: `TEST-WF-11-HAPPY` through `TEST-WF-11-RECOVERY`
+- Step 12: `TEST-WF-12-HAPPY` through `TEST-WF-12-RECOVERY`
+- Step 13: `TEST-WF-13-HAPPY` through `TEST-WF-13-RECOVERY`
+- Step 14: `TEST-WF-14-HAPPY` through `TEST-WF-14-RECOVERY`
+- Step 15: `TEST-WF-15-HAPPY` through `TEST-WF-15-RECOVERY`
+
+---
+
+## 29. Test Architecture Decision Register (ADR-TEST-01 to ADR-TEST-06)
 
 ### ADR-TEST-01: Adoption of Vitest as Primary Test Runner
 - **Decision:** Select Vitest over Jest and Mocha.
@@ -523,7 +604,7 @@ No feature, refactoring, or migration cutover may proceed without satisfying its
 
 ---
 
-## 29. Financial & Cost Governance Alignment
+## 30. Financial & Cost Governance Alignment
 
 In strict alignment with Stage 22 (`docs/architecture/22-COST-ARCHITECTURE.md`):
 - **Zero Paid SaaS Testing Tools:** Datadog Synthetic, BrowserStack, SauceLabs, and paid CI runners are strictly prohibited.
@@ -532,14 +613,14 @@ In strict alignment with Stage 22 (`docs/architecture/22-COST-ARCHITECTURE.md`):
 
 ---
 
-## 30. Open Decisions & Implementation Timing
+## 31. Open Decisions & Implementation Timing
 
 1. **Test Runner Installation Timing:** Vitest and Playwright package installations are intentionally deferred to Stage 25/27 implementation. Stage 24 remains strictly architecture-only.
 2. **Visual Regression Snapshot Baselines:** Snapshot diffing will be calibrated in Stage 27 after the frontend Design System tokens are finalized.
 
 ---
 
-## 31. Acceptance Criteria Checklist
+## 32. Acceptance Criteria Checklist
 
 - [x] **Testing Objectives Codified:** Four testing axioms established.
 - [x] **Empirical Baseline Audited:** Discovered reality (0 tests, 0 runners) documented.
@@ -548,36 +629,6 @@ In strict alignment with Stage 22 (`docs/architecture/22-COST-ARCHITECTURE.md`):
 - [x] **Canonical 15×9 Matrix Authoritative:** All 135 cells explicitly detailed with concrete proof requirements.
 - [x] **Security & Concurrency Specs Complete:** Privilege escalation and OCC race condition tests defined.
 - [x] **Zero Production Code Modified:** Architecture document only. Runtime source changes = 0.
-
----
-
-## 32. Canonical 15×9 Workflow Test Matrix (Complete 135-Cell Specification)
-
-The following matrix defines the authoritative test conditions for every canonical manufacturing step across all nine failure and recovery scenarios:
-
-```
-===================================================================================================================================================================================================================
-                                                               CANONICAL 15×9 WORKFLOW TEST MATRIX (135 EXPLICIT SPECIFICATIONS)
-===================================================================================================================================================================================================================
-| Step | 1. Happy Path | 2. Validation Failure | 3. Auth Failure | 4. Invalid Transition | 5. Missing Data | 6. Concurrency | 7. Media Failure | 8. Network Failure | 9. Recovery |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **01. Question Generation** | Valid question text, 4 options, syllabus topic, and correct key submitted; transitions to `DRAFT`. | Rejects question with < 4 options or missing explanation (HTTP 400). | Non-Creator role blocked from drafting new questions (HTTP 403). | Attempting to transition directly from `IDEA` to `APPROVED` blocked. | Missing target exam category returns field validation error. | Two Creators drafting same syllabus topic assigned distinct IDs. | N/A (Text payload; zero media dependencies). | Client drops during draft submit; draft cached in sessionStorage. | Creator reopens page; restores draft from sessionStorage key. |
-| **02. Question Verification** | Verifier reviews, confirms academic accuracy, and approves; transitions to Step 03. | Rejects approval if Telugu grammar contains severe syntax errors. | Creator who authored question blocked from approving (`GAR-02`). | Attempting verification on an unsubmitted draft rejected. | Missing verified reference source blocks approval button. | Two Verifiers approve simultaneously; OCC rejects second approval. | N/A (Text review; zero media dependencies). | Network timeout during review submit; transaction aborted cleanly. | Verifier retries approval; Firestore transaction succeeds. |
-| **03. Audience Script** | Telugu script (40–55s duration, spoken hooks) authored and approved for filming. | Rejects script exceeding 60 seconds spoken duration estimate. | Non-Scriptwriter blocked from editing approved question script. | Attempting script creation before Question Verification approved blocked. | Missing teleprompter cue formatting flags validation warning. | Scriptwriter edits script while Lead reviews; OCC version mismatch. | Audio pronunciation guide missing; fallback to standard lexicon. | Disconnect during script save; local draft auto-saved. | Author recovers unsaved script from local storage draft buffer. |
-| **04. Teleprompter & Filming** | Spoken script loaded onto teleprompter; filming completed; marked filmed. | Rejects filming completion if recorded duration is < 30 seconds. | Non-Presenter blocked from marking teleprompter session completed. | Attempting filming completion without an approved script blocked. | Missing teleprompter asset ID prevents recording initiation. | Presenter marks complete while script edited; transition locked. | Teleprompter font render failure falls back to system monospace. | Stream disconnect during live teleprompter session pauses timer. | Teleprompter reconnects; resumes scrolling from exact marker. |
-| **05. Raw Video** | Raw vertical MP4 (1080x1920) uploaded to Drive; checksum registered. | Rejects upload of horizontal (16:9) video or non-MP4 container. | Non-Presenter / non-Editor blocked from registering raw video. | Attempting raw video registration before filming step completed blocked. | Missing Google Drive file ID blocks video record creation. | Simultaneous raw video uploads for same question deduplicated. | Corrupt video file triggers `CHECKSUM_MISMATCH`; rejects record. | Upload socket drops at 85%; resumable Drive upload resumes byte. | Upload worker retries chunk; completes SHA-256 verification. |
-| **06. Editing Bay** | Video Editor trims, adds Telugu captions, loudness normalized to -14 LUFS. | Rejects cut short exceeding 59 seconds total running time. | Non-Video Editor blocked from claiming editing workbench ticket. | Attempting edit bay submission before raw video registered blocked. | Missing caption track metadata blocks transition to QC. | Two Editors attempt to claim same edit ticket; first lock wins. | Drive streaming URL expired; automatic token refresh succeeds. | Render drop during export; intermediate timeline state saved. | Editor re-opens timeline; resumes from last rendered clip cache. |
-| **07. Final QC** | QC Reviewer validates broadcast safe-zones, loudness, audio sync; approves. | Rejects video with audio loudness > -12 LUFS (broadcast violation). | Editor who edited video blocked from acting as QC reviewer (`GAR-02`). | Attempting Final QC approval before Editing Bay completed blocked. | Missing mobile safe-zone compliance tag prevents approval. | Simultaneous QC reviews resolved via optimistic concurrency. | Corrupted preview video stream displays error; prompts re-transcode. | Disconnect during review submit; approval state remains pending. | QC Reviewer reloads; submits approval successfully. |
-| **08. Thumbnail** | High-contrast vertical WebP thumbnail generated, contrast validated, approved. | Rejects thumbnail containing question answer text (spoiler check). | Non-Designer / non-Editor blocked from uploading thumbnail asset. | Attempting thumbnail approval before Final QC passes blocked. | Missing thumbnail image dimensions (1080x1920) rejected. | Simultaneous thumbnail variant uploads versioned (`v1`, `v2`). | Corrupted image binary rejected during SHA-256 calculation. | Thumbnail upload drops; client prompts retry without resetting form. | Designer re-selects file; upload and hash succeed. |
-| **09. Social Review** | Community manager audits title, hashtags, exam tags, and Telugu spelling. | Rejects title exceeding 100 characters or missing #Shorts tag. | Content Creator blocked from self-approving social metadata. | Attempting social review before thumbnail and QC approved blocked. | Missing exam syllabus tags prevents social review sign-off. | Concurrent metadata updates merged via field-level OCC. | Thumbnail preview fails to load; displays fallback placeholder. | Network drop during tag submission; form state preserved. | Reviewer clicks retry; tags committed to Firestore. |
-| **10. Publishing Setup** | Release package assembled with platform schedule; queued for dispatch. | Rejects scheduled release time set in the past. | Non-Publisher role blocked from scheduling content dispatch. | Attempting publishing setup before Social Review approved blocked. | Missing YouTube channel credential blocks package assembly. | Two Publishers schedule same video; duplicate schedule rejected. | Video asset inaccessible on Drive; halts dispatch queue. | Network timeout during package queuing; Cloud Tasks retries. | Cloud Tasks re-executes package assembly idempotently. |
-| **11. Published** | Content dispatched to YouTube API; published public; status marked `COMPLETED`. | Rejects publish if YouTube API returns invalid video ID. | Automated service worker only; unauthorized user blocked from publish. | Attempting publication of unapproved package rejected. | Missing YouTube video privacy setting defaults to `private`. | Duplicate dispatch worker invocations deduplicated by jobId. | YouTube upload fails (quota limit); moves to retry queue. | Network drop during YouTube API call; idempotent retry executes. | Publisher triggers manual retry; video publishes successfully. |
-| **12. Platform Sync** | Telemetry worker verifies live status on YouTube; captures external URLs. | Rejects sync record if external URL does not match canonical regex. | Automated sync runner only; unauthorized actors blocked. | Attempting platform sync before video marked Published blocked. | Missing YouTube video ID aborts sync worker gracefully. | Multiple sync runners for same video update single sync doc. | YouTube video deleted externally; flags `EXTERNAL_DELETION_ALERT`.| YouTube API timeout; worker retries on next 15-minute cron. | Sync worker recovers on subsequent cycle; captures live metrics. |
-| **13. Analytics** | Batch worker captures views, likes, comments, and retention ratios (6-hr cron). | Rejects telemetry record containing negative view/retention counts. | Unauthorized access to raw analytics ingestion endpoint blocked. | Attempting analytics harvest on unpublished video rejected. | Missing platform snapshot record creates zero-baseline entry. | Concurrent analytics writes aggregated via BigQuery export. | YouTube Analytics API 429 quota; worker delays 60 minutes. | Transient API socket error; worker moves to next video cleanly. | Scheduled job runs on subsequent window; backfills missing snapshot. |
-| **14. Performance Review** | Performance reviewed against exam batch benchmarks; categorized by decile. | Rejects review if benchmark comparison dataset is unseeded. | Reviewer role required; unprivileged users view read-only summary. | Attempting performance review before analytics harvested blocked. | Missing 7-day retention metric blocks top-decile classification. | Concurrent review ratings merged via average score aggregation. | Metric visualization graph error falls back to tabular display. | Disconnect during review submit; review cached locally. | Lead re-submits review rating; committed to audit ledger. |
-| **15. Intelligence Loop** | High-performing question patterns synthesized into new syllabus ideas for Step 01. | Rejects recommendation lacking correlation to exam syllabus topic. | Non-Lead roles blocked from approving intelligence recommendations. | Attempting intelligence synthesis without performance review blocked. | Missing topic correlation tags prevents recommendation creation. | Two Leads approving recommendation deduplicated by topic ID. | Report PDF generation failure falls back to in-app markdown. | Disconnect during loop commit; recommendation queued in Firestore.| System processes queued recommendation; populates Step 01 intake. |
-===================================================================================================================================================================================================================
-```
 
 ---
 
