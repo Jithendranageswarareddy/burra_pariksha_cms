@@ -69,7 +69,7 @@ export async function runPhase09Verification(): Promise<{
     const testVId = `TEST-P09-V-${Date.now()}`;
 
     // 1. Seed Question
-    await questionsRepository.appendRecord({
+    await questionsRepository.create({
       id: testQId,
       questionText: 'What is the sum of angles in a triangle?',
       topicId: 'TOP-101',
@@ -86,10 +86,10 @@ export async function runPhase09Verification(): Promise<{
       language: 'ENGLISH' as any,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-    });
+    } as any);
 
     // 2. Seed Video
-    await videosRepository.appendRecord({
+    await videosRepository.create({
       id: testVId,
       questionId: testQId,
       title: 'Triangle Angles Speed Trick | Burra Pariksha',
@@ -106,10 +106,10 @@ export async function runPhase09Verification(): Promise<{
       targetDurationSeconds: 60,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-    });
+    } as any);
 
     // 3. Seed Script
-    await scriptsRepository.appendRecord({
+    await scriptsRepository.create({
       id: `SCR-${testVId}`,
       videoId: testVId,
       questionId: testQId,
@@ -122,10 +122,10 @@ export async function runPhase09Verification(): Promise<{
       currentVersion: 1,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-    });
+    } as any);
 
     // 4. Seed Thumbnail
-    await thumbnailsRepository.appendRecord({
+    await thumbnailsRepository.create({
       id: `THM-${testVId}`,
       videoId: testVId,
       hookHeadline: 'Triangle Angle Secret Revealed!',
@@ -134,10 +134,10 @@ export async function runPhase09Verification(): Promise<{
       currentVersion: 1,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-    });
+    } as any);
 
     // 5. Seed Pinned Comment
-    await pinnedCommentsRepository.appendRecord({
+    await pinnedCommentsRepository.create({
       id: `PIN-${testVId}`,
       videoId: testVId,
       commentText: 'Challenge: What is the third angle if two angles are 50° and 60°? Drop your answer below!',
@@ -145,11 +145,11 @@ export async function runPhase09Verification(): Promise<{
       isApproved: true,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-    });
+    } as any);
 
     // 6. Seed Social Review
     const initialBundle = await SocialReviewService.getReviewPackageBundle(testQId);
-    await socialReviewsRepository.appendRecord({
+    await socialReviewsRepository.create({
       id: `REV-${testVId}`,
       questionId: testQId,
       decision: SocialReviewStatus.APPROVED,
@@ -160,7 +160,7 @@ export async function runPhase09Verification(): Promise<{
       overallQualityScoreAtReview: 95,
       qualityStatusAtReview: 'EXCELLENT' as any,
       reviewedAt: new Date().toISOString(),
-    });
+    } as any);
 
     // ------------------------------------------------------------------------
     // VERIFY STEP 13: PLATFORM PACKAGES
