@@ -60,10 +60,10 @@ export class OperationalHealthService {
         spreadsheetAccessibility: 'NOT_CONFIGURED',
         mode: 'MOCK_DEVELOPMENT',
         spreadsheetId: '(Not Configured)',
-        spreadsheetTitle: 'N/A (Local Mock Development)',
+        spreadsheetTitle: 'N/A (Unconfigured)',
         telemetry,
         sanitizedDiagnosticMessage:
-          'Google Service Account environment variables are not set. Application is running in explicit Mock Development Mode with local repositories.',
+          'Google Service Account environment variables are not set. Configure Google Service Account credentials to connect Google Sheets.',
         isReadOnly: true,
       };
     }

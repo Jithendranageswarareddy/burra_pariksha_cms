@@ -17,6 +17,7 @@ import { GenerateCandidateInput, GenerationResult, QuestionCandidate, RefineCand
 import { MultiAIProviderRegistry, multiAIProviderRegistry } from './provider-registry';
 import { questionConfigService } from '../services/question-config.service';
 import { geminiService } from './gemini.service';
+import { AIProviderError } from './error';
 import { GenAiQuestionCandidateResponseSchema } from './schemas/question-candidate.schema';
 import { buildGenerationPrompt, BURRA_PARIKSHA_SYSTEM_INSTRUCTION } from './prompts/generation.prompt';
 import { QuestionCreationValidator } from '../validators/question-creation.validator';
@@ -33,7 +34,6 @@ export interface OrchestratorTaskOptions {
   preferredProviderId?: AIProviderId;
   fallbackProviderIds?: AIProviderId[];
   timeoutMs?: number;
-  allowDeterministicFallback?: boolean;
 }
 
 export class AIOrchestrationService {
@@ -326,32 +326,14 @@ export class AIOrchestrationService {
     options?: OrchestratorTaskOptions
   ): Promise<GenerationResult> {
     if (this.registry.getConfiguredProviders().length === 0) {
-      const fallbackData = (geminiService as any).applyFallbackRefinement
-        ? (geminiService as any).applyFallbackRefinement(input)
-        : input.currentCandidate;
-      return {
-        candidate: {
-          content: fallbackData.content || input.currentCandidate.content,
-          option_a: fallbackData.option_a || input.currentCandidate.option_a,
-          option_b: fallbackData.option_b || input.currentCandidate.option_b,
-          option_c: fallbackData.option_c || input.currentCandidate.option_c,
-          option_d: fallbackData.option_d || input.currentCandidate.option_d,
-          correct_answer: fallbackData.correct_answer || input.currentCandidate.correct_answer,
-          explanation: fallbackData.explanation || input.currentCandidate.explanation,
-          difficulty: input.targetDifficulty || input.currentCandidate.difficulty,
-          language: input.targetLanguage || input.currentCandidate.language,
-          real_world_context: input.currentCandidate.real_world_context || '',
-        },
-        metadata: {
-          modelUsed: 'DETERMINISTIC_FALLBACK',
-          generationDurationMs: 0,
-          providerId: 'DETERMINISTIC_FALLBACK',
-          fallbackUsed: true,
-          fallbackReason: 'No configured AI providers available',
-          attemptedProviders: [],
-        },
-        validation: { isValid: true, errors: [], warnings: [] } as any,
-      };
+      throw new AIProviderError(
+        'Gemini API is not configured or missing API key',
+        'GEMINI',
+        'gemini-2.5-flash',
+        'AUTH_ERROR',
+        false,
+        401
+      );
     }
     return geminiService.refineCandidate(input, options as any);
   }

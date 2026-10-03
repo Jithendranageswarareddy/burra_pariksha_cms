@@ -127,8 +127,8 @@ export class QuestionValidationService {
     candidate: Partial<Question>,
     pipelineOptions: ValidationPipelineOptions = {}
   ): Promise<ValidationResult> {
-    const mockQuestion = candidate as Question;
-    return QuestionValidationEngine.validate(mockQuestion, pipelineOptions);
+    const validatedQuestion = candidate as Question;
+    return QuestionValidationEngine.validate(validatedQuestion, pipelineOptions);
   }
 
   /**

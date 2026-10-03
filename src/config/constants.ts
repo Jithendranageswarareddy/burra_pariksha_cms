@@ -18,7 +18,6 @@ export const APP_CONFIG = {
   tagline: 'Content Database & Video Production Workflow System',
   version: '0.1.0-alpha',
   phase: 'Content Operations System',
-  mockMode: true,
   adminUser: {
     name: 'Admin / Content Lead',
     email: 'admin@burrapariksha.local',

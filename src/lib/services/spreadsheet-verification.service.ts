@@ -73,7 +73,7 @@ export class SpreadsheetVerificationService {
         isConnected: false,
         mode: 'MOCK_DEVELOPMENT',
         spreadsheetId: spreadsheetId || '(Not set)',
-        spreadsheetTitle: 'N/A (Local Mock)',
+        spreadsheetTitle: 'N/A (Unconfigured)',
         totalTabsExpected: ALL_SHEET_TABS.length,
         totalTabsFound: 0,
         tabs: ALL_SHEET_TABS.map((tab) => ({
@@ -90,7 +90,7 @@ export class SpreadsheetVerificationService {
         missingSequences: Object.values(SEQUENCE_ENTITIES),
         taxonomyIntegrity: { isValid: true, issues: [] },
         overallStatus: 'WARNING',
-        summaryMessage: 'Google Service Account credentials (GOOGLE_SERVICE_ACCOUNT_EMAIL, GOOGLE_PRIVATE_KEY, GOOGLE_SHEETS_ID) are not configured. Application is operating in explicit Local Mock Development Mode.',
+        summaryMessage: 'Google Service Account credentials (GOOGLE_SERVICE_ACCOUNT_EMAIL, GOOGLE_PRIVATE_KEY, GOOGLE_SHEETS_ID) are not configured. Configure credentials to connect Google Sheets.',
         diagnosticActionItems: [
           'To connect live Google Sheets: Set GOOGLE_SHEETS_ID, GOOGLE_SERVICE_ACCOUNT_EMAIL, and GOOGLE_PRIVATE_KEY in environment settings.',
           'Share your Google Sheet with the Service Account email with Editor permissions.',

@@ -61,9 +61,9 @@ export class SnapshotExporterService {
     const spreadsheetIdMasked =
       spreadsheetId && spreadsheetId.length > 8
         ? `${spreadsheetId.substring(0, 4)}...${spreadsheetId.substring(spreadsheetId.length - 4)}`
-        : '(Not configured / Local Mock)';
+        : '(Not configured)';
 
-    let spreadsheetTitle = 'Local Mock Environment';
+    let spreadsheetTitle = 'Unconfigured Environment';
     let existingSheetNames: string[] = ALL_SHEET_TABS as unknown as string[];
 
     if (isConfigured) {

@@ -446,7 +446,7 @@ export class GoogleSheetsClient {
   }
 
   /**
-   * Resets or injects mock telemetry for testing.
+   * Records execution telemetry metrics and operational state for Google Sheets API calls.
    */
   public recordTelemetry(success: boolean, opName: string, latencyMs: number, failureCat?: string): void {
     const timestamp = new Date().toISOString();

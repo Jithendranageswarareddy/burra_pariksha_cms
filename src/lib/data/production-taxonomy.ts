@@ -163,8 +163,3 @@ export const PRODUCTION_SUBTOPICS: Subtopic[] = [
     createdAt: '2026-01-15T10:00:00Z',
   },
 ];
-
-// Aliases for compatibility with existing service initializers
-export const MOCK_CATEGORIES = PRODUCTION_CATEGORIES;
-export const MOCK_TOPICS = PRODUCTION_TOPICS;
-export const MOCK_SUBTOPICS = PRODUCTION_SUBTOPICS;

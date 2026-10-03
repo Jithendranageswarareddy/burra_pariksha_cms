@@ -186,7 +186,7 @@ export class RestoreValidatorService {
       currentTopics = await topicsRepository.findAll();
       currentSubtopics = await subtopicsRepository.findAll();
     } catch {
-      // If repository read fails in mock/test, fall back gracefully
+      // If repository read fails or is unconfigured, fall back gracefully
     }
 
     // Map production entities by ID for O(1) lookup
