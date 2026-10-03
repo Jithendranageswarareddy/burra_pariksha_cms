@@ -68,6 +68,23 @@ export class AuditLogRepository extends BaseRepository<AuditLog> {
     return this.appendRecord(record);
   }
 
+  private inMemoryLogs: AuditLog[] = [];
+
+  public override async appendRecord(record: AuditLog): Promise<AuditLog> {
+    if (!this.client.isConfigured(this.getTargetSpreadsheetId())) {
+      this.inMemoryLogs.push(record);
+      return record;
+    }
+    return super.appendRecord(record);
+  }
+
+  public override async findAll(): Promise<AuditLog[]> {
+    if (!this.client.isConfigured(this.getTargetSpreadsheetId())) {
+      return [...this.inMemoryLogs];
+    }
+    return super.findAll();
+  }
+
   public async findByEntity(entityType: string, entityId: string): Promise<AuditLog[]> {
     const all = await this.findAll();
     return all.filter((l) => l.entityType === entityType && l.entityId === entityId);
@@ -85,6 +102,7 @@ export class UsersRepository extends BaseRepository<User> {
   private static instance: UsersRepository | null = null;
   private userSessionVersions: Map<string, number> = new Map();
   private userSessionStates: Map<string, UserSessionState> = new Map();
+  private inMemoryUsers: Map<string, User> = new Map();
 
   private constructor() {
     super(SHEET_SCHEMAS[SHEET_TABS.USERS]);
@@ -160,7 +178,6 @@ export class UsersRepository extends BaseRepository<User> {
   }
 
   public override async appendRecord(record: User): Promise<User> {
-    const result = await super.appendRecord(record);
     const version = record.sessionVersion ?? 1;
     this.userSessionVersions.set(record.id, version);
     const rolesList: string[] = [];
@@ -175,7 +192,12 @@ export class UsersRepository extends BaseRepository<User> {
       role: String(record.role || rolesList[0] || ''),
       roles: rolesList,
     });
-    return result;
+
+    if (!this.client.isConfigured(this.getTargetSpreadsheetId())) {
+      this.inMemoryUsers.set(record.id, record);
+      return record;
+    }
+    return super.appendRecord(record);
   }
 
   public override async updateRecord(id: string, updates: Partial<User>): Promise<User | null> {
@@ -227,7 +249,15 @@ export class UsersRepository extends BaseRepository<User> {
       updates.sessionVersion = nextVersion;
     }
 
-    const updated = await super.updateRecord(id, updates);
+    let updated: User | null = null;
+    if (!this.client.isConfigured(this.getTargetSpreadsheetId())) {
+      if (existing) {
+        updated = { ...existing, ...updates };
+        this.inMemoryUsers.set(id, updated);
+      }
+    } else {
+      updated = await super.updateRecord(id, updates);
+    }
 
     if (updated) {
       const version = updated.sessionVersion ?? this.getUserSessionVersion(id);
@@ -250,7 +280,13 @@ export class UsersRepository extends BaseRepository<User> {
   }
 
   public override async findById(id: string): Promise<User | null> {
-    const user = await super.findById(id);
+    let user: User | null = null;
+    if (!this.client.isConfigured(this.getTargetSpreadsheetId())) {
+      user = this.inMemoryUsers.get(id) || null;
+    } else {
+      user = await super.findById(id);
+    }
+
     if (user) {
       if (user.role && typeof user.role === 'string' && user.role.includes(',')) {
         const parts = user.role.split(',').map((r) => r.trim()).filter(Boolean);
@@ -278,7 +314,13 @@ export class UsersRepository extends BaseRepository<User> {
   }
 
   public override async findAll(): Promise<User[]> {
-    const users = await super.findAll();
+    let users: User[] = [];
+    if (!this.client.isConfigured(this.getTargetSpreadsheetId())) {
+      users = Array.from(this.inMemoryUsers.values());
+    } else {
+      users = await super.findAll();
+    }
+
     for (const user of users) {
       if (user.role && typeof user.role === 'string' && user.role.includes(',')) {
         const parts = user.role.split(',').map((r) => r.trim()).filter(Boolean);

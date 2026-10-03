@@ -88,6 +88,7 @@ import { google } from 'googleapis';
 import { googleDriveService } from '../lib/services/google-drive.service';
 import rateLimit from 'express-rate-limit';
 import { requireAuth, requireRole, extractSessionToken, AuthenticatedRequest } from './middleware/auth.middleware';
+import { createSuccessResponse, createErrorResponse, ApiErrorCode } from '../types/api-contracts';
 
 export const apiRouter = express.Router();
 
@@ -117,6 +118,26 @@ export const aiRateLimiter = rateLimit({
   validate: { default: false },
 });
 
+// Apply bounded rate limit for authentication endpoints (Brute force protection)
+export const authRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // 10 login attempts per 15 minutes per IP
+  message: {
+    success: false,
+    error: {
+      code: ApiErrorCode.FORBIDDEN_BY_BUSINESS_RULE,
+      message: 'Too many authentication attempts. Please try again after 15 minutes.',
+      timestamp: new Date().toISOString(),
+      requestId: 'rl_' + Date.now(),
+    },
+    message: 'Too many authentication attempts. Please try again after 15 minutes.',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: { default: false },
+});
+
+
 /**
  * Helper to derive actor identity strictly from verified session context (req.user)
  * SEC-02: Never trusts client-supplied req.body._actor or req.body.actor
@@ -144,20 +165,40 @@ export function getRequestActor(req: Request): ActorContext & { name: string; ro
 
 // ----------------------------------------------------
 // Public Endpoints: Authentication, Health, System Diagnostics, & Verification
+// Stage 26 Feature Contract: FC-001 (System Foundation & Identity Authentication)
 // ----------------------------------------------------
 
-apiRouter.post('/auth/login', async (req: Request, res: Response) => {
+apiRouter.post(['/auth/login', '/v1/auth/login'], authRateLimiter, async (req: Request, res: Response) => {
+  const requestId = (req.headers['x-request-id'] as string) || `req_${Date.now()}`;
   try {
     const { userId, email, identifier, password } = req.body || {};
     const credentialIdentifier = userId || email || identifier;
     if (!credentialIdentifier || !password) {
-      res.status(400).json({ success: false, error: 'User ID or Email and password are required.' });
+      const errEnvelope = createErrorResponse(
+        ApiErrorCode.VALIDATION_ERROR,
+        'User ID or Email and password are required.',
+        requestId,
+        { field: !credentialIdentifier ? 'identifier' : 'password' }
+      );
+      res.status(400).json({
+        ...errEnvelope,
+        message: 'User ID or Email and password are required.',
+      });
       return;
     }
 
     const result = await authService.login(credentialIdentifier, password);
     if (!result.success || !result.token || !result.user) {
-      res.status(401).json({ success: false, error: result.error || 'Invalid credentials.' });
+      const errorMessage = result.error || 'Invalid credentials.';
+      const errEnvelope = createErrorResponse(
+        ApiErrorCode.UNAUTHENTICATED,
+        errorMessage,
+        requestId
+      );
+      res.status(401).json({
+        ...errEnvelope,
+        message: errorMessage,
+      });
       return;
     }
 
@@ -170,17 +211,31 @@ apiRouter.post('/auth/login', async (req: Request, res: Response) => {
       path: '/',
     });
 
+    const successEnvelope = createSuccessResponse({
+      user: result.user,
+      token: result.token,
+    }, requestId);
+
     res.json({
-      success: true,
+      ...successEnvelope,
       user: result.user,
       token: result.token,
     });
   } catch {
-    res.status(500).json({ success: false, error: 'Internal authentication error.' });
+    const errEnvelope = createErrorResponse(
+      ApiErrorCode.INTERNAL_SERVER_ERROR,
+      'Internal authentication error.',
+      requestId
+    );
+    res.status(500).json({
+      ...errEnvelope,
+      message: 'Internal authentication error.',
+    });
   }
 });
 
-apiRouter.post('/auth/logout', async (req: Request, res: Response) => {
+apiRouter.post(['/auth/logout', '/v1/auth/logout'], async (req: Request, res: Response) => {
+  const requestId = (req.headers['x-request-id'] as string) || `req_${Date.now()}`;
   try {
     const token = extractSessionToken(req);
     if (token) {
@@ -193,52 +248,110 @@ apiRouter.post('/auth/logout', async (req: Request, res: Response) => {
     }
 
     res.clearCookie('bp_session', { path: '/' });
-    res.json({ success: true });
+    const successEnvelope = createSuccessResponse({ success: true }, requestId);
+    res.json({
+      ...successEnvelope,
+      success: true,
+    });
   } catch {
-    res.status(500).json({ success: false, error: 'Failed to complete logout.' });
+    const errEnvelope = createErrorResponse(
+      ApiErrorCode.INTERNAL_SERVER_ERROR,
+      'Failed to complete logout.',
+      requestId
+    );
+    res.status(500).json({
+      ...errEnvelope,
+      message: 'Failed to complete logout.',
+    });
   }
 });
 
-apiRouter.get('/auth/me', async (req: Request, res: Response) => {
+apiRouter.get(['/auth/me', '/v1/auth/me'], async (req: Request, res: Response) => {
+  const requestId = (req.headers['x-request-id'] as string) || `req_${Date.now()}`;
   try {
     const token = extractSessionToken(req);
 
     if (!token) {
-      res.status(401).json({ authenticated: false, error: 'No active session.' });
+      const errEnvelope = createErrorResponse(
+        ApiErrorCode.UNAUTHENTICATED,
+        'No active session.',
+        requestId
+      );
+      res.status(401).json({
+        ...errEnvelope,
+        authenticated: false,
+        message: 'No active session.',
+      });
       return;
     }
 
     const payload = authService.verifySessionToken(token);
     if (!payload) {
       res.clearCookie('bp_session', { path: '/' });
-      res.status(401).json({ authenticated: false, error: 'Invalid or expired session.' });
+      const errEnvelope = createErrorResponse(
+        ApiErrorCode.UNAUTHENTICATED,
+        'Invalid or expired session.',
+        requestId
+      );
+      res.status(401).json({
+        ...errEnvelope,
+        authenticated: false,
+        message: 'Invalid or expired session.',
+      });
       return;
     }
 
     const user = await assignmentService.getUserById(payload.userId);
     if (!user || !user.isActive) {
       res.clearCookie('bp_session', { path: '/' });
-      res.status(401).json({ authenticated: false, error: 'User is inactive or not found.' });
+      const errEnvelope = createErrorResponse(
+        ApiErrorCode.UNAUTHENTICATED,
+        'User is inactive or not found.',
+        requestId
+      );
+      res.status(401).json({
+        ...errEnvelope,
+        authenticated: false,
+        message: 'User is inactive or not found.',
+      });
       return;
     }
 
-    res.json({
+    const userData = {
+      id: user.id,
+      name: user.name,
+      role: user.role,
+      avatarUrl: user.avatarUrl,
+      isActive: user.isActive,
+      last_login_at: user.last_login_at,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    };
+
+    const successEnvelope = createSuccessResponse({
       authenticated: true,
-      user: {
-        id: user.id,
-        name: user.name,
-        role: user.role,
-        avatarUrl: user.avatarUrl,
-        isActive: user.isActive,
-        last_login_at: user.last_login_at,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt,
-      },
+      user: userData,
+    }, requestId);
+
+    res.json({
+      ...successEnvelope,
+      authenticated: true,
+      user: userData,
     });
   } catch {
-    res.status(500).json({ authenticated: false, error: 'Session verification error.' });
+    const errEnvelope = createErrorResponse(
+      ApiErrorCode.INTERNAL_SERVER_ERROR,
+      'Session verification error.',
+      requestId
+    );
+    res.status(500).json({
+      ...errEnvelope,
+      authenticated: false,
+      message: 'Session verification error.',
+    });
   }
 });
+
 
 // Helper for self-contained cookie extraction (since cookie-parser is not used directly)
 function getCookieValue(req: Request, name: string): string | undefined {

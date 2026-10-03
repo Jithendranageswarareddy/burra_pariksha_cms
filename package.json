@@ -9,7 +9,9 @@
     "start": "node dist/server.cjs",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
-    "lint": "node --max-old-space-size=4096 ./node_modules/typescript/bin/tsc --noEmit"
+    "lint": "node --max-old-space-size=4096 ./node_modules/typescript/bin/tsc --noEmit",
+    "test": "tsx tests/fc-001-auth.test.ts",
+    "test:auth": "tsx tests/fc-001-auth.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

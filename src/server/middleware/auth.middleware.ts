@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { authService } from '../../lib/services/auth.service';
 import { usersRepository, UserSessionState } from '../../lib/repositories/users.repository';
 import { UserRole } from '../../types';
+import { createErrorResponse, ApiErrorCode } from '../../types/api-contracts';
 
 export interface AuthUserContext {
   id: string;
@@ -44,20 +45,31 @@ export function extractSessionToken(req: Request): string | null {
  */
 export function requireAuth(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
   const token = extractSessionToken(req);
+  const requestId = (req.headers['x-request-id'] as string) || `req_${Date.now()}`;
 
   if (!token) {
+    const errEnvelope = createErrorResponse(
+      ApiErrorCode.UNAUTHENTICATED,
+      'Authentication required. No session provided.',
+      requestId
+    );
     res.status(401).json({
-      success: false,
-      error: 'Authentication required. No session provided.',
+      ...errEnvelope,
+      message: 'Authentication required. No session provided.',
     });
     return;
   }
 
   const payload = authService.verifySessionToken(token);
   if (!payload) {
+    const errEnvelope = createErrorResponse(
+      ApiErrorCode.UNAUTHENTICATED,
+      'Invalid or expired session.',
+      requestId
+    );
     res.status(401).json({
-      success: false,
-      error: 'Invalid or expired session.',
+      ...errEnvelope,
+      message: 'Invalid or expired session.',
     });
     return;
   }
@@ -65,9 +77,14 @@ export function requireAuth(req: AuthenticatedRequest, res: Response, next: Next
   const completeAuth = (userState: UserSessionState | null) => {
     if (userState) {
       if (!userState.isActive) {
+        const errEnvelope = createErrorResponse(
+          ApiErrorCode.UNAUTHENTICATED,
+          'Invalid or expired session.',
+          requestId
+        );
         res.status(401).json({
-          success: false,
-          error: 'Invalid or expired session.',
+          ...errEnvelope,
+          message: 'Invalid or expired session.',
         });
         return;
       }
@@ -75,9 +92,14 @@ export function requireAuth(req: AuthenticatedRequest, res: Response, next: Next
       // Persistent session version check: token version must match or exceed current persistent session version
       const tokenVersion = payload.sessionVersion ?? 1;
       if (tokenVersion < userState.sessionVersion) {
+        const errEnvelope = createErrorResponse(
+          ApiErrorCode.UNAUTHENTICATED,
+          'Invalid or expired session.',
+          requestId
+        );
         res.status(401).json({
-          success: false,
-          error: 'Invalid or expired session.',
+          ...errEnvelope,
+          message: 'Invalid or expired session.',
         });
         return;
       }
@@ -113,13 +135,18 @@ export function requireAuth(req: AuthenticatedRequest, res: Response, next: Next
   usersRepository.getAuthoritativeUserSessionState(payload.userId).then((authoritativeState) => {
     completeAuth(authoritativeState);
   }).catch(() => {
+    const errEnvelope = createErrorResponse(
+      ApiErrorCode.UNAUTHENTICATED,
+      'Invalid or expired session.',
+      requestId
+    );
     res.status(401).json({
-      success: false,
+      ...errEnvelope,
       error: 'Invalid or expired session.',
+      message: 'Invalid or expired session.',
     });
   });
 }
-
 
 /**
  * Middleware: requireRole
@@ -127,10 +154,17 @@ export function requireAuth(req: AuthenticatedRequest, res: Response, next: Next
  */
 export function requireRole(allowedRoles: string[]) {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
+    const requestId = (req.headers['x-request-id'] as string) || `req_${Date.now()}`;
     if (!req.user) {
+      const errEnvelope = createErrorResponse(
+        ApiErrorCode.UNAUTHENTICATED,
+        'Authentication required.',
+        requestId
+      );
       res.status(401).json({
-        success: false,
+        ...errEnvelope,
         error: 'Authentication required.',
+        message: 'Authentication required.',
       });
       return;
     }
@@ -148,9 +182,14 @@ export function requireRole(allowedRoles: string[]) {
     const isAllowed = isAdmin || userRoles.some((r) => allowedRoles.includes(r));
 
     if (!isAllowed) {
+      const errEnvelope = createErrorResponse(
+        ApiErrorCode.FORBIDDEN_LACKS_CAPABILITY,
+        'Forbidden: Insufficient role permissions.',
+        requestId
+      );
       res.status(403).json({
-        success: false,
-        error: 'Forbidden: Insufficient role permissions.',
+        ...errEnvelope,
+        message: 'Forbidden: Insufficient role permissions.',
       });
       return;
     }
@@ -158,3 +197,4 @@ export function requireRole(allowedRoles: string[]) {
     next();
   };
 }
+
