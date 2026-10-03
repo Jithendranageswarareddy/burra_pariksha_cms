@@ -43,7 +43,7 @@ export type RefinementIntent =
 
 export interface RefinementResult {
   candidate: RefinementCandidate;
-  isMockFallback: boolean;
+  fallbackUsed: boolean;
   fallbackReason?: string;
 }
 
@@ -140,7 +140,7 @@ export class QuestionRefinementService {
     else if (intent === 'INCREASE_TRICK') action = 'IMPROVE_OPTIONS';
 
     let rawCandidate: any = null;
-    let isMockFallback = false;
+    let fallbackUsed = false;
     let fallbackReason: string | undefined = undefined;
 
     // 6. Request refinement from AI or Fallback
@@ -181,7 +181,7 @@ export class QuestionRefinementService {
           question_style: response.candidate.question_style || originalQuestionStyle,
         };
       } catch (err: any) {
-        isMockFallback = true;
+        fallbackUsed = true;
         fallbackReason = `AI error/timeout: ${err.message}. Invoked safe algorithmic fallback.`;
         rawCandidate = this.applyFallbackAlgorithmicRefinement({
           intent,
@@ -199,7 +199,7 @@ export class QuestionRefinementService {
         });
       }
     } else {
-      isMockFallback = true;
+      fallbackUsed = true;
       fallbackReason = 'Gemini API not configured. Invoked safe algorithmic fallback.';
       rawCandidate = this.applyFallbackAlgorithmicRefinement({
         intent,
@@ -370,7 +370,7 @@ export class QuestionRefinementService {
 
     return {
       candidate,
-      isMockFallback,
+      fallbackUsed,
       fallbackReason,
     };
   }

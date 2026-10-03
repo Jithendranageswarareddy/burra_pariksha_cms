@@ -39,15 +39,6 @@ export interface DriveDownloadResult {
   statusCode: number;
 }
 
-interface MockStoredFile {
-  fileId: string;
-  name: string;
-  mimeType: string;
-  buffer: Buffer;
-  folderId?: string;
-  createdTime: string;
-}
-
 export class GoogleDriveService {
   private static instance: GoogleDriveService | null = null;
   private driveApi: drive_v3.Drive | null = null;
@@ -67,11 +58,6 @@ export class GoogleDriveService {
   // In-memory folder ID cache to guarantee zero redundant folder queries
   private folderCache = new Map<string, string>();
 
-  // In-memory binary storage engine for testing & fallback mode
-  private mockFiles = new Map<string, MockStoredFile>();
-  private mockFolderCounter = 1;
-  private mockFileCounter = 1;
-
   private constructor() {}
 
   public static getInstance(): GoogleDriveService {
@@ -82,13 +68,10 @@ export class GoogleDriveService {
   }
 
   /**
-   * Resets folder resolution cache and mock storage (useful during testing/cleanup).
+   * Resets folder resolution cache.
    */
   public clearFolderCache(): void {
     this.folderCache.clear();
-    this.mockFiles.clear();
-    this.mockFolderCounter = 1;
-    this.mockFileCounter = 1;
   }
 
   /**
@@ -264,9 +247,7 @@ export class GoogleDriveService {
     }
 
     if (!this.isConfigured()) {
-      const mockFolderId = `mock_folder_${String(this.mockFolderCounter++).padStart(4, '0')}`;
-      this.folderCache.set(cacheKey, mockFolderId);
-      return mockFolderId;
+      throw new GoogleAuthError('Google Drive integration is not configured or unavailable in this environment.');
     }
 
     try {
@@ -450,25 +431,7 @@ export class GoogleDriveService {
     }
 
     if (!this.isConfigured()) {
-      const mockFileId = `drive_file_${String(this.mockFileCounter++).padStart(6, '0')}`;
-      const now = new Date().toISOString();
-      this.mockFiles.set(mockFileId, {
-        fileId: mockFileId,
-        name: params.fileName,
-        mimeType: params.mimeType,
-        buffer,
-        folderId: params.folderId,
-        createdTime: now,
-      });
-      return {
-        fileId: mockFileId,
-        name: params.fileName,
-        mimeType: params.mimeType,
-        size: buffer.length,
-        webViewLink: `https://drive.google.com/file/d/${mockFileId}/view`,
-        createdTime: now,
-        folderId: params.folderId,
-      };
+      throw new GoogleAuthError('Google Drive integration is not configured or unavailable in this environment.');
     }
 
     try {
@@ -518,27 +481,8 @@ export class GoogleDriveService {
       throw new ValidationError('Drive File ID is required.');
     }
 
-    if (this.mockFiles.has(fileId)) {
-      const mock = this.mockFiles.get(fileId)!;
-      return {
-        fileId: mock.fileId,
-        name: mock.name,
-        mimeType: mock.mimeType,
-        size: mock.buffer.length,
-        webViewLink: `https://drive.google.com/file/d/${mock.fileId}/view`,
-        createdTime: mock.createdTime,
-        folderId: mock.folderId,
-      };
-    }
-
     if (!this.isConfigured()) {
-      return {
-        fileId,
-        name: `file_${fileId}.mp4`,
-        mimeType: 'video/mp4',
-        size: 1024,
-        webViewLink: `https://drive.google.com/file/d/${fileId}/view`,
-      };
+      throw new GoogleAuthError('Google Drive integration is not configured or unavailable in this environment.');
     }
 
     try {
@@ -574,42 +518,8 @@ export class GoogleDriveService {
       throw new ValidationError('Drive File ID is required for download.');
     }
 
-    if (this.mockFiles.has(fileId)) {
-      const mock = this.mockFiles.get(fileId)!;
-      let buf = mock.buffer;
-      let statusCode = 200;
-      let contentRange: string | undefined;
-
-      if (rangeHeader && rangeHeader.startsWith('bytes=')) {
-        const parts = rangeHeader.replace('bytes=', '').split('-');
-        const start = parseInt(parts[0], 10) || 0;
-        const end = parts[1] ? parseInt(parts[1], 10) : buf.length - 1;
-
-        if (start < buf.length) {
-          const slicedEnd = Math.min(end, buf.length - 1);
-          buf = buf.subarray(start, slicedEnd + 1);
-          statusCode = 206;
-          contentRange = `bytes ${start}-${slicedEnd}/${mock.buffer.length}`;
-        }
-      }
-
-      return {
-        stream: Readable.from(buf),
-        contentType: mock.mimeType,
-        contentLength: buf.length,
-        contentRange,
-        statusCode,
-      };
-    }
-
     if (!this.isConfigured()) {
-      const fallbackBuf = Buffer.from('MOCK_VIDEO_BINARY_STREAM_PAYLOAD');
-      return {
-        stream: Readable.from(fallbackBuf),
-        contentType: 'video/mp4',
-        contentLength: fallbackBuf.length,
-        statusCode: 200,
-      };
+      throw new GoogleAuthError('Google Drive integration is not configured or unavailable in this environment.');
     }
 
     try {
@@ -652,8 +562,9 @@ export class GoogleDriveService {
    */
   public async deleteFile(fileId: string): Promise<boolean> {
     if (!fileId) return false;
-    this.mockFiles.delete(fileId);
-    if (!this.isConfigured()) return true;
+    if (!this.isConfigured()) {
+      throw new GoogleAuthError('Google Drive integration is not configured or unavailable in this environment.');
+    }
 
     try {
       const drive = this.getDriveApi();

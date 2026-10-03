@@ -33,10 +33,6 @@ export class StrategyRecommendationRepository extends BaseRepository<ContentStra
     return process.env.ANALYTICS_SPREADSHEET_ID || 'UNCONFIGURED_ANALYTICS_SPREADSHEET';
   }
 
-  protected getInitialFallbackData(): ContentStrategyRecommendation[] {
-    return [];
-  }
-
   public async getRecentRecommendations(limit: number = 20): Promise<ContentStrategyRecommendation[]> {
     const records = await this.findAll();
     return records

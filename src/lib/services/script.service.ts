@@ -66,7 +66,7 @@ export class ScriptService {
     metadata: {
       modelUsed: string;
       generationDurationMs: number;
-      isMockFallback: boolean;
+      fallbackUsed: boolean;
     };
     validation: any;
   }> {
@@ -81,7 +81,7 @@ export class ScriptService {
     metadata: {
       modelUsed: string;
       generationDurationMs: number;
-      isMockFallback: boolean;
+      fallbackUsed: boolean;
     };
     validation: any;
   }> {

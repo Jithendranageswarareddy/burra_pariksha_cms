@@ -29,9 +29,6 @@ export class DurableSnapshotArchiveService {
   private config: SnapshotArchiveConfig;
   private gcsClient: any = null;
 
-  // In-memory fallback for local development or mock tests
-  private mockBucket: Map<string, string> = new Map();
-
   private constructor() {
     this.config = getSnapshotArchiveConfig();
   }
@@ -41,26 +38,6 @@ export class DurableSnapshotArchiveService {
       DurableSnapshotArchiveService.instance = new DurableSnapshotArchiveService();
     }
     return DurableSnapshotArchiveService.instance;
-  }
-
-  /**
-   * Allows injecting a mock GCS client or resetting config for testing.
-   */
-  public injectTestContext(config: SnapshotArchiveConfig, mockClient?: any, clearMock = true) {
-    this.config = config;
-    this.gcsClient = mockClient;
-    if (clearMock) {
-      this.mockBucket.clear();
-    }
-  }
-
-  /**
-   * Resets the configuration back to reading process environment.
-   */
-  public resetContext() {
-    this.config = getSnapshotArchiveConfig();
-    this.gcsClient = null;
-    this.mockBucket.clear();
   }
 
   /**
@@ -254,15 +231,8 @@ export class DurableSnapshotArchiveService {
     const serializedSnapshot = JSON.stringify(snapshot, null, 2);
     const serializedManifest = JSON.stringify(manifest, null, 2);
 
-    // MOCK MODE FOR TESTS OR LOCAL FALLBACK
-    if (this.config.bucketName === 'mock-test-bucket' || !process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL) {
-      // Check existing to enforce immutability
-      if (this.mockBucket.has(dataPath)) {
-        throw new Error(`Conflict: Snapshot object already exists in bucket: ${dataPath}`);
-      }
-      this.mockBucket.set(dataPath, serializedSnapshot);
-      this.mockBucket.set(metaPath, serializedManifest);
-      return manifest;
+    if (!this.config.bucketName || !process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL) {
+      throw new Error('Durable snapshot archive GCS bucket or Google Service Account credentials are not configured.');
     }
 
     const storage = this.getStorageClient();
@@ -324,30 +294,24 @@ export class DurableSnapshotArchiveService {
       throw new Error('Durable Snapshot Archive is disabled or unconfigured.');
     }
 
+    if (!this.config.bucketName || !process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL) {
+      throw new Error('Durable snapshot archive GCS bucket or Google Service Account credentials are not configured.');
+    }
+
     let payload: string;
+    const storage = this.getStorageClient();
+    const res = await this.executeWithRetry(async () => {
+      return await storage.objects.get({
+        bucket: this.config.bucketName,
+        object: dataPath,
+        alt: 'media',
+      });
+    }, 'retrieve-snapshot');
 
-    // MOCK MODE FOR TESTS OR LOCAL FALLBACK
-    if (this.config.bucketName === 'mock-test-bucket' || !process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL) {
-      const mockData = this.mockBucket.get(dataPath);
-      if (!mockData) {
-        throw new Error(`Snapshot not found: ${dataPath}`);
-      }
-      payload = mockData;
+    if (typeof res.data === 'string') {
+      payload = res.data;
     } else {
-      const storage = this.getStorageClient();
-      const res = await this.executeWithRetry(async () => {
-        return await storage.objects.get({
-          bucket: this.config.bucketName,
-          object: dataPath,
-          alt: 'media',
-        });
-      }, 'retrieve-snapshot');
-
-      if (typeof res.data === 'string') {
-        payload = res.data;
-      } else {
-        payload = JSON.stringify(res.data);
-      }
+      payload = JSON.stringify(res.data);
     }
 
     const snapshot: GoogleSheetsSnapshot = JSON.parse(payload);
@@ -371,30 +335,24 @@ export class DurableSnapshotArchiveService {
       throw new Error('Durable Snapshot Archive is disabled or unconfigured.');
     }
 
+    if (!this.config.bucketName || !process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL) {
+      throw new Error('Durable snapshot archive GCS bucket or Google Service Account credentials are not configured.');
+    }
+
     let payload: string;
+    const storage = this.getStorageClient();
+    const res = await this.executeWithRetry(async () => {
+      return await storage.objects.get({
+        bucket: this.config.bucketName,
+        object: metaPath,
+        alt: 'media',
+      });
+    }, 'retrieve-manifest');
 
-    // MOCK MODE FOR TESTS OR LOCAL FALLBACK
-    if (this.config.bucketName === 'mock-test-bucket' || !process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL) {
-      const mockData = this.mockBucket.get(metaPath);
-      if (!mockData) {
-        throw new Error(`Manifest not found: ${metaPath}`);
-      }
-      payload = mockData;
+    if (typeof res.data === 'string') {
+      payload = res.data;
     } else {
-      const storage = this.getStorageClient();
-      const res = await this.executeWithRetry(async () => {
-        return await storage.objects.get({
-          bucket: this.config.bucketName,
-          object: metaPath,
-          alt: 'media',
-        });
-      }, 'retrieve-manifest');
-
-      if (typeof res.data === 'string') {
-        payload = res.data;
-      } else {
-        payload = JSON.stringify(res.data);
-      }
+      payload = JSON.stringify(res.data);
     }
 
     return JSON.parse(payload);
@@ -404,22 +362,8 @@ export class DurableSnapshotArchiveService {
    * Lists all snapshot manifests in the GCS bucket.
    */
   public async listManifests(): Promise<SnapshotMetaManifest[]> {
-    if (!this.config.enabled) {
+    if (!this.config.enabled || !this.config.bucketName || !process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL) {
       return [];
-    }
-
-    if (this.config.bucketName === 'mock-test-bucket' || !process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL) {
-      const manifests: SnapshotMetaManifest[] = [];
-      for (const [key, value] of this.mockBucket.entries()) {
-        if (key.endsWith('.meta.json')) {
-          try {
-            manifests.push(JSON.parse(value));
-          } catch (err) {
-            // Ignore bad parses
-          }
-        }
-      }
-      return manifests.sort((a, b) => b.exportTimestamp.localeCompare(a.exportTimestamp));
     }
 
     const storage = this.getStorageClient();
@@ -463,10 +407,8 @@ export class DurableSnapshotArchiveService {
       throw new Error('Durable Snapshot Archive is disabled or unconfigured.');
     }
 
-    if (this.config.bucketName === 'mock-test-bucket' || !process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL) {
-      this.mockBucket.delete(dataPath);
-      this.mockBucket.delete(metaPath);
-      return;
+    if (!this.config.bucketName || !process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL) {
+      throw new Error('Durable snapshot archive GCS bucket or Google Service Account credentials are not configured.');
     }
 
     const storage = this.getStorageClient();

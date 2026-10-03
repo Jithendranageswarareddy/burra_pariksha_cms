@@ -81,7 +81,6 @@ export interface GenerationMetadata {
   retryCount?: number;
   promptTokens?: number;
   outputTokens?: number;
-  isMockFallback?: boolean;
   generatorType?: string;
   fallbackReason?: string;
   errorClassification?: AIErrorClassification;
@@ -101,7 +100,6 @@ export interface AIProviderOptions {
   timeoutMs?: number;
   maxRetries?: number;
   requestId?: string;
-  allowMockFallback?: boolean;
 }
 
 export interface ScriptGenerationResult {

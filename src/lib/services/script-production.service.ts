@@ -25,7 +25,7 @@ export interface ScriptGenerationResponse {
   metadata: {
     modelUsed: string;
     durationMs: number;
-    isMockFallback: boolean;
+    fallbackUsed: boolean;
   };
 }
 
@@ -196,7 +196,7 @@ export class ScriptProductionService {
       metadata: {
         modelUsed: aiResult.metadata.modelUsed,
         durationMs: Date.now() - startTime,
-        isMockFallback: aiResult.metadata.isMockFallback,
+        fallbackUsed: aiResult.metadata.fallbackUsed,
       },
     };
   }

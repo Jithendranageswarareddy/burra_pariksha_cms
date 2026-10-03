@@ -31,17 +31,7 @@ export class CommentIntelligenceRepository extends BaseRepository<CommentIntelli
    * accidental fallback to production GOOGLE_SHEETS_ID.
    */
   protected override getTargetSpreadsheetId(): string | undefined {
-    if (this.client.isTestMode()) {
-      return process.env.TEST_ANALYTICS_SPREADSHEET_ID || 'UNCONFIGURED_ANALYTICS_SPREADSHEET';
-    }
     return process.env.ANALYTICS_SPREADSHEET_ID || 'UNCONFIGURED_ANALYTICS_SPREADSHEET';
-  }
-
-  /**
-   * Seed fallback data for local memory mode testing.
-   */
-  protected getInitialFallbackData(): CommentIntelligenceRecord[] {
-    return [];
   }
 
   /**

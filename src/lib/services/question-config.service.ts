@@ -202,14 +202,6 @@ export class QuestionConfigService {
     let rawRecords = await this.repository.findAll();
 
     if (!rawRecords || rawRecords.length === 0) {
-      if (typeof (this.repository as any).seedFallbackData === 'function') {
-        const { DEFAULT_QUESTION_CONFIG } = await import('../repositories/question-config.repository');
-        (this.repository as any).seedFallbackData(DEFAULT_QUESTION_CONFIG);
-        rawRecords = await this.repository.findAll();
-      }
-    }
-
-    if (!rawRecords || rawRecords.length === 0) {
       throw new QuestionConfigError(
         'QUESTION_CONFIG worksheet is empty or contains no records. Real-time production configuration cannot be loaded.',
         'EMPTY_CONFIGURATION',

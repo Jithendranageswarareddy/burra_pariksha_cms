@@ -345,7 +345,7 @@ apiRouter.get('/health', (req: Request, res: Response) => {
   const isConfigured = googleSheetsClient.isConfigured();
   res.json({
     status: 'ok',
-    mode: isConfigured ? 'GOOGLE_SHEETS_PRODUCTION' : 'LOCAL_MEMORY_FALLBACK',
+    mode: isConfigured ? 'GOOGLE_SHEETS_PRODUCTION' : 'UNCONFIGURED',
     timestamp: new Date().toISOString(),
     databaseConfigured: isConfigured,
   });
@@ -442,7 +442,7 @@ apiRouter.get('/system/readiness', async (req: Request, res: Response) => {
     const isConfigured = googleSheetsClient.isConfigured();
     res.json({
       status: 'ready',
-      database: isConfigured ? 'GOOGLE_SHEETS_PRODUCTION' : 'LOCAL_MEMORY_FALLBACK',
+      database: isConfigured ? 'GOOGLE_SHEETS_PRODUCTION' : 'UNCONFIGURED',
       timestamp: new Date().toISOString(),
     });
   } catch (err: any) {

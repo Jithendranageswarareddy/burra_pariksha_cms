@@ -36,9 +36,6 @@ export class AnalyticsRepository extends BaseRepository<SocialAnalyticsRecord> {
    * accidental fallback to production GOOGLE_SHEETS_ID.
    */
   protected override getTargetSpreadsheetId(): string | undefined {
-    if (this.client.isTestMode()) {
-      return process.env.TEST_ANALYTICS_SPREADSHEET_ID || undefined;
-    }
     return process.env.ANALYTICS_SPREADSHEET_ID || undefined;
   }
 

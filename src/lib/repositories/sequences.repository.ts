@@ -45,9 +45,6 @@ export class SequencesRepository extends BaseRepository<SequenceRecord> {
 
   private constructor() {
     super(SHEET_SCHEMAS[SHEET_TABS.SEQUENCES]);
-    if (!this.client.isConfigured(this.getTargetSpreadsheetId())) {
-      this.seedDefaultSequences();
-    }
   }
 
   public static getInstance(): SequencesRepository {
@@ -55,20 +52,6 @@ export class SequencesRepository extends BaseRepository<SequenceRecord> {
       SequencesRepository.instance = new SequencesRepository();
     }
     return SequencesRepository.instance;
-  }
-
-  private seedDefaultSequences(): void {
-    const defaults: SequenceRecord[] = Object.values(SEQUENCE_ENTITIES).map((entity) => {
-      const config = ID_PREFIX_MAP[entity as SequenceEntityType] || { prefix: 'BP-', padLength: 6 };
-      return {
-        entityType: entity,
-        nextNumber: 1,
-        prefix: config.prefix,
-        padLength: config.padLength,
-        updatedAt: new Date().toISOString(),
-      };
-    });
-    this.seedFallbackData(defaults);
   }
 
   /**

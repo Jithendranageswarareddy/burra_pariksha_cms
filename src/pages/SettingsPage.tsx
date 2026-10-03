@@ -37,7 +37,6 @@ import {
 import { PageHeader } from '../components/layout/PageHeader';
 import { Button } from '../components/common/Button';
 import { APP_CONFIG } from '../config/constants';
-import { PRODUCTION_CATEGORIES as MOCK_CATEGORIES, PRODUCTION_TOPICS as MOCK_TOPICS } from '../lib/data/production-taxonomy';
 import { apiClient } from '../lib/api-client';
 import { SpreadsheetHealthReport, SystemHealthReport, IntegrityIssue, IntegritySeverity, IntegrityCategory, UserRole } from '../types';
 import { ALL_SHEET_TABS, ID_PREFIX_MAP, SequenceEntityType } from '../lib/schemas/google-sheets-schema';

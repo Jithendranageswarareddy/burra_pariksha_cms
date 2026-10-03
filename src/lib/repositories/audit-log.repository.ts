@@ -88,32 +88,6 @@ export class UsersRepository extends BaseRepository<User> {
 
   private constructor() {
     super(SHEET_SCHEMAS[SHEET_TABS.USERS]);
-    if (!this.client.isConfigured(this.getTargetSpreadsheetId())) {
-      const now = new Date().toISOString();
-      const defaultUsers: User[] = [
-        {
-          id: 'USR-001',
-          name: 'Jithendra',
-          email: 'jithendrareddy629@gmail.com',
-          role: UserRole.ADMIN,
-          roles: [UserRole.ADMIN],
-          isActive: true,
-          createdAt: now,
-          updatedAt: now,
-        },
-        {
-          id: 'USR-002',
-          name: 'Surendra Reddy',
-          email: 'seelamsurendrareddy999@gmail.com',
-          role: UserRole.CONTENT_MANAGER,
-          roles: [UserRole.CONTENT_MANAGER, UserRole.VIDEO_EDITOR],
-          isActive: true,
-          createdAt: now,
-          updatedAt: now,
-        },
-      ];
-      this.seedFallbackData(defaultUsers);
-    }
   }
 
   public static getInstance(): UsersRepository {
@@ -155,11 +129,6 @@ export class UsersRepository extends BaseRepository<User> {
     return this.incrementSessionVersionPersistent(userId);
   }
 
-  public clearSessionCacheForTesting(): void {
-    this.userSessionVersions.clear();
-    this.userSessionStates.clear();
-  }
-
   public setUserSessionState(userId: string, state: Partial<UserSessionState>): void {
     const current = this.getUserSessionState(userId) || {
       sessionVersion: this.getUserSessionVersion(userId),
@@ -178,29 +147,7 @@ export class UsersRepository extends BaseRepository<User> {
   }
 
   public getUserSessionState(userId: string): UserSessionState | null {
-    const sheetStore = BaseRepository.fallbackStore.get(this.schema.sheetName);
-    const user = sheetStore?.get(userId);
-    const cachedState = this.userSessionStates.get(userId);
-
-    if (user) {
-      const version = user.sessionVersion ?? this.userSessionVersions.get(userId) ?? cachedState?.sessionVersion ?? 1;
-      const rolesList: string[] = [];
-      if (Array.isArray(user.roles)) {
-        rolesList.push(...user.roles.map((r) => String(r).trim()));
-      } else if (user.role) {
-        rolesList.push(String(user.role).trim());
-      }
-      const state: UserSessionState = {
-        sessionVersion: version,
-        isActive: user.isActive !== false,
-        role: String(user.role || rolesList[0] || ''),
-        roles: rolesList,
-      };
-      this.userSessionStates.set(userId, state);
-      return state;
-    }
-
-    return cachedState || null;
+    return this.userSessionStates.get(userId) || null;
   }
 
   public async getAuthoritativeUserSessionState(userId: string): Promise<UserSessionState | null> {
@@ -210,26 +157,6 @@ export class UsersRepository extends BaseRepository<User> {
       return this.userSessionStates.get(userId) || null;
     }
     return this.userSessionStates.get(userId) || null;
-  }
-
-  public override seedFallbackData(records: User[]): void {
-    super.seedFallbackData(records);
-    records.forEach((u) => {
-      const version = u.sessionVersion ?? 1;
-      this.userSessionVersions.set(u.id, version);
-      const rolesList: string[] = [];
-      if (Array.isArray(u.roles)) {
-        rolesList.push(...u.roles.map((r) => String(r).trim()));
-      } else if (u.role) {
-        rolesList.push(String(u.role).trim());
-      }
-      this.setUserSessionState(u.id, {
-        sessionVersion: version,
-        isActive: u.isActive !== false,
-        role: String(u.role || rolesList[0] || ''),
-        roles: rolesList,
-      });
-    });
   }
 
   public override async appendRecord(record: User): Promise<User> {

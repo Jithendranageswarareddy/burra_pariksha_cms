@@ -42,9 +42,6 @@ export class QuestionConfigRepository extends BaseRepository<QuestionConfigEntry
 
   public constructor() {
     super(SHEET_SCHEMAS[SHEET_TABS.QUESTION_CONFIG]);
-    if (!this.client.isConfigured(this.getTargetSpreadsheetId())) {
-      this.seedFallbackData(DEFAULT_QUESTION_CONFIG);
-    }
   }
 
   public static getInstance(): QuestionConfigRepository {

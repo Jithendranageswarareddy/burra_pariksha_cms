@@ -700,14 +700,14 @@ export const QuestionStudioPage: React.FC = () => {
         tags: ['AI-Generated', 'Aptitude'],
         sourceModel: res.metadata?.modelUsed || aiStatus.model,
         generationLatencyMs: res.metadata?.generationDurationMs || res.metadata?.latencyMs || Date.now() - startTime,
-        isFallback: Boolean(res.metadata?.fallbackUsed || res.metadata?.isMockFallback),
+        isFallback: Boolean(res.metadata?.fallbackUsed),
         mathematicalVerification: mathVerification,
       };
 
       setCandidate(newStudioCandidate);
       setHasCandidate(true);
       setGenerationDuration(res.metadata?.generationDurationMs || res.metadata?.latencyMs || Date.now() - startTime);
-      setIsFallbackMode(Boolean(res.metadata?.fallbackUsed || res.metadata?.isMockFallback));
+      setIsFallbackMode(Boolean(res.metadata?.fallbackUsed));
 
       const clientValidation = CandidateValidator.validate({
         ...generated,

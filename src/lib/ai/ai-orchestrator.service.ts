@@ -364,7 +364,7 @@ export class AIOrchestrationService {
     metadata: {
       modelUsed: string;
       generationDurationMs: number;
-      isMockFallback: boolean;
+      fallbackUsed: boolean;
     };
     validation: any;
   }> {

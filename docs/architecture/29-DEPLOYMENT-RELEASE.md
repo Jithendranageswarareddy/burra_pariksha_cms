@@ -103,7 +103,7 @@ Every release must satisfy all 13 checklist items before receiving production re
 | :-: | :--- | :--- | :--- | :--- |
 | **01** | `GITHUB_COMMIT` | Version Control | Working tree 100% clean; deterministic commit SHA recorded; release tag generated (`vX.Y.Z`). | Block Deploy |
 | **02** | `TESTS` | Quality Assurance | 100% pass on static compilation (`tsc`), unit tests, integration tests, 9-scenario matrix, and all historical regression suites (Stages 02–28). | Block Deploy |
-| **03** | `ENVIRONMENT` | Configuration | Google Secret Manager secrets injected; `.env` keys validated against schema; zero plaintext secrets in repo; `CMS_TEST_ISOLATION=production`. | Block Deploy |
+| **03** | `ENVIRONMENT` | Configuration | Google Secret Manager secrets injected; `.env` keys validated against schema; zero plaintext secrets in repo; production configuration active. | Block Deploy |
 | **04** | `DATABASE` | Data Layer | Firestore Native security rules deployed; composite indexes active; optimistic concurrency control (OCC) preconditions verified. | Block Deploy |
 | **05** | `API` | Integration | REST routes adhere to `ApiResponseEnvelope`; rate limits active (100 req/min); OpenAPI spec matching; CORS & Helmet security headers active. | Block Deploy |
 | **06** | `FRONTEND` | Presentation | Vite client production build succeeds (`npm run build`); JS/CSS assets minified and cache-busted; SPA fallback routing verified (`dist/index.html`). | Block Deploy |

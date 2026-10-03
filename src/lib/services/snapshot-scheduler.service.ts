@@ -63,8 +63,6 @@ export class SnapshotSchedulerService {
   private lastCleanupTimestamp: string | null = null;
   private lastCleanupReport: RetentionEvaluationReport | null = null;
 
-  private testConfigOverride: SnapshotArchiveConfig | null = null;
-
   private constructor() {}
 
   public static getInstance(): SnapshotSchedulerService {
@@ -75,35 +73,10 @@ export class SnapshotSchedulerService {
   }
 
   /**
-   * Retrieves active snapshot configuration (supporting test overrides).
+   * Retrieves active snapshot configuration.
    */
   public getConfig(): SnapshotArchiveConfig {
-    if (this.testConfigOverride) {
-      return this.testConfigOverride;
-    }
     return getSnapshotArchiveConfig();
-  }
-
-  /**
-   * Inject test context for automated verification tests.
-   */
-  public injectTestContext(config: SnapshotArchiveConfig) {
-    this.testConfigOverride = config;
-  }
-
-  /**
-   * Reset test overrides to environment defaults.
-   */
-  public resetContext() {
-    this.testConfigOverride = null;
-    this.stopScheduler();
-    this.currentlyRunning = false;
-    this.lastBackupStatus = 'IDLE';
-    this.lastBackupTimestamp = null;
-    this.lastBackupFailureTimestamp = null;
-    this.lastErrorMessage = null;
-    this.lastCleanupTimestamp = null;
-    this.lastCleanupReport = null;
   }
 
   /**

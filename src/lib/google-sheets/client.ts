@@ -14,7 +14,6 @@ import {
   RateLimitError,
   RequestTimeoutError,
   SpreadsheetNotFoundError,
-  TestIsolationWriteBlockedError,
   TransientGoogleSheetsError,
   WorksheetNotFoundError,
 } from './errors';
@@ -361,31 +360,16 @@ export class GoogleSheetsClient {
   private lastFailureTimestamp: string | null = null;
 
   private constructor() {
-    const isTest = process.env.NODE_ENV === 'test' || process.env.CMS_TEST_ISOLATION === 'true';
-    const enforceInTest = process.env.TEST_ENFORCE_RATE_LIMIT === 'true';
-    if (isTest && !enforceInTest) {
-      // In automated test runs without explicit rate-limit testing, use fast unthrottled parameters
-      this.rateLimiter = new RequestPressureLimiter({
-        bucketCapacity: 100,
-        refillRatePerSecond: 100,
-        maxConcurrentRequests: 50,
-        minIntervalMs: 0,
-        rateLimitBackoffBaseMs: 50,
-        rateLimitBackoffMaxMs: 500,
-        enabled: true,
-      });
-    } else {
-      // Production defaults
-      this.rateLimiter = new RequestPressureLimiter({
-        bucketCapacity: 10,
-        refillRatePerSecond: 2,
-        maxConcurrentRequests: 4,
-        minIntervalMs: 50,
-        rateLimitBackoffBaseMs: 1500,
-        rateLimitBackoffMaxMs: 15000,
-        enabled: true,
-      });
-    }
+    // Production defaults
+    this.rateLimiter = new RequestPressureLimiter({
+      bucketCapacity: 10,
+      refillRatePerSecond: 2,
+      maxConcurrentRequests: 4,
+      minIntervalMs: 50,
+      rateLimitBackoffBaseMs: 1500,
+      rateLimitBackoffMaxMs: 15000,
+      enabled: true,
+    });
   }
 
   public static getInstance(): GoogleSheetsClient {
@@ -533,88 +517,11 @@ export class GoogleSheetsClient {
     if (overrideSpreadsheetId) {
       return overrideSpreadsheetId;
     }
-    if (this.isTestMode()) {
-      return process.env.TEST_GOOGLE_SHEETS_ID || '';
-    }
     return process.env.GOOGLE_SHEETS_ID || this.spreadsheetId;
   }
 
-  /**
-   * Evaluates if the current execution context is recognized as a TEST environment.
-   * Conservative detection: accepts NODE_ENV === 'test' or CMS_TEST_ISOLATION === 'true'.
-   * Never infers test mode from NODE_ENV === 'development' or directory structure.
-   */
-  public isTestMode(): boolean {
-    return process.env.NODE_ENV === 'test' || process.env.CMS_TEST_ISOLATION === 'true';
-  }
-
-  /**
-   * Resolves the target spreadsheet ID taking test mode routing into account.
-   * In TEST MODE:
-   * - If an explicit overrideSpreadsheetId is provided, uses it.
-   * - Otherwise, routes to TEST_GOOGLE_SHEETS_ID (or empty string if unconfigured).
-   * In PRODUCTION/DEV MODE:
-   * - Uses overrideSpreadsheetId, or falls back to GOOGLE_SHEETS_ID.
-   */
   public resolveTargetSpreadsheetId(overrideSpreadsheetId?: string): string {
     return this.getSpreadsheetId(overrideSpreadsheetId);
-  }
-
-  /**
-   * Central fail-closed safety gate protecting external Google Sheets from unauthorized mutations in test environments.
-   * All mutating methods (appendRow, updateRow, deleteRow, createWorksheetIfNotExists, clearDataRows, updateRangeValues)
-   * must call assertWriteAllowed(targetSpreadsheetId, operationName) before making external API requests.
-   */
-  public assertWriteAllowed(targetSpreadsheetId: string, operationName: string): void {
-    if (!this.isTestMode()) {
-      // Normal production / local development writes are completely unrestricted.
-      return;
-    }
-
-    const testGoogleSheetsId = process.env.TEST_GOOGLE_SHEETS_ID;
-    const testAnalyticsId = process.env.TEST_ANALYTICS_SPREADSHEET_ID;
-
-    // 1. If target is explicitly configured test spreadsheet, allow write
-    if (testGoogleSheetsId && targetSpreadsheetId === testGoogleSheetsId) {
-      return;
-    }
-    if (testAnalyticsId && targetSpreadsheetId === testAnalyticsId) {
-      return;
-    }
-
-    // 2. Check for explicit live test override
-    const allowLiveTestWrites = process.env.ALLOW_LIVE_TEST_WRITES === 'true';
-    if (allowLiveTestWrites) {
-      return;
-    }
-
-    // 3. Identify live target category for descriptive diagnostic error
-    const liveGoogleSheetsId = process.env.GOOGLE_SHEETS_ID;
-    const liveSpreadsheetId = process.env.SPREADSHEET_ID;
-    const liveAnalyticsId = process.env.ANALYTICS_SPREADSHEET_ID;
-
-    let targetType = 'unconfigured or unknown spreadsheet target';
-    if ((liveGoogleSheetsId && targetSpreadsheetId === liveGoogleSheetsId) || (liveSpreadsheetId && targetSpreadsheetId === liveSpreadsheetId)) {
-      targetType = 'LIVE production CMS workbook (GOOGLE_SHEETS_ID / SPREADSHEET_ID)';
-    } else if (liveAnalyticsId && targetSpreadsheetId === liveAnalyticsId) {
-      targetType = 'LIVE analytics workbook (ANALYTICS_SPREADSHEET_ID)';
-    } else if (!targetSpreadsheetId) {
-      targetType = 'unconfigured spreadsheet (empty target)';
-    }
-
-    throw new TestIsolationWriteBlockedError(
-      `Test isolation blocked a Google Sheets write (${operationName}) to ${targetType}. ` +
-      `Test mode is active (NODE_ENV='${process.env.NODE_ENV}', CMS_TEST_ISOLATION='${process.env.CMS_TEST_ISOLATION}'). ` +
-      `Configure TEST_GOOGLE_SHEETS_ID / TEST_ANALYTICS_SPREADSHEET_ID for isolated integration testing, ` +
-      `or explicitly set ALLOW_LIVE_TEST_WRITES=true for an intentional live test.`,
-      {
-        operationName,
-        targetSpreadsheetId: targetSpreadsheetId ? '[REDACTED_TARGET_ID]' : '[EMPTY]',
-        targetType,
-        isTestMode: true,
-        allowLiveTestWrites: false,
-      }
-    );
   }
 
   /**
@@ -844,7 +751,6 @@ export class GoogleSheetsClient {
    */
   public async appendRow(sheetName: string, rowValues: (string | number | boolean)[], overrideSpreadsheetId?: string): Promise<void> {
     const spreadsheetId = this.getSpreadsheetId(overrideSpreadsheetId);
-    this.assertWriteAllowed(spreadsheetId, `appendRow('${sheetName}')`);
     this.invalidateRowCache(`${spreadsheetId}:${sheetName}`);
     const protectedValues = this.protectFractionalValues(rowValues);
     return this.executeWithRetry(async () => {
@@ -878,7 +784,6 @@ export class GoogleSheetsClient {
     overrideSpreadsheetId?: string
   ): Promise<void> {
     const spreadsheetId = this.getSpreadsheetId(overrideSpreadsheetId);
-    this.assertWriteAllowed(spreadsheetId, `updateRow('${sheetName}', row ${sheetRowIndex})`);
     this.invalidateRowCache(`${spreadsheetId}:${sheetName}`);
     const protectedValues = this.protectFractionalValues(rowValues);
     return this.executeWithRetry(async () => {
@@ -915,7 +820,6 @@ export class GoogleSheetsClient {
     safetyToken?: VerifiedDeletionToken
   ): Promise<void> {
     const spreadsheetId = this.getSpreadsheetId(overrideSpreadsheetId);
-    this.assertWriteAllowed(spreadsheetId, `deleteRow('${sheetName}', row ${sheetRowIndex})`);
 
     if (!safetyToken || !deletionSafetyService.consumeToken(safetyToken, sheetName, sheetRowIndex)) {
       throw new DirectDeleteBypassError(
@@ -969,7 +873,6 @@ export class GoogleSheetsClient {
    */
   public async createWorksheetIfNotExists(sheetName: string, headers: string[], overrideSpreadsheetId?: string): Promise<boolean> {
     const spreadsheetId = this.getSpreadsheetId(overrideSpreadsheetId);
-    this.assertWriteAllowed(spreadsheetId, `createWorksheetIfNotExists('${sheetName}')`);
     return this.executeWithRetry(async () => {
       const sheets = this.getSheetsApi();
       const metadata = await this.getSpreadsheetMetadata(overrideSpreadsheetId);
@@ -1014,7 +917,6 @@ export class GoogleSheetsClient {
    */
   public async clearDataRows(sheetName: string, overrideSpreadsheetId?: string): Promise<void> {
     const spreadsheetId = this.getSpreadsheetId(overrideSpreadsheetId);
-    this.assertWriteAllowed(spreadsheetId, `clearDataRows('${sheetName}')`);
     this.invalidateRowCache(`${spreadsheetId}:${sheetName}`);
     this.invalidateRowCache(sheetName);
     return this.executeWithRetry(async () => {
@@ -1038,7 +940,6 @@ export class GoogleSheetsClient {
    */
   public async updateRangeValues(sheetName: string, rangeA1: string, values: (string | number | boolean)[][], overrideSpreadsheetId?: string): Promise<void> {
     const spreadsheetId = this.getSpreadsheetId(overrideSpreadsheetId);
-    this.assertWriteAllowed(spreadsheetId, `updateRangeValues('${sheetName}', '${rangeA1}')`);
     this.invalidateRowCache(`${spreadsheetId}:${sheetName}`);
     this.invalidateRowCache(sheetName);
     return this.executeWithRetry(async () => {

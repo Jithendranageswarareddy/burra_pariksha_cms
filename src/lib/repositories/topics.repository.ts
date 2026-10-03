@@ -6,16 +6,12 @@
 import { BaseRepository } from './base.repository';
 import { SHEET_SCHEMAS, SHEET_TABS } from '../schemas/google-sheets-schema';
 import { Topic } from '../../types';
-import { PRODUCTION_TOPICS } from '../data/production-taxonomy';
 
 export class TopicsRepository extends BaseRepository<Topic> {
   private static instance: TopicsRepository | null = null;
 
   private constructor() {
     super(SHEET_SCHEMAS[SHEET_TABS.TOPICS]);
-    if (!this.client.isConfigured(this.getTargetSpreadsheetId())) {
-      this.seedFallbackData(PRODUCTION_TOPICS);
-    }
   }
 
   public static getInstance(): TopicsRepository {
@@ -23,14 +19,6 @@ export class TopicsRepository extends BaseRepository<Topic> {
       TopicsRepository.instance = new TopicsRepository();
     }
     return TopicsRepository.instance;
-  }
-
-  public override async findAll(): Promise<Topic[]> {
-    const sheetStore = BaseRepository.fallbackStore.get(this.schema.sheetName);
-    if (!this.client.isConfigured(this.getTargetSpreadsheetId()) && (!sheetStore || sheetStore.size === 0)) {
-      this.seedFallbackData(PRODUCTION_TOPICS);
-    }
-    return super.findAll();
   }
 
   public async findByCategoryId(categoryId: string): Promise<Topic[]> {

@@ -9,7 +9,7 @@
 import { SheetSchemaContract, SheetTabName } from '../schemas/google-sheets-schema';
 import { googleSheetsClient, GoogleSheetsClient } from '../google-sheets/client';
 import { colIndexToA1Letter, objectToRow, rowToObject, validateWorksheetHeaders } from '../google-sheets/helpers';
-import { MissingHeaderError, WorksheetNotFoundError } from '../google-sheets/errors';
+import { MissingHeaderError, WorksheetNotFoundError, GoogleAuthError } from '../google-sheets/errors';
 import {
   deletionSafetyService,
   DeletionReadBackError,
@@ -29,16 +29,9 @@ export abstract class BaseRepository<T extends Record<string, any>> {
   // Static registry tracking in-flight lock promises per (sheetName:recordId) to serialize concurrent mutations
   protected static recordLocks: Map<string, Promise<void>> = new Map();
 
-  // Local fallback storage for development when Google credentials are not provided
-  protected static fallbackStore: Map<string, Map<string, Record<string, any>>> = new Map();
-
   constructor(schema: SheetSchemaContract) {
     this.schema = schema;
     this.client = googleSheetsClient;
-
-    if (!BaseRepository.fallbackStore.has(this.schema.sheetName)) {
-      BaseRepository.fallbackStore.set(this.schema.sheetName, new Map());
-    }
   }
 
   public getSheetName(): SheetTabName {
@@ -58,13 +51,9 @@ export abstract class BaseRepository<T extends Record<string, any>> {
 
   /**
    * Hook for subclasses to specify a custom target spreadsheet ID (e.g. ANALYTICS_SPREADSHEET_ID).
-   * In TEST MODE, if no subclass override is provided, routes to TEST_GOOGLE_SHEETS_ID.
-   * Defaults to undefined in production/dev, which resolves to the main GOOGLE_SHEETS_ID.
+   * Defaults to undefined, resolving to the primary GOOGLE_SHEETS_ID.
    */
   protected getTargetSpreadsheetId(): string | undefined {
-    if (this.client.isTestMode()) {
-      return process.env.TEST_GOOGLE_SHEETS_ID || undefined;
-    }
     return undefined;
   }
 
@@ -166,8 +155,7 @@ export abstract class BaseRepository<T extends Record<string, any>> {
     const pkProp = this.getPrimaryKeyProperty();
 
     if (!this.client.isConfigured(this.getTargetSpreadsheetId())) {
-      const sheetStore = BaseRepository.fallbackStore.get(this.schema.sheetName)!;
-      return Array.from(sheetStore.values()) as T[];
+      return [];
     }
 
     try {
@@ -200,11 +188,7 @@ export abstract class BaseRepository<T extends Record<string, any>> {
           return [];
         }
       }
-      if (this.client.isConfigured(this.getTargetSpreadsheetId())) {
-        throw err;
-      }
-      const sheetStore = BaseRepository.fallbackStore.get(this.schema.sheetName)!;
-      return Array.from(sheetStore.values()) as T[];
+      throw err;
     }
   }
 
@@ -216,9 +200,7 @@ export abstract class BaseRepository<T extends Record<string, any>> {
     const pkProp = this.getPrimaryKeyProperty();
 
     if (!this.client.isConfigured(this.getTargetSpreadsheetId())) {
-      const sheetStore = BaseRepository.fallbackStore.get(this.schema.sheetName)!;
-      const item = sheetStore.get(id);
-      return item ? ({ ...item } as T) : null;
+      return null;
     }
 
     try {
@@ -228,11 +210,6 @@ export abstract class BaseRepository<T extends Record<string, any>> {
       for (const row of rows) {
         const record = rowToObject<T>(row, headers, this.schema);
         if (record && String(record[pkProp]) === String(id)) {
-          const sheetStore = BaseRepository.fallbackStore.get(this.schema.sheetName);
-          const cached = sheetStore ? sheetStore.get(id) : undefined;
-          if (cached) {
-            return { ...record, ...cached };
-          }
           return record;
         }
       }
@@ -245,12 +222,7 @@ export abstract class BaseRepository<T extends Record<string, any>> {
           return null;
         }
       }
-      if (this.client.isConfigured(this.getTargetSpreadsheetId())) {
-        throw err;
-      }
-      const sheetStore = BaseRepository.fallbackStore.get(this.schema.sheetName)!;
-      const item = sheetStore.get(id);
-      return item ? ({ ...item } as T) : null;
+      throw err;
     }
   }
 
@@ -258,17 +230,8 @@ export abstract class BaseRepository<T extends Record<string, any>> {
    * Appends a new record to the worksheet.
    */
   public async appendRecord(record: T): Promise<T> {
-    const pkProp = this.getPrimaryKeyProperty();
-    const pkValue = record[pkProp];
-
-    // Always mirror in fallbackStore
-    const sheetStore = BaseRepository.fallbackStore.get(this.schema.sheetName)!;
-    if (pkValue !== undefined && pkValue !== null) {
-      sheetStore.set(String(pkValue), { ...record });
-    }
-
     if (!this.client.isConfigured(this.getTargetSpreadsheetId())) {
-      return record;
+      throw new GoogleAuthError('Google Sheets integration is not configured or unavailable in this environment.');
     }
 
     try {
@@ -280,23 +243,13 @@ export abstract class BaseRepository<T extends Record<string, any>> {
       if (this.isWorksheetNotFoundError(err)) {
         const created = await this.ensureWorksheet();
         if (created) {
-          try {
-            const headers = await this.getValidatedHeaders();
-            const row = objectToRow(record, headers, this.schema);
-            await this.client.appendRow(this.schema.sheetName, row, this.getTargetSpreadsheetId());
-            return record;
-          } catch (retryErr: any) {
-            if (this.client.isConfigured(this.getTargetSpreadsheetId())) {
-              throw retryErr;
-            }
-            return record;
-          }
+          const headers = await this.getValidatedHeaders();
+          const row = objectToRow(record, headers, this.schema);
+          await this.client.appendRow(this.schema.sheetName, row, this.getTargetSpreadsheetId());
+          return record;
         }
       }
-      if (this.client.isConfigured(this.getTargetSpreadsheetId())) {
-        throw err;
-      }
-      return record;
+      throw err;
     }
   }
 
@@ -359,37 +312,11 @@ export abstract class BaseRepository<T extends Record<string, any>> {
     return this.withRecordLock(id, async () => {
       const pkProp = this.getPrimaryKeyProperty();
 
-      const sheetStore = BaseRepository.fallbackStore.get(this.schema.sheetName)!;
-      const localExisting = sheetStore.get(id);
-
       // Evaluate expectedVersion if specified in options or updates (NEG-05 Optimistic Concurrency Control)
       const expectedVer = options?.expectedVersion ?? (updates as any)?.expectedVersion;
-      if (expectedVer !== undefined && localExisting) {
-        const currentVer = (localExisting as any)?.version ?? (localExisting as any)?.currentVersion ?? (localExisting as any)?.versionNumber;
-        if (currentVer !== undefined && Number(currentVer) !== Number(expectedVer)) {
-          throw new Error(`[NEG-05] Concurrency conflict: record "${id}" has version ${currentVer}, expected ${expectedVer}`);
-        }
-      }
 
-      // If Google Sheets is NOT configured, operate strictly in local fallback store mode
       if (!this.client.isConfigured(this.getTargetSpreadsheetId())) {
-        if (!localExisting) return null;
-        const currentVer = (localExisting as any)?.version ?? (localExisting as any)?.currentVersion ?? (localExisting as any)?.versionNumber;
-        const nextVer = (updates as any)?.version !== undefined
-          ? (updates as any).version
-          : (typeof currentVer === 'number' ? currentVer + 1 : undefined);
-
-        const cleanUpdates = { ...updates };
-        delete (cleanUpdates as any).expectedVersion;
-
-        const updated = {
-          ...localExisting,
-          ...cleanUpdates,
-          ...(nextVer !== undefined ? { version: nextVer } : {}),
-          updatedAt: new Date().toISOString(),
-        };
-        sheetStore.set(id, updated);
-        return updated as unknown as T;
+        throw new GoogleAuthError('Google Sheets integration is not configured or unavailable in this environment.');
       }
 
       try {
@@ -428,13 +355,11 @@ export abstract class BaseRepository<T extends Record<string, any>> {
         delete (cleanUpdates as any).expectedVersion;
 
         const mergedRecord = {
-          ...(localExisting || {}),
           ...existingRecord,
           ...cleanUpdates,
           ...(nextVer !== undefined ? { version: nextVer } : {}),
           updatedAt: new Date().toISOString(),
         } as unknown as T;
-        sheetStore.set(id, mergedRecord);
 
         const newRow = objectToRow(mergedRecord, headers, this.schema);
         await this.client.updateRow(this.schema.sheetName, targetRowIndex, newRow, this.getTargetSpreadsheetId());
@@ -486,45 +411,7 @@ export abstract class BaseRepository<T extends Record<string, any>> {
       const pkProp = this.getPrimaryKeyProperty();
 
       if (!this.client.isConfigured(this.getTargetSpreadsheetId())) {
-        const sheetStore = BaseRepository.fallbackStore.get(this.schema.sheetName);
-        if (!sheetStore) return false;
-        const existing = sheetStore.get(id);
-        if (!existing) return false;
-
-        const previousCount = sheetStore.size;
-
-        // 1. BACKUP & 2. VERIFY BACKUP
-        const safetyToken = await deletionSafetyService.createAndVerifyBackup({
-          sheetName: this.schema.sheetName,
-          entityId: String(id),
-          physicalRowIndex: -1,
-          headers: this.schema.columns.map((c) => c.name),
-          rawRow: this.schema.columns.map((c) => (existing as any)[c.propertyKey] ?? ''),
-          record: existing,
-          actor: options?.actor,
-          reason: options?.reason,
-        });
-
-        // 3. DELETE (consuming single-use token)
-        const consumed = deletionSafetyService.consumeToken(safetyToken, this.schema.sheetName, -1);
-        if (!consumed) {
-          throw new DirectDeleteBypassError('Invalid or expired deletion safety token');
-        }
-        sheetStore.delete(id);
-
-        // 4. READ-BACK VERIFICATION
-        if (sheetStore.has(id)) {
-          throw new DeletionReadBackError(`Post-deletion read-back failed: record '${id}' still present in fallback store`);
-        }
-
-        // 5. INTEGRITY CHECK
-        if (sheetStore.size !== previousCount - 1) {
-          throw new DeletionIntegrityError(`Post-deletion count mismatch: expected ${previousCount - 1}, found ${sheetStore.size}`);
-        }
-
-        // 6. AUDIT RESULT
-        await this.logDeletionAudit(id, safetyToken, options?.actor, options?.reason);
-        return true;
+        throw new GoogleAuthError('Google Sheets integration is not configured or unavailable in this environment.');
       }
 
       const { headers, rows } = await this.client.getRows(this.schema.sheetName, this.getEndColLetter(), this.getTargetSpreadsheetId());
@@ -637,23 +524,5 @@ export abstract class BaseRepository<T extends Record<string, any>> {
     } catch (auditErr) {
       console.warn(`[BaseRepository] Deletion audit logging failed for ${entityId}:`, auditErr);
     }
-  }
-
-  /**
-   * Helper for tests or initial demo seed initialization in fallback store.
-   */
-  public seedFallbackData(records: T[]): void {
-    const pkProp = this.getPrimaryKeyProperty();
-    const sheetStore = BaseRepository.fallbackStore.get(this.schema.sheetName)!;
-    for (const r of records) {
-      if (r[pkProp]) {
-        sheetStore.set(String(r[pkProp]), { ...r });
-      }
-    }
-  }
-
-  public clearFallbackData(): void {
-    const sheetStore = BaseRepository.fallbackStore.get(this.schema.sheetName)!;
-    sheetStore.clear();
   }
 }
