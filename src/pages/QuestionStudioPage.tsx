@@ -300,7 +300,6 @@ export const QuestionStudioPage: React.FC = () => {
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [isRefining, setIsRefining] = useState<boolean>(false);
   const [generationDuration, setGenerationDuration] = useState<number | null>(null);
-  const [isFallbackMode, setIsFallbackMode] = useState<boolean>(false);
 
   // Validation States
   const [clientReport, setClientReport] = useState<CandidateValidationReport | null>(null);
@@ -707,7 +706,6 @@ export const QuestionStudioPage: React.FC = () => {
       setCandidate(newStudioCandidate);
       setHasCandidate(true);
       setGenerationDuration(res.metadata?.generationDurationMs || res.metadata?.latencyMs || Date.now() - startTime);
-      setIsFallbackMode(Boolean(res.metadata?.fallbackUsed));
 
       const clientValidation = CandidateValidator.validate({
         ...generated,

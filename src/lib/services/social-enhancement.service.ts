@@ -667,7 +667,7 @@ export class SocialEnhancementService {
   public static async adaptMultiPlatformMetadataAsync(
     question: Question,
     canonicalMetadata: SocialMetadataPayload,
-    options?: { forceAIFallback?: boolean; options?: any }
+    options?: { options?: any }
   ): Promise<{
     payload?: MultiPlatformAdaptationPayload;
     isEligible: boolean;
@@ -683,7 +683,7 @@ export class SocialEnhancementService {
     question: Question,
     enhancementPackage: SocialEnhancementPayload,
     platformAdaptations?: MultiPlatformAdaptationPayload,
-    options?: { forceAIFallback?: boolean; skipAI?: boolean; aiProviderOptions?: any }
+    options?: { skipAI?: boolean; aiProviderOptions?: any }
   ): Promise<SocialQualityAssessmentPayload> {
     return socialQualityService.assessContentQuality(question, enhancementPackage, platformAdaptations, options);
   }

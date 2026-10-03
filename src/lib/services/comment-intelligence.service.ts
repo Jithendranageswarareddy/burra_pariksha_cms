@@ -3,13 +3,13 @@
  * Phase 30: AI Social Comment Intelligence Engine
  * 
  * Conducts structured pedagogical and sentiment analysis over captured audience comments
- * using Gemini / Phase 24 AI Orchestrator with deterministic rule-based fallback.
+ * using Gemini / Phase 24 AI Orchestrator.
  * 
  * STRICT ARCHITECTURAL CONSTRAINTS:
  * 1. Analytics Isolation: Operates exclusively on ANALYTICS_SPREADSHEET_ID (COMMENT_INTELLIGENCE & SOCIAL_COMMENTS tabs).
  * 2. Zero Production Mutation: Operates read-only against Content Masters / Production sheets. Never mutates production CMS workbook.
  * 3. Evidence Traceability: Every insight and misconception links back to source comment IDs (BP-CMT-######) and verbatim quotes.
- * 4. Resilient Fallback: If AI fails or is unconfigured, transitions seamlessly to deterministic rule engine without throwing errors.
+ * 4. Resilient Error Handling: If AI fails or is unconfigured, reports explicit provider error state.
  * 5. Metadata-only Audit Logging: Logs operations without leaking raw audience text into audit tables.
  */
 
@@ -128,65 +128,25 @@ export class CommentIntelligenceService {
         // Non-blocking content context lookup
       }
 
-      // 6. Execute AI Intelligence Analysis (or Deterministic Rule Fallback)
-      let aiOutput: CommentIntelligenceAIOutput;
-      let isFallbackMode = false;
-      let modelUsed = 'gemini-2.5-flash';
-      let provenance: AIProvenance | undefined = undefined;
-
-      const canUseAI = parsedInput.forceFallback !== true && totalComments > 0;
-
-      if (canUseAI) {
-        try {
-          const aiResult = await this.invokeAICommentAnalysis({
-            contentId: parsedInput.contentId,
-            contentTitle,
-            topicName,
-            videoId: parsedInput.videoId,
-            platform: parsedInput.platform,
-            comments: activeComments,
-          });
-          aiOutput = aiResult.aiOutput;
-          provenance = aiResult.provenance;
-          modelUsed = provenance.model || 'gemini-2.5-flash';
-        } catch (aiErr: any) {
-          // AI call failed or timed out — transition to deterministic rule engine safely
-          isFallbackMode = true;
-          modelUsed = 'DETERMINISTIC_RULE_ENGINE';
-          aiOutput = this.generateDeterministicRuleInsights(activeComments, confidenceRating, parsedInput.contentId);
-          provenance = {
-            provider: 'DETERMINISTIC_FALLBACK',
-            model: 'DETERMINISTIC_RULE_ENGINE',
-            task: 'ANALYSIS',
-            generationSource: 'DETERMINISTIC_FALLBACK',
-            timestamp: new Date().toISOString(),
-            fallbackUsed: true,
-            attempts: [
-              {
-                providerId: 'DETERMINISTIC_FALLBACK',
-                modelId: 'DETERMINISTIC_RULE_ENGINE',
-                success: true,
-                latencyMs: 0,
-                errorMessage: aiErr?.message || 'AI comment analysis failed, fallback executed',
-                timestamp: new Date().toISOString(),
-              },
-            ],
-          };
-        }
-      } else {
-        isFallbackMode = true;
-        modelUsed = 'DETERMINISTIC_RULE_ENGINE';
-        aiOutput = this.generateDeterministicRuleInsights(activeComments, confidenceRating, parsedInput.contentId);
-        provenance = {
-          provider: 'DETERMINISTIC_FALLBACK',
-          model: 'DETERMINISTIC_RULE_ENGINE',
-          task: 'ANALYSIS',
-          generationSource: 'DETERMINISTIC_FALLBACK',
-          timestamp: new Date().toISOString(),
-          fallbackUsed: true,
-          attempts: [],
+      if (totalComments === 0) {
+        return {
+          success: false,
+          error: `No comments found to analyze for content ${parsedInput.contentId}.`,
         };
       }
+
+      // 6. Execute AI Intelligence Analysis
+      const aiResult = await this.invokeAICommentAnalysis({
+        contentId: parsedInput.contentId,
+        contentTitle,
+        topicName,
+        videoId: parsedInput.videoId,
+        platform: parsedInput.platform,
+        comments: activeComments,
+      });
+      const aiOutput: CommentIntelligenceAIOutput = aiResult.aiOutput;
+      const provenance = aiResult.provenance;
+      const modelUsed = provenance.model || 'gemini-2.5-flash';
 
       // 7. Allocate Centralized Sequential ID: BP-CMI-######
       const id = await idService.allocateCommentIntelligenceId();
@@ -214,7 +174,7 @@ export class CommentIntelligenceService {
         confidenceScore: aiOutput.confidenceScore ?? (confidenceRating === 'HIGH' ? 85 : confidenceRating === 'MEDIUM' ? 65 : 40),
         modelUsed,
         promptVersion: 'v1.0',
-        isFallbackMode,
+        isFallbackMode: false,
         provenance,
         evidenceTraceability: {
           commentIdsUsed: activeComments.map((c) => c.id),
@@ -253,7 +213,7 @@ export class CommentIntelligenceService {
             contentId: parsedInput.contentId,
             videoId: parsedInput.videoId,
             sourceCommentCount: totalComments,
-            isFallbackMode,
+            isFallbackMode: false,
             modelUsed,
           }
         );
@@ -331,157 +291,6 @@ export class CommentIntelligenceService {
     return {
       aiOutput: result,
       provenance: aiResponseResult.provenance,
-    };
-  }
-
-  /**
-   * Rule-based deterministic insight generator for fallback mode or small samples.
-   */
-  private generateDeterministicRuleInsights(
-    comments: SocialCommentRecord[],
-    confidence: 'HIGH' | 'MEDIUM' | 'LOW' | 'INSUFFICIENT_DATA',
-    contentId: string
-  ): CommentIntelligenceAIOutput {
-    if (comments.length === 0) {
-      return {
-        overallSentiment: {
-          positivePercentage: 0,
-          negativePercentage: 0,
-          neutralPercentage: 100,
-          overallVerdict: 'MIXED',
-          summary: 'No audience comments available for analysis.',
-        },
-        misconceptions: [],
-        viewerQuestions: [],
-        contentRequests: [],
-        factualCorrections: [],
-        recommendations: [
-          {
-            area: 'PINNED_COMMENT',
-            recommendation: 'Encourage audience engagement with an open-ended discussion question in the pinned comment.',
-            supportingEvidence: 'Zero comments currently captured for this content.',
-            suggestedAction: 'Pin a clarifying question to prompt audience responses.',
-            confidenceLevel: 'LOW',
-          },
-        ],
-        confidence: 'INSUFFICIENT_DATA',
-        confidenceScore: 0,
-      };
-    }
-
-    const posWords = ['good', 'great', 'super', 'nice', 'bagundi', 'correct', 'thanks', 'easy', 'helpful', 'awesome', 'best'];
-    const negWords = ['wrong', 'mistake', 'error', 'thappu', 'incorrect', 'bad', 'hard', 'waste', 'cheat', 'fake', 'confusing'];
-    const questionWords = ['why', 'how', 'what', 'enti', 'ela', 'eppudu', 'why?', 'how?'];
-    const requestWords = ['next', 'more', 'part 2', 'please', 'explain', 'cheyandi', 'video on'];
-
-    let posCount = 0;
-    let negCount = 0;
-    let neuCount = 0;
-
-    const sampleQuotes: string[] = [];
-    const questionQuotes: string[] = [];
-    const misconceptionQuotes: string[] = [];
-    const requestQuotes: string[] = [];
-    const correctionQuotes: string[] = [];
-
-    for (const c of comments) {
-      const lower = c.commentText.toLowerCase();
-      sampleQuotes.push(c.commentText.slice(0, 80));
-
-      const isPos = posWords.some((w) => lower.includes(w));
-      const isNeg = negWords.some((w) => lower.includes(w));
-      const isQuestion = lower.includes('?') || questionWords.some((w) => lower.includes(w));
-      const isRequest = requestWords.some((w) => lower.includes(w));
-      const isCorrection = lower.includes('error') || lower.includes('mistake') || lower.includes('thappu') || lower.includes('wrong');
-
-      if (isPos && !isNeg) posCount++;
-      else if (isNeg && !isPos) negCount++;
-      else neuCount++;
-
-      if (isQuestion && questionQuotes.length < 3) questionQuotes.push(c.commentText);
-      if (isCorrection && correctionQuotes.length < 3) correctionQuotes.push(c.commentText);
-      if (isRequest && requestQuotes.length < 3) requestQuotes.push(c.commentText);
-      if ((isNeg || isQuestion) && misconceptionQuotes.length < 3) misconceptionQuotes.push(c.commentText);
-    }
-
-    const total = comments.length;
-    const positivePercentage = Math.round((posCount / total) * 100);
-    const negativePercentage = Math.round((negCount / total) * 100);
-    const neutralPercentage = Math.max(0, 100 - positivePercentage - negativePercentage);
-
-    let overallVerdict: 'OVERWHELMINGLY_POSITIVE' | 'POSITIVE' | 'MIXED' | 'NEGATIVE' | 'CONFUSED' = 'MIXED';
-    if (positivePercentage >= 70) overallVerdict = 'OVERWHELMINGLY_POSITIVE';
-    else if (positivePercentage >= 50) overallVerdict = 'POSITIVE';
-    else if (negativePercentage >= 50) overallVerdict = 'NEGATIVE';
-    else if (questionQuotes.length > posCount) overallVerdict = 'CONFUSED';
-
-    const misconceptions = misconceptionQuotes.length > 0 ? [
-      {
-        misconception: 'Audience expressed confusion or questioned the solution logic.',
-        frequencyEstimate: 'MEDIUM' as const,
-        sampleCommentQuotes: misconceptionQuotes,
-        explanationNeeded: 'Provide explicit step-by-step reasoning in a pinned comment to address the question distractors.',
-      },
-    ] : [];
-
-    const viewerQuestions = questionQuotes.length > 0 ? [
-      {
-        question: 'Viewers asked clarifying questions regarding the correct answer or concept.',
-        frequencyEstimate: 'MEDIUM' as const,
-        sampleCommentQuotes: questionQuotes,
-        suggestedAnswer: 'Re-verify the question wording and pin the full derivation for viewer clarity.',
-      },
-    ] : [];
-
-    const contentRequests = requestQuotes.length > 0 ? [
-      {
-        requestedTopicOrFormat: 'Additional practice problems or deeper conceptual breakdown',
-        frequencyEstimate: 'MEDIUM' as const,
-        sampleCommentQuotes: requestQuotes,
-      },
-    ] : [];
-
-    const factualCorrections = correctionQuotes.length > 0 ? [
-      {
-        issueReported: 'Potential issue reported in answer calculation or explanation.',
-        severity: 'MODERATE' as const,
-        sampleCommentQuotes: correctionQuotes,
-        verificationNeeded: 'Subject matter expert review recommended to confirm question validity.',
-      },
-    ] : [];
-
-    const recommendations = [
-      {
-        area: 'EXPLANATION_CLARITY' as const,
-        recommendation: `Ensure step-by-step clarity for ${contentId} in follow-up content or pinned comments.`,
-        supportingEvidence: `Analyzed ${total} comments with ${positivePercentage}% positive sentiment.`,
-        suggestedAction: 'Pin a detailed solution comment to resolve viewer doubts.',
-        confidenceLevel: confidence === 'HIGH' ? 'HIGH' as const : 'MEDIUM' as const,
-      },
-      {
-        area: 'QUESTION_DESIGN' as const,
-        recommendation: 'Evaluate distractor options to prevent ambiguous interpretations.',
-        supportingEvidence: `Identified ${misconceptions.length} misconception clusters in audience comments.`,
-        suggestedAction: 'Review distractor wording during question validation.',
-        confidenceLevel: 'MEDIUM' as const,
-      },
-    ];
-
-    return {
-      overallSentiment: {
-        positivePercentage,
-        negativePercentage,
-        neutralPercentage,
-        overallVerdict,
-        summary: `Analyzed ${total} comments: ${positivePercentage}% positive, ${negativePercentage}% negative, ${neutralPercentage}% neutral/inquisitive.`,
-      },
-      misconceptions,
-      viewerQuestions,
-      contentRequests,
-      factualCorrections,
-      recommendations,
-      confidence,
-      confidenceScore: confidence === 'HIGH' ? 85 : confidence === 'MEDIUM' ? 65 : 40,
     };
   }
 }

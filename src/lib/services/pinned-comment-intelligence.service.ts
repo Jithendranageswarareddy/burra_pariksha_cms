@@ -105,8 +105,7 @@ export class PinnedCommentIntelligenceService {
    */
   public async generatePackageForContent(
     contentId: string,
-    actor: WorkflowActor,
-    options?: { forceFallback?: boolean }
+    actor: WorkflowActor
   ): Promise<PinnedCommentPackage> {
     this.verifyRole(
       actor,
@@ -140,40 +139,17 @@ export class PinnedCommentIntelligenceService {
     const video = videoId ? await videosRepository.findById(videoId) : null;
     const scriptVer = script ? ((script as any).version || script.currentVersion) : undefined;
 
-    // 4. Generate AI Package (Gemini or Fallback)
-    let aiOutput: {
-      pinnedComment: string;
-      answerDiscussionPrompt: string;
-      followUpQuestions: string[];
-      audienceParticipationPrompt: string;
-      isAiGenerated: boolean;
-      aiModelUsed: string;
-      notes?: string;
-    };
-
-    if (options?.forceFallback) {
-      aiOutput = aiOrchestrator.createFallbackPinnedCommentPackage(question, contentId, {
-        script: script || undefined,
-        video: video || undefined,
-        approvedScriptVersion: scriptVer,
-      });
-    } else {
-      aiOutput = await aiOrchestrator.generatePinnedCommentPackage(question, contentId, {
-        script: script || undefined,
-        video: video || undefined,
-        approvedScriptVersion: scriptVer,
-      });
-    }
+    // 4. Generate AI Package
+    const aiOutput = await aiOrchestrator.generatePinnedCommentPackage(question, contentId, {
+      script: script || undefined,
+      video: video || undefined,
+      approvedScriptVersion: scriptVer,
+    });
 
     // 5. Validate engagement quality and safety
     const safetyCheck = PinnedCommentSafetyValidator.validate(aiOutput, question);
     if (!safetyCheck.isValid) {
-      // If AI output violated safety, fallback to guaranteed clean template
-      aiOutput = aiOrchestrator.createFallbackPinnedCommentPackage(question, contentId, {
-        script: script || undefined,
-        video: video || undefined,
-        approvedScriptVersion: scriptVer,
-      });
+      throw new ValidationError(`Generated pinned comment package failed safety validation: ${safetyCheck.issues.join(', ')}`);
     }
 
     const now = new Date().toISOString();

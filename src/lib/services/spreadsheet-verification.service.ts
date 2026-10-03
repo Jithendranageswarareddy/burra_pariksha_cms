@@ -30,7 +30,7 @@ export interface TabVerificationResult {
 export interface SpreadsheetHealthReport {
   isConfigured: boolean;
   isConnected: boolean;
-  mode: 'LIVE_GOOGLE_SHEETS' | 'MOCK_DEVELOPMENT';
+  mode: 'LIVE_GOOGLE_SHEETS' | 'UNCONFIGURED';
   spreadsheetId: string;
   spreadsheetTitle: string;
   totalTabsExpected: number;
@@ -71,7 +71,7 @@ export class SpreadsheetVerificationService {
       return {
         isConfigured: false,
         isConnected: false,
-        mode: 'MOCK_DEVELOPMENT',
+        mode: 'UNCONFIGURED',
         spreadsheetId: spreadsheetId || '(Not set)',
         spreadsheetTitle: 'N/A (Unconfigured)',
         totalTabsExpected: ALL_SHEET_TABS.length,

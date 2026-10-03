@@ -657,7 +657,7 @@ export class SocialQualityGateService {
         : `Deterministic checks flagged issues: ${deterministicReport.issues.join(', ')}`,
       flaggedIssues: deterministicReport.issues,
       isAiGenerated: false,
-      modelUsed: 'DETERMINISTIC_FALLBACK',
+      modelUsed: 'RULE_ENGINE',
     };
   }
 

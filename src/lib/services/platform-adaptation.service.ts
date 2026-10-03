@@ -414,22 +414,18 @@ export class PlatformAdaptationService {
   }
 
   /**
-   * Async variant that supports triggering AI fallback when requested or forced.
+   * Async variant that generates multi-platform metadata adaptation via AI.
    * Executes AI generation via GeminiService in a SINGLE logical AI request.
    */
   public static async adaptMultiPlatformMetadataAsync(
     sourceQuestion: Question,
     canonicalMetadata: SocialMetadataPayload,
-    options?: { forceAIFallback?: boolean; options?: AIProviderOptions }
+    options?: { options?: AIProviderOptions }
   ): Promise<{
     payload?: MultiPlatformAdaptationPayload;
     isEligible: boolean;
     reason: string;
   }> {
-    if (!options?.forceAIFallback) {
-      return this.adaptMultiPlatformMetadata(sourceQuestion, canonicalMetadata);
-    }
-
     if (!sourceQuestion || !sourceQuestion.id) {
       return { isEligible: false, reason: 'Source question record is missing.' };
     }
@@ -603,7 +599,7 @@ export class PlatformAdaptationService {
     return {
       payload,
       isEligible: true,
-      reason: 'Multi-platform metadata adapted via AI fallback.',
+      reason: 'Multi-platform metadata adapted via AI.',
     };
   }
 
@@ -664,13 +660,11 @@ export class PlatformAdaptationService {
 
   /**
    * Generates advisory AI recommendations for an adaptation.
-   * If AI is unavailable or fails, returns deterministic fallback.
    */
   public async generateAiAdaptationRecommendation(
     contentId: string,
     rawPlatform: string,
-    actor: WorkflowActor,
-    options?: { forceFallback?: boolean }
+    actor: WorkflowActor
   ): Promise<AiAdaptationRecommendation> {
     this.verifyRole(
       actor,
@@ -687,13 +681,11 @@ export class PlatformAdaptationService {
     const baseTitle = metadata.shortTitle || question?.questionText || `Aptitude Challenge - ${contentId}`;
     const baseQuestionText = question?.questionText || '';
 
-    // If forceFallback or Phase24 Orchestrator unconfigured, build deterministic fallback
-    if (options?.forceFallback || !aiOrchestrator.isConfigured()) {
-      return this.buildDeterministicAdaptationRecommendation(platform, baseTitle, baseQuestionText, metadata);
+    if (!aiOrchestrator.isConfigured()) {
+      throw new Error('AI Orchestrator is not configured for platform adaptation recommendations.');
     }
 
-    try {
-      const prompt = `You are a social media adaptation expert for Telugu & English educational micro-learning content (Burra Pariksha).
+    const prompt = `You are a social media adaptation expert for Telugu & English educational micro-learning content (Burra Pariksha).
 Given the following canonical quiz question and script, generate platform-tailored adaptation recommendations for ${platform}.
 
 CANONICAL DATA:
@@ -735,7 +727,7 @@ Respond in pure JSON matching this exact structure:
       });
       const rawText = aiResponseResult.status === 'SUCCESS' ? aiResponseResult.text : null;
       if (!rawText) {
-        return this.buildDeterministicAdaptationRecommendation(platform, baseTitle, baseQuestionText, metadata);
+        throw new Error(aiResponseResult.error || 'AI platform adaptation recommendation returned empty response.');
       }
       const cleaned = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
       const aiResponse = JSON.parse(cleaned);
@@ -763,115 +755,6 @@ Respond in pure JSON matching this exact structure:
         generationSource: 'AI_GENERATED',
         modelUsed: 'gemini-2.5-flash',
       };
-    } catch (err) {
-      // Graceful fallback to deterministic recommendation
-      return this.buildDeterministicAdaptationRecommendation(platform, baseTitle, baseQuestionText, metadata);
-    }
-  }
-
-  /**
-   * Deterministic recommendation builder (0 AI dependency).
-   */
-  private buildDeterministicAdaptationRecommendation(
-    platform: PlatformType,
-    baseTitle: string,
-    questionText: string,
-    metadata: Record<string, any>
-  ): AiAdaptationRecommendation {
-    let titleVariations: string[] = [];
-    let captionVariations: string[] = [];
-    let description = '';
-    let hashtags: string[] = ['#BurraPariksha', '#Telugu', '#AptitudeChallenge'];
-    let ctaVariations: string[] = [];
-    let wording: PlatformSpecificWording = {};
-    let thumbnailNotes: PlatformThumbnailConsideration = {};
-
-    if (platform === PlatformType.YOUTUBE) {
-      titleVariations = [
-        `${baseTitle} | Quick Math Challenge #Shorts`,
-        `Can you solve this in 30s? ${baseTitle} #BurraPariksha`,
-      ];
-      captionVariations = [
-        `Solve this quiz question! Watch the complete step-by-step logic in this short. #BurraPariksha`,
-      ];
-      description = `🔥 Burra Pariksha Daily Challenge: ${baseTitle}\n\nQuestion: ${questionText}\n\n💡 Subscribe for daily Telugu educational brain teasers and competitive exam aptitude tricks!\n\n#BurraPariksha #Shorts #MathsTricks`;
-      hashtags = ['#BurraPariksha', '#Shorts', '#TeluguMaths', '#AptitudeTricks'];
-      ctaVariations = [
-        'Subscribe for daily brain challenges!',
-        'Drop your answer in the comments before the timer ends!',
-      ];
-      wording = {
-        shortsOrReelsNote: 'Optimized for YouTube Shorts vertical 9:16 feed',
-        toneStyle: 'High energy, fast-paced puzzle challenge',
-        audienceHookStyle: 'Timer challenge',
-      };
-      thumbnailNotes = {
-        aspectRatioRecommendation: '9:16',
-        safeZoneNotes: 'Avoid lower 20% overlay area on YouTube mobile app',
-        hookTextRecommendation: baseTitle.slice(0, 30),
-      };
-    } else if (platform === PlatformType.INSTAGRAM) {
-      titleVariations = [
-        `${baseTitle} ⚡ Brain Teaser`,
-        `Swipe up or comment your answer! 🧠`,
-      ];
-      captionVariations = [
-        `🧠 Can you crack this Telugu aptitude challenge?\n\n"${questionText}"\n\n👇 Comment A, B, C, or D!\nShare with your friend who loves puzzles!\n\n#BurraPariksha #InstagramReels #TeluguQuiz`,
-      ];
-      description = '';
-      hashtags = ['#BurraPariksha', '#ReelsInstagram', '#TeluguReels', '#DailyQuiz', '#StudyGramTelugu'];
-      ctaVariations = [
-        'Tag a friend who can solve this!',
-        'Drop your answer in the comments & save for later revision!',
-      ];
-      wording = {
-        shortsOrReelsNote: 'Optimized for Instagram Reels feed & Explore page',
-        toneStyle: 'Conversational, social, visual',
-        audienceHookStyle: 'Challenge your friends',
-      };
-      thumbnailNotes = {
-        aspectRatioRecommendation: '9:16 (Reel cover), 1:1 grid crop friendly',
-        safeZoneNotes: 'Keep text inside central 1:1 square for profile grid preview',
-        reelCoverNotes: 'Ensure hook is visible when displayed on 1:1 Instagram profile grid',
-      };
-    } else if (platform === PlatformType.FACEBOOK) {
-      titleVariations = [
-        `${baseTitle} - Test Your Knowledge`,
-        `Burra Pariksha Daily Quiz: ${baseTitle}`,
-      ];
-      captionVariations = [
-        `📘 Daily Brain Challenge for competitive exam aspirants:\n\n${questionText}\n\nWatch the full video to understand the solution trick! Like and share with fellow aspirants.`,
-      ];
-      description = `Burra Pariksha educational video series in Telugu. Topic: ${metadata.topicName || 'General Aptitude'}.`;
-      hashtags = ['#BurraPariksha', '#FacebookReels', '#TeluguEducation', '#CompetitiveExams'];
-      ctaVariations = [
-        'Follow our page for daily aptitude practice!',
-        'Share this video with your study group!',
-      ];
-      wording = {
-        shortsOrReelsNote: 'Optimized for Facebook Watch / Reels community feeds',
-        toneStyle: 'Educational, supportive community tone',
-        audienceHookStyle: 'Aspirant knowledge check',
-      };
-      thumbnailNotes = {
-        aspectRatioRecommendation: '9:16 or 1:1',
-        safeZoneNotes: 'Ensure text contrast on lighter Facebook UI backgrounds',
-      };
-    }
-
-    return {
-      platform,
-      titleVariations,
-      captionVariations,
-      description,
-      hashtags,
-      callToActionVariations: ctaVariations,
-      platformSpecificWording: wording,
-      thumbnailConsiderations: thumbnailNotes,
-      confidence: 1.0,
-      rationale: 'Deterministic high-fidelity adaptation template',
-      generationSource: 'DETERMINISTIC_FALLBACK',
-    };
   }
 
   /**

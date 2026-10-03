@@ -41,7 +41,7 @@ export class ContentStrategyService {
    * Leverages Phase 24 Central AI Orchestrator with an optional deterministic rule fallback.
    */
   public async generateStrategyRecommendation(
-    input: { sourceReportId?: string; sourceCommentIntelligenceId?: string; forceFallback?: boolean },
+    input: { sourceReportId?: string; sourceCommentIntelligenceId?: string },
     actorId: string = 'USER',
     actorName: string = 'User'
   ): Promise<{ success: boolean; recommendation?: ContentStrategyRecommendation; error?: string; auditLogged: boolean }> {
@@ -155,7 +155,7 @@ export class ContentStrategyService {
       }
 
       let generatedData: Partial<ContentStrategyRecommendation> | null = null;
-      const useAI = input.forceFallback !== true && (!isInsufficientData || Boolean(commentIntelReport));
+      const useAI = (!isInsufficientData || Boolean(commentIntelReport));
 
       if (useAI) {
         // Build prompt for Phase 24 AI Provider Orchestrator

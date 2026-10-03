@@ -1245,7 +1245,7 @@ export interface TabVerificationResult {
 export interface SpreadsheetHealthReport {
   isConfigured: boolean;
   isConnected: boolean;
-  mode: 'LIVE_GOOGLE_SHEETS' | 'MOCK_DEVELOPMENT';
+  mode: 'LIVE_GOOGLE_SHEETS' | 'UNCONFIGURED';
   spreadsheetId: string;
   spreadsheetTitle: string;
   totalTabsExpected: number;
@@ -1329,7 +1329,7 @@ export interface SystemHealthReport {
   };
   issues: IntegrityIssue[];
   isReadOnly: boolean;
-  mode: 'LIVE_GOOGLE_SHEETS' | 'MOCK_DEVELOPMENT';
+  mode: 'LIVE_GOOGLE_SHEETS' | 'UNCONFIGURED';
 }
 
 export interface QuestionFilterState {
@@ -2073,8 +2073,7 @@ export interface SocialQualityFinding {
 
 export type SocialQualityAssessmentMethod = 
   | 'DETERMINISTIC_ONLY' 
-  | 'AI_HYBRID' 
-  | 'DETERMINISTIC_FALLBACK';
+  | 'AI_HYBRID';
 
 export interface SocialQualityAssessmentPayload {
   id: string;
@@ -2391,7 +2390,6 @@ export interface GeneratePerformanceIntelligenceInput {
   endDate?: string;
   topicId?: string;
   subtopicId?: string;
-  forceFallback?: boolean;
 }
 
 
@@ -2570,7 +2568,7 @@ export enum PlatformAdaptationStatus {
   REJECTED = 'REJECTED',
 }
 
-export type AdaptationGenerationSource = 'MANUAL' | 'AI_GENERATED' | 'AI_ASSISTED' | 'DETERMINISTIC_FALLBACK';
+export type AdaptationGenerationSource = 'MANUAL' | 'AI_GENERATED' | 'AI_ASSISTED';
 
 export interface PlatformThumbnailConsideration {
   aspectRatioRecommendation?: string; // e.g. '9:16', '1:1', '16:9'
@@ -3278,7 +3276,6 @@ export interface GenerateCommentIntelligenceInput {
   platform?: string;
   analysisScope?: CommentIntelligenceScope | string;
   commentIds?: string[];
-  forceFallback?: boolean;
 }
 
 

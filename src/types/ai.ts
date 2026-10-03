@@ -44,7 +44,6 @@ export type AIGenerationSource =
   | 'HUGGING_FACE'
   | 'CEREBRAS'
   | 'EXPERIMENTAL_LABS'
-  | 'DETERMINISTIC_FALLBACK'
   | 'AI_UNAVAILABLE'
   | 'MANUAL';
 
@@ -113,7 +112,7 @@ export interface AIProvenance {
 }
 
 export interface AINormalizedResponse {
-  status: 'SUCCESS' | 'AI_UNAVAILABLE' | 'DETERMINISTIC_FALLBACK' | 'FAILED';
+  status: 'SUCCESS' | 'AI_UNAVAILABLE' | 'FAILED';
   text: string;
   data?: any;
   provenance: AIProvenance;

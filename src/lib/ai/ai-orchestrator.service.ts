@@ -206,40 +206,6 @@ export class AIOrchestrationService {
   }
 
   /**
-   * Helper to produce a deterministic fallback response clearly identified with DETERMINISTIC_FALLBACK provenance.
-   */
-  public createDeterministicFallbackResponse(
-    task: AITaskType,
-    text: string,
-    data?: any,
-    reason: string = 'Deterministic rule fallback executed'
-  ): AINormalizedResponse {
-    return {
-      status: 'DETERMINISTIC_FALLBACK',
-      text,
-      data,
-      provenance: {
-        provider: 'DETERMINISTIC_FALLBACK',
-        model: 'DETERMINISTIC_RULE_ENGINE',
-        task,
-        generationSource: 'DETERMINISTIC_FALLBACK',
-        timestamp: new Date().toISOString(),
-        fallbackUsed: true,
-        attempts: [
-          {
-            providerId: 'DETERMINISTIC_FALLBACK',
-            modelId: 'DETERMINISTIC_RULE_ENGINE',
-            success: true,
-            latencyMs: 0,
-            errorMessage: reason,
-            timestamp: new Date().toISOString(),
-          },
-        ],
-      },
-    };
-  }
-
-  /**
    * Generates a question candidate through the AI orchestrator.
    */
   public async generateQuestionCandidate(
@@ -361,28 +327,12 @@ export class AIOrchestrationService {
     return geminiService.generateThumbnailIntelligence(question, contentId, options);
   }
 
-  public createFallbackThumbnailIntelligence(
-    question: Question,
-    contentId: string,
-    options?: any
-  ): AiThumbnailConcept[] {
-    return geminiService.createFallbackThumbnailIntelligence(question, contentId, options);
-  }
-
   public async generatePinnedCommentPackage(
     question: Question,
     contentId: string,
     options?: any
   ): Promise<any> {
     return geminiService.generatePinnedCommentPackage(question, contentId, options);
-  }
-
-  public createFallbackPinnedCommentPackage(
-    question: Question,
-    contentId: string,
-    options?: any
-  ): any {
-    return geminiService.createFallbackPinnedCommentPackage(question, contentId, options);
   }
 
   public async generatePlatformAdaptation(
@@ -394,14 +344,6 @@ export class AIOrchestrationService {
     return geminiService.generatePlatformAdaptation(question, canonicalMetadata, language, options);
   }
 
-  public createFallbackPlatformAdaptation(
-    question: Question,
-    canonicalMetadata: any,
-    language: QuestionLanguage
-  ): any {
-    return geminiService.createFallbackPlatformAdaptation(question, canonicalMetadata, language);
-  }
-
   public async generateSocialQualityAssessment(
     question: Question,
     script?: any,
@@ -409,13 +351,6 @@ export class AIOrchestrationService {
     options?: any
   ): Promise<any> {
     return geminiService.assessSocialQuality(question, script, platformAdaptations, options);
-  }
-
-  public createFallbackSocialQualityAssessment(
-    question: Question,
-    enhancementPackage?: any
-  ): any {
-    return geminiService.createFallbackSocialQualityAssessment(question, enhancementPackage);
   }
 
   public async generateSocialHooksAndStrategy(

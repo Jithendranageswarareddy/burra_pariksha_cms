@@ -62,7 +62,6 @@ export class SocialQualityService {
     enhancementPackage: SocialEnhancementPayload,
     platformAdaptations?: MultiPlatformAdaptationPayload,
     options?: {
-      forceAIFallback?: boolean;
       skipAI?: boolean;
       aiProviderOptions?: AIProviderOptions;
     }
@@ -335,45 +334,50 @@ export class SocialQualityService {
       };
     }
 
-    // Step 2: Skip AI or Force Fallback if requested
+    // Step 2: Skip AI if requested
     if (options?.skipAI) {
-      const fallbackAI = aiOrchestrator.createFallbackSocialQualityAssessment(sourceQuestion, enhancementPackage);
-      return this.buildFinalPayload(
-        payloadId,
-        sourceQuestion.id,
-        fallbackAI,
-        deterministicFindings,
-        1.0,
-        'DETERMINISTIC_FALLBACK',
-        0,
+      const dimensionScores: Record<SocialQualityDimension, number> = {
+        [SocialQualityDimension.ANSWER_INTEGRITY]: 100,
+        [SocialQualityDimension.CLARITY]: 80,
+        [SocialQualityDimension.CURIOSITY]: 80,
+        [SocialQualityDimension.CHALLENGE_QUALITY]: 80,
+        [SocialQualityDimension.COMMENTABILITY]: 80,
+        [SocialQualityDimension.RETENTION_POTENTIAL]: 80,
+        [SocialQualityDimension.REAL_LIFE_RELEVANCE]: 80,
+        [SocialQualityDimension.SOCIAL_PRESENTATION]: 80,
+        [SocialQualityDimension.LANGUAGE_QUALITY]: 80,
+        [SocialQualityDimension.AUDIENCE_SUITABILITY]: 80,
+        [SocialQualityDimension.REPETITION_RISK]: 80,
+        [SocialQualityDimension.AUDIENCE_APPEAL]: 80,
+      };
+
+      return {
+        id: payloadId,
+        questionId: sourceQuestion.id,
+        overallScore: 80,
+        status: SocialQualityStatus.GOOD,
+        dimensionScores,
+        blockingFindings: [],
+        advisoryFindings: deterministicFindings.filter((f) => f.severity === SocialQualityFindingSeverity.ADVISORY),
+        recommendations: deterministicFindings.map((f) => f.suggestedFix || f.message),
+        confidence: 1.0,
+        assessmentMethod: 'DETERMINISTIC_ONLY',
+        aiCallsCount: 0,
         invarianceReport,
-        generatedAt
-      );
+        generatedAt,
+      };
     }
 
     // Step 3: AI Semantic Assessment (1 Logical Call)
-    let aiCallsCount = 0;
-    let method: SocialQualityAssessmentMethod = 'AI_HYBRID';
-    let aiOutput: any = null;
-
-    try {
-      const result = await aiOrchestrator.generateSocialQualityAssessment(
-        sourceQuestion,
-        enhancementPackage,
-        platformAdaptations,
-        options?.aiProviderOptions
-      );
-      aiOutput = result.rawOutput;
-      aiCallsCount = result.aiCallsCount;
-      if (result.info.fallbackUsed) {
-        method = 'DETERMINISTIC_FALLBACK';
-      }
-    } catch (err) {
-      console.warn('[SocialQualityService] AI assessment error, using fallback:', err);
-      aiOutput = aiOrchestrator.createFallbackSocialQualityAssessment(sourceQuestion, enhancementPackage);
-      method = 'DETERMINISTIC_FALLBACK';
-      aiCallsCount = 1;
-    }
+    const result = await aiOrchestrator.generateSocialQualityAssessment(
+      sourceQuestion,
+      enhancementPackage,
+      platformAdaptations,
+      options?.aiProviderOptions
+    );
+    const aiOutput: any = result.rawOutput;
+    const aiCallsCount = result.aiCallsCount;
+    const method: SocialQualityAssessmentMethod = 'AI_HYBRID';
 
     return this.buildFinalPayload(
       payloadId,

@@ -6072,7 +6072,7 @@ apiRouter.get('/adaptations/search', requireAuth, async (req: Request, res: Resp
 
 apiRouter.post('/adaptations/recommend', requireAuth, aiRateLimiter, async (req: Request, res: Response) => {
   try {
-    const { contentId, platform, forceFallback } = req.body;
+    const { contentId, platform } = req.body;
     const authReq = req as AuthenticatedRequest;
     const actor: WorkflowActor = {
       id: authReq.user?.id || 'USR-ANON',
@@ -6081,10 +6081,7 @@ apiRouter.post('/adaptations/recommend', requireAuth, aiRateLimiter, async (req:
     };
     const { platformAdaptationService } = await import('../lib/services/platform-adaptation.service');
     const rec = await platformAdaptationService.generateAiAdaptationRecommendation(
-      contentId,
-      platform,
-      actor,
-      { forceFallback: Boolean(forceFallback) }
+      contentId, platform, actor
     );
     res.json({ success: true, data: rec });
   } catch (err: any) {

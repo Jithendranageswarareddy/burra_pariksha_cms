@@ -22,7 +22,7 @@ export interface OperationalHealthReport {
   connectivityStatus: ConnectivityStatus;
   authStatus: AuthStatus;
   spreadsheetAccessibility: SpreadsheetAccessibility;
-  mode: 'LIVE_GOOGLE_SHEETS' | 'MOCK_DEVELOPMENT';
+  mode: 'LIVE_GOOGLE_SHEETS' | 'UNCONFIGURED';
   spreadsheetId: string;
   spreadsheetTitle: string | null;
   telemetry: OperationalTelemetry;
@@ -58,7 +58,7 @@ export class OperationalHealthService {
         connectivityStatus: 'CONFIGURATION_ERROR',
         authStatus: 'MISSING_CREDENTIALS',
         spreadsheetAccessibility: 'NOT_CONFIGURED',
-        mode: 'MOCK_DEVELOPMENT',
+        mode: 'UNCONFIGURED',
         spreadsheetId: '(Not Configured)',
         spreadsheetTitle: 'N/A (Unconfigured)',
         telemetry,

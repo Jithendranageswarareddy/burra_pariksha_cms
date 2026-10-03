@@ -1812,7 +1812,7 @@ export class DataIntegrityService {
       },
       issues,
       isReadOnly: true,
-      mode: googleSheetsClient.isConfigured() ? 'LIVE_GOOGLE_SHEETS' : 'MOCK_DEVELOPMENT',
+      mode: googleSheetsClient.isConfigured() ? 'LIVE_GOOGLE_SHEETS' : 'UNCONFIGURED',
     };
   }
 

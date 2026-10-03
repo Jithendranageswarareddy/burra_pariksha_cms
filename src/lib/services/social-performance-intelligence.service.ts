@@ -86,58 +86,18 @@ export class SocialPerformanceIntelligenceService {
       const insufficientDataFlag = totalSamples < 3;
       const insufficientDimensions = this.findInsufficientDimensions(dimensionBreakdown);
 
-      // 5. Attempt AI Performance Analysis (or Fallback Engine)
-      let aiOutput: PerformanceIntelligenceAIOutput;
-      let isFallbackMode = false;
-      let modelUsed = 'gemini-3.8-flash';
-      let provenance: AIProvenance | undefined = undefined;
-
-      const canUseAI = input.forceFallback !== true;
-
-      if (canUseAI && totalSamples > 0) {
-        try {
-          const aiResult = await this.invokeAIPerformanceAnalysis(deterministicSummary, dimensionBreakdown);
-          aiOutput = aiResult.aiOutput;
-          provenance = aiResult.provenance;
-          modelUsed = provenance.model || 'gemini-3.8-flash';
-        } catch (aiErr: any) {
-          // AI call failed or timed out — transition to deterministic rule engine safely
-          isFallbackMode = true;
-          modelUsed = 'DETERMINISTIC_RULE_ENGINE';
-          aiOutput = this.generateDeterministicRuleInsights(deterministicSummary, dimensionBreakdown, totalSamples, insufficientDataFlag);
-          provenance = {
-            provider: 'DETERMINISTIC_FALLBACK',
-            model: 'DETERMINISTIC_RULE_ENGINE',
-            task: 'ANALYSIS',
-            generationSource: 'DETERMINISTIC_FALLBACK',
-            timestamp: new Date().toISOString(),
-            fallbackUsed: true,
-            attempts: [
-              {
-                providerId: 'DETERMINISTIC_FALLBACK',
-                modelId: 'DETERMINISTIC_RULE_ENGINE',
-                success: true,
-                latencyMs: 0,
-                errorMessage: aiErr?.message || 'AI call failed, falling back safely',
-                timestamp: new Date().toISOString(),
-              }
-            ],
-          };
-        }
-      } else {
-        isFallbackMode = true;
-        modelUsed = 'DETERMINISTIC_RULE_ENGINE';
-        aiOutput = this.generateDeterministicRuleInsights(deterministicSummary, dimensionBreakdown, totalSamples, insufficientDataFlag);
-        provenance = {
-          provider: 'DETERMINISTIC_FALLBACK',
-          model: 'DETERMINISTIC_RULE_ENGINE',
-          task: 'ANALYSIS',
-          generationSource: 'DETERMINISTIC_FALLBACK',
-          timestamp: new Date().toISOString(),
-          fallbackUsed: true,
-          attempts: [],
+      if (totalSamples === 0) {
+        return {
+          success: false,
+          error: 'No analytics records found for the specified filters.',
         };
       }
+
+      // 5. Execute AI Performance Analysis
+      const aiResult = await this.invokeAIPerformanceAnalysis(deterministicSummary, dimensionBreakdown);
+      const aiOutput: PerformanceIntelligenceAIOutput = aiResult.aiOutput;
+      const provenance = aiResult.provenance;
+      const modelUsed = provenance.model || 'gemini-3.8-flash';
 
       // 6. Generate sequential ID: BP-SPI-######
       const id = await idService.allocateIntelligenceId();
@@ -154,7 +114,7 @@ export class SocialPerformanceIntelligenceService {
         deterministicSummary,
         dimensionBreakdown,
         aiInsights: aiOutput,
-        isFallbackMode,
+        isFallbackMode: false,
         modelUsed,
         provenance,
         evidenceTraceability: {
@@ -179,7 +139,7 @@ export class SocialPerformanceIntelligenceService {
           {
             reportId: id,
             recordCount: totalSamples,
-            isFallbackMode,
+            isFallbackMode: false,
             modelUsed,
           }
         );
@@ -507,115 +467,6 @@ export class SocialPerformanceIntelligenceService {
     return {
       aiOutput: result,
       provenance: aiResponseResult.provenance,
-    };
-  }
-
-  /**
-   * Fallback rule engine for deterministic performance intelligence when AI is disabled or fails.
-   */
-  private generateDeterministicRuleInsights(
-    summary: SocialAnalyticsSummary,
-    breakdown: SocialPerformanceIntelligenceRecord['dimensionBreakdown'],
-    totalSamples: number,
-    insufficientDataFlag: boolean
-  ): PerformanceIntelligenceAIOutput {
-    const dataConfidenceNotes: string[] = [];
-
-    if (totalSamples === 0) {
-      dataConfidenceNotes.push('No social analytics records available in dataset. Analysis is based on zero sample size.');
-    } else if (insufficientDataFlag) {
-      dataConfidenceNotes.push(`Dataset contains only ${totalSamples} snapshot(s). Statistical confidence is LOW (minimum 3 samples recommended).`);
-    } else {
-      dataConfidenceNotes.push(`Analyzed ${totalSamples} social analytics snapshots across configured dimensions.`);
-    }
-
-    // Collect top and bottom dimensions deterministically
-    const allAggregates: DimensionMetricAggregate[] = [
-      ...breakdown.byPlatform,
-      ...breakdown.byTopic,
-      ...breakdown.bySubtopic,
-      ...breakdown.byDifficulty,
-      ...breakdown.byChallengeType,
-      ...breakdown.byLanguage,
-      ...breakdown.byPresentationType,
-    ];
-
-    const sortedByViews = [...allAggregates].sort((a, b) => b.avgViews - a.avgViews);
-
-    const topPerformingDimensions = sortedByViews.slice(0, 3).map((agg) => ({
-      dimension: agg.dimension,
-      value: agg.value,
-      sampleSize: agg.sampleSize,
-      avgViews: agg.avgViews,
-      avgRetention: agg.avgRetentionRate,
-      avgCtr: agg.avgCtr,
-      reason: `Outperformed overall average with ${agg.avgViews} average views across ${agg.sampleSize} item(s).`,
-    }));
-
-    const underperformingDimensions = sortedByViews
-      .filter((a) => a.sampleSize >= 1)
-      .slice(-3)
-      .map((agg) => ({
-        dimension: agg.dimension,
-        value: agg.value,
-        sampleSize: agg.sampleSize,
-        avgViews: agg.avgViews,
-        avgRetention: agg.avgRetentionRate,
-        avgCtr: agg.avgCtr,
-        reason: `Underperformed overall average with ${agg.avgViews} average views across ${agg.sampleSize} item(s).`,
-      }));
-
-    const platformSpecificRecommendations = breakdown.byPlatform.map((p) => ({
-      platform: p.value,
-      sampleSize: p.sampleSize,
-      keyTakeaways: [
-        `Average views: ${p.avgViews}, Retention: ${p.avgRetentionRate}%, CTR: ${p.avgCtr}%.`,
-      ],
-      recommendedActions: [
-        p.avgRetentionRate < 50
-          ? 'Focus on tightening teleprompter pacing in the first 5 seconds to improve audience retention.'
-          : 'Maintain current hook structure and test higher difficulty challenge questions.',
-      ],
-    }));
-
-    const contentStrategyRecommendations = [
-      {
-        area: 'Sample Size & Data Coverage',
-        recommendation: totalSamples < 5
-          ? 'Increase posting frequency and record analytics for at least 5-10 videos before making major format changes.'
-          : 'Sustain data collection across under-represented subtopics to improve statistical confidence.',
-        supportingEvidence: `Current dataset size: ${totalSamples} total snapshot records.`,
-        sampleSize: totalSamples,
-        confidenceLevel: totalSamples >= 10 ? ('HIGH' as const) : totalSamples >= 5 ? ('MEDIUM' as const) : ('LOW' as const),
-      },
-      {
-        area: 'Presentation & Format Optimization',
-        recommendation: sortedByViews.length > 0
-          ? `Prioritize content production in top performing dimension "${sortedByViews[0].dimension}: ${sortedByViews[0].value}".`
-          : 'Experiment with short-form vertical presentation formats.',
-        supportingEvidence: sortedByViews.length > 0
-          ? `Highest average views (${sortedByViews[0].avgViews}) recorded for ${sortedByViews[0].value}.`
-          : 'Baseline default recommendation.',
-        sampleSize: sortedByViews.length > 0 ? sortedByViews[0].sampleSize : 0,
-        confidenceLevel: sortedByViews.length > 0 && sortedByViews[0].sampleSize >= 3 ? ('HIGH' as const) : ('LOW' as const),
-      },
-    ];
-
-    const postingTimeRecommendations = this.generateDeterministicPostingTimeRecommendations(
-      breakdown.postingTimeAnalysis,
-      totalSamples
-    );
-
-    return {
-      overallVerdict: totalSamples > 0
-        ? `Deterministic Analysis complete for ${totalSamples} snapshot(s). Cumulative views: ${summary.totalViews}, Avg Retention: ${summary.averageRetentionRate}%, Avg CTR: ${summary.averageCtr}%.`
-        : 'No analytics records available. Please import or record social analytics data to generate insights.',
-      topPerformingDimensions,
-      underperformingDimensions,
-      platformSpecificRecommendations,
-      contentStrategyRecommendations,
-      postingTimeRecommendations,
-      dataConfidenceNotes,
     };
   }
 

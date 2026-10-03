@@ -1577,7 +1577,6 @@ export const GenerateCommentIntelligenceInputSchema = z.object({
   platform: z.enum(['youtube', 'instagram', 'facebook', 'ALL']).optional(),
   analysisScope: z.union([CommentIntelligenceScopeSchema, z.string()]).optional().default('CONTENT_MASTER'),
   commentIds: z.array(z.string().regex(/^BP-CMT-\d{6}$/, 'Invalid comment ID format (must be BP-CMT-######)')).optional(),
-  forceFallback: z.boolean().optional().default(false),
 });
 
 export type GenerateCommentIntelligenceInput = z.infer<typeof GenerateCommentIntelligenceInputSchema>;

@@ -1499,7 +1499,7 @@ class ApiClient {
   }
 
   public async generateIntelligenceReport(
-    input?: { contentId?: string; platform?: string; startDate?: string; endDate?: string; topicId?: string; subtopicId?: string; forceFallback?: boolean }
+    input?: { contentId?: string; platform?: string; startDate?: string; endDate?: string; topicId?: string; subtopicId?: string }
   ): Promise<{ success: boolean; record?: import('../types').SocialPerformanceIntelligenceRecord; error?: string }> {
     return this.request('/analytics/intelligence', {
       method: 'POST',
@@ -1515,7 +1515,7 @@ class ApiClient {
   }
 
   public async generateStrategyRecommendation(
-    input?: { sourceReportId?: string; forceFallback?: boolean }
+    input?: { sourceReportId?: string }
   ): Promise<{ success: boolean; recommendation?: import('../types').ContentStrategyRecommendation; error?: string }> {
     return this.request('/content-strategy/recommendations', {
       method: 'POST',
