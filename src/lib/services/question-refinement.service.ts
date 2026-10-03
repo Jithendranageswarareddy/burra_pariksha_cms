@@ -17,6 +17,7 @@ import { ValidationError } from '../google-sheets/errors';
 import { MathematicalValidator, MathVerificationResult } from '../ai/validators/mathematical.validator';
 import { geminiClient } from '../ai/gemini.client';
 import { aiOrchestrator } from '../ai/ai-orchestrator.service';
+import { AIProviderError } from '../ai/error';
 import {
   ContentMasterStatus,
   DifficultyLevel,
@@ -140,82 +141,53 @@ export class QuestionRefinementService {
     else if (intent === 'INCREASE_TRICK') action = 'IMPROVE_OPTIONS';
 
     let rawCandidate: any = null;
-    let fallbackUsed = false;
-    let fallbackReason: string | undefined = undefined;
 
-    // 6. Request refinement from AI or Fallback
-    if (geminiClient.isConfigured()) {
-      try {
-        const payload = {
-          action,
-          currentCandidate: {
-            content: originalText,
-            option_a: originalOptionA,
-            option_b: originalOptionB,
-            option_c: originalOptionC,
-            option_d: originalOptionD,
-            correct_answer: originalCorrectAnswer,
-            explanation: question.explanation || '',
-            difficulty: originalDifficulty as any,
-            language: originalLanguage as any,
-            real_world_context: originalRealLifeContext,
-            question_style: originalQuestionStyle as any,
-          },
-          promptModifier: `Refinement Intent: ${intent}. ${promptModifier || ''}`,
-          targetDifficulty: targetDifficulty as any,
-          targetLanguage: targetLanguage as any,
-        };
-
-        const response = await aiOrchestrator.refineQuestionCandidate(payload);
-        rawCandidate = {
-          content: response.candidate.content,
-          option_a: response.candidate.option_a,
-          option_b: response.candidate.option_b,
-          option_c: response.candidate.option_c,
-          option_d: response.candidate.option_d,
-          correct_answer: response.candidate.correct_answer,
-          explanation: response.candidate.explanation,
-          difficulty: response.candidate.difficulty,
-          language: response.candidate.language,
-          real_world_context: response.candidate.real_world_context || originalRealLifeContext,
-          question_style: response.candidate.question_style || originalQuestionStyle,
-        };
-      } catch (err: any) {
-        fallbackUsed = true;
-        fallbackReason = `AI error/timeout: ${err.message}. Invoked safe algorithmic fallback.`;
-        rawCandidate = this.applyFallbackAlgorithmicRefinement({
-          intent,
-          originalText,
-          originalOptionA,
-          originalOptionB,
-          originalOptionC,
-          originalOptionD,
-          originalCorrectAnswer,
-          originalExplanation: question.explanation || '',
-          originalRealLifeContext,
-          originalQuestionStyle: originalQuestionStyle || '',
-          targetDifficulty,
-          targetLanguage,
-        });
-      }
-    } else {
-      fallbackUsed = true;
-      fallbackReason = 'Gemini API not configured. Invoked safe algorithmic fallback.';
-      rawCandidate = this.applyFallbackAlgorithmicRefinement({
-        intent,
-        originalText,
-        originalOptionA,
-        originalOptionB,
-        originalOptionC,
-        originalOptionD,
-        originalCorrectAnswer,
-        originalExplanation: question.explanation || '',
-        originalRealLifeContext,
-        originalQuestionStyle: originalQuestionStyle || '',
-        targetDifficulty,
-        targetLanguage,
-      });
+    // 6. Request refinement from AI Orchestrator
+    if (!geminiClient.isConfigured()) {
+      throw new AIProviderError(
+        'Gemini API is not configured or missing API key',
+        'gemini',
+        geminiClient.getModelName(),
+        'AUTH_ERROR',
+        false,
+        401
+      );
     }
+
+    const payload = {
+      action,
+      currentCandidate: {
+        content: originalText,
+        option_a: originalOptionA,
+        option_b: originalOptionB,
+        option_c: originalOptionC,
+        option_d: originalOptionD,
+        correct_answer: originalCorrectAnswer,
+        explanation: question.explanation || '',
+        difficulty: originalDifficulty as any,
+        language: originalLanguage as any,
+        real_world_context: originalRealLifeContext,
+        question_style: originalQuestionStyle as any,
+      },
+      promptModifier: `Refinement Intent: ${intent}. ${promptModifier || ''}`,
+      targetDifficulty: targetDifficulty as any,
+      targetLanguage: targetLanguage as any,
+    };
+
+    const response = await aiOrchestrator.refineQuestionCandidate(payload);
+    rawCandidate = {
+      content: response.candidate.content,
+      option_a: response.candidate.option_a,
+      option_b: response.candidate.option_b,
+      option_c: response.candidate.option_c,
+      option_d: response.candidate.option_d,
+      correct_answer: response.candidate.correct_answer,
+      explanation: response.candidate.explanation,
+      difficulty: response.candidate.difficulty,
+      language: response.candidate.language,
+      real_world_context: response.candidate.real_world_context || originalRealLifeContext,
+      question_style: response.candidate.question_style || originalQuestionStyle,
+    };
 
     // -------------------------------------------------------------------------
     // Mandatory Validation Gates
@@ -370,8 +342,7 @@ export class QuestionRefinementService {
 
     return {
       candidate,
-      fallbackUsed,
-      fallbackReason,
+      fallbackUsed: false,
     };
   }
 
@@ -562,81 +533,6 @@ export class QuestionRefinementService {
     }
 
     return candNormalized.includes(origNormalized) || origNormalized.includes(candNormalized);
-  }
-
-  /**
-   * Safe, realistic, offline deterministic refinement fallback.
-   */
-  private applyFallbackAlgorithmicRefinement(params: {
-    intent: RefinementIntent;
-    originalText: string;
-    originalOptionA: string;
-    originalOptionB: string;
-    originalOptionC: string;
-    originalOptionD: string;
-    originalCorrectAnswer: 'A' | 'B' | 'C' | 'D';
-    originalExplanation: string;
-    originalRealLifeContext: string;
-    originalQuestionStyle: string;
-    targetDifficulty: string;
-    targetLanguage: string;
-  }): any {
-    const {
-      intent,
-      originalText,
-      originalOptionA,
-      originalOptionB,
-      originalOptionC,
-      originalOptionD,
-      originalCorrectAnswer,
-      originalExplanation,
-      targetDifficulty,
-      targetLanguage,
-    } = params;
-
-    let text = originalText;
-    let optionA = originalOptionA;
-    let optionB = originalOptionB;
-    let optionC = originalOptionC;
-    let optionD = originalOptionD;
-    let explanation = originalExplanation;
-
-    if (intent === 'CURIOSITY') {
-      text = `Did you know relative speed governs everyday traffic? ${originalText}`;
-    } else if (intent === 'INCREASE_TRICK') {
-      text = `${originalText} (Pay absolute attention to the sneaky time units!)`;
-    } else if (intent === 'MAKE_HARDER') {
-      text = `${originalText} (Solve with multiple dynamic relative speed constraints)`;
-    } else if (intent === 'SHORTS_SUITABLE') {
-      text = `⚡️ Quick Solver Challenge! ${originalText}`;
-    } else if (intent === 'REDUCE_CALCULATION') {
-      text = `Utilizing dynamic ratios: ${originalText}`;
-    } else if (intent === 'IMPROVE_DISTRACTORS') {
-      optionA = `${originalOptionA} (Mistake Variant)`;
-      optionB = `${originalOptionB} (Mistake Variant)`;
-      optionC = `${originalOptionC} (Mistake Variant)`;
-      optionD = `${originalOptionD} (Mistake Variant)`;
-      
-      // Preserve the correct option value unchanged
-      if (originalCorrectAnswer === 'A') optionA = originalOptionA;
-      if (originalCorrectAnswer === 'B') optionB = originalOptionB;
-      if (originalCorrectAnswer === 'C') optionC = originalOptionC;
-      if (originalCorrectAnswer === 'D') optionD = originalOptionD;
-    } else if (intent === 'TELUGU_WORDING') {
-      text = `[తెలుగు వివరణ] ${originalText}`;
-    }
-
-    return {
-      content: text,
-      option_a: optionA,
-      option_b: optionB,
-      option_c: optionC,
-      option_d: optionD,
-      correct_answer: originalCorrectAnswer,
-      explanation: `${explanation} (Refined algorithmically for ${intent})`,
-      difficulty: targetDifficulty,
-      language: targetLanguage,
-    };
   }
 }
 

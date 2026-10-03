@@ -978,7 +978,7 @@ export interface PinnedCommentPackage {
 
   // AI and provenance metadata
   isAiGenerated: boolean;
-  aiModelUsed?: string; // e.g. 'gemini-2.5-flash', 'deterministic-fallback', 'manual'
+  aiModelUsed?: string; // e.g. 'gemini-2.5-flash', 'gemini-2.5-pro', 'manual'
   notes?: string;
 
   createdAt: string;
@@ -3258,7 +3258,7 @@ export interface CommentIntelligenceRecord {
   recommendations: CommentRecommendationItem[];
   confidence: 'HIGH' | 'MEDIUM' | 'LOW' | 'INSUFFICIENT_DATA';
   confidenceScore?: number;
-  modelUsed: string; // e.g. 'gemini-2.5-flash', 'deterministic-fallback'
+  modelUsed: string; // e.g. 'gemini-2.5-flash', 'gemini-2.5-pro'
   promptVersion: string; // e.g. 'v1.0'
   isFallbackMode: boolean;
   provenance?: AIProvenance;

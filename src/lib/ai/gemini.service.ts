@@ -611,35 +611,49 @@ export class GeminiService implements AIProvider {
     let model = geminiClient.getModelName();
     const client = geminiClient.getClient();
 
+    if (!client || !geminiClient.isConfigured()) {
+      throw new AIProviderError(
+        'Gemini API is not configured or missing API key',
+        this.providerId,
+        geminiClient.getModelName(),
+        'AUTH_ERROR',
+        false,
+        401
+      );
+    }
+
     let rawScript: any = null;
-    let fallbackUsed = false;
 
-    if (client && geminiClient.isConfigured()) {
-      try {
-        const prompt = buildTeluguScriptPrompt(question);
-        const { text, modelUsed } = await this.callGeminiWithRetryAndFallback({
-          contents: prompt,
-          config: {
-            systemInstruction: BURRA_PARIKSHA_SCRIPT_SYSTEM_INSTRUCTION,
-            responseMimeType: 'application/json',
-            responseSchema: GenAiTeluguScriptResponseSchema as any,
-            temperature: 0.7,
-          },
-          timeoutMs: 30000,
-          timeoutMsg: 'Gemini script generation timed out',
-        });
+    try {
+      const prompt = buildTeluguScriptPrompt(question);
+      const { text, modelUsed } = await this.callGeminiWithRetryAndFallback({
+        contents: prompt,
+        config: {
+          systemInstruction: BURRA_PARIKSHA_SCRIPT_SYSTEM_INSTRUCTION,
+          responseMimeType: 'application/json',
+          responseSchema: GenAiTeluguScriptResponseSchema as any,
+          temperature: 0.7,
+        },
+        timeoutMs: 30000,
+        timeoutMsg: 'Gemini script generation timed out',
+      });
 
-        model = modelUsed;
-        rawScript = JSON.parse(text);
-      } catch (err: any) {
-        const sanitizedMsg = (err?.message || 'Upstream service error').replace(/AIza[0-9A-Za-z-_]{35}/g, '[REDACTED_KEY]');
-        console.warn('[GeminiService] Live script generation failed, falling back to pedagogical Telugu script engine:', sanitizedMsg);
-        rawScript = this.createFallbackTeluguScript(question);
-        fallbackUsed = true;
-      }
-    } else {
-      rawScript = this.createFallbackTeluguScript(question);
-      fallbackUsed = true;
+      model = modelUsed;
+      rawScript = JSON.parse(text);
+    } catch (err: any) {
+      const classified = classifyAIError(err);
+      const sanitizedMsg = classified.sanitizedMessage;
+
+      throw err instanceof AIProviderError
+        ? err
+        : new AIProviderError(
+            `Gemini script generation failed: ${sanitizedMsg}`,
+            this.providerId,
+            model,
+            classified.classification,
+            false,
+            classified.classification === 'QUOTA_EXHAUSTED' ? 429 : 500
+          );
     }
 
     const scriptPayload: ScriptContentPayload = {
@@ -657,48 +671,11 @@ export class GeminiService implements AIProvider {
     return {
       scriptPayload,
       metadata: {
-        modelUsed: fallbackUsed ? 'Pedagogical-Engine-Telugu-Fallback' : model,
+        modelUsed: model,
         generationDurationMs: durationMs,
-        fallbackUsed,
+        fallbackUsed: false,
       },
       validation,
-    };
-  }
-
-  /**
-   * Deterministic, pedagogical conversational Telugu fallback script creator.
-   * Guarantees natural spoken Telugu, 4 options formatted with Telugu identifiers (ఎ, బి, సి, డి), and interactive CTA.
-   */
-  private createFallbackTeluguScript(question: any): ScriptContentPayload {
-    const content = question.questionText || question.content || 'ఆప్టిట్యూడ్ లెక్క';
-    const optA = question.options?.a || question.option_a || 'ఆప్షన్ A';
-    const optB = question.options?.b || question.option_b || 'ఆప్షన్ B';
-    const optC = question.options?.c || question.option_c || 'ఆప్షన్ C';
-    const optD = question.options?.d || question.option_d || 'ఆప్షన్ D';
-    const correct = question.correctAnswer || question.correct_answer || 'B';
-    const explanation = question.explanation || 'సరైన గణిత సూత్రం ప్రకారం లెక్కించిన సాధన.';
-    const topic = question.topicName || question.taxonomy?.topicName || 'ఆప్టిట్యూడ్';
-    const realWorld = question.realWorldContext || question.real_world_context || '';
-
-    const hookText = realWorld
-      ? `🔥 ${realWorld} — ఈ ${topic} ప్రశ్నను 10 సెకన్లలో సాల్వ్ చేయగలరా? 90% మంది పొరపాటు పడతారు!`
-      : `⚡ ${topic} లో ఎక్కువ మంది తప్పు చేసే ప్రశ్న ఇది! 10 సెకన్లలో సరైన సమాధానం చెప్పండి చూద్దాం!`;
-
-    const problemStatement = `ప్రశ్నను శ్రద్ధగా చూడండి:\n${content}\n\nఆప్షన్లు:\nఎ) ${optA}\nబి) ${optB}\nసి) ${optC}\nడి) ${optD}`;
-
-    const stepByStepSolution = `సరైన సమాధానం: ఆప్షన్ (${correct})\n\nదశలవారీ సాధన:\n${explanation}`;
-
-    const speedTrickOrTakeaway = `💡 బుర్ర ట్రిక్ (Speed Trick): పూర్తి లెక్క అవసరం లేకుండా, యూనిట్ డిజిట్ లేదా ఆప్షన్ ఎలిమినేషన్ మెథడ్ తో కేవలం 5 సెకన్లలో సరైన ఆప్షన్ (${correct}) గుర్తించవచ్చు!`;
-
-    const callToAction = `మీరు ఏ ఆప్షన్ అనుకున్నారో ఇప్పుడే కామెంట్ చేయండి! మరిన్ని కాంపిటీటివ్ ఎగ్జామ్ షార్ట్‌కట్స్ కోసం @BurraPariksha ని ఫాలో అవ్వండి & ఈ రీల్ ని సేవ్ చేసుకోండి!`;
-
-    return {
-      hookText,
-      problemStatement,
-      stepByStepSolution,
-      speedTrickOrTakeaway,
-      callToAction,
-      notes: `Conversational Telugu teleprompter script generated for ${topic}.`,
     };
   }
 
@@ -748,45 +725,67 @@ export class GeminiService implements AIProvider {
     let model = geminiClient.getModelName();
     const client = geminiClient.getClient();
 
+    if (!client || !geminiClient.isConfigured()) {
+      throw new AIProviderError(
+        'Gemini API is not configured or missing API key',
+        this.providerId,
+        geminiClient.getModelName(),
+        'AUTH_ERROR',
+        false,
+        401
+      );
+    }
+
     let rawData: any = null;
-    let fallbackUsed = false;
 
     // Enforce max 5 requested styles in a single bounded AI call
     const boundedStyles = requestedStyles.slice(0, 5);
 
-    if (client && geminiClient.isConfigured()) {
-      try {
-        const prompt = buildSocialHookPrompt(question, boundedStyles, language);
-        const { text, modelUsed } = await this.callGeminiWithRetryAndFallback({
-          contents: prompt,
-          config: {
-            systemInstruction: BURRA_PARIKSHA_SOCIAL_HOOK_SYSTEM_INSTRUCTION,
-            responseMimeType: 'application/json',
-            responseSchema: GenAiSocialHookResponseSchema as any,
-            temperature: 0.7,
-          },
-          timeoutMs: 30000,
-          timeoutMsg: 'Gemini social hook generation timed out',
-        });
+    try {
+      const prompt = buildSocialHookPrompt(question, boundedStyles, language);
+      const { text, modelUsed } = await this.callGeminiWithRetryAndFallback({
+        contents: prompt,
+        config: {
+          systemInstruction: BURRA_PARIKSHA_SOCIAL_HOOK_SYSTEM_INSTRUCTION,
+          responseMimeType: 'application/json',
+          responseSchema: GenAiSocialHookResponseSchema as any,
+          temperature: 0.7,
+        },
+        timeoutMs: 30000,
+        timeoutMsg: 'Gemini social hook generation timed out',
+      });
 
-        model = modelUsed;
-        rawData = JSON.parse(text);
-      } catch (err: any) {
-        const sanitizedMsg = (err?.message || 'Upstream service error').replace(/AIza[0-9A-Za-z-_]{35}/g, '[REDACTED_KEY]');
-        console.warn('[GeminiService] Live social hook generation failed, falling back to pedagogical hook engine:', sanitizedMsg);
-        rawData = this.createFallbackSocialHooksAndStrategy(question, boundedStyles, language);
-        fallbackUsed = true;
-      }
-    } else {
-      rawData = this.createFallbackSocialHooksAndStrategy(question, boundedStyles, language);
-      fallbackUsed = true;
+      model = modelUsed;
+      rawData = JSON.parse(text);
+    } catch (err: any) {
+      const classified = classifyAIError(err);
+      const sanitizedMsg = classified.sanitizedMessage;
+
+      throw err instanceof AIProviderError
+        ? err
+        : new AIProviderError(
+            `Gemini social hook generation failed: ${sanitizedMsg}`,
+            this.providerId,
+            model,
+            classified.classification,
+            false,
+            classified.classification === 'QUOTA_EXHAUSTED' ? 429 : 500
+          );
     }
 
     // Validate payload against Zod schema
     const parsed = SocialHookAndStrategyZodSchema.safeParse(rawData);
-    const validData = parsed.success
-      ? parsed.data
-      : this.createFallbackSocialHooksAndStrategy(question, boundedStyles, language);
+    if (!parsed.success) {
+      throw new AIProviderError(
+        `Invalid social hook output schema: ${parsed.error.message}`,
+        this.providerId,
+        model,
+        'INVALID_REQUEST',
+        false,
+        502
+      );
+    }
+    const validData = parsed.data;
 
     const durationMs = Date.now() - startTime;
 
@@ -794,98 +793,12 @@ export class GeminiService implements AIProvider {
       hooks: validData.hooks,
       presentationStrategy: validData.presentationStrategy,
       metadata: {
-        modelUsed: fallbackUsed ? 'Pedagogical-Engine-Hook-Fallback' : model,
+        modelUsed: model,
         generationDurationMs: durationMs,
-        fallbackUsed,
+        fallbackUsed: false,
         aiCallsCount: 1, // Enforces strictly 1 AI call
       },
     };
-  }
-
-  /**
-   * Deterministic pedagogical fallback for social hooks and presentation strategy.
-   */
-  private createFallbackSocialHooksAndStrategy(
-    question: any,
-    requestedStyles: HookStyle[],
-    language: QuestionLanguage
-  ) {
-    const topic = question.topicName || question.taxonomy?.topicName || 'Quantitative Aptitude';
-    const realWorld = question.realWorldContext || question.real_world_context || '';
-    const presentationType = question.presentationType || 'Text';
-
-    const hooks = requestedStyles.map((style, idx) => {
-      let text = '';
-      let spokenTeluguText = '';
-      let onScreenOverlayText = '';
-
-      switch (style) {
-        case HookStyle.CURIOSITY:
-          text = language === QuestionLanguage.TELUGU
-            ? `🔥 చాలామంది పొరపాటు పడే ${topic} ప్రశ్న! సరైన సమాధానం చెప్పగలరా?`
-            : `🔥 Most students fail this ${topic} challenge! Can you solve it?`;
-          spokenTeluguText = `స్నేహితులారా, ${topic} లో అందరూ తప్పు చేసే ఈ సూపర్ ట్రిక్ ప్రశ్నను మీరు సాల్వ్ చేయగలరా చూద్దాం!`;
-          onScreenOverlayText = `🔥 TRICKY EXAM CHALLENGE!`;
-          break;
-
-        case HookStyle.BRAIN_CHALLENGE:
-          text = language === QuestionLanguage.TELUGU
-            ? `🧠 మీ మైండ్ కి పదును పెట్టే ${topic} ఛాలెంజ్! ఎంత వేగంగా సాల్వ్ చేస్తారో చూద్దాం!`
-            : `🧠 Brain Challenge: How fast can you solve this ${topic} problem?`;
-          spokenTeluguText = `మీ మెదడుకు పదును పెట్టే బుర్ర పరీక్ష ఛాలెంజ్! ఈ ${topic} సమస్యను ఎంత వేగంగా సాధిస్తారో కామెంట్ చేయండి!`;
-          onScreenOverlayText = `🧠 BRAIN CHALLENGE!`;
-          break;
-
-        case HookStyle.SPEED_CHALLENGE:
-          text = language === QuestionLanguage.TELUGU
-            ? `⚡ పెన్ను కాగితం లేకుండా సాల్వ్ చేసే బుర్ర ట్రిక్ తెలుసా?`
-            : `⚡ Solve without pen or paper using this Burra Trick!`;
-          spokenTeluguText = `పెన్ను కాగితం లేకుండా కేవలం మైండ్ తో సాల్వ్ చేసే బుర్ర ట్రిక్ ఇప్పుడు చూద్దాం!`;
-          onScreenOverlayText = `⚡ SPEED TRICK!`;
-          break;
-
-        case HookStyle.REAL_WORLD:
-          text = language === QuestionLanguage.TELUGU
-            ? `🚀 ${realWorld || 'రియల్ వరల్డ్ ప్రాబ్లమ్'} ని ఆప్టిట్యూడ్ తో ఎలా సాల్వ్ చేయవచ్చో తెలుసా?`
-            : `🚀 How ${realWorld || 'real world math'} translates into competitive exam speed!`;
-          spokenTeluguText = `${realWorld || 'నిత్య జీవితంలో వాడే ఈ సూత్రాన్ని'} ఎగ్జామ్స్ లో ఎంత సులభంగా వాడొచ్చో చూడండి!`;
-          onScreenOverlayText = `🚀 REAL WORLD MATH!`;
-          break;
-
-        case HookStyle.EXAM_CHALLENGE:
-        default:
-          text = language === QuestionLanguage.TELUGU
-            ? `📚 APPSC / TSPSC ఎగ్జామ్స్ లో పదే పదే అడిగే రిపీటెడ్ క్వశ్చన్ మోడల్ ఇది!`
-            : `📚 Top repeated exam question model for APPSC & TSPSC!`;
-          spokenTeluguText = `కాphase కాంపిటీటివ్ ఎగ్జామ్స్ లో పదే పదే వచ్చే మోడల్ క్వశ్చన్ ఇది! మిస్ కాకుండా చూడండి!`;
-          onScreenOverlayText = `📚 REPEATED EXAM MODEL!`;
-          break;
-      }
-
-      return {
-        id: `HOOK-${style}-${idx + 1}`,
-        style,
-        text,
-        spokenTeluguText,
-        onScreenOverlayText,
-        estimatedDurationSeconds: 5,
-        rationale: `Pedagogical ${style} hook designed for 30-60s vertical short video.`,
-      };
-    });
-
-    const presentationStrategy = {
-      visualOpening: `High-contrast vertical video layout featuring bold ${presentationType} question card with pulsing countdown timer.`,
-      onScreenTitleOverlay: `BURRA PARIKSHA — ${topic.toUpperCase()} SHORTCUT`,
-      questionRevealTimingMs: 1500,
-      optionRevealTimingMs: 7500,
-      answerRevealTimingMs: 18000,
-      explanationTimingMs: 22000,
-      visualEmphasisNotes: `Highlight correct option with neon green border accent; use yellow text for Burra Trick mental formula.`,
-      diagramOrChartSuggestion: presentationType !== 'Text' ? `Render ${presentationType} graphic prominently in upper half of vertical canvas.` : '',
-      pacingWpm: 140,
-    };
-
-    return { hooks, presentationStrategy };
   }
 
   /**
@@ -913,48 +826,70 @@ export class GeminiService implements AIProvider {
     let model = geminiClient.getModelName();
     const client = geminiClient.getClient();
 
+    if (!client || !geminiClient.isConfigured()) {
+      throw new AIProviderError(
+        'Gemini API is not configured or missing API key',
+        this.providerId,
+        geminiClient.getModelName(),
+        'AUTH_ERROR',
+        false,
+        401
+      );
+    }
+
     let rawData: any = null;
-    let fallbackUsed = false;
 
-    if (client && geminiClient.isConfigured()) {
-      try {
-        const prompt = buildTeleprompterScriptPrompt(
-          question,
-          selectedHookText,
-          selectedHookStyle,
-          language,
-          pacingWpm
-        );
-        const { text, modelUsed } = await this.callGeminiWithRetryAndFallback({
-          contents: prompt,
-          config: {
-            systemInstruction: BURRA_PARIKSHA_TELEPROMPTER_SCRIPT_SYSTEM_INSTRUCTION,
-            responseMimeType: 'application/json',
-            responseSchema: GenAiTeleprompterScriptResponseSchema as any,
-            temperature: 0.7,
-          },
-          timeoutMs: 30000,
-          timeoutMsg: 'Gemini teleprompter script generation timed out',
-        });
+    try {
+      const prompt = buildTeleprompterScriptPrompt(
+        question,
+        selectedHookText,
+        selectedHookStyle,
+        language,
+        pacingWpm
+      );
+      const { text, modelUsed } = await this.callGeminiWithRetryAndFallback({
+        contents: prompt,
+        config: {
+          systemInstruction: BURRA_PARIKSHA_TELEPROMPTER_SCRIPT_SYSTEM_INSTRUCTION,
+          responseMimeType: 'application/json',
+          responseSchema: GenAiTeleprompterScriptResponseSchema as any,
+          temperature: 0.7,
+        },
+        timeoutMs: 30000,
+        timeoutMsg: 'Gemini teleprompter script generation timed out',
+      });
 
-        model = modelUsed;
-        rawData = JSON.parse(text);
-      } catch (err: any) {
-        const sanitizedMsg = (err?.message || 'Upstream service error').replace(/AIza[0-9A-Za-z-_]{35}/g, '[REDACTED_KEY]');
-        console.warn('[GeminiService] Live teleprompter script generation failed, falling back to pedagogical engine:', sanitizedMsg);
-        rawData = this.createFallbackTeleprompterScript(question, selectedHookText, selectedHookStyle, language, pacingWpm);
-        fallbackUsed = true;
-      }
-    } else {
-      rawData = this.createFallbackTeleprompterScript(question, selectedHookText, selectedHookStyle, language, pacingWpm);
-      fallbackUsed = true;
+      model = modelUsed;
+      rawData = JSON.parse(text);
+    } catch (err: any) {
+      const classified = classifyAIError(err);
+      const sanitizedMsg = classified.sanitizedMessage;
+
+      throw err instanceof AIProviderError
+        ? err
+        : new AIProviderError(
+            `Gemini teleprompter script generation failed: ${sanitizedMsg}`,
+            this.providerId,
+            model,
+            classified.classification,
+            false,
+            classified.classification === 'QUOTA_EXHAUSTED' ? 429 : 500
+          );
     }
 
     // Validate payload against Zod schema
     const parsed = TeleprompterScriptZodSchema.safeParse(rawData);
-    const validData = parsed.success
-      ? parsed.data
-      : this.createFallbackTeleprompterScript(question, selectedHookText, selectedHookStyle, language, pacingWpm);
+    if (!parsed.success) {
+      throw new AIProviderError(
+        `Invalid teleprompter script output schema: ${parsed.error.message}`,
+        this.providerId,
+        model,
+        'INVALID_REQUEST',
+        false,
+        502
+      );
+    }
+    const validData = parsed.data;
 
     const durationMs = Date.now() - startTime;
 
@@ -963,147 +898,11 @@ export class GeminiService implements AIProvider {
       totalEstimatedDurationSeconds: validData.totalEstimatedDurationSeconds,
       segments: validData.segments as TeleprompterSegment[],
       metadata: {
-        modelUsed: fallbackUsed ? 'Pedagogical-Engine-Teleprompter-Fallback' : model,
+        modelUsed: model,
         generationDurationMs: durationMs,
-        fallbackUsed,
+        fallbackUsed: false,
         aiCallsCount: 1, // Enforces strictly 1 AI call
       },
-    };
-  }
-
-  /**
-   * Deterministic pedagogical fallback for spoken teleprompter script.
-   */
-  private createFallbackTeleprompterScript(
-    question: any,
-    selectedHookText: string,
-    selectedHookStyle: HookStyle,
-    language: QuestionLanguage,
-    pacingWpm: number
-  ) {
-    const content = question.questionText || question.content || 'ఆప్టిట్యూడ్ సమస్య';
-    const optA = question.options?.a || question.option_a || '';
-    const optB = question.options?.b || question.option_b || '';
-    const optC = question.options?.c || question.option_c || '';
-    const optD = question.options?.d || question.option_d || '';
-    const correct = (question.correctAnswer || question.correct_answer || 'A').toUpperCase();
-    const explanation = question.explanation || 'గణిత సూత్రం ప్రకారం సాధన.';
-
-    const hookText = selectedHookText || `🔥 10 సెకన్లలో ఈ ఆప్టిట్యూడ్ లెక్క సాల్వ్ చేయగలరా?`;
-
-    const segments: TeleprompterSegment[] = [
-      {
-        id: 'SEG-1-HOOK',
-        section: TeleprompterSegmentSection.HOOK,
-        spokenText: hookText,
-        teleprompterText: hookText,
-        estimatedDurationSeconds: 5,
-        pauseDurationSeconds: 0,
-        pauseAfterMs: 0,
-        emphasisWords: ['సాల్వ్'],
-        visualCardPrompt: 'Title card',
-        onScreenText: '🔥 BURRA PARIKSHA CHALLENGE',
-        onScreenOverlay: '🔥 BURRA PARIKSHA CHALLENGE',
-      },
-      {
-        id: 'SEG-2-TRANSITION',
-        section: TeleprompterSegmentSection.HOOK_TRANSITION,
-        spokenText: 'రండి, అసలు క్వశ్చన్ ఏంటో చూద్దాం!',
-        teleprompterText: 'రండి, అసలు క్వశ్చన్ ఏంటో చూద్దాం!',
-        estimatedDurationSeconds: 3,
-        pauseDurationSeconds: 0,
-        pauseAfterMs: 0,
-        emphasisWords: [],
-        visualCardPrompt: 'Transition banner',
-        onScreenText: 'రండి, క్వశ్చన్ చూద్దాం!',
-        onScreenOverlay: 'రండి, క్వశ్చన్ చూద్దాం!',
-      },
-      {
-        id: 'SEG-3-QUESTION',
-        section: TeleprompterSegmentSection.QUESTION,
-        spokenText: content,
-        teleprompterText: content,
-        estimatedDurationSeconds: 10,
-        pauseDurationSeconds: 0,
-        pauseAfterMs: 0,
-        emphasisWords: ['మొత్తం', 'వేగం'],
-        visualCardPrompt: 'Question card',
-        onScreenText: content,
-        onScreenOverlay: content,
-      },
-      {
-        id: 'SEG-4-OPTIONS',
-        section: TeleprompterSegmentSection.OPTIONS,
-        spokenText: `ఆప్షన్స్: A) ${optA}, B) ${optB}, C) ${optC}, D) ${optD}`,
-        teleprompterText: `A) ${optA}\nB) ${optB}\nC) ${optC}\nD) ${optD}`,
-        estimatedDurationSeconds: 8,
-        pauseDurationSeconds: 0,
-        pauseAfterMs: 0,
-        emphasisWords: ['A', 'B', 'C', 'D'],
-        visualCardPrompt: 'Options grid',
-        onScreenText: `A) ${optA}  B) ${optB}`,
-        onScreenOverlay: `A) ${optA}  B) ${optB}`,
-      },
-      {
-        id: 'SEG-5-PAUSE',
-        section: TeleprompterSegmentSection.PAUSE_CHALLENGE,
-        spokenText: 'వీడియో పాజ్ చేసి మీ ఆన్సర్ ఏంటో కామెంట్ చేయండి!',
-        teleprompterText: 'వీడియో పాజ్ చేసి మీ ఆన్సర్ కామెంట్ చేయండి! [PAUSE 1.5s]',
-        estimatedDurationSeconds: 4,
-        pauseDurationSeconds: 1.5,
-        pauseAfterMs: 1500,
-        emphasisWords: ['పాజ్', 'కామెంట్'],
-        visualCardPrompt: 'Pause prompt',
-        onScreenText: '⏸️ PAUSE & COMMENT YOUR ANSWER',
-        onScreenOverlay: '⏸️ PAUSE & COMMENT YOUR ANSWER',
-      },
-      {
-        id: 'SEG-6-SOLUTION',
-        section: TeleprompterSegmentSection.SOLUTION,
-        spokenText: `సరైన సమాధానం ఆప్షన్ (${correct}). సాధన: ${explanation}`,
-        teleprompterText: `సరైన సమాధానం: ఆప్షన్ (${correct})\n${explanation}`,
-        estimatedDurationSeconds: 10,
-        pauseDurationSeconds: 0,
-        pauseAfterMs: 0,
-        emphasisWords: [`ఆప్షన్ (${correct})`],
-        visualCardPrompt: 'Solution card',
-        onScreenText: `సరైన సమాధానం: (${correct})`,
-        onScreenOverlay: `సరైన సమాధానం: (${correct})`,
-      },
-      {
-        id: 'SEG-7-TRICK',
-        section: TeleprompterSegmentSection.SPEED_TRICK,
-        spokenText: `💡 బుర్ర ట్రిక్: పూర్తి లెక్క చేయకుండా కేవలం 5 సెకన్లలో ఆప్షన్ ఎలిమినేషన్ తో సాల్వ్ చేయవచ్చు!`,
-        teleprompterText: `💡 బుర్ర ట్రిక్ (Speed Trick):\nఆప్షన్ ఎలిమినేషన్ తో 5s లో సాల్వ్ చేయండి!`,
-        estimatedDurationSeconds: 5,
-        pauseDurationSeconds: 0,
-        pauseAfterMs: 0,
-        emphasisWords: ['బుర్ర ట్రిక్', '5 సెకన్లలో'],
-        visualCardPrompt: 'Trick highlight',
-        onScreenText: '💡 BURRA SPEED TRICK',
-        onScreenOverlay: '💡 BURRA SPEED TRICK',
-      },
-      {
-        id: 'SEG-8-CTA',
-        section: TeleprompterSegmentSection.CTA,
-        spokenText: 'మరిన్ని కాంపిటీటివ్ ఎగ్జామ్ షార్ట్‌కట్స్ కోసం @BurraPariksha ని ఫాలో అవ్వండి!',
-        teleprompterText: 'మరిన్ని ఎగ్జామ్ ట్రిక్స్ కోసం Subscribe & Share చేయండి!',
-        estimatedDurationSeconds: 4,
-        pauseDurationSeconds: 0,
-        pauseAfterMs: 0,
-        emphasisWords: ['Subscribe', 'Share'],
-        visualCardPrompt: 'Subscribe card',
-        onScreenText: 'Subscribe & Follow @BurraPariksha',
-        onScreenOverlay: 'Subscribe & Follow @BurraPariksha',
-      },
-    ];
-
-    const totalEstimatedDurationSeconds = segments.reduce((sum, s) => sum + s.estimatedDurationSeconds, 0);
-
-    return {
-      pacingWpm: pacingWpm || 140,
-      totalEstimatedDurationSeconds,
-      segments,
     };
   }
 
@@ -1124,44 +923,66 @@ export class GeminiService implements AIProvider {
     let model = geminiClient.getModelName();
     const client = geminiClient.getClient();
 
+    if (!client || !geminiClient.isConfigured()) {
+      throw new AIProviderError(
+        'Gemini API is not configured or missing API key',
+        this.providerId,
+        geminiClient.getModelName(),
+        'AUTH_ERROR',
+        false,
+        401
+      );
+    }
+
     let rawData: any = null;
-    let fallbackUsed = false;
     let aiCallsCount = 1;
 
-    if (client && geminiClient.isConfigured()) {
-      try {
-        const prompt = buildSocialMetadataPrompt(question, selectedHookText, language);
-        const { text, modelUsed, totalAttempts } = await this.callGeminiWithRetryAndFallback({
-          contents: prompt,
-          config: {
-            systemInstruction: BURRA_PARIKSHA_SOCIAL_METADATA_SYSTEM_INSTRUCTION,
-            responseMimeType: 'application/json',
-            responseSchema: SocialMetadataGenAISchema as any,
-            temperature: 0.7,
-          },
-          timeoutMs: 30000,
-          timeoutMsg: 'Gemini social metadata generation timed out',
-          options,
-        });
+    try {
+      const prompt = buildSocialMetadataPrompt(question, selectedHookText, language);
+      const { text, modelUsed, totalAttempts } = await this.callGeminiWithRetryAndFallback({
+        contents: prompt,
+        config: {
+          systemInstruction: BURRA_PARIKSHA_SOCIAL_METADATA_SYSTEM_INSTRUCTION,
+          responseMimeType: 'application/json',
+          responseSchema: SocialMetadataGenAISchema as any,
+          temperature: 0.7,
+        },
+        timeoutMs: 30000,
+        timeoutMsg: 'Gemini social metadata generation timed out',
+        options,
+      });
 
-        model = modelUsed;
-        aiCallsCount = totalAttempts;
-        rawData = JSON.parse(text);
-      } catch (err: any) {
-        const sanitizedMsg = (err?.message || 'Upstream service error').replace(/AIza[0-9A-Za-z-_]{35}/g, '[REDACTED_KEY]');
-        console.warn('[GeminiService] AI social metadata generation failed, falling back to deterministic metadata:', sanitizedMsg);
-        rawData = this.createFallbackSocialMetadata(question, selectedHookText, language);
-        fallbackUsed = true;
-      }
-    } else {
-      rawData = this.createFallbackSocialMetadata(question, selectedHookText, language);
-      fallbackUsed = true;
+      model = modelUsed;
+      aiCallsCount = totalAttempts;
+      rawData = JSON.parse(text);
+    } catch (err: any) {
+      const classified = classifyAIError(err);
+      const sanitizedMsg = classified.sanitizedMessage;
+
+      throw err instanceof AIProviderError
+        ? err
+        : new AIProviderError(
+            `Gemini social metadata generation failed: ${sanitizedMsg}`,
+            this.providerId,
+            model,
+            classified.classification,
+            false,
+            classified.classification === 'QUOTA_EXHAUSTED' ? 429 : 500
+          );
     }
 
     const parsed = SocialMetadataZodSchema.safeParse(rawData);
-    const validData = parsed.success
-      ? parsed.data
-      : this.createFallbackSocialMetadata(question, selectedHookText, language);
+    if (!parsed.success) {
+      throw new AIProviderError(
+        `Invalid social metadata output schema: ${parsed.error.message}`,
+        this.providerId,
+        model,
+        'INVALID_REQUEST',
+        false,
+        502
+      );
+    }
+    const validData = parsed.data;
 
     // Ensure mandatory hashtag #BurraPariksha exists in hashtags array
     if (!validData.hashtags.some((h) => h.toLowerCase() === '#burrapariksha')) {
@@ -1172,79 +993,10 @@ export class GeminiService implements AIProvider {
       metadata: validData,
       aiCallsCount,
       metadataInfo: {
-        providerId: fallbackUsed ? 'fallback' : 'gemini',
-        modelId: fallbackUsed ? 'deterministic-fallback' : model,
-        fallbackUsed,
+        providerId: 'gemini',
+        modelId: model,
+        fallbackUsed: false,
       },
-    };
-  }
-
-  /**
-   * Phase 8E: Creates deterministic local fallback social metadata with ZERO AI calls.
-   */
-  public createFallbackSocialMetadata(
-    question: any,
-    selectedHookText?: string,
-    language: QuestionLanguage = QuestionLanguage.TELUGU
-  ): SocialMetadataAIResult {
-    const isTelugu = language === QuestionLanguage.TELUGU;
-    const topic = question.topic || 'General Aptitude';
-    const subtopic = question.subtopic || 'Problem Solving';
-    const challengeType = question.challengeType || 'SPEED_MATH';
-    const difficulty = question.difficulty || 'MEDIUM';
-
-    const shortTitle = isTelugu
-      ? `🔥 10 సెకన్ల ఆప్టిట్యూడ్ ఛాలెంజ్!`
-      : `🔥 10-Second Aptitude Challenge!`;
-
-    const socialCaption = isTelugu
-      ? `ఈ కాంపిటీటివ్ ఎగ్జామ్ క్వశ్చన్ ని మీరు ఎంత వేగంగా సాల్వ్ చేయగలరో కామెంట్ చేయండి! 👇`
-      : `Can you solve this competitive exam challenge? Comment your answer below! 👇`;
-
-    const extendedDescription = isTelugu
-      ? `బుర్ర పరీక్ష షార్ట్ ఛాలెంజ్! ఈ ${topic} - ${subtopic} ప్రశ్నకు సరియైన సమాధానాన్ని కామెంట్ రూపంలో తెలపండి. పూర్తి వివరాల కోసం ఛానెల్ సబ్‌స్క్రైబ్ చేసుకోండి.`
-      : `Burra Pariksha short challenge! Test your skills on ${topic} - ${subtopic}. Leave your answer in the comments and subscribe for daily practice!`;
-
-    const topicHashtag = `#${topic.replace(/[^a-zA-Z0-9]/g, '')}`;
-    const subtopicHashtag = `#${subtopic.replace(/[^a-zA-Z0-9]/g, '')}`;
-
-    const hashtags = [
-      '#BurraPariksha',
-      topicHashtag !== '#' && topicHashtag.length > 1 ? topicHashtag : '#Aptitude',
-      subtopicHashtag !== '#' && subtopicHashtag.length > 1 ? subtopicHashtag : '#MathTricks',
-      '#CompetitiveExams',
-      isTelugu ? '#TeluguExams' : '#GovernmentJobs',
-      '#SpeedMath',
-    ].filter((h, idx, arr) => arr.indexOf(h) === idx);
-
-    const keywords = [
-      topic,
-      subtopic,
-      'Aptitude',
-      'Reasoning',
-      'Competitive Exams',
-      isTelugu ? 'తెలుగు మోడల్ పేపర్స్' : 'Exam Preparation',
-      'Burra Pariksha',
-    ];
-
-    const cta = {
-      primaryText: isTelugu ? 'మీ ఆన్సర్ ని కామెంట్ చేయండి! 👇' : 'Comment your answer below! 👇',
-      pinnedCommentPrompt: isTelugu
-        ? 'మీకు ఏ ఆప్షన్ వచ్చింది? A, B, C, or D? కామెంట్స్ లో చెప్పండి!'
-        : 'Which option did you get — A, B, C, or D? Let us know below!',
-    };
-
-    return {
-      shortTitle,
-      socialCaption,
-      extendedDescription,
-      hashtags,
-      keywords,
-      topicLabel: topic,
-      subtopicLabel: subtopic,
-      difficultyLabel: difficulty,
-      challengeTypeLabel: challengeType,
-      cta,
     };
   }
 
@@ -1265,96 +1017,75 @@ export class GeminiService implements AIProvider {
     let model = geminiClient.getModelName();
     const client = geminiClient.getClient();
 
+    if (!client || !geminiClient.isConfigured()) {
+      throw new AIProviderError(
+        'Gemini API is not configured or missing API key',
+        this.providerId,
+        geminiClient.getModelName(),
+        'AUTH_ERROR',
+        false,
+        401
+      );
+    }
+
     let rawData: any = null;
-    let fallbackUsed = false;
     let aiCallsCount = 1;
 
-    if (client && geminiClient.isConfigured()) {
-      try {
-        const sysPrompt = buildPlatformAdaptationSystemPrompt(language);
-        const userPrompt = buildPlatformAdaptationUserPrompt(question, canonicalMetadata);
+    try {
+      const sysPrompt = buildPlatformAdaptationSystemPrompt(language);
+      const userPrompt = buildPlatformAdaptationUserPrompt(question, canonicalMetadata);
 
-        const { text, modelUsed, totalAttempts } = await this.callGeminiWithRetryAndFallback({
-          contents: userPrompt,
-          config: {
-            systemInstruction: sysPrompt,
-            responseMimeType: 'application/json',
-            responseSchema: PlatformAdaptedVariantGenAISchema as any,
-            temperature: 0.7,
-          },
-          timeoutMs: 30000,
-          timeoutMsg: 'Gemini platform adaptation timed out',
-          options,
-        });
+      const { text, modelUsed, totalAttempts } = await this.callGeminiWithRetryAndFallback({
+        contents: userPrompt,
+        config: {
+          systemInstruction: sysPrompt,
+          responseMimeType: 'application/json',
+          responseSchema: PlatformAdaptedVariantGenAISchema as any,
+          temperature: 0.7,
+        },
+        timeoutMs: 30000,
+        timeoutMsg: 'Gemini platform adaptation timed out',
+        options,
+      });
 
-        model = modelUsed;
-        aiCallsCount = totalAttempts;
-        rawData = JSON.parse(text);
-      } catch (err: any) {
-        const sanitizedMsg = (err?.message || 'Upstream service error').replace(/AIza[0-9A-Za-z-_]{35}/g, '[REDACTED_KEY]');
-        console.warn('[GeminiService] AI platform adaptation failed, falling back:', sanitizedMsg);
-        rawData = this.createFallbackPlatformAdaptation(question, canonicalMetadata, language);
-        fallbackUsed = true;
-      }
-    } else {
-      rawData = this.createFallbackPlatformAdaptation(question, canonicalMetadata, language);
-      fallbackUsed = true;
+      model = modelUsed;
+      aiCallsCount = totalAttempts;
+      rawData = JSON.parse(text);
+    } catch (err: any) {
+      const classified = classifyAIError(err);
+      const sanitizedMsg = classified.sanitizedMessage;
+
+      throw err instanceof AIProviderError
+        ? err
+        : new AIProviderError(
+            `Gemini platform adaptation generation failed: ${sanitizedMsg}`,
+            this.providerId,
+            model,
+            classified.classification,
+            false,
+            classified.classification === 'QUOTA_EXHAUSTED' ? 429 : 500
+          );
     }
 
     const parsed = PlatformAdaptedVariantZodSchema.safeParse(rawData);
-    const validData = parsed.success
-      ? parsed.data
-      : this.createFallbackPlatformAdaptation(question, canonicalMetadata, language);
+    if (!parsed.success) {
+      throw new AIProviderError(
+        `Invalid platform adaptation output schema: ${parsed.error.message}`,
+        this.providerId,
+        model,
+        'INVALID_REQUEST',
+        false,
+        502
+      );
+    }
 
     return {
-      rawVariants: validData,
+      rawVariants: parsed.data,
       aiCallsCount,
       info: {
-        providerId: fallbackUsed ? 'fallback' : 'gemini',
-        modelId: fallbackUsed ? 'deterministic-fallback' : model,
-        fallbackUsed,
-      },
-    };
-  }
-
-  /**
-   * Creates deterministic fallback multi-platform adapted variants.
-   */
-  public createFallbackPlatformAdaptation(
-    question: any,
-    canonicalMetadata: any,
-    language: QuestionLanguage = QuestionLanguage.TELUGU
-  ): any {
-    const isTelugu = language === QuestionLanguage.TELUGU;
-    const title = canonicalMetadata?.shortTitle || (isTelugu ? 'ఆప్టిట్యూడ్ ఛాలెంజ్' : 'Aptitude Challenge');
-    const caption = canonicalMetadata?.socialCaption || (isTelugu ? 'జవాబు చెప్పండి' : 'Answer below');
-    const description = canonicalMetadata?.extendedDescription || (isTelugu ? 'బుర్ర పరీక్ష షార్ట్ ఛాలెంజ్' : 'Burra Pariksha Short');
-    const ctaText = canonicalMetadata?.cta?.primaryText || (isTelugu ? 'కామెంట్ చేయండి 👇' : 'Comment below 👇');
-    const promptText = canonicalMetadata?.cta?.pinnedCommentPrompt || (isTelugu ? 'ఏ ఆప్షన్ వచ్చింది?' : 'Which option?');
-    const hashtags = canonicalMetadata?.hashtags || ['#BurraPariksha', '#Aptitude'];
-    const keywords = canonicalMetadata?.keywords || ['Aptitude', 'Burra Pariksha'];
-
-    return {
-      youtubeShorts: {
-        title,
-        description: `${description}\n\n👉 ${ctaText}\n\n#BurraPariksha`,
-        hashtags: hashtags.slice(0, 5),
-        keywords: keywords.slice(0, 10),
-        primaryCta: ctaText,
-        pinnedCommentPrompt: promptText,
-      },
-      instagramReels: {
-        caption: `${title}\n\n${caption}\n\n👇 ${ctaText}\n💬 ${promptText}\n\n#BurraPariksha`,
-        hashtags: hashtags.slice(0, 8),
-        keywords: keywords.slice(0, 10),
-        primaryCta: ctaText,
-        commentPrompt: promptText,
-      },
-      facebookReels: {
-        caption: `${title}\n\n${caption}\n\n👇 ${ctaText}\n\n#BurraPariksha`,
-        hashtags: hashtags.slice(0, 5),
-        keywords: keywords.slice(0, 10),
-        primaryCta: ctaText,
+        providerId: 'gemini',
+        modelId: model,
+        fallbackUsed: false,
       },
     };
   }
@@ -1375,114 +1106,78 @@ export class GeminiService implements AIProvider {
     let model = geminiClient.getModelName();
     const client = geminiClient.getClient();
 
+    if (!client || !geminiClient.isConfigured()) {
+      throw new AIProviderError(
+        'Gemini API is not configured or missing API key',
+        this.providerId,
+        geminiClient.getModelName(),
+        'AUTH_ERROR',
+        false,
+        401
+      );
+    }
+
     let rawData: any = null;
-    let fallbackUsed = false;
     let aiCallsCount = 1;
 
     const language = question?.language || QuestionLanguage.TELUGU;
 
-    if (client && geminiClient.isConfigured()) {
-      try {
-        const sysPrompt = buildSocialQualitySystemPrompt(language);
-        const userPrompt = buildSocialQualityUserPrompt(question, enhancementPackage, platformAdaptations);
+    try {
+      const sysPrompt = buildSocialQualitySystemPrompt(language);
+      const userPrompt = buildSocialQualityUserPrompt(question, enhancementPackage, platformAdaptations);
 
-        const { text, modelUsed, totalAttempts } = await this.callGeminiWithRetryAndFallback({
-          contents: userPrompt,
-          config: {
-            systemInstruction: sysPrompt,
-            responseMimeType: 'application/json',
-            responseSchema: SocialQualityAssessmentGenAISchema as any,
-            temperature: 0.2,
-          },
-          timeoutMs: 30000,
-          timeoutMsg: 'Gemini social quality assessment timed out',
-          options,
-        });
+      const { text, modelUsed, totalAttempts } = await this.callGeminiWithRetryAndFallback({
+        contents: userPrompt,
+        config: {
+          systemInstruction: sysPrompt,
+          responseMimeType: 'application/json',
+          responseSchema: SocialQualityAssessmentGenAISchema as any,
+          temperature: 0.2,
+        },
+        timeoutMs: 30000,
+        timeoutMsg: 'Gemini social quality assessment timed out',
+        options,
+      });
 
-        model = modelUsed;
-        aiCallsCount = totalAttempts;
-        rawData = JSON.parse(text);
-      } catch (err: any) {
-        const sanitizedMsg = (err?.message || 'Upstream service error').replace(/AIza[0-9A-Za-z-_]{35}/g, '[REDACTED_KEY]');
-        console.warn('[GeminiService] AI social quality assessment failed, falling back:', sanitizedMsg);
-        rawData = this.createFallbackSocialQualityAssessment(question, enhancementPackage);
-        fallbackUsed = true;
-      }
-    } else {
-      rawData = this.createFallbackSocialQualityAssessment(question, enhancementPackage);
-      fallbackUsed = true;
+      model = modelUsed;
+      aiCallsCount = totalAttempts;
+      rawData = JSON.parse(text);
+    } catch (err: any) {
+      const classified = classifyAIError(err);
+      const sanitizedMsg = classified.sanitizedMessage;
+
+      throw err instanceof AIProviderError
+        ? err
+        : new AIProviderError(
+            `Gemini social quality assessment failed: ${sanitizedMsg}`,
+            this.providerId,
+            model,
+            classified.classification,
+            false,
+            classified.classification === 'QUOTA_EXHAUSTED' ? 429 : 500
+          );
     }
 
     const parsed = SocialQualityAssessmentZodSchema.safeParse(rawData);
-    const validData = parsed.success
-      ? parsed.data
-      : this.createFallbackSocialQualityAssessment(question, enhancementPackage);
+    if (!parsed.success) {
+      throw new AIProviderError(
+        `Invalid social quality assessment output schema: ${parsed.error.message}`,
+        this.providerId,
+        model,
+        'INVALID_REQUEST',
+        false,
+        502
+      );
+    }
 
     return {
-      rawOutput: validData,
+      rawOutput: parsed.data,
       aiCallsCount,
       info: {
-        providerId: fallbackUsed ? 'fallback' : 'gemini',
-        modelId: fallbackUsed ? 'deterministic-fallback' : model,
-        fallbackUsed,
+        providerId: 'gemini',
+        modelId: model,
+        fallbackUsed: false,
       },
-    };
-  }
-
-  /**
-   * Creates deterministic heuristic fallback for social quality assessment.
-   */
-  public createFallbackSocialQualityAssessment(
-    question: any,
-    enhancementPackage: any
-  ): SocialQualityAssessmentAIOutput {
-    const isTelugu = question?.language === QuestionLanguage.TELUGU;
-
-    const hasHooks = enhancementPackage?.hooks && enhancementPackage.hooks.length > 0;
-    const hasScript = !!enhancementPackage?.teleprompterScript;
-    const hasMetadata = !!enhancementPackage?.metadata;
-
-    const clarityScore = question?.questionText?.length > 20 ? 85 : 70;
-    const curiosityScore = hasHooks ? 80 : 65;
-    const challengeQualityScore = question?.options?.length === 4 ? 85 : 60;
-    const commentabilityScore = hasMetadata ? 80 : 60;
-    const retentionPotentialScore = hasScript ? 80 : 65;
-    const realLifeRelevanceScore = 75;
-    const socialPresentationScore = hasMetadata ? 85 : 60;
-    const languageQualityScore = isTelugu ? 80 : 85;
-    const audienceSuitabilityScore = 90;
-    const repetitionRiskScore = 85;
-    const audienceAppealScore = 90;
-
-    return {
-      scores: {
-        clarity: clarityScore,
-        curiosity: curiosityScore,
-        challengeQuality: challengeQualityScore,
-        commentability: commentabilityScore,
-        retentionPotential: retentionPotentialScore,
-        realLifeRelevance: realLifeRelevanceScore,
-        socialPresentation: socialPresentationScore,
-        languageQuality: languageQualityScore,
-        audienceSuitability: audienceSuitabilityScore,
-        repetitionRisk: repetitionRiskScore,
-        audienceAppeal: audienceAppealScore,
-      },
-      findings: [
-        {
-          dimension: 'CURIOSITY',
-          severity: 'ADVISORY',
-          code: 'HEURISTIC_EVALUATION',
-          message: 'Evaluation completed using deterministic heuristic scoring fallback.',
-          context: question?.id,
-          suggestedFix: 'Review hook intrigue and spoken delivery manually.',
-        },
-      ],
-      recommendations: [
-        'Ensure the hook creates a strong curiosity gap in the first 3 seconds.',
-        'Include a direct prompt in the CTA inviting viewers to comment their chosen option.',
-      ],
-      confidence: 0.85,
     };
   }
 
@@ -1496,11 +1191,25 @@ export class GeminiService implements AIProvider {
     contentId: string,
     options?: { script?: Script; video?: Video; numberOfVariants?: number }
   ): Promise<AiThumbnailConcept[]> {
+    const client = geminiClient.getClient();
+    let model = geminiClient.getModelName();
+
+    if (!client || !geminiClient.isConfigured()) {
+      throw new AIProviderError(
+        'Gemini API is not configured or missing API key',
+        this.providerId,
+        geminiClient.getModelName(),
+        'AUTH_ERROR',
+        false,
+        401
+      );
+    }
+
     try {
       const prompt = buildThumbnailIntelligenceUserPrompt(question, options?.script);
       const systemInstruction = BURRA_PARIKSHA_THUMBNAIL_SYSTEM_INSTRUCTION;
 
-      const { text } = await this.callGeminiWithRetryAndFallback({
+      const { text, modelUsed } = await this.callGeminiWithRetryAndFallback({
         contents: prompt,
         config: {
           systemInstruction,
@@ -1512,15 +1221,31 @@ export class GeminiService implements AIProvider {
         timeoutMsg: 'Gemini thumbnail intelligence generation timed out',
       });
 
+      model = modelUsed;
+
       if (!text) {
-        return this.createFallbackThumbnailIntelligence(question, contentId, options);
+        throw new AIProviderError(
+          'Gemini returned empty response for thumbnail intelligence',
+          this.providerId,
+          model,
+          'INVALID_REQUEST',
+          false,
+          502
+        );
       }
 
       const parsedJson = JSON.parse(text);
       const validationResult = AiThumbnailIntelligenceResponseZodSchema.safeParse(parsedJson);
 
       if (!validationResult.success || !validationResult.data.concepts || validationResult.data.concepts.length === 0) {
-        return this.createFallbackThumbnailIntelligence(question, contentId, options);
+        throw new AIProviderError(
+          `Invalid thumbnail intelligence schema: ${validationResult.success ? 'no concepts returned' : validationResult.error.message}`,
+          this.providerId,
+          model,
+          'INVALID_REQUEST',
+          false,
+          502
+        );
       }
 
       const now = new Date().toISOString();
@@ -1557,98 +1282,23 @@ export class GeminiService implements AIProvider {
           createdAt: now,
         };
       });
-    } catch (error) {
-      console.warn('Gemini generateThumbnailIntelligence encountered error, falling back to deterministic template:', error);
-      return this.createFallbackThumbnailIntelligence(question, contentId, options);
+    } catch (error: any) {
+      if (error instanceof AIProviderError) throw error;
+      const classified = classifyAIError(error);
+      throw new AIProviderError(
+        `Gemini thumbnail intelligence generation failed: ${classified.sanitizedMessage}`,
+        this.providerId,
+        model,
+        classified.classification,
+        false,
+        classified.classification === 'QUOTA_EXHAUSTED' ? 429 : 500
+      );
     }
-  }
-
-  /**
-   * Phase 18: Fallback Thumbnail Intelligence Generator
-   * Generates deterministic, high-contrast, curiosity-optimized thumbnail concepts without external API calls.
-   */
-  public createFallbackThumbnailIntelligence(
-    question: Question,
-    contentId: string,
-    options?: { script?: Script; video?: Video }
-  ): AiThumbnailConcept[] {
-    const now = new Date().toISOString();
-    const contentNum = contentId.replace(/^BP-CNT-/, '');
-
-    const topicLabel = question.topicName || 'Mathematics';
-
-    const conceptA: AiThumbnailConcept = {
-      id: `BP-TC-${contentNum}-A`,
-      contentId,
-      questionId: question.id,
-      scriptId: options?.script?.id,
-      videoId: options?.video?.id,
-      conceptName: 'Concept A - High Stakes Ego Trap',
-      hookHeadline: '99% WRONG! 🔥 Try in 10s?',
-      curiosityFraming: {
-        curiosityAngle: 'Immediate ego verification challenging fast mathematical intuition',
-        psychologicalTrigger: 'Ego challenge, pride, and intellectual urgency',
-        hypothesis: 'Viewers pause scrolling to prove they belong to the top 1% who can calculate without error',
-      },
-      visualDirection: {
-        composition: 'Bold split-screen: prominent puzzle equation on top, presenter with curious questioning pose below',
-        colorPalette: ['#0B192C', '#FF6500', '#FFFFFF', '#FFD700'],
-        focalPoint: 'High-contrast question hook text in signature yellow on midnight blue background',
-        emotionOrExpression: 'Intense, challenging eyebrow raise pointing towards the question statement',
-        brandingElements: 'Burra Pariksha official badge top-left corner, vibrant red 10-second timer icon',
-      },
-      audienceTargeting: {
-        primaryAudience: 'AP & TS SI/Constable/DSC/RRB Competitive Exam Aspirants',
-        secondaryAudience: 'General Telugu social media users who love brain riddles',
-        languageStyle: 'BILINGUAL',
-        difficultyPerception: 'LOOKS_EASY_BUT_HARD',
-      },
-      abVariant: 'A',
-      isAiGenerated: true,
-      notes: `Deterministic concept variant A generated for ${topicLabel}`,
-      createdAt: now,
-    };
-
-    const conceptB: AiThumbnailConcept = {
-      id: `BP-TC-${contentNum}-B`,
-      contentId,
-      questionId: question.id,
-      scriptId: options?.script?.id,
-      videoId: options?.video?.id,
-      conceptName: 'Concept B - Hidden Logic Shortcut',
-      hookHeadline: 'SPEED METHOD in 5s! ⚡',
-      curiosityFraming: {
-        curiosityAngle: 'Unveiling a hidden calculation shortcut that traditional schooling overlooks',
-        psychologicalTrigger: 'Exclusive knowledge discovery and FOMO',
-        hypothesis: 'Students click to discover the speed-hack before competing test-takers do',
-      },
-      visualDirection: {
-        composition: 'Clean center-stage equation with a bright crimson warning circle on the tricky step',
-        colorPalette: ['#1E201E', '#3EC70B', '#F1F1F1', '#FF1E56'],
-        focalPoint: 'Highlighted mathematical trap with glowing lightning icon',
-        emotionOrExpression: 'Smiling, confident knowing look holding a smart shortcut cue card',
-        brandingElements: 'Burra Pariksha logo watermark top-right, clean high-contrast title banner',
-      },
-      audienceTargeting: {
-        primaryAudience: 'Speed-math students and competitive aspirants seeking calculation shortcuts',
-        secondaryAudience: 'Parents and educators interested in fast mathematical pedagogy',
-        languageStyle: 'BILINGUAL',
-        difficultyPerception: 'FAST_TRICK',
-      },
-      abVariant: 'B',
-      isAiGenerated: true,
-      notes: `Deterministic concept variant B generated for ${topicLabel}`,
-      createdAt: now,
-    };
-
-    return [conceptA, conceptB];
   }
 
   /**
    * Phase 19: Generate AI Pinned Comment & Conversation Intelligence Package
    * Generates structured pinned comment, discussion prompt, follow-up challenge questions, and audience engagement prompt.
-   * If real Gemini succeeds: isAiGenerated = true, aiModelUsed = model.
-   * If Gemini fails/unavailable: falls back to deterministic template with isAiGenerated = false, aiModelUsed = 'deterministic-fallback'.
    */
   public async generatePinnedCommentPackage(
     question: Question,
@@ -1663,6 +1313,20 @@ export class GeminiService implements AIProvider {
     aiModelUsed: string;
     notes?: string;
   }> {
+    const client = geminiClient.getClient();
+    let model = geminiClient.getModelName();
+
+    if (!client || !geminiClient.isConfigured()) {
+      throw new AIProviderError(
+        'Gemini API is not configured or missing API key',
+        this.providerId,
+        geminiClient.getModelName(),
+        'AUTH_ERROR',
+        false,
+        401
+      );
+    }
+
     try {
       const prompt = buildPinnedCommentUserPrompt(question, options?.script);
       const systemInstruction = BURRA_PARIKSHA_PINNED_COMMENT_SYSTEM_INSTRUCTION;
@@ -1679,20 +1343,36 @@ export class GeminiService implements AIProvider {
         timeoutMsg: 'Gemini pinned comment package generation timed out',
       });
 
+      model = modelUsed;
+
       if (!text) {
-        return this.createFallbackPinnedCommentPackage(question, contentId, options);
+        throw new AIProviderError(
+          'Gemini returned empty response for pinned comment package',
+          this.providerId,
+          model,
+          'INVALID_REQUEST',
+          false,
+          502
+        );
       }
 
       const parsedJson = JSON.parse(text);
       const validationResult = AiPinnedCommentPackageZodSchema.safeParse(parsedJson);
 
       if (!validationResult.success) {
-        return this.createFallbackPinnedCommentPackage(question, contentId, options);
+        throw new AIProviderError(
+          `Invalid pinned comment package schema: ${validationResult.error.message}`,
+          this.providerId,
+          model,
+          'INVALID_REQUEST',
+          false,
+          502
+        );
       }
 
       const data = validationResult.data;
 
-      // Run safety validator on the AI output; if issues or answer leakage detected, sanitize or fallback
+      // Run safety validator on the AI output
       const safetyCheck = PinnedCommentSafetyValidator.validate(
         {
           pinnedComment: data.pinnedComment,
@@ -1704,7 +1384,14 @@ export class GeminiService implements AIProvider {
       );
 
       if (!safetyCheck.isValid || safetyCheck.leaksAnswer || safetyCheck.hasBannedPlaceholders) {
-        return this.createFallbackPinnedCommentPackage(question, contentId, options);
+        throw new AIProviderError(
+          `Pinned comment package failed safety validation: ${safetyCheck.issues?.join(', ') || 'Safety violation or answer leak detected'}`,
+          this.providerId,
+          model,
+          'INVALID_REQUEST',
+          false,
+          422
+        );
       }
 
       return {
@@ -1716,63 +1403,18 @@ export class GeminiService implements AIProvider {
         aiModelUsed: modelUsed || 'gemini-2.5-flash',
         notes: data.notes || 'Generated with Gemini conversational AI',
       };
-    } catch (error) {
-      console.warn('Gemini generatePinnedCommentPackage encountered error, falling back to deterministic template:', error);
-      return this.createFallbackPinnedCommentPackage(question, contentId, options);
+    } catch (error: any) {
+      if (error instanceof AIProviderError) throw error;
+      const classified = classifyAIError(error);
+      throw new AIProviderError(
+        `Gemini pinned comment generation failed: ${classified.sanitizedMessage}`,
+        this.providerId,
+        model,
+        classified.classification,
+        false,
+        classified.classification === 'QUOTA_EXHAUSTED' ? 429 : 500
+      );
     }
-  }
-
-  /**
-   * Phase 19: Fallback Pinned Comment Package Generator
-   * Generates deterministic, high-engagement pinned comment package without external API calls.
-   * Clearly identified as isAiGenerated: false, aiModelUsed: 'deterministic-fallback'.
-   */
-  public createFallbackPinnedCommentPackage(
-    question: Question,
-    contentId: string,
-    options?: { script?: Script; video?: Video; approvedScriptVersion?: number }
-  ): {
-    pinnedComment: string;
-    answerDiscussionPrompt: string;
-    followUpQuestions: string[];
-    audienceParticipationPrompt: string;
-    isAiGenerated: boolean;
-    aiModelUsed: string;
-    notes?: string;
-  } {
-    const topicLabel = question.topicName || 'Mathematics';
-    const subtopicLabel = question.subtopicName || 'Logical Reasoning';
-    const cleanQ = (question.questionText || question.question || 'this brain teaser').trim();
-
-    const pinnedComment = `🧠 **BURRA PARIKSHA CHALLENGE — ${topicLabel.toUpperCase()}** 🧠\n\n` +
-      `Question: "${cleanQ}"\n\n` +
-      `A) ${question.optionA || 'Option A'}\n` +
-      `B) ${question.optionB || 'Option B'}\n` +
-      `C) ${question.optionC || 'Option C'}\n` +
-      `D) ${question.optionD || 'Option D'}\n\n` +
-      `👇 **DO NOT SCROLL DOWN TILL YOU TRY!**\n` +
-      `1️⃣ Pause the video & calculate.\n` +
-      `2️⃣ Comment your option and how many seconds it took.\n` +
-      `3️⃣ Read the full step-by-step logic in the replies below! ✨`;
-
-    const answerDiscussionPrompt = `Which calculation method did you use first — did you test Option A, eliminate Option D, or use the direct formula? Explain your logic!`;
-
-    const followUpQuestions = [
-      `Level 2 Twist: If the values in this question were doubled, which option would be correct?`,
-      `Mental Math Challenge: Can you solve this same problem without writing anything on paper in under 7 seconds?`
-    ];
-
-    const audienceParticipationPrompt = `Comment "BURRA CRACKED 🔥" if you solved this before the 10-second timer ended! Tag a friend preparing for AP/TS SI or DSC exams.`;
-
-    return {
-      pinnedComment,
-      answerDiscussionPrompt,
-      followUpQuestions,
-      audienceParticipationPrompt,
-      isAiGenerated: false,
-      aiModelUsed: 'deterministic-fallback',
-      notes: `Deterministic engagement package generated for ${topicLabel} (${subtopicLabel})`,
-    };
   }
 }
 
