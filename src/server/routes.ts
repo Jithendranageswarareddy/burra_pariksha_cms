@@ -87,7 +87,22 @@ import busboy from 'busboy';
 import { google } from 'googleapis';
 import { googleDriveService } from '../lib/services/google-drive.service';
 import rateLimit from 'express-rate-limit';
-import { requireAuth, requireRole, extractSessionToken, AuthenticatedRequest } from './middleware/auth.middleware';
+import {
+  requireAuth,
+  requireRole,
+  requireCapability,
+  requireNotAuthor,
+  extractSessionToken,
+  AuthenticatedRequest,
+} from './middleware/auth.middleware';
+import {
+  CanonicalRbacRole,
+  CANONICAL_RBAC_ROLES,
+  getRoleCapabilities,
+  resolveBrownfieldRole,
+  roleHasCapability,
+  AuthorizationResource,
+} from '../types/rbac-models';
 import { createSuccessResponse, createErrorResponse, ApiErrorCode } from '../types/api-contracts';
 
 export const apiRouter = express.Router();
@@ -138,27 +153,69 @@ export const authRateLimiter = rateLimit({
 });
 
 
+export class UnauthenticatedActorError extends Error {
+  public statusCode = 401;
+  public code = ApiErrorCode.UNAUTHENTICATED;
+  constructor(message = 'Authentication required: verified actor session context is missing.') {
+    super(message);
+    this.name = 'UnauthenticatedActorError';
+  }
+}
+
 /**
  * Helper to derive actor identity strictly from verified session context (req.user)
  * SEC-02: Never trusts client-supplied req.body._actor or req.body.actor
+ * CRITICAL SECURITY INVARIANT: Unauthenticated requests NEVER receive an Admin actor or fallback identity.
  */
 export function getRequestActor(req: Request): ActorContext & { name: string; role: string } {
   const authReq = req as AuthenticatedRequest & { _requestActor?: ActorContext & { name: string; role: string } };
   if (authReq._requestActor) {
     return authReq._requestActor;
   }
-  let actor: ActorContext & { name: string; role: string };
-  if (authReq.user?.id) {
-    const fallbackRole = (authReq.user.roles && authReq.user.roles[0]) || authReq.user.role || UserRole.ADMIN;
-    actor = {
-      id: authReq.user.id,
-      name: authReq.user.name || authReq.user.id,
-      role: authReq.user.role || fallbackRole,
-      roles: authReq.user.roles || (authReq.user.role ? [authReq.user.role] : [fallbackRole]),
-    };
-  } else {
-    actor = { id: 'USR-001', name: 'Admin / Content Lead', role: UserRole.ADMIN, roles: [UserRole.ADMIN] };
+
+  // If req.user is absent, attempt inline token extraction from session cookie or Bearer header
+  if (!authReq.user?.id) {
+    const token = extractSessionToken(req);
+    if (token) {
+      const payload = authService.verifySessionToken(token);
+      if (payload) {
+        const userState = usersRepository.getUserSessionState(payload.userId);
+        if (!userState || (userState.isActive && (payload.sessionVersion ?? 1) >= userState.sessionVersion)) {
+          const rolesList: string[] = [];
+          if (Array.isArray((payload as any).roles)) {
+            (payload as any).roles.forEach((r: any) => r && rolesList.push(String(r).trim()));
+          }
+          if (rolesList.length === 0 && payload.role) {
+            String(payload.role).split(',').forEach((r) => r.trim() && rolesList.push(r.trim()));
+          }
+          const authoritativeRoles = userState?.roles && userState.roles.length > 0 ? userState.roles : rolesList;
+          const authoritativeRole = userState?.role || payload.role || authoritativeRoles[0] || 'QUESTION_AUTHOR';
+
+          authReq.user = {
+            id: payload.userId,
+            name: payload.name,
+            role: authoritativeRole,
+            roles: authoritativeRoles.length > 0 ? authoritativeRoles : [authoritativeRole],
+          };
+        }
+      }
+    }
   }
+
+  if (!authReq.user?.id) {
+    // CRITICAL SECURITY BLOCKER RESOLVED:
+    // Unauthenticated requests NEVER receive an Admin actor or fallback identity.
+    throw new UnauthenticatedActorError('Authentication required: verified actor session context is missing.');
+  }
+
+  const fallbackRole = (authReq.user.roles && authReq.user.roles[0]) || authReq.user.role || 'QUESTION_AUTHOR';
+  const actor: ActorContext & { name: string; role: string } = {
+    id: authReq.user.id,
+    name: authReq.user.name || authReq.user.id,
+    role: authReq.user.role || fallbackRole,
+    roles: authReq.user.roles || (authReq.user.role ? [authReq.user.role] : [fallbackRole]),
+  };
+
   authReq._requestActor = actor;
   return actor;
 }
@@ -859,31 +916,40 @@ apiRouter.get('/content-masters/:id', requireAuth, async (req: Request, res: Res
   }
 });
 
-apiRouter.post('/content-masters', async (req: Request, res: Response) => {
+apiRouter.post('/content-masters', requireCapability('CONTENT:CREATE'), async (req: Request, res: Response) => {
   try {
     const actor = getRequestActor(req);
     const created = await contentMasterService.createContentMaster(req.body, actor.id, actor.name);
     res.status(201).json({ success: true, data: created });
   } catch (err: any) {
+    if (err instanceof UnauthenticatedActorError || err?.statusCode === 401) {
+      return res.status(401).json(createErrorResponse(ApiErrorCode.UNAUTHENTICATED, err.message, (req.headers['x-request-id'] as string) || `req_${Date.now()}`));
+    }
     res.status(400).json({ success: false, error: err?.message || 'Failed to create Content Master' });
   }
 });
 
-apiRouter.post('/content-masters/migrate/dry-run', async (req: Request, res: Response) => {
+apiRouter.post('/content-masters/migrate/dry-run', requireCapability('CONFIGURATION:ADMINISTER'), async (req: Request, res: Response) => {
   try {
     const report = await contentMasterService.migrationDryRun();
     res.json({ success: true, data: report });
   } catch (err: any) {
+    if (err instanceof UnauthenticatedActorError || err?.statusCode === 401) {
+      return res.status(401).json(createErrorResponse(ApiErrorCode.UNAUTHENTICATED, err.message, (req.headers['x-request-id'] as string) || `req_${Date.now()}`));
+    }
     res.status(500).json({ success: false, error: err?.message || 'Content Master migration dry-run failed' });
   }
 });
 
-apiRouter.post('/content-masters/migrate/execute', requireRole([UserRole.ADMIN]), async (req: Request, res: Response) => {
+apiRouter.post('/content-masters/migrate/execute', requireCapability('CONFIGURATION:ADMINISTER'), async (req: Request, res: Response) => {
   try {
     const actor = getRequestActor(req);
     const result = await contentMasterService.executeMigration(actor.id, actor.name);
     res.json({ success: result.success, data: result });
   } catch (err: any) {
+    if (err instanceof UnauthenticatedActorError || err?.statusCode === 401) {
+      return res.status(401).json(createErrorResponse(ApiErrorCode.UNAUTHENTICATED, err.message, (req.headers['x-request-id'] as string) || `req_${Date.now()}`));
+    }
     res.status(500).json({ success: false, error: err?.message || 'Content Master migration execution failed' });
   }
 });
@@ -1289,7 +1355,7 @@ apiRouter.post('/questions/smart-random', async (req: Request, res: Response) =>
 // STAGE 01: QUESTION DRAFT ENDPOINTS (Decoupled from production ID allocation)
 // ============================================================================
 
-apiRouter.post('/questions/draft', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.QUESTION_EDITOR, UserRole.CONTENT_WRITER]), async (req: Request, res: Response) => {
+apiRouter.post(['/questions/draft', '/v1/questions/draft'], requireCapability('QUESTION:CREATE'), async (req: Request, res: Response) => {
   try {
     const actor = getRequestActor(req);
     const draft = await questionDraftService.saveDraft(req.body, { id: actor.id, name: actor.name || 'Author' });
@@ -1330,21 +1396,36 @@ apiRouter.get('/questions/draft/:id', async (req: Request, res: Response) => {
   }
 });
 
-apiRouter.post('/questions/draft/:id/approve', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.QUESTION_EDITOR, UserRole.REVIEWER]), async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const actor = getRequestActor(req);
-    const notes = req.body?.notes || req.body?.remarks;
-    const approvedQuestion = await questionDraftService.approveDraft(id, actor, notes);
-    res.status(201).json(approvedQuestion);
-  } catch (err: any) {
-    res.status(err?.statusCode || 400).json({
-      error: err?.name || 'Approval Failed',
-      message: err?.message || 'Failed to approve and create question from draft',
-      details: err?.details || (err?.errors ? err.errors : undefined),
-    });
+apiRouter.post(
+  ['/questions/draft/:id/approve', '/v1/questions/draft/:id/approve'],
+  requireCapability('QUESTION:APPROVE', async (req) => {
+    const draft = await questionDraftService.getDraftById(req.params.id);
+    if (!draft) return undefined;
+    return {
+      resourceType: AuthorizationResource.QUESTION,
+      resourceId: draft.id,
+      authorUserId: draft.authorId,
+      createdBy: draft.authorId,
+      stageNumber: 2,
+    };
+  }),
+  async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const actor = getRequestActor(req);
+      const notes = req.body?.notes || req.body?.remarks;
+      const approvedQuestion = await questionDraftService.approveDraft(id, actor, notes);
+      res.status(201).json(approvedQuestion);
+    } catch (err: any) {
+      const statusCode = err?.statusCode || (err?.name === 'AntiSelfApprovalViolation' ? 403 : 400);
+      res.status(statusCode).json({
+        error: err?.name || 'Approval Failed',
+        message: err?.message || 'Failed to approve and create question from draft',
+        details: err?.details || (err?.errors ? err.errors : undefined),
+      });
+    }
   }
-});
+);
 
 apiRouter.delete('/questions/draft/:id', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.QUESTION_EDITOR, UserRole.CONTENT_WRITER]), async (req: Request, res: Response) => {
   try {
@@ -1356,7 +1437,7 @@ apiRouter.delete('/questions/draft/:id', requireRole([UserRole.ADMIN, UserRole.C
   }
 });
 
-apiRouter.post('/questions/create', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.QUESTION_EDITOR, UserRole.CONTENT_WRITER]), async (req: Request, res: Response) => {
+apiRouter.post(['/questions/create', '/v1/questions/create'], requireCapability('QUESTION:CREATE'), async (req: Request, res: Response) => {
   try {
     const actor = getRequestActor(req);
     const idempotencyHeader = req.headers['x-idempotency-key'];
@@ -4361,7 +4442,7 @@ apiRouter.get('/production-board', requireAuth, async (req: Request, res: Respon
 });
 
 // Users & Team Directory Endpoints
-apiRouter.get('/users', async (req: Request, res: Response) => {
+apiRouter.get(['/users', '/v1/users'], requireCapability('USER:VIEW'), async (req: Request, res: Response) => {
   try {
     const users = await assignmentService.listUsers();
     res.json(users);
@@ -4370,7 +4451,7 @@ apiRouter.get('/users', async (req: Request, res: Response) => {
   }
 });
 
-apiRouter.post('/users', requireRole([UserRole.ADMIN]), async (req: Request, res: Response) => {
+apiRouter.post(['/users', '/v1/users'], requireCapability('USER:ADMINISTER'), async (req: Request, res: Response) => {
   try {
     const validated = CreateUserInputSchema.parse(req.body);
     const actor = getRequestActor(req);
@@ -4381,7 +4462,7 @@ apiRouter.post('/users', requireRole([UserRole.ADMIN]), async (req: Request, res
   }
 });
 
-apiRouter.get('/users/:id', async (req: Request, res: Response) => {
+apiRouter.get(['/users/:id', '/v1/users/:id'], requireCapability('USER:VIEW'), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const user = await assignmentService.getUserById(id);
@@ -4394,7 +4475,7 @@ apiRouter.get('/users/:id', async (req: Request, res: Response) => {
   }
 });
 
-apiRouter.patch('/users/:id', requireRole([UserRole.ADMIN]), async (req: Request, res: Response) => {
+apiRouter.patch(['/users/:id', '/v1/users/:id'], requireCapability('USER:ADMINISTER'), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const validated = UpdateUserInputSchema.parse(req.body);
@@ -4403,6 +4484,153 @@ apiRouter.patch('/users/:id', requireRole([UserRole.ADMIN]), async (req: Request
     res.json(user);
   } catch (err: any) {
     res.status(400).json({ error: 'Failed to update user', message: err?.message });
+  }
+});
+
+// Stage 26 Feature Contract: FC-002 Dedicated User Capability & Role Endpoints
+apiRouter.get('/v1/users/:id/capabilities', async (req: Request, res: Response) => {
+  const requestId = (req.headers['x-request-id'] as string) || `req_${Date.now()}`;
+  try {
+    const actor = getRequestActor(req);
+    const { id } = req.params;
+
+    // Allowed if actor is viewing their own capabilities or has USER:VIEW / USER:ADMINISTER
+    const isSelf = actor.id === id;
+    const actorCanonicalRole = resolveBrownfieldRole(actor.role);
+    const canViewUsers = roleHasCapability(actorCanonicalRole, 'USER:VIEW') || roleHasCapability(actorCanonicalRole, 'USER:ADMINISTER');
+
+    if (!isSelf && !canViewUsers) {
+      const errEnvelope = createErrorResponse(
+        ApiErrorCode.FORBIDDEN_LACKS_CAPABILITY,
+        'Forbidden: Insufficient permissions to view other users capabilities.',
+        requestId
+      );
+      res.status(403).json({
+        ...errEnvelope,
+        message: 'Forbidden: Insufficient permissions to view other users capabilities.',
+      });
+      return;
+    }
+
+    const targetUser = await usersRepository.findById(id);
+    if (!targetUser) {
+      const errEnvelope = createErrorResponse(
+        ApiErrorCode.RESOURCE_NOT_FOUND,
+        `User ${id} not found.`,
+        requestId
+      );
+      res.status(404).json({
+        ...errEnvelope,
+        message: `User ${id} not found.`,
+      });
+      return;
+    }
+
+    const targetCanonicalRole = resolveBrownfieldRole(targetUser.role);
+    const capabilities = getRoleCapabilities(targetCanonicalRole);
+
+    const successEnvelope = createSuccessResponse({
+      userId: targetUser.id,
+      name: targetUser.name,
+      role: targetCanonicalRole,
+      capabilities,
+    }, requestId);
+
+    res.json(successEnvelope);
+  } catch (err: any) {
+    if (err instanceof UnauthenticatedActorError || err?.statusCode === 401) {
+      const errEnvelope = createErrorResponse(
+        ApiErrorCode.UNAUTHENTICATED,
+        err.message || 'Authentication required.',
+        requestId
+      );
+      res.status(401).json({ ...errEnvelope, message: err.message || 'Authentication required.' });
+      return;
+    }
+    const errEnvelope = createErrorResponse(
+      ApiErrorCode.INTERNAL_SERVER_ERROR,
+      err?.message || 'Failed to retrieve user capabilities.',
+      requestId
+    );
+    res.status(500).json({ ...errEnvelope, message: err?.message || 'Failed to retrieve user capabilities.' });
+  }
+});
+
+apiRouter.patch('/v1/users/:id/role', requireCapability('USER:ADMINISTER'), async (req: Request, res: Response) => {
+  const requestId = (req.headers['x-request-id'] as string) || `req_${Date.now()}`;
+  try {
+    const actor = getRequestActor(req);
+    const { id } = req.params;
+    const { role: newRawRole } = req.body || {};
+
+    if (!newRawRole || typeof newRawRole !== 'string') {
+      const errEnvelope = createErrorResponse(
+        ApiErrorCode.VALIDATION_ERROR,
+        'Role is required and must be a valid role identifier.',
+        requestId
+      );
+      res.status(400).json({ ...errEnvelope, message: 'Role is required and must be a valid role identifier.' });
+      return;
+    }
+
+    const targetUser = await usersRepository.findById(id);
+    if (!targetUser) {
+      const errEnvelope = createErrorResponse(
+        ApiErrorCode.RESOURCE_NOT_FOUND,
+        `User ${id} not found.`,
+        requestId
+      );
+      res.status(404).json({ ...errEnvelope, message: `User ${id} not found.` });
+      return;
+    }
+
+    const newCanonicalRole = resolveBrownfieldRole(newRawRole);
+    const oldRole = targetUser.role;
+
+    // Update user role and increment sessionVersion (which revokes stale sessions)
+    const updated = await usersRepository.updateRecord(id, {
+      role: newCanonicalRole,
+      roles: [newCanonicalRole],
+    });
+
+    // Log authoritative audit event
+    await auditService.log(
+      actor.id,
+      actor.name,
+      'USER_ROLE_UPDATED',
+      'USER',
+      id,
+      {
+        previousRole: oldRole,
+        newRole: newCanonicalRole,
+        assignedBy: actor.id,
+      }
+    ).catch(() => {});
+
+    const successEnvelope = createSuccessResponse({
+      userId: id,
+      previousRole: oldRole,
+      role: newCanonicalRole,
+      updatedAt: updated?.updatedAt || new Date().toISOString(),
+    }, requestId);
+
+    res.json(successEnvelope);
+  } catch (err: any) {
+    if (err instanceof UnauthenticatedActorError || err?.statusCode === 401) {
+      const errEnvelope = createErrorResponse(
+        ApiErrorCode.UNAUTHENTICATED,
+        err.message || 'Authentication required.',
+        requestId
+      );
+      res.status(401).json({ ...errEnvelope, message: err.message || 'Authentication required.' });
+      return;
+    }
+    const errEnvelope = createErrorResponse(
+      ApiErrorCode.INTERNAL_SERVER_ERROR,
+      err?.message || 'Failed to update user role.',
+      requestId
+    );
+    res.status(500).json({ ...errEnvelope, message: err?.message || 'Failed to update user role.' });
   }
 });
 
