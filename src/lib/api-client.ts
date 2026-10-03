@@ -284,12 +284,6 @@ class ApiClient {
     return this.request('/taxonomy/metrics');
   }
 
-  public async runTaxonomyVerification(): Promise<any> {
-    return this.request('/tests/taxonomy-verification', {
-      method: 'POST',
-    });
-  }
-
   // Questions
   public async getQuestions(filter?: QuestionFilterInput): Promise<Question[]> {
     const params = new URLSearchParams();
@@ -476,7 +470,7 @@ class ApiClient {
     try {
       return await this.queueVideo({
         questionId,
-        notes: remarks || 'Queued from verification audit',
+        notes: remarks || 'Queued for video production',
       });
     } catch (err: any) {
       // If already queued, find existing video for this question
@@ -1072,10 +1066,6 @@ class ApiClient {
     });
   }
 
-  public async runDataIntegrityVerification(): Promise<{ success: boolean; totalTests: number; passedTests: number; results: any[] }> {
-    return this.request('/tests/data-integrity');
-  }
-
   public async getOperationalHealth(): Promise<import('./services/operational-health.service').OperationalHealthReport> {
     return this.request('/system/operational-health');
   }
@@ -1341,22 +1331,6 @@ class ApiClient {
     } finally {
       this.setSessionToken(null);
     }
-  }
-
-  public async runOperationalRecoveryVerification(): Promise<{ success: boolean; totalTests: number; passedTests: number; results: any[] }> {
-    return this.request('/tests/operational-recovery');
-  }
-
-  public async runPlanningVerification(): Promise<{ success: boolean; totalTests: number; passedTests: number; results: any[] }> {
-    return this.request('/tests/planning');
-  }
-
-  public async runTeamOperationsVerification(): Promise<{ success: boolean; totalTests: number; passedTests: number; results: any[] }> {
-    return this.request('/tests/team-operations');
-  }
-
-  public async runTask3E1Verification(): Promise<{ success: boolean; totalTests: number; passedTests: number; results: any[] }> {
-    return this.request('/tests/task3e1');
   }
 
   public async getProductionBoard(): Promise<import('../types').ProductionBoardItem[]> {

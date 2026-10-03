@@ -1,9 +1,8 @@
 /**
  * BURRA PARIKSHA CMS - Domain Types & Interfaces
- * Phase 1: Core Domain Foundations
+ * Core Domain Foundations
  * 
- * NOTE: These types mirror the upcoming Google Sheets data architecture (Spreadsheet: "Burra Pariksha CMS - TEST").
- * Detailed schema formalization will occur in Phase 2 upon inspecting live sheet structures.
+ * NOTE: These types define the Google Sheets data architecture (Spreadsheet: "Burra Pariksha CMS").
  */
 
 import { AIProvenance } from './ai';
@@ -19,11 +18,7 @@ export * from './analytics-architecture';
 export * from './audit-observability';
 export * from './cost-architecture';
 export * from './migration-architecture';
-export * from './test-architecture';
 export * from './dependency-graph';
-export * from './feature-contracts';
-export * from './implementation-cycle';
-export * from './verification-testing';
 export * from './deployment-release';
 
 // ============================================================================

@@ -1,10 +1,13 @@
 /**
- * BURRA PARIKSHA CMS - Taxonomy Mock Data
+ * BURRA PARIKSHA CMS — Production Taxonomy Seed Data
+ *
+ * Authoritative taxonomy definitions for aptitude categories, topics, and subtopics.
+ * Seeded into Google Sheets during production database initialization.
  */
 
 import { Category, Subtopic, Topic } from '../../types';
 
-export const MOCK_CATEGORIES: Category[] = [
+export const PRODUCTION_CATEGORIES: Category[] = [
   {
     id: 'CAT-QA',
     name: 'Quantitative Aptitude',
@@ -47,7 +50,7 @@ export const MOCK_CATEGORIES: Category[] = [
   },
 ];
 
-export const MOCK_TOPICS: Topic[] = [
+export const PRODUCTION_TOPICS: Topic[] = [
   // QA Topics
   {
     id: 'TOP-QA-01',
@@ -63,7 +66,7 @@ export const MOCK_TOPICS: Topic[] = [
     categoryId: 'CAT-QA',
     name: 'Time & Work',
     slug: 'time-and-work',
-    description: 'Efficiency ratios, pipes & cisterns, alternate work schedules',
+    description: 'Work efficiency, pipes & cisterns, wages, and work equivalence',
     subtopicsCount: 3,
     createdAt: '2026-01-10T10:00:00Z',
   },
@@ -72,66 +75,57 @@ export const MOCK_TOPICS: Topic[] = [
     categoryId: 'CAT-QA',
     name: 'Profit, Loss & Discount',
     slug: 'profit-loss-discount',
-    description: 'Marked price tricks, successive discounts, false weight scams',
+    description: 'Marked price, successive discounts, false weights, and cheating dealer tricks',
     subtopicsCount: 4,
     createdAt: '2026-01-12T10:00:00Z',
   },
   {
     id: 'TOP-QA-04',
     categoryId: 'CAT-QA',
-    name: 'Permutations & Probability',
-    slug: 'permutations-probability',
-    description: 'Arrangements, selections, conditional probability & dice problems',
-    subtopicsCount: 4,
-    createdAt: '2026-01-14T10:00:00Z',
+    name: 'Percentages & Ratios',
+    slug: 'percentages-ratios',
+    description: 'Percentage change, mixtures, proportions, and partnership shares',
+    subtopicsCount: 3,
+    createdAt: '2026-01-12T10:00:00Z',
   },
   // LR Topics
   {
     id: 'TOP-LR-01',
     categoryId: 'CAT-LR',
-    name: 'Seating Arrangement',
-    slug: 'seating-arrangement',
-    description: 'Circular, linear & rectangular placement conditions',
+    name: 'Clocks & Calendars',
+    slug: 'clocks-calendars',
+    description: 'Angle between hands, faulty clocks, leap years, and odd days',
     subtopicsCount: 3,
-    createdAt: '2026-01-10T10:00:00Z',
+    createdAt: '2026-01-15T10:00:00Z',
   },
   {
     id: 'TOP-LR-02',
     categoryId: 'CAT-LR',
-    name: 'Clocks & Calendars',
-    slug: 'clocks-and-calendars',
-    description: 'Odd days, leap years, angle between clock hands, slow/fast clocks',
+    name: 'Coding & Decoding',
+    slug: 'coding-decoding',
+    description: 'Letter shifting, number substitution, matrix codes, and conditional rules',
     subtopicsCount: 3,
     createdAt: '2026-01-15T10:00:00Z',
   },
   {
     id: 'TOP-LR-03',
     categoryId: 'CAT-LR',
-    name: 'Blood Relations & Family Tree',
-    slug: 'blood-relations',
-    description: 'Coded relations, pointing to photographs, multi-generation trees',
-    subtopicsCount: 2,
+    name: 'Direction & Blood Relations',
+    slug: 'direction-blood-relations',
+    description: 'Shadow problems, complex family trees, and compass shifts',
+    subtopicsCount: 3,
     createdAt: '2026-01-18T10:00:00Z',
-  },
-  // DI Topics
-  {
-    id: 'TOP-DI-01',
-    categoryId: 'CAT-DI',
-    name: 'Pie Chart & Bar Graphs',
-    slug: 'pie-charts-bar-graphs',
-    description: 'Degree-to-percentage conversion and multi-company revenue analysis',
-    subtopicsCount: 2,
-    createdAt: '2026-01-15T10:00:00Z',
   },
 ];
 
-export const MOCK_SUBTOPICS: Subtopic[] = [
+export const PRODUCTION_SUBTOPICS: Subtopic[] = [
+  // Time, Speed & Distance
   {
     id: 'SUB-01',
     topicId: 'TOP-QA-01',
-    name: 'Trains & Moving Platforms',
-    slug: 'trains-moving-platforms',
-    notes: 'Classic aptitude question style for reel speed tricks',
+    name: 'Trains & Platform Crossing',
+    slug: 'trains-platform-crossing',
+    description: 'Length additions, relative speeds in opposite and same directions',
     createdAt: '2026-01-10T10:00:00Z',
   },
   {
@@ -139,23 +133,38 @@ export const MOCK_SUBTOPICS: Subtopic[] = [
     topicId: 'TOP-QA-01',
     name: 'Escalators & Walking Speeds',
     slug: 'escalators-walking-speeds',
-    notes: 'High-engagement viral puzzle style',
-    createdAt: '2026-01-11T10:00:00Z',
+    description: 'Moving walkway problems, step counting, and reverse speed puzzles',
+    createdAt: '2026-01-10T10:00:00Z',
   },
+  // Profit, Loss
   {
     id: 'SUB-03',
-    topicId: 'TOP-QA-02',
+    topicId: 'TOP-QA-03',
     name: 'Pipes with Leakage',
-    slug: 'pipes-leakage',
-    notes: 'Common competitive exam trap',
+    slug: 'pipes-with-leakage',
+    description: 'Inlet and outlet flow rates with bottom emptying leaks',
     createdAt: '2026-01-12T10:00:00Z',
   },
   {
     id: 'SUB-04',
-    topicId: 'TOP-LR-02',
-    name: 'Clock Angle Traps',
-    slug: 'clock-angle-traps',
-    notes: 'Short formula tricks: |30H - 11/2 M|',
+    topicId: 'TOP-QA-03',
+    name: 'False Weights & Cheating Trader',
+    slug: 'false-weights-cheating-trader',
+    description: 'Discounts with altered gram balances and effective profit margins',
+    createdAt: '2026-01-12T10:00:00Z',
+  },
+  // Clocks
+  {
+    id: 'SUB-05',
+    topicId: 'TOP-LR-01',
+    name: 'Reflex Angle Between Hands',
+    slug: 'reflex-angle-between-hands',
+    description: 'Exact degree formulas at arbitrary minutes and coincident hands',
     createdAt: '2026-01-15T10:00:00Z',
   },
 ];
+
+// Aliases for compatibility with existing service initializers
+export const MOCK_CATEGORIES = PRODUCTION_CATEGORIES;
+export const MOCK_TOPICS = PRODUCTION_TOPICS;
+export const MOCK_SUBTOPICS = PRODUCTION_SUBTOPICS;

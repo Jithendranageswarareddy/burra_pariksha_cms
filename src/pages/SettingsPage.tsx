@@ -37,7 +37,7 @@ import {
 import { PageHeader } from '../components/layout/PageHeader';
 import { Button } from '../components/common/Button';
 import { APP_CONFIG } from '../config/constants';
-import { MOCK_CATEGORIES, MOCK_TOPICS } from '../lib/mock-data/taxonomy';
+import { PRODUCTION_CATEGORIES as MOCK_CATEGORIES, PRODUCTION_TOPICS as MOCK_TOPICS } from '../lib/data/production-taxonomy';
 import { apiClient } from '../lib/api-client';
 import { SpreadsheetHealthReport, SystemHealthReport, IntegrityIssue, IntegritySeverity, IntegrityCategory, UserRole } from '../types';
 import { ALL_SHEET_TABS, ID_PREFIX_MAP, SequenceEntityType } from '../lib/schemas/google-sheets-schema';
@@ -85,42 +85,6 @@ export const SettingsPage: React.FC = () => {
   const [syncConfirmed, setSyncConfirmed] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
 
-  // Phase 8A Verification Test Runner State
-  const [isRunningTests8a, setIsRunningTests8a] = useState(false);
-  const [testResults8a, setTestResults8a] = useState<{
-    success: boolean;
-    totalTests: number;
-    passedTests: number;
-    results: { test: string; passed: boolean; detail?: string }[];
-  } | null>(null);
-
-  // Phase 8B Verification Test Runner State
-  const [isRunningTests8b, setIsRunningTests8b] = useState(false);
-  const [testResults8b, setTestResults8b] = useState<{
-    success: boolean;
-    totalTests: number;
-    passedTests: number;
-    results: { test: string; passed: boolean; detail?: string }[];
-  } | null>(null);
-
-  // Phase 9 Verification Test Runner State
-  const [isRunningTests9, setIsRunningTests9] = useState(false);
-  const [testResults9, setTestResults9] = useState<{
-    success: boolean;
-    totalTests: number;
-    passedTests: number;
-    results: { test: string; passed: boolean; detail?: string }[];
-  } | null>(null);
-
-  // Phase 10 Verification Test Runner State
-  const [isRunningTests10, setIsRunningTests10] = useState(false);
-  const [testResults10, setTestResults10] = useState<{
-    success: boolean;
-    totalTests: number;
-    passedTests: number;
-    results: { section: string; status: string }[];
-  } | null>(null);
-
   // Live Taxonomy State (Tab 3)
   const [liveTaxonomyTree, setLiveTaxonomyTree] = useState<any[]>([]);
   const [pureTaxonomyList, setPureTaxonomyList] = useState<any[]>([]);
@@ -130,8 +94,6 @@ export const SettingsPage: React.FC = () => {
   const [subtopicSearchQuery, setSubtopicSearchQuery] = useState('');
   const [taxonomyFilterStatus, setTaxonomyFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
   const [taxonomyFilterCompleteness, setTaxonomyFilterCompleteness] = useState<'all' | 'complete' | 'incomplete'>('all');
-  const [isRunningTests04, setIsRunningTests04] = useState(false);
-  const [testResults04, setTestResults04] = useState<any | null>(null);
 
   // Administration modals & form state
   const [isCreateTopicModalOpen, setIsCreateTopicModalOpen] = useState(false);
@@ -160,22 +122,6 @@ export const SettingsPage: React.FC = () => {
       console.warn('Failed to load live taxonomy:', err);
     } finally {
       setIsLoadingTaxonomy(false);
-    }
-  };
-
-  const handleRunVerificationSuite04 = async () => {
-    setIsRunningTests04(true);
-    try {
-      const res = await apiClient.runTaxonomyVerification();
-      setTestResults04(res);
-      setNotification({
-        text: `Taxonomy Verification Suite finished: ${res.passedTests}/${res.totalTests} checks passed. Gate Status: ${res.gateStatus}.`,
-        type: res.gateStatus === 'PASS' ? 'success' : 'error',
-      });
-    } catch (err: any) {
-      setNotification({ text: `Taxonomy test run failed: ${err?.message || 'Error'}`, type: 'error' });
-    } finally {
-      setIsRunningTests04(false);
     }
   };
 
@@ -336,70 +282,6 @@ export const SettingsPage: React.FC = () => {
       setNotification({ text: `Failed to fetch operational state: ${err?.message || 'Error'}`, type: 'error' });
     } finally {
       setIsLoadingRecovery(false);
-    }
-  };
-
-  const handleRunVerificationSuite8a = async () => {
-    setIsRunningTests8a(true);
-    try {
-      const res = await apiClient.runDataIntegrityVerification();
-      setTestResults8a(res);
-      setNotification({
-        text: `Data Integrity Verification Suite finished: ${res.passedTests}/${res.totalTests} tests passed.`,
-        type: res.success ? 'success' : 'error',
-      });
-    } catch (err: any) {
-      setNotification({ text: `Data integrity test run failed: ${err?.message || 'Error'}`, type: 'error' });
-    } finally {
-      setIsRunningTests8a(false);
-    }
-  };
-
-  const handleRunVerificationSuite8b = async () => {
-    setIsRunningTests8b(true);
-    try {
-      const res = await apiClient.runOperationalRecoveryVerification();
-      setTestResults8b(res);
-      setNotification({
-        text: `Operational Recovery Verification Suite finished: ${res.passedTests}/${res.totalTests} tests passed.`,
-        type: res.success ? 'success' : 'error',
-      });
-    } catch (err: any) {
-      setNotification({ text: `Operational recovery test run failed: ${err?.message || 'Error'}`, type: 'error' });
-    } finally {
-      setIsRunningTests8b(false);
-    }
-  };
-
-  const handleRunVerificationSuite9 = async () => {
-    setIsRunningTests9(true);
-    try {
-      const res = await apiClient.runPlanningVerification();
-      setTestResults9(res);
-      setNotification({
-        text: `Content Planning Verification Suite finished: ${res.passedTests}/${res.totalTests} tests passed.`,
-        type: res.success ? 'success' : 'error',
-      });
-    } catch (err: any) {
-      setNotification({ text: `Planning test run failed: ${err?.message || 'Error'}`, type: 'error' });
-    } finally {
-      setIsRunningTests9(false);
-    }
-  };
-
-  const handleRunVerificationSuite10 = async () => {
-    setIsRunningTests10(true);
-    try {
-      const res = await apiClient.runTeamOperationsVerification();
-      setTestResults10(res);
-      setNotification({
-        text: `Team Operations Verification Suite finished: ${res.passedTests}/${res.totalTests} tests passed.`,
-        type: res.success ? 'success' : 'error',
-      });
-    } catch (err: any) {
-      setNotification({ text: `Team operations test run failed: ${err?.message || 'Error'}`, type: 'error' });
-    } finally {
-      setIsRunningTests10(false);
     }
   };
 
@@ -612,26 +494,6 @@ export const SettingsPage: React.FC = () => {
                   <RefreshCw className={`w-3.5 h-3.5 ${isLoadingRecovery ? 'animate-spin' : ''}`} />
                   Refresh Telemetry
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleRunVerificationSuite8b}
-                  disabled={isRunningTests8b}
-                  className="flex items-center gap-1.5 text-xs font-semibold"
-                >
-                  <PlayCircle className={`w-4 h-4 ${isRunningTests8b ? 'animate-spin' : ''}`} />
-                  {isRunningTests8b ? 'Running Operational Recovery...' : 'Run Recovery Suite'}
-                </Button>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={handleRunVerificationSuite9}
-                  disabled={isRunningTests9}
-                  className="flex items-center gap-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700"
-                >
-                  <PlayCircle className={`w-4 h-4 ${isRunningTests9 ? 'animate-spin' : ''}`} />
-                  {isRunningTests9 ? 'Running Planning Suite...' : 'Run Planning Verification'}
-                </Button>
               </div>
             </div>
 
@@ -703,84 +565,6 @@ export const SettingsPage: React.FC = () => {
                       {opHealthReport.telemetry.lastSuccessfulOperation || 'None'}
                     </div>
                   </div>
-                </div>
-              </div>
-            )}
-
-            {/* Test Results Output Pane (Phase 8B) */}
-            {testResults8b && (
-              <div className="p-4 rounded-xl border border-indigo-200 bg-indigo-50/60 space-y-3 animate-in fade-in">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 font-bold text-sm text-indigo-950">
-                    <FileCheck className="w-4 h-4 text-indigo-600" />
-                    Phase 8B Forensic Verification Suite Results
-                  </div>
-                  <span
-                    className={`font-mono text-xs px-2.5 py-0.5 rounded font-bold ${
-                      testResults8b.success
-                        ? 'bg-emerald-200 text-emerald-900'
-                        : 'bg-rose-200 text-rose-900'
-                    }`}
-                  >
-                    {testResults8b.passedTests}/{testResults8b.totalTests} TESTS PASSED
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-60 overflow-y-auto pr-1">
-                  {testResults8b.results.map((r, idx) => (
-                    <div
-                      key={idx}
-                      className={`p-2 rounded border text-xs flex items-center justify-between gap-2 ${
-                        r.passed
-                          ? 'bg-emerald-50/90 border-emerald-200 text-emerald-950'
-                          : 'bg-rose-50/90 border-rose-200 text-rose-950'
-                      }`}
-                    >
-                      <span className="font-medium truncate">{r.test}</span>
-                      <span className="font-mono text-[10px] font-bold shrink-0">
-                        {r.passed ? '✓ PASS' : '✗ FAIL'}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Test Results Output Pane (Phase 9) */}
-            {testResults9 && (
-              <div className="p-4 rounded-xl border border-indigo-200 bg-indigo-50/60 space-y-3 animate-in fade-in">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 font-bold text-sm text-indigo-950">
-                    <FileCheck className="w-4 h-4 text-indigo-600" />
-                    Phase 9 Content Planning & Question Intelligence Suite Results
-                  </div>
-                  <span
-                    className={`font-mono text-xs px-2.5 py-0.5 rounded font-bold ${
-                      testResults9.success
-                        ? 'bg-emerald-200 text-emerald-900'
-                        : 'bg-rose-200 text-rose-900'
-                    }`}
-                  >
-                    {testResults9.passedTests}/{testResults9.totalTests} TESTS PASSED
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-60 overflow-y-auto pr-1">
-                  {testResults9.results.map((r, idx) => (
-                    <div
-                      key={idx}
-                      className={`p-2 rounded border text-xs flex items-center justify-between gap-2 ${
-                        r.passed
-                          ? 'bg-emerald-50/90 border-emerald-200 text-emerald-950'
-                          : 'bg-rose-50/90 border-rose-200 text-rose-950'
-                      }`}
-                    >
-                      <span className="font-medium truncate">{r.test}</span>
-                      <span className="font-mono text-[10px] font-bold shrink-0">
-                        {r.passed ? '✓ PASS' : '✗ FAIL'}
-                      </span>
-                    </div>
-                  ))}
                 </div>
               </div>
             )}
@@ -1030,19 +814,6 @@ export const SettingsPage: React.FC = () => {
                   Strictly READ-ONLY diagnostic audit covering all 18 Google Sheets worksheets, foreign-key relationships, and workflow state machines.
                 </p>
               </div>
-
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={handleRunVerificationSuite8a}
-                  disabled={isRunningTests8a}
-                  className="flex items-center gap-1.5 text-xs font-semibold"
-                >
-                  <PlayCircle className={`w-4 h-4 ${isRunningTests8a ? 'animate-spin' : ''}`} />
-                  {isRunningTests8a ? 'Running Verification...' : 'Run Data Integrity Suite'}
-                </Button>
-              </div>
             </div>
 
 
@@ -1134,45 +905,6 @@ export const SettingsPage: React.FC = () => {
                       </div>
                     </div>
                   )}
-                </div>
-              </div>
-            )}
-
-            {/* Test Results Output Pane (if run) */}
-            {testResults8a && (
-              <div className="p-4 rounded-xl border border-indigo-200 bg-indigo-50/60 space-y-3 animate-in fade-in">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 font-bold text-sm text-indigo-950">
-                    <FileCheck className="w-4 h-4 text-indigo-600" />
-                    Phase 8A Deterministic Test Suite Results
-                  </div>
-                  <span
-                    className={`font-mono text-xs px-2.5 py-0.5 rounded font-bold ${
-                      testResults8a.success
-                        ? 'bg-emerald-200 text-emerald-900'
-                        : 'bg-rose-200 text-rose-900'
-                    }`}
-                  >
-                    {testResults8a.passedTests}/{testResults8a.totalTests} TESTS PASSED
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-56 overflow-y-auto pr-1">
-                  {testResults8a.results.map((r, idx) => (
-                    <div
-                      key={idx}
-                      className={`p-2 rounded border text-xs flex items-center justify-between gap-2 ${
-                        r.passed
-                          ? 'bg-emerald-50/90 border-emerald-200 text-emerald-950'
-                          : 'bg-rose-50/90 border-rose-200 text-rose-950'
-                      }`}
-                    >
-                      <span className="font-medium truncate">{r.test}</span>
-                      <span className="font-mono text-[10px] font-bold shrink-0">
-                        {r.passed ? '✓ PASS' : '✗ FAIL'}
-                      </span>
-                    </div>
-                  ))}
                 </div>
               </div>
             )}
@@ -1637,16 +1369,6 @@ export const SettingsPage: React.FC = () => {
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
-                  onClick={handleRunVerificationSuite04}
-                  disabled={isRunningTests04}
-                  className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50"
-                >
-                  <PlayCircle className={`w-3.5 h-3.5 ${isRunningTests04 ? 'animate-spin' : ''}`} />
-                  <span>{isRunningTests04 ? 'Running Taxonomy Checks...' : 'Run Taxonomy Test Suite'}</span>
-                </button>
-
-                <button
-                  type="button"
                   onClick={fetchLiveTaxonomy}
                   disabled={isLoadingTaxonomy}
                   className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold rounded-lg flex items-center gap-1.5 cursor-pointer"
@@ -1748,38 +1470,6 @@ export const SettingsPage: React.FC = () => {
                 </div>
               </div>
             </div>
-
-            {/* Test Results Banner (If Executed) */}
-            {testResults04 && (
-              <div className="p-4 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                    <span className="text-xs font-bold text-slate-900">Taxonomy Deterministic Verification Report</span>
-                  </div>
-                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full font-mono ${testResults04.gateStatus === 'PASS' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
-                    {testResults04.passedTests}/{testResults04.totalTests} Unit Checks Passed &bull; Gate: {testResults04.gateStatus}
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-200 font-mono">
-                  {testResults04.gateMessage}
-                </p>
-                <div className="max-h-60 overflow-y-auto space-y-1 pr-1">
-                  {testResults04.results.map((r: any) => (
-                    <div key={r.testId} className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100 text-[11px]">
-                      <div className="flex items-center gap-2">
-                        <span className={`font-mono text-[10px] font-bold px-1.5 py-0.5 rounded ${r.passed ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
-                          {r.passed ? 'PASS' : 'FAIL'}
-                        </span>
-                        <span className="font-mono text-slate-500 font-semibold">{r.testId}</span>
-                        <span className="text-slate-800">{r.name}</span>
-                      </div>
-                      <span className="text-[10px] text-slate-500 truncate max-w-xs">{r.message}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
 
             {/* Filter & Search Bar */}
             <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-3">

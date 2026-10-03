@@ -6,7 +6,7 @@
 import { BaseRepository } from './base.repository';
 import { SHEET_SCHEMAS, SHEET_TABS } from '../schemas/google-sheets-schema';
 import { Subtopic } from '../../types';
-import { MOCK_SUBTOPICS } from '../mock-data/taxonomy';
+import { PRODUCTION_SUBTOPICS } from '../data/production-taxonomy';
 
 export class SubtopicsRepository extends BaseRepository<Subtopic> {
   private static instance: SubtopicsRepository | null = null;
@@ -14,7 +14,7 @@ export class SubtopicsRepository extends BaseRepository<Subtopic> {
   private constructor() {
     super(SHEET_SCHEMAS[SHEET_TABS.SUBTOPICS]);
     if (!this.client.isConfigured(this.getTargetSpreadsheetId())) {
-      this.seedFallbackData(MOCK_SUBTOPICS);
+      this.seedFallbackData(PRODUCTION_SUBTOPICS);
     }
   }
 
@@ -28,7 +28,7 @@ export class SubtopicsRepository extends BaseRepository<Subtopic> {
   public override async findAll(): Promise<Subtopic[]> {
     const sheetStore = BaseRepository.fallbackStore.get(this.schema.sheetName);
     if (!this.client.isConfigured(this.getTargetSpreadsheetId()) && (!sheetStore || sheetStore.size === 0)) {
-      this.seedFallbackData(MOCK_SUBTOPICS);
+      this.seedFallbackData(PRODUCTION_SUBTOPICS);
     }
     return super.findAll();
   }

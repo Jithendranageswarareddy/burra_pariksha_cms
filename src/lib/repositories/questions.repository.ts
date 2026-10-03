@@ -6,7 +6,6 @@
 import { BaseRepository } from './base.repository';
 import { QuestionFilterInput, SHEET_SCHEMAS, SHEET_TABS } from '../schemas/google-sheets-schema';
 import { Question } from '../../types';
-import { MOCK_QUESTIONS } from '../mock-data/questions';
 import { ValidationError } from '../google-sheets/errors';
 
 export class QuestionsRepository extends BaseRepository<Question> {
@@ -14,9 +13,6 @@ export class QuestionsRepository extends BaseRepository<Question> {
 
   private constructor() {
     super(SHEET_SCHEMAS[SHEET_TABS.QUESTIONS]);
-    if (!this.client.isConfigured(this.getTargetSpreadsheetId())) {
-      this.seedFallbackData(MOCK_QUESTIONS);
-    }
   }
 
   public static getInstance(): QuestionsRepository {

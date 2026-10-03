@@ -6,7 +6,7 @@
 import { BaseRepository } from './base.repository';
 import { SHEET_SCHEMAS, SHEET_TABS } from '../schemas/google-sheets-schema';
 import { Category } from '../../types';
-import { MOCK_CATEGORIES } from '../mock-data/taxonomy';
+import { PRODUCTION_CATEGORIES } from '../data/production-taxonomy';
 
 export class CategoriesRepository extends BaseRepository<Category> {
   private static instance: CategoriesRepository | null = null;
@@ -14,7 +14,7 @@ export class CategoriesRepository extends BaseRepository<Category> {
   private constructor() {
     super(SHEET_SCHEMAS[SHEET_TABS.CATEGORIES]);
     if (!this.client.isConfigured(this.getTargetSpreadsheetId())) {
-      this.seedFallbackData(MOCK_CATEGORIES);
+      this.seedFallbackData(PRODUCTION_CATEGORIES);
     }
   }
 
@@ -28,7 +28,7 @@ export class CategoriesRepository extends BaseRepository<Category> {
   public override async findAll(): Promise<Category[]> {
     const sheetStore = BaseRepository.fallbackStore.get(this.schema.sheetName);
     if (!this.client.isConfigured(this.getTargetSpreadsheetId()) && (!sheetStore || sheetStore.size === 0)) {
-      this.seedFallbackData(MOCK_CATEGORIES);
+      this.seedFallbackData(PRODUCTION_CATEGORIES);
     }
     return super.findAll();
   }

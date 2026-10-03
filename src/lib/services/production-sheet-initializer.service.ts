@@ -33,7 +33,7 @@ import { categoriesRepository } from '../repositories/categories.repository';
 import { topicsRepository } from '../repositories/topics.repository';
 import { subtopicsRepository } from '../repositories/subtopics.repository';
 import { questionConfigRepository } from '../repositories/question-config.repository';
-import { MOCK_CATEGORIES, MOCK_TOPICS, MOCK_SUBTOPICS } from '../mock-data/taxonomy';
+import { PRODUCTION_CATEGORIES, PRODUCTION_TOPICS, PRODUCTION_SUBTOPICS } from '../data/production-taxonomy';
 import { authService } from './auth.service';
 import { User, UserRole, QuestionConfigEntry } from '../../types';
 
@@ -216,7 +216,7 @@ export class ProductionSheetInitializer {
       try {
         const existingCategories = await categoriesRepository.findAll();
         if (existingCategories.length === 0) {
-          for (const c of MOCK_CATEGORIES) {
+          for (const c of PRODUCTION_CATEGORIES) {
             await categoriesRepository.appendRecord(c);
             categoriesSeeded++;
           }
@@ -224,7 +224,7 @@ export class ProductionSheetInitializer {
 
         const existingTopics = await topicsRepository.findAll();
         if (existingTopics.length === 0) {
-          for (const t of MOCK_TOPICS) {
+          for (const t of PRODUCTION_TOPICS) {
             await topicsRepository.appendRecord(t);
             topicsSeeded++;
           }
@@ -232,7 +232,7 @@ export class ProductionSheetInitializer {
 
         const existingSubtopics = await subtopicsRepository.findAll();
         if (existingSubtopics.length === 0) {
-          for (const s of MOCK_SUBTOPICS) {
+          for (const s of PRODUCTION_SUBTOPICS) {
             await subtopicsRepository.appendRecord(s);
             subtopicsSeeded++;
           }

@@ -24,13 +24,11 @@ import { HUMAN_GATED_STAGES } from './rbac-models';
 
 export enum AiProviderId {
   GEMINI = 'GEMINI',
-  MOCK_PROVIDER = 'MOCK_PROVIDER',
 }
 
 export enum AiModelId {
   GEMINI_2_5_FLASH = 'gemini-2.5-flash',
   GEMINI_2_5_PRO = 'gemini-2.5-pro',
-  MOCK_DETERMINISTIC = 'mock-deterministic-v1',
 }
 
 export enum AiTaskType {

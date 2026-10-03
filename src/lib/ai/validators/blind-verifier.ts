@@ -664,31 +664,3 @@ Return your structured blind derivation JSON.`;
     }
   }
 }
-
-/**
- * Mock / Testing Blind Verifier Provider.
- */
-export class MockBlindVerifierProvider implements BlindVerifierProvider {
-  public readonly providerId: string = 'mock-blind-verifier';
-  private readonly handler?: (req: BlindVerificationRequest) => BlindVerificationDerivedResult | Promise<BlindVerificationDerivedResult>;
-
-  constructor(
-    handler?: (req: BlindVerificationRequest) => BlindVerificationDerivedResult | Promise<BlindVerificationDerivedResult>
-  ) {
-    this.handler = handler;
-  }
-
-  public async verifyBlindly(request: BlindVerificationRequest): Promise<BlindVerificationDerivedResult> {
-    if (this.handler) {
-      return this.handler(request);
-    }
-    return {
-      solvable: true,
-      isNumerical: true,
-      expectedValue: 52.5,
-      expectedUnit: 'km/h',
-      confidence: 0.95,
-      briefDerivation: '60km - (45km/h * 0.75h) = 26.25km in 0.5h = 52.5 km/h',
-    };
-  }
-}

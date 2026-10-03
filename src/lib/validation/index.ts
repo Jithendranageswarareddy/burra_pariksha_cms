@@ -8,4 +8,3 @@ export * from './consensus.engine';
 export * from './question-validation.engine';
 export * from './multi-layer-verification.engine';
 export * from './gemini-validation.provider';
-export * from './testing/mock-validation-provider';

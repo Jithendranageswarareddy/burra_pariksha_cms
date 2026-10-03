@@ -6,7 +6,6 @@
 import { BaseRepository } from './base.repository';
 import { SHEET_SCHEMAS, SHEET_TABS } from '../schemas/google-sheets-schema';
 import { Publishing, PublishingPlatformRecord, PlatformType } from '../../types';
-import { MOCK_PUBLISHING_RECORDS } from '../mock-data/publishing';
 
 export class PublishingRepository extends BaseRepository<Publishing> {
   private static instance: PublishingRepository | null = null;
@@ -15,9 +14,6 @@ export class PublishingRepository extends BaseRepository<Publishing> {
 
   private constructor() {
     super(SHEET_SCHEMAS[SHEET_TABS.PUBLISHING]);
-    if (!this.client.isConfigured(this.getTargetSpreadsheetId())) {
-      this.seedFallbackData(MOCK_PUBLISHING_RECORDS);
-    }
   }
 
   public static getInstance(): PublishingRepository {

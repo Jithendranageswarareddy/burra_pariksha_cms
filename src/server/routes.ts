@@ -88,16 +88,10 @@ import { google } from 'googleapis';
 import { googleDriveService } from '../lib/services/google-drive.service';
 import rateLimit from 'express-rate-limit';
 import { requireAuth, requireRole, extractSessionToken, AuthenticatedRequest } from './middleware/auth.middleware';
-import { testRouter } from './test-routes';
 
 export const apiRouter = express.Router();
 
 apiRouter.use(express.json());
-
-// Stage 7 Phase 4: Isolated Test Runner Mount (Non-production / Test harness only)
-if (process.env.NODE_ENV !== 'production' && process.env.ENABLE_TEST_HARNESS === 'true') {
-  apiRouter.use('/internal/tests', testRouter);
-}
 
 // Apply helmet security headers (configured for iframe preview and cross-origin compatibility)
 apiRouter.use(
@@ -113,7 +107,7 @@ apiRouter.use(
 // Apply bounded rate limit for expensive AI endpoints
 export const aiRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: process.env.NODE_ENV === 'test' ? 10000 : 100, // Bounded rate limit
+  max: 100, // Bounded rate limit (100 requests per 15 minutes per IP)
   message: {
     success: false,
     error: 'Rate limit exceeded. Too many requests, please try again later.',
@@ -121,7 +115,6 @@ export const aiRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   validate: { default: false },
-  skip: (req) => process.env.NODE_ENV === 'test' || Boolean(req.headers['x-test-suite']),
 });
 
 /**
