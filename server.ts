@@ -2,7 +2,7 @@
  * BURRA PARIKSHA CMS - Express & Vite Full-Stack Entrypoint
  * Phase 2: Google Sheets Database Architecture & Persistence
  */
-
+import './src/config/env';
 import express from 'express';
 import path from 'path';
 import fs from 'fs';
