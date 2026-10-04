@@ -17,6 +17,10 @@ class GeminiClientWrapper {
   }
 
   private init(): void {
+    if (typeof process === 'undefined' || !process.env) {
+      this.isKeyConfigured = false;
+      return;
+    }
     const apiKey = process.env.GEMINI_API_KEY;
     if (apiKey && apiKey.trim().length > 0) {
       try {

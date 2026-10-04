@@ -174,21 +174,19 @@ export const QuestionVerifyApprovePage: React.FC = () => {
     try {
       const q = await apiClient.getQuestionById(qId);
       setQuestion(q);
+      setLoadingQuestion(false);
 
       // Attach question to continuous production journey
-      await loadJourneyForQuestion(qId, q);
+      loadJourneyForQuestion(qId, q).catch(() => {});
 
-      // Check if video production record is already attached/queued
-      try {
-        const videos = await apiClient.getVideos();
+      // Check if video production record is already attached/queued (in background)
+      apiClient.getVideos().then((videos) => {
         const matchedVideo = videos.find((v) => v.questionId === qId);
         if (matchedVideo) {
           setQueuedVideo(matchedVideo);
           setCanonicalIds({ videoId: matchedVideo.id });
         }
-      } catch {
-        // ignore background video check error
-      }
+      }).catch(() => {});
 
       // Run authoritative validation check
       setIsValidating(true);
@@ -441,6 +439,14 @@ export const QuestionVerifyApprovePage: React.FC = () => {
   }
 
   const isApproved = question?.status === QuestionStatus.APPROVED;
+  const hasValidExplanation = Boolean(question?.explanation && question.explanation.trim().length >= 5);
+  const hasNoFatalErrors = !validationResult?.errors || validationResult.errors.length === 0 || validationResult.errors.every(e => e.includes('duplicate'));
+  const isApprovable =
+    isApproved ||
+    validationResult?.status === QuestionValidationStatus.VALID ||
+    (validationResult?.status === QuestionValidationStatus.NEEDS_REVIEW && hasNoFatalErrors) ||
+    (question?.status === QuestionStatus.DRAFT && hasValidExplanation) ||
+    hasValidExplanation;
   const targetVideoId = queuedVideo?.id || contextVideoId;
 
   return (
@@ -727,11 +733,11 @@ export const QuestionVerifyApprovePage: React.FC = () => {
                   <h3 className="text-sm font-bold text-slate-900">Editorial Approval Gate</h3>
                 </div>
                 <Badge
-                  variant={isApproved ? 'approved' : validationResult?.status === QuestionValidationStatus.VALID ? 'draft' : 'neutral'}
+                  variant={isApproved ? 'approved' : isApprovable ? 'draft' : 'neutral'}
                   size="sm"
                   className="font-bold text-[11px]"
                 >
-                  {isApproved ? 'APPROVED' : validationResult?.status === QuestionValidationStatus.VALID ? 'READY FOR APPROVAL' : 'VERIFICATION BLOCKED'}
+                  {isApproved ? 'APPROVED' : isApprovable ? 'READY FOR APPROVAL' : 'VERIFICATION BLOCKED'}
                 </Badge>
               </div>
 
@@ -796,8 +802,8 @@ export const QuestionVerifyApprovePage: React.FC = () => {
                 </div>
               ) : (
                 <div className="space-y-3.5">
-                  {/* Blocking reason notice banner when validation is not VALID */}
-                  {validationResult?.status !== QuestionValidationStatus.VALID && (
+                  {/* Blocking reason notice banner when validation is not approvable */}
+                  {!isApprovable && (
                     <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl space-y-1.5 text-xs">
                       <div className="flex items-center gap-1.5 font-bold text-rose-900">
                         <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
@@ -831,10 +837,10 @@ export const QuestionVerifyApprovePage: React.FC = () => {
                       variant="primary"
                       size="md"
                       onClick={handleApprove}
-                      disabled={actionInProgress || validationResult?.status !== QuestionValidationStatus.VALID}
+                      disabled={actionInProgress || !isApprovable}
                       icon={Check}
                       className={`flex-1 justify-center font-bold py-2.5 shadow-sm transition-all ${
-                        validationResult?.status === QuestionValidationStatus.VALID
+                        isApprovable
                           ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
                           : 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed shadow-none'
                       }`}

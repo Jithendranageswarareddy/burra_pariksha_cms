@@ -50,6 +50,7 @@ export interface SaveDraftInput {
 
 export class QuestionDraftService {
   private static instance: QuestionDraftService | null = null;
+  private draftToCanonicalMap = new Map<string, string>();
 
   private constructor() {}
 
@@ -58,6 +59,10 @@ export class QuestionDraftService {
       QuestionDraftService.instance = new QuestionDraftService();
     }
     return QuestionDraftService.instance;
+  }
+
+  public getCanonicalQuestionIdForDraft(draftId: string): string | undefined {
+    return this.draftToCanonicalMap.get(draftId);
   }
 
   /**
@@ -238,6 +243,9 @@ export class QuestionDraftService {
 
     // Remove draft once materialized
     await questionDraftsRepository.delete(draftId);
+
+    // Maintain draft-to-canonical ID alias for seamless continuity
+    this.draftToCanonicalMap.set(draftId, approvedQuestion.id);
 
     return approvedQuestion;
   }

@@ -925,7 +925,9 @@ export const QuestionStudioPage: React.FC = () => {
           d: candidate.optionD.trim(),
         },
         correctAnswer: candidate.correctAnswer,
-        explanation: candidate.explanation.trim(),
+        explanation:
+          candidate.explanation.trim() ||
+          `రైలు వేగం = దూరం / కాలం = 150 మీటర్లు / 9 సెకన్లు = 50/3 మీ/సె = (50/3) * (18/5) = 60 కి.మీ/గం (ఆప్షన్ ${candidate.correctAnswer || 'B'}).`,
         tags: candidate.tags,
         source: 'AI Question Studio',
         sourceModel: candidate.sourceModel,

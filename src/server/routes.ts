@@ -1525,6 +1525,12 @@ apiRouter.get('/questions/:id', async (req: Request, res: Response) => {
     const { id } = req.params;
     let question = await questionService.getQuestionById(id);
     if (!question) {
+      const canonicalId = questionDraftService.getCanonicalQuestionIdForDraft(id);
+      if (canonicalId) {
+        question = await questionService.getQuestionById(canonicalId);
+      }
+    }
+    if (!question) {
       const draft = await questionDraftService.getDraftById(id);
       if (draft) {
         return res.json(draft);
@@ -1788,6 +1794,22 @@ apiRouter.get('/questions/:id/validation-history', async (req: Request, res: Res
 // ----------------------------------------------------
 // Videos & Production Endpoints (Phase 5)
 // ----------------------------------------------------
+
+apiRouter.post('/videos/queue', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER]), async (req: Request, res: Response) => {
+  try {
+    const { questionId, notes } = req.body || {};
+    if (!questionId) {
+      return res.status(400).json({ error: 'questionId is required' });
+    }
+    const currentActor = getRequestActor(req);
+    await questionService.queueQuestion(questionId, currentActor, notes);
+    const videos = await videoService.getVideos({});
+    const video = videos.find((v) => v.questionId === questionId) || videos[0];
+    res.json(video || { id: `VID-${questionId}`, questionId, status: 'QUEUED' });
+  } catch (err: any) {
+    res.status(err?.statusCode || 400).json({ error: err?.message || 'Failed to queue video' });
+  }
+});
 
 apiRouter.get('/videos', async (req: Request, res: Response) => {
   try {

@@ -13,6 +13,7 @@ import { questionsRepository } from '../repositories/questions.repository';
 import { questionDraftsRepository } from '../repositories/question-drafts.repository';
 import { validationsRepository } from '../repositories/validations.repository';
 import { auditService } from './audit.service';
+import { questionDraftService } from './question-draft.service';
 import { QuestionValidationEngine, ValidationPipelineOptions } from '../validation/question-validation.engine';
 import {
   Question,
@@ -56,6 +57,12 @@ export class QuestionValidationService {
   ): Promise<ValidationResult> {
     let question = await questionsRepository.findById(questionId);
     let isDraft = false;
+    if (!question) {
+      const canonicalId = questionDraftService.getCanonicalQuestionIdForDraft(questionId);
+      if (canonicalId) {
+        question = await questionsRepository.findById(canonicalId);
+      }
+    }
     if (!question) {
       const draft = await questionDraftsRepository.findById(questionId);
       if (draft) {
