@@ -5,7 +5,7 @@
 **Sprint Objective:** System Stabilization & Question Golden Path Proof  
 **Last Completed Task:** S2-T04 Architecture / Route Cleanup Map  
 **Current Blocker:** None  
-**Current Git Commit:** `103ce43c795ed12bdb931b06d216fea6afd4f090` (Sprint 2 S2-T04 closed & operating model established)  
+**Current Git Commit:** `origin/main` (verified at task closure)  
 **Last Successful Deployment:** N/A (Preparing initial Cloud Run deployment verification)  
 **Live Environment:** `https://ais-dev-fjjdmukiysol435fsvlcau-618687518096.asia-east1.run.app`  
 **Known Risks:** Live Google Sheets network latency; dual state mutation paths (domain status vs FC-005 universal state engine).  
@@ -20,10 +20,10 @@
    - All environments synchronize strictly with GitHub `main`. No local workspace is authoritative over GitHub.
 
 2. **Google AI Studio (Primary Implementation & Release Authority)**:
-   - Primary implementation environment: pulls code, develops features, runs full verification (typecheck, tests, build, runtime probes), commits changes, syncs to GitHub, and triggers official deployment/publishing to Cloud Run.
+   - Primary daily implementation environment: pulls code, develops features, runs full verification (typecheck, tests, build, runtime probes), commits changes, syncs to GitHub, and triggers official deployment/publishing to Cloud Run.
 
 3. **Antigravity (Local Development Workspace)**:
-   - Local development, inspection, and debugging workspace.
+   - Local development, inspection, and debugging workspace used primarily when Google AI Studio credits are exhausted.
    - Antigravity pulls/pushes to GitHub; it is not the final deployment authority. All work must synchronize through GitHub `main`.
 
 4. **ChatGPT (Independent GitHub Verification Surface)**:
@@ -44,3 +44,38 @@
 7. **Conflict Resolution Policy**:
    - If local and remote branches diverge, never run `git reset --hard origin/main` blindly.
    - Inspect divergence, identify authoritative work, preserve legitimate commits, reconcile intentionally, test, push, and verify.
+
+---
+
+## Development Environment Handoff
+
+### Normal Operation:
+Google AI Studio  
+→ Pull latest GitHub `main`  
+→ Develop  
+→ Test  
+→ Build  
+→ Commit  
+→ Push/Sync to GitHub  
+→ Verify GitHub  
+→ Publish to Cloud Run  
+
+### When Google AI Studio Credits are Exhausted:
+Antigravity  
+→ Pull latest GitHub `main`  
+→ Develop locally  
+→ Test  
+→ Commit  
+→ Push to GitHub `main`  
+
+### When Google AI Studio Credits are Restored:
+Google AI Studio  
+→ Pull latest GitHub `main`  
+→ Verify workspace contains latest remote changes  
+→ Continue development  
+→ Test  
+→ Push/Sync to GitHub  
+→ Publish to Cloud Run  
+
+*Critical Invariant*: Never continue development in a stale Google AI Studio workspace after Antigravity has pushed newer changes. The authoritative sequence is always:
+GitHub `main` → current workspace → development → GitHub `main`.
