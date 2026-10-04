@@ -4,7 +4,7 @@
 - [x] **S2-T01**: Baseline Freeze & GitHub main import verification.
 - [x] **S2-T02**: Runtime Recovery and live local dev server verification.
 - [x] **S2-T03**: Environment Stabilization and secret mapping.
-- [ ] **S2-T04**: Architecture / Route cleanup map.
+- [x] **S2-T04**: Architecture / Route cleanup map.
 - [ ] **S2-T05**: Question Golden Path browser verification.
 - [ ] **S2-T06**: Real persistence proof (read-back after restart/refresh).
 - [ ] **S2-T07**: Regression & automated smoke tests.
