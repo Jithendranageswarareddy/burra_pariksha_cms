@@ -108,6 +108,19 @@ import { requestIdMiddleware } from './middleware/request-id.middleware';
 import { globalErrorHandler } from './middleware/error.middleware';
 import { healthRouter } from './health.routes';
 import { auditDispatcher } from '../lib/audit';
+import { workflowService as canonicalWorkflowService, workflowEngine } from '../lib/workflow';
+import { realtimeEventBus } from '../lib/realtime/event-bus';
+import {
+  WorkflowTransitionRequestSchema,
+  CreateWorkflowInstanceSchema,
+} from '../types/workflow';
+import {
+  InvalidWorkflowTransitionError,
+  ConcurrencyConflictError,
+  ForbiddenError,
+  NotFoundError,
+  ValidationError,
+} from '../lib/errors';
 
 export const apiRouter = express.Router();
 
@@ -4742,6 +4755,247 @@ apiRouter.get(['/audit/events', '/v1/audit/events'], async (req: Request, res: R
     res.status(500).json(errEnvelope);
   }
 });
+
+// ============================================================================
+// Stage 27 Feature Contract: FC-005 Canonical 15-Step Workflow State Machine
+// ============================================================================
+
+// POST /api/v1/workflow/instances - Initialize a workflow instance
+apiRouter.post(
+  ['/workflow/instances', '/v1/workflow/instances', '/api/v1/workflow/instances', '/workflow/create', '/v1/workflow/create'],
+  requireAuth,
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    const requestId = (req.headers['x-request-id'] as string) || (req as any).requestId || `req_${Date.now()}`;
+
+    try {
+      const parsed = CreateWorkflowInstanceSchema.safeParse(req.body);
+      if (!parsed.success) {
+        const errEnvelope = createErrorResponse(
+          ApiErrorCode.VALIDATION_ERROR,
+          'Validation failed for workflow instance creation.',
+          requestId,
+          parsed.error.issues.map((i) => ({ field: i.path.join('.'), issue: i.message }))
+        );
+        res.status(400).json({ ...errEnvelope, message: 'Validation failed for workflow instance creation.' });
+        return;
+      }
+
+      const workflow = await canonicalWorkflowService.createInstance(parsed.data, req.user);
+      const successEnvelope = createSuccessResponse({ workflow }, requestId);
+      res.status(201).json(successEnvelope);
+    } catch (err: any) {
+      next(err);
+    }
+  }
+);
+
+// GET /api/v1/workflow/:id - Retrieve workflow instance & valid next steps
+apiRouter.get(
+  ['/workflow/:id', '/v1/workflow/:id', '/api/v1/workflow/:id'],
+  requireAuth,
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    const requestId = (req.headers['x-request-id'] as string) || (req as any).requestId || `req_${Date.now()}`;
+    const { id } = req.params;
+
+    try {
+      const workflow = await canonicalWorkflowService.getInstance(id);
+      const validTargets = workflowEngine.getValidNextSteps(workflow, req.user);
+      const successEnvelope = createSuccessResponse({ workflow, validTargets }, requestId);
+      res.json(successEnvelope);
+    } catch (err: any) {
+      if (err instanceof NotFoundError || err?.statusCode === 404) {
+        const errEnvelope = createErrorResponse(
+          ApiErrorCode.RESOURCE_NOT_FOUND,
+          err.message,
+          requestId
+        );
+        res.status(404).json({ ...errEnvelope, message: err.message });
+        return;
+      }
+      next(err);
+    }
+  }
+);
+
+// POST /api/v1/workflow/:id/transition - Authoritative deterministic state machine transition
+apiRouter.post(
+  ['/workflow/:id/transition', '/v1/workflow/:id/transition', '/api/v1/workflow/:id/transition'],
+  requireAuth,
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    const requestId = (req.headers['x-request-id'] as string) || (req as any).requestId || `req_${Date.now()}`;
+    const { id } = req.params;
+
+    try {
+      if (!req.user) {
+        const errEnvelope = createErrorResponse(
+          ApiErrorCode.UNAUTHENTICATED,
+          'Authentication required.',
+          requestId
+        );
+        res.status(401).json({ ...errEnvelope, message: 'Authentication required.' });
+        return;
+      }
+
+      // 1. Zod input validation
+      const parseResult = WorkflowTransitionRequestSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        const errEnvelope = createErrorResponse(
+          ApiErrorCode.VALIDATION_ERROR,
+          'Validation failed for workflow transition request.',
+          requestId,
+          parseResult.error.issues.map((i) => ({
+            field: i.path.join('.'),
+            issue: i.message,
+          }))
+        );
+        res.status(400).json({
+          ...errEnvelope,
+          message: 'Validation failed for workflow transition request.',
+        });
+        return;
+      }
+
+      // 2. Execute authoritative workflow service transition (validates guards, OCC, GAR-02, audit, realtime)
+      const result = await canonicalWorkflowService.transition(id, parseResult.data, req.user);
+
+      const successEnvelope = createSuccessResponse(
+        {
+          workflow: result.workflow,
+          historyEntry: result.historyEntry,
+        },
+        requestId
+      );
+      res.json(successEnvelope);
+    } catch (err: any) {
+      if (err instanceof ConcurrencyConflictError || err?.code === 'CONFLICT_OPTIMISTIC_LOCK' || err?.code === 'CONCURRENCY_CONFLICT') {
+        const errEnvelope = createErrorResponse(
+          ApiErrorCode.CONCURRENCY_CONFLICT,
+          err.message || 'Optimistic concurrency conflict.',
+          requestId,
+          err.details
+        );
+        res.status(409).json({
+          ...errEnvelope,
+          message: err.message || 'Optimistic concurrency conflict.',
+        });
+        return;
+      }
+
+      if (err instanceof ForbiddenError || err?.statusCode === 403) {
+        const isSoD = err.message?.includes('GAR-02') || err.message?.includes('Self-approval');
+        const code = isSoD
+          ? ApiErrorCode.FORBIDDEN_BY_SEGREGATION_OF_DUTIES
+          : ApiErrorCode.FORBIDDEN_LACKS_CAPABILITY;
+        const errEnvelope = createErrorResponse(code, err.message, requestId);
+        res.status(403).json({
+          ...errEnvelope,
+          message: err.message,
+        });
+        return;
+      }
+
+      if (err instanceof InvalidWorkflowTransitionError || err?.code === 'INVALID_WORKFLOW_TRANSITION') {
+        const errEnvelope = createErrorResponse(
+          ApiErrorCode.INVALID_WORKFLOW_TRANSITION,
+          err.message,
+          requestId,
+          err.details
+        );
+        res.status(422).json({
+          ...errEnvelope,
+          message: err.message,
+        });
+        return;
+      }
+
+      if (err instanceof NotFoundError || err?.statusCode === 404) {
+        const errEnvelope = createErrorResponse(
+          ApiErrorCode.RESOURCE_NOT_FOUND,
+          err.message,
+          requestId
+        );
+        res.status(404).json({
+          ...errEnvelope,
+          message: err.message,
+        });
+        return;
+      }
+
+      if (err instanceof ValidationError || err?.statusCode === 400) {
+        const errEnvelope = createErrorResponse(
+          ApiErrorCode.VALIDATION_ERROR,
+          err.message,
+          requestId,
+          err.details
+        );
+        res.status(400).json({
+          ...errEnvelope,
+          message: err.message,
+        });
+        return;
+      }
+
+      next(err);
+    }
+  }
+);
+
+// GET /api/v1/workflow/:id/history - Immutable historical transition logs
+apiRouter.get(
+  ['/workflow/:id/history', '/v1/workflow/:id/history', '/api/v1/workflow/:id/history'],
+  requireAuth,
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    const requestId = (req.headers['x-request-id'] as string) || (req as any).requestId || `req_${Date.now()}`;
+    const { id } = req.params;
+
+    try {
+      const history = await canonicalWorkflowService.getHistory(id);
+      const successEnvelope = createSuccessResponse({ history }, requestId);
+      res.json(successEnvelope);
+    } catch (err: any) {
+      if (err instanceof NotFoundError || err?.statusCode === 404) {
+        const errEnvelope = createErrorResponse(
+          ApiErrorCode.RESOURCE_NOT_FOUND,
+          err.message,
+          requestId
+        );
+        res.status(404).json({ ...errEnvelope, message: err.message });
+        return;
+      }
+      next(err);
+    }
+  }
+);
+
+// GET /api/v1/realtime/stream - Server-Sent Events (SSE) Stream
+apiRouter.get(
+  ['/realtime/stream', '/v1/realtime/stream', '/api/v1/realtime/stream'],
+  (req: Request, res: Response) => {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders?.();
+
+    res.write(`: connection established at ${new Date().toISOString()}\n\n`);
+
+    const unsubscribeWildcard = realtimeEventBus.subscribe('*', (event) => {
+      res.write(`id: ${event.eventId}\n`);
+      res.write(`event: ${event.type}\n`);
+      res.write(`data: ${JSON.stringify(event)}\n\n`);
+    });
+
+    const unsubscribeTransition = realtimeEventBus.subscribe('workflow.step_transitioned', (payload) => {
+      res.write(`event: workflow.step_transitioned\n`);
+      res.write(`data: ${JSON.stringify(payload)}\n\n`);
+    });
+
+    req.on('close', () => {
+      unsubscribeWildcard();
+      unsubscribeTransition();
+      res.end();
+    });
+  }
+);
 
 // Task 3F.4.8D: Phase 1 Authenticated Admin Full Restore Execution Endpoint
 apiRouter.post('/system/restore/execute', requireRole([UserRole.ADMIN]), async (req: Request, res: Response) => {

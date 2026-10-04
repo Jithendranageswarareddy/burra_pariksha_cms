@@ -169,6 +169,19 @@ export class BusinessInvariantError extends AppError {
   }
 }
 
+export class InvalidWorkflowTransitionError extends AppError {
+  constructor(
+    message = 'Invalid workflow state transition.',
+    details?: ErrorDetails
+  ) {
+    super(message, {
+      statusCode: 422,
+      code: 'INVALID_WORKFLOW_TRANSITION',
+      details,
+    });
+  }
+}
+
 export class RateLimitExceededError extends AppError {
   constructor(
     message = 'Too many requests. Rate limit exceeded, please retry later.',

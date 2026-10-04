@@ -28,6 +28,8 @@ export type CanonicalPrefix =
   | 'rev_'
   | 'aud_';
 
+export type ExtendedPrefix = CanonicalPrefix | 'wfl_' | 'wfh_';
+
 export const CANONICAL_PREFIXES: readonly CanonicalPrefix[] = [
   'qst_',
   'scr_',
@@ -39,7 +41,7 @@ export const CANONICAL_PREFIXES: readonly CanonicalPrefix[] = [
   'aud_',
 ] as const;
 
-export const PREFIX_ENTITY_MAP: Record<CanonicalPrefix, string> = {
+export const PREFIX_ENTITY_MAP: Record<string, string> = {
   'qst_': 'Question',
   'scr_': 'Script',
   'vid_': 'Video',
@@ -48,6 +50,8 @@ export const PREFIX_ENTITY_MAP: Record<CanonicalPrefix, string> = {
   'usr_': 'User',
   'rev_': 'Review',
   'aud_': 'AuditLog',
+  'wfl_': 'WorkflowInstance',
+  'wfh_': 'WorkflowHistory',
 };
 
 // UUID v4 format pattern: 8-4-4-4-12 hex characters
@@ -69,7 +73,7 @@ export class CanonicalIdService {
    * Generates a typed canonical ID composed of the registered prefix and a v4 UUID.
    * Example: generateCanonicalId('qst_') => 'qst_550e8400-e29b-41d4-a716-446655440000'
    */
-  public generateCanonicalId(prefix: CanonicalPrefix): string {
+  public generateCanonicalId(prefix: ExtendedPrefix | string): string {
     const uuid = randomUUID();
     return `${prefix}${uuid}`;
   }
@@ -106,11 +110,19 @@ export class CanonicalIdService {
     return this.generateCanonicalId('aud_');
   }
 
+  public generateWorkflowId(): string {
+    return this.generateCanonicalId('wfl_');
+  }
+
+  public generateWorkflowHistoryId(): string {
+    return this.generateCanonicalId('wfh_');
+  }
+
   /**
    * Validates whether a candidate string is a valid canonical ID.
    * If expectedPrefix is provided, asserts prefix equality.
    */
-  public validateCanonicalId(id: string, expectedPrefix?: CanonicalPrefix): boolean {
+  public validateCanonicalId(id: string, expectedPrefix?: ExtendedPrefix | string): boolean {
     if (!id || typeof id !== 'string') {
       return false;
     }
@@ -123,7 +135,8 @@ export class CanonicalIdService {
       return new RegExp(UUID_V4_PATTERN, 'i').test(suffix);
     }
 
-    const matchedPrefix = CANONICAL_PREFIXES.find((p) => id.startsWith(p));
+    const allPrefixes = [...CANONICAL_PREFIXES, 'wfl_', 'wfh_'];
+    const matchedPrefix = allPrefixes.find((p) => id.startsWith(p));
     if (!matchedPrefix) {
       return false;
     }
@@ -135,12 +148,13 @@ export class CanonicalIdService {
   /**
    * Parses prefix and uuid parts from a canonical ID string.
    */
-  public parseCanonicalId(id: string): { prefix: CanonicalPrefix; uuid: string } | null {
+  public parseCanonicalId(id: string): { prefix: string; uuid: string } | null {
     if (!id || typeof id !== 'string') {
       return null;
     }
 
-    const matchedPrefix = CANONICAL_PREFIXES.find((p) => id.startsWith(p));
+    const allPrefixes = [...CANONICAL_PREFIXES, 'wfl_', 'wfh_'];
+    const matchedPrefix = allPrefixes.find((p) => id.startsWith(p));
     if (!matchedPrefix) {
       return null;
     }
