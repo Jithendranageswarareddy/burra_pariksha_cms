@@ -1,12 +1,12 @@
 # BP-CMS Project Control & Execution State
 
 **Current Sprint:** Sprint 2  
-**Current Task:** S2-T01 Baseline Freeze & Import Verification  
+**Current Task:** S2-T03 Environment Stabilization & Secret Mapping (COMPLETE)  
 **Sprint Objective:** System Stabilization & Question Golden Path Proof  
-**Last Completed Task:** S1 Baseline Audit & GitHub Main Import  
+**Last Completed Task:** S2-T03 Environment Stabilization & Secret Mapping  
 **Current Blocker:** None  
-**Current Git Commit:** `5c4d6a552c33cb7f8b10c984e5508bae1dc78ee5`  
+**Current Git Commit:** `e5f7fdf` (Sprint 2 S2-T03 stabilized)  
 **Last Successful Deployment:** N/A (Preparing initial Cloud Run deployment verification)  
 **Live Environment:** `https://ais-dev-fjjdmukiysol435fsvlcau-618687518096.asia-east1.run.app`  
 **Known Risks:** Live Google Sheets network latency; proxy buffering on Server-Sent Events.  
-**Next Action:** Await user confirmation of Sprint 1 Baseline Report, then initiate Task S2-T01 / S2-T02.  
+**Next Action:** Await user confirmation, then initiate Task S2-T04 Architecture / Route Cleanup Map.

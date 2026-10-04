@@ -2,7 +2,7 @@
 
 **Sprint:** 2  
 **Name:** System Stabilization & Golden Path  
-**Status:** READY  
+**Status:** IN PROGRESS  
 **Start Date:** 2026-10-04  
 **Primary Target:** End-to-end Question Golden Path (Creation -> Verification -> Approval -> State Update -> Audit -> Persistence Proof)
 
@@ -11,8 +11,8 @@
 | Task ID | Task Name | Priority | Status | Description |
 | :--- | :--- | :---: | :---: | :--- |
 | **S2-T01** | **Baseline Freeze** | P0 | DONE | Verify GitHub main import, establish immutable baseline report, confirm 0 build/lint/test errors. |
-| **S2-T02** | **Runtime Recovery** | P0 | READY | Verify dev server, API endpoints, and client-side bundle execution in AI Studio runtime. |
-| **S2-T03** | **Environment Stabilization** | P0 | READY | Map all local secrets and environment variables required for full integration. |
+| **S2-T02** | **Runtime Recovery** | P0 | DONE | Verify dev server, API endpoints, and client-side bundle execution in AI Studio runtime. |
+| **S2-T03** | **Environment Stabilization** | P0 | DONE | Map all local secrets and environment variables required for full integration. |
 | **S2-T04** | **Architecture / Route Cleanup Map** | P1 | READY | Formulate route and service dependency map to isolate legacy vs canonical paths. |
 | **S2-T05** | **Question Golden Path** | P0 | READY | Execute complete slice: Create -> Save -> Library -> Detail -> Verify -> Approve -> Workflow update. |
 | **S2-T06** | **Real Persistence Proof** | P0 | READY | Verify read-back persistence after full browser refresh and database restart. |
