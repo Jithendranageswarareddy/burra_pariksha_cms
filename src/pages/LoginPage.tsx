@@ -37,7 +37,7 @@ export const LoginPage: React.FC = () => {
             <GraduationCap className="w-7 h-7" />
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl font-display">
-            bp cms
+            Burra Pariksha CMS
           </h1>
           <p className="mt-1.5 text-sm text-slate-400">
             Production Editorial & Content Operations Platform
