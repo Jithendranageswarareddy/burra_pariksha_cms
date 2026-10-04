@@ -6,7 +6,7 @@
  * Google service account credentials and Sheets API calls remain strictly server-side.
  */
 
-import express, { Request, Response } from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import {
   assignmentService,
   auditService,
@@ -106,11 +106,14 @@ import {
 import { createSuccessResponse, createErrorResponse, ApiErrorCode } from '../types/api-contracts';
 import { requestIdMiddleware } from './middleware/request-id.middleware';
 import { globalErrorHandler } from './middleware/error.middleware';
+import { healthRouter } from './health.routes';
+import { auditDispatcher } from '../lib/audit';
 
 export const apiRouter = express.Router();
 
 apiRouter.use(express.json());
 apiRouter.use(requestIdMiddleware);
+apiRouter.use(healthRouter);
 
 // Apply helmet security headers (configured for iframe preview and cross-origin compatibility)
 apiRouter.use(
@@ -4634,6 +4637,109 @@ apiRouter.patch('/v1/users/:id/role', requireCapability('USER:ADMINISTER'), asyn
       requestId
     );
     res.status(500).json({ ...errEnvelope, message: err?.message || 'Failed to update user role.' });
+  }
+});
+
+// ============================================================================
+// Stage 27 Feature Contract: FC-004 Audit Ledger & Observability
+// ============================================================================
+
+// Immutability Guard: Normal APIs strictly prohibited from mutating or deleting audit records
+apiRouter.all(['/audit/events', '/v1/audit/events', '/audit/events/*', '/v1/audit/events/*'], (req: Request, res: Response, next: NextFunction) => {
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
+    const requestId = (req.headers['x-request-id'] as string) || (req as any).requestId || `req_${Date.now()}`;
+    return res.status(405).json(createErrorResponse(
+      ApiErrorCode.FORBIDDEN_BY_BUSINESS_RULE,
+      'Audit records are strictly immutable and append-only. Modification and deletion are prohibited.',
+      requestId
+    ));
+  }
+  next();
+});
+
+// GET /api/v1/audit/events — Query immutable audit trail (Requires AUDIT_EVENT:VIEW)
+apiRouter.get(['/audit/events', '/v1/audit/events'], async (req: Request, res: Response) => {
+  const requestId = (req.headers['x-request-id'] as string) || (req as any).requestId || `req_${Date.now()}`;
+  try {
+    const actor = getRequestActor(req);
+    const actorCanonicalRole = resolveBrownfieldRole(actor.role);
+    const hasAuditView = roleHasCapability(actorCanonicalRole, 'AUDIT_EVENT:VIEW');
+
+    if (!hasAuditView) {
+      const errEnvelope = createErrorResponse(
+        ApiErrorCode.FORBIDDEN_LACKS_CAPABILITY,
+        'Forbidden: Insufficient permissions to view audit records. Requires AUDIT_EVENT:VIEW capability.',
+        requestId
+      );
+      res.status(403).json(errEnvelope);
+      return;
+    }
+
+    const { resourceType, resourceId, actorId, action, startDate, endDate, page, limit } = req.query;
+
+    const filters = {
+      resourceType: resourceType ? String(resourceType) : undefined,
+      resourceId: resourceId ? String(resourceId) : undefined,
+      actorId: actorId ? String(actorId) : undefined,
+      action: action ? String(action) : undefined,
+      startDate: startDate ? String(startDate) : undefined,
+      endDate: endDate ? String(endDate) : undefined,
+      page: page ? parseInt(String(page), 10) : 1,
+      limit: limit ? parseInt(String(limit), 10) : 20,
+    };
+
+    const result = await auditDispatcher.query(filters);
+
+    // Self-referential audit log (Section 12 of FC-004):
+    // Inquiring about audit logs generates an AUDIT_LOG_ACCESSED audit record
+    auditDispatcher.dispatch({
+      actor: {
+        actorId: actor.id,
+        actorRole: actor.role,
+        actorName: actor.name,
+      },
+      action: 'AUDIT_LOG_ACCESSED',
+      resource: {
+        resourceType: 'AUDIT_EVENT',
+        resourceId: 'ALL',
+      },
+      context: {
+        requestId,
+        traceId: (req as any).traceId,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+      },
+      result: 'SUCCESS',
+    }).catch(() => {});
+
+    const successEnvelope = createSuccessResponse({
+      events: result.events,
+    }, requestId, {
+      pagination: {
+        page: result.page,
+        limit: result.limit,
+        total: result.total,
+        totalPages: result.totalPages,
+      },
+    });
+
+    res.json(successEnvelope);
+  } catch (err: any) {
+    if (err instanceof UnauthenticatedActorError || err?.statusCode === 401) {
+      const errEnvelope = createErrorResponse(
+        ApiErrorCode.UNAUTHENTICATED,
+        err.message || 'Authentication required.',
+        requestId
+      );
+      res.status(401).json(errEnvelope);
+      return;
+    }
+    const errEnvelope = createErrorResponse(
+      ApiErrorCode.INTERNAL_SERVER_ERROR,
+      err?.message || 'Failed to retrieve audit events.',
+      requestId
+    );
+    res.status(500).json(errEnvelope);
   }
 });
 

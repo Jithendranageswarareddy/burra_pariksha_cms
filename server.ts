@@ -8,6 +8,7 @@ import path from 'path';
 import fs from 'fs';
 import { createServer as createViteServer } from 'vite';
 import { apiRouter } from './src/server/routes';
+import { healthRouter } from './src/server/health.routes';
 import { snapshotSchedulerService } from './src/lib/services/snapshot-scheduler.service';
 import { usersRepository } from './src/lib/repositories/users.repository';
 import { googleDriveService } from './src/lib/services/google-drive.service';
@@ -15,6 +16,9 @@ import { googleDriveService } from './src/lib/services/google-drive.service';
 async function startServer() {
   const app = express();
   app.set('trust proxy', 1);
+
+  // Mount Health & System Probes (FC-004)
+  app.use(healthRouter);
   // Determine port and host from CLI args or environment variables
   const portArgIndex = process.argv.indexOf('--port');
   const portFromArg = portArgIndex !== -1 && process.argv[portArgIndex + 1] ? parseInt(process.argv[portArgIndex + 1], 10) : NaN;
