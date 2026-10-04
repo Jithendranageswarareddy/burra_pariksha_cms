@@ -10,9 +10,10 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "node --max-old-space-size=4096 ./node_modules/typescript/bin/tsc --noEmit",
-    "test": "tsx tests/fc-001-auth.test.ts && tsx tests/fc-002-rbac.test.ts",
+    "test": "tsx tests/fc-001-auth.test.ts && tsx tests/fc-002-rbac.test.ts && tsx tests/fc-003-db-api.test.ts",
     "test:auth": "tsx tests/fc-001-auth.test.ts",
-    "test:rbac": "tsx tests/fc-002-rbac.test.ts"
+    "test:rbac": "tsx tests/fc-002-rbac.test.ts",
+    "test:db-api": "tsx tests/fc-003-db-api.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

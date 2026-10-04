@@ -38,6 +38,39 @@ import {
 } from '../types';
 import { GenerateCandidateInput, GenerationResult, RefineCandidateInput } from './ai/types';
 
+export class ApiClientError extends Error {
+  public readonly statusCode: number;
+  public readonly code: string;
+  public readonly details?: any;
+  public readonly requestId?: string;
+  public readonly isConcurrencyConflict: boolean;
+  public readonly serverVersion?: number;
+
+  constructor(
+    message: string,
+    options: {
+      statusCode: number;
+      code?: string;
+      details?: any;
+      requestId?: string;
+      serverVersion?: number;
+    }
+  ) {
+    super(message);
+    this.name = 'ApiClientError';
+    this.statusCode = options.statusCode;
+    this.code = options.code || (options.statusCode === 409 ? 'CONFLICT_OPTIMISTIC_LOCK' : 'API_ERROR');
+    this.details = options.details;
+    this.requestId = options.requestId;
+    this.isConcurrencyConflict =
+      options.statusCode === 409 ||
+      this.code === 'CONFLICT_OPTIMISTIC_LOCK' ||
+      this.code === 'CONCURRENCY_CONFLICT';
+    this.serverVersion =
+      options.serverVersion ?? options.details?.currentVersion ?? options.details?.serverVersion;
+  }
+}
+
 export interface ApiResponse<T> {
   data?: T;
   error?: string;
@@ -151,12 +184,24 @@ class ApiClient {
 
       const data = await res.json();
 
-      if (!res.ok) {
-        const errorMsg = data?.message || data?.error || `Request failed with status ${res.status}`;
-        const err: any = new Error(errorMsg);
-        err.statusCode = res.status;
-        err.details = data?.details;
-        throw err;
+      if (!res.ok || (data && typeof data === 'object' && data.success === false)) {
+        const errorObj = data?.error;
+        const errorMsg =
+          (typeof errorObj === 'string' ? errorObj : errorObj?.message) ||
+          data?.message ||
+          `Request failed with status ${res.status}`;
+        const errorCode =
+          (typeof errorObj === 'object' ? errorObj?.code : undefined) ||
+          (res.status === 409 ? 'CONFLICT_OPTIMISTIC_LOCK' : undefined);
+        const details = typeof errorObj === 'object' ? errorObj?.details : data?.details;
+        const requestId = data?.meta?.requestId || (typeof errorObj === 'object' ? errorObj?.requestId : undefined);
+
+        throw new ApiClientError(errorMsg, {
+          statusCode: res.status,
+          code: errorCode,
+          details,
+          requestId,
+        });
       }
 
       return data as T;
@@ -171,6 +216,18 @@ class ApiClient {
     } finally {
       clearTimeout(timeoutId);
     }
+  }
+
+  /**
+   * Universal envelope unwrapper (FC-003)
+   * Resolves with envelope.data on success, or throws structured ApiClientError on failure.
+   */
+  public async requestEnvelope<T>(endpoint: string, options?: RequestInit): Promise<T> {
+    const res = await this.request<any>(endpoint, options);
+    if (res && typeof res === 'object' && res.success === true && 'data' in res) {
+      return res.data as T;
+    }
+    return res as T;
   }
 
   // System & Sheets Health

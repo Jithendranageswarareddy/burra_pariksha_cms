@@ -104,10 +104,13 @@ import {
   AuthorizationResource,
 } from '../types/rbac-models';
 import { createSuccessResponse, createErrorResponse, ApiErrorCode } from '../types/api-contracts';
+import { requestIdMiddleware } from './middleware/request-id.middleware';
+import { globalErrorHandler } from './middleware/error.middleware';
 
 export const apiRouter = express.Router();
 
 apiRouter.use(express.json());
+apiRouter.use(requestIdMiddleware);
 
 // Apply helmet security headers (configured for iframe preview and cross-origin compatibility)
 apiRouter.use(
@@ -6888,6 +6891,10 @@ apiRouter.get('/copilot/suggestion/:suggestionId', requireAuth, async (req: Requ
     res.status(500).json({ success: false, error: err?.message });
   }
 });
+
+// Universal API Error Handling Middleware (FC-003)
+apiRouter.use(globalErrorHandler);
+
 
 
 
