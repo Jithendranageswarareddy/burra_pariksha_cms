@@ -270,8 +270,17 @@ export function evaluateAuthorization(request: AuthorizationRequest): Authorizat
     };
   }
 
-  // Step 5: Evaluate Capability Possession
-  const hasCap = roleHasCapability(canonicalRole, capability);
+  // Step 5: Evaluate Capability Possession across all actor roles
+  const allCanonicalRoles = Array.from(
+    new Set([
+      canonicalRole,
+      ...((request.actor.roles || []).map((r) => resolveBrownfieldRole(r))),
+    ])
+  );
+  const grantingRole = allCanonicalRoles.find((r) => roleHasCapability(r, capability));
+  const hasCap = Boolean(grantingRole);
+  const effectiveRole = grantingRole || canonicalRole;
+
   if (!hasCap) {
     return {
       allowed: false,
@@ -381,12 +390,12 @@ export function evaluateAuthorization(request: AuthorizationRequest): Authorizat
     allowed: true,
     evaluatedCapability: capability,
     actorId,
-    resolvedRole: canonicalRole,
+    resolvedRole: effectiveRole,
     timestamp,
     auditEvent: {
       eventId: `AUD-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
       actorUserId: actorId,
-      actorRole: canonicalRole,
+      actorRole: effectiveRole,
       actionVerb: request.action,
       targetResourceType: request.resource,
       targetResourceId: request.targetContext?.resourceId,

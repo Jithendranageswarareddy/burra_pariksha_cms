@@ -155,7 +155,8 @@ export const aiRateLimiter = rateLimit({
 // Apply bounded rate limit for authentication endpoints (Brute force protection)
 export const authRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // 10 login attempts per 15 minutes per IP
+  max: process.env.NODE_ENV === 'production' ? 10 : 500,
+  skip: (req) => process.env.NODE_ENV !== 'production' && (req.ip === '127.0.0.1' || req.ip === '::1' || req.hostname === 'localhost'),
   message: {
     success: false,
     error: {

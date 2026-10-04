@@ -185,11 +185,16 @@ export class VideoService {
       notes?: string;
       targetDurationSeconds?: number;
     },
-    actor: { id: string; name: string; role?: string | UserRole } = { id: 'USR-001', name: 'Admin / Content Lead', role: UserRole.ADMIN }
+    actor: { id: string; name: string; role?: string | UserRole; roles?: string[] } = { id: 'USR-001', name: 'Admin / Content Lead', role: UserRole.ADMIN }
   ): Promise<Video> {
-    if (actor.role) {
-      const r = String(actor.role).toUpperCase();
-      if (r !== UserRole.ADMIN && r !== UserRole.CONTENT_MANAGER) {
+    const actorRoles = Array.isArray((actor as any).roles) && (actor as any).roles.length > 0
+      ? (actor as any).roles.map((r: any) => String(r).toUpperCase())
+      : (actor.role ? [String(actor.role).toUpperCase()] : []);
+
+    if (actorRoles.length > 0) {
+      const allowed = [UserRole.ADMIN, UserRole.CONTENT_MANAGER, 'CONTENT_LEAD'];
+      const isAllowed = actorRoles.some((r: any) => allowed.includes(r as any));
+      if (!isAllowed) {
         throw new Error(`Unauthorized: Role "${actor.role}" is not allowed to queue questions.`);
       }
     }

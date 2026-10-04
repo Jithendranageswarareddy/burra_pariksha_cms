@@ -148,7 +148,7 @@ export class QuestionDraftService {
    */
   public async approveDraft(
     draftId: string,
-    actor: { id: string; name: string; role?: any } = { id: 'USR-001', name: 'Reviewer / Admin' },
+    actor: { id: string; name: string; role?: any; roles?: string[] } = { id: 'USR-001', name: 'Reviewer / Admin' },
     approvalNotes?: string
   ) {
     const draft = await questionDraftsRepository.findById(draftId);
@@ -227,7 +227,12 @@ export class QuestionDraftService {
     const approvedQuestion = await questionService.updateStatus(
       createdQuestion.id,
       QuestionStatus.APPROVED,
-      { id: actor.id, name: actor.name, role: actor.role || UserRole.ADMIN },
+      {
+        id: actor.id,
+        name: actor.name,
+        role: actor.role || UserRole.ADMIN,
+        roles: actor.roles,
+      },
       approvalNotes || 'Approved from draft in Stage 02'
     );
 

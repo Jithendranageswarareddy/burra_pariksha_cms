@@ -346,12 +346,16 @@ export class QuestionService {
    */
   public async createQuestionFromRequest(
     requestPayload: QuestionCreationRequestPayload,
-    actor: { id: string; name: string; role?: string | UserRole } = { id: 'USR-001', name: 'Admin / Content Lead', role: UserRole.ADMIN }
+    actor: { id: string; name: string; role?: string | UserRole; roles?: string[] } = { id: 'USR-001', name: 'Admin / Content Lead', role: UserRole.ADMIN }
   ): Promise<Question> {
-    if (actor.role) {
-      const r = String(actor.role).toUpperCase();
-      const allowed = [UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.QUESTION_EDITOR, UserRole.CONTENT_WRITER];
-      if (!allowed.includes(r as any)) {
+    const creatorRoles = Array.isArray((actor as any).roles) && (actor as any).roles.length > 0
+      ? (actor as any).roles.map((r: any) => String(r).toUpperCase())
+      : (actor.role ? [String(actor.role).toUpperCase()] : []);
+
+    if (creatorRoles.length > 0) {
+      const allowed = [UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.QUESTION_EDITOR, UserRole.CONTENT_WRITER, 'CONTENT_LEAD'];
+      const hasAllowedRole = creatorRoles.some((r: any) => allowed.includes(r as any));
+      if (!hasAllowedRole) {
         throw new Error(`Unauthorized: Role "${actor.role}" is not allowed to create questions.`);
       }
     }
@@ -1000,19 +1004,24 @@ export class QuestionService {
   public async updateStatus(
     id: string,
     newStatus: QuestionStatus,
-    actor: { id: string; name: string; role?: string | UserRole } = { id: 'USR-001', name: 'Admin / Content Lead', role: UserRole.ADMIN },
+    actor: { id: string; name: string; role?: string | UserRole; roles?: string[] } = { id: 'USR-001', name: 'Admin / Content Lead', role: UserRole.ADMIN },
     remarks?: string
   ): Promise<Question> {
-    if (actor.role) {
-      const r = String(actor.role).toUpperCase();
+    const actorRoles = Array.isArray((actor as any).roles) && (actor as any).roles.length > 0
+      ? (actor as any).roles.map((r: any) => String(r).toUpperCase())
+      : (actor.role ? [String(actor.role).toUpperCase()] : []);
+
+    if (actorRoles.length > 0) {
       if (newStatus === QuestionStatus.APPROVED) {
-        const approverRoles = [UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.QUESTION_EDITOR, UserRole.REVIEWER];
-        if (!approverRoles.includes(r as any)) {
+        const approverRoles = [UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.QUESTION_EDITOR, UserRole.REVIEWER, 'CONTENT_LEAD'];
+        const hasApprovalRole = actorRoles.some((r: any) => approverRoles.includes(r as any));
+        if (!hasApprovalRole) {
           throw new Error(`Unauthorized: Role "${actor.role}" is not allowed to approve questions.`);
         }
       } else {
-        const allowed = [UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.QUESTION_EDITOR, UserRole.CONTENT_WRITER];
-        if (!allowed.includes(r as any)) {
+        const allowed = [UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.QUESTION_EDITOR, UserRole.CONTENT_WRITER, 'CONTENT_LEAD'];
+        const hasAllowedRole = actorRoles.some((r: any) => allowed.includes(r as any));
+        if (!hasAllowedRole) {
           throw new Error(`Unauthorized: Role "${actor.role}" is not allowed to modify question status.`);
         }
       }
@@ -1068,12 +1077,17 @@ export class QuestionService {
    */
   public async queueQuestion(
     id: string,
-    actor: { id: string; name: string; role?: string | UserRole } = { id: 'USR-001', name: 'Admin / Content Lead', role: UserRole.ADMIN },
+    actor: { id: string; name: string; role?: string | UserRole; roles?: string[] } = { id: 'USR-001', name: 'Admin / Content Lead', role: UserRole.ADMIN },
     remarks?: string
   ): Promise<Question> {
-    if (actor.role) {
-      const r = String(actor.role).toUpperCase();
-      if (r !== UserRole.ADMIN && r !== UserRole.CONTENT_MANAGER) {
+    const actorRoles = Array.isArray((actor as any).roles) && (actor as any).roles.length > 0
+      ? (actor as any).roles.map((r: any) => String(r).toUpperCase())
+      : (actor.role ? [String(actor.role).toUpperCase()] : []);
+
+    if (actorRoles.length > 0) {
+      const allowed = [UserRole.ADMIN, UserRole.CONTENT_MANAGER, 'CONTENT_LEAD'];
+      const isAllowed = actorRoles.some((r: any) => allowed.includes(r as any));
+      if (!isAllowed) {
         throw new Error(`Unauthorized: Role "${actor.role}" is not allowed to queue questions.`);
       }
     }
