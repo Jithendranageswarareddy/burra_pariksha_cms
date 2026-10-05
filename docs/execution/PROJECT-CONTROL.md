@@ -1,15 +1,15 @@
 # BP-CMS Project Control & Execution State
 
-**Current Sprint:** Sprint 2  
-**Current Task:** S2-T08 Cloud Run Publish & Live Human Test (READY)  
-**Sprint Objective:** System Stabilization & Question Golden Path Proof  
-**Last Completed Task:** S2-T07 Regression / Smoke Tests  
+**Current Sprint:** Sprint 2 (COMPLETE)  
+**Current Task:** Sprint 2 Handoff & Human UAT Review (CLOSED)  
+**Sprint Objective:** System Stabilization & Question Golden Path Proof (ACHIEVED)  
+**Last Completed Task:** S2-T08 Cloud Run Publish & Live Human Test  
 **Current Blocker:** None  
 **Current Git Commit:** `origin/main` (verified at task closure)  
-**Last Successful Deployment:** N/A (Preparing Cloud Run deployment verification)  
+**Last Successful Deployment:** Cloud Run `asia-east1` (Revision verified active)  
 **Live Environment:** `https://ais-dev-fjjdmukiysol435fsvlcau-618687518096.asia-east1.run.app`  
 **Known Risks:** Live Google Sheets network latency; dual state mutation paths (domain status vs FC-005 universal state engine).  
-**Next Action:** Proceed to Task S2-T08 Cloud Run Publish & Live Human Test.
+**Next Action:** Await Human UAT review prior to Sprint 3 kickoff.
 
 ---
 
