@@ -16,7 +16,10 @@
     "test:rbac": "tsx tests/fc-002-rbac.test.ts",
     "test:db-api": "tsx tests/fc-003-db-api.test.ts",
     "test:audit": "tsx tests/fc-004-audit.test.ts",
-    "test:workflow": "tsx tests/fc-005-workflow.test.ts"
+    "test:workflow": "tsx tests/fc-005-workflow.test.ts",
+    "test:s2-t05": "tsx tests/s2-t05-golden-path.test.ts",
+    "test:s2-t05:browser": "tsx tests/s2-t05-browser.test.ts",
+    "test:s2-t06": "tsx tests/s2-t06-persistence.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

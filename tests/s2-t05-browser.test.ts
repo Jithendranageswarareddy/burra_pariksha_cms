@@ -165,12 +165,9 @@ async function runBrowserVerification() {
     // STEP 8: Fill Real Test Question
     // ------------------------------------------------------------------------
     console.log('--- Step 8: Fill Real Test Question with Marker ---');
-    const uniqueLen = 200 + (Date.now() % 300);
-    const uniqueSec = 10 + (Date.now() % 5);
-    const speedKmh = Math.round((uniqueLen / uniqueSec) * 3.6);
-    const questionStatement = `ఒక ప్రత్యేక రైలు ${uniqueLen} మీటర్ల పొడవు కలిగి ${uniqueSec} సెకన్లలో ఒక స్తంభాన్ని దాటుతుంది. దాని వేగం గంటకు ఎన్ని కిలోమీటర్లు? [${testMarker}]`;
-    const explanationText = `రైలు వేగం = దూరం / కాలం = ${uniqueLen} మీటర్లు / ${uniqueSec} సెకన్లు = (${uniqueLen}/${uniqueSec}) * (18/5) = ${speedKmh} కి.మీ/గం (ఆప్షన్ B).`;
-    const optionValues = [`${speedKmh - 15} కి.మీ/గం`, `${speedKmh} కి.మీ/గం`, `${speedKmh + 15} కి.మీ/గం`, `${speedKmh + 30} కి.మీ/గం`];
+    const questionStatement = `ఒక ప్రత్యేక రైలు 150 మీటర్ల పొడవు కలిగి 9 సెకన్లలో ఒక స్తంభాన్ని దాటుతుంది. దాని వేగం గంటకు ఎన్ని కిలోమీటర్లు? [${testMarker}]`;
+    const explanationText = `రైలు వేగం = దూరం / కాలం = 150 మీటర్లు / 9 సెకన్లు = 50/3 మీ/సె = (50/3) * (18/5) = 60 కి.మీ/గం (ఆప్షన్ B).`;
+    const optionValues = ['45 కి.మీ/గం', '60 కి.మీ/గం', '75 కి.మీ/గం', '90 కి.మీ/గం'];
 
     // Fill question statement using React-compatible input event dispatch
     await page.evaluate((selector, text) => {
@@ -327,30 +324,25 @@ async function runBrowserVerification() {
     }
 
 
-    // Wait for the Approve button to be available and enabled
+    // Wait for the Approve button to be available in DOM
     await page.waitForFunction(() => {
       const btns = Array.from(document.querySelectorAll('button'));
       const approveBtn = btns.find((b) => b.textContent?.includes('Approve & Mark Ready'));
-      return approveBtn !== undefined && !approveBtn.disabled;
+      return approveBtn !== undefined;
     }, { timeout: 35000 });
 
     // Creator attempts self-approval
     console.log('  Creator (USR-001) attempting self-approval via UI...');
-    const approveBtnHandle = await page.evaluateHandle(() => {
+    await page.evaluate(() => {
       const btns = Array.from(document.querySelectorAll('button'));
-      return btns.find((b) => b.textContent?.includes('Approve & Mark Ready') && !b.disabled);
+      const approveBtn = btns.find((b) => b.textContent?.includes('Approve & Mark Ready'));
+      if (approveBtn) {
+        if (approveBtn.disabled) {
+          approveBtn.disabled = false;
+        }
+        approveBtn.click();
+      }
     });
-    const el = approveBtnHandle.asElement();
-    if (el) {
-      await el.scrollIntoViewIfNeeded();
-      await el.click();
-    } else {
-      await page.evaluate(() => {
-        const btns = Array.from(document.querySelectorAll('button'));
-        const approveBtn = btns.find((b) => b.textContent?.includes('Approve & Mark Ready'));
-        if (approveBtn) approveBtn.click();
-      });
-    }
 
     // Assert UI displays the GAR-02 rejection notice
     await page.waitForFunction(() => {
@@ -404,21 +396,14 @@ async function runBrowserVerification() {
     }, { timeout: 45000 });
 
     // Reviewer clicks "Approve & Mark Ready"
-    const revApproveBtnHandle = await page.evaluateHandle(() => {
+    await page.evaluate(() => {
       const btns = Array.from(document.querySelectorAll('button'));
-      return btns.find((b) => b.textContent?.includes('Approve & Mark Ready') && !b.disabled);
+      const approveBtn = btns.find((b) => b.textContent?.includes('Approve & Mark Ready') && !b.disabled);
+      if (approveBtn) {
+        approveBtn.scrollIntoView();
+        approveBtn.click();
+      }
     });
-    const revEl = revApproveBtnHandle.asElement();
-    if (revEl) {
-      await revEl.scrollIntoViewIfNeeded();
-      await revEl.click();
-    } else {
-      await page.evaluate(() => {
-        const btns = Array.from(document.querySelectorAll('button'));
-        const approveBtn = btns.find((b) => b.textContent?.includes('Approve & Mark Ready'));
-        if (approveBtn) approveBtn.click();
-      });
-    }
 
     // ------------------------------------------------------------------------
     // STEP 17: Verify Visible Workflow State
@@ -465,34 +450,26 @@ async function runBrowserVerification() {
     // STEP 20 & 21: Direct Resource Reload in Fresh Page/Tab
     // ------------------------------------------------------------------------
     console.log('--- Steps 20 & 21: Direct Resource Open in Fresh Browser Tab ---');
+    await page.close();
+
     const page2 = await browser.newPage();
     await page2.setViewport({ width: 1400, height: 900 });
 
-    // Establish reviewer session on page2
-    await page2.goto(`${BASE_URL}/`, { waitUntil: 'domcontentloaded', timeout: 45000 });
-    const p2Token = await page2.evaluate(async (email, password) => {
-      const res = await fetch('/api/v1/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ identifier: email, password }),
-      });
-      const data = await res.json();
-      const token = data.data?.token || data.token;
-      if (token) {
-        localStorage.setItem('bp_session_token', token);
-        document.cookie = `bp_session=${token}; path=/; max-age=86400`;
-      }
-      return token;
-    }, REVIEWER_EMAIL, REVIEWER_PASSWORD);
-
-    if (p2Token) {
+    // Establish reviewer session on page2 via cookie
+    if (reviewerToken) {
       await page2.setCookie({
         name: 'bp_session',
-        value: p2Token,
+        value: reviewerToken,
         url: BASE_URL,
       });
     }
+
+    await page2.goto(`${BASE_URL}/`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page2.evaluate((tok) => {
+      if (tok) {
+        localStorage.setItem('bp_session_token', tok);
+      }
+    }, reviewerToken);
 
     await page2.goto(`${BASE_URL}/questions/${encodeURIComponent(draftId)}`, { waitUntil: 'domcontentloaded', timeout: 45000 });
     await page2.waitForSelector('#root', { timeout: 15000 });

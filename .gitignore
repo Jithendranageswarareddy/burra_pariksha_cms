@@ -2,6 +2,7 @@ node_modules/
 build/
 dist/
 coverage/
+chrome/
 .DS_Store
 *.log
 .env*
@@ -9,3 +10,5 @@ coverage/
 !.env.local.example
 backups/
 .vscode/
+.dev.env.json
+.dev.pid
