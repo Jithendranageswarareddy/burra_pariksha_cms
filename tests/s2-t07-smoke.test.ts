@@ -59,13 +59,6 @@ const SUITES: SuiteDefinition[] = [
     name: 'Live Question Golden Path & Google Sheets Persistence',
     category: 'GOLDEN_PATH_PERSISTENCE',
     scriptPath: 'tests/s2-t05-golden-path.test.ts',
-    env: {
-      BASE_URL: process.env.BASE_URL || 'http://localhost:3000',
-      S2_T05_CREATOR_EMAIL: process.env.S2_T05_CREATOR_EMAIL || 'jithendrareddy629@gmail.com',
-      S2_T05_CREATOR_PASSWORD: process.env.S2_T05_CREATOR_PASSWORD || 'password123',
-      S2_T05_REVIEWER_EMAIL: process.env.S2_T05_REVIEWER_EMAIL || 'seelamsurendrareddy999@gmail.com',
-      S2_T05_REVIEWER_PASSWORD: process.env.S2_T05_REVIEWER_PASSWORD || 'password123',
-    },
   },
 ];
 
