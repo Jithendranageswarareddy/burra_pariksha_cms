@@ -8,7 +8,7 @@
 - [x] **S2-T05**: Question Golden Path browser verification.
 - [x] **S2-T06**: Real persistence proof (read-back after restart/refresh).
 - [x] **S2-T07**: Regression & automated smoke tests.
-- [x] **S2-T08**: Cloud Run deployment & live human verification.
+- [ ] **S2-T08**: Cloud Run deployment & live human verification (BLOCKED: awaiting independent Cloud Run deployment).
 
 ## Future Sprints Backlog (Sprint 3+)
 - **S3-T01**: Audience Script & Teleprompter Golden Path (Steps 03 & 04).

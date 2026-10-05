@@ -1,15 +1,15 @@
 # BP-CMS Project Control & Execution State
 
-**Current Sprint:** Sprint 2 (COMPLETE)  
-**Current Task:** Sprint 2 Handoff & Human UAT Review (CLOSED)  
-**Sprint Objective:** System Stabilization & Question Golden Path Proof (ACHIEVED)  
-**Last Completed Task:** S2-T08 Cloud Run Publish & Live Human Test  
-**Current Blocker:** None  
+**Current Sprint:** Sprint 2 (IN PROGRESS)  
+**Current Task:** S2-T08 Cloud Run Publish & Live Human Test (BLOCKED / INCOMPLETE)  
+**Sprint Objective:** System Stabilization & Question Golden Path Proof  
+**Last Completed Task:** S2-T07 Regression / Smoke Tests  
+**Current Blocker:** Independent Cloud Run custom service deployment outside AI Studio proxy is not established; control plane credentials unavailable in runtime.  
 **Current Git Commit:** `origin/main` (verified at task closure)  
-**Last Successful Deployment:** Cloud Run `asia-east1` (Revision verified active)  
-**Live Environment:** `https://ais-dev-fjjdmukiysol435fsvlcau-618687518096.asia-east1.run.app`  
-**Known Risks:** Live Google Sheets network latency; dual state mutation paths (domain status vs FC-005 universal state engine).  
-**Next Action:** Await Human UAT review prior to Sprint 3 kickoff.
+**Last Successful Deployment:** N/A (Deployment not independently verified)  
+**Live Environment:** `https://ais-dev-fjjdmukiysol435fsvlcau-618687518096.asia-east1.run.app` (AI Studio Preview Proxy)  
+**Known Risks:** Deployment requires AI Studio session cookie; independent public URL unavailable without GCP external deployment pipeline.  
+**Next Action:** Establish independent Cloud Run production service deployment prior to live human UAT signoff.
 
 ---
 
