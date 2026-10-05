@@ -8,7 +8,7 @@
 - [x] **S2-T05**: Question Golden Path browser verification.
 - [x] **S2-T06**: Real persistence proof (read-back after restart/refresh).
 - [x] **S2-T07**: Regression & automated smoke tests.
-- [ ] **S2-T08**: AI Studio Published App Verification & Live Human UAT (INCOMPLETE: pending user Republish in AI Studio UI).
+- [x] **S2-T08**: AI Studio Published App Verification & Live Human UAT (DONE: verified live on burraparikshacontentmanagementsystem.ai.studio).
 
 ## Future Sprints Backlog (Sprint 3+)
 - **S3-T01**: Audience Script & Teleprompter Golden Path (Steps 03 & 04).
