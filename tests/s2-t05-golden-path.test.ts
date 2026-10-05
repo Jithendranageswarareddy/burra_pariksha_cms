@@ -35,10 +35,10 @@ import { authService } from '../src/lib/services/auth.service';
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
 
-const CREATOR_EMAIL = process.env.S2_T05_CREATOR_EMAIL;
-const CREATOR_PASSWORD = process.env.S2_T05_CREATOR_PASSWORD;
-const REVIEWER_EMAIL = process.env.S2_T05_REVIEWER_EMAIL;
-const REVIEWER_PASSWORD = process.env.S2_T05_REVIEWER_PASSWORD;
+const CREATOR_EMAIL = process.env.S2_T05_CREATOR_EMAIL || 'jithendrareddy629@gmail.com';
+const CREATOR_PASSWORD = process.env.S2_T05_CREATOR_PASSWORD || 'password123';
+const REVIEWER_EMAIL = process.env.S2_T05_REVIEWER_EMAIL || 'seelamsurendrareddy999@gmail.com';
+const REVIEWER_PASSWORD = process.env.S2_T05_REVIEWER_PASSWORD || 'password123';
 
 if (!CREATOR_EMAIL || !CREATOR_PASSWORD || !REVIEWER_EMAIL || !REVIEWER_PASSWORD) {
   console.error('❌ S2-T05 test credentials are not configured in environment.');

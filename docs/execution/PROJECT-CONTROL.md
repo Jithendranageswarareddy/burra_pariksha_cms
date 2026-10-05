@@ -1,15 +1,15 @@
 # BP-CMS Project Control & Execution State
 
 **Current Sprint:** Sprint 2  
-**Current Task:** S2-T04 Architecture / Route Cleanup Map (CLOSED)  
+**Current Task:** S2-T08 Cloud Run Publish & Live Human Test (READY)  
 **Sprint Objective:** System Stabilization & Question Golden Path Proof  
-**Last Completed Task:** S2-T04 Architecture / Route Cleanup Map  
+**Last Completed Task:** S2-T07 Regression / Smoke Tests  
 **Current Blocker:** None  
 **Current Git Commit:** `origin/main` (verified at task closure)  
-**Last Successful Deployment:** N/A (Preparing initial Cloud Run deployment verification)  
+**Last Successful Deployment:** N/A (Preparing Cloud Run deployment verification)  
 **Live Environment:** `https://ais-dev-fjjdmukiysol435fsvlcau-618687518096.asia-east1.run.app`  
 **Known Risks:** Live Google Sheets network latency; dual state mutation paths (domain status vs FC-005 universal state engine).  
-**Next Action:** Await user directive to begin Task S2-T05 Question Golden Path browser verification.
+**Next Action:** Proceed to Task S2-T08 Cloud Run Publish & Live Human Test.
 
 ---
 

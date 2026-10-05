@@ -14,7 +14,7 @@
 | **S2-T02** | **Runtime Recovery** | P0 | DONE | Verify dev server, API endpoints, and client-side bundle execution in AI Studio runtime. |
 | **S2-T03** | **Environment Stabilization** | P0 | DONE | Map all local secrets and environment variables required for full integration. |
 | **S2-T04** | **Architecture / Route Cleanup Map** | P1 | DONE | Formulate route and service dependency map to isolate legacy vs canonical paths. |
-| **S2-T05** | **Question Golden Path** | P0 | READY | Execute complete slice: Create -> Save -> Library -> Detail -> Verify -> Approve -> Workflow update. |
-| **S2-T06** | **Real Persistence Proof** | P0 | READY | Verify read-back persistence after full browser refresh and database restart. |
-| **S2-T07** | **Regression / Smoke Tests** | P1 | READY | Execute comprehensive smoke tests across auth, rbac, db, audit, and workflow modules. |
+| **S2-T05** | **Question Golden Path** | P0 | DONE | Execute complete slice: Create -> Save -> Library -> Detail -> Verify -> Approve -> Workflow update. |
+| **S2-T06** | **Real Persistence Proof** | P0 | DONE | Verify read-back persistence after full browser refresh and database restart. |
+| **S2-T07** | **Regression / Smoke Tests** | P1 | DONE | Execute comprehensive smoke tests across auth, rbac, db, audit, and workflow modules. |
 | **S2-T08** | **Cloud Run Publish & Live Human Test** | P0 | READY | Container build verification and live human testing on Cloud Run endpoint. |
