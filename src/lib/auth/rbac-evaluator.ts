@@ -30,6 +30,9 @@ import {
   isHumanGatedCapability,
   isHumanGatedStage,
   HUMAN_GATED_STAGES,
+  DataScope,
+  ROLE_DEFAULT_DATA_SCOPES,
+  type AdministrativeOverrideContext,
 } from '../../types/rbac-models';
 
 // ============================================================================
@@ -43,6 +46,7 @@ export enum AuthorizationErrorCode {
   FORBIDDEN_BY_AI_GATING = 'FORBIDDEN_BY_AI_GATING',
   FORBIDDEN_BY_BUSINESS_RULE = 'FORBIDDEN_BY_BUSINESS_RULE',
   FORBIDDEN_BY_WORKFLOW = 'FORBIDDEN_BY_WORKFLOW',
+  FORBIDDEN_BY_DATA_SCOPE = 'FORBIDDEN_BY_DATA_SCOPE',
   RESOURCE_NOT_FOUND = 'RESOURCE_NOT_FOUND',
   INVALID_ACTION = 'INVALID_ACTION',
 }
@@ -69,6 +73,8 @@ export interface TargetResourceContext {
   status?: string;
   isPreconditionsMet?: boolean;
   preconditionFailureReason?: string;
+  override?: AdministrativeOverrideContext;
+  requiredDataScope?: DataScope;
 }
 
 export interface AuthorizationRequest {
@@ -86,8 +92,13 @@ export interface AuditEventRecord {
   targetResourceType: string;
   targetResourceId?: string;
   timestamp: string;
-  verdict: 'ALLOWED' | 'DENIED';
+  verdict: 'ALLOWED' | 'DENIED' | 'ALLOWED_BY_ADMIN_OVERRIDE';
   reason?: string;
+  isOverride?: boolean;
+  overrideReason?: string;
+  overrideActionType?: string;
+  previousState?: string;
+  newState?: string;
 }
 
 export interface AuthorizationDecision {
@@ -98,6 +109,8 @@ export interface AuthorizationDecision {
   actorId: string;
   resolvedRole: CanonicalRbacRole;
   timestamp: string;
+  isOverride?: boolean;
+  overrideReason?: string;
   auditEvent?: AuditEventRecord;
 }
 
@@ -107,15 +120,24 @@ export interface AuthorizationDecision {
 
 /**
  * Evaluates Segregation of Duties / Anti-Self-Approval (GAR-02 / NEG-01).
- * An actor who authored an artifact cannot approve or verify that artifact.
- * ADMINISTRATIVE EXCEPTION PROHIBITION (Section 12.3):
- * Even ADMIN is subject to GAR-02.
+ * An actor who authored an artifact cannot approve or verify that artifact under normal operation.
+ * 
+ * SPRINT 3 ENHANCEMENT:
+ * System Administrator can perform an explicit, audited administrative override approval.
+ * Mandatory requirements:
+ * 1. Actor is CanonicalRbacRole.ADMIN (or holds ADMIN in roles)
+ * 2. Override context is provided:
+ *    - isOverride === true
+ *    - confirmedByAdmin === true
+ *    - reason is non-empty string of at least 10 characters
+ * 
+ * Without an explicit confirmed override + valid reason, even an ADMIN is blocked by GAR-02.
  */
 export function evaluateSegregationOfDuties(
   actor: AuthorizationActor,
   targetContext?: TargetResourceContext,
   action?: AuthorizationAction
-): { allowed: boolean; errorCode?: AuthorizationErrorCode; errorMessage?: string } {
+): { allowed: boolean; errorCode?: AuthorizationErrorCode; errorMessage?: string; isOverride?: boolean } {
   // Only approval and verification actions trigger anti-self-approval checks
   if (action !== AuthorizationAction.APPROVE && action !== AuthorizationAction.VERIFY) {
     return { allowed: true };
@@ -127,6 +149,43 @@ export function evaluateSegregationOfDuties(
 
   const authorId = targetContext.authorUserId || targetContext.createdBy;
   if (authorId && actor.id === authorId) {
+    const actorRole = actor.role ? resolveBrownfieldRole(actor.role) : CanonicalRbacRole.QUESTION_AUTHOR;
+    const actorRoles = (actor.roles || [actorRole]).map((r) => resolveBrownfieldRole(r));
+    const isAdmin = actorRole === CanonicalRbacRole.ADMIN || actorRoles.includes(CanonicalRbacRole.ADMIN);
+
+    if (targetContext.override?.isOverride) {
+      if (!isAdmin) {
+        return {
+          allowed: false,
+          errorCode: AuthorizationErrorCode.FORBIDDEN_BY_SEGREGATION_OF_DUTIES,
+          errorMessage: 'Self-approval prohibited: Creator cannot approve their own artifact (GAR-02). Administrative override is strictly restricted to System Administrators.',
+        };
+      }
+
+      if (!targetContext.override.confirmedByAdmin) {
+        return {
+          allowed: false,
+          errorCode: AuthorizationErrorCode.FORBIDDEN_BY_SEGREGATION_OF_DUTIES,
+          errorMessage: 'Administrative override requires explicit confirmation.',
+        };
+      }
+
+      const reason = targetContext.override.reason ? targetContext.override.reason.trim() : '';
+      if (reason.length < 10) {
+        return {
+          allowed: false,
+          errorCode: AuthorizationErrorCode.FORBIDDEN_BY_SEGREGATION_OF_DUTIES,
+          errorMessage: 'Administrative override requires a mandatory justification reason (minimum 10 characters).',
+        };
+      }
+
+      // Valid audited administrative override
+      return {
+        allowed: true,
+        isOverride: true,
+      };
+    }
+
     return {
       allowed: false,
       errorCode: AuthorizationErrorCode.FORBIDDEN_BY_SEGREGATION_OF_DUTIES,
@@ -386,12 +445,18 @@ export function evaluateAuthorization(request: AuthorizationRequest): Authorizat
   }
 
   // Step 8: Authorization Succeeded — Return Allowed Decision with Audit Event (AP-014)
+  const isOverride = Boolean(sodResult.isOverride);
+  const overrideReason = isOverride ? request.targetContext?.override?.reason : undefined;
+  const overrideActionType = isOverride ? request.targetContext?.override?.overrideActionType || 'ADMIN_APPROVAL_OVERRIDE' : undefined;
+
   return {
     allowed: true,
     evaluatedCapability: capability,
     actorId,
     resolvedRole: effectiveRole,
     timestamp,
+    isOverride,
+    overrideReason,
     auditEvent: {
       eventId: `AUD-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
       actorUserId: actorId,
@@ -400,7 +465,12 @@ export function evaluateAuthorization(request: AuthorizationRequest): Authorizat
       targetResourceType: request.resource,
       targetResourceId: request.targetContext?.resourceId,
       timestamp,
-      verdict: 'ALLOWED',
+      verdict: isOverride ? 'ALLOWED_BY_ADMIN_OVERRIDE' : 'ALLOWED',
+      isOverride,
+      overrideReason,
+      overrideActionType,
+      previousState: request.targetContext?.override?.previousState,
+      newState: request.targetContext?.override?.newState,
     },
   };
 }

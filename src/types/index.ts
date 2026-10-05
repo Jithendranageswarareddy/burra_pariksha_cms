@@ -1117,6 +1117,9 @@ export interface MyWorkSummary {
   upcoming: Assignment[];
   recentlyCompleted: Assignment[];
   completedAssignments: Assignment[];
+  waitingForMe?: Assignment[];
+  waitingForOtherRole?: Assignment[];
+  teamOverview?: any;
   activeAssignments?: Assignment[];
   activeCount?: number;
   overdueCount?: number;
@@ -1130,6 +1133,8 @@ export interface MyWorkSummary {
     dueTodayCount: number;
     blockedCount: number;
     completedCount: number;
+    waitingForMeCount?: number;
+    waitingForOtherRoleCount?: number;
   };
 }
 

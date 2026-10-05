@@ -1,0 +1,158 @@
+rules_version = '2';
+
+/**
+ * BURRA PARIKSHA CMS — Cloud Firestore Security Rules (Sprint 3 Prototype)
+ *
+ * Implements defensive document-level authorization rules corresponding to:
+ * - Stage 09 Authoritative RBAC Capability Matrix
+ * - Stage 07 Canonical 15-Step Workflow
+ * - Principle AP-004: Server-Side Authoritative Gatekeeper
+ * - GAR-02: Anti-Self-Approval Segregation-of-Duties
+ * - AP-009: AI Human-Gating Constraints
+ *
+ * Note: Node.js / Express backend remains the authoritative gatekeeper for all
+ * server-side transactions; these rules provide defense-in-depth for client SDK access.
+ */
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ========================================================================
+    // 1. Core Authentication & Claim Helpers
+    // ========================================================================
+
+    function isAuthenticated() {
+      return request.auth != null && request.auth.uid != null;
+    }
+
+    function getUserToken() {
+      return request.auth.token;
+    }
+
+    function hasRole(role) {
+      return isAuthenticated() && (
+        getUserToken().role == role ||
+        role in getUserToken().roles
+      );
+    }
+
+    function isAdmin() {
+      return hasRole('ADMIN');
+    }
+
+    function isContentLead() {
+      return hasRole('CONTENT_LEAD') || hasRole('CONTENT_MANAGER');
+    }
+
+    function isPublishingLead() {
+      return hasRole('PUBLISHING_LEAD') || hasRole('PUBLISHING_MANAGER');
+    }
+
+    function isQaReviewer() {
+      return hasRole('QA_REVIEWER') || hasRole('REVIEWER');
+    }
+
+    function isAuthor(docData) {
+      return isAuthenticated() && (
+        docData.authorId == request.auth.uid ||
+        docData.createdBy == request.auth.uid
+      );
+    }
+
+    function isAssignee(docData) {
+      return isAuthenticated() && (
+        docData.assigneeId == request.auth.uid
+      );
+    }
+
+    // ========================================================================
+    // 2. Collection Rules
+    // ========================================================================
+
+    // Users Collection: Profiles and Roles
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Question Drafts (Stage 01 -> Stage 02 Gate)
+    match /question_drafts/{draftId} {
+      // Authors view own drafts; Reviewers & Admins view all drafts
+      allow read: if isAuthenticated() && (
+        isAdmin() ||
+        isContentLead() ||
+        isQaReviewer() ||
+        isAuthor(resource.data)
+      );
+
+      // Create: Authenticated author or Admin
+      allow create: if isAuthenticated() && (
+        request.resource.data.authorId == request.auth.uid || isAdmin()
+      );
+
+      // Update:
+      // Case 1: Author updating draft while status is 'DRAFT'
+      // Case 2: Independent Reviewer approval (author != reviewer, GAR-02)
+      // Case 3: Admin Audited Override (explicit reason & confirmation required)
+      allow update: if isAuthenticated() && (
+        (isAuthor(resource.data) && resource.data.status == 'DRAFT') ||
+        (isQaReviewer() && !isAuthor(resource.data)) ||
+        (isAdmin() && request.resource.data.override.isOverride == true &&
+         request.resource.data.override.reason.size() >= 10)
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    // Production Questions (Stage 02 Approved Curriculum)
+    match /questions/{questionId} {
+      allow read: if isAuthenticated();
+      // Only Admin or Content Lead can modify production questions directly
+      allow write: if isAdmin() || isContentLead();
+    }
+
+    // Assignments (/my-work and production boards)
+    match /assignments/{assignmentId} {
+      allow read: if isAuthenticated() && (
+        isAdmin() ||
+        isContentLead() ||
+        isAssignee(resource.data)
+      );
+
+      // Assignee can update status (IN_PROGRESS, BLOCKED, COMPLETED)
+      // Leads/Admins can reassign or change priority
+      allow update: if isAuthenticated() && (
+        isAdmin() ||
+        isContentLead() ||
+        isAssignee(resource.data)
+      );
+
+      allow create, delete: if isAdmin() || isContentLead();
+    }
+
+    // Audit Logs (Immutable Append-Only Ledger)
+    match /audit_logs/{eventId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated();
+      allow update, delete: if false; // Strict immutability
+    }
+
+    // Video Productions & Workflow Instances
+    match /video_productions/{videoId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isContentLead() || hasRole('VIDEO_EDITOR') || hasRole('PRESENTER');
+    }
+
+    // Publishing Packages & Platform Sync
+    match /publishing_packages/{packageId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isPublishingLead();
+    }
+
+    // Analytics Snapshots & Insights
+    match /analytics_snapshots/{snapshotId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || hasRole('ANALYST');
+    }
+  }
+}

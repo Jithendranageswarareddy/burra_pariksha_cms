@@ -495,3 +495,225 @@ export function roleHasCapability(
   const caps = getRoleCapabilities(role);
   return caps.includes(capability);
 }
+
+// ============================================================================
+// 6. SPRINT 3: CANONICAL 8-TIER AUTHORIZATION ARCHITECTURE
+// User -> Roles -> Capabilities -> Page Access -> Action Access -> Data Scope -> Workflow Eligibility -> Admin Override
+// ============================================================================
+
+/**
+ * Tier 6: Data Scope Model (Separating Page Access from Data Access)
+ */
+export enum DataScope {
+  ALL = 'ALL',                 // Unrestricted operational access across all records
+  ASSIGNED = 'ASSIGNED',       // Records specifically assigned to the active user
+  TEAM = 'TEAM',               // Records belonging to the user's functional team/unit
+  STAGE = 'STAGE',             // Records residing within stages governed by the user's role
+  RESTRICTED = 'RESTRICTED',   // Redacted or read-only subset
+  OWN = 'OWN',                 // Records authored or created by the active user
+}
+
+/**
+ * Tier 5: Dynamic UI Action State Resolution
+ */
+export enum UiActionState {
+  VISIBLE = 'VISIBLE',         // Element is visible
+  HIDDEN = 'HIDDEN',           // Element is completely omitted from render
+  READ_ONLY = 'READ_ONLY',     // Element is visible but non-interactive
+  ENABLED = 'ENABLED',         // Control/button is enabled and actionable
+  DISABLED = 'DISABLED',       // Control is rendered disabled with explanation
+}
+
+export interface UiActionDecision {
+  state: UiActionState;
+  reason?: string;             // Human-readable explanation (for tooltips/disabled states)
+  capability: CapabilityString;
+  isOverrideEligible?: boolean;
+}
+
+/**
+ * Tier 8: Audited Administrative Override Contract
+ * Allows System Administrators to perform emergency or oversight state transitions
+ * while preserving strict audit trail, mandatory explanation, and explicit intent.
+ */
+export interface AdministrativeOverrideContext {
+  isOverride: boolean;
+  reason: string;              // Mandatory explanation (min 10 characters)
+  overrideActionType: string;  // e.g. 'ADMIN_APPROVAL_OVERRIDE', 'ADMIN_WORKFLOW_FORCE_TRANSITION'
+  confirmedByAdmin: boolean;   // Explicit UI confirmation
+  originalAuthorId?: string;
+  previousState?: string;
+  newState?: string;
+}
+
+/**
+ * Tier 7: Stage Workflow Eligibility Contract
+ */
+export interface StageWorkflowEligibility {
+  stageNumber: number;
+  stageName: string;
+  primaryRole: CanonicalRbacRole;
+  eligibleRoles: readonly CanonicalRbacRole[];
+  requiredCapability: CapabilityString;
+  requiredAction: AuthorizationAction;
+  canAdminOverride: boolean;
+}
+
+/**
+ * Default Data Scopes per Canonical RBAC Role
+ */
+export const ROLE_DEFAULT_DATA_SCOPES: Record<CanonicalRbacRole, DataScope> = {
+  [CanonicalRbacRole.ADMIN]: DataScope.ALL,
+  [CanonicalRbacRole.CONTENT_LEAD]: DataScope.ALL,
+  [CanonicalRbacRole.PUBLISHING_LEAD]: DataScope.ALL,
+  [CanonicalRbacRole.ANALYST]: DataScope.ALL,
+  [CanonicalRbacRole.QA_REVIEWER]: DataScope.STAGE,
+  [CanonicalRbacRole.QUESTION_AUTHOR]: DataScope.OWN,
+  [CanonicalRbacRole.QUESTION_EDITOR]: DataScope.ASSIGNED,
+  [CanonicalRbacRole.SCRIPTWRITER]: DataScope.ASSIGNED,
+  [CanonicalRbacRole.PRESENTER]: DataScope.ASSIGNED,
+  [CanonicalRbacRole.VIDEO_EDITOR]: DataScope.ASSIGNED,
+  [CanonicalRbacRole.DESIGNER]: DataScope.ASSIGNED,
+};
+
+/**
+ * Canonical 15-Stage Workflow Governance Registry
+ */
+export const STAGE_WORKFLOW_REGISTRY: Record<number, StageWorkflowEligibility> = {
+  1: {
+    stageNumber: 1,
+    stageName: 'Question Generation',
+    primaryRole: CanonicalRbacRole.QUESTION_AUTHOR,
+    eligibleRoles: [CanonicalRbacRole.QUESTION_AUTHOR, CanonicalRbacRole.QUESTION_EDITOR, CanonicalRbacRole.CONTENT_LEAD, CanonicalRbacRole.ADMIN],
+    requiredCapability: 'QUESTION:CREATE',
+    requiredAction: AuthorizationAction.CREATE,
+    canAdminOverride: true,
+  },
+  2: {
+    stageNumber: 2,
+    stageName: 'Question Verification',
+    primaryRole: CanonicalRbacRole.QA_REVIEWER,
+    eligibleRoles: [CanonicalRbacRole.QA_REVIEWER, CanonicalRbacRole.CONTENT_LEAD, CanonicalRbacRole.ADMIN],
+    requiredCapability: 'QUESTION:APPROVE',
+    requiredAction: AuthorizationAction.APPROVE,
+    canAdminOverride: true, // Requires explicit audited administrative override if author === approver
+  },
+  3: {
+    stageNumber: 3,
+    stageName: 'Audience Script',
+    primaryRole: CanonicalRbacRole.SCRIPTWRITER,
+    eligibleRoles: [CanonicalRbacRole.SCRIPTWRITER, CanonicalRbacRole.CONTENT_LEAD, CanonicalRbacRole.ADMIN],
+    requiredCapability: 'SCRIPT:CREATE',
+    requiredAction: AuthorizationAction.CREATE,
+    canAdminOverride: true,
+  },
+  4: {
+    stageNumber: 4,
+    stageName: 'Teleprompter & Filming',
+    primaryRole: CanonicalRbacRole.PRESENTER,
+    eligibleRoles: [CanonicalRbacRole.PRESENTER, CanonicalRbacRole.VIDEO_EDITOR, CanonicalRbacRole.ADMIN],
+    requiredCapability: 'VIDEO_TAKE:CREATE',
+    requiredAction: AuthorizationAction.CREATE,
+    canAdminOverride: true,
+  },
+  5: {
+    stageNumber: 5,
+    stageName: 'Raw Video',
+    primaryRole: CanonicalRbacRole.PRESENTER,
+    eligibleRoles: [CanonicalRbacRole.PRESENTER, CanonicalRbacRole.VIDEO_EDITOR, CanonicalRbacRole.ADMIN],
+    requiredCapability: 'MEDIA_REFERENCE:UPLOAD',
+    requiredAction: AuthorizationAction.CREATE,
+    canAdminOverride: true,
+  },
+  6: {
+    stageNumber: 6,
+    stageName: 'Editing Bay',
+    primaryRole: CanonicalRbacRole.VIDEO_EDITOR,
+    eligibleRoles: [CanonicalRbacRole.VIDEO_EDITOR, CanonicalRbacRole.ADMIN],
+    requiredCapability: 'VIDEO_EDIT:SUBMIT',
+    requiredAction: AuthorizationAction.EDIT,
+    canAdminOverride: true,
+  },
+  7: {
+    stageNumber: 7,
+    stageName: 'Final QC',
+    primaryRole: CanonicalRbacRole.CONTENT_LEAD,
+    eligibleRoles: [CanonicalRbacRole.CONTENT_LEAD, CanonicalRbacRole.ADMIN],
+    requiredCapability: 'VIDEO_EDIT:APPROVE',
+    requiredAction: AuthorizationAction.APPROVE,
+    canAdminOverride: true,
+  },
+  8: {
+    stageNumber: 8,
+    stageName: 'Thumbnail',
+    primaryRole: CanonicalRbacRole.DESIGNER,
+    eligibleRoles: [CanonicalRbacRole.DESIGNER, CanonicalRbacRole.CONTENT_LEAD, CanonicalRbacRole.ADMIN],
+    requiredCapability: 'THUMBNAIL:SUBMIT',
+    requiredAction: AuthorizationAction.CREATE,
+    canAdminOverride: true,
+  },
+  9: {
+    stageNumber: 9,
+    stageName: 'Social Review',
+    primaryRole: CanonicalRbacRole.QA_REVIEWER,
+    eligibleRoles: [CanonicalRbacRole.QA_REVIEWER, CanonicalRbacRole.PUBLISHING_LEAD, CanonicalRbacRole.ADMIN],
+    requiredCapability: 'SOCIAL_REVIEW:APPROVE',
+    requiredAction: AuthorizationAction.APPROVE,
+    canAdminOverride: true,
+  },
+  10: {
+    stageNumber: 10,
+    stageName: 'Publishing Setup',
+    primaryRole: CanonicalRbacRole.PUBLISHING_LEAD,
+    eligibleRoles: [CanonicalRbacRole.PUBLISHING_LEAD, CanonicalRbacRole.ADMIN],
+    requiredCapability: 'PUBLISHING_PACKAGE:APPROVE',
+    requiredAction: AuthorizationAction.APPROVE,
+    canAdminOverride: true,
+  },
+  11: {
+    stageNumber: 11,
+    stageName: 'Published',
+    primaryRole: CanonicalRbacRole.PUBLISHING_LEAD,
+    eligibleRoles: [CanonicalRbacRole.PUBLISHING_LEAD, CanonicalRbacRole.ADMIN],
+    requiredCapability: 'PUBLICATION:PUBLISH',
+    requiredAction: AuthorizationAction.PUBLISH,
+    canAdminOverride: true,
+  },
+  12: {
+    stageNumber: 12,
+    stageName: 'Platform Sync',
+    primaryRole: CanonicalRbacRole.PUBLISHING_LEAD,
+    eligibleRoles: [CanonicalRbacRole.PUBLISHING_LEAD, CanonicalRbacRole.ADMIN],
+    requiredCapability: 'PUBLICATION:SYNC',
+    requiredAction: AuthorizationAction.PUBLISH,
+    canAdminOverride: true,
+  },
+  13: {
+    stageNumber: 13,
+    stageName: 'Analytics',
+    primaryRole: CanonicalRbacRole.ANALYST,
+    eligibleRoles: [CanonicalRbacRole.ANALYST, CanonicalRbacRole.ADMIN],
+    requiredCapability: 'ANALYTICS_SNAPSHOT:VIEW',
+    requiredAction: AuthorizationAction.VIEW,
+    canAdminOverride: true,
+  },
+  14: {
+    stageNumber: 14,
+    stageName: 'Performance Review',
+    primaryRole: CanonicalRbacRole.CONTENT_LEAD,
+    eligibleRoles: [CanonicalRbacRole.CONTENT_LEAD, CanonicalRbacRole.ANALYST, CanonicalRbacRole.ADMIN],
+    requiredCapability: 'PERFORMANCE_RECORD:REVIEW',
+    requiredAction: AuthorizationAction.APPROVE,
+    canAdminOverride: true,
+  },
+  15: {
+    stageNumber: 15,
+    stageName: 'Intelligence Loop',
+    primaryRole: CanonicalRbacRole.CONTENT_LEAD,
+    eligibleRoles: [CanonicalRbacRole.CONTENT_LEAD, CanonicalRbacRole.ADMIN],
+    requiredCapability: 'INTELLIGENCE_INSIGHT:APPROVE',
+    requiredAction: AuthorizationAction.APPROVE,
+    canAdminOverride: true,
+  },
+};
+

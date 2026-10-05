@@ -1,0 +1,128 @@
+{
+  "$schema": "https://firebase.google.com/schemas/firestore-blueprint-v1.json",
+  "version": "1.0.0",
+  "project": "burra-pariksha-cms",
+  "database": "(default)",
+  "collections": [
+    {
+      "collectionId": "users",
+      "description": "User profiles, roles, and session states",
+      "documentIdPattern": "USR-{id}",
+      "fields": {
+        "id": { "type": "string", "required": true },
+        "email": { "type": "string", "required": true },
+        "name": { "type": "string", "required": true },
+        "role": { "type": "string", "required": true },
+        "roles": { "type": "array", "items": { "type": "string" }, "required": true },
+        "dataScope": { "type": "string", "enum": ["ALL", "ASSIGNED", "STAGE", "OWN"], "required": true },
+        "isActive": { "type": "boolean", "required": true },
+        "sessionVersion": { "type": "number", "required": true },
+        "createdAt": { "type": "timestamp", "required": true },
+        "updatedAt": { "type": "timestamp", "required": true }
+      },
+      "indexes": [
+        { "fields": [{ "fieldPath": "email", "order": "ASCENDING" }] }
+      ]
+    },
+    {
+      "collectionId": "question_drafts",
+      "description": "Stage 01 author drafts pending Stage 02 editorial approval",
+      "documentIdPattern": "BP-DFT-{hash}",
+      "fields": {
+        "id": { "type": "string", "required": true },
+        "authorId": { "type": "string", "required": true },
+        "authorName": { "type": "string" },
+        "title": { "type": "string", "required": true },
+        "category": { "type": "string", "required": true },
+        "subCategory": { "type": "string" },
+        "difficulty": { "type": "string", "required": true },
+        "question": { "type": "string", "required": true },
+        "options": { "type": "map", "required": true },
+        "correctAnswer": { "type": "string", "required": true },
+        "explanation": { "type": "string", "required": true },
+        "status": { "type": "string", "enum": ["DRAFT", "SUBMITTED", "APPROVED", "REJECTED"], "required": true },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "timestamp", "required": true },
+        "updatedAt": { "type": "timestamp", "required": true }
+      },
+      "indexes": [
+        { "fields": [{ "fieldPath": "authorId", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" }] },
+        { "fields": [{ "fieldPath": "status", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" }] }
+      ]
+    },
+    {
+      "collectionId": "questions",
+      "description": "Stage 02 approved curriculum repository items",
+      "documentIdPattern": "BP-Q-{id}",
+      "fields": {
+        "id": { "type": "string", "required": true },
+        "contentMasterId": { "type": "string", "required": true },
+        "authorId": { "type": "string", "required": true },
+        "status": { "type": "string", "required": true },
+        "videoStatus": { "type": "string", "required": true },
+        "currentStage": { "type": "number", "required": true },
+        "question": { "type": "string", "required": true },
+        "options": { "type": "map", "required": true },
+        "correctAnswer": { "type": "string", "required": true },
+        "explanation": { "type": "string", "required": true },
+        "approvedBy": { "type": "string", "required": true },
+        "approvedAt": { "type": "timestamp", "required": true },
+        "isOverrideApproval": { "type": "boolean", "default": false },
+        "overrideReason": { "type": "string" },
+        "createdAt": { "type": "timestamp", "required": true },
+        "updatedAt": { "type": "timestamp", "required": true }
+      },
+      "indexes": [
+        { "fields": [{ "fieldPath": "status", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" }] },
+        { "fields": [{ "fieldPath": "currentStage", "order": "ASCENDING" }] }
+      ]
+    },
+    {
+      "collectionId": "assignments",
+      "description": "Task assignments across all 15 stages",
+      "documentIdPattern": "ASN-{id}",
+      "fields": {
+        "id": { "type": "string", "required": true },
+        "entityType": { "type": "string", "required": true },
+        "entityId": { "type": "string", "required": true },
+        "assigneeId": { "type": "string", "required": true },
+        "assigneeRole": { "type": "string", "required": true },
+        "stageNumber": { "type": "number", "required": true },
+        "status": { "type": "string", "enum": ["PENDING", "IN_PROGRESS", "BLOCKED", "COMPLETED", "CANCELLED"], "required": true },
+        "priority": { "type": "string", "enum": ["LOW", "MEDIUM", "HIGH", "URGENT"], "required": true },
+        "dueDate": { "type": "timestamp" },
+        "completedAt": { "type": "timestamp" },
+        "createdAt": { "type": "timestamp", "required": true },
+        "updatedAt": { "type": "timestamp", "required": true }
+      },
+      "indexes": [
+        { "fields": [{ "fieldPath": "assigneeId", "order": "ASCENDING" }, { "fieldPath": "status", "order": "ASCENDING" }] },
+        { "fields": [{ "fieldPath": "stageNumber", "order": "ASCENDING" }, { "fieldPath": "status", "order": "ASCENDING" }] }
+      ]
+    },
+    {
+      "collectionId": "audit_logs",
+      "description": "Immutable audit events for all sensitive state mutations and admin overrides",
+      "documentIdPattern": "AUD-{timestamp}-{hash}",
+      "fields": {
+        "id": { "type": "string", "required": true },
+        "actorUserId": { "type": "string", "required": true },
+        "actorRole": { "type": "string", "required": true },
+        "actionVerb": { "type": "string", "required": true },
+        "targetResourceType": { "type": "string", "required": true },
+        "targetResourceId": { "type": "string" },
+        "isOverride": { "type": "boolean", "required": true },
+        "overrideReason": { "type": "string" },
+        "overrideActionType": { "type": "string" },
+        "previousState": { "type": "string" },
+        "newState": { "type": "string" },
+        "verdict": { "type": "string", "required": true },
+        "timestamp": { "type": "timestamp", "required": true }
+      },
+      "indexes": [
+        { "fields": [{ "fieldPath": "timestamp", "order": "DESCENDING" }] },
+        { "fields": [{ "fieldPath": "isOverride", "order": "ASCENDING" }, { "fieldPath": "timestamp", "order": "DESCENDING" }] }
+      ]
+    }
+  ]
+}

@@ -1,54 +1,24 @@
-# Current Sprint: Sprint 2
+# Current Sprint: Sprint 3
 
-**Sprint:** 2  
-**Name:** System Stabilization & Golden Path  
-**Status:** COMPLETE  
-**Start Date:** 2026-10-04  
-**Completion Date:** 2026-10-05  
-**Primary Target:** End-to-end Question Golden Path (Creation -> Verification -> Approval -> State Update -> Audit -> Persistence Proof)
+**Sprint:** 3  
+**Name:** Role-Aware BP-CMS + RBAC + Firebase Architecture  
+**Status:** IN PROGRESS  
+**Start Date:** 2026-10-05  
+**Primary Target:** Canonical Authorization Model, Dynamic UI Actions, Audited Admin Override, Role-Aware Work Handoff, and Firebase Architecture Spike
 
-## Sprint 2 Task Breakdown
+## Sprint 3 Task Breakdown
 
 | Task ID | Task Name | Priority | Status | Description |
 | :--- | :--- | :---: | :---: | :--- |
-| **S2-T01** | **Baseline Freeze** | P0 | DONE | Verify GitHub main import, establish immutable baseline report, confirm 0 build/lint/test errors. |
-| **S2-T02** | **Runtime Recovery** | P0 | DONE | Verify dev server, API endpoints, and client-side bundle execution in AI Studio runtime. |
-| **S2-T03** | **Environment Stabilization** | P0 | DONE | Map all local secrets and environment variables required for full integration. |
-| **S2-T04** | **Architecture / Route Cleanup Map** | P1 | DONE | Formulate route and service dependency map to isolate legacy vs canonical paths. |
-| **S2-T05** | **Question Golden Path** | P0 | DONE | Execute complete slice: Create -> Save -> Library -> Detail -> Verify -> Approve -> Workflow update. |
-| **S2-T06** | **Real Persistence Proof** | P0 | DONE | Verify read-back persistence after full browser refresh and database restart. |
-| **S2-T07** | **Regression / Smoke Tests** | P1 | DONE | Execute comprehensive smoke tests across auth, rbac, db, audit, and workflow modules. |
-| **S2-T08** | **AI Studio Published App & Live Human UAT** | P0 | DONE | Verify actual republished custom URL `burraparikshacontentmanagementsystem.ai.studio`, multi-role review, and 15-step workflow. |
-
----
-
-## S2-T08 Google AI Studio Republished Application & Live UAT Record
-
-- **Actual Application URL:** `https://burraparikshacontentmanagementsystem.ai.studio/`
-- **Application Identification:**
-  - Associated with this project: **YES**
-  - Page Title: `Burra Pariksha CMS`
-  - Server Engine: Express on Google Frontend
-  - Backend Datastore Mode: `GOOGLE_SHEETS_PRODUCTION`
-- **Build & Version Alignment:**
-  - Published Asset: `/assets/index-BIjR7gFE.js` (Last-modified: Mon, 05 Oct 2026 15:10:36 GMT)
-  - Current Compiled Asset: `/assets/index-BIjR7gFE.js`
-  - Finding: **CURRENT BUILD == PUBLISHED VERSION: YES**
-- **Live Endpoint Verification:**
-  - `/readyz`: **200 OK** (`{"status":"ok","checks":{"database":"UP","drive":"OAUTH2"}}`)
-  - `/api/health`: **200 OK** (`mode: "GOOGLE_SHEETS_PRODUCTION"`, `databaseConfigured: true`)
-- **Two-User Workflow & GAR-02 Verification:**
-  1. Creator Login (Jithendra, `USR-001`, `ADMIN`): **200 OK** (Session token & cookie issued).
-  2. Question Draft Creation: **201 Created** (Draft ID: `BP-DFT-173957-UXR5`, Author: `USR-001`).
-  3. Anti-Self-Approval (GAR-02): **403 Forbidden** (`Self-approval prohibited: Creator cannot approve their own artifact (GAR-02)`).
-  4. Reviewer Login (Surendra Reddy, `USR-002`, `roles: ['VIDEO_EDITOR', 'CONTENT_MANAGER']`): **200 OK**.
-  5. Reviewer Draft Verification: **200 OK** (`GET /api/questions/draft/BP-DFT-173957-UXR5`).
-  6. Independent Reviewer Approval: **201 Created** (Draft successfully promoted to Question `BP-Q-918951` with `status: APPROVED`).
-- **Production Persistence Proof:**
-  - Reopened Question `BP-Q-918951` post-refresh: **200 OK** (`status: APPROVED`, Google Sheets datastore verified).
-- **15-Step Canonical Business Workflow:**
-  - All 15 stages (Steps 01-15) verified live on published application with UI route 200 OK (`root:true`) and API 200 OK.
-- **Blockers:** None.
-- **Warnings:** None.
-- **Final Task Status:** **PASS**
-- **Sprint 2 Status:** **COMPLETE**
+| **S3-T01** | **Canonical RBAC & Capability Model** | P0 | DONE | Formalized the 8-tier authorization separation: Identity -> Roles -> Capabilities -> Page -> Action -> Data Scope -> Workflow Eligibility -> Audited Admin Override. |
+| **S3-T02** | **Role/Page/Action/Data Access Matrix** | P0 | DONE | Defined exact access rules and data scopes (`ALL`, `ASSIGNED`, `TEAM`, `STAGE`, `RESTRICTED`, `OWN`) across all 15 stages and 6 hubs. |
+| **S3-T03** | **Central Authorization Service** | P0 | DONE | Implemented `centralAuthorizationService` providing unified server and client policy evaluations. |
+| **S3-T04** | **Dynamic Role-Aware Navigation & UI Actions** | P0 | DONE | Dynamic UI action resolution (`VISIBLE`, `HIDDEN`, `READ_ONLY`, `ENABLED`, `DISABLED`) across navigation, action buttons, forms, and stage controls. |
+| **S3-T05** | **Administrator Operational Mode & Audited Override** | P0 | DONE | Enabled full Admin visibility across all hubs while enforcing mandatory reason, explicit confirmation, and immutable audit logging for overrides (preserving GAR-02 segregation of duties for normal flow). |
+| **S3-T06** | **Assignment & Workflow Handoff Model** | P1 | DONE | Built content-to-stage role routing: `content -> stage -> required action -> eligible role -> assignment queue -> next stage`. |
+| **S3-T07** | **My Work Role-Aware Workbench Integration** | P1 | DONE | Delivered personalized operational views (`Assigned Work`, `Waiting for Me`, `Waiting for Other Role`, `Blocked`, `Team Overview` for Admin). |
+| **S3-T08** | **Firebase Architecture Spike** | P0 | DONE | Documented architecture decision: Firebase Auth, Firestore data model, backend authorization, custom claims, query indexing, cost, and rollback strategy (`docs/architecture/FIREBASE-ARCHITECTURE-SPIKE.md`). |
+| **S3-T09** | **Firestore Data Model & Security Architecture Prototype** | P1 | DONE | Authored blueprint schemas (`firebase-blueprint.json`), document collection structures, and generated hardened `firestore.rules`. |
+| **S3-T10** | **Google Sheets -> Firestore Migration Design** | P1 | DONE | Field mapping, checksum verification hashing, dual-write strategy, and zero-data-loss rollback procedure (`src/lib/services/firestore-migration.service.ts`). |
+| **S3-T11** | **RBAC & Security Regression Test Suite** | P0 | DONE | Automated test coverage for Flows A through E, role isolation, hidden/disabled actions, GAR-02 self-approval rejection, audited override approval, and data scopes (`tests/s3-t11-regression-suite.test.ts`). |
+| **S3-T12** | **End-to-End Browser UAT Preparation** | P1 | DONE | End-to-end execution of live HTTP override suite (`tests/s3-t05-live-override.test.ts`) and modal UX validation. |

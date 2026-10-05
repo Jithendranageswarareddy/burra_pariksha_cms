@@ -1193,6 +1193,24 @@ export class AssignmentService {
       .filter((a) => a.status === AssignmentStatus.COMPLETED && (a.completedAt || a.updatedAt || '') >= sevenDaysAgo)
       .sort((a, b) => new Date(b.completedAt || 0).getTime() - new Date(a.completedAt || 0).getTime());
 
+    // Role-aware waiting queues (Sprint 3: S3-T06 & S3-T07)
+    const waitingForMe = active.filter((a) => a.status === AssignmentStatus.ASSIGNED || a.status === AssignmentStatus.IN_PROGRESS);
+    
+    // For Administrators, fetch all-team active assignments to provide full-system radar
+    const isAdmin = user.role === 'ADMIN' || (Array.isArray(user.roles) && user.roles.includes('ADMIN'));
+    let waitingForOtherRole: Assignment[] = [];
+    let teamOverview: any = undefined;
+
+    if (isAdmin) {
+      const allActive = await assignmentsRepository.findActive();
+      waitingForOtherRole = allActive.filter((a) => a.assigneeId !== userId);
+      teamOverview = {
+        totalTeamActiveTasks: allActive.length,
+        totalTeamBlockedTasks: allActive.filter((a) => a.status === AssignmentStatus.BLOCKED).length,
+        totalTeamOverdueTasks: allActive.filter((a) => this.isAssignmentOverdue(a)).length,
+      };
+    }
+
     return {
       user,
       overdue,
@@ -1203,6 +1221,9 @@ export class AssignmentService {
       upcoming,
       recentlyCompleted,
       completedAssignments: recentlyCompleted,
+      waitingForMe,
+      waitingForOtherRole,
+      teamOverview,
       activeAssignments: active,
       activeCount: active.length,
       metrics: {
@@ -1211,6 +1232,8 @@ export class AssignmentService {
         dueTodayCount: dueToday.length,
         blockedCount: blocked.length,
         completedCount: all.filter((a) => a.status === AssignmentStatus.COMPLETED).length,
+        waitingForMeCount: waitingForMe.length,
+        waitingForOtherRoleCount: waitingForOtherRole.length,
       },
     };
   }

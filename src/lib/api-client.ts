@@ -408,10 +408,23 @@ class ApiClient {
     return this.request('/questions/drafts');
   }
 
-  public async approveQuestionDraft(id: string, notes?: string): Promise<Question> {
+  public async approveQuestionDraft(
+    id: string,
+    notes?: string,
+    override?: { isOverride?: boolean; confirmedByAdmin?: boolean; reason?: string; overrideActionType?: string }
+  ): Promise<Question> {
     return this.request(`/questions/draft/${encodeURIComponent(id)}/approve`, {
       method: 'POST',
-      body: JSON.stringify({ notes }),
+      body: JSON.stringify({
+        notes,
+        ...(override?.isOverride ? {
+          isOverride: true,
+          confirmedByAdmin: override.confirmedByAdmin ?? true,
+          reason: override.reason,
+          overrideReason: override.reason,
+          overrideActionType: override.overrideActionType || 'ADMIN_APPROVAL_OVERRIDE',
+        } : {}),
+      }),
     });
   }
 

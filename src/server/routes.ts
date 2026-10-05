@@ -1434,7 +1434,17 @@ apiRouter.post(
       const { id } = req.params;
       const actor = getRequestActor(req);
       const notes = req.body?.notes || req.body?.remarks;
-      const approvedQuestion = await questionDraftService.approveDraft(id, actor, notes);
+      const overridePayload = req.body?.override;
+      const overrideContext = (req.body?.isOverride || overridePayload?.isOverride) ? {
+        isOverride: true,
+        confirmedByAdmin: Boolean(overridePayload?.confirmedByAdmin ?? req.body?.confirmedByAdmin ?? true),
+        reason: String(overridePayload?.reason || req.body?.overrideReason || req.body?.reason || '').trim(),
+        overrideActionType: String(overridePayload?.overrideActionType || req.body?.overrideActionType || 'ADMIN_APPROVAL_OVERRIDE').trim(),
+        originalAuthorId: req.body?.originalAuthorId,
+        previousState: req.body?.previousState,
+        newState: 'APPROVED',
+      } : undefined;
+      const approvedQuestion = await questionDraftService.approveDraft(id, actor, notes, overrideContext);
       res.status(201).json(approvedQuestion);
     } catch (err: any) {
       const statusCode = err?.statusCode || (err?.name === 'AntiSelfApprovalViolation' ? 403 : 400);

@@ -367,6 +367,22 @@ export function requireCapability(
       }
     }
 
+    // Extract Administrative Override parameters if provided
+    const overridePayload = req.body?.override;
+    const isOverrideFlag = Boolean(req.body?.isOverride || overridePayload?.isOverride);
+    if (isOverrideFlag) {
+      if (!targetContext) targetContext = {};
+      targetContext.override = {
+        isOverride: true,
+        confirmedByAdmin: Boolean(overridePayload?.confirmedByAdmin ?? req.body?.confirmedByAdmin ?? true),
+        reason: String(overridePayload?.reason || req.body?.overrideReason || req.body?.reason || '').trim(),
+        overrideActionType: String(overridePayload?.overrideActionType || req.body?.overrideActionType || 'ADMIN_OVERRIDE').trim(),
+        originalAuthorId: targetContext.authorUserId || targetContext.createdBy,
+        previousState: targetContext.status,
+        newState: req.body?.newState || req.body?.targetStatus,
+      };
+    }
+
     // 4. Parse capability
     const parsed = parseCapability(capability);
     if (!parsed.isValid) {
