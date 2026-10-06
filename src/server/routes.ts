@@ -1970,16 +1970,47 @@ apiRouter.get('/videos/:id/download', requireAuth, async (req: Request, res: Res
       return res.status(403).json({ error: 'Forbidden: You do not have permission to download this video.' });
     }
 
-    if (!video.driveFileId) {
-      return res.status(404).json({ error: 'No Drive Asset', message: `Video "${id}" does not have an attached Google Drive asset.` });
+    const requestedAssetId =
+      typeof req.query.assetId === 'string' && req.query.assetId.trim()
+        ? req.query.assetId.trim()
+        : undefined;
+
+    let driveFileId = video.driveFileId;
+    let downloadFileName = video.fileName || `video-${video.id}.mp4`;
+    let downloadMimeType = video.mimeType || 'video/mp4';
+
+    if (requestedAssetId) {
+      const selectedAsset = (video.rawAssets || []).find(
+        (asset) =>
+          asset.mediaStage === 'RAW' &&
+          (asset.id === requestedAssetId || asset.driveFileId === requestedAssetId)
+      );
+
+      if (!selectedAsset?.driveFileId) {
+        return res.status(404).json({
+          error: 'Raw Asset Not Found',
+          message: `Raw video asset "${requestedAssetId}" is not attached to video "${id}".`,
+        });
+      }
+
+      driveFileId = selectedAsset.driveFileId;
+      downloadFileName = selectedAsset.fileName || downloadFileName;
+      downloadMimeType = selectedAsset.mimeType || downloadMimeType;
     }
 
-    const download = await googleDriveService.downloadFile(video.driveFileId);
-    res.setHeader('Content-Type', download.contentType || video.mimeType || 'video/mp4');
+    if (!driveFileId) {
+      return res.status(404).json({
+        error: 'No Drive Asset',
+        message: `Video "${id}" does not have an attached Google Drive asset.`,
+      });
+    }
+
+    const download = await googleDriveService.downloadFile(driveFileId);
+    res.setHeader('Content-Type', download.contentType || downloadMimeType);
     if (download.contentLength) {
       res.setHeader('Content-Length', download.contentLength);
     }
-    const safeName = (video.fileName || `video-${video.id}.mp4`).replace(/["\r\n]/g, '_');
+    const safeName = downloadFileName.replace(/["\r\n]/g, '_');
     res.setHeader('Content-Disposition', `attachment; filename="${safeName}"`);
 
     download.stream.pipe(res);
