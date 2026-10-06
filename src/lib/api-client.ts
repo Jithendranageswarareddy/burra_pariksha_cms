@@ -190,10 +190,12 @@ class ApiClient {
 
       if (!res.ok || (data && typeof data === 'object' && data.success === false)) {
         const errorObj = data?.error;
-        const errorMsg =
-          (typeof errorObj === 'string' ? errorObj : errorObj?.message) ||
-          data?.message ||
-          `Request failed with status ${res.status}`;
+        let errorMsg = typeof errorObj === 'string' ? errorObj : errorObj?.message;
+        if (typeof errorObj === 'string' && data?.message && data.message !== errorObj) {
+          errorMsg = `${errorObj}: ${data.message}`;
+        } else if (!errorMsg) {
+          errorMsg = data?.message || `Request failed with status ${res.status}`;
+        }
         const errorCode =
           (typeof errorObj === 'object' ? errorObj?.code : undefined) ||
           (res.status === 409 ? 'CONFLICT_OPTIMISTIC_LOCK' : undefined);
@@ -630,11 +632,24 @@ class ApiClient {
       credentials: 'include',
     });
 
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      throw new Error(data?.message || data?.error || 'Failed to upload file');
+      const errorObj = data?.error;
+      let errorMsg = typeof errorObj === 'string' ? errorObj : errorObj?.message;
+      if (typeof errorObj === 'string' && data?.message && data.message !== errorObj) {
+        errorMsg = `${errorObj}: ${data.message}`;
+      } else if (!errorMsg) {
+        errorMsg = data?.message || `Failed to upload file (HTTP ${res.status})`;
+      }
+      const requestId = data?.meta?.requestId || (typeof errorObj === 'object' ? errorObj?.requestId : undefined);
+      throw new ApiClientError(errorMsg, {
+        statusCode: res.status,
+        code: typeof errorObj === 'object' ? errorObj?.code : 'UPLOAD_FAILED',
+        details: typeof errorObj === 'object' ? errorObj?.details : data?.details,
+        requestId,
+      });
     }
-    return data;
+    return (data.data || data) as Video;
   }
 
   public async uploadEditedVideoFile(

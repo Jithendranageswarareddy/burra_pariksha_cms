@@ -233,11 +233,13 @@ export const VALID_VIDEO_TRANSITIONS: Record<VideoProductionStatus, VideoProduct
   [VideoProductionStatus.QUEUED]: [
     VideoProductionStatus.SCRIPT_REQUIRED,
     VideoProductionStatus.SCRIPT_READY,
+    VideoProductionStatus.RECORDED,
     VideoProductionStatus.ON_HOLD,
     VideoProductionStatus.CANCELLED,
   ],
   [VideoProductionStatus.SCRIPT_REQUIRED]: [
     VideoProductionStatus.SCRIPT_READY,
+    VideoProductionStatus.RECORDED,
     VideoProductionStatus.ON_HOLD,
     VideoProductionStatus.CANCELLED,
   ],

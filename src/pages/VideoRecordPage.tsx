@@ -1078,18 +1078,45 @@ export const VideoRecordPage: React.FC = () => {
                   Raw recording captured? Proceed to Video Editing to sync Telugu motion graphics, countdown timers, and check 50–59s pacing.
                 </p>
 
-                <Button
-                  variant="primary"
-                  size="md"
-                  onClick={() => {
-                    const targetId = videoId || selectedVideo?.id;
-                    navigate(`/videos/${encodeURIComponent(targetId)}?tab=editing`);
-                  }}
-                  icon={ArrowRight}
-                  className="w-full text-xs justify-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
-                >
-                  Proceed to Step 06: Video Editing
-                </Button>
+                {(() => {
+                  const hasRawFootage = Boolean(
+                    selectedVideo?.driveFileId ||
+                    (rawAssets && rawAssets.length > 0) ||
+                    selectedVideo?.rawFootagePath ||
+                    selectedVideo?.status === VideoProductionStatus.RECORDED ||
+                    selectedVideo?.status === VideoProductionStatus.EDITING ||
+                    selectedVideo?.status === VideoProductionStatus.FINAL_REVIEW ||
+                    selectedVideo?.status === VideoProductionStatus.READY_TO_UPLOAD ||
+                    selectedVideo?.status === VideoProductionStatus.UPLOADED
+                  );
+
+                  return (
+                    <Button
+                      variant="primary"
+                      size="md"
+                      onClick={() => {
+                        const targetId = videoId || selectedVideo?.id;
+                        navigate(`/videos/${encodeURIComponent(targetId)}?tab=editing`);
+                      }}
+                      disabled={!hasRawFootage || isUploading}
+                      icon={ArrowRight}
+                      className={`w-full text-xs justify-center font-bold ${
+                        hasRawFootage && !isUploading
+                          ? 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                          : 'bg-slate-200 text-slate-400 border border-slate-300 cursor-not-allowed shadow-none'
+                      }`}
+                      title={
+                        !hasRawFootage
+                          ? 'Raw camera footage or Google Drive reference must be attached before proceeding'
+                          : 'Proceed to Step 06: Editing Bay'
+                      }
+                    >
+                      {hasRawFootage
+                        ? 'Proceed to Step 06: Editing Bay →'
+                        : 'Save Footage & Proceed to Step 06: Video Editing'}
+                    </Button>
+                  );
+                })()}
               </div>
             </div>
           </div>

@@ -1928,6 +1928,7 @@ const handleVideoUploadRoute = async (req: Request, res: Response) => {
 
         // Backward compatibility: Support direct video properties, nested video entity, asset, and rawAssets
         const responsePayload = {
+          success: true,
           ...video,
           video,
           asset: video.mediaAsset,
@@ -2054,11 +2055,21 @@ apiRouter.patch('/videos/:id/status', requireRole([UserRole.ADMIN, UserRole.CONT
       return res.status(403).json({ error: 'Forbidden: You do not have permission to update this video status.' });
     }
 
-    if (status === VideoProductionStatus.RECORDED && !video.driveFileId) {
+    if (status === VideoProductionStatus.RECORDED && !video.driveFileId && !video.rawFootagePath) {
       return res.status(400).json({
         error: 'ValidationError',
-        message: 'Raw video file must be uploaded to Google Drive before marking as Recorded.',
+        message: 'Raw video file or Google Drive reference must be attached before marking as Recorded.',
       });
+    }
+
+    if (status === VideoProductionStatus.EDITING) {
+      const hasRawMedia = Boolean(video.driveFileId || video.rawFootagePath);
+      if (!hasRawMedia) {
+        return res.status(400).json({
+          error: 'ValidationError',
+          message: 'Raw video file or valid Google Drive footage reference must be persisted before proceeding to Video Editing (Step 06).',
+        });
+      }
     }
 
     if ((status === VideoProductionStatus.EDITED || status === VideoProductionStatus.FINAL_REVIEW) && video.status === VideoProductionStatus.EDITING) {

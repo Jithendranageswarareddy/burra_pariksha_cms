@@ -61,11 +61,13 @@ export const VALID_VIDEO_TRANSITIONS: Record<VideoProductionStatus, VideoProduct
   [VideoProductionStatus.QUEUED]: [
     VideoProductionStatus.SCRIPT_REQUIRED,
     VideoProductionStatus.SCRIPT_READY,
+    VideoProductionStatus.RECORDED,
     VideoProductionStatus.ON_HOLD,
     VideoProductionStatus.CANCELLED,
   ],
   [VideoProductionStatus.SCRIPT_REQUIRED]: [
     VideoProductionStatus.SCRIPT_READY,
+    VideoProductionStatus.RECORDED,
     VideoProductionStatus.ON_HOLD,
     VideoProductionStatus.CANCELLED,
   ],
@@ -376,8 +378,15 @@ export class VideoService {
       return video;
     }
 
-    if (newStatus === VideoProductionStatus.RECORDED && !video.driveFileId && !bypassRawCheck) {
+    if (newStatus === VideoProductionStatus.RECORDED && !video.driveFileId && !video.rawFootagePath && !bypassRawCheck) {
       throw new ValidationError('Raw video file must be uploaded to Google Drive before marking as Recorded.');
+    }
+
+    if (newStatus === VideoProductionStatus.EDITING && !bypassRawCheck) {
+      const hasRaw = Boolean(video.driveFileId || video.rawFootagePath);
+      if (!hasRaw) {
+        throw new ValidationError('Raw video footage or Google Drive reference must be persisted before proceeding to Step 06 Video Editing.');
+      }
     }
 
     if (
@@ -952,14 +961,31 @@ export class VideoService {
           finalRenderFormat: mimeType.split('/')[1] || 'mp4',
           updatedAt: now,
         };
-        // If in recording preparation states, advance to RECORDED
+        // If in recording preparation or initial queue states, advance to RECORDED upon successful footage ingestion
         if (
+          existingVideo.status === VideoProductionStatus.QUEUED ||
+          existingVideo.status === VideoProductionStatus.SCRIPT_REQUIRED ||
           existingVideo.status === VideoProductionStatus.SCRIPT_READY ||
           existingVideo.status === VideoProductionStatus.RECORDING
         ) {
           updatePayload.status = VideoProductionStatus.RECORDED;
         }
         updatedVideo = (await videosRepository.update(existingVideo.id, updatePayload)) as Video;
+
+        if (updatePayload.status && updatePayload.status !== existingVideo.status) {
+          try {
+            await workflowService.recordTransition(
+              'VIDEO',
+              existingVideo.id,
+              existingVideo.status,
+              updatePayload.status,
+              actor.name || actor.id,
+              `Raw video footage ingested and secured in Google Drive (file: ${sanitizedFileName})`
+            );
+          } catch (wfErr) {
+            console.warn('Non-critical workflow transition record error:', wfErr);
+          }
+        }
       } else {
         const primaryQuestionId = contentDetails.questions[0]?.id || `BP-Q-000000`;
         const newVideoId = await idService.generateId('VIDEO');

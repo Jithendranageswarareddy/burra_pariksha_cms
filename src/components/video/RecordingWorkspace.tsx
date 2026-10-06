@@ -30,6 +30,7 @@ import {
   Brain,
   ChevronDown,
   ChevronUp,
+  Plus,
 } from 'lucide-react';
 import { Video, Script, VideoProductionStatus, AssignmentTaskType, MediaAsset } from '../../types';
 import { apiClient } from '../../lib/api-client';
@@ -46,10 +47,16 @@ export interface RecordingWorkspaceProps {
 
 export const RecordingWorkspace: React.FC<RecordingWorkspaceProps> = ({
   videoId,
-  video,
+  video: initialVideo,
   onStatusChange,
   onNavigateTab,
 }) => {
+  const [video, setVideo] = useState<Video>(initialVideo);
+
+  useEffect(() => {
+    setVideo(initialVideo);
+  }, [initialVideo]);
+
   const [script, setScript] = useState<Script | null>(null);
   const [isLoadingScript, setIsLoadingScript] = useState<boolean>(true);
   const [isUpdating, setIsUpdating] = useState<boolean>(false);
@@ -202,8 +209,23 @@ export const RecordingWorkspace: React.FC<RecordingWorkspaceProps> = ({
     }
   };
 
+  // Canonical Workflow Progression Gate (UAT-03)
+  const hasRawMediaPersisted = Boolean(
+    (rawAssets && rawAssets.length > 0) ||
+    video.driveFileId ||
+    (video.rawFootagePath && video.rawFootagePath.includes('drive.google.com')) ||
+    video.status === VideoProductionStatus.RECORDED ||
+    video.status === VideoProductionStatus.EDITING ||
+    video.status === VideoProductionStatus.FINAL_REVIEW ||
+    video.status === VideoProductionStatus.READY_TO_UPLOAD ||
+    video.status === VideoProductionStatus.UPLOADED
+  );
+
+  const canProceedToEditing = hasRawMediaPersisted && !isUploadingFile && !isUpdating;
+
   const handleUploadFile = async () => {
-    if (!selectedFile) return;
+    if (!selectedFile || isUploadingFile) return;
+    const uploadFileName = selectedFile.name;
     setIsUploadingFile(true);
     setError(null);
     setSuccessMessage(null);
@@ -218,55 +240,44 @@ export const RecordingWorkspace: React.FC<RecordingWorkspaceProps> = ({
       clearInterval(progressInterval);
       setUploadProgress(100);
 
-      // If backend returned rawAssets collection, populate state immediately
+      // 1. Immediately converge on authoritative state returned by backend
+      setVideo(updatedVideo);
       const incomingRaw = updatedVideo.rawAssets || (updatedVideo as any).video?.rawAssets;
       if (incomingRaw && incomingRaw.length > 0) {
         setRawAssets(incomingRaw);
       }
 
-      let currentStatus = video.status;
-      if (currentStatus === VideoProductionStatus.QUEUED) {
-        await apiClient.updateVideoStatus(
-          videoId,
-          VideoProductionStatus.SCRIPT_READY,
-          'Advancing QUEUED status to SCRIPT_READY for footage upload'
-        );
-        currentStatus = VideoProductionStatus.SCRIPT_READY;
-      }
-
-      // Advance status to RECORDED if currently SCRIPT_READY or RECORDING
-      if (
-        currentStatus === VideoProductionStatus.SCRIPT_READY ||
-        currentStatus === VideoProductionStatus.RECORDING
-      ) {
-        await apiClient.updateVideoStatus(
-          videoId,
-          VideoProductionStatus.RECORDED,
-          `Raw video file "${selectedFile.name}" uploaded to Google Drive`
-        );
-      }
-
-      setSuccessMessage(
-        `Successfully uploaded "${selectedFile.name}" to Google Drive! File ID: ${updatedVideo.driveFileId}. Status updated to RECORDED.`
-      );
+      // 2. Clear input and file selection
       setSelectedFile(null);
       const fileInput = document.getElementById('raw-video-file-input') as HTMLInputElement | null;
       if (fileInput) {
         fileInput.value = '';
       }
-      await fetchHistory();
+
+      // 3. Immediately display canonical success message without requiring refresh
+      setSuccessMessage(
+        `Successfully uploaded "${uploadFileName}" to Google Drive! File ID: ${updatedVideo.driveFileId}. Raw footage secured in Drive.`
+      );
+
+      // 4. Update parent so VideoDetailPage stays synchronized
       if (onStatusChange) {
         onStatusChange();
       }
+
+      // 5. Non-critical background readback for take history
+      fetchHistory().catch((histErr) => {
+        console.warn('Non-critical background history sync error:', histErr);
+      });
     } catch (err: any) {
       clearInterval(progressInterval);
       const rawMsg = err?.message || '';
+      const reqId = err?.requestId ? ` [Request ID: ${err.requestId}]` : '';
       if (rawMsg.includes('invalid_grant')) {
         setError(
-          'Google Drive connection error. Please ensure your Google Drive refresh token is configured in Secrets or set SKIP_DRIVE_SYNC=true in your environment for local testing.'
+          'Google Drive connection error. Please ensure your Google Drive refresh token is configured in Secrets or set SKIP_DRIVE_SYNC=true in your environment for local testing.' + reqId
         );
       } else {
-        setError(rawMsg || 'Failed to upload video asset.');
+        setError((rawMsg || 'Failed to upload video asset.') + reqId);
       }
     } finally {
       setIsUploadingFile(false);
@@ -275,88 +286,63 @@ export const RecordingWorkspace: React.FC<RecordingWorkspaceProps> = ({
   };
 
   const handleLinkDriveUrl = async () => {
-    if (!driveUrlInput.trim()) return;
-    setIsUploadingFile(true);
+    if (!driveUrlInput.trim() || isUploadingFile || isUpdating) return;
+    const trimmedUrl = driveUrlInput.trim();
+    if (!trimmedUrl.includes('drive.google.com') && !trimmedUrl.startsWith('http')) {
+      setError('Please provide a valid Google Drive link (e.g. https://drive.google.com/...).');
+      return;
+    }
+
+    setIsUpdating(true);
     setError(null);
     setSuccessMessage(null);
     try {
-      await apiClient.updateVideoMetadata(videoId, {
-        notes: `${video.notes || ''}\nRaw Footage Drive URL: ${driveUrlInput.trim()}`.trim(),
-        driveFolderUrl: driveUrlInput.trim(),
+      const updatedMeta = await apiClient.updateVideoMetadata(videoId, {
+        notes: `${video.notes || ''}\nRaw Footage Drive URL: ${trimmedUrl}`.trim(),
+        driveFolderUrl: trimmedUrl,
+        rawFootagePath: trimmedUrl,
       });
+
       let currentStatus = video.status;
-      if (currentStatus === VideoProductionStatus.QUEUED) {
-        await apiClient.updateVideoStatus(
+      if (
+        currentStatus === VideoProductionStatus.QUEUED ||
+        currentStatus === VideoProductionStatus.SCRIPT_REQUIRED ||
+        currentStatus === VideoProductionStatus.SCRIPT_READY ||
+        currentStatus === VideoProductionStatus.RECORDING
+      ) {
+        const statusUpdated = await apiClient.updateVideoStatus(
           videoId,
-          VideoProductionStatus.SCRIPT_READY,
-          'Advancing QUEUED status to SCRIPT_READY for footage linking'
+          VideoProductionStatus.RECORDED,
+          `Raw footage linked via Google Drive: ${trimmedUrl}`
         );
-        currentStatus = VideoProductionStatus.SCRIPT_READY;
+        setVideo(statusUpdated);
+      } else {
+        setVideo(updatedMeta);
       }
 
-      await apiClient.updateVideoStatus(
-        videoId,
-        VideoProductionStatus.RECORDED,
-        `Raw footage linked via Google Drive: ${driveUrlInput.trim()}`
-      );
       setSuccessMessage('Raw footage Drive URL linked! Video status updated to RECORDED.');
       setDriveUrlInput('');
       if (onStatusChange) onStatusChange();
+      await fetchHistory();
     } catch (err: any) {
       setError(err?.message || 'Failed to link Google Drive URL.');
     } finally {
-      setIsUploadingFile(false);
+      setIsUpdating(false);
     }
   };
 
   const handleProceedToEditing = async () => {
+    if (!canProceedToEditing) return;
     setIsUpdating(true);
     setError(null);
     try {
-      // Step 05 Gate: Verify that raw footage has been ingested or linked
-      const hasRawVideoFootage = Boolean(
-        video.driveFileId ||
-        video.rawFootagePath ||
-        video.driveFolderUrl ||
-        video.status === VideoProductionStatus.RECORDED ||
-        video.status === VideoProductionStatus.EDITING ||
-        video.status === VideoProductionStatus.FINAL_REVIEW ||
-        video.status === VideoProductionStatus.READY_TO_UPLOAD ||
-        video.status === VideoProductionStatus.UPLOADED
-      );
-
-      if (!hasRawVideoFootage) {
-        setError(
-          'Step 05 (Raw Video Handoff) Gate: Raw video footage or Google Drive folder link must be attached before proceeding to Step 06 (Video Editing).'
-        );
-        return;
-      }
-
-      let currentStatus = video.status;
-      if (currentStatus === VideoProductionStatus.QUEUED) {
-        await apiClient.updateVideoStatus(
-          videoId,
-          VideoProductionStatus.SCRIPT_READY,
-          'Advancing QUEUED status to SCRIPT_READY'
-        );
-        currentStatus = VideoProductionStatus.SCRIPT_READY;
-      }
-
-      if (currentStatus === VideoProductionStatus.SCRIPT_READY || currentStatus === VideoProductionStatus.RECORDING) {
-        await apiClient.updateVideoStatus(
-          videoId,
-          VideoProductionStatus.RECORDED,
-          'Advancing SCRIPT_READY/RECORDING to RECORDED (raw footage secured)'
-        );
-        currentStatus = VideoProductionStatus.RECORDED;
-      }
-
-      if (currentStatus === VideoProductionStatus.RECORDED) {
-        await apiClient.updateVideoStatus(
+      if (video.status !== VideoProductionStatus.EDITING) {
+        const updated = await apiClient.updateVideoStatus(
           videoId,
           VideoProductionStatus.EDITING,
-          'Raw footage secured, advancing to Step 06 Video Editing'
+          'Raw footage verified, advancing to Step 06 Video Editing Bay'
         );
+        setVideo(updated);
         if (onStatusChange) onStatusChange();
       }
 
@@ -624,14 +610,47 @@ export const RecordingWorkspace: React.FC<RecordingWorkspaceProps> = ({
               </span>
             </div>
 
+            {/* Primary Action Button (UAT-03 & UAT-04) */}
             <button
               type="button"
-              disabled={isUpdating}
+              disabled={!canProceedToEditing}
               onClick={handleProceedToEditing}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 w-full text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              title={
+                !hasRawMediaPersisted
+                  ? 'Upload raw camera footage or link Google Drive URL to proceed to editing'
+                  : 'Proceed to Step 06: Editing Bay'
+              }
+              className={`font-bold py-3 w-full text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-2 ${
+                canProceedToEditing
+                  ? 'bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer'
+                  : 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed shadow-none'
+              }`}
             >
-              <span>Save Footage &amp; Proceed to Step 06: Video Editing →</span>
+              <span>
+                {hasRawMediaPersisted
+                  ? 'Proceed to Step 06: Editing Bay →'
+                  : 'Save Footage & Proceed to Step 06: Video Editing'}
+              </span>
             </button>
+
+            {/* Secondary Action: Add Another Take (UAT-04) */}
+            {hasRawMediaPersisted && (
+              <button
+                type="button"
+                disabled={isUploadingFile || isUpdating}
+                onClick={() => {
+                  setRecordingTake((prev) => prev + 1);
+                  setSelectedFile(null);
+                  const fileInput = document.getElementById('raw-video-file-input') as HTMLInputElement | null;
+                  if (fileInput) fileInput.value = '';
+                  setSuccessMessage(`Take #${recordingTake + 1} queued. Select or link additional camera footage below.`);
+                }}
+                className="w-full py-2 px-3 text-xs font-semibold text-indigo-700 hover:text-indigo-800 bg-indigo-50/80 hover:bg-indigo-100/80 border border-indigo-200 rounded-xl transition-colors flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add Another Take (Take #{recordingTake + 1})</span>
+              </button>
+            )}
 
             {/* Quick Status Transition Actions */}
             <div className="flex items-center gap-1.5 pt-1 border-t border-slate-100">

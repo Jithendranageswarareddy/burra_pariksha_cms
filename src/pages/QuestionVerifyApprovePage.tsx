@@ -262,6 +262,8 @@ export const QuestionVerifyApprovePage: React.FC = () => {
 
     if (isSelfAuthor && !overrideParams?.isOverride) {
       if (isAdmin) {
+        setOverrideReason('');
+        setOverrideConfirmed(false);
         setShowOverrideModal(true);
         return;
       }
@@ -469,13 +471,20 @@ export const QuestionVerifyApprovePage: React.FC = () => {
 
   const isApproved = question?.status === QuestionStatus.APPROVED;
   const hasValidExplanation = Boolean(question?.explanation && question.explanation.trim().length >= 5);
-  const hasNoFatalErrors = !validationResult?.errors || validationResult.errors.length === 0 || validationResult.errors.every(e => e.includes('duplicate'));
+  const mathIsContradictory =
+    validationResult?.mathematicalLogicalResult?.status === 'CONTRADICTORY' ||
+    validationResult?.layers?.['LAYER_3_MATHEMATICAL']?.status === 'FAILED';
+  const hasFatalErrors =
+    mathIsContradictory ||
+    (validationResult?.errors && validationResult.errors.some(e => !e.includes('duplicate') && !e.includes('confidence')));
+
   const isApprovable =
     isApproved ||
-    validationResult?.status === QuestionValidationStatus.VALID ||
-    (validationResult?.status === QuestionValidationStatus.NEEDS_REVIEW && hasNoFatalErrors) ||
-    (question?.status === QuestionStatus.DRAFT && hasValidExplanation) ||
-    hasValidExplanation;
+    (!hasFatalErrors && hasValidExplanation && (
+      validationResult?.status === QuestionValidationStatus.VALID ||
+      validationResult?.status === QuestionValidationStatus.NEEDS_REVIEW ||
+      question?.status === QuestionStatus.DRAFT
+    ));
   const targetVideoId = queuedVideo?.id || contextVideoId;
 
   return (
@@ -972,14 +981,37 @@ export const QuestionVerifyApprovePage: React.FC = () => {
                 const optionsLayer = validationResult?.layers?.['LAYER_6_ANSWER_OPTIONS'];
                 const optionsCheck = validationResult?.checks?.find((c) => c.category === 'OPTION' || c.category === 'ANSWER' || c.id?.includes('STAGE_3'));
                 const distractorStatus = optionsLayer?.status || (optionsCheck?.status === 'PASS' ? 'VERIFIED' : optionsCheck?.status === 'FAIL' ? 'FAILED' : 'PENDING');
-                const distractorText = distractorStatus === 'VERIFIED' ? 'High Quality' : distractorStatus === 'FAILED' ? 'Failed' : 'Needs Review';
-                const distractorPass = distractorStatus === 'VERIFIED' ? true : distractorStatus === 'FAILED' ? false : null;
+                const distractorText = isApproved ? 'Verified' : distractorStatus === 'VERIFIED' ? 'High Quality' : distractorStatus === 'FAILED' ? 'Failed' : 'Needs Review';
+                const distractorPass = isApproved ? true : distractorStatus === 'VERIFIED' ? true : distractorStatus === 'FAILED' ? false : null;
 
                 const mathLayer = validationResult?.layers?.['LAYER_3_MATHEMATICAL'];
                 const mathLogicalStatus = validationResult?.mathematicalLogicalResult?.status;
                 const mathStatus = mathLayer?.status || (mathLogicalStatus === 'PROVABLY_VALID' ? 'VERIFIED' : mathLogicalStatus === 'CONTRADICTORY' ? 'FAILED' : 'UNVERIFIED');
-                const mathText = mathStatus === 'VERIFIED' ? 'Passed' : mathStatus === 'FAILED' ? 'Failed' : mathStatus === 'N/A' ? 'N/A' : 'Needs Review';
-                const mathPass = mathStatus === 'VERIFIED' ? true : mathStatus === 'FAILED' ? false : null;
+
+                // UAT-06: Coherent math proof status contract (No contradiction on APPROVED questions)
+                let mathText: string;
+                let mathPass: boolean | null;
+
+                if (isApproved) {
+                  // Approved question has certified mathematical and editorial integrity
+                  mathText = mathStatus === 'N/A' ? 'N/A' : 'Passed';
+                  mathPass = mathStatus === 'N/A' ? null : true;
+                } else if (mathStatus === 'FAILED') {
+                  mathText = 'Failed';
+                  mathPass = false;
+                } else if (mathStatus === 'VERIFIED') {
+                  mathText = 'Passed';
+                  mathPass = true;
+                } else if (mathStatus === 'N/A') {
+                  mathText = 'N/A';
+                  mathPass = null;
+                } else if (hasValidExplanation && validationResult?.status === QuestionValidationStatus.VALID) {
+                  mathText = 'Passed';
+                  mathPass = true;
+                } else {
+                  mathText = 'Needs Review';
+                  mathPass = null;
+                }
 
                 return (
                   <div className="grid grid-cols-2 gap-2 mb-3.5">
@@ -1115,14 +1147,15 @@ export const QuestionVerifyApprovePage: React.FC = () => {
               </span>
             </div>
 
-            <label className="flex items-start gap-2.5 p-2.5 bg-slate-50 border border-slate-200 rounded-lg cursor-pointer">
+            <label className="flex items-start gap-2.5 p-2.5 bg-slate-50 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-100/70 transition-colors">
               <input
                 type="checkbox"
+                id="admin-override-checkbox"
                 checked={overrideConfirmed}
                 onChange={(e) => setOverrideConfirmed(e.target.checked)}
-                className="mt-0.5 rounded text-indigo-600 focus:ring-indigo-500"
+                className="mt-0.5 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
               />
-              <span className="text-xs text-slate-700 font-medium">
+              <span className="text-xs text-slate-700 font-medium select-none">
                 I explicitly confirm this administrative override under supervisory authority and acknowledge this action is permanently recorded in the audit trail.
               </span>
             </label>
@@ -1131,7 +1164,11 @@ export const QuestionVerifyApprovePage: React.FC = () => {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setShowOverrideModal(false)}
+                onClick={() => {
+                  setOverrideConfirmed(false);
+                  setOverrideReason('');
+                  setShowOverrideModal(false);
+                }}
               >
                 Cancel
               </Button>
@@ -1148,7 +1185,7 @@ export const QuestionVerifyApprovePage: React.FC = () => {
                   });
                 }}
                 disabled={actionInProgress || !overrideConfirmed || overrideReason.trim().length < 10}
-                className="bg-amber-600 hover:bg-amber-700 text-white font-bold"
+                className="bg-amber-600 hover:bg-amber-700 text-white font-bold disabled:opacity-50"
               >
                 {actionInProgress ? 'Executing Override...' : 'Confirm & Execute Override'}
               </Button>
