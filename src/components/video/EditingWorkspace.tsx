@@ -55,6 +55,7 @@ export const EditingWorkspace: React.FC<EditingWorkspaceProps> = ({
   const [selectedEditedFile, setSelectedEditedFile] = useState<File | null>(null);
   const [isUploadingEdited, setIsUploadingEdited] = useState<boolean>(false);
   const [editedAssets, setEditedAssets] = useState<MediaAsset[]>([]);
+  const [rawAssets, setRawAssets] = useState<MediaAsset[]>([]);
   const [rawAsset, setRawAsset] = useState<MediaAsset | null>(null);
   const [isLoadingHistory, setIsLoadingHistory] = useState<boolean>(false);
 
@@ -125,9 +126,9 @@ export const EditingWorkspace: React.FC<EditingWorkspaceProps> = ({
       if (history.editedAssets) {
         setEditedAssets(history.editedAssets);
       }
-      if (history.rawAssets && history.rawAssets.length > 0) {
-        setRawAsset(history.rawAssets[0]);
-      }
+      const fetchedRawAssets = Array.isArray(history.rawAssets) ? history.rawAssets : [];
+      setRawAssets(fetchedRawAssets);
+      setRawAsset(fetchedRawAssets[0] || null);
     } catch (err: any) {
       console.warn('Failed to load video production history:', err);
     } finally {
@@ -317,24 +318,78 @@ export const EditingWorkspace: React.FC<EditingWorkspaceProps> = ({
               )}
             </div>
 
-            <div className="flex items-center justify-between text-xs font-mono text-slate-700 bg-slate-50 p-2.5 rounded-xl border border-slate-200/80 flex-wrap gap-2">
-              <div className="truncate max-w-[280px]">
-                <span className="text-slate-400">File: </span>
-                <span className="font-bold text-slate-900">
-                  {rawAsset?.fileName || video.fileName || 'video_11.1.mp4'}
-                </span>
-              </div>
-              {(rawAsset?.fileSize || video.fileSize) && (
-                <div>
-                  <span className="text-slate-400">Size: </span>
-                  <span className="font-bold">
-                    {(((rawAsset?.fileSize || video.fileSize) || 0) / (1024 * 1024)).toFixed(1)} MB
-                  </span>
-                </div>
-              )}
-            </div>
+            {rawAssets.length > 0 ? (
+              <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                {rawAssets.map((asset, idx) => {
+                  const isActiveSource =
+                    asset.driveFileId === video.driveFileId ||
+                    (idx === 0 && !video.driveFileId);
 
-            {video.driveFileId || video.driveFolderUrl ? (
+                  return (
+                    <div
+                      key={asset.id || asset.driveFileId || idx}
+                      className={`p-2.5 rounded-xl border text-[11px] flex items-center justify-between gap-3 ${
+                        isActiveSource
+                          ? 'bg-indigo-50/80 border-indigo-200 shadow-2xs'
+                          : 'bg-slate-50 border-slate-200'
+                      }`}
+                    >
+                      <div className="min-w-0 flex items-center gap-2">
+                        <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded-md bg-white border border-slate-200 text-[9px] font-bold text-slate-500 shrink-0">
+                          Take {asset.version || rawAssets.length - idx}
+                        </span>
+                        <div className="min-w-0">
+                          <p
+                            className="font-mono font-semibold text-slate-800 truncate"
+                            title={asset.fileName || `raw_video_take_${idx + 1}.mp4`}
+                          >
+                            {asset.fileName || `raw_video_take_${idx + 1}.mp4`}
+                          </p>
+                          <p className="text-[10px] text-slate-500">
+                            {asset.fileSize
+                              ? `${(asset.fileSize / (1024 * 1024)).toFixed(1)} MB`
+                              : 'Size unavailable'}
+                            {isActiveSource ? ' • Active editing source' : ''}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {isActiveSource && (
+                          <span className="text-[9px] font-bold text-indigo-700 bg-white border border-indigo-200 px-1.5 py-0.5 rounded-md">
+                            ACTIVE
+                          </span>
+                        )}
+                        {asset.driveFileId && (
+                          <>
+                            <a
+                              href={`/api/videos/${encodeURIComponent(videoId)}/download?assetId=${encodeURIComponent(asset.id || asset.driveFileId)}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              download={asset.fileName || `raw-video-take-${asset.version || idx + 1}.mp4`}
+                              className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 font-semibold px-2 py-1 rounded-lg text-[10px] transition-colors"
+                              title={`Download ${asset.fileName || 'raw video'}`}
+                            >
+                              <Download className="w-3 h-3" />
+                              <span>Download</span>
+                            </a>
+                            <a
+                              href={`https://drive.google.com/file/d/${asset.driveFileId}/view`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 bg-white text-slate-600 hover:text-indigo-700 border border-slate-200 hover:border-indigo-200 font-semibold px-2 py-1 rounded-lg text-[10px] transition-colors"
+                              title="Open this raw take in Google Drive"
+                            >
+                              <span>Drive</span>
+                            </a>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : video.driveFileId || video.driveFolderUrl ? (
               <a
                 href={
                   video.driveFileId
