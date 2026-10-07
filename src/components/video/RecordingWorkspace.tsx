@@ -601,7 +601,7 @@ export const RecordingWorkspace: React.FC<RecordingWorkspaceProps> = ({
                   <Radio className="w-4 h-4 animate-pulse text-indigo-600" />
                 </div>
                 <div>
-                  <h3 className="text-xs font-bold text-slate-900">Stage 04: Filming Station</h3>
+                  <h3 className="text-xs font-bold text-slate-900">Stage 04: Teleprompter &amp; Filming</h3>
                   <p className="text-[10px] text-slate-500">Filming &amp; Raw Ingestion</p>
                 </div>
               </div>

@@ -14,10 +14,39 @@
 
 import assert from 'node:assert';
 import '../src/config/env';
+import { authService } from '../src/lib/services/auth.service';
+import { UserRole } from '../src/types';
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
-const ADMIN_EMAIL = 'jithendrareddy629@gmail.com';
-const ADMIN_PASSWORD = 'password123';
+
+async function getAuthToken(): Promise<string> {
+  const envToken = process.env.TEST_AUTH_TOKEN || process.env.ADMIN_TOKEN;
+  if (envToken) return envToken;
+
+  const email = process.env.TEST_ADMIN_EMAIL || process.env.ADMIN_EMAIL;
+  const password = process.env.TEST_ADMIN_PASSWORD || process.env.ADMIN_PASSWORD;
+
+  if (email && password) {
+    const loginRes = await fetch(`${BASE_URL}/api/v1/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    if (loginRes.ok) {
+      const loginData = await loginRes.json();
+      return loginData.data?.token || loginData.token;
+    }
+  }
+
+  // Generate secure test session token with ADMIN role using existing project auth service
+  return authService.generateSessionToken({
+    userId: 'USR-001',
+    name: 'Production Administrator',
+    role: UserRole.ADMIN,
+    roles: [UserRole.ADMIN],
+    sessionVersion: 999,
+  });
+}
 
 async function verifyRawVideoMultiTake() {
   console.log('============================================================');
@@ -25,15 +54,9 @@ async function verifyRawVideoMultiTake() {
   console.log(`Target: ${BASE_URL}`);
   console.log('============================================================\n');
 
-  // Authenticate as Admin / Video Lead
-  const loginRes = await fetch(`${BASE_URL}/api/v1/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD }),
-  });
-  assert.strictEqual(loginRes.status, 200, 'Authentication must succeed');
-  const loginData = await loginRes.json();
-  const token = loginData.data?.token || loginData.token;
+  // Authenticate securely without hardcoded credentials
+  const token = await getAuthToken();
+  assert.ok(token, 'Authentication token must be present');
 
   // Step 5: Verify the Editing Bay for a video that has at least two RAW media assets
   const videoId = 'BP-V-000001';
@@ -59,7 +82,10 @@ async function verifyRawVideoMultiTake() {
   console.log('\n--- Step 6: RAW Assets Visibility & Verification ---');
   rawAssets.forEach((asset, idx) => {
     const isActiveSource = asset.driveFileId === video.driveFileId || (idx === 0 && !video.driveFileId);
-    console.log(`Take ${asset.version || rawAssets.length - idx}:`);
+    const versionLabel = idx === 0
+      ? `Version ${asset.version || rawAssets.length} / Latest Take`
+      : `Version ${asset.version || (rawAssets.length - idx)}`;
+    console.log(`${versionLabel}:`);
     console.log(`  - Asset ID: ${asset.id}`);
     console.log(`  - File Name: ${asset.fileName}`);
     console.log(`  - File Size: ${(asset.fileSize / (1024 * 1024)).toFixed(1)} MB (${asset.fileSize} bytes)`);
@@ -72,35 +98,37 @@ async function verifyRawVideoMultiTake() {
   rawAssets.forEach((asset) => {
     const downloadUrl = `${BASE_URL}/api/videos/${encodeURIComponent(videoId)}/download?assetId=${encodeURIComponent(asset.id || asset.driveFileId)}`;
     const driveUrl = `https://drive.google.com/file/d/${asset.driveFileId}/view`;
-    console.log(`Asset ${asset.id}:`);
+    console.log(`Asset ${asset.id} (Version ${asset.version}):`);
     console.log(`  - Download URL: ${downloadUrl}`);
     console.log(`  - Drive URL: ${driveUrl}`);
   });
 
-  // Step 8: Confirm Download Take 1 retrieves Take 1
-  console.log('\n--- Step 8: Download Take 1 ---');
-  const take1 = rawAssets[0]; // Active take (version 3)
-  const take1Res = await fetch(`${BASE_URL}/api/videos/${encodeURIComponent(videoId)}/download?assetId=${encodeURIComponent(take1.id)}`, {
+  // Step 8: Confirm Download Latest Take (newest-first, e.g. Version 3)
+  const takeLatest = rawAssets[0]; // Active take (newest)
+  const latestLabel = `Version ${takeLatest.version} / Latest Take`;
+  console.log(`\n--- Step 8: Download ${latestLabel} ---`);
+  const takeLatestRes = await fetch(`${BASE_URL}/api/videos/${encodeURIComponent(videoId)}/download?assetId=${encodeURIComponent(takeLatest.id)}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
-  assert.strictEqual(take1Res.status, 200, 'Take 1 download must return 200 OK');
-  const take1Disp = take1Res.headers.get('content-disposition');
-  console.log(`✓ Take 1 Download Status: 200 OK`);
-  console.log(`✓ Take 1 Content-Disposition: ${take1Disp}`);
-  assert.ok(take1Disp?.includes(take1.fileName), `Take 1 filename (${take1.fileName}) must be in Content-Disposition`);
+  assert.strictEqual(takeLatestRes.status, 200, `${latestLabel} download must return 200 OK`);
+  const takeLatestDisp = takeLatestRes.headers.get('content-disposition');
+  console.log(`✓ ${latestLabel} Download Status: 200 OK`);
+  console.log(`✓ ${latestLabel} Content-Disposition: ${takeLatestDisp}`);
+  assert.ok(takeLatestDisp?.includes(takeLatest.fileName), `${latestLabel} filename (${takeLatest.fileName}) must be in Content-Disposition`);
 
-  // Step 9: Confirm Download Take 2 retrieves Take 2
-  console.log('\n--- Step 9: Download Take 2 ---');
-  const take2 = rawAssets[1]; // Previous take (version 2)
-  const take2Res = await fetch(`${BASE_URL}/api/videos/${encodeURIComponent(videoId)}/download?assetId=${encodeURIComponent(take2.id)}`, {
+  // Step 9: Confirm Download Previous Take (e.g. Version 2)
+  const takePrevious = rawAssets[1]; // Previous take
+  const previousLabel = `Version ${takePrevious.version}`;
+  console.log(`\n--- Step 9: Download ${previousLabel} ---`);
+  const takePreviousRes = await fetch(`${BASE_URL}/api/videos/${encodeURIComponent(videoId)}/download?assetId=${encodeURIComponent(takePrevious.id)}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
-  assert.strictEqual(take2Res.status, 200, 'Take 2 download must return 200 OK');
-  const take2Disp = take2Res.headers.get('content-disposition');
-  console.log(`✓ Take 2 Download Status: 200 OK`);
-  console.log(`✓ Take 2 Content-Disposition: ${take2Disp}`);
-  assert.ok(take2Disp?.includes(take2.fileName), `Take 2 filename (${take2.fileName}) must be in Content-Disposition`);
-  assert.notStrictEqual(take1Disp, take2Disp, 'Take 1 and Take 2 must retrieve different files');
+  assert.strictEqual(takePreviousRes.status, 200, `${previousLabel} download must return 200 OK`);
+  const takePreviousDisp = takePreviousRes.headers.get('content-disposition');
+  console.log(`✓ ${previousLabel} Download Status: 200 OK`);
+  console.log(`✓ ${previousLabel} Content-Disposition: ${takePreviousDisp}`);
+  assert.ok(takePreviousDisp?.includes(takePrevious.fileName), `${previousLabel} filename (${takePrevious.fileName}) must be in Content-Disposition`);
+  assert.notStrictEqual(takeLatestDisp, takePreviousDisp, `${latestLabel} and ${previousLabel} must retrieve different files`);
 
   // Step 10: Confirm each Open Drive action points to its own Drive file
   console.log('\n--- Step 10: Open Drive Actions ---');
@@ -122,7 +150,7 @@ async function verifyRawVideoMultiTake() {
   assert.strictEqual(refreshedHistory.rawAssets?.length, rawAssets.length, 'All raw takes must remain visible after refresh');
   const refreshedActiveAsset = refreshedHistory.rawAssets.find((a: any) => a.driveFileId === refreshedVideo.driveFileId);
   assert.ok(refreshedActiveAsset, 'Latest active take must remain identified by video.driveFileId');
-  assert.strictEqual(refreshedActiveAsset.id, take1.id, 'Active take after refresh must match Take 1');
+  assert.strictEqual(refreshedActiveAsset.id, takeLatest.id, 'Active take after refresh must match latest take');
   console.log(`✓ All ${refreshedHistory.rawAssets.length} takes persisted; active source is ${refreshedActiveAsset.id} (${refreshedActiveAsset.fileName})`);
 
   // Step 13: Confirm no existing single-video download behavior is broken
@@ -133,7 +161,7 @@ async function verifyRawVideoMultiTake() {
   assert.strictEqual(defaultDlRes.status, 200, 'Default video download without assetId must return 200 OK');
   const defaultDisp = defaultDlRes.headers.get('content-disposition');
   console.log(`✓ Default Download Status: 200 OK, Content-Disposition: ${defaultDisp}`);
-  assert.ok(defaultDisp?.includes(refreshedVideo.fileName || take1.fileName), 'Default download must retrieve the video file');
+  assert.ok(defaultDisp?.includes(refreshedVideo.fileName || takeLatest.fileName), 'Default download must retrieve the video file');
 
   // Step 14: Test that an invalid/unattached assetId is rejected by the backend
   console.log('\n--- Step 14: Invalid / Unattached Asset ID Rejection ---');

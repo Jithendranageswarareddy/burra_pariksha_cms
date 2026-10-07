@@ -598,7 +598,7 @@ export const EditingWorkspace: React.FC<EditingWorkspaceProps> = ({
               <div className="flex items-center gap-2">
                 <Scissors className="w-4 h-4 text-indigo-600" />
                 <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                  Stage 05: Editing Bay
+                  Stage 06: Editing Bay
                 </h3>
               </div>
               <span className="font-mono text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md">

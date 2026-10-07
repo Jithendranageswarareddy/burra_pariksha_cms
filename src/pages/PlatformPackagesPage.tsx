@@ -100,12 +100,15 @@ export const PlatformPackagesPage: React.FC = () => {
         setIsLoadingPackages(true);
         setError(null);
 
-        // Find video from list or load
+        // Find video from list or load directly
         let targetVid = videos.find((v) => v.id === currentVideoId);
         if (!targetVid) {
           const freshVideos = await apiClient.getVideos().catch(() => []);
-          setVideos(freshVideos);
+          if (freshVideos.length > 0) setVideos(freshVideos);
           targetVid = freshVideos.find((v) => v.id === currentVideoId);
+        }
+        if (!targetVid) {
+          targetVid = await apiClient.getVideoById(currentVideoId).catch(() => null);
         }
         setSelectedVideo(targetVid || null);
         if (targetVid) {
@@ -142,11 +145,7 @@ export const PlatformPackagesPage: React.FC = () => {
   }, [currentVideoId, videos]);
 
   const handleSelectVideo = (vidId: string) => {
-    if (routeVideoId) {
-      navigate(`/videos/${encodeURIComponent(vidId)}/platform-packages`);
-    } else {
-      setSearchParams({ videoId: vidId });
-    }
+    navigate(`/platform-packages/${encodeURIComponent(vidId)}`);
   };
 
   const copyToClipboard = async (key: string, text: string) => {

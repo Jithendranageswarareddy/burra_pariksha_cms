@@ -194,6 +194,7 @@ export const PublishingWorkspace: React.FC<PublishingWorkspaceProps> = ({
   };
 
   const handleMarkVideoUploaded = async () => {
+    if (isVideoUploaded) return;
     try {
       setIsSaving(true);
       setError(null);
@@ -857,26 +858,25 @@ export const PublishingWorkspace: React.FC<PublishingWorkspaceProps> = ({
               </div>
             </div>
 
-            {/* Decision CTAs */}
+            {/* Decision CTAs (S3-T14.6) */}
             <div className="pt-2 space-y-2.5">
-              {/* Primary CTA */}
-              <button
-                type="button"
-                disabled={isSaving || isVideoUploaded}
-                onClick={handleMarkVideoUploaded}
-                className={`w-full py-3 px-4 rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer ${
-                  isVideoUploaded
-                    ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
-                    : 'bg-emerald-600 hover:bg-emerald-700 text-white hover:shadow-lg active:scale-98'
-                }`}
-              >
-                <CheckCircle2 className="w-4 h-4 shrink-0" />
-                <span>
-                  {isVideoUploaded
-                    ? '✓ Production Complete (UPLOADED)'
-                    : '✓ Complete Production & Mark Published (UPLOADED) →'}
-                </span>
-              </button>
+              {/* Primary Action / Completed State Presentation */}
+              {isVideoUploaded ? (
+                <div className="w-full py-3 px-4 rounded-xl text-xs font-bold bg-emerald-50 text-emerald-900 border border-emerald-300 flex items-center justify-center gap-2 shadow-2xs">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>✓ Production Lifecycle Complete (Stage 11 Published)</span>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  disabled={isSaving}
+                  onClick={handleMarkVideoUploaded}
+                  className="w-full py-3 px-4 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer hover:shadow-lg active:scale-98 disabled:opacity-50"
+                >
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  <span>✓ Complete Production &amp; Mark Published (UPLOADED) →</span>
+                </button>
+              )}
 
               {/* Secondary Action */}
               <button

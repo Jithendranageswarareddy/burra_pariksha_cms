@@ -22,6 +22,7 @@ import {
 } from '../types';
 import { apiClient } from '../lib/api-client';
 import { CANONICAL_15_STEPS } from '../lib/workflow/canonical-workflow';
+import { getCanonicalStageRoute, WorkflowContext } from '../lib/routing/workflow-routes';
 
 export interface CanonicalIds {
   contentMasterId: string | null;
@@ -432,43 +433,72 @@ export const ProductionJourneyProvider: React.FC<{ children: React.ReactNode }> 
       ].includes(video.status)
     );
 
+    // S3-T14.4: Stage N completion strictly derived from Stage N evidence (never from later status)
     const isThumbnailCompleted = Boolean(
-      (thumbnail && thumbnail.status === 'APPROVED') ||
-      publishing?.thumbnailReady ||
-      video?.status === VideoProductionStatus.UPLOADED
+      (thumbnail && (thumbnail.status === 'APPROVED' || (thumbnail as any)?.isApproved || (thumbnail as any)?.certified)) ||
+      Boolean((video as any)?.thumbnailApproved)
     );
 
     const isSocialReviewCompleted = Boolean(
       (contentMaster as any)?.socialReviewState?.status === 'APPROVED' ||
-      contentMaster?.status === 'APPROVED' ||
-      video?.status === VideoProductionStatus.UPLOADED ||
-      (publishing && (publishing.completedPlatformsCount > 0 || publishing.youtube?.status === SocialPublishStatus.PUBLISHED || publishing.youtube?.status === SocialPublishStatus.SCHEDULED))
+      (contentMaster?.status === 'APPROVED' && Boolean((contentMaster as any)?.socialReviewState)) ||
+      Boolean((video as any)?.socialReviewApproved)
     );
 
     const isPublishingSetupCompleted = Boolean(
       publishing && (
         publishing.youtube?.status === SocialPublishStatus.SCHEDULED ||
         publishing.youtube?.status === SocialPublishStatus.PUBLISHED ||
-        publishing.completedPlatformsCount > 0 ||
-        video?.status === VideoProductionStatus.UPLOADED
+        Boolean(publishing.youtubeScheduledAt) ||
+        Boolean(publishing.instagramScheduledAt) ||
+        Boolean(publishing.facebookScheduledAt) ||
+        Boolean(publishing.youtube?.scheduledAt)
       )
     );
 
     const isPublishedCompleted = Boolean(
-      video?.status === VideoProductionStatus.UPLOADED ||
-      (publishing && (publishing.youtube?.status === SocialPublishStatus.PUBLISHED || publishing.completedPlatformsCount > 0))
+      publishing && (
+        publishing.youtube?.status === SocialPublishStatus.PUBLISHED ||
+        publishing.instagram?.status === SocialPublishStatus.PUBLISHED ||
+        publishing.facebook?.status === SocialPublishStatus.PUBLISHED ||
+        (publishing.completedPlatformsCount > 0 &&
+          Boolean(
+            publishing.youtube?.postUrl ||
+            publishing.youtube?.videoUrl ||
+            publishing.instagram?.postUrl ||
+            publishing.facebook?.postUrl
+          ))
+      )
     );
 
     const isPlatformSyncCompleted = Boolean(
-      publishing && publishing.completedPlatformsCount >= publishing.totalPlatformsCount && publishing.totalPlatformsCount > 0
+      publishing &&
+      publishing.completedPlatformsCount >= publishing.totalPlatformsCount &&
+      publishing.totalPlatformsCount > 0 &&
+      Boolean(
+        publishing.youtube?.status === SocialPublishStatus.PUBLISHED &&
+        publishing.instagram?.status === SocialPublishStatus.PUBLISHED &&
+        publishing.facebook?.status === SocialPublishStatus.PUBLISHED
+      )
     );
 
     const isAnalyticsCompleted = Boolean(
-      isPublishedCompleted && Boolean(video?.status === VideoProductionStatus.UPLOADED)
+      Boolean((contentMaster as any)?.hasAnalyticsData) ||
+      Boolean((video as any)?.hasAnalyticsData) ||
+      Boolean((contentMaster as any)?.analyticsRecordCount && (contentMaster as any).analyticsRecordCount > 0)
     );
 
-    const isPerformanceReviewCompleted = false;
-    const isInsightsCompleted = false;
+    const isPerformanceReviewCompleted = Boolean(
+      Boolean((contentMaster as any)?.performanceReviewCompleted) ||
+      Boolean((video as any)?.performanceReviewCompleted) ||
+      Boolean((contentMaster as any)?.performanceReviewDate)
+    );
+
+    const isInsightsCompleted = Boolean(
+      Boolean((contentMaster as any)?.intelligenceLoopCompleted) ||
+      Boolean((video as any)?.intelligenceLoopCompleted) ||
+      Boolean((contentMaster as any)?.strategyRecommendationId)
+    );
 
     // Determine current active stage (1 to 15)
     let stage = 1;
@@ -509,33 +539,47 @@ export const ProductionJourneyProvider: React.FC<{ children: React.ReactNode }> 
       stage = 1; // Question Creation
     }
 
-    // Build 15 stages list with prerequisite blocking logic
+    const resolvedContentMasterId =
+      contentMasterId || (video as any)?.contentMasterId || (video as any)?.contentId || question?.contentId || null;
+    const resolvedQuestionId = questionId || video?.questionId || null;
+    const resolvedVideoId = videoId || (video ? video.id : null);
+    const resolvedPublishingId = publishingId || publishing?.id || null;
+    const resolvedScriptId = scriptId || script?.id || null;
+    const resolvedThumbnailId = thumbnailId || thumbnail?.id || null;
+
+    const workflowContext: WorkflowContext = {
+      contentMasterId: resolvedContentMasterId,
+      questionId: resolvedQuestionId,
+      videoId: resolvedVideoId,
+      scriptId: resolvedScriptId,
+      thumbnailId: resolvedThumbnailId,
+      publishingId: resolvedPublishingId,
+    };
+
+    // Build 15 stages list with prerequisite blocking logic & canonical route registry
     const stageItems: JourneyStage[] = STAGE_DEFINITIONS.map((def) => {
       let isCompleted = false;
       let isBlocked = false;
       let blockerReason: string | undefined = undefined;
-      let route = '';
+      const route = getCanonicalStageRoute(def.stageNumber, workflowContext);
       let tab: string | undefined = undefined;
 
       switch (def.stageNumber) {
-        case 1: // 01 Question
+        case 1: // 01 Question Generation
           isCompleted = isQCompleted;
           isBlocked = false;
-          route = questionId ? `/studio?id=${questionId}` : '/studio';
           break;
 
-        case 2: // 02 Verification
+        case 2: // 02 Question Verification
           isCompleted = isVerificationCompleted;
           isBlocked = !question;
           blockerReason = !question ? 'Question draft must be created before verification.' : undefined;
-          route = questionId ? `/questions/${questionId}/verify` : '/questions/verify';
           break;
 
         case 3: // 03 Audience Script
           isCompleted = isScriptCompleted;
           isBlocked = !question || question.status !== QuestionStatus.APPROVED;
           blockerReason = isBlocked ? 'Question must be approved before creating audience script.' : undefined;
-          route = videoId ? `/videos/${videoId}?tab=script` : (questionId ? `/studio?id=${questionId}` : '/studio');
           tab = 'script';
           break;
 
@@ -543,7 +587,6 @@ export const ProductionJourneyProvider: React.FC<{ children: React.ReactNode }> 
           isCompleted = isFilmingCompleted;
           isBlocked = !video || !isScriptCompleted;
           blockerReason = isBlocked ? 'Audience script must be approved before filming.' : undefined;
-          route = videoId ? `/videos/${videoId}?tab=recording` : '/production';
           tab = 'recording';
           break;
 
@@ -551,15 +594,13 @@ export const ProductionJourneyProvider: React.FC<{ children: React.ReactNode }> 
           isCompleted = isRawVideoCompleted;
           isBlocked = !video || (!isFilmingCompleted && video.status !== VideoProductionStatus.RECORDING);
           blockerReason = isBlocked ? 'Filming session must be initiated before uploading raw video.' : undefined;
-          route = videoId ? `/videos/${videoId}?tab=recording` : '/production';
           tab = 'recording';
           break;
 
-        case 6: // 06 Editing
+        case 6: // 06 Editing Bay
           isCompleted = isEditingCompleted;
           isBlocked = !video || !isRawVideoCompleted;
           blockerReason = isBlocked ? 'Raw video asset must be uploaded before editing.' : undefined;
-          route = videoId ? `/videos/${videoId}?tab=editing` : '/production';
           tab = 'editing';
           break;
 
@@ -567,7 +608,6 @@ export const ProductionJourneyProvider: React.FC<{ children: React.ReactNode }> 
           isCompleted = isFinalQcCompleted;
           isBlocked = !video || !isEditingCompleted;
           blockerReason = isBlocked ? 'Edited video cut must be submitted before Final QC.' : undefined;
-          route = videoId ? `/videos/${videoId}?tab=final-review` : '/production';
           tab = 'final-review';
           break;
 
@@ -575,7 +615,6 @@ export const ProductionJourneyProvider: React.FC<{ children: React.ReactNode }> 
           isCompleted = isThumbnailCompleted;
           isBlocked = !video || !isScriptCompleted;
           blockerReason = isBlocked ? 'Script and hook must be finalized before designing thumbnail.' : undefined;
-          route = videoId ? `/videos/${videoId}?tab=thumbnail` : '/production';
           tab = 'thumbnail';
           break;
 
@@ -583,9 +622,6 @@ export const ProductionJourneyProvider: React.FC<{ children: React.ReactNode }> 
           isCompleted = isSocialReviewCompleted;
           isBlocked = !video || !isFinalQcCompleted;
           blockerReason = isBlocked ? 'Video must pass Final QC before approving social review package.' : undefined;
-          route = contentMasterId
-            ? `/social-review/${contentMasterId}`
-            : (questionId ? `/social-review/${questionId}` : (videoId ? `/videos/${videoId}?tab=social` : '/social-review'));
           tab = 'social';
           break;
 
@@ -593,7 +629,6 @@ export const ProductionJourneyProvider: React.FC<{ children: React.ReactNode }> 
           isCompleted = isPublishingSetupCompleted;
           isBlocked = !video || !isFinalQcCompleted;
           blockerReason = isBlocked ? 'Video must pass Final QC before configuring publishing schedule.' : undefined;
-          route = videoId ? `/videos/${videoId}?tab=publishing` : '/publishing';
           tab = 'publishing';
           break;
 
@@ -601,7 +636,6 @@ export const ProductionJourneyProvider: React.FC<{ children: React.ReactNode }> 
           isCompleted = isPublishedCompleted;
           isBlocked = !isPublishingSetupCompleted;
           blockerReason = isBlocked ? 'Publishing package must be configured before going live.' : undefined;
-          route = videoId ? `/videos/${videoId}?tab=publishing` : '/publishing';
           tab = 'publishing';
           break;
 
@@ -609,49 +643,35 @@ export const ProductionJourneyProvider: React.FC<{ children: React.ReactNode }> 
           isCompleted = isPlatformSyncCompleted;
           isBlocked = !isPublishedCompleted;
           blockerReason = isBlocked ? 'Content must be published on primary platform before verifying sync.' : undefined;
-          route = '/platform-packages';
           break;
 
         case 13: // 13 Analytics
           isCompleted = isAnalyticsCompleted;
           isBlocked = !isPublishedCompleted;
           blockerReason = isBlocked ? 'Video must be published to track engagement and analytics.' : undefined;
-          {
-            const resolvedContentMasterId =
-              contentMasterId || (video as any)?.contentMasterId || (video as any)?.contentId;
-            const params = new URLSearchParams();
-            if (videoId) params.set('videoId', videoId);
-            if (publishingId) params.set('publishingId', publishingId);
-            const qs = params.toString() ? `?${params.toString()}` : '';
-            route = resolvedContentMasterId
-              ? `/social-analytics/${resolvedContentMasterId}${qs}`
-              : `/social-analytics${qs}`;
-          }
           break;
 
         case 14: // 14 Performance Review
           isCompleted = isPerformanceReviewCompleted;
           isBlocked = !isPublishedCompleted;
           blockerReason = isBlocked ? 'Audience metrics must be collected before performance review.' : undefined;
-          route = '/analytics/engagement';
           break;
 
-        case 15: // 15 Insights
+        case 15: // 15 Intelligence Loop
           isCompleted = isInsightsCompleted;
           isBlocked = !isPublishedCompleted;
           blockerReason = isBlocked ? 'Engagement metrics required to generate pedagogical insights.' : undefined;
-          route = '/analytics/intelligence';
           break;
       }
 
       return {
         ...def,
+        route,
+        tab,
         isCompleted,
         isCurrent: def.stageNumber === stage,
         isBlocked,
         blockerReason,
-        route,
-        tab,
       };
     });
 
@@ -667,7 +687,7 @@ export const ProductionJourneyProvider: React.FC<{ children: React.ReactNode }> 
         computedAction = {
           label: 'Continue to Verification',
           stageNumber: 2,
-          route: questionId ? `/questions/${questionId}/verify` : '/questions/verify',
+          route: getCanonicalStageRoute(2, workflowContext),
           description: 'Submit question draft for pedagogical review',
         };
         break;
@@ -677,7 +697,7 @@ export const ProductionJourneyProvider: React.FC<{ children: React.ReactNode }> 
           computedAction = {
             label: videoId ? 'Create Audience Script' : 'Add to Video Queue',
             stageNumber: 3,
-            route: videoId ? `/videos/${videoId}?tab=script` : (questionId ? `/questions/${questionId}` : '/queue'),
+            route: getCanonicalStageRoute(3, workflowContext),
             tab: 'script',
             description: 'Open script workshop for short-form presenter script',
           };
@@ -685,7 +705,7 @@ export const ProductionJourneyProvider: React.FC<{ children: React.ReactNode }> 
           computedAction = {
             label: 'Verify & Approve Question',
             stageNumber: 2,
-            route: questionId ? `/questions/${questionId}/verify` : '/questions/verify',
+            route: getCanonicalStageRoute(2, workflowContext),
             description: 'Review pedagogical correctness and approve question',
           };
         }
@@ -696,7 +716,7 @@ export const ProductionJourneyProvider: React.FC<{ children: React.ReactNode }> 
           computedAction = {
             label: 'Start Teleprompter & Filming',
             stageNumber: 4,
-            route: videoId ? `/videos/${videoId}?tab=recording` : '/production',
+            route: getCanonicalStageRoute(4, workflowContext),
             tab: 'recording',
             description: 'Launch teleprompter view and start presenter recording',
           };
@@ -704,7 +724,7 @@ export const ProductionJourneyProvider: React.FC<{ children: React.ReactNode }> 
           computedAction = {
             label: 'Create Audience Script',
             stageNumber: 3,
-            route: videoId ? `/videos/${videoId}?tab=script` : '/production',
+            route: getCanonicalStageRoute(3, workflowContext),
             tab: 'script',
             description: 'Draft presenter hook, step-by-step solution, and speed trick',
           };
@@ -716,7 +736,7 @@ export const ProductionJourneyProvider: React.FC<{ children: React.ReactNode }> 
           computedAction = {
             label: 'Upload Raw Video Asset',
             stageNumber: 5,
-            route: videoId ? `/videos/${videoId}?tab=recording` : '/production',
+            route: getCanonicalStageRoute(5, workflowContext),
             tab: 'recording',
             description: 'Attach filmed camera footage to video record',
           };
@@ -724,7 +744,7 @@ export const ProductionJourneyProvider: React.FC<{ children: React.ReactNode }> 
           computedAction = {
             label: 'Start Filming Session',
             stageNumber: 4,
-            route: videoId ? `/videos/${videoId}?tab=recording` : '/production',
+            route: getCanonicalStageRoute(4, workflowContext),
             tab: 'recording',
             description: 'Transition video to Recording and open teleprompter',
           };
@@ -736,7 +756,7 @@ export const ProductionJourneyProvider: React.FC<{ children: React.ReactNode }> 
           computedAction = {
             label: 'Start Editing',
             stageNumber: 6,
-            route: videoId ? `/videos/${videoId}?tab=editing` : '/production',
+            route: getCanonicalStageRoute(6, workflowContext),
             tab: 'editing',
             description: 'Hand off raw footage to Editing Bay',
           };
@@ -744,7 +764,7 @@ export const ProductionJourneyProvider: React.FC<{ children: React.ReactNode }> 
           computedAction = {
             label: 'Upload Raw Video',
             stageNumber: 5,
-            route: videoId ? `/videos/${videoId}?tab=recording` : '/production',
+            route: getCanonicalStageRoute(5, workflowContext),
             tab: 'recording',
             description: 'Complete raw footage ingestion',
           };
@@ -756,7 +776,7 @@ export const ProductionJourneyProvider: React.FC<{ children: React.ReactNode }> 
           computedAction = {
             label: 'Open Final QC',
             stageNumber: 7,
-            route: videoId ? `/videos/${videoId}?tab=final-review` : '/production',
+            route: getCanonicalStageRoute(7, workflowContext),
             tab: 'final-review',
             description: 'Review finalized cut and vertical presentation',
           };
@@ -764,7 +784,7 @@ export const ProductionJourneyProvider: React.FC<{ children: React.ReactNode }> 
           computedAction = {
             label: 'Start Editing Bay',
             stageNumber: 6,
-            route: videoId ? `/videos/${videoId}?tab=editing` : '/production',
+            route: getCanonicalStageRoute(6, workflowContext),
             tab: 'editing',
             description: 'Edit cut, sound design, and on-screen overlays',
           };
@@ -776,7 +796,7 @@ export const ProductionJourneyProvider: React.FC<{ children: React.ReactNode }> 
           computedAction = {
             label: 'Design Thumbnail',
             stageNumber: 8,
-            route: videoId ? `/videos/${videoId}?tab=thumbnail` : '/production',
+            route: getCanonicalStageRoute(8, workflowContext),
             tab: 'thumbnail',
             description: 'Design curiosity-framed mobile thumbnail',
           };
@@ -784,7 +804,7 @@ export const ProductionJourneyProvider: React.FC<{ children: React.ReactNode }> 
           computedAction = {
             label: 'Open Final QC',
             stageNumber: 7,
-            route: videoId ? `/videos/${videoId}?tab=final-review` : '/production',
+            route: getCanonicalStageRoute(7, workflowContext),
             tab: 'final-review',
             description: 'Audit visual standards and certify upload readiness',
           };
@@ -796,9 +816,7 @@ export const ProductionJourneyProvider: React.FC<{ children: React.ReactNode }> 
           computedAction = {
             label: 'Review Social Package',
             stageNumber: 9,
-            route: contentMasterId
-              ? `/social-review/${contentMasterId}`
-              : (questionId ? `/social-review/${questionId}` : (videoId ? `/videos/${videoId}?tab=social` : '/social-review')),
+            route: getCanonicalStageRoute(9, workflowContext),
             tab: 'social',
             description: 'Verify copy, hashtags, and pinned comment package',
           };
@@ -806,7 +824,7 @@ export const ProductionJourneyProvider: React.FC<{ children: React.ReactNode }> 
           computedAction = {
             label: 'Review Thumbnail Design',
             stageNumber: 8,
-            route: videoId ? `/videos/${videoId}?tab=thumbnail` : '/production',
+            route: getCanonicalStageRoute(8, workflowContext),
             tab: 'thumbnail',
             description: 'Approve or iterate high-contrast thumbnail',
           };
@@ -818,7 +836,7 @@ export const ProductionJourneyProvider: React.FC<{ children: React.ReactNode }> 
           computedAction = {
             label: 'Configure Publishing Setup',
             stageNumber: 10,
-            route: videoId ? `/videos/${videoId}?tab=publishing` : '/publishing',
+            route: getCanonicalStageRoute(10, workflowContext),
             tab: 'publishing',
             description: 'Schedule platform upload slots',
           };
@@ -826,9 +844,7 @@ export const ProductionJourneyProvider: React.FC<{ children: React.ReactNode }> 
           computedAction = {
             label: 'Approve Social Package',
             stageNumber: 9,
-            route: contentMasterId
-              ? `/social-review/${contentMasterId}`
-              : (questionId ? `/social-review/${questionId}` : (videoId ? `/videos/${videoId}?tab=social` : '/social-review')),
+            route: getCanonicalStageRoute(9, workflowContext),
             tab: 'social',
             description: 'Approve multi-platform titles, tags, and commentary',
           };
@@ -839,7 +855,7 @@ export const ProductionJourneyProvider: React.FC<{ children: React.ReactNode }> 
         computedAction = {
           label: 'Schedule & Publish Platforms',
           stageNumber: 10,
-          route: videoId ? `/videos/${videoId}?tab=publishing` : '/publishing',
+          route: getCanonicalStageRoute(10, workflowContext),
           tab: 'publishing',
           description: 'Launch multi-platform publishing flow',
         };
@@ -849,35 +865,25 @@ export const ProductionJourneyProvider: React.FC<{ children: React.ReactNode }> 
         computedAction = {
           label: 'Verify Multi-Platform Sync',
           stageNumber: 12,
-          route: '/platform-packages',
+          route: getCanonicalStageRoute(12, workflowContext),
           description: 'Verify live URLs across YouTube, IG, and Facebook',
         };
         break;
 
       case 12:
-        {
-          const resolvedContentMasterId =
-            contentMasterId || (video as any)?.contentMasterId || (video as any)?.contentId;
-          const params = new URLSearchParams();
-          if (videoId) params.set('videoId', videoId);
-          if (publishingId) params.set('publishingId', publishingId);
-          const qs = params.toString() ? `?${params.toString()}` : '';
-          computedAction = {
-            label: 'View Social Analytics',
-            stageNumber: 13,
-            route: resolvedContentMasterId
-              ? `/social-analytics/${resolvedContentMasterId}${qs}`
-              : `/social-analytics${qs}`,
-            description: 'Track audience metrics and retention trends',
-          };
-        }
+        computedAction = {
+          label: 'View Social Analytics',
+          stageNumber: 13,
+          route: getCanonicalStageRoute(13, workflowContext),
+          description: 'Track audience metrics and retention trends',
+        };
         break;
 
       case 13:
         computedAction = {
           label: 'Conduct Performance Review',
           stageNumber: 14,
-          route: '/analytics/engagement',
+          route: getCanonicalStageRoute(14, workflowContext),
           description: 'Audit retention curves and viewer drop-off points',
         };
         break;
@@ -886,7 +892,7 @@ export const ProductionJourneyProvider: React.FC<{ children: React.ReactNode }> 
         computedAction = {
           label: 'Explore Pedagogical Insights',
           stageNumber: 15,
-          route: '/analytics/intelligence',
+          route: getCanonicalStageRoute(15, workflowContext),
           description: 'Calibrate question difficulty and student confusion points',
         };
         break;
@@ -895,7 +901,7 @@ export const ProductionJourneyProvider: React.FC<{ children: React.ReactNode }> 
         computedAction = {
           label: 'Create Next Question',
           stageNumber: 1,
-          route: '/studio',
+          route: getCanonicalStageRoute(1, workflowContext),
           description: 'Feed learnings back into Question Studio for next question',
         };
         break;

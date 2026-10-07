@@ -18,7 +18,7 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { useLocation, useNavigate, Link } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import {
   LayoutDashboard,
   Video,
@@ -102,6 +102,16 @@ export const AnalyticsExperiencePage: React.FC = () => {
   const [intelligenceReports, setIntelligenceReports] = useState<SocialPerformanceIntelligenceRecord[]>([]);
   const [strategyRecs, setStrategyRecs] = useState<ContentStrategyRecommendation[]>([]);
 
+  // Contextual Workflow State (S3-T14.3)
+  const [searchParams] = useSearchParams();
+  const contextContentId = searchParams.get('contentId') || searchParams.get('contentMasterId') || '';
+  const contextVideoId = searchParams.get('videoId') || '';
+  const contextPublishingId = searchParams.get('publishingId') || '';
+  const hasWorkflowContext = Boolean(contextContentId || contextVideoId);
+  const [isContextualFilterActive, setIsContextualFilterActive] = useState<boolean>(
+    Boolean(contextContentId || contextVideoId)
+  );
+
   // Filter States
   const [platformFilter, setPlatformFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -147,9 +157,13 @@ export const AnalyticsExperiencePage: React.FC = () => {
     loadAnalyticsData();
   }, []);
 
-  // Filtered Records
+  // Filtered Records (preserves contextual workflow isolation when active)
   const filteredRecords = useMemo(() => {
     return records.filter((r) => {
+      const matchesContext =
+        !isContextualFilterActive ||
+        (contextContentId && r.contentId.toLowerCase() === contextContentId.toLowerCase()) ||
+        (contextVideoId && (r as any).videoId?.toLowerCase() === contextVideoId.toLowerCase());
       const matchesPlatform =
         platformFilter === 'all' || r.platform.toLowerCase() === platformFilter.toLowerCase();
       const matchesQuery =
@@ -157,9 +171,9 @@ export const AnalyticsExperiencePage: React.FC = () => {
         r.contentId.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (r.topicId && r.topicId.toLowerCase().includes(searchQuery.toLowerCase())) ||
         (r.notes && r.notes.toLowerCase().includes(searchQuery.toLowerCase()));
-      return matchesPlatform && matchesQuery;
+      return matchesContext && matchesPlatform && matchesQuery;
     });
-  }, [records, platformFilter, searchQuery]);
+  }, [records, platformFilter, searchQuery, isContextualFilterActive, contextContentId, contextVideoId]);
 
   // Derived aggregates by Topic
   const topicAggregates = useMemo(() => {
@@ -366,6 +380,64 @@ export const AnalyticsExperiencePage: React.FC = () => {
         }
       />
 
+      {/* Contextual Workflow Navigation Banner (S3-T14.3) */}
+      {hasWorkflowContext && (
+        <div className="p-4 bg-indigo-950 text-white rounded-xl border border-indigo-700/60 shadow-md flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-indigo-600/40 border border-indigo-400/30 text-indigo-300 rounded-lg">
+              <Layers className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs uppercase tracking-wider font-bold text-indigo-300">
+                  {activeSection === 'intelligence'
+                    ? 'Stage 15 — Intelligence Loop'
+                    : 'Stage 14 — Performance Review'}
+                </span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-indigo-500/20 text-indigo-200 border border-indigo-500/30">
+                  {isContextualFilterActive ? 'Active Workflow Filter: ON' : 'Global Mode'}
+                </span>
+              </div>
+              <p className="text-xs text-slate-300 mt-1 font-mono flex flex-wrap items-center gap-x-3 gap-y-1">
+                {contextContentId && (
+                  <span>
+                    Content: <strong className="text-white">{contextContentId}</strong>
+                  </span>
+                )}
+                {contextVideoId && (
+                  <span>
+                    Video: <strong className="text-white">{contextVideoId}</strong>
+                  </span>
+                )}
+                {contextPublishingId && (
+                  <span>
+                    Publishing: <strong className="text-white">{contextPublishingId}</strong>
+                  </span>
+                )}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsContextualFilterActive(!isContextualFilterActive)}
+              className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-white/10 hover:bg-white/20 text-slate-200 border border-white/10 transition cursor-pointer"
+            >
+              {isContextualFilterActive ? 'View All Content' : 'Filter by Active Context'}
+            </button>
+            {contextVideoId && (
+              <Link
+                to={`/videos/${encodeURIComponent(contextVideoId)}`}
+                className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm transition flex items-center gap-1"
+              >
+                <span>Back to Video Journey →</span>
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Authoritative Freshness & Data Banner */}
       <div className="flex flex-wrap items-center justify-between gap-4 p-4 bg-slate-900 text-slate-100 rounded-xl border border-slate-800 shadow-xs text-xs">
         <div className="flex items-center gap-3">
@@ -421,7 +493,7 @@ export const AnalyticsExperiencePage: React.FC = () => {
             return (
               <button
                 key={tab.id}
-                onClick={() => navigate(tab.href)}
+                onClick={() => navigate(`${tab.href}${location.search}`)}
                 className={`flex items-center gap-2 px-3.5 py-2 text-xs font-medium rounded-lg transition-colors ${
                   isActive
                     ? 'bg-indigo-50 text-indigo-700 font-semibold border border-indigo-200/80 shadow-2xs'

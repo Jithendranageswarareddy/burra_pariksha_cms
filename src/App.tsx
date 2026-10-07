@@ -60,6 +60,15 @@ function VideoTabRedirect({ tab }: { tab?: string }) {
   return <Navigate to={`/videos/${videoId}${location.search}`} replace />;
 }
 
+function PlatformPackagesRedirect() {
+  const { videoId } = useParams<{ videoId?: string }>();
+  const location = useLocation();
+  if (videoId) {
+    return <Navigate to={`/platform-packages/${videoId}${location.search}`} replace />;
+  }
+  return <Navigate to={`/platform-packages${location.search}`} replace />;
+}
+
 function AppRoutes() {
   const { user, isLoading } = useAuth();
 
@@ -147,16 +156,18 @@ function AppRoutes() {
         <Route path="production/:videoId" element={<VideoTabRedirect />} />
         <Route path="videos/:videoId" element={<VideoDetailPage />} />
 
-        {/* Publishing 3-Step Workflow Routes (Phase 09: Steps 13-15) */}
+        {/* Publishing & Platform Sync Routes (Phase 09: Step 12) */}
         <Route path="platform-packages" element={<PlatformPackagesPage />} />
-        <Route path="videos/platform-packages" element={<PlatformPackagesPage />} />
-        <Route path="videos/:videoId/platform-packages" element={<PlatformPackagesPage />} />
-        <Route path="production/:videoId/platform-packages" element={<PlatformPackagesPage />} />
+        <Route path="platform-packages/:videoId" element={<PlatformPackagesPage />} />
+        <Route path="videos/platform-packages" element={<Navigate to="/platform-packages" replace />} />
+        <Route path="videos/:videoId/platform-packages" element={<PlatformPackagesRedirect />} />
+        <Route path="production/:videoId/platform-packages" element={<PlatformPackagesRedirect />} />
 
+        {/* Legacy Publishing Package Redirects (S3-T14.7) */}
         <Route path="publishing-package" element={<Navigate to="/platform-packages" replace />} />
         <Route path="videos/publishing-package" element={<Navigate to="/platform-packages" replace />} />
-        <Route path="videos/:videoId/publishing-package" element={<Navigate to="/platform-packages" replace />} />
-        <Route path="production/:videoId/publishing-package" element={<Navigate to="/platform-packages" replace />} />
+        <Route path="videos/:videoId/publishing-package" element={<PlatformPackagesRedirect />} />
+        <Route path="production/:videoId/publishing-package" element={<PlatformPackagesRedirect />} />
 
         <Route path="publishing" element={<PublishingPage />} />
         <Route path="videos/:videoId/publish" element={<VideoTabRedirect tab="publishing" />} />

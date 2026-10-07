@@ -262,14 +262,14 @@ export const CANONICAL_15_STEPS: CanonicalStepDefinition[] = [
     shortLabel: 'Platform Sync',
     responsibility: 'Cross-platform adaptation verification (character limits, hashtags, audio attribution)',
     canonicalPage: 'PlatformPackagesPage',
-    canonicalRoute: '/platform-packages',
+    canonicalRoute: '/platform-packages/:videoId',
     responsibleRole: 'Social Operations Specialist',
     inputEntity: 'Live Published Video Post',
     outputEntity: 'Sync Verified Package Bundle',
     completionGate: 'Multi-platform live posts confirmed matching platform guidelines',
     forwardStep: 13,
-    revisionRoute: '/platform-packages',
-    rejectionRoute: '/platform-packages',
+    revisionRoute: '/platform-packages/:videoId',
+    rejectionRoute: '/platform-packages/:videoId',
     blockedCondition: 'Content must be published on primary platform before verifying sync',
   },
   {
@@ -482,8 +482,8 @@ export function mapVideoToWorkflowState(
     result[7] = CanonicalWorkflowState.BLOCKED;
   }
 
-  // Step 08: Thumbnail
-  if (thumbnail?.status === 'APPROVED' || video.status === VideoProductionStatus.UPLOADED) {
+  // Step 08: Thumbnail (Stage N completion must be derived from Stage N evidence, not later status)
+  if (thumbnail?.status === 'APPROVED' || (thumbnail as any)?.isApproved) {
     result[8] = CanonicalWorkflowState.COMPLETED;
   } else if (thumbnail) {
     result[8] = CanonicalWorkflowState.IN_PROGRESS;
@@ -515,20 +515,13 @@ export function mapSocialReviewToWorkflowState(
 
 export function mapPublishingToWorkflowState(
   publishing: Publishing | null,
-  video: Video | null
+  _video: Video | null
 ): {
   step10State: CanonicalWorkflowState;
   step11State: CanonicalWorkflowState;
   step12State: CanonicalWorkflowState;
 } {
-  if (video?.status === VideoProductionStatus.UPLOADED) {
-    return {
-      step10State: CanonicalWorkflowState.COMPLETED,
-      step11State: CanonicalWorkflowState.COMPLETED,
-      step12State: CanonicalWorkflowState.COMPLETED,
-    };
-  }
-
+  // S3-T14.4: Derive stage states strictly from publishing evidence, never infer from later video status
   if (!publishing) {
     return {
       step10State: CanonicalWorkflowState.NOT_STARTED,
@@ -539,15 +532,41 @@ export function mapPublishingToWorkflowState(
 
   const isYtScheduled = publishing.youtube?.status === SocialPublishStatus.SCHEDULED;
   const isYtPublished = publishing.youtube?.status === SocialPublishStatus.PUBLISHED;
-  const isFullySynced =
+  const isAnyPublished = Boolean(
+    isYtPublished ||
+    publishing.instagram?.status === SocialPublishStatus.PUBLISHED ||
+    publishing.facebook?.status === SocialPublishStatus.PUBLISHED ||
+    (publishing.completedPlatformsCount > 0 &&
+      Boolean(
+        publishing.youtube?.postUrl ||
+        publishing.youtube?.videoUrl ||
+        publishing.instagram?.postUrl ||
+        publishing.facebook?.postUrl
+      ))
+  );
+
+  const isConfigured = Boolean(
+    isYtScheduled ||
+    isYtPublished ||
+    publishing.youtubeScheduledAt ||
+    publishing.instagramScheduledAt ||
+    publishing.facebookScheduledAt ||
+    publishing.youtube?.scheduledAt
+  );
+
+  const isFullySynced = Boolean(
     publishing.completedPlatformsCount >= publishing.totalPlatformsCount &&
-    publishing.totalPlatformsCount > 0;
+    publishing.totalPlatformsCount > 0 &&
+    publishing.youtube?.status === SocialPublishStatus.PUBLISHED &&
+    publishing.instagram?.status === SocialPublishStatus.PUBLISHED &&
+    publishing.facebook?.status === SocialPublishStatus.PUBLISHED
+  );
 
   let step10State = CanonicalWorkflowState.NOT_STARTED;
   let step11State = CanonicalWorkflowState.NOT_STARTED;
   let step12State = CanonicalWorkflowState.NOT_STARTED;
 
-  if (isYtScheduled || isYtPublished) {
+  if (isConfigured) {
     step10State = CanonicalWorkflowState.COMPLETED;
   } else if (
     publishing.youtubeScheduledAt ||
@@ -557,15 +576,15 @@ export function mapPublishingToWorkflowState(
     step10State = CanonicalWorkflowState.IN_PROGRESS;
   }
 
-  if (isYtPublished) {
+  if (isAnyPublished) {
     step11State = CanonicalWorkflowState.COMPLETED;
-  } else if (isYtScheduled) {
+  } else if (isYtScheduled || publishing.youtubeScheduledAt) {
     step11State = CanonicalWorkflowState.IN_PROGRESS;
   }
 
   if (isFullySynced) {
     step12State = CanonicalWorkflowState.COMPLETED;
-  } else if (isYtPublished) {
+  } else if (isAnyPublished) {
     step12State = CanonicalWorkflowState.IN_PROGRESS;
   }
 
