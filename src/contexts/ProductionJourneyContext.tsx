@@ -504,10 +504,16 @@ export const ProductionJourneyProvider: React.FC<{ children: React.ReactNode }> 
     let stage = 1;
 
     if (isPublishedCompleted) {
-      if (isPlatformSyncCompleted) {
-        stage = 13; // Analytics
+      if (!isPlatformSyncCompleted) {
+        stage = 12; // Stage 12 Platform Sync incomplete → current Stage 12
+      } else if (!isAnalyticsCompleted) {
+        stage = 13; // Stage 12 complete → current Stage 13 Analytics
+      } else if (!isPerformanceReviewCompleted) {
+        stage = 14; // Stage 13 complete → current Stage 14 Performance Review
+      } else if (!isInsightsCompleted) {
+        stage = 15; // Stage 14 complete → current Stage 15 Intelligence Loop
       } else {
-        stage = 12; // Platform Sync
+        stage = 15; // Stage 15 complete → terminal/completed workflow state
       }
     } else if (isPublishingSetupCompleted) {
       stage = 11; // Ready to be marked Published
@@ -669,7 +675,7 @@ export const ProductionJourneyProvider: React.FC<{ children: React.ReactNode }> 
         route,
         tab,
         isCompleted,
-        isCurrent: def.stageNumber === stage,
+        isCurrent: isInsightsCompleted ? false : def.stageNumber === stage,
         isBlocked,
         blockerReason,
       };
@@ -898,12 +904,21 @@ export const ProductionJourneyProvider: React.FC<{ children: React.ReactNode }> 
         break;
 
       case 15:
-        computedAction = {
-          label: 'Create Next Question',
-          stageNumber: 1,
-          route: getCanonicalStageRoute(1, workflowContext),
-          description: 'Feed learnings back into Question Studio for next question',
-        };
+        if (isInsightsCompleted) {
+          computedAction = {
+            label: '✓ Production Lifecycle Completed',
+            stageNumber: 15,
+            route: getCanonicalStageRoute(15, workflowContext),
+            description: 'All 15 production & analytics stages are completed and verified',
+          };
+        } else {
+          computedAction = {
+            label: 'Explore Pedagogical Insights',
+            stageNumber: 15,
+            route: getCanonicalStageRoute(15, workflowContext),
+            description: 'Calibrate question difficulty and student confusion points',
+          };
+        }
         break;
 
       default:

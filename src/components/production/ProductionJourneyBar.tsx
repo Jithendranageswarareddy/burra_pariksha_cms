@@ -110,14 +110,21 @@ export const ProductionJourneyBar: React.FC<ProductionJourneyBarProps> = ({
 
           <span className="text-slate-300 hidden sm:inline">•</span>
 
-          {/* Active Stage Indicator */}
-          <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-bold">
-            <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-pulse" />
-            <span>Stage {String(effectiveCurrentStage).padStart(2, '0')} / 15: {activeStageObj.label}</span>
-          </div>
+          {/* Active Stage Indicator or Terminal State */}
+          {stages.length > 0 && stages.every((s) => s.isCompleted) ? (
+            <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs font-bold">
+              <Check className="w-3.5 h-3.5 text-emerald-600 stroke-[3]" />
+              <span>✓ All 15 Stages Completed (Terminal State)</span>
+            </div>
+          ) : (
+            <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-bold">
+              <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-pulse" />
+              <span>Stage {String(effectiveCurrentStage).padStart(2, '0')} / 15: {activeStageObj.label}</span>
+            </div>
+          )}
 
           {/* Next Stage Context Pill */}
-          {stages.find((s) => s.stageNumber === effectiveCurrentStage + 1) && (() => {
+          {!stages.every((s) => s.isCompleted) && stages.find((s) => s.stageNumber === effectiveCurrentStage + 1) && (() => {
             const nextStage = stages.find((s) => s.stageNumber === effectiveCurrentStage + 1);
             const nextLabel = nextStage?.stageNumber === 2 ? 'Step 02' : nextStage?.shortLabel;
             return (
@@ -168,8 +175,9 @@ export const ProductionJourneyBar: React.FC<ProductionJourneyBarProps> = ({
           {stages.map((stage, index) => {
             const isLast = index === stages.length - 1;
             const isTooltipOpen = activeTooltipStage === stage.stageNumber;
-            const isNodeCurrent = stage.stageNumber === effectiveCurrentStage;
-            const isNodeNext = stage.stageNumber === effectiveCurrentStage + 1;
+            const isAllCompleted = stages.length > 0 && stages.every((s) => s.isCompleted);
+            const isNodeCurrent = !isAllCompleted && stage.stageNumber === effectiveCurrentStage;
+            const isNodeNext = !isAllCompleted && stage.stageNumber === effectiveCurrentStage + 1;
 
             return (
               <React.Fragment key={stage.id}>
