@@ -1,13 +1,12 @@
 /**
- * BURRA PARIKSHA CMS — Cloud Firestore Production Repository Adapter
- * Sprint 4: Production Data Layer Migration
- * Stage 27 Feature Contract: FC-003 (Database Abstraction & Universal API Envelopes)
+ * BURRA PARIKSHA CMS — Cloud Firestore Production Server-Side Repository Adapter
+ * Sprint 4: Option A (Backend-Only Authoritative Gateway Architecture)
  *
  * Implements authoritative generic repository contract IRepository<T> against Cloud Firestore:
- * - Direct Firestore SDK execution with atomic OCC concurrency control
- * - ₹0.00–₹100.00 Spark Free-Tier optimization
+ * - Uses privileged server-side authenticated Firestore instance (uid: backend-service)
+ * - Atomic Optimistic Concurrency Control (OCC) via runTransaction
  * - Soft-deletion filtering (isDeleted = true excluded by default)
- * - FAIL CLOSED in production: NEVER silently fall back to in-memory on permission/database errors.
+ * - FAIL CLOSED: NEVER silently falls back to in-memory on database or permission errors.
  * - Diagnostic firestore error serialization with handleFirestoreError
  */
 
@@ -20,8 +19,9 @@ import {
   query,
   limit as firestoreLimit,
   runTransaction,
+  Firestore,
 } from 'firebase/firestore';
-import { db } from '../firebase/config';
+import { getBackendFirestore } from '../firebase/server-auth';
 import { handleFirestoreError, OperationType } from '../firebase/errors';
 import {
   BaseEntity,
@@ -56,6 +56,10 @@ export class FirestoreRepository<T extends BaseEntity> implements IRepository<T>
     }
   }
 
+  private async getDb(): Promise<Firestore> {
+    return getBackendFirestore();
+  }
+
   public onMutation(hook: AuditHook<T>): void {
     this.auditHooks.push(hook);
     if (this.fallbackStore) {
@@ -79,6 +83,7 @@ export class FirestoreRepository<T extends BaseEntity> implements IRepository<T>
     }
 
     try {
+      const db = await this.getDb();
       const docRef = doc(db, this.collectionName, id);
       const snap = await getDoc(docRef);
 
@@ -93,7 +98,6 @@ export class FirestoreRepository<T extends BaseEntity> implements IRepository<T>
 
       return entity;
     } catch (err: any) {
-      // In FIRESTORE mode: FAIL CLOSED! Never silently catch permission-denied to return fallback data.
       handleFirestoreError(err, OperationType.GET, `${this.collectionName}/${id}`);
     }
   }
@@ -123,6 +127,7 @@ export class FirestoreRepository<T extends BaseEntity> implements IRepository<T>
     } as T;
 
     try {
+      const db = await this.getDb();
       const docRef = doc(db, this.collectionName, id);
       await setDoc(docRef, newEntity);
 
@@ -137,7 +142,6 @@ export class FirestoreRepository<T extends BaseEntity> implements IRepository<T>
 
       return newEntity;
     } catch (err: any) {
-      // FAIL CLOSED!
       handleFirestoreError(err, OperationType.CREATE, `${this.collectionName}/${id}`);
     }
   }
@@ -152,12 +156,14 @@ export class FirestoreRepository<T extends BaseEntity> implements IRepository<T>
       return this.fallbackStore.update(id, expectedVersion, patch, context);
     }
 
-    const docRef = doc(db, this.collectionName, id);
     const now = context?.timestamp || new Date().toISOString();
     let updatedEntity: T;
     let previousVersion: number;
 
     try {
+      const db = await this.getDb();
+      const docRef = doc(db, this.collectionName, id);
+
       updatedEntity = await runTransaction(db, async (tx) => {
         const snap = await tx.get(docRef);
         if (!snap.exists()) {
@@ -165,7 +171,7 @@ export class FirestoreRepository<T extends BaseEntity> implements IRepository<T>
         }
 
         const current = snap.data() as T;
-        if (current.isDeleted) {
+        if (current.isDeleted && !physical) {
           throw new NotFoundError(`Resource '${this.collectionName}' with id '${id}' not found (deleted).`);
         }
 
@@ -218,12 +224,14 @@ export class FirestoreRepository<T extends BaseEntity> implements IRepository<T>
       return this.fallbackStore.delete(id, expectedVersion, context, physical);
     }
 
-    const docRef = doc(db, this.collectionName, id);
     const now = context?.timestamp || new Date().toISOString();
     let previousVersion: number;
     let softDeletedEntity: T | undefined;
 
     try {
+      const db = await this.getDb();
+      const docRef = doc(db, this.collectionName, id);
+
       await runTransaction(db, async (tx) => {
         const snap = await tx.get(docRef);
         if (!snap.exists()) {
@@ -231,7 +239,7 @@ export class FirestoreRepository<T extends BaseEntity> implements IRepository<T>
         }
 
         const current = snap.data() as T;
-        if (current.isDeleted) {
+        if (current.isDeleted && !physical) {
           throw new NotFoundError(`Resource '${this.collectionName}' with id '${id}' not found (already deleted).`);
         }
 
@@ -280,6 +288,7 @@ export class FirestoreRepository<T extends BaseEntity> implements IRepository<T>
     }
 
     try {
+      const db = await this.getDb();
       const colRef = collection(db, this.collectionName);
       let q = query(colRef);
 
@@ -353,8 +362,8 @@ export function fromFirestoreValue(val: any): any {
   if ('arrayValue' in val) return (val.arrayValue.values || []).map(fromFirestoreValue);
   if ('mapValue' in val) {
     const res: Record<string, any> = {};
-    for (const [k, v] of Object.entries(val.mapValue.fields || {})) {
-      res[k] = fromFirestoreValue(v);
+    for (const [key, val] of Object.entries(doc.fields || {})) {
+      res[key] = fromFirestoreValue(val);
     }
     return res;
   }

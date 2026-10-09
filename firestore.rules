@@ -2,179 +2,187 @@ rules_version = '2';
 
 /**
  * BURRA PARIKSHA CMS — Cloud Firestore Security Rules
- * Sprint 4: Production Data Layer Migration
- * Architecture: OPTION A — BACKEND-ONLY AUTHORITATIVE FIRESTORE GATEWAY
+ * Architecture: OPTION A — BACKEND-ONLY AUTHORITATIVE GATEWAY
  *
- * Operational Model:
- * 1. BP-CMS backend (Express / Node.js) is the single authoritative gatekeeper.
- *    - Authenticates users via session cookies / HMAC tokens.
- *    - Evaluates role permissions via centralAuthorizationService and rbacEvaluator.
- *    - Enforces GAR-02 anti-self-approval and AP-009 human gatekeeper rules in backend services.
- *    - Connects directly to Cloud Firestore using Web/Admin SDK configured with application credentials.
- * 2. Cloud Firestore Security Rules enforce DEFAULT-DENY for direct unauthenticated browser access,
- *    while permitting backend collections used by the BP-CMS application gateway.
- * 3. Immutable audit logs and workflow history cannot be modified or deleted.
+ * Security Model:
+ * 1. DIRECT BROWSER / UNAUTHENTICATED CLIENTS:
+ *    - All transactional writes to production collections are STRICTLY DENIED.
+ *    - No unauthenticated writes to users, questions, videos, assignments,
+ *      publishing_packages, workflow_instances, social_analytics, etc.
+ * 2. AUTHORITATIVE BACKEND GATEWAY:
+ *    - BP-CMS Express server authenticates with custom backend service token
+ *      (uid == 'backend-service' or role == 'BACKEND_SERVICE').
+ *    - The backend enforces human-in-the-loop gates (AP-009) and segregation of duties (GAR-02).
+ * 3. STRICT IMMUTABILITY GUARDS:
+ *    - audit_logs, audit_events, and workflow_history are strictly write-once:
+ *      Create is allowed by the backend, UPDATE AND DELETE ARE ABSOLUTELY FORBIDDEN.
  */
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
     // Helper functions
-    function isAuthenticated() {
-      return request.auth != null;
+    function isBackendGateway() {
+      return request.auth != null && (
+        request.auth.uid == 'backend-service' ||
+        request.auth.token.role == 'BACKEND_SERVICE' ||
+        request.auth.token.isBackend == true
+      );
     }
 
-    // Direct client access is blocked by default
-    // Authoritative backend services write through the application service layer
-
-    // 1. Core Production Collections
-    match /users/{userId} {
-      allow read, write: if true;
-    }
-
-    match /question_drafts/{draftId} {
-      allow read, write: if true;
-    }
-
-    match /questions/{questionId} {
-      allow read, write: if true;
-    }
-
-    match /question_videos/{qvId} {
-      allow read, write: if true;
-    }
-
-    match /videos/{videoId} {
-      allow read, write: if true;
-    }
-
-    match /scripts/{scriptId} {
-      allow read, write: if true;
-    }
-
-    match /script_versions/{verId} {
-      allow read, write: if true;
-    }
-
-    match /thumbnails/{thumbId} {
-      allow read, write: if true;
-    }
-
-    match /thumbnail_versions/{verId} {
-      allow read, write: if true;
-    }
-
-    match /pinned_comments/{pinId} {
-      allow read, write: if true;
-    }
-
-    match /pinned_comment_versions/{verId} {
-      allow read, write: if true;
-    }
-
-    match /assignments/{assignmentId} {
-      allow read, write: if true;
-    }
-
-    match /publishing_packages/{packageId} {
-      allow read, write: if true;
-    }
-
-    match /content_masters/{contentMasterId} {
-      allow read, write: if true;
-    }
-
-    match /content_plans/{planId} {
-      allow read, write: if true;
-    }
-
-    match /content_batches/{batchId} {
-      allow read, write: if true;
-    }
-
-    match /question_validations/{valId} {
-      allow read, write: if true;
-    }
-
-    match /social_reviews/{reviewId} {
-      allow read, write: if true;
-    }
-
-    match /question_configs/{cfgId} {
-      allow read, write: if true;
-    }
-
-    match /media_assets/{assetId} {
-      allow read, write: if true;
-    }
-
-    match /categories/{catId} {
-      allow read, write: if true;
-    }
-
-    match /topics/{topicId} {
-      allow read, write: if true;
-    }
-
-    match /subtopics/{subId} {
-      allow read, write: if true;
-    }
-
-    match /sequences/{seqId} {
-      allow read, write: if true;
-    }
-
-    match /workflow_instances/{workflowId} {
-      allow read, write: if true;
-    }
-
-    // 2. Immutable Collections: Create allowed, Update & Delete strictly forbidden
-    match /audit_logs/{eventId} {
-      allow read, create: if true;
+    // 1. Immutable Collections (Audit Logs, Audit Events, Workflow History)
+    // Write-once append-only ledger: create allowed, update/delete strictly forbidden!
+    match /audit_logs/{logId} {
+      allow read: if isBackendGateway();
+      allow create: if isBackendGateway();
       allow update, delete: if false;
     }
 
     match /audit_events/{eventId} {
-      allow read, create: if true;
+      allow read: if isBackendGateway();
+      allow create: if isBackendGateway();
       allow update, delete: if false;
     }
 
     match /workflow_history/{historyId} {
-      allow read, create: if true;
+      allow read: if isBackendGateway();
+      allow create: if isBackendGateway();
       allow update, delete: if false;
     }
 
-    // 3. Analytics & Social Intelligence
+    // 2. Transactional Business Collections
+    // Write access granted ONLY to authoritative backend gateway.
+    // Direct unauthenticated browser/client writes are strictly DENIED.
+    match /users/{userId} {
+      allow read, write: if isBackendGateway();
+    }
+
+    match /questions/{questionId} {
+      allow read, write: if isBackendGateway();
+    }
+
+    match /question_drafts/{draftId} {
+      allow read, write: if isBackendGateway();
+    }
+
+    match /question_videos/{qvId} {
+      allow read, write: if isBackendGateway();
+    }
+
+    match /videos/{videoId} {
+      allow read, write: if isBackendGateway();
+    }
+
+    match /scripts/{scriptId} {
+      allow read, write: if isBackendGateway();
+    }
+
+    match /script_versions/{verId} {
+      allow read, write: if isBackendGateway();
+    }
+
+    match /thumbnails/{thumbId} {
+      allow read, write: if isBackendGateway();
+    }
+
+    match /thumbnail_versions/{verId} {
+      allow read, write: if isBackendGateway();
+    }
+
+    match /pinned_comments/{pinId} {
+      allow read, write: if isBackendGateway();
+    }
+
+    match /pinned_comment_versions/{verId} {
+      allow read, write: if isBackendGateway();
+    }
+
+    match /assignments/{assignmentId} {
+      allow read, write: if isBackendGateway();
+    }
+
+    match /publishing_packages/{packageId} {
+      allow read, write: if isBackendGateway();
+    }
+
+    match /workflow_instances/{workflowId} {
+      allow read, write: if isBackendGateway();
+    }
+
     match /social_analytics/{analyticsId} {
-      allow read, write: if true;
+      allow read, write: if isBackendGateway();
+    }
+
+    match /content_masters/{contentMasterId} {
+      allow read, write: if isBackendGateway();
+    }
+
+    match /content_plans/{planId} {
+      allow read, write: if isBackendGateway();
+    }
+
+    match /content_batches/{batchId} {
+      allow read, write: if isBackendGateway();
+    }
+
+    match /question_validations/{valId} {
+      allow read, write: if isBackendGateway();
+    }
+
+    match /social_reviews/{reviewId} {
+      allow read, write: if isBackendGateway();
+    }
+
+    match /question_configs/{cfgId} {
+      allow read, write: if isBackendGateway();
+    }
+
+    match /media_assets/{assetId} {
+      allow read, write: if isBackendGateway();
+    }
+
+    match /categories/{catId} {
+      allow read, write: if isBackendGateway();
+    }
+
+    match /topics/{topicId} {
+      allow read, write: if isBackendGateway();
+    }
+
+    match /subtopics/{subId} {
+      allow read, write: if isBackendGateway();
+    }
+
+    match /sequences/{seqId} {
+      allow read, write: if isBackendGateway();
     }
 
     match /analytics_intelligences/{intelId} {
-      allow read, write: if true;
+      allow read, write: if isBackendGateway();
     }
 
     match /strategy_recommendations/{recId} {
-      allow read, write: if true;
+      allow read, write: if isBackendGateway();
     }
 
     match /social_comments/{cmtId} {
-      allow read, write: if true;
+      allow read, write: if isBackendGateway();
     }
 
     match /comment_intelligences/{cmiId} {
-      allow read, write: if true;
+      allow read, write: if isBackendGateway();
     }
 
-    // 4. Test Collections
+    // 3. Test Collections (Backend gateway only)
     match /test_backend/{docId} {
-      allow read, write: if true;
+      allow read, write: if isBackendGateway();
     }
 
     match /test_questions/{docId} {
-      allow read, write: if true;
+      allow read, write: if isBackendGateway();
     }
 
-    // 5. Default Deny Catch-all for any unspecified paths
+    // 4. Default Deny Catch-all for any other collection
     match /{document=**} {
       allow read, write: if false;
     }

@@ -22,7 +22,10 @@
     "test:s2-t06": "tsx tests/s2-t06-persistence.test.ts",
     "test:s2-t07": "tsx tests/s2-t07-smoke.test.ts",
     "test:firestore-rules": "tsx tests/firestore-rules.test.ts",
-    "test:s4-t10": "tsx tests/s4-t10-firestore-persistence.test.ts"
+    "test:s4-t10": "tsx tests/s4-t10-firestore-persistence.test.ts",
+    "test:backend-firestore": "tsx tests/backend-firestore-integration.test.ts",
+    "test:browser-denied": "tsx tests/browser-direct-write-denied.test.ts",
+    "test:15-step-persistence": "tsx tests/s4-15-step-persistence.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
