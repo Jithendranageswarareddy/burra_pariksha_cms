@@ -2,13 +2,18 @@
  * BURRA PARIKSHA CMS — Positive Backend Firestore Integration Test
  * Sprint 4: Option A (Backend-Only Authoritative Gateway Architecture)
  *
- * Proves that the BP-CMS backend persistence path can:
- * 1. CREATE a document in real Cloud Firestore
+ * Verifies that the BP-CMS backend persistence path can:
+ * 1. CREATE a synthetic test document in real Cloud Firestore
  * 2. READ it back
  * 3. UPDATE it with atomic OCC version increment
  * 4. ENFORCE OCC by rejecting stale updates
  * 5. SOFT-DELETE it and filter by default
- * 6. Access real Firestore collections without in-memory fallback
+ * 6. Hard-delete and clean up immediately so no test data remains
+ *
+ * TEST ISOLATION GUARDS:
+ * - Uses neutral synthetic fixtures ("TEST QUESTION — Firestore persistence verification")
+ * - Sets testOnly: true and environment: 'TEST'
+ * - Uses synthetic distinguishable IDs: BP-TEST-Q-*
  */
 
 import assert from 'node:assert';
@@ -17,12 +22,17 @@ import { BaseEntity } from '../src/lib/db/repository.interface';
 import { ConcurrencyConflictError } from '../src/lib/errors';
 import { terminate } from 'firebase/firestore';
 import { getBackendFirestore } from '../src/lib/firebase/server-auth';
+import { SYNTHETIC_TEST_MARKERS } from './fixtures/synthetic-test-fixtures';
 
 interface TestQuestionRecord extends BaseEntity {
   contentMasterId: string;
   question: string;
   category: string;
+  topic: string;
+  subtopic: string;
   difficulty: number;
+  testOnly: boolean;
+  environment: string;
 }
 
 async function runBackendIntegrationTest() {
@@ -34,37 +44,51 @@ async function runBackendIntegrationTest() {
   let failed = 0;
 
   try {
-    const repo = new FirestoreRepository<TestQuestionRecord>('questions', 'BP-Q-' as any);
+    const repo = new FirestoreRepository<TestQuestionRecord>('questions', 'BP-TEST-Q-' as any);
     assert.strictEqual(repo.mode, 'FIRESTORE', 'Repository must be in FIRESTORE mode');
 
+    const testId = `BP-TEST-Q-${Date.now()}`;
+    const initialText = 'TEST QUESTION — Firestore persistence verification';
+    const updatedText = 'TEST QUESTION — Firestore persistence verification (OCC updated)';
+
     // 1. CREATE
-    console.log('--- Step 1: Backend creating question in Firestore ---');
+    console.log('--- Step 1: Backend creating synthetic test question in Firestore ---');
     const created = await repo.create({
-      contentMasterId: 'BP-CNT-777777',
-      question: 'What is the role of mitochondria in human cells?',
-      category: 'Biology',
+      id: testId,
+      contentMasterId: 'BP-TEST-CNT-000001',
+      question: initialText,
+      category: SYNTHETIC_TEST_MARKERS.category,
+      topic: SYNTHETIC_TEST_MARKERS.topic,
+      subtopic: SYNTHETIC_TEST_MARKERS.subtopic,
       difficulty: 1,
+      testOnly: true,
+      environment: 'TEST',
     });
-    assert(created.id.startsWith('BP-Q-'), 'ID must match canonical prefix BP-Q-');
+
+    assert(created.id.startsWith('BP-TEST-Q-'), 'ID must match synthetic prefix BP-TEST-Q-');
     assert.strictEqual(created.version, 1, 'Initial version must be 1');
     assert.strictEqual(created.isDeleted, false, 'isDeleted must default to false');
-    console.log('✓ TC-BACKEND-01: Document created in Cloud Firestore:', created.id);
+    assert.strictEqual(created.testOnly, true, 'testOnly must be true');
+    assert.strictEqual(created.environment, 'TEST', 'environment must be TEST');
+    console.log('✓ TC-BACKEND-01: Synthetic test document created in Cloud Firestore:', created.id);
     passed++;
 
     // 2. READ
-    console.log('--- Step 2: Backend reading question from Firestore ---');
+    console.log('--- Step 2: Backend reading test question from Firestore ---');
     const read = await repo.findById(created.id);
     assert(read !== null, 'Document must be retrievable from Cloud Firestore');
-    assert.strictEqual(read.question, 'What is the role of mitochondria in human cells?');
+    assert.strictEqual(read.question, initialText);
+    assert.strictEqual(read.testOnly, true);
     console.log('✓ TC-BACKEND-02: Document read successfully from Cloud Firestore.');
     passed++;
 
     // 3. UPDATE with OCC increment
     console.log('--- Step 3: Backend updating document with atomic OCC ---');
     const updated = await repo.update(created.id, 1, {
-      question: 'What is the role of mitochondria (cellular respiration)?',
+      question: updatedText,
     });
     assert.strictEqual(updated.version, 2, 'Version must atomically increment to 2');
+    assert.strictEqual(updated.question, updatedText);
     console.log('✓ TC-BACKEND-03: Document updated with OCC increment to version 2.');
     passed++;
 
@@ -94,9 +118,13 @@ async function runBackendIntegrationTest() {
     console.log('✓ TC-BACKEND-05: Soft-deletion and filtering verified in Cloud Firestore.');
     passed++;
 
-    // Teardown test record
+    // 6. IMMEDIATE CLEANUP: Hard delete test record from Firestore
+    console.log('--- Step 6: Hard-deleting test record to guarantee zero residual test data ---');
     await repo.delete(created.id, 3, undefined, true);
-    console.log('✓ Cleaned up test record.');
+    const postCleanup = await repo.findById(created.id, { includeDeleted: true });
+    assert.strictEqual(postCleanup, null, 'Test document must be permanently removed');
+    console.log('✓ TC-BACKEND-06: Verified test document cleanly and permanently removed from Firestore.');
+    passed++;
   } catch (err: any) {
     console.error('✗ Backend integration test FAILED:', err.message);
     failed++;

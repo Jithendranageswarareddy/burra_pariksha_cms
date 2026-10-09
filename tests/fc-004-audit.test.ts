@@ -82,7 +82,7 @@ async function runTests() {
         changeType: 'CREATE',
         after: {
           title: 'What is the speed of light?',
-          subject: 'Physics',
+          subject: 'TEST_SUBJECT',
         },
       },
     };

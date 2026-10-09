@@ -8,6 +8,10 @@
  * 3. Backend service can create audit logs, but cannot update or delete them (immutability)
  * 4. Direct unauthenticated client writes to workflow_history are blocked
  * 5. Backend service can create workflow history, but cannot update or delete them (immutability)
+ *
+ * TEST ISOLATION GUARDS:
+ * - Uses neutral synthetic markers: testOnly: true, environment: 'TEST'
+ * - Cleaned up where permitted or explicitly scoped to dedicated test doc IDs
  */
 
 import assert from 'node:assert';
@@ -40,10 +44,14 @@ async function runFirestoreRulesTests() {
   // --------------------------------------------------------------------------
   try {
     console.log('--- Test 1: Verifying Catch-All Default Deny ---');
-    const unauthorizedDocRef = doc(clientDb, 'unauthorized_secret_collection', 'secret_doc_1');
+    const unauthorizedDocRef = doc(clientDb, 'unauthorized_secret_collection', 'BP-TEST-SECRET-1');
     let rejected = false;
     try {
-      await setDoc(unauthorizedDocRef, { secret: 'data' });
+      await setDoc(unauthorizedDocRef, {
+        secret: 'data',
+        testOnly: true,
+        environment: 'TEST',
+      });
     } catch (err: any) {
       rejected = err.code === 'permission-denied' || err.message?.includes('Missing or insufficient permissions');
     }
@@ -60,7 +68,7 @@ async function runFirestoreRulesTests() {
   // --------------------------------------------------------------------------
   try {
     console.log('\n--- Test 2: Verifying Audit Logs Immutability (Update Blocked) ---');
-    const auditId = `aud_rule_test_${Date.now()}`;
+    const auditId = `BP-TEST-AUD-${Date.now()}`;
     const auditDocRef = doc(backendDb, 'audit_logs', auditId);
 
     // Backend create must succeed
@@ -69,6 +77,8 @@ async function runFirestoreRulesTests() {
       actorId: 'usr_test_1',
       timestamp: new Date().toISOString(),
       version: 1,
+      testOnly: true,
+      environment: 'TEST',
     });
 
     // Update must be strictly rejected
@@ -101,7 +111,7 @@ async function runFirestoreRulesTests() {
   // --------------------------------------------------------------------------
   try {
     console.log('\n--- Test 3: Verifying Workflow History Immutability ---');
-    const historyId = `wfh_rule_test_${Date.now()}`;
+    const historyId = `BP-TEST-WFH-${Date.now()}`;
     const historyDocRef = doc(backendDb, 'workflow_history', historyId);
 
     // Backend create must succeed
@@ -109,6 +119,8 @@ async function runFirestoreRulesTests() {
       fromStage: 1,
       toStage: 2,
       timestamp: new Date().toISOString(),
+      testOnly: true,
+      environment: 'TEST',
     });
 
     // Update must be blocked
