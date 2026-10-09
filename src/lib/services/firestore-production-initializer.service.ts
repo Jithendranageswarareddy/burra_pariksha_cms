@@ -5,13 +5,14 @@
  * Safe, idempotent initialization of canonical Firestore collections:
  * 1. Seeds foundational users (Admin, Content Lead, QA Reviewer, Video Editor, Presenter)
  * 2. Seeds production taxonomy (Categories, Topics, Subtopics)
- * 3. Initializes sequence counters with canonical prefixes
- * 4. Verifies zero loss, atomic OCC initialization, and audit logging
+ * 3. Seeds production question_config entries (Styles, Contexts, Focus Dimensions)
+ * 4. Initializes sequence counters with canonical prefixes
+ * 5. Verifies zero loss, atomic OCC initialization, and audit logging
  */
 
 import { FirestoreRepository } from '../db/firestore.repository';
 import { PRODUCTION_CATEGORIES, PRODUCTION_TOPICS, PRODUCTION_SUBTOPICS } from '../data/production-taxonomy';
-import { User, UserRole } from '../../types';
+import { User, UserRole, QuestionConfigEntry } from '../../types';
 
 export interface FirestoreInitReport {
   timestamp: string;
@@ -20,6 +21,7 @@ export interface FirestoreInitReport {
   categoriesSeeded: number;
   topicsSeeded: number;
   subtopicsSeeded: number;
+  questionConfigsSeeded: number;
   success: boolean;
 }
 
@@ -38,11 +40,13 @@ export class FirestoreProductionInitializerService {
     const categoriesRepo = new FirestoreRepository<any>('categories', 'cat_' as any);
     const topicsRepo = new FirestoreRepository<any>('topics', 'top_' as any);
     const subtopicsRepo = new FirestoreRepository<any>('subtopics', 'sub_' as any);
+    const questionConfigRepo = new FirestoreRepository<any>('question_config', 'CFG-' as any);
 
     let usersSeeded = 0;
     let categoriesSeeded = 0;
     let topicsSeeded = 0;
     let subtopicsSeeded = 0;
+    let questionConfigsSeeded = 0;
 
     // 1. Seed foundational users if empty
     const existingUsers = await usersRepo.findMany({ limit: 5 });
@@ -100,13 +104,63 @@ export class FirestoreProductionInitializerService {
       }
     }
 
+    // 3. Seed question_config if empty
+    const existingConfig = await questionConfigRepo.findMany({ limit: 5 });
+    if (existingConfig.length === 0) {
+      const nowIso = new Date().toISOString();
+      const minimalCanonicalSeed: Partial<QuestionConfigEntry>[] = [
+        {
+          id: 'CFG-STY-001',
+          dimension: 'QUESTION_STYLE',
+          code: 'STORY_BASED',
+          displayLabel: 'Story-Based Scenario',
+          description: 'Narrative problem set in everyday situations with relatable characters',
+          aiPromptGuidance: 'Frame the mathematical problem inside an authentic narrative arc.',
+          sortOrder: 10,
+          isActive: true,
+          isDefault: true,
+          updatedAt: nowIso,
+        },
+        {
+          id: 'CFG-CTX-001',
+          dimension: 'CULTURAL_CONTEXT',
+          code: 'TELUGU_EVERYDAY',
+          displayLabel: 'Telugu Everyday Life',
+          description: 'Local cultural references authentic to Telangana and Andhra Pradesh',
+          aiPromptGuidance: 'Use authentic Telugu names, festivals, local food, and currency.',
+          sortOrder: 10,
+          isActive: true,
+          isDefault: true,
+          updatedAt: nowIso,
+        },
+        {
+          id: 'CFG-FOC-001',
+          dimension: 'PEDAGOGICAL_FOCUS',
+          code: 'CONCEPT_MASTERY',
+          displayLabel: 'Concept Mastery & Deep Reasoning',
+          description: 'Focus on first-principles understanding rather than rote memorization',
+          aiPromptGuidance: 'Highlight underlying mathematical/scientific principles.',
+          sortOrder: 10,
+          isActive: true,
+          isDefault: true,
+          updatedAt: nowIso,
+        },
+      ];
+
+      for (const cfg of minimalCanonicalSeed) {
+        await questionConfigRepo.create(cfg as any);
+        questionConfigsSeeded++;
+      }
+    }
+
     return {
       timestamp: new Date().toISOString(),
-      collectionsInitialized: ['users', 'categories', 'topics', 'subtopics', 'sequences', 'audit_logs'],
+      collectionsInitialized: ['users', 'categories', 'topics', 'subtopics', 'question_config', 'sequences', 'audit_logs'],
       usersSeeded,
       categoriesSeeded,
       topicsSeeded,
       subtopicsSeeded,
+      questionConfigsSeeded,
       success: true,
     };
   }

@@ -33,6 +33,11 @@ service cloud.firestore {
     // 1. Immutable Collections (Audit Logs, Audit Events, Workflow History)
     // Write-once append-only ledger: create allowed, update/delete strictly forbidden!
     match /audit_logs/{logId} {
+      allow read, create: if isBackendGateway();
+      allow update, delete: if false;
+    }
+
+    match /audit_log/{logId} {
       allow read: if isBackendGateway();
       allow create: if isBackendGateway();
       allow update, delete: if false;
@@ -109,6 +114,10 @@ service cloud.firestore {
       allow read, write: if isBackendGateway();
     }
 
+    match /workflow/{wId} {
+      allow read, write: if isBackendGateway();
+    }
+
     match /social_analytics/{analyticsId} {
       allow read, write: if isBackendGateway();
     }
@@ -134,6 +143,10 @@ service cloud.firestore {
     }
 
     match /question_configs/{cfgId} {
+      allow read, write: if isBackendGateway();
+    }
+
+    match /question_config/{cfgId} {
       allow read, write: if isBackendGateway();
     }
 

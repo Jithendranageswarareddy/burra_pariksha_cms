@@ -4,7 +4,7 @@
  */
 
 export * from './base.repository';
-export * from './sequences.repository';
+
 export * from './categories.repository';
 export * from './topics.repository';
 export * from './subtopics.repository';
@@ -38,3 +38,4 @@ export * from './strategy-recommendation.repository';
 export * from './analytics.repository';
 export * from './social-comments.repository';
 export * from './comment-intelligence.repository';
+export * from './sequences.repository';

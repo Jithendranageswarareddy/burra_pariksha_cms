@@ -1,12 +1,13 @@
 /**
  * BURRA PARIKSHA CMS — Cloud Firestore Security Rules Test Suite
- * Sprint 4: Production Data Layer Migration
+ * Sprint 4: Option A (Backend-Only Authoritative Gateway Architecture)
  *
- * Deterministic automated validation verifying deployed firestore.rules:
+ * Verifies that:
  * 1. Default-deny catch-all blocks unapproved paths
- * 2. Immutable audit logs cannot be updated or deleted
- * 3. Immutable workflow history cannot be updated or deleted
- * 4. Production collections allow authenticated gateway read/write
+ * 2. Direct unauthenticated client writes to audit_logs are blocked
+ * 3. Backend service can create audit logs, but cannot update or delete them (immutability)
+ * 4. Direct unauthenticated client writes to workflow_history are blocked
+ * 5. Backend service can create workflow history, but cannot update or delete them (immutability)
  */
 
 import assert from 'node:assert';
@@ -15,12 +16,12 @@ import {
   getFirestore,
   doc,
   setDoc,
-  getDoc,
   updateDoc,
   deleteDoc,
   terminate,
 } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
+import { getBackendFirestore } from '../src/lib/firebase/server-auth';
 
 async function runFirestoreRulesTests() {
   console.log('============================================================');
@@ -31,14 +32,15 @@ async function runFirestoreRulesTests() {
   let failed = 0;
 
   const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app, (firebaseConfig as any).firestoreDatabaseId);
+  const clientDb = getFirestore(app, (firebaseConfig as any).firestoreDatabaseId);
+  const backendDb = await getBackendFirestore();
 
   // --------------------------------------------------------------------------
   // Rule Test 1: Catch-all Default Deny on Unauthorized Paths
   // --------------------------------------------------------------------------
   try {
     console.log('--- Test 1: Verifying Catch-All Default Deny ---');
-    const unauthorizedDocRef = doc(db, 'unauthorized_secret_collection', 'secret_doc_1');
+    const unauthorizedDocRef = doc(clientDb, 'unauthorized_secret_collection', 'secret_doc_1');
     let rejected = false;
     try {
       await setDoc(unauthorizedDocRef, { secret: 'data' });
@@ -54,14 +56,14 @@ async function runFirestoreRulesTests() {
   }
 
   // --------------------------------------------------------------------------
-  // Rule Test 2: Audit Logs Immutability (Update Blocked)
+  // Rule Test 2: Audit Logs Immutability (Backend create succeeds, update/delete blocked)
   // --------------------------------------------------------------------------
   try {
     console.log('\n--- Test 2: Verifying Audit Logs Immutability (Update Blocked) ---');
     const auditId = `aud_rule_test_${Date.now()}`;
-    const auditDocRef = doc(db, 'audit_logs', auditId);
+    const auditDocRef = doc(backendDb, 'audit_logs', auditId);
 
-    // Create must succeed
+    // Backend create must succeed
     await setDoc(auditDocRef, {
       action: 'TEST_AUDIT',
       actorId: 'usr_test_1',
@@ -95,14 +97,14 @@ async function runFirestoreRulesTests() {
   }
 
   // --------------------------------------------------------------------------
-  // Rule Test 3: Workflow History Immutability (Update & Delete Blocked)
+  // Rule Test 3: Workflow History Immutability (Backend create succeeds, update blocked)
   // --------------------------------------------------------------------------
   try {
     console.log('\n--- Test 3: Verifying Workflow History Immutability ---');
     const historyId = `wfh_rule_test_${Date.now()}`;
-    const historyDocRef = doc(db, 'workflow_history', historyId);
+    const historyDocRef = doc(backendDb, 'workflow_history', historyId);
 
-    // Create must succeed
+    // Backend create must succeed
     await setDoc(historyDocRef, {
       fromStage: 1,
       toStage: 2,
@@ -130,14 +132,11 @@ async function runFirestoreRulesTests() {
   console.log('============================================================\n');
 
   try {
-    await terminate(db);
+    await terminate(clientDb);
+    await terminate(backendDb);
   } catch {}
 
-  if (failed > 0) {
-    process.exit(1);
-  } else {
-    process.exit(0);
-  }
+  process.exit(failed > 0 ? 1 : 0);
 }
 
 runFirestoreRulesTests().catch((err) => {

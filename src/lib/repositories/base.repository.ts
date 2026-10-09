@@ -1,37 +1,38 @@
 /**
- * BURRA PARIKSHA CMS - Base Repository
- * Phase 2: Google Sheets Database Architecture & Persistence
- * 
- * Provides unified, header-mapped CRUD operations against Google Sheets tabs.
- * Integrates schema validation, header caching, and fallback local store.
+ * BURRA PARIKSHA CMS — Unified Authoritative Base Repository
+ * Sprint 4: Production Data Layer Migration (Google Sheets to Cloud Firestore)
+ *
+ * ARCHITECTURAL MANDATE:
+ * 1. Cloud Firestore (ai-studio-burraparikshacon-f592ca42-39af-4d83-aff2-6870ba939b0e)
+ *    is the SINGLE AUTHORITATIVE transactional persistence store for BP-CMS.
+ * 2. All production domain repositories inherit from this BaseRepository, which
+ *    delegates transactional operations (findById, findAll, findWhere, appendRecord,
+ *    updateRecord, deleteRecord) directly to FirestoreRepository<T> backed by
+ *    server-side authenticated Firestore credentials.
  */
 
 import { SheetSchemaContract, SheetTabName } from '../schemas/google-sheets-schema';
-import { googleSheetsClient, GoogleSheetsClient } from '../google-sheets/client';
-import { colIndexToA1Letter, objectToRow, rowToObject, validateWorksheetHeaders } from '../google-sheets/helpers';
-import { MissingHeaderError, WorksheetNotFoundError, GoogleAuthError } from '../google-sheets/errors';
-import {
-  deletionSafetyService,
-  DeletionReadBackError,
-  DeletionIntegrityError,
-  DirectDeleteBypassError,
-  VerifiedDeletionToken,
-} from '../services/deletion-safety.service';
+import { BaseEntity, IRepository } from '../db/repository.interface';
+import { CanonicalPrefix } from '../id.service';
 
 export abstract class BaseRepository<T extends Record<string, any>> {
   protected schema: SheetSchemaContract;
-  protected client: GoogleSheetsClient;
-  protected cachedHeaders: string[] | null = null;
-  protected lastHeaderFetchTime: number = 0;
-  protected HEADER_CACHE_TTL_MS = 60000; // 1 minute header cache
-  protected worksheetChecked: boolean = false;
+  protected defaultPrefix?: CanonicalPrefix;
+  protected collectionName: string;
+  private _firestoreRepo: IRepository<T & BaseEntity> | null = null;
 
-  // Static registry tracking in-flight lock promises per (sheetName:recordId) to serialize concurrent mutations
-  protected static recordLocks: Map<string, Promise<void>> = new Map();
-
-  constructor(schema: SheetSchemaContract) {
+  constructor(schema: SheetSchemaContract, defaultPrefix?: CanonicalPrefix) {
     this.schema = schema;
-    this.client = googleSheetsClient;
+    this.defaultPrefix = defaultPrefix;
+    this.collectionName = schema.sheetName.toLowerCase();
+  }
+
+  protected async getRepo(): Promise<IRepository<T & BaseEntity>> {
+    if (!this._firestoreRepo) {
+      const { FirestoreRepository } = await import('../db/firestore.repository');
+      this._firestoreRepo = new FirestoreRepository<T & BaseEntity>(this.collectionName, this.defaultPrefix);
+    }
+    return this._firestoreRepo;
   }
 
   public getSheetName(): SheetTabName {
@@ -42,342 +43,57 @@ export abstract class BaseRepository<T extends Record<string, any>> {
     return this.schema;
   }
 
-  protected getPrimaryKeyProperty(): string {
-    const pkCol = this.schema.columns.find(
-      (c) => c.isPrimaryKey || c.name === this.schema.primaryKey || c.propertyKey === this.schema.primaryKey
-    );
-    return pkCol ? pkCol.propertyKey : this.schema.primaryKey;
+  public async getFirestoreRepository(): Promise<IRepository<T & BaseEntity>> {
+    return this.getRepo();
   }
 
-  /**
-   * Hook for subclasses to specify a custom target spreadsheet ID (e.g. ANALYTICS_SPREADSHEET_ID).
-   * Defaults to undefined, resolving to the primary GOOGLE_SHEETS_ID.
-   */
-  protected getTargetSpreadsheetId(): string | undefined {
-    return undefined;
-  }
-
-  /**
-   * Calculates the canonical A1 column letter corresponding to the declared schema width.
-   * e.g. 7 columns -> 'G', 10 columns -> 'J', 35 columns -> 'AI'.
-   */
-  protected getEndColLetter(): string {
-    const numCols = this.schema.columns?.length || 0;
-    return numCols > 0 ? colIndexToA1Letter(numCols - 1) : 'ZZ';
-  }
-
-  /**
-   * Ensures the remote worksheet tab exists with declared headers, creating it if needed.
-   */
-  public async ensureWorksheet(): Promise<boolean> {
-    if (!this.client.isConfigured(this.getTargetSpreadsheetId()) || this.worksheetChecked) {
-      return true;
-    }
-    try {
-      await this.client.createWorksheetIfNotExists(
-        this.schema.sheetName,
-        this.schema.columns.map((c) => c.name),
-        this.getTargetSpreadsheetId()
-      );
-      this.worksheetChecked = true;
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
-  /**
-   * Checks if an error is a WorksheetNotFoundError or missing tab error.
-   */
-  protected isWorksheetNotFoundError(err: any): boolean {
-    const msg = (typeof err?.message === 'string' ? err.message : String(err || '')).toLowerCase();
-    return (
-      err instanceof WorksheetNotFoundError ||
-      err?.name === 'WorksheetNotFoundError' ||
-      msg.includes('does not exist') ||
-      msg.includes('unable to parse range') ||
-      msg.includes('worksheet not found') ||
-      msg.includes('not found')
-    );
-  }
-
-  /**
-   * Retrieves worksheet headers with validation.
-   */
-  public async getValidatedHeaders(): Promise<string[]> {
-    if (!this.client.isConfigured(this.getTargetSpreadsheetId())) {
-      return this.schema.columns.map((c) => c.name);
-    }
-
-    const now = Date.now();
-    if (this.cachedHeaders && now - this.lastHeaderFetchTime < this.HEADER_CACHE_TTL_MS) {
-      return this.cachedHeaders;
-    }
-
-    try {
-      const headers = await this.client.getHeaders(this.schema.sheetName, this.getTargetSpreadsheetId());
-      const validation = validateWorksheetHeaders(headers, this.schema);
-
-      if (!validation.isValid) {
-        throw new MissingHeaderError(this.schema.sheetName, validation.missingHeaders);
-      }
-
-      this.cachedHeaders = headers;
-      this.lastHeaderFetchTime = now;
-      return headers;
-    } catch (err: any) {
-      if (this.isWorksheetNotFoundError(err)) {
-        const created = await this.ensureWorksheet();
-        if (created) {
-          try {
-            const headers = await this.client.getHeaders(this.schema.sheetName, this.getTargetSpreadsheetId());
-            this.cachedHeaders = headers;
-            this.lastHeaderFetchTime = now;
-            return headers;
-          } catch (headerErr: any) {
-            if (this.client.isConfigured(this.getTargetSpreadsheetId())) {
-              throw headerErr;
-            }
-          }
-        }
-      }
-      if (this.client.isConfigured(this.getTargetSpreadsheetId())) {
-        throw err;
-      }
-      return this.schema.columns.map((c) => c.name);
-    }
-  }
-
-  /**
-   * Reads all records from the worksheet.
-   */
-  public async findAll(): Promise<T[]> {
-    const pkProp = this.getPrimaryKeyProperty();
-
-    if (!this.client.isConfigured(this.getTargetSpreadsheetId())) {
-      return [];
-    }
-
-    try {
-      const { headers, rows } = await this.client.getRows(this.schema.sheetName, this.getEndColLetter(), this.getTargetSpreadsheetId());
-      if (!headers || headers.length === 0) {
-        return [];
-      }
-
-      const validation = validateWorksheetHeaders(headers, this.schema);
-      if (!validation.isValid) {
-        throw new MissingHeaderError(this.schema.sheetName, validation.missingHeaders);
-      }
-
-      const records: T[] = [];
-      for (const row of rows) {
-        if (!row || row.length === 0 || row.every((c) => c === '' || c === undefined)) {
-          continue; // Skip empty rows
-        }
-        const record = rowToObject<T>(row, headers, this.schema);
-        if (record && record[pkProp]) {
-          records.push(record);
-        }
-      }
-
-      return records;
-    } catch (err: any) {
-      if (this.isWorksheetNotFoundError(err)) {
-        const created = await this.ensureWorksheet();
-        if (created) {
-          return [];
-        }
-      }
-      throw err;
-    }
-  }
-
-  /**
-   * Finds a single record by its primary key.
-   */
   public async findById(id: string): Promise<T | null> {
-    if (!id) return null;
-    const pkProp = this.getPrimaryKeyProperty();
-
-    if (!this.client.isConfigured(this.getTargetSpreadsheetId())) {
-      return null;
-    }
-
-    try {
-      const { headers, rows } = await this.client.getRows(this.schema.sheetName, this.getEndColLetter(), this.getTargetSpreadsheetId());
-      if (!headers || headers.length === 0) return null;
-
-      for (const row of rows) {
-        const record = rowToObject<T>(row, headers, this.schema);
-        if (record && String(record[pkProp]) === String(id)) {
-          return record;
-        }
-      }
-
-      return null;
-    } catch (err: any) {
-      if (this.isWorksheetNotFoundError(err)) {
-        const created = await this.ensureWorksheet();
-        if (created) {
-          return null;
-        }
-      }
-      throw err;
-    }
+    const r = await this.getRepo();
+    const doc = await r.findById(id);
+    return (doc as T) || null;
   }
 
-  /**
-   * Appends a new record to the worksheet.
-   */
-  public async appendRecord(record: T): Promise<T> {
-    if (!this.client.isConfigured(this.getTargetSpreadsheetId())) {
-      throw new GoogleAuthError('Google Sheets integration is not configured or unavailable in this environment.');
-    }
-
-    try {
-      const headers = await this.getValidatedHeaders();
-      const row = objectToRow(record, headers, this.schema);
-      await this.client.appendRow(this.schema.sheetName, row, this.getTargetSpreadsheetId());
-      return record;
-    } catch (err: any) {
-      if (this.isWorksheetNotFoundError(err)) {
-        const created = await this.ensureWorksheet();
-        if (created) {
-          const headers = await this.getValidatedHeaders();
-          const row = objectToRow(record, headers, this.schema);
-          await this.client.appendRow(this.schema.sheetName, row, this.getTargetSpreadsheetId());
-          return record;
-        }
-      }
-      throw err;
-    }
+  public async findAll(): Promise<T[]> {
+    const r = await this.getRepo();
+    const list = await r.findMany();
+    return list as unknown as T[];
   }
 
-  /**
-   * Alias for appendRecord to support standard repository contract.
-   */
-  public async create(record: T): Promise<T> {
+  public async findWhere(predicate: (record: T) => boolean): Promise<T[]> {
+    const all = await this.findAll();
+    return all.filter(predicate);
+  }
+
+  public async appendRecord(record: Partial<T>): Promise<T> {
+    const r = await this.getRepo();
+    const created = await r.create(record as any);
+    return created as unknown as T;
+  }
+
+  public async create(record: Partial<T>): Promise<T> {
     return this.appendRecord(record);
   }
 
-  /**
-   * Executes a mutation with record-level serialization within this Node process.
-   * Conflicting mutations targeting the same record (sheetName:id) are serialized in FIFO order.
-   * Independent records execute concurrently without blocking.
-   */
-  protected async withRecordLock<R>(id: string, operation: () => Promise<R>): Promise<R> {
-    const lockKey = `${this.schema.sheetName}:${id}`;
-    const previousLock = BaseRepository.recordLocks.get(lockKey) || Promise.resolve();
-
-    let releaseCurrentLock!: () => void;
-    const currentLock = new Promise<void>((resolve) => {
-      releaseCurrentLock = resolve;
-    });
-
-    BaseRepository.recordLocks.set(lockKey, currentLock);
-
-    try {
-      // Wait for any previous in-flight operation on this record to settle.
-      // We swallow errors from prior operations so failures do not block subsequent callers.
-      await previousLock.catch(() => {});
-      return await operation();
-    } finally {
-      // Release lock for subsequent operations queued behind this one
-      releaseCurrentLock();
-
-      // Memory cleanup: If no subsequent operation has overwritten our lock in the map, delete the key
-      if (BaseRepository.recordLocks.get(lockKey) === currentLock) {
-        BaseRepository.recordLocks.delete(lockKey);
-      }
-    }
-  }
-
-  /**
-   * Helper for tests or diagnostics to inspect active lock registry size.
-   */
-  public static getActiveLockCount(): number {
-    return BaseRepository.recordLocks.size;
-  }
-
-  /**
-   * Updates an existing record by primary key with record-level serialization and optimistic concurrency control (NEG-05).
-   */
   public async updateRecord(
     id: string,
     updates: Partial<T>,
     options?: { expectedVersion?: number }
   ): Promise<T | null> {
-    if (!id) return null;
+    const r = await this.getRepo();
+    const existing = await r.findById(id);
+    if (!existing) {
+      return null;
+    }
 
-    return this.withRecordLock(id, async () => {
-      const pkProp = this.getPrimaryKeyProperty();
+    const expectedVer =
+      options?.expectedVersion ??
+      (updates as any)?.version ??
+      existing.version;
 
-      // Evaluate expectedVersion if specified in options or updates (NEG-05 Optimistic Concurrency Control)
-      const expectedVer = options?.expectedVersion ?? (updates as any)?.expectedVersion;
-
-      if (!this.client.isConfigured(this.getTargetSpreadsheetId())) {
-        throw new GoogleAuthError('Google Sheets integration is not configured or unavailable in this environment.');
-      }
-
-      try {
-        const { headers, rows } = await this.client.getRows(this.schema.sheetName, this.getEndColLetter(), this.getTargetSpreadsheetId());
-        if (!headers || headers.length === 0) return null;
-
-        let targetRowIndex = -1;
-        let existingRecord: T | null = null;
-
-        for (let i = 0; i < rows.length; i++) {
-          const rec = rowToObject<T>(rows[i], headers, this.schema);
-          if (rec && String(rec[pkProp]) === String(id)) {
-            targetRowIndex = i + 2; // Row 1 is header, so row 0 in array is sheet row 2
-            existingRecord = rec;
-            break;
-          }
-        }
-
-        if (targetRowIndex === -1 || !existingRecord) {
-          return null;
-        }
-
-        if (expectedVer !== undefined) {
-          const currentVer = (existingRecord as any)?.version ?? (existingRecord as any)?.currentVersion ?? (existingRecord as any)?.versionNumber;
-          if (currentVer !== undefined && Number(currentVer) !== Number(expectedVer)) {
-            throw new Error(`[NEG-05] Concurrency conflict: record "${id}" has version ${currentVer}, expected ${expectedVer}`);
-          }
-        }
-
-        const currentVer = (existingRecord as any)?.version ?? (existingRecord as any)?.currentVersion ?? (existingRecord as any)?.versionNumber;
-        const nextVer = (updates as any)?.version !== undefined
-          ? (updates as any).version
-          : (typeof currentVer === 'number' ? currentVer + 1 : undefined);
-
-        const cleanUpdates = { ...updates };
-        delete (cleanUpdates as any).expectedVersion;
-
-        const mergedRecord = {
-          ...existingRecord,
-          ...cleanUpdates,
-          ...(nextVer !== undefined ? { version: nextVer } : {}),
-          updatedAt: new Date().toISOString(),
-        } as unknown as T;
-
-        const newRow = objectToRow(mergedRecord, headers, this.schema);
-        await this.client.updateRow(this.schema.sheetName, targetRowIndex, newRow, this.getTargetSpreadsheetId());
-
-        return mergedRecord;
-      } catch (err: any) {
-        if (this.isWorksheetNotFoundError(err)) {
-          await this.ensureWorksheet();
-          return null;
-        }
-        throw err;
-      }
-    });
+    const updated = await r.update(id, expectedVer, updates as any);
+    return updated as unknown as T;
   }
 
-  /**
-   * Alias for updateRecord supporting both update(id, updates, options).
-   */
   public async update(
     recordOrId: T | string,
     updates?: Partial<T>,
@@ -386,143 +102,21 @@ export abstract class BaseRepository<T extends Record<string, any>> {
     if (typeof recordOrId === 'string') {
       return this.updateRecord(recordOrId, updates || {}, options);
     }
-    const pkProp = this.getPrimaryKeyProperty();
-    const id = recordOrId[pkProp];
+    const id = (recordOrId as any).id;
     if (!id) return null;
-    return this.updateRecord(String(id), recordOrId as Partial<T>, options);
+    return this.updateRecord(id, updates || recordOrId, options);
   }
 
-  /**
-   * Deletes an existing record by primary key through the mandatory Deletion Safety Pipeline:
-   * 1. BACKUP: Captures target record, physical row, headers, and computes SHA-256 checksum.
-   * 2. VERIFY BACKUP: Verifies backup file existence on disk, read-back validity, and SHA-256 match.
-   * 3. DELETE: Authorizes single-use VerifiedDeletionToken; blocks direct deleteRow bypasses.
-   * 4. READ-BACK: Verifies target record no longer exists in worksheet.
-   * 5. INTEGRITY CHECK: Verifies row count decremented by exactly 1 and schema remains uncorrupted.
-   * 6. AUDIT RESULT: Persists verified audit record with backup file path and checksum.
-   */
-  public async deleteRecord(
-    id: string,
-    options?: { actor?: { id: string; name: string }; reason?: string }
-  ): Promise<boolean> {
-    if (!id) return false;
-
-    return this.withRecordLock(id, async () => {
-      const pkProp = this.getPrimaryKeyProperty();
-
-      if (!this.client.isConfigured(this.getTargetSpreadsheetId())) {
-        throw new GoogleAuthError('Google Sheets integration is not configured or unavailable in this environment.');
-      }
-
-      const { headers, rows } = await this.client.getRows(this.schema.sheetName, this.getEndColLetter(), this.getTargetSpreadsheetId());
-      if (!headers || headers.length === 0) return false;
-
-      let targetRowIndex = -1;
-      let targetRecord: T | null = null;
-      let targetRawRow: (string | number | boolean)[] = [];
-
-      for (let i = 0; i < rows.length; i++) {
-        const rec = rowToObject<T>(rows[i], headers, this.schema);
-        if (rec && String(rec[pkProp]) === String(id)) {
-          targetRowIndex = i + 2; // Row 1 is header, so row 0 in array is sheet row 2
-          targetRecord = rec;
-          targetRawRow = rows[i];
-          break;
-        }
-      }
-
-      if (targetRowIndex === -1 || !targetRecord) {
-        return false;
-      }
-
-      const previousRowCount = rows.length;
-
-      // 1. BACKUP & 2. VERIFY BACKUP (Fails closed before modifying worksheet)
-      const safetyToken = await deletionSafetyService.createAndVerifyBackup({
-        sheetName: this.schema.sheetName,
-        entityId: String(id),
-        physicalRowIndex: targetRowIndex,
-        headers,
-        rawRow: targetRawRow,
-        record: targetRecord,
-        actor: options?.actor,
-        reason: options?.reason,
-      });
-
-      // 3. DELETE (passing single-use safety token to client.deleteRow)
-      await this.client.deleteRow(this.schema.sheetName, targetRowIndex, this.getTargetSpreadsheetId(), safetyToken);
-
-      // 4. READ-BACK VERIFICATION
-      const spreadsheetId = this.getTargetSpreadsheetId() || this.client.getSpreadsheetId();
-      this.client.invalidateRowCache(`${spreadsheetId}:${this.schema.sheetName}`);
-      const postData = await this.client.getRows(this.schema.sheetName, this.getEndColLetter(), this.getTargetSpreadsheetId());
-
-      for (let i = 0; i < postData.rows.length; i++) {
-        const rec = rowToObject<T>(postData.rows[i], postData.headers, this.schema);
-        if (rec && String(rec[pkProp]) === String(id)) {
-          throw new DeletionReadBackError(
-            `Post-deletion read-back failed: record '${id}' is still present in '${this.schema.sheetName}' at sheet row ${i + 2}`
-          );
-        }
-      }
-
-      // 5. INTEGRITY CHECK
-      if (postData.rows.length !== previousRowCount - 1) {
-        throw new DeletionIntegrityError(
-          `Post-deletion row count invariant violated in '${this.schema.sheetName}': expected ${previousRowCount - 1}, found ${postData.rows.length}`
-        );
-      }
-
-      // 6. AUDIT RESULT
-      await this.logDeletionAudit(id, safetyToken, options?.actor, options?.reason);
-      return true;
-    });
-  }
-
-  /**
-   * Alias for deleteRecord ensuring standard repository contract compliance.
-   */
-  public async delete(
-    id: string,
-    options?: { actor?: { id: string; name: string }; reason?: string }
-  ): Promise<boolean> {
-    return this.deleteRecord(id, options);
-  }
-
-  /**
-   * Records verified deletion audit entry with pre-deletion backup path and checksum.
-   */
-  protected async logDeletionAudit(
-    entityId: string,
-    safetyToken: VerifiedDeletionToken,
-    actor?: { id: string; name: string },
-    reason?: string
-  ): Promise<void> {
-    if (this.schema.sheetName === 'AUDIT_LOG') {
-      return; // Avoid infinite recursive audit logging
+  public async deleteRecord(id: string): Promise<boolean> {
+    const r = await this.getRepo();
+    const existing = await r.findById(id);
+    if (!existing) {
+      return false;
     }
-    try {
-      const { AuditLogRepository } = await import('./audit-log.repository');
-      const auditRepo = AuditLogRepository.getInstance();
-      const actorId = actor?.id || 'SYSTEM_DELETE_SAFETY';
-      const actorName = actor?.name || 'Deletion Safety Pipeline';
-      await auditRepo.logAction(
-        actorId,
-        actorName,
-        'VERIFIED_RECORD_DELETION',
-        this.schema.sheetName,
-        entityId,
-        {
-          sheetName: this.schema.sheetName,
-          physicalRowIndex: safetyToken.physicalRowIndex,
-          backupFilePath: safetyToken.backupFilePath,
-          backupChecksum: safetyToken.checksum,
-          verifiedAt: new Date().toISOString(),
-          reason: reason || 'Controlled deletion via BaseRepository safety pipeline',
-        }
-      );
-    } catch (auditErr) {
-      console.warn(`[BaseRepository] Deletion audit logging failed for ${entityId}:`, auditErr);
-    }
+    return r.delete(id, existing.version);
+  }
+
+  public async delete(id: string): Promise<boolean> {
+    return this.deleteRecord(id);
   }
 }
