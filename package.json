@@ -20,7 +20,9 @@
     "test:s2-t05": "tsx tests/s2-t05-golden-path.test.ts",
     "test:s2-t05:browser": "tsx tests/s2-t05-browser.test.ts",
     "test:s2-t06": "tsx tests/s2-t06-persistence.test.ts",
-    "test:s2-t07": "tsx tests/s2-t07-smoke.test.ts"
+    "test:s2-t07": "tsx tests/s2-t07-smoke.test.ts",
+    "test:firestore-rules": "tsx tests/firestore-rules.test.ts",
+    "test:s4-t10": "tsx tests/s4-t10-firestore-persistence.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

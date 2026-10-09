@@ -2,7 +2,7 @@
  * BURRA PARIKSHA CMS — S4-T10 Full Persistence Regression Test Suite
  * Sprint 4: Production Data Layer Migration
  *
- * Deterministic automated validation verifying:
+ * Deterministic automated validation verifying against real Cloud Firestore:
  * 1. Cloud Firestore repository implementation adheres to IRepository<T> contract
  * 2. Optimistic Concurrency Control (OCC) version verification & conflict rejection
  * 3. Soft-delete exclusion and explicit inclusion filtering
@@ -16,6 +16,8 @@ import { FirestoreRepository } from '../src/lib/db/firestore.repository';
 import { BaseEntity, RepositoryAuditEvent } from '../src/lib/db/repository.interface';
 import { ConcurrencyConflictError } from '../src/lib/errors';
 import { firestoreProductionInitializer } from '../src/lib/services/firestore-production-initializer.service';
+import { terminate } from 'firebase/firestore';
+import { db } from '../src/lib/firebase/config';
 
 interface TestQuestionRecord extends BaseEntity {
   contentMasterId: string;
@@ -169,8 +171,14 @@ async function runS4PersistenceTests() {
   console.log(`SPRINT 4 TEST RESULTS: ${passed} PASSED, ${failed} FAILED`);
   console.log('============================================================\n');
 
+  try {
+    await terminate(db);
+  } catch {}
+
   if (failed > 0) {
     process.exit(1);
+  } else {
+    process.exit(0);
   }
 }
 

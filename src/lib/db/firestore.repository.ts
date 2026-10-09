@@ -7,7 +7,7 @@
  * - Direct Firestore SDK execution with atomic OCC concurrency control
  * - ₹0.00–₹100.00 Spark Free-Tier optimization
  * - Soft-deletion filtering (isDeleted = true excluded by default)
- * - Safe fallback to InMemoryRepository when offline, unauthenticated, or in test environments
+ * - FAIL CLOSED in production: NEVER silently fall back to in-memory on permission/database errors.
  * - Diagnostic firestore error serialization with handleFirestoreError
  */
 
@@ -35,23 +35,24 @@ import { ConcurrencyConflictError, NotFoundError } from '../errors';
 import { canonicalIdService, CanonicalPrefix } from '../id.service';
 import { InMemoryRepository } from './in-memory.repository';
 
+export type RepositoryPersistenceMode = 'FIRESTORE' | 'IN_MEMORY_TEST_ONLY';
+
 export class FirestoreRepository<T extends BaseEntity> implements IRepository<T> {
   public readonly collectionName: string;
   private readonly defaultPrefix?: CanonicalPrefix;
   private readonly auditHooks: AuditHook<T>[] = [];
+  public readonly mode: RepositoryPersistenceMode;
   private fallbackStore: InMemoryRepository<T> | null = null;
 
   constructor(collectionName: string, defaultPrefix?: CanonicalPrefix) {
     this.collectionName = collectionName;
     this.defaultPrefix = defaultPrefix;
 
-    // In test environment, unconfigured, or explicit in-memory mode, use fallback store
-    if (
-      !db ||
-      process.env.NODE_ENV === 'test' ||
-      process.env.USE_IN_MEMORY_DB === 'true'
-    ) {
+    if (process.env.PERSISTENCE_MODE === 'IN_MEMORY_TEST_ONLY') {
+      this.mode = 'IN_MEMORY_TEST_ONLY';
       this.fallbackStore = new InMemoryRepository<T>(collectionName, defaultPrefix);
+    } else {
+      this.mode = 'FIRESTORE';
     }
   }
 
@@ -92,14 +93,8 @@ export class FirestoreRepository<T extends BaseEntity> implements IRepository<T>
 
       return entity;
     } catch (err: any) {
-      if (err.code === 'permission-denied' || err.message?.includes('Missing or insufficient permissions')) {
-        // Fallback to local memory if in dev/eval without live firebase credentials
-        if (!this.fallbackStore) {
-          this.fallbackStore = new InMemoryRepository<T>(this.collectionName, this.defaultPrefix);
-        }
-        return this.fallbackStore.findById(id, options);
-      }
-      return null;
+      // In FIRESTORE mode: FAIL CLOSED! Never silently catch permission-denied to return fallback data.
+      handleFirestoreError(err, OperationType.GET, `${this.collectionName}/${id}`);
     }
   }
 
@@ -142,15 +137,7 @@ export class FirestoreRepository<T extends BaseEntity> implements IRepository<T>
 
       return newEntity;
     } catch (err: any) {
-      if (err.code === 'permission-denied' || err.message?.includes('Missing or insufficient permissions')) {
-        if (!this.fallbackStore) {
-          this.fallbackStore = new InMemoryRepository<T>(this.collectionName, this.defaultPrefix);
-          for (const hook of this.auditHooks) {
-            this.fallbackStore.onMutation(hook);
-          }
-        }
-        return this.fallbackStore.create(entity, context);
-      }
+      // FAIL CLOSED!
       handleFirestoreError(err, OperationType.CREATE, `${this.collectionName}/${id}`);
     }
   }
@@ -216,15 +203,6 @@ export class FirestoreRepository<T extends BaseEntity> implements IRepository<T>
     } catch (err: any) {
       if (err instanceof NotFoundError || err instanceof ConcurrencyConflictError) {
         throw err;
-      }
-      if (err.code === 'permission-denied' || err.message?.includes('Missing or insufficient permissions')) {
-        if (!this.fallbackStore) {
-          this.fallbackStore = new InMemoryRepository<T>(this.collectionName, this.defaultPrefix);
-          for (const hook of this.auditHooks) {
-            this.fallbackStore.onMutation(hook);
-          }
-        }
-        return this.fallbackStore.update(id, expectedVersion, patch, context);
       }
       handleFirestoreError(err, OperationType.UPDATE, `${this.collectionName}/${id}`);
     }
@@ -292,15 +270,6 @@ export class FirestoreRepository<T extends BaseEntity> implements IRepository<T>
       if (err instanceof NotFoundError || err instanceof ConcurrencyConflictError) {
         throw err;
       }
-      if (err.code === 'permission-denied' || err.message?.includes('Missing or insufficient permissions')) {
-        if (!this.fallbackStore) {
-          this.fallbackStore = new InMemoryRepository<T>(this.collectionName, this.defaultPrefix);
-          for (const hook of this.auditHooks) {
-            this.fallbackStore.onMutation(hook);
-          }
-        }
-        return this.fallbackStore.delete(id, expectedVersion, context, physical);
-      }
       handleFirestoreError(err, OperationType.DELETE, `${this.collectionName}/${id}`);
     }
   }
@@ -344,10 +313,7 @@ export class FirestoreRepository<T extends BaseEntity> implements IRepository<T>
 
       return list;
     } catch (err) {
-      if (this.fallbackStore) {
-        return this.fallbackStore.findMany(options);
-      }
-      return [];
+      handleFirestoreError(err, OperationType.LIST, this.collectionName);
     }
   }
 

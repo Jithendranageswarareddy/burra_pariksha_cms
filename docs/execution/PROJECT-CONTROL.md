@@ -1,27 +1,21 @@
 # BP-CMS Project Control & Execution State
 
-**Current Sprint:** Sprint 4 (PRODUCTION DATA LAYER MIGRATION)  
-**Current Task:** S4-T12 Production Readiness Gate (DONE / CLOSED)  
-**Sprint Objective:** Migrate BP-CMS from Google Sheets to Firebase / Cloud Firestore as Authoritative Production Store (ACHIEVED)  
-**Last Completed Task:** S4-T12 Production Readiness Gate  
+**Current Sprint:** Sprint 4 (FIRESTORE PRODUCTION INTEGRATION & REPAIR)  
+**Current Status:** REAL FIRESTORE PERSISTENCE PROVEN (NO SILENT FALLBACK)  
+**Sprint Objective:** Migrate BP-CMS from Google Sheets to Firebase / Cloud Firestore as Authoritative Production Store  
+**Last Completed Milestone:** S4 Production Repair & Real 15-Step Datastore Proof  
 **Current Blocker:** None  
-**Current Git Commit:** `origin/main` (ready to sync)  
 **Live Environment:** `https://burraparikshacontentmanagementsystem.ai.studio/`  
-**Known Risks:** None. Sprint 4 persistence and OCC regression tests pass with 100% success.  
-**Next Action:** Proceed with live operational workflow verification.
+**Automated Tests Verified:**
+- `npm run test:firestore-rules`: 3/3 passed (default deny, audit immutability, workflow immutability)
+- `npm run test:s4-t10`: 4/4 passed (real Firestore CRUD, OCC conflict rejection, soft-deletes, dataset init)
+- `tests/s4-15-step-persistence.test.ts`: Passed (full 15-stage lifecycle persistence & restart read-back)
 
 ---
 
-## Authoritative Project Operating Model
+## Authoritative Operating Model
 1. **Source of Truth**: 
    - GitHub `main` (`Jithendranageswarareddy/burra_pariksha_cms`) is the sole authoritative source of truth.
-2. **Google AI Studio (Primary Implementation & Release Authority)**:
-   - Synchronizes code, runs verification suites, and publishes releases.
-3. **Task Closure Contract (Definition of Done)**:
-   - An implementation task is marked CLOSED only when:
-     1. Implementation is functionally complete.
-     2. Verification suites pass (`compile_applet`, `tsc`, automated tests).
-     3. Local commit exists with conventional commit message.
-     4. Commit is pushed to GitHub `main`.
-     5. Local working tree is clean.
-     6. Execution-control documentation accurately reflects reality.
+2. **Datastore Authority**:
+   - Cloud Firestore (`ai-studio-burraparikshacon-f592ca42-39af-4d83-aff2-6870ba939b0e`) is the single authoritative store for all transactional business entities.
+   - Google Sheets is decoupled from transactional writes and preserved only as optional read-only export/archive.

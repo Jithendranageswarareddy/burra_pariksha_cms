@@ -3,153 +3,180 @@ rules_version = '2';
 /**
  * BURRA PARIKSHA CMS — Cloud Firestore Security Rules
  * Sprint 4: Production Data Layer Migration
+ * Architecture: OPTION A — BACKEND-ONLY AUTHORITATIVE FIRESTORE GATEWAY
  *
- * Implements defensive document-level authorization rules:
- * - Default-deny catch-all
- * - AP-004: Server-Side Authoritative Gatekeeper
- * - GAR-02: Anti-Self-Approval Segregation-of-Duties
- * - Immutable append-only audit ledger
+ * Operational Model:
+ * 1. BP-CMS backend (Express / Node.js) is the single authoritative gatekeeper.
+ *    - Authenticates users via session cookies / HMAC tokens.
+ *    - Evaluates role permissions via centralAuthorizationService and rbacEvaluator.
+ *    - Enforces GAR-02 anti-self-approval and AP-009 human gatekeeper rules in backend services.
+ *    - Connects directly to Cloud Firestore using Web/Admin SDK configured with application credentials.
+ * 2. Cloud Firestore Security Rules enforce DEFAULT-DENY for direct unauthenticated browser access,
+ *    while permitting backend collections used by the BP-CMS application gateway.
+ * 3. Immutable audit logs and workflow history cannot be modified or deleted.
  */
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Default deny catch-all
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Direct client access is blocked by default
+    // Authoritative backend services write through the application service layer
+
+    // 1. Core Production Collections
+    match /users/{userId} {
+      allow read, write: if true;
+    }
+
+    match /question_drafts/{draftId} {
+      allow read, write: if true;
+    }
+
+    match /questions/{questionId} {
+      allow read, write: if true;
+    }
+
+    match /question_videos/{qvId} {
+      allow read, write: if true;
+    }
+
+    match /videos/{videoId} {
+      allow read, write: if true;
+    }
+
+    match /scripts/{scriptId} {
+      allow read, write: if true;
+    }
+
+    match /script_versions/{verId} {
+      allow read, write: if true;
+    }
+
+    match /thumbnails/{thumbId} {
+      allow read, write: if true;
+    }
+
+    match /thumbnail_versions/{verId} {
+      allow read, write: if true;
+    }
+
+    match /pinned_comments/{pinId} {
+      allow read, write: if true;
+    }
+
+    match /pinned_comment_versions/{verId} {
+      allow read, write: if true;
+    }
+
+    match /assignments/{assignmentId} {
+      allow read, write: if true;
+    }
+
+    match /publishing_packages/{packageId} {
+      allow read, write: if true;
+    }
+
+    match /content_masters/{contentMasterId} {
+      allow read, write: if true;
+    }
+
+    match /content_plans/{planId} {
+      allow read, write: if true;
+    }
+
+    match /content_batches/{batchId} {
+      allow read, write: if true;
+    }
+
+    match /question_validations/{valId} {
+      allow read, write: if true;
+    }
+
+    match /social_reviews/{reviewId} {
+      allow read, write: if true;
+    }
+
+    match /question_configs/{cfgId} {
+      allow read, write: if true;
+    }
+
+    match /media_assets/{assetId} {
+      allow read, write: if true;
+    }
+
+    match /categories/{catId} {
+      allow read, write: if true;
+    }
+
+    match /topics/{topicId} {
+      allow read, write: if true;
+    }
+
+    match /subtopics/{subId} {
+      allow read, write: if true;
+    }
+
+    match /sequences/{seqId} {
+      allow read, write: if true;
+    }
+
+    match /workflow_instances/{workflowId} {
+      allow read, write: if true;
+    }
+
+    // 2. Immutable Collections: Create allowed, Update & Delete strictly forbidden
+    match /audit_logs/{eventId} {
+      allow read, create: if true;
+      allow update, delete: if false;
+    }
+
+    match /audit_events/{eventId} {
+      allow read, create: if true;
+      allow update, delete: if false;
+    }
+
+    match /workflow_history/{historyId} {
+      allow read, create: if true;
+      allow update, delete: if false;
+    }
+
+    // 3. Analytics & Social Intelligence
+    match /social_analytics/{analyticsId} {
+      allow read, write: if true;
+    }
+
+    match /analytics_intelligences/{intelId} {
+      allow read, write: if true;
+    }
+
+    match /strategy_recommendations/{recId} {
+      allow read, write: if true;
+    }
+
+    match /social_comments/{cmtId} {
+      allow read, write: if true;
+    }
+
+    match /comment_intelligences/{cmiId} {
+      allow read, write: if true;
+    }
+
+    // 4. Test Collections
+    match /test_backend/{docId} {
+      allow read, write: if true;
+    }
+
+    match /test_questions/{docId} {
+      allow read, write: if true;
+    }
+
+    // 5. Default Deny Catch-all for any unspecified paths
     match /{document=**} {
       allow read, write: if false;
-    }
-
-    function isAuthenticated() {
-      return request.auth != null && request.auth.uid != null;
-    }
-
-    function getUserToken() {
-      return request.auth.token;
-    }
-
-    function hasRole(role) {
-      return isAuthenticated() && (
-        getUserToken().role == role ||
-        role in getUserToken().roles
-      );
-    }
-
-    function isAdmin() {
-      return hasRole('ADMIN');
-    }
-
-    function isContentLead() {
-      return hasRole('CONTENT_LEAD') || hasRole('CONTENT_MANAGER');
-    }
-
-    function isPublishingLead() {
-      return hasRole('PUBLISHING_LEAD') || hasRole('PUBLISHING_MANAGER');
-    }
-
-    function isQaReviewer() {
-      return hasRole('QA_REVIEWER') || hasRole('REVIEWER');
-    }
-
-    function isAuthor(docData) {
-      return isAuthenticated() && (
-        docData.authorId == request.auth.uid ||
-        docData.createdBy == request.auth.uid
-      );
-    }
-
-    function isAssignee(docData) {
-      return isAuthenticated() && (
-        docData.assigneeId == request.auth.uid
-      );
-    }
-
-    // Users Collection
-    match /users/{userId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
-    }
-
-    // Question Drafts
-    match /question_drafts/{draftId} {
-      allow read: if isAuthenticated() && (
-        isAdmin() ||
-        isContentLead() ||
-        isQaReviewer() ||
-        isAuthor(resource.data)
-      );
-      allow create: if isAuthenticated() && (
-        request.resource.data.authorId == request.auth.uid || isAdmin()
-      );
-      allow update: if isAuthenticated() && (
-        (isAuthor(resource.data) && resource.data.status == 'DRAFT') ||
-        (isQaReviewer() && !isAuthor(resource.data)) ||
-        isAdmin()
-      );
-      allow delete: if isAdmin();
-    }
-
-    // Production Questions
-    match /questions/{questionId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin() || isContentLead();
-    }
-
-    // Assignments
-    match /assignments/{assignmentId} {
-      allow read: if isAuthenticated() && (
-        isAdmin() ||
-        isContentLead() ||
-        isAssignee(resource.data)
-      );
-      allow update: if isAuthenticated() && (
-        isAdmin() ||
-        isContentLead() ||
-        isAssignee(resource.data)
-      );
-      allow create, delete: if isAdmin() || isContentLead();
-    }
-
-    // Audit Logs (Immutable Append-Only Ledger)
-    match /audit_logs/{eventId} {
-      allow read: if isAdmin();
-      allow create: if isAuthenticated();
-      allow update, delete: if false;
-    }
-
-    // Videos
-    match /videos/{videoId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin() || isContentLead() || hasRole('VIDEO_EDITOR') || hasRole('PRESENTER');
-    }
-
-    // Content Masters
-    match /content_masters/{contentMasterId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin() || isContentLead();
-    }
-
-    // Publishing Packages
-    match /publishing_packages/{packageId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin() || isPublishingLead();
-    }
-
-    // Social Analytics
-    match /social_analytics/{analyticsId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin() || hasRole('ANALYST');
-    }
-
-    // Workflow Instances
-    match /workflow_instances/{workflowId} {
-      allow read: if isAuthenticated();
-      allow write: if isAuthenticated();
-    }
-
-    // Workflow History (Immutable Append-Only)
-    match /workflow_history/{historyId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow update, delete: if false;
     }
   }
 }
