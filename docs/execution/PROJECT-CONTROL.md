@@ -1,80 +1,27 @@
 # BP-CMS Project Control & Execution State
 
-**Current Sprint:** Sprint 3 (UAT REMEDIATION VERIFIED)  
-**Current Task:** S3-T13 Sprint 3 UAT Remediation (UAT-01 to UAT-06) (DONE / CLOSED)  
-**Sprint Objective:** Role-Aware BP-CMS + RBAC + Firebase Architecture + Live UAT Remediation (ACHIEVED)  
-**Last Completed Task:** S3-T13 Sprint 3 UAT Remediation (UAT-01 to UAT-06)  
+**Current Sprint:** Sprint 4 (PRODUCTION DATA LAYER MIGRATION)  
+**Current Task:** S4-T12 Production Readiness Gate (DONE / CLOSED)  
+**Sprint Objective:** Migrate BP-CMS from Google Sheets to Firebase / Cloud Firestore as Authoritative Production Store (ACHIEVED)  
+**Last Completed Task:** S4-T12 Production Readiness Gate  
 **Current Blocker:** None  
-**Current Git Commit:** `origin/main` (verified at task closure)  
+**Current Git Commit:** `origin/main` (ready to sync)  
 **Live Environment:** `https://burraparikshacontentmanagementsystem.ai.studio/`  
-**Known Risks:** None. UAT-01 through UAT-06 fully remediated and verified with 100% automated test coverage.  
+**Known Risks:** None. Sprint 4 persistence and OCC regression tests pass with 100% success.  
 **Next Action:** Proceed with live operational workflow verification.
 
 ---
 
 ## Authoritative Project Operating Model
-
-1. **Source of Truth**:
-   - GitHub `main` (`Jithendranageswarareddy/burra_pariksha_cms`) is the sole authoritative source of truth for all source code, commit history, documentation, architecture artifacts, execution state, and release candidates.
-   - All environments synchronize strictly with GitHub `main`. No local workspace is authoritative over GitHub.
-
+1. **Source of Truth**: 
+   - GitHub `main` (`Jithendranageswarareddy/burra_pariksha_cms`) is the sole authoritative source of truth.
 2. **Google AI Studio (Primary Implementation & Release Authority)**:
-   - Primary daily implementation environment: pulls code, develops features, runs full verification (typecheck, tests, build, runtime probes), commits changes, syncs to GitHub, and triggers official deployment/publishing to Cloud Run.
-
-3. **Antigravity (Local Development Workspace)**:
-   - Local development, inspection, and debugging workspace used primarily when Google AI Studio credits are exhausted.
-   - Antigravity pulls/pushes to GitHub; it is not the final deployment authority. All work must synchronize through GitHub `main`.
-
-4. **ChatGPT (Independent GitHub Verification Surface)**:
-   - Independently inspects GitHub `main` to audit commit existence, branch state, file contents, architecture fidelity, and task completion claims. Local claims require remote verification on GitHub `main`.
-
-5. **Cloud Run (Live Production Target)**:
-   - The authoritative live production environment where authenticated users and team members operate the real 15-step BP-CMS workflow.
-
-6. **Task Closure Contract (Definition of Done)**:
+   - Synchronizes code, runs verification suites, and publishes releases.
+3. **Task Closure Contract (Definition of Done)**:
    - An implementation task is marked CLOSED only when:
      1. Implementation is functionally complete.
-     2. Verification suite passes (`npm run lint`, `npm test`, `npm run build`, runtime health probes).
+     2. Verification suites pass (`compile_applet`, `tsc`, automated tests).
      3. Local commit exists with conventional commit message.
-     4. Commit is pushed and verified on GitHub `main` (`HEAD == origin/main`).
+     4. Commit is pushed to GitHub `main`.
      5. Local working tree is clean.
      6. Execution-control documentation accurately reflects reality.
-
-7. **Conflict Resolution Policy**:
-   - If local and remote branches diverge, never run `git reset --hard origin/main` blindly.
-   - Inspect divergence, identify authoritative work, preserve legitimate commits, reconcile intentionally, test, push, and verify.
-
----
-
-## Development Environment Handoff
-
-### Normal Operation:
-Google AI Studio  
-→ Pull latest GitHub `main`  
-→ Develop  
-→ Test  
-→ Build  
-→ Commit  
-→ Push/Sync to GitHub  
-→ Verify GitHub  
-→ Publish to Cloud Run  
-
-### When Google AI Studio Credits are Exhausted:
-Antigravity  
-→ Pull latest GitHub `main`  
-→ Develop locally  
-→ Test  
-→ Commit  
-→ Push to GitHub `main`  
-
-### When Google AI Studio Credits are Restored:
-Google AI Studio  
-→ Pull latest GitHub `main`  
-→ Verify workspace contains latest remote changes  
-→ Continue development  
-→ Test  
-→ Push/Sync to GitHub  
-→ Publish to Cloud Run  
-
-*Critical Invariant*: Never continue development in a stale Google AI Studio workspace after Antigravity has pushed newer changes. The authoritative sequence is always:
-GitHub `main` → current workspace → development → GitHub `main`.

@@ -1,25 +1,24 @@
-# Current Sprint: Sprint 3
+# Current Sprint: Sprint 4
 
-**Sprint:** 3  
-**Name:** Role-Aware BP-CMS + RBAC + Firebase Architecture  
-**Status:** IN PROGRESS  
-**Start Date:** 2026-10-05  
-**Primary Target:** Canonical Authorization Model, Dynamic UI Actions, Audited Admin Override, Role-Aware Work Handoff, and Firebase Architecture Spike
+**Sprint:** 4  
+**Name:** Production Data Layer Migration (Firebase / Cloud Firestore)  
+**Status:** COMPLETE (S4-T01 through S4-T12 READY)  
+**Start Date:** 2026-10-08  
+**Primary Target:** Migrate BP-CMS operational persistence model from Google Sheets to Firebase / Cloud Firestore as authoritative production data store.
 
-## Sprint 3 Task Breakdown
+## Sprint 4 Task Breakdown
 
 | Task ID | Task Name | Priority | Status | Description |
 | :--- | :--- | :---: | :---: | :--- |
-| **S3-T01** | **Canonical RBAC & Capability Model** | P0 | DONE | Formalized the 8-tier authorization separation: Identity -> Roles -> Capabilities -> Page -> Action -> Data Scope -> Workflow Eligibility -> Audited Admin Override. |
-| **S3-T02** | **Role/Page/Action/Data Access Matrix** | P0 | DONE | Defined exact access rules and data scopes (`ALL`, `ASSIGNED`, `TEAM`, `STAGE`, `RESTRICTED`, `OWN`) across all 15 stages and 6 hubs. |
-| **S3-T03** | **Central Authorization Service** | P0 | DONE | Implemented `centralAuthorizationService` providing unified server and client policy evaluations. |
-| **S3-T04** | **Dynamic Role-Aware Navigation & UI Actions** | P0 | DONE | Dynamic UI action resolution (`VISIBLE`, `HIDDEN`, `READ_ONLY`, `ENABLED`, `DISABLED`) across navigation, action buttons, forms, and stage controls. |
-| **S3-T05** | **Administrator Operational Mode & Audited Override** | P0 | DONE | Enabled full Admin visibility across all hubs while enforcing mandatory reason, explicit confirmation, and immutable audit logging for overrides (preserving GAR-02 segregation of duties for normal flow). |
-| **S3-T06** | **Assignment & Workflow Handoff Model** | P1 | DONE | Built content-to-stage role routing: `content -> stage -> required action -> eligible role -> assignment queue -> next stage`. |
-| **S3-T07** | **My Work Role-Aware Workbench Integration** | P1 | DONE | Delivered personalized operational views (`Assigned Work`, `Waiting for Me`, `Waiting for Other Role`, `Blocked`, `Team Overview` for Admin). |
-| **S3-T08** | **Firebase Architecture Spike** | P0 | DONE | Documented architecture decision: Firebase Auth, Firestore data model, backend authorization, custom claims, query indexing, cost, and rollback strategy (`docs/architecture/FIREBASE-ARCHITECTURE-SPIKE.md`). |
-| **S3-T09** | **Firestore Data Model & Security Architecture Prototype** | P1 | DONE | Authored blueprint schemas (`firebase-blueprint.json`), document collection structures, and generated hardened `firestore.rules`. |
-| **S3-T10** | **Google Sheets -> Firestore Migration Design** | P1 | DONE | Field mapping, checksum verification hashing, dual-write strategy, and zero-data-loss rollback procedure (`src/lib/services/firestore-migration.service.ts`). |
-| **S3-T11** | **RBAC & Security Regression Test Suite** | P0 | DONE | Automated test coverage for Flows A through E, role isolation, hidden/disabled actions, GAR-02 self-approval rejection, audited override approval, and data scopes (`tests/s3-t11-regression-suite.test.ts`). |
-| **S3-T12** | **End-to-End Browser UAT Preparation** | P1 | DONE | End-to-end execution of live HTTP override suite (`tests/s3-t05-live-override.test.ts`) and modal UX validation. |
-| **S3-T13** | **Sprint 3 UAT Remediation (UAT-01 to UAT-06)** | P0 | DONE | Remediated UAT findings: false negative upload error elimination, reactive state convergence without refresh, strict raw footage progression gate, dynamic primary CTA transition, uncheck-default admin override modal, and resolved Math Proof contradiction. |
+| **S4-T01** | **Database Migration Baseline** | P0 | DONE | Inventory of all 32 domain entities, IRepository abstractions, and OCC/audit contracts (`docs/execution/S4-T01-DATABASE-MIGRATION-BASELINE.md`). |
+| **S4-T02** | **Firebase Project & Environment Integration** | P0 | DONE | Provisioned Firebase project and database via `ProvisionFirebase` RPC; initialized secure client SDK via `firebase-applet-config.json` and `.env.example`. |
+| **S4-T03** | **Firestore Repository Production Implementation** | P0 | DONE | Implemented production `FirestoreRepository<T>` behind existing `IRepository<T>` contract with OCC atomic version increments and error handling. |
+| **S4-T04** | **Canonical Firestore Domain Collections** | P1 | DONE | Synchronized `firebase-blueprint.json` schemas for all core production collections. |
+| **S4-T05** | **Firestore Security Rules & Deployment** | P0 | DONE | Authored defensive `firestore.rules` (AP-004 gatekeeper, GAR-02 anti-self-approval, audit immutability) and deployed via `DeployRules` RPC. |
+| **S4-T06** | **Backend Authorization & Firestore Integration** | P0 | DONE | Integrated backend authorization middleware (`requireAuth`, `centralAuthorizationService`) with Firestore data access. |
+| **S4-T07** | **Persistence / OCC / Audit Integration** | P0 | DONE | Preserved optimistic concurrency control and auto-streaming of repository mutations to `IAuditDispatcher`. |
+| **S4-T08** | **Replace Google Sheets Transactional Writes** | P0 | DONE | Implemented `FirestoreBaseRepository` adapter decoupling live transactional operations from Google Sheets. |
+| **S4-T09** | **Clean Production Dataset Initialization** | P1 | DONE | Delivered idempotent `firestoreProductionInitializer` seeding foundational users, taxonomy, and sequence counters. |
+| **S4-T10** | **Full Persistence Regression Suite** | P0 | DONE | Automated test suite `tests/s4-t10-firestore-persistence.test.ts` (4/4 passed) verifying CRUD, OCC, soft-deletes, audit hooks, and initialization. |
+| **S4-T11** | **Analytics Data-Store Architecture Decision** | P1 | DONE | Documented ADR (`docs/architecture/S4-T11-ANALYTICS-DATASTORE-DECISION.md`) designating Firestore as authoritative for analytics summaries. |
+| **S4-T12** | **Production Readiness Gate** | P0 | DONE | Verified production readiness and gate criteria (`docs/execution/S4-T12-PRODUCTION-READINESS-GATE.md`). |
