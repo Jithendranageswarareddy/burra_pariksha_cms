@@ -1,17 +1,16 @@
 /**
  * BURRA PARIKSHA CMS — Cloud Firestore Security Rules Test Suite
- * Sprint 4: Option A (Backend-Only Authoritative Gateway Architecture)
+ * Sprint 4 / Admin SDK Architecture
  *
  * Verifies that:
- * 1. Default-deny catch-all blocks unapproved paths
- * 2. Direct unauthenticated client writes to audit_logs are blocked
- * 3. Backend service can create audit logs, but cannot update or delete them (immutability)
- * 4. Direct unauthenticated client writes to workflow_history are blocked
- * 5. Backend service can create workflow history, but cannot update or delete them (immutability)
+ * 1. Default-deny catch-all blocks unapproved paths for unauthenticated clients
+ * 2. Direct unauthenticated client writes / updates to audit_logs are blocked by rules
+ * 3. Direct unauthenticated client writes / updates to workflow_history are blocked by rules
+ * 4. Backend Admin SDK operates authoritatively server-side
  *
  * TEST ISOLATION GUARDS:
  * - Uses neutral synthetic markers: testOnly: true, environment: 'TEST'
- * - Cleaned up where permitted or explicitly scoped to dedicated test doc IDs
+ * - Cleaned up immediately via Admin SDK
  */
 
 import assert from 'node:assert';
@@ -25,7 +24,7 @@ import {
   terminate,
 } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
-import { getBackendFirestore } from '../src/lib/firebase/server-auth';
+import { getAdminFirestore } from '../src/lib/firebase/admin';
 
 async function runFirestoreRulesTests() {
   console.log('============================================================');
@@ -37,7 +36,7 @@ async function runFirestoreRulesTests() {
 
   const app = initializeApp(firebaseConfig);
   const clientDb = getFirestore(app, (firebaseConfig as any).firestoreDatabaseId);
-  const backendDb = await getBackendFirestore();
+  const adminDb = getAdminFirestore();
 
   // --------------------------------------------------------------------------
   // Rule Test 1: Catch-all Default Deny on Unauthorized Paths
@@ -64,15 +63,14 @@ async function runFirestoreRulesTests() {
   }
 
   // --------------------------------------------------------------------------
-  // Rule Test 2: Audit Logs Immutability (Backend create succeeds, update/delete blocked)
+  // Rule Test 2: Audit Logs Immutability (Client update/delete blocked)
   // --------------------------------------------------------------------------
   try {
-    console.log('\n--- Test 2: Verifying Audit Logs Immutability (Update Blocked) ---');
+    console.log('\n--- Test 2: Verifying Audit Logs Immutability (Client Update/Delete Blocked) ---');
     const auditId = `aud_immutability_${Date.now()}`;
-    const auditDocRef = doc(backendDb, 'audit_logs', auditId);
 
-    // Backend create must succeed
-    await setDoc(auditDocRef, {
+    // Backend create via Admin SDK
+    await adminDb.collection('audit_logs').doc(auditId).set({
       action: 'TEST_AUDIT',
       actorId: 'usr_test_1',
       timestamp: new Date().toISOString(),
@@ -81,25 +79,30 @@ async function runFirestoreRulesTests() {
       environment: 'TEST',
     });
 
-    // Update must be strictly rejected
+    const clientAuditDocRef = doc(clientDb, 'audit_logs', auditId);
+
+    // Client update must be strictly rejected
     let updateBlocked = false;
     try {
-      await updateDoc(auditDocRef, { action: 'TAMPERED_ACTION' });
+      await updateDoc(clientAuditDocRef, { action: 'TAMPERED_ACTION' });
     } catch (err: any) {
       updateBlocked = err.code === 'permission-denied' || err.message?.includes('Missing or insufficient permissions');
     }
     assert.strictEqual(updateBlocked, true, 'Audit log update must be rejected by security rules');
 
-    // Delete must be strictly rejected
+    // Client delete must be strictly rejected
     let deleteBlocked = false;
     try {
-      await deleteDoc(auditDocRef);
+      await deleteDoc(clientAuditDocRef);
     } catch (err: any) {
       deleteBlocked = err.code === 'permission-denied' || err.message?.includes('Missing or insufficient permissions');
     }
     assert.strictEqual(deleteBlocked, true, 'Audit log deletion must be rejected by security rules');
 
-    console.log('✓ TC-RULE-02 PASSED: Audit log immutability (no update/delete) strictly enforced.');
+    // Clean up via Admin SDK
+    await adminDb.collection('audit_logs').doc(auditId).delete();
+
+    console.log('✓ TC-RULE-02 PASSED: Audit log immutability against client tampering strictly enforced.');
     passed++;
   } catch (err: any) {
     console.error('✗ TC-RULE-02 FAILED:', err.message);
@@ -107,15 +110,14 @@ async function runFirestoreRulesTests() {
   }
 
   // --------------------------------------------------------------------------
-  // Rule Test 3: Workflow History Immutability (Backend create succeeds, update blocked)
+  // Rule Test 3: Workflow History Immutability (Client update blocked)
   // --------------------------------------------------------------------------
   try {
-    console.log('\n--- Test 3: Verifying Workflow History Immutability ---');
+    console.log('\n--- Test 3: Verifying Workflow History Immutability (Client Update Blocked) ---');
     const historyId = `BP-TEST-WFH-${Date.now()}`;
-    const historyDocRef = doc(backendDb, 'workflow_history', historyId);
 
-    // Backend create must succeed
-    await setDoc(historyDocRef, {
+    // Backend create via Admin SDK
+    await adminDb.collection('workflow_history').doc(historyId).set({
       fromStage: 1,
       toStage: 2,
       timestamp: new Date().toISOString(),
@@ -123,22 +125,22 @@ async function runFirestoreRulesTests() {
       environment: 'TEST',
     });
 
-    // Update must be blocked
+    const clientHistoryDocRef = doc(clientDb, 'workflow_history', historyId);
+
+    // Client update must be blocked
     let updateBlocked = false;
     try {
-      await updateDoc(historyDocRef, { toStage: 15 });
+      await updateDoc(clientHistoryDocRef, { toStage: 15 });
     } catch (err: any) {
       updateBlocked = err.code === 'permission-denied' || err.message?.includes('Missing or insufficient permissions');
     }
     assert.strictEqual(updateBlocked, true, 'Workflow history update must be rejected');
 
+    // Clean up via Admin SDK
+    await adminDb.collection('workflow_history').doc(historyId).delete();
+
     console.log('✓ TC-RULE-03 PASSED: Workflow history immutability strictly enforced.');
     passed++;
-
-    // Teardown test record
-    try {
-      await deleteDoc(historyDocRef);
-    } catch {}
   } catch (err: any) {
     console.error('✗ TC-RULE-03 FAILED:', err.message);
     failed++;
@@ -150,7 +152,7 @@ async function runFirestoreRulesTests() {
 
   try {
     await terminate(clientDb);
-    await terminate(backendDb);
+    await adminDb.terminate();
   } catch {}
 
   process.exit(failed > 0 ? 1 : 0);

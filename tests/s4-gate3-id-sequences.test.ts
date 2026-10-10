@@ -19,8 +19,7 @@ import assert from 'node:assert';
 import { idService } from '../src/lib/services/id.service';
 import { SEQUENCE_ENTITIES } from '../src/lib/schemas/google-sheets-schema';
 import { sequencesRepository } from '../src/lib/repositories/sequences.repository';
-import { terminate } from 'firebase/firestore';
-import { getBackendFirestore } from '../src/lib/firebase/server-auth';
+import { getAdminFirestore } from '../src/lib/firebase/admin';
 
 async function testGate3Sequences() {
   console.log('============================================================');
@@ -95,8 +94,7 @@ async function testGate3Sequences() {
     failed++;
   } finally {
     try {
-      const db = await getBackendFirestore();
-      await terminate(db);
+      await getAdminFirestore().terminate();
     } catch {}
   }
 

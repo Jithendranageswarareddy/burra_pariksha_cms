@@ -21,8 +21,7 @@ import { FirestoreRepository } from '../src/lib/db/firestore.repository';
 import { BaseEntity, RepositoryAuditEvent } from '../src/lib/db/repository.interface';
 import { ConcurrencyConflictError } from '../src/lib/errors';
 import { firestoreProductionInitializer } from '../src/lib/services/firestore-production-initializer.service';
-import { terminate } from 'firebase/firestore';
-import { db } from '../src/lib/firebase/config';
+import { getAdminFirestore } from '../src/lib/firebase/admin';
 import { SYNTHETIC_TEST_MARKERS } from './fixtures/synthetic-test-fixtures';
 
 interface TestQuestionRecord extends BaseEntity {
@@ -202,7 +201,7 @@ async function runS4PersistenceTests() {
   console.log('============================================================\n');
 
   try {
-    await terminate(db);
+    await getAdminFirestore().terminate();
   } catch {}
 
   if (failed > 0) {

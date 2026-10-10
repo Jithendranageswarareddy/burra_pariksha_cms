@@ -29,8 +29,7 @@ import { centralAuthorizationService } from '../src/lib/services/central-authori
 import { AuthorizationResource, AuthorizationAction, CanonicalRbacRole } from '../src/types/rbac-models';
 import { FirestoreRepository } from '../src/lib/db/firestore.repository';
 import { QuestionStatus } from '../src/types';
-import { getBackendFirestore } from '../src/lib/firebase/server-auth';
-import { terminate } from 'firebase/firestore';
+import { getAdminFirestore } from '../src/lib/firebase/admin';
 
 function makeRequest(
   port: number,
@@ -147,7 +146,7 @@ async function runEndToEndApplicationPathValidation() {
       if (!decision.allowed) {
         return res.status(403).json({
           error: 'Forbidden: Insufficient RBAC permissions',
-          reason: decision.reason,
+          reason: (decision as any).reason,
         });
       }
 
@@ -463,8 +462,7 @@ async function runEndToEndApplicationPathValidation() {
   console.log('============================================================\n');
 
   try {
-    const db = await getBackendFirestore();
-    await terminate(db);
+    await getAdminFirestore().terminate();
   } catch {}
 
   process.exit(failed > 0 ? 1 : 0);

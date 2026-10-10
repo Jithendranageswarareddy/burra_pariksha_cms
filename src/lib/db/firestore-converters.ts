@@ -32,8 +32,8 @@ export function fromFirestoreValue(val: any): any {
   if ('arrayValue' in val) return (val.arrayValue.values || []).map(fromFirestoreValue);
   if ('mapValue' in val) {
     const res: Record<string, any> = {};
-    for (const [key, val] of Object.entries(val.mapValue.fields || {})) {
-      res[key] = fromFirestoreValue(val);
+    for (const [key, fieldVal] of Object.entries(val.mapValue.fields || {})) {
+      res[key] = fromFirestoreValue(fieldVal);
     }
     return res;
   }
@@ -48,10 +48,10 @@ export function entityToFirestoreDocument<T extends BaseEntity>(entity: T): any 
   return { fields };
 }
 
-export function firestoreDocumentToEntity<T extends BaseEntity>(doc: any): T {
+export function firestoreDocumentToEntity<T = any>(doc: any): T {
   const res: Record<string, any> = {};
-  for (const [key, val] of Object.entries(doc.fields || {})) {
-    res[key] = fromFirestoreValue(val);
+  for (const [key, fieldVal] of Object.entries(doc.fields || {})) {
+    res[key] = fromFirestoreValue(fieldVal);
   }
   return res as T;
 }

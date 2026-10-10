@@ -21,8 +21,7 @@
 
 import assert from 'node:assert';
 import { FirestoreRepository } from '../src/lib/db/firestore.repository';
-import { terminate } from 'firebase/firestore';
-import { db } from '../src/lib/firebase/config';
+import { getAdminFirestore } from '../src/lib/firebase/admin';
 import { SYNTHETIC_TEST_MARKERS } from './fixtures/synthetic-test-fixtures';
 
 async function run15StepPersistenceTest() {
@@ -223,7 +222,7 @@ async function run15StepPersistenceTest() {
   console.log('============================================================\n');
 
   try {
-    await terminate(db);
+    await getAdminFirestore().terminate();
   } catch {}
 
   if (failed > 0) process.exit(1);

@@ -1,27 +1,17 @@
 /**
  * BURRA PARIKSHA CMS — Cloud Firestore Production Server-Side Repository Adapter
- * Sprint 4: Option A (Backend-Only Authoritative Gateway Architecture)
+ * Sprint 4 / Phase 3: Firebase Admin SDK Authoritative Architecture
  *
  * Implements authoritative generic repository contract IRepository<T> against Cloud Firestore:
- * - Uses privileged server-side authenticated Firestore instance (uid: backend-service)
- * - Atomic Optimistic Concurrency Control (OCC) via runTransaction
+ * - Uses privileged server-side Firebase Admin SDK (direct server-side Firestore)
+ * - Atomic Optimistic Concurrency Control (OCC) via native Admin runTransaction
  * - Soft-deletion filtering (isDeleted = true excluded by default)
  * - FAIL CLOSED: NEVER silently falls back to in-memory on database or permission errors.
  * - Diagnostic firestore error serialization with handleFirestoreError
  */
 
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  setDoc,
-  query,
-  limit as firestoreLimit,
-  runTransaction,
-  Firestore,
-} from 'firebase/firestore';
-import { getBackendFirestore } from '../firebase/server-auth';
+import { Firestore, Query } from 'firebase-admin/firestore';
+import { getAdminFirestore } from '../firebase/admin';
 import { handleFirestoreError, OperationType } from '../firebase/errors';
 import {
   BaseEntity,
@@ -57,7 +47,7 @@ export class FirestoreRepository<T extends BaseEntity> implements IRepository<T>
   }
 
   private async getDb(): Promise<Firestore> {
-    return getBackendFirestore();
+    return getAdminFirestore();
   }
 
   public onMutation(hook: AuditHook<T>): void {
@@ -84,14 +74,15 @@ export class FirestoreRepository<T extends BaseEntity> implements IRepository<T>
 
     try {
       const db = await this.getDb();
-      const docRef = doc(db, this.collectionName, id);
-      const snap = await getDoc(docRef);
+      const docRef = db.collection(this.collectionName).doc(id);
+      const snap = await docRef.get();
 
-      if (!snap.exists()) {
+      if (!snap.exists) {
         return null;
       }
 
-      const entity = snap.data() as T;
+      const raw = snap.data();
+      const entity = { ...raw, id: (raw as any)?.id || snap.id } as T;
       if (entity.isDeleted && !options?.includeDeleted) {
         return null;
       }
@@ -132,8 +123,8 @@ export class FirestoreRepository<T extends BaseEntity> implements IRepository<T>
 
     try {
       const db = await this.getDb();
-      const docRef = doc(db, this.collectionName, id);
-      await setDoc(docRef, newEntity);
+      const docRef = db.collection(this.collectionName).doc(id);
+      await docRef.set(newEntity);
 
       await this.notifyAudit({
         action: 'CREATE',
@@ -166,16 +157,17 @@ export class FirestoreRepository<T extends BaseEntity> implements IRepository<T>
 
     try {
       const db = await this.getDb();
-      const docRef = doc(db, this.collectionName, id);
+      const docRef = db.collection(this.collectionName).doc(id);
 
-      updatedEntity = await runTransaction(db, async (tx) => {
+      updatedEntity = await db.runTransaction(async (tx) => {
         const snap = await tx.get(docRef);
-        if (!snap.exists()) {
+        if (!snap.exists) {
           throw new NotFoundError(`Resource '${this.collectionName}' with id '${id}' not found.`);
         }
 
-        const current = snap.data() as T;
-        if (current.isDeleted && !physical) {
+        const raw = snap.data();
+        const current = { ...raw, id: (raw as any)?.id || snap.id } as T;
+        if (current.isDeleted) {
           throw new NotFoundError(`Resource '${this.collectionName}' with id '${id}' not found (deleted).`);
         }
 
@@ -186,9 +178,14 @@ export class FirestoreRepository<T extends BaseEntity> implements IRepository<T>
         previousVersion = current.version;
         const nextVersion = current.version + 1;
 
+        const cleanPatch: any = {};
+        for (const [k, v] of Object.entries(patch as any)) {
+          if (v !== undefined) cleanPatch[k] = v;
+        }
+
         const merged: T = {
           ...current,
-          ...(patch as any),
+          ...cleanPatch,
           id: current.id,
           createdAt: current.createdAt,
           version: nextVersion,
@@ -234,15 +231,16 @@ export class FirestoreRepository<T extends BaseEntity> implements IRepository<T>
 
     try {
       const db = await this.getDb();
-      const docRef = doc(db, this.collectionName, id);
+      const docRef = db.collection(this.collectionName).doc(id);
 
-      await runTransaction(db, async (tx) => {
+      await db.runTransaction(async (tx) => {
         const snap = await tx.get(docRef);
-        if (!snap.exists()) {
+        if (!snap.exists) {
           throw new NotFoundError(`Resource '${this.collectionName}' with id '${id}' not found.`);
         }
 
-        const current = snap.data() as T;
+        const raw = snap.data();
+        const current = { ...raw, id: (raw as any)?.id || snap.id } as T;
         if (current.isDeleted && !physical) {
           throw new NotFoundError(`Resource '${this.collectionName}' with id '${id}' not found (already deleted).`);
         }
@@ -293,15 +291,17 @@ export class FirestoreRepository<T extends BaseEntity> implements IRepository<T>
 
     try {
       const db = await this.getDb();
-      const colRef = collection(db, this.collectionName);
-      let q = query(colRef);
+      let q: Query = db.collection(this.collectionName);
 
       if (options?.limit) {
-        q = query(colRef, firestoreLimit(options.limit));
+        q = q.limit(options.limit);
       }
 
-      const snap = await getDocs(q);
-      let list = snap.docs.map((d) => d.data() as T);
+      const snap = await q.get();
+      let list = snap.docs.map((d) => {
+        const data = d.data();
+        return { ...data, id: (data as any)?.id || d.id } as T;
+      });
 
       if (!options?.includeDeleted) {
         list = list.filter((e) => !e.isDeleted);
@@ -336,4 +336,4 @@ export class FirestoreRepository<T extends BaseEntity> implements IRepository<T>
   }
 }
 
-export * from "./firestore-converters";
+export * from './firestore-converters';

@@ -5,20 +5,19 @@
  * testing runs, including:
  * - Documents with test identifiers (e.g. 'aud_rule_test_*', 'test_aud_*', 'wfh_rule_test_*')
  * - Documents in 'test_questions' collection
- * - Documents with test questions / test content masters (e.g. BP-Q-000001 through BP-Q-000008, BP-CNT-000001 through BP-CNT-000008, BP-Q-backend-test-*, BP-Q-server-test-*, etc.)
- * - Documents in 'scripts', 'videos', 'thumbnails', 'publishing_packages', 'workflow_instances', 'social_analytics' created by s4-15-step-persistence.test.ts
+ * - Documents with test questions / test content masters
+ * - Documents in 'scripts', 'videos', 'thumbnails', 'publishing_packages', 'workflow_instances', 'social_analytics' created by tests
  * - Test sequence tracking records in 'sequences' tab created by test runs
  *
- * Verifies ZERO test documents remain.
+ * Uses Firebase Admin SDK.
  */
 
-import { getBackendFirestore } from '../src/lib/firebase/server-auth';
-import { collection, getDocs, deleteDoc, doc, terminate } from 'firebase/firestore';
+import { getAdminFirestore } from '../src/lib/firebase/admin';
 
 async function purgeTestRecords() {
-  const db = await getBackendFirestore();
+  const db = getAdminFirestore();
   console.log('============================================================');
-  console.log('PURGING TEST DOCUMENTS FROM CLOUD FIRESTORE');
+  console.log('PURGING TEST DOCUMENTS FROM CLOUD FIRESTORE (ADMIN SDK)');
   console.log('============================================================\n');
 
   let purgedCount = 0;
@@ -26,9 +25,9 @@ async function purgeTestRecords() {
 
   // 1. Purge test_questions collection completely
   try {
-    const testQSnap = await getDocs(collection(db, 'test_questions'));
+    const testQSnap = await db.collection('test_questions').get();
     for (const d of testQSnap.docs) {
-      await deleteDoc(doc(db, 'test_questions', d.id));
+      await d.ref.delete();
       purgedDetails.push({ collection: 'test_questions', id: d.id, reason: 'test collection record' });
       purgedCount++;
     }
@@ -38,7 +37,7 @@ async function purgeTestRecords() {
 
   // 2. Purge test records in questions
   try {
-    const qSnap = await getDocs(collection(db, 'questions'));
+    const qSnap = await db.collection('questions').get();
     for (const d of qSnap.docs) {
       const data = d.data();
       const qText = String(data.question || data.questionText || '');
@@ -47,6 +46,7 @@ async function purgeTestRecords() {
         d.id.startsWith('BP-Q-backend-test-') ||
         d.id.startsWith('BP-Q-server-test-') ||
         d.id.startsWith('BP-Q-domain-test-') ||
+        d.id.startsWith('BP-TEST-Q-') ||
         d.id === 'BP-Q-ad65912f-03ae-460f-b7d9-c144264885b0' ||
         d.id === 'BP-Q-562998fb-08b3-4ddd-b7e1-2319f66fa07e' ||
         d.id === 'BP-Q-94069d9e-7cce-4785-9e04-a04f10fb254f' ||
@@ -62,7 +62,7 @@ async function purgeTestRecords() {
         data.testOnly === true;
 
       if (isTestDoc) {
-        await deleteDoc(doc(db, 'questions', d.id));
+        await d.ref.delete();
         purgedDetails.push({ collection: 'questions', id: d.id, reason: `test question: ${qText.slice(0, 40)}` });
         purgedCount++;
       }
@@ -73,12 +73,13 @@ async function purgeTestRecords() {
 
   // 3. Purge test records in content_masters
   try {
-    const cmSnap = await getDocs(collection(db, 'content_masters'));
+    const cmSnap = await db.collection('content_masters').get();
     for (const d of cmSnap.docs) {
       const data = d.data();
       const title = String(data.title || '');
       const isTestDoc =
         d.id.startsWith('BP-CNT-00000') ||
+        d.id.startsWith('BP-TEST-') ||
         d.id === 'BP-CNT-888888' ||
         d.id === 'BP-CNT-777777' ||
         title.includes('thermodynamics') ||
@@ -91,7 +92,7 @@ async function purgeTestRecords() {
         data.testOnly === true;
 
       if (isTestDoc) {
-        await deleteDoc(doc(db, 'content_masters', d.id));
+        await d.ref.delete();
         purgedDetails.push({ collection: 'content_masters', id: d.id, reason: `test content master: ${title.slice(0, 40)}` });
         purgedCount++;
       }
@@ -102,7 +103,7 @@ async function purgeTestRecords() {
 
   // 4. Purge test records in question_drafts
   try {
-    const dSnap = await getDocs(collection(db, 'question_drafts'));
+    const dSnap = await db.collection('question_drafts').get();
     for (const d of dSnap.docs) {
       const data = d.data();
       const title = String(data.title || '');
@@ -110,10 +111,11 @@ async function purgeTestRecords() {
         title.includes('Solar System') ||
         title.includes('Thermodynamics') ||
         data.testOnly === true ||
-        d.id.startsWith('BP-DFT-');
+        d.id.startsWith('BP-DFT-') ||
+        d.id.startsWith('BP-TEST-');
 
       if (isTestDoc) {
-        await deleteDoc(doc(db, 'question_drafts', d.id));
+        await d.ref.delete();
         purgedDetails.push({ collection: 'question_drafts', id: d.id, reason: `test draft: ${title}` });
         purgedCount++;
       }
@@ -124,16 +126,17 @@ async function purgeTestRecords() {
 
   // 5. Purge test records in scripts
   try {
-    const sSnap = await getDocs(collection(db, 'scripts'));
+    const sSnap = await db.collection('scripts').get();
     for (const d of sSnap.docs) {
       const data = d.data();
       const isTestDoc =
         data.contentMasterId === 'BP-CNT-888888' ||
         d.id.startsWith('BP-S-') ||
+        d.id.startsWith('BP-TEST-') ||
         data.testOnly === true;
 
       if (isTestDoc) {
-        await deleteDoc(doc(db, 'scripts', d.id));
+        await d.ref.delete();
         purgedDetails.push({ collection: 'scripts', id: d.id, reason: 'test script record' });
         purgedCount++;
       }
@@ -144,16 +147,17 @@ async function purgeTestRecords() {
 
   // 6. Purge test records in videos
   try {
-    const vSnap = await getDocs(collection(db, 'videos'));
+    const vSnap = await db.collection('videos').get();
     for (const d of vSnap.docs) {
       const data = d.data();
       const isTestDoc =
         data.contentMasterId === 'BP-CNT-888888' ||
         d.id.startsWith('BP-V-') ||
+        d.id.startsWith('BP-TEST-') ||
         data.testOnly === true;
 
       if (isTestDoc) {
-        await deleteDoc(doc(db, 'videos', d.id));
+        await d.ref.delete();
         purgedDetails.push({ collection: 'videos', id: d.id, reason: 'test video record' });
         purgedCount++;
       }
@@ -164,16 +168,17 @@ async function purgeTestRecords() {
 
   // 7. Purge test records in thumbnails
   try {
-    const tSnap = await getDocs(collection(db, 'thumbnails'));
+    const tSnap = await db.collection('thumbnails').get();
     for (const d of tSnap.docs) {
       const data = d.data();
       const isTestDoc =
         data.contentMasterId === 'BP-CNT-888888' ||
         d.id.startsWith('BP-T-') ||
+        d.id.startsWith('BP-TEST-') ||
         data.testOnly === true;
 
       if (isTestDoc) {
-        await deleteDoc(doc(db, 'thumbnails', d.id));
+        await d.ref.delete();
         purgedDetails.push({ collection: 'thumbnails', id: d.id, reason: 'test thumbnail record' });
         purgedCount++;
       }
@@ -184,16 +189,17 @@ async function purgeTestRecords() {
 
   // 8. Purge test records in publishing_packages
   try {
-    const pSnap = await getDocs(collection(db, 'publishing_packages'));
+    const pSnap = await db.collection('publishing_packages').get();
     for (const d of pSnap.docs) {
       const data = d.data();
       const isTestDoc =
         data.contentMasterId === 'BP-CNT-888888' ||
         d.id.startsWith('BP-PUB-') ||
+        d.id.startsWith('BP-TEST-') ||
         data.testOnly === true;
 
       if (isTestDoc) {
-        await deleteDoc(doc(db, 'publishing_packages', d.id));
+        await d.ref.delete();
         purgedDetails.push({ collection: 'publishing_packages', id: d.id, reason: 'test publishing package record' });
         purgedCount++;
       }
@@ -204,16 +210,17 @@ async function purgeTestRecords() {
 
   // 9. Purge test records in workflow_instances
   try {
-    const wSnap = await getDocs(collection(db, 'workflow_instances'));
+    const wSnap = await db.collection('workflow_instances').get();
     for (const d of wSnap.docs) {
       const data = d.data();
       const isTestDoc =
         data.entityId === 'BP-CNT-888888' ||
         d.id.startsWith('wfl_') ||
+        d.id.startsWith('BP-TEST-') ||
         data.testOnly === true;
 
       if (isTestDoc) {
-        await deleteDoc(doc(db, 'workflow_instances', d.id));
+        await d.ref.delete();
         purgedDetails.push({ collection: 'workflow_instances', id: d.id, reason: 'test workflow instance' });
         purgedCount++;
       }
@@ -224,16 +231,17 @@ async function purgeTestRecords() {
 
   // 10. Purge test records in social_analytics
   try {
-    const aSnap = await getDocs(collection(db, 'social_analytics'));
+    const aSnap = await db.collection('social_analytics').get();
     for (const d of aSnap.docs) {
       const data = d.data();
       const isTestDoc =
         data.contentId === 'BP-CNT-888888' ||
         d.id.startsWith('BP-ANL-') ||
+        d.id.startsWith('BP-TEST-') ||
         data.testOnly === true;
 
       if (isTestDoc) {
-        await deleteDoc(doc(db, 'social_analytics', d.id));
+        await d.ref.delete();
         purgedDetails.push({ collection: 'social_analytics', id: d.id, reason: 'test analytics record' });
         purgedCount++;
       }
@@ -244,10 +252,10 @@ async function purgeTestRecords() {
 
   // 11. Purge test records in sequences
   try {
-    const sSnap = await getDocs(collection(db, 'sequences'));
+    const sSnap = await db.collection('sequences').get();
     for (const d of sSnap.docs) {
       if (d.id.startsWith('ent_')) {
-        await deleteDoc(doc(db, 'sequences', d.id));
+        await d.ref.delete();
         purgedDetails.push({ collection: 'sequences', id: d.id, reason: 'test sequence record' });
         purgedCount++;
       }
@@ -259,7 +267,7 @@ async function purgeTestRecords() {
   console.log(`Successfully purged ${purgedCount} test documents from Cloud Firestore.`);
   console.log('Sample purged records:', purgedDetails.slice(0, 10));
 
-  await terminate(db);
+  await db.terminate();
 }
 
 purgeTestRecords().catch((err) => {

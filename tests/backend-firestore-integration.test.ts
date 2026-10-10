@@ -20,8 +20,7 @@ import assert from 'node:assert';
 import { FirestoreRepository } from '../src/lib/db/firestore.repository';
 import { BaseEntity } from '../src/lib/db/repository.interface';
 import { ConcurrencyConflictError } from '../src/lib/errors';
-import { terminate } from 'firebase/firestore';
-import { getBackendFirestore } from '../src/lib/firebase/server-auth';
+import { getAdminFirestore } from '../src/lib/firebase/admin';
 import { SYNTHETIC_TEST_MARKERS } from './fixtures/synthetic-test-fixtures';
 
 interface TestQuestionRecord extends BaseEntity {
@@ -135,8 +134,8 @@ async function runBackendIntegrationTest() {
   console.log('============================================================\n');
 
   try {
-    const db = await getBackendFirestore();
-    await terminate(db);
+    const db = getAdminFirestore();
+    await db.terminate();
   } catch {}
 
   if (failed > 0) process.exit(1);

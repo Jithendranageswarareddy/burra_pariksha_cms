@@ -21,8 +21,7 @@ import { centralAuthorizationService } from '../src/lib/services/central-authori
 import { AuthorizationResource, AuthorizationAction, CanonicalRbacRole } from '../src/types/rbac-models';
 import { questionsRepository } from '../src/lib/repositories/questions.repository';
 import { contentMastersRepository } from '../src/lib/repositories/content-masters.repository';
-import { getBackendFirestore } from '../src/lib/firebase/server-auth';
-import { terminate } from 'firebase/firestore';
+import { getAdminFirestore } from '../src/lib/firebase/admin';
 import { SYNTHETIC_TEST_MARKERS } from './fixtures/synthetic-test-fixtures';
 
 async function runApplicationPathTest() {
@@ -132,7 +131,7 @@ async function runApplicationPathTest() {
       question: updatedQuestionText,
     } as any);
     assert(updatedQuestion !== null);
-    assert.strictEqual(updatedQuestion.version, 2, 'Version must increment to 2');
+    assert.strictEqual((updatedQuestion as any).version, 2, 'Version must increment to 2');
     assert.strictEqual(updatedQuestion.question, updatedQuestionText);
     console.log('✓ Question updated in Cloud Firestore with version increment to 2.');
     passed++;
@@ -160,8 +159,7 @@ async function runApplicationPathTest() {
   console.log('============================================================\n');
 
   try {
-    const db = await getBackendFirestore();
-    await terminate(db);
+    await getAdminFirestore().terminate();
   } catch {}
 
   process.exit(failed > 0 ? 1 : 0);

@@ -19,8 +19,8 @@ import express from 'express';
 import { apiRouter } from '../src/server/routes';
 import { authService } from '../src/lib/services/auth.service';
 import { questionsRepository } from '../src/lib/repositories/questions.repository';
-import { terminate } from 'firebase/firestore';
-import { getBackendFirestore } from '../src/lib/firebase/server-auth';
+import { FirestoreRepository } from '../src/lib/db/firestore.repository';
+import { getAdminFirestore } from '../src/lib/firebase/admin';
 import { SYNTHETIC_TEST_MARKERS } from './fixtures/synthetic-test-fixtures';
 
 function makeRequest(
@@ -159,7 +159,7 @@ async function testGate1ProductionRouting() {
     // 5. Cleanup: Hard-delete test question & auto-created content master from Cloud Firestore
     console.log('--- Step 5: Hard-deleting test question & content master from Cloud Firestore ---');
     const firestoreRepo = await questionsRepository.getFirestoreRepository();
-    await firestoreRepo.delete(createdQuestionId!, fetched.version || 1, undefined, true);
+    await firestoreRepo.delete(createdQuestionId!, (fetched as any).version || 1, undefined, true);
     if (returnedQuestion.contentMasterId) {
       const cmRepo = new FirestoreRepository('content_masters', 'BP-CNT-' as any);
       await cmRepo.delete(returnedQuestion.contentMasterId, 1, undefined, true).catch(() => {});
@@ -175,8 +175,7 @@ async function testGate1ProductionRouting() {
   } finally {
     server.close();
     try {
-      const db = await getBackendFirestore();
-      await terminate(db);
+      await getAdminFirestore().terminate();
     } catch {}
   }
 
