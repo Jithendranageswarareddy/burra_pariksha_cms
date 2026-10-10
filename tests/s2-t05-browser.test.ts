@@ -33,15 +33,10 @@ import '../src/config/env';
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
 const CHROME_PATH = process.env.CHROME_PATH || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
 
-const CREATOR_EMAIL = process.env.S2_T05_CREATOR_EMAIL;
-const CREATOR_PASSWORD = process.env.S2_T05_CREATOR_PASSWORD;
-const REVIEWER_EMAIL = process.env.S2_T05_REVIEWER_EMAIL;
-const REVIEWER_PASSWORD = process.env.S2_T05_REVIEWER_PASSWORD;
-
-if (!CREATOR_EMAIL || !CREATOR_PASSWORD || !REVIEWER_EMAIL || !REVIEWER_PASSWORD) {
-  console.error('❌ S2-T05 test credentials are not configured in environment.');
-  process.exit(1);
-}
+const CREATOR_EMAIL = process.env.S2_T05_CREATOR_EMAIL || 's2_t05_creator@burrapariksha.local';
+const CREATOR_PASSWORD = process.env.S2_T05_CREATOR_PASSWORD || 'password123';
+const REVIEWER_EMAIL = process.env.S2_T05_REVIEWER_EMAIL || 's2_t05_reviewer@burrapariksha.local';
+const REVIEWER_PASSWORD = process.env.S2_T05_REVIEWER_PASSWORD || 'password123';
 
 async function runBrowserVerification() {
   console.log('============================================================');

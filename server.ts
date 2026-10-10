@@ -13,9 +13,26 @@ import { snapshotSchedulerService } from './src/lib/services/snapshot-scheduler.
 import { usersRepository } from './src/lib/repositories/users.repository';
 import { googleDriveService } from './src/lib/services/google-drive.service';
 
+import { validateEnvironmentRuntime } from './src/config/env.contract';
+
 async function startServer() {
   const app = express();
   app.set('trust proxy', 1);
+
+  // Validate environment configuration against authoritative contract
+  const envReport = validateEnvironmentRuntime();
+  console.log(`[EnvContract] Runtime: ${envReport.isProduction ? 'PRODUCTION' : 'DEVELOPMENT'} (${envReport.configuredCanonicalCount}/${envReport.totalCanonicalCount} canonical variables configured)`);
+  if (!envReport.isValid) {
+    for (const err of envReport.errors) {
+      console.error(`[EnvContract Error] ${err}`);
+    }
+    if (envReport.isProduction) {
+      process.exit(1);
+    }
+  }
+  for (const warn of envReport.warnings) {
+    console.log(`[EnvContract] ${warn}`);
+  }
 
   // Mount Health & System Probes (FC-004)
   app.use(healthRouter);
