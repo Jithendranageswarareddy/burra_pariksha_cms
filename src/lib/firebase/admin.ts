@@ -65,8 +65,8 @@ export function getAdminFirestore(): Firestore {
 
   const app = getAdminApp();
   const databaseId =
-    process.env.FIRESTORE_DATABASE_ID ||
     (firebaseConfig as any).firestoreDatabaseId ||
+    process.env.FIRESTORE_DATABASE_ID ||
     '(default)';
 
   adminFirestoreInstance = getFirestore(app, databaseId);
