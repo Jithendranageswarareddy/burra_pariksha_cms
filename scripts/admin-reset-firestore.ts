@@ -137,17 +137,21 @@ export async function runAdminReset(reseedBaseline = true): Promise<void> {
     console.log('------------------------------------------------------------\n');
 
     if (reseedBaseline) {
-      console.log('Reseeding foundational production baseline (users, taxonomy, sequences)...');
-      const initReport = await firestoreProductionInitializer.initializeProductionData();
+      const withTaxonomy = args.includes('--with-taxonomy');
+      console.log(`Reseeding foundational production admin USR-001 (taxonomy seeding: ${withTaxonomy ? 'ENABLED' : 'DISABLED'})...`);
+      const initReport = await firestoreProductionInitializer.initializeProductionData({
+        seedTaxonomy: withTaxonomy,
+        seedQuestionConfigs: withTaxonomy,
+      });
 
-      console.log('✓ Reseeding complete:');
+      console.log('✓ Seeding complete:');
       console.log(`  Users seeded: ${initReport.usersSeeded}`);
       console.log(`  Categories seeded: ${initReport.categoriesSeeded}`);
       console.log(`  Topics seeded: ${initReport.topicsSeeded}`);
       console.log(`  Subtopics seeded: ${initReport.subtopicsSeeded}`);
       console.log(`  Question configs seeded: ${initReport.questionConfigsSeeded}`);
 
-      // Seed standard scrypt password hashes for baseline production accounts
+      // Seed standard scrypt password hashes for admin account if missing
       const bootstrapPassword = process.env.INITIAL_ADMIN_PASSWORD || process.env.ADMIN_INITIAL_PASSWORD;
       if (bootstrapPassword) {
         const usersSnap = await db.collection('users').get();
@@ -157,7 +161,7 @@ export async function runAdminReset(reseedBaseline = true): Promise<void> {
             await uDoc.ref.update({ password_hash: defaultPasswordHash });
           }
         }
-        console.log('  Password hashes seeded for baseline accounts.');
+        console.log('  Password hashes verified for admin account.');
       }
     }
 
