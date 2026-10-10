@@ -405,6 +405,125 @@ export class AuthService {
     }
     return { success: true };
   }
+
+  /**
+   * Safely changes a user password:
+   * - Verifies current password against stored scrypt hash
+   * - Enforces password policy
+   * - Hashes new password with scrypt
+   * - Persists new hash to Firestore
+   * - Revokes existing session and issues fresh session token
+   * - Records audit trail
+   */
+  public async changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+    currentToken?: string
+  ): Promise<{ success: boolean; error?: string; token?: string }> {
+    try {
+      if (!userId) {
+        return { success: false, error: 'User identifier is required.' };
+      }
+      if (!currentPassword) {
+        return { success: false, error: 'Current password is required.' };
+      }
+      if (!newPassword) {
+        return { success: false, error: 'New password is required.' };
+      }
+      if (newPassword.length < 8) {
+        return { success: false, error: 'New password must be at least 8 characters long.' };
+      }
+      if (newPassword === currentPassword) {
+        return { success: false, error: 'New password cannot be the same as current password.' };
+      }
+
+      const user = await usersRepository.findById(userId);
+      if (!user || !user.isActive) {
+        return { success: false, error: 'User account not found or inactive.' };
+      }
+
+      // Verify current password against stored scrypt hash or bootstrap password
+      let isCurrentValid = false;
+      if (user.password_hash) {
+        isCurrentValid = await this.verifyPassword(currentPassword, user.password_hash);
+      } else {
+        const bootstrapPassword = process.env.INITIAL_ADMIN_PASSWORD || process.env.ADMIN_INITIAL_PASSWORD;
+        if (bootstrapPassword) {
+          isCurrentValid = (currentPassword === bootstrapPassword);
+        }
+      }
+
+      if (!isCurrentValid) {
+        await auditService.log(
+          user.id,
+          user.name,
+          'PASSWORD_CHANGE_FAILURE',
+          'USER',
+          user.id,
+          { reason: 'INVALID_CURRENT_PASSWORD' }
+        );
+        return { success: false, error: 'Current password is incorrect.' };
+      }
+
+      // Hash the new password using native Node crypto scrypt
+      const newHash = await this.hashPassword(newPassword);
+
+      // Increment authoritative session version to revoke any other active sessions
+      const nextSessionVersion = (user.sessionVersion || 1) + 1;
+
+      // Persist the new password hash into Firestore
+      await usersRepository.updateRecord(user.id, {
+        password_hash: newHash,
+        sessionVersion: nextSessionVersion,
+        updatedAt: new Date().toISOString(),
+      });
+
+      // Revoke the old token in memory
+      if (currentToken) {
+        this.revokeSession(currentToken);
+      }
+
+      // Update in-memory session version for user
+      usersRepository.setUserSessionState(user.id, {
+        userId: user.id,
+        role: user.role,
+        roles: Array.isArray(user.roles) && user.roles.length > 0 ? user.roles : [user.role],
+        isActive: true,
+        sessionVersion: nextSessionVersion,
+      });
+
+      // Generate a fresh session token with updated sessionVersion
+      const userRoles = Array.isArray(user.roles) && user.roles.length > 0
+        ? user.roles
+        : [user.role || 'ADMIN'];
+
+      const freshToken = this.generateSessionToken({
+        userId: user.id,
+        name: user.name,
+        role: userRoles[0],
+        roles: userRoles,
+        sessionVersion: nextSessionVersion,
+        sessionId: crypto.randomUUID(),
+      });
+
+      await auditService.log(
+        user.id,
+        user.name,
+        'PASSWORD_CHANGE_SUCCESS',
+        'USER',
+        user.id,
+        { status: 'SUCCESS' }
+      );
+
+      return {
+        success: true,
+        token: freshToken,
+      };
+    } catch {
+      return { success: false, error: 'Password change service error.' };
+    }
+  }
 }
 
 export const authService = AuthService.getInstance();

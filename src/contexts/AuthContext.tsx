@@ -8,6 +8,7 @@ interface AuthContextType {
   login: (userId: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string, confirmPassword?: string) => Promise<{ success: boolean; message?: string; error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -62,8 +63,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await checkAuth();
   };
 
+  const changePassword = async (currentPassword: string, newPassword: string, confirmPassword?: string) => {
+    try {
+      const res = await apiClient.changePassword(currentPassword, newPassword, confirmPassword);
+      if (res.success) {
+        await checkAuth();
+        return { success: true, message: res.message || 'Password changed successfully.' };
+      }
+      return { success: false, error: res.error || 'Failed to change password.' };
+    } catch (err: any) {
+      return { success: false, error: err?.message || 'Failed to change password.' };
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, isLoading, login, logout, refreshUser, changePassword }}>
       {children}
     </AuthContext.Provider>
   );

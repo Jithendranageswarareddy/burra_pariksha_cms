@@ -30,6 +30,7 @@ import { MyWorkPage } from './pages/MyWorkPage';
 import { TeamOperationsPage } from './pages/TeamOperationsPage';
 import { ContentMasterPage } from './pages/ContentMasterPage';
 import { SocialReviewPage } from './pages/SocialReviewPage';
+import { ProfilePage } from './pages/ProfilePage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { getDefaultLandingRoute } from './config/roles';
 
@@ -193,7 +194,8 @@ function AppRoutes() {
         <Route path="team" element={<TeamOperationsPage />} />
         <Route path="team-work" element={<TeamOperationsPage />} />
 
-        {/* System Settings Route */}
+        {/* System Settings & User Profile Route */}
+        <Route path="profile" element={<ProfilePage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="recovery" element={<RecoveryAdminPage />} />
         <Route path="admin" element={<RecoveryAdminPage />} />

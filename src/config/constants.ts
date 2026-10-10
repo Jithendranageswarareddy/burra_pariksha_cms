@@ -19,8 +19,8 @@ export const APP_CONFIG = {
   version: '0.1.0-alpha',
   phase: 'Content Operations System',
   adminUser: {
-    name: 'Admin / Content Lead',
-    email: 'admin@burrapariksha.local',
+    name: 'System Admin',
+    email: 'jithendrareddy629@gmail.com',
     role: 'ADMIN',
   },
 } as const;

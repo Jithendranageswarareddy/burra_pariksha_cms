@@ -339,6 +339,110 @@ apiRouter.post(['/auth/logout', '/v1/auth/logout'], async (req: Request, res: Re
   }
 });
 
+apiRouter.post(['/auth/change-password', '/v1/auth/change-password'], requireAuth, async (req: Request, res: Response) => {
+  const requestId = (req.headers['x-request-id'] as string) || `req_${Date.now()}`;
+  try {
+    const authReq = req as AuthenticatedRequest;
+    const actorUserId = authReq.user?.id;
+    if (!actorUserId) {
+      const errEnvelope = createErrorResponse(
+        ApiErrorCode.UNAUTHENTICATED,
+        'Authentication required to change password.',
+        requestId
+      );
+      res.status(401).json({ ...errEnvelope, message: 'Authentication required to change password.' });
+      return;
+    }
+
+    const { currentPassword, newPassword, confirmPassword } = req.body || {};
+
+    if (!currentPassword) {
+      const errEnvelope = createErrorResponse(
+        ApiErrorCode.VALIDATION_ERROR,
+        'Current password is required.',
+        requestId,
+        { field: 'currentPassword' }
+      );
+      res.status(400).json({ ...errEnvelope, message: 'Current password is required.' });
+      return;
+    }
+
+    if (!newPassword) {
+      const errEnvelope = createErrorResponse(
+        ApiErrorCode.VALIDATION_ERROR,
+        'New password is required.',
+        requestId,
+        { field: 'newPassword' }
+      );
+      res.status(400).json({ ...errEnvelope, message: 'New password is required.' });
+      return;
+    }
+
+    if (confirmPassword !== undefined && newPassword !== confirmPassword) {
+      const errEnvelope = createErrorResponse(
+        ApiErrorCode.VALIDATION_ERROR,
+        'New password and confirmation do not match.',
+        requestId,
+        { field: 'confirmPassword' }
+      );
+      res.status(400).json({ ...errEnvelope, message: 'New password and confirmation do not match.' });
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      const errEnvelope = createErrorResponse(
+        ApiErrorCode.VALIDATION_ERROR,
+        'New password must be at least 8 characters long.',
+        requestId,
+        { field: 'newPassword' }
+      );
+      res.status(400).json({ ...errEnvelope, message: 'New password must be at least 8 characters long.' });
+      return;
+    }
+
+    const token = extractSessionToken(req) || undefined;
+    const result = await authService.changePassword(actorUserId, currentPassword, newPassword, token);
+
+    if (!result.success) {
+      const errEnvelope = createErrorResponse(
+        ApiErrorCode.VALIDATION_ERROR,
+        result.error || 'Failed to change password.',
+        requestId
+      );
+      res.status(400).json({ ...errEnvelope, message: result.error });
+      return;
+    }
+
+    if (result.token) {
+      const isProduction = process.env.NODE_ENV === 'production';
+      res.cookie('bp_session', result.token, {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: 'lax',
+        maxAge: 24 * 60 * 60 * 1000,
+        path: '/',
+      });
+    }
+
+    const successEnvelope = createSuccessResponse({
+      message: 'Password changed successfully.',
+    }, requestId);
+
+    res.json({
+      ...successEnvelope,
+      message: 'Password changed successfully.',
+      token: result.token,
+    });
+  } catch {
+    const errEnvelope = createErrorResponse(
+      ApiErrorCode.INTERNAL_SERVER_ERROR,
+      'An unexpected error occurred while changing password.',
+      requestId
+    );
+    res.status(500).json({ ...errEnvelope, message: 'An unexpected error occurred while changing password.' });
+  }
+});
+
 apiRouter.get(['/auth/me', '/v1/auth/me'], async (req: Request, res: Response) => {
   const requestId = (req.headers['x-request-id'] as string) || `req_${Date.now()}`;
   try {
@@ -393,6 +497,7 @@ apiRouter.get(['/auth/me', '/v1/auth/me'], async (req: Request, res: Response) =
     const userData = {
       id: user.id,
       name: user.name,
+      email: user.email,
       role: user.role,
       avatarUrl: user.avatarUrl,
       isActive: user.isActive,

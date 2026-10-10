@@ -147,15 +147,18 @@ export async function runAdminReset(reseedBaseline = true): Promise<void> {
       console.log(`  Subtopics seeded: ${initReport.subtopicsSeeded}`);
       console.log(`  Question configs seeded: ${initReport.questionConfigsSeeded}`);
 
-      // Seed standard scrypt password hashes for the 3 baseline production accounts
-      const usersSnap = await db.collection('users').get();
-      const defaultPasswordHash = await authService.hashPassword('password123');
-      for (const uDoc of usersSnap.docs) {
-        if (!uDoc.data().password_hash) {
-          await uDoc.ref.update({ password_hash: defaultPasswordHash });
+      // Seed standard scrypt password hashes for baseline production accounts
+      const bootstrapPassword = process.env.INITIAL_ADMIN_PASSWORD || process.env.ADMIN_INITIAL_PASSWORD;
+      if (bootstrapPassword) {
+        const usersSnap = await db.collection('users').get();
+        const defaultPasswordHash = await authService.hashPassword(bootstrapPassword);
+        for (const uDoc of usersSnap.docs) {
+          if (!uDoc.data().password_hash) {
+            await uDoc.ref.update({ password_hash: defaultPasswordHash });
+          }
         }
+        console.log('  Password hashes seeded for baseline accounts.');
       }
-      console.log('  Password hashes seeded for baseline accounts.');
     }
 
     console.log('\n============================================================');

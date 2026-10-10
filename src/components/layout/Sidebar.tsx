@@ -383,11 +383,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
           className="p-2.5 border-t border-slate-800/80 bg-slate-950/40 shrink-0"
         >
           {isExpanded ? (
-            <div className="flex items-center justify-between p-2.5 rounded-lg bg-slate-800/60 border border-slate-700/50 text-xs">
+            <NavLink
+              to="/profile"
+              className="flex items-center justify-between p-2.5 rounded-lg bg-slate-800/60 hover:bg-slate-800 border border-slate-700/50 hover:border-slate-600 text-xs transition-colors cursor-pointer group"
+              title="View Profile & Security"
+            >
               <div className="flex items-center gap-2.5 min-w-0">
                 <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
                 <div className="flex flex-col min-w-0 items-start">
-                  <span className="font-semibold text-slate-200 text-[12px] truncate leading-tight">
+                  <span className="font-semibold text-slate-200 text-[12px] truncate leading-tight group-hover:text-white">
                     {user?.name || 'Authorized Member'}
                   </span>
                   <span
@@ -400,19 +404,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
               {canonicalRole === 'ADMIN' ? (
                 <ShieldAlert className="w-3.5 h-3.5 text-rose-400 shrink-0" aria-label="System Administrator" />
               ) : (
-                <ChevronRight className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                <ChevronRight className="w-3.5 h-3.5 text-slate-500 group-hover:text-slate-300 shrink-0" />
               )}
-            </div>
+            </NavLink>
           ) : (
-            <div
-              className="flex justify-center items-center py-2 text-xs"
-              title={`${user?.name || 'Authorized Member'} (${roleDescriptor.label})`}
+            <NavLink
+              to="/profile"
+              className="flex justify-center items-center py-2 text-xs hover:opacity-90 transition-opacity"
+              title={`${user?.name || 'Authorized Member'} (${roleDescriptor.label}) - Click to view profile`}
             >
               <div className="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700/60 flex items-center justify-center text-xs font-bold text-slate-200 relative">
                 <span>{(user?.name || 'A').charAt(0).toUpperCase()}</span>
                 <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-slate-900" />
               </div>
-            </div>
+            </NavLink>
           )}
         </div>
       </aside>

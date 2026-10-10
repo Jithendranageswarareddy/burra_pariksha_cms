@@ -1438,6 +1438,21 @@ class ApiClient {
     }
   }
 
+  public async changePassword(
+    currentPassword: string,
+    newPassword: string,
+    confirmPassword?: string
+  ): Promise<{ success: boolean; message?: string; error?: string }> {
+    const res = await this.request<{ success: boolean; message?: string; error?: string; token?: string }>('/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword, newPassword, confirmPassword }),
+    });
+    if (res.token) {
+      this.setSessionToken(res.token);
+    }
+    return res;
+  }
+
   public async getProductionBoard(): Promise<import('../types').ProductionBoardItem[]> {
     return this.request('/production-board');
   }

@@ -13,6 +13,7 @@
 import { FirestoreRepository } from '../db/firestore.repository';
 import { PRODUCTION_CATEGORIES, PRODUCTION_TOPICS, PRODUCTION_SUBTOPICS } from '../data/production-taxonomy';
 import { User, UserRole, QuestionConfigEntry } from '../../types';
+import { authService } from './auth.service';
 
 export interface FirestoreInitReport {
   timestamp: string;
@@ -48,42 +49,57 @@ export class FirestoreProductionInitializerService {
     let subtopicsSeeded = 0;
     let questionConfigsSeeded = 0;
 
-    // 1. Seed foundational users if empty
-    const existingUsers = await usersRepo.findMany({ limit: 5 });
-    if (existingUsers.length === 0) {
-      const defaultUsers: Partial<User>[] = [
-        {
-          id: 'USR-001',
-          name: 'System Admin',
-          email: 'admin@burrapariksha.com',
-          role: UserRole.ADMIN,
-          roles: [UserRole.ADMIN],
-          isActive: true,
-          dataScope: 'ALL',
-        },
-        {
-          id: 'USR-002',
-          name: 'Content Manager',
-          email: 'lead@burrapariksha.com',
-          role: UserRole.CONTENT_MANAGER,
-          roles: [UserRole.CONTENT_MANAGER],
-          isActive: true,
-          dataScope: 'ALL',
-        },
-        {
-          id: 'USR-003',
-          name: 'QA Reviewer',
-          email: 'reviewer@burrapariksha.com',
-          role: UserRole.REVIEWER,
-          roles: [UserRole.REVIEWER],
-          isActive: true,
-          dataScope: 'ALL',
-        },
-      ];
+    // 1. Seed foundational users idempotently
+    const bootstrapPassword = process.env.INITIAL_ADMIN_PASSWORD || process.env.ADMIN_INITIAL_PASSWORD;
+    const initialPasswordHash = bootstrapPassword ? await authService.hashPassword(bootstrapPassword) : undefined;
 
-      for (const u of defaultUsers) {
-        await usersRepo.create(u as any);
+    const defaultUsers: Partial<User>[] = [
+      {
+        id: 'USR-001',
+        name: 'System Admin',
+        email: 'jithendrareddy629@gmail.com',
+        role: UserRole.ADMIN,
+        roles: [UserRole.ADMIN],
+        isActive: true,
+        dataScope: 'ALL',
+      },
+      {
+        id: 'USR-002',
+        name: 'Content Manager',
+        email: 'lead@burrapariksha.com',
+        role: UserRole.CONTENT_MANAGER,
+        roles: [UserRole.CONTENT_MANAGER],
+        isActive: true,
+        dataScope: 'ALL',
+      },
+      {
+        id: 'USR-003',
+        name: 'QA Reviewer',
+        email: 'reviewer@burrapariksha.com',
+        role: UserRole.REVIEWER,
+        roles: [UserRole.REVIEWER],
+        isActive: true,
+        dataScope: 'ALL',
+      },
+    ];
+
+    for (const u of defaultUsers) {
+      const existingUser = await usersRepo.findById(u.id!);
+      if (!existingUser) {
+        await usersRepo.create({
+          ...u,
+          ...(initialPasswordHash ? { password_hash: initialPasswordHash } : {}),
+        } as any);
         usersSeeded++;
+      } else {
+        // Idempotent reconciliation: ensure canonical email and role are synced
+        const updates: Record<string, any> = {};
+        if (existingUser.email !== u.email) updates.email = u.email;
+        if (existingUser.role !== u.role) updates.role = u.role;
+        if (initialPasswordHash && !existingUser.password_hash) updates.password_hash = initialPasswordHash;
+        if (Object.keys(updates).length > 0) {
+          await usersRepo.update(u.id!, existingUser.version, updates);
+        }
       }
     }
 

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { LogOut, Settings, RotateCcw, ChevronDown, Check, User as UserIcon } from 'lucide-react';
+import { LogOut, Settings, RotateCcw, ChevronDown, Check, User as UserIcon, KeyRound } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { APP_CONFIG } from '../../config/constants';
@@ -120,6 +120,17 @@ export const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
 
           {/* Core navigation links */}
           <div className="py-1">
+            <Link
+              to="/profile"
+              role="menuitem"
+              id="menu-profile-security-link"
+              onClick={() => setIsOpen(false)}
+              className="flex items-center gap-2.5 px-4 py-2 hover:bg-slate-50 text-slate-700 transition-colors font-medium"
+            >
+              <KeyRound className="w-4 h-4 text-indigo-600" />
+              <span>Profile & Change Password</span>
+            </Link>
+
             <Link
               to="/my-work"
               role="menuitem"
