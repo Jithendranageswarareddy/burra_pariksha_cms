@@ -1,19 +1,28 @@
 /**
- * BURRA PARIKSHA CMS - Operational Connectivity & Telemetry Health Service
- * Phase 8B: Operational Reliability, Recovery & Production Hardening
- * 
- * Provides safe, sanitized diagnostic information regarding Google Sheets connectivity,
- * API operational latency, retry telemetry, and service account authentication state.
- * 
+ * BURRA PARIKSHA CMS - Authoritative Firestore Operational Health Service
+ *
+ * Provides safe, sanitized diagnostic information regarding Cloud Firestore connectivity,
+ * Firebase Admin SDK health, API operational latency, and authentication state.
+ *
  * GUARANTEE: Never exposes private keys, authorization headers, or secrets.
  */
 
-import { googleSheetsClient, OperationalTelemetry } from '../google-sheets/client';
-import { sanitizeErrorMessage } from '../google-sheets/errors';
+import { getAdminFirestore } from '../firebase/admin';
+import { sanitizeErrorMessage } from '../errors';
 
 export type ConnectivityStatus = 'CONNECTED' | 'DEGRADED' | 'CONFIGURATION_ERROR' | 'UNAVAILABLE';
 export type AuthStatus = 'VALID' | 'MISSING_CREDENTIALS' | 'INVALID_CREDENTIALS' | 'PERMISSION_DENIED';
-export type SpreadsheetAccessibility = 'ACCESSIBLE' | 'NOT_FOUND' | 'PERMISSION_DENIED' | 'UNREACHABLE' | 'NOT_CONFIGURED';
+export type SpreadsheetAccessibility = 'ACCESSIBLE' | 'NOT_APPLICABLE';
+
+export interface OperationalTelemetry {
+  totalRequests: number;
+  totalRetries: number;
+  lastLatencyMs: number | null;
+  lastSuccessfulOperation: string | null;
+  lastFailedOperation: string | null;
+  lastSuccessTimestamp: string | null;
+  lastFailureTimestamp: string | null;
+}
 
 export interface OperationalHealthReport {
   generatedAt: string;
@@ -21,17 +30,28 @@ export interface OperationalHealthReport {
   isConnected: boolean;
   connectivityStatus: ConnectivityStatus;
   authStatus: AuthStatus;
+  databaseProvider: 'FIRESTORE';
   spreadsheetAccessibility: SpreadsheetAccessibility;
-  mode: 'LIVE_GOOGLE_SHEETS' | 'UNCONFIGURED';
+  mode: 'CLOUD_FIRESTORE' | 'UNCONFIGURED';
   spreadsheetId: string;
   spreadsheetTitle: string | null;
+  projectId: string;
+  databaseId: string;
   telemetry: OperationalTelemetry;
   sanitizedDiagnosticMessage: string;
   isReadOnly: true;
+  collections?: Array<{ name: string; status: 'ONLINE' | 'ERROR'; count?: number }>;
 }
 
 export class OperationalHealthService {
   private static instance: OperationalHealthService | null = null;
+  private totalRequests = 0;
+  private totalRetries = 0;
+  private lastSuccessTimestamp: string | null = null;
+  private lastFailureTimestamp: string | null = null;
+  private lastSuccessfulOperation: string | null = null;
+  private lastFailedOperation: string | null = null;
+  private lastLatencyMs: number | null = null;
 
   private constructor() {}
 
@@ -42,107 +62,92 @@ export class OperationalHealthService {
     return OperationalHealthService.instance;
   }
 
-  /**
-   * Evaluates operational connectivity to Google Sheets without mutating any data.
-   */
-  public async getOperationalHealth(): Promise<OperationalHealthReport> {
-    const isConfigured = googleSheetsClient.isConfigured();
-    const spreadsheetId = googleSheetsClient.getSpreadsheetId();
-    const telemetry = googleSheetsClient.getOperationalTelemetry();
-
-    if (!isConfigured) {
-      return {
-        generatedAt: new Date().toISOString(),
-        isConfigured: false,
-        isConnected: false,
-        connectivityStatus: 'CONFIGURATION_ERROR',
-        authStatus: 'MISSING_CREDENTIALS',
-        spreadsheetAccessibility: 'NOT_CONFIGURED',
-        mode: 'UNCONFIGURED',
-        spreadsheetId: '(Not Configured)',
-        spreadsheetTitle: 'N/A (Unconfigured)',
-        telemetry,
-        sanitizedDiagnosticMessage:
-          'Google Service Account environment variables are not set. Configure Google Service Account credentials to connect Google Sheets.',
-        isReadOnly: true,
-      };
+  public recordOperation(op: string, success: boolean, latencyMs?: number, isRetry?: boolean): void {
+    this.totalRequests++;
+    if (isRetry) this.totalRetries++;
+    if (latencyMs !== undefined) this.lastLatencyMs = latencyMs;
+    if (success) {
+      this.lastSuccessfulOperation = op;
+      this.lastSuccessTimestamp = new Date().toISOString();
+    } else {
+      this.lastFailedOperation = op;
+      this.lastFailureTimestamp = new Date().toISOString();
     }
+  }
+
+  public async getOperationalHealth(): Promise<OperationalHealthReport> {
+    const projectId = process.env.GCP_PROJECT_ID || 'burra-pariksha-cms';
+    const databaseId = process.env.FIRESTORE_DATABASE_ID || 'ai-studio-burraparikshacon-f592ca42-39af-4d83-aff2-6870ba939b0e';
+
+    const hasServiceAccount = Boolean(
+      process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL && process.env.GOOGLE_PRIVATE_KEY
+    );
+
+    const telemetry: OperationalTelemetry = {
+      totalRequests: this.totalRequests,
+      totalRetries: this.totalRetries,
+      lastLatencyMs: this.lastLatencyMs,
+      lastSuccessfulOperation: this.lastSuccessfulOperation,
+      lastFailedOperation: this.lastFailedOperation,
+      lastSuccessTimestamp: this.lastSuccessTimestamp,
+      lastFailureTimestamp: this.lastFailureTimestamp,
+    };
 
     try {
       const startTime = Date.now();
-      const metadata = await googleSheetsClient.getSpreadsheetMetadata();
+      const db = getAdminFirestore();
+      // List collections as lightweight connectivity ping
+      const collections = await db.listCollections();
       const latencyMs = Date.now() - startTime;
+      this.recordOperation('PING_FIRESTORE', true, latencyMs);
 
-      let connectivityStatus: ConnectivityStatus = 'CONNECTED';
-      let message = `Successfully connected to Google Spreadsheet "${metadata.title}" (${metadata.sheetNames.length} tabs found). Latency: ${latencyMs}ms.`;
-
-      // 5-minute recency window for assessing active vs. historical operational failures
-      const RECENT_FAILURE_WINDOW_MS = 5 * 60 * 1000;
-      const now = Date.now();
-      const parsedFailureTime = telemetry.lastFailureTimestamp ? new Date(telemetry.lastFailureTimestamp).getTime() : 0;
-      const failureTime = Number.isFinite(parsedFailureTime) ? parsedFailureTime : 0;
-      const parsedSuccessTime = telemetry.lastSuccessTimestamp ? new Date(telemetry.lastSuccessTimestamp).getTime() : 0;
-      const successTime = Number.isFinite(parsedSuccessTime) ? parsedSuccessTime : 0;
-
-      // A transient failure degrades connectivity only if:
-      // 1. It occurred within the recent time threshold, AND
-      // 2. The failure is newer than the most recent successful operation (unresolved/unrecovered)
-      const isRecentFailure = failureTime > 0 && (now - failureTime) < RECENT_FAILURE_WINDOW_MS;
-      const isUnresolvedFailure = failureTime > successTime;
-
-      if (telemetry.lastFailedOperation && isRecentFailure && isUnresolvedFailure) {
-        connectivityStatus = 'DEGRADED';
-        message += ` Note: Active transient issue detected in ${telemetry.lastFailedOperation}. Cumulative retries: ${telemetry.totalRetries}.`;
-      }
+      const message = `Successfully connected to Cloud Firestore database "${databaseId}" in project "${projectId}" (${collections.length} collections detected). Latency: ${latencyMs}ms.`;
 
       return {
         generatedAt: new Date().toISOString(),
         isConfigured: true,
         isConnected: true,
-        connectivityStatus,
+        connectivityStatus: 'CONNECTED',
         authStatus: 'VALID',
-        spreadsheetAccessibility: 'ACCESSIBLE',
-        mode: 'LIVE_GOOGLE_SHEETS',
-        spreadsheetId: sanitizeErrorMessage(spreadsheetId),
-        spreadsheetTitle: metadata.title,
+        databaseProvider: 'FIRESTORE',
+        spreadsheetAccessibility: 'NOT_APPLICABLE',
+        mode: 'CLOUD_FIRESTORE',
+        spreadsheetId: '(Firestore Authoritative)',
+        spreadsheetTitle: `Cloud Firestore [${projectId}]`,
+        projectId,
+        databaseId,
         telemetry: {
           ...telemetry,
           lastLatencyMs: latencyMs,
+          lastSuccessfulOperation: 'PING_FIRESTORE',
         },
         sanitizedDiagnosticMessage: message,
         isReadOnly: true,
       };
     } catch (err: any) {
       const errorMsg = sanitizeErrorMessage(err?.message || 'Connection check failed');
-      const errName = err?.name || '';
+      this.recordOperation('PING_FIRESTORE', false);
 
-      let authStatus: AuthStatus = 'INVALID_CREDENTIALS';
-      let accessibility: SpreadsheetAccessibility = 'UNREACHABLE';
-
-      if (errName === 'SpreadsheetNotFoundError') {
-        accessibility = 'NOT_FOUND';
-        authStatus = 'VALID';
-      } else if (errName === 'GoogleAuthError') {
-        if (errorMsg.includes('Permission Denied')) {
-          authStatus = 'PERMISSION_DENIED';
-          accessibility = 'PERMISSION_DENIED';
-        } else {
-          authStatus = 'INVALID_CREDENTIALS';
-        }
+      let authStatus: AuthStatus = hasServiceAccount ? 'INVALID_CREDENTIALS' : 'MISSING_CREDENTIALS';
+      if (errorMsg.includes('Permission Denied') || errorMsg.includes('PERMISSION_DENIED')) {
+        authStatus = 'PERMISSION_DENIED';
       }
 
       return {
         generatedAt: new Date().toISOString(),
-        isConfigured: true,
+        isConfigured: hasServiceAccount,
         isConnected: false,
-        connectivityStatus: 'UNAVAILABLE',
+        connectivityStatus: hasServiceAccount ? 'UNAVAILABLE' : 'CONFIGURATION_ERROR',
         authStatus,
-        spreadsheetAccessibility: accessibility,
-        mode: 'LIVE_GOOGLE_SHEETS',
-        spreadsheetId: sanitizeErrorMessage(spreadsheetId),
+        databaseProvider: 'FIRESTORE',
+        spreadsheetAccessibility: 'NOT_APPLICABLE',
+        mode: hasServiceAccount ? 'CLOUD_FIRESTORE' : 'UNCONFIGURED',
+        spreadsheetId: '(Firestore Authoritative)',
         spreadsheetTitle: null,
+        projectId,
+        databaseId,
         telemetry,
-        sanitizedDiagnosticMessage: `Failed to access Google Sheets: ${errorMsg}`,
+        sanitizedDiagnosticMessage: `Failed to connect to Cloud Firestore: ${errorMsg}`,
         isReadOnly: true,
       };
     }

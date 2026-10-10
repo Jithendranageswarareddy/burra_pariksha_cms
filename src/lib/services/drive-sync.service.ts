@@ -8,7 +8,7 @@ import { googleDriveService } from './google-drive.service';
 import { mediaAssetsRepository } from '../repositories/media-assets.repository';
 import { contentMastersRepository } from '../repositories/content-masters.repository';
 import { MediaAsset, MediaStage } from '../../types';
-import { ValidationError } from '../google-sheets/errors';
+import { ValidationError } from '../errors';
 
 export interface UploadAssetParams {
   contentId: string;

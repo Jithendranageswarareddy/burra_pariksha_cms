@@ -5,8 +5,8 @@
 
 import { auditLogRepository, workflowRepository, sequencesRepository } from '../repositories';
 import { AuditLog, Workflow } from '../../types';
-import { SEQUENCE_ENTITIES } from '../schemas/google-sheets-schema';
-import { sanitizeErrorMessage } from '../google-sheets/errors';
+import { SEQUENCE_ENTITIES } from '../schemas/domain-schemas';
+import { sanitizeErrorMessage } from '../errors';
 
 export class AuditService {
   private static instance: AuditService | null = null;

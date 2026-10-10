@@ -871,7 +871,7 @@ export const TeamOperationsPage: React.FC = () => {
           <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
             <div>
               <h3 className="font-bold text-sm text-slate-900">Burra Pariksha Team Directory</h3>
-              <p className="text-xs text-slate-500 mt-0.5">Authoritative user directory registered in Google Sheets.</p>
+              <p className="text-xs text-slate-500 mt-0.5">Authoritative user directory registered in Firestore.</p>
             </div>
             {isAdmin && (
               <button

@@ -8,7 +8,7 @@
  */
 
 import { BaseRepository } from './base.repository';
-import { ID_PREFIX_MAP, SEQUENCE_ENTITIES, SHEET_SCHEMAS, SHEET_TABS, SequenceEntityType } from '../schemas/google-sheets-schema';
+import { ID_PREFIX_MAP, SEQUENCE_ENTITIES, SequenceEntityType } from '../schemas/domain-schemas';
 
 import { questionsRepository } from './questions.repository';
 import { videosRepository } from './videos.repository';
@@ -28,14 +28,16 @@ import { analyticsRepository } from './analytics.repository';
 import { intelligenceRepository } from './intelligence.repository';
 import { socialCommentsRepository } from './social-comments.repository';
 import { commentIntelligenceRepository } from './comment-intelligence.repository';
-import { SequenceAllocationError } from '../google-sheets/errors';
+import { SequenceAllocationError } from '../errors';
 
 export interface SequenceRecord {
+  id?: string;
   entityType: string;
   nextNumber: number;
   prefix?: string;
   padLength?: number;
   updatedAt?: string;
+  version?: number;
 }
 
 export class SequencesRepository extends BaseRepository<SequenceRecord> {
@@ -44,7 +46,7 @@ export class SequencesRepository extends BaseRepository<SequenceRecord> {
   private allocationQueue: Promise<any> = Promise.resolve();
 
   private constructor() {
-    super(SHEET_SCHEMAS[SHEET_TABS.SEQUENCES]);
+    super('sequences');
   }
 
   public static getInstance(): SequencesRepository {

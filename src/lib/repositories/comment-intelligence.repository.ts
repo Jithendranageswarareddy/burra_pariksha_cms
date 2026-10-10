@@ -1,21 +1,18 @@
 /**
  * BURRA PARIKSHA CMS - Comment Intelligence Repository
  * Phase 30: Audience Social Comments & Comment Intelligence
- * 
- * Manages persistence for AI Comment Intelligence records (BP-CMI-######).
- * Stores data exclusively in the SEPARATE Analytics Workbook (COMMENT_INTELLIGENCE tab).
- * Enforces strict cross-workbook safeguards ensuring zero CMS production workbook mutation.
+ *
+ * Persists AI Comment Intelligence records (BP-CMI-######) to authoritative Cloud Firestore.
  */
 
 import { BaseRepository } from './base.repository';
 import { CommentIntelligenceRecord } from '../../types';
-import { COMMENT_INTELLIGENCE_SCHEMA } from '../schemas/google-sheets-schema';
 
 export class CommentIntelligenceRepository extends BaseRepository<CommentIntelligenceRecord> {
   private static instance: CommentIntelligenceRepository | null = null;
 
   private constructor() {
-    super(COMMENT_INTELLIGENCE_SCHEMA);
+    super('comment_intelligence', 'BP-CMI-');
   }
 
   public static getInstance(): CommentIntelligenceRepository {
@@ -23,15 +20,6 @@ export class CommentIntelligenceRepository extends BaseRepository<CommentIntelli
       CommentIntelligenceRepository.instance = new CommentIntelligenceRepository();
     }
     return CommentIntelligenceRepository.instance;
-  }
-
-  /**
-   * Overrides target spreadsheet ID to use ANALYTICS_SPREADSHEET_ID environment variable.
-   * If unconfigured, returns sentinel 'UNCONFIGURED_ANALYTICS_SPREADSHEET' to prevent
-   * accidental fallback to production GOOGLE_SHEETS_ID.
-   */
-  protected override getTargetSpreadsheetId(): string | undefined {
-    return process.env.ANALYTICS_SPREADSHEET_ID || 'UNCONFIGURED_ANALYTICS_SPREADSHEET';
   }
 
   /**

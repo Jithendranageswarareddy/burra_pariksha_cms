@@ -9,7 +9,7 @@
 
 import { categoriesRepository, topicsRepository, subtopicsRepository } from '../repositories';
 import { Category, Subtopic, Topic } from '../../types';
-import { ReferenceIntegrityError, ValidationError } from '../google-sheets/errors';
+import { ReferenceIntegrityError, ValidationError } from '../errors';
 import { idService } from './id.service';
 import { auditService } from './audit.service';
 import {

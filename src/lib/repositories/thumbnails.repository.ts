@@ -1,17 +1,16 @@
 /**
  * BURRA PARIKSHA CMS - Thumbnails & Thumbnail Versions Repositories
- * Phase 2: Google Sheets Database Architecture & Persistence
+ * Authoritative Firestore persistence
  */
 
 import { BaseRepository } from './base.repository';
-import { SHEET_SCHEMAS, SHEET_TABS } from '../schemas/google-sheets-schema';
 import { Thumbnail, ThumbnailVersion } from '../../types';
 
 export class ThumbnailsRepository extends BaseRepository<Thumbnail> {
   private static instance: ThumbnailsRepository | null = null;
 
   private constructor() {
-    super(SHEET_SCHEMAS[SHEET_TABS.THUMBNAILS]);
+    super('thumbnails', 'BP-T-');
   }
 
   public static getInstance(): ThumbnailsRepository {
@@ -41,7 +40,7 @@ export class ThumbnailVersionsRepository extends BaseRepository<ThumbnailVersion
   private static instance: ThumbnailVersionsRepository | null = null;
 
   private constructor() {
-    super(SHEET_SCHEMAS[SHEET_TABS.THUMBNAIL_VERSIONS]);
+    super('thumbnail_versions');
   }
 
   public static getInstance(): ThumbnailVersionsRepository {

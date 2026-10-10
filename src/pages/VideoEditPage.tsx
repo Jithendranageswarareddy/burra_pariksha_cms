@@ -190,7 +190,7 @@ export const VideoEditPage: React.FC = () => {
         actualDurationSeconds: renderDurationSeconds,
       });
       setSelectedVideo(updated);
-      setSuccessMessage('Editor assignment and duration updated in Google Sheets.');
+      setSuccessMessage('Editor assignment and duration updated in Firestore.');
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err: any) {
       setError(err?.message || 'Failed to update editor metadata.');
@@ -731,7 +731,7 @@ export const VideoEditPage: React.FC = () => {
                       onClick={handleSaveEditorMetadata}
                       className="w-full text-xs"
                     >
-                      {isUpdatingStatus ? 'Saving in Sheets...' : 'Save Editor & Duration Settings'}
+                      {isUpdatingStatus ? 'Saving in Firestore...' : 'Save Editor & Duration Settings'}
                     </Button>
                   </div>
                 </div>

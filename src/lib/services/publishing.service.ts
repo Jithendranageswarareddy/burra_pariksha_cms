@@ -63,13 +63,12 @@ import {
 import { SocialReviewService } from './social-review.service';
 import { ProductionAssetValidationService } from './production-asset-validation.service';
 import { ObjectAuthorizationService } from './object-auth.service';
-import { sanitizeSpreadsheetCellValue } from '../google-sheets/helpers';
 import {
   ValidationError,
   AuthorizationError,
   ReferenceIntegrityError,
   NotFoundError,
-} from '../google-sheets/errors';
+} from '../errors';
 
 export interface CreatePublishingAssignmentInput {
   assigneeId: string;
@@ -872,7 +871,7 @@ export class PublishingService {
     if (!errorMsg || typeof errorMsg !== 'string' || !errorMsg.trim()) {
       throw new ValidationError('A non-empty failure reason is required to mark a platform as FAILED.');
     }
-    const sanitizedReason = sanitizeSpreadsheetCellValue(errorMsg.trim());
+    const sanitizedReason = errorMsg.trim();
     if (sanitizedReason.length > 1000) {
       throw new ValidationError('Failure reason exceeds maximum allowable length of 1000 characters.');
     }

@@ -44,7 +44,7 @@ import { aiOrchestrator } from '../ai/ai-orchestrator.service';
 import { auditService } from './audit.service';
 import { idService } from './id.service';
 import { ThumbnailSafetyValidator } from '../validators/thumbnail-safety.validator';
-import { ValidationError, ReferenceIntegrityError, AuthorizationError } from '../google-sheets/errors';
+import { ValidationError, ReferenceIntegrityError, AuthorizationError } from '../errors';
 import { WorkflowActor } from './video-production.service';
 export type { WorkflowActor };
 

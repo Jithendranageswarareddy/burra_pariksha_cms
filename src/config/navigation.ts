@@ -177,7 +177,7 @@ export const AUTHORITATIVE_HUBS: NavigationHub[] = [
         name: 'System Health',
         href: '/settings',
         iconName: 'Settings',
-        description: 'Taxonomy (Topic → Subtopic), Google Sheets DB, and system settings',
+        description: 'Taxonomy (Topic → Subtopic), Cloud Firestore DB, and system settings',
         capability: 'VIEW_SYSTEM_HEALTH',
       },
       {

@@ -4,14 +4,13 @@
  */
 
 import { BaseRepository } from './base.repository';
-import { SHEET_SCHEMAS, SHEET_TABS } from '../schemas/google-sheets-schema';
 import { ValidationResult, QuestionValidationStatus } from '../../types';
 
 export class ValidationsRepository extends BaseRepository<any> {
   private static instance: ValidationsRepository | null = null;
 
   private constructor() {
-    super(SHEET_SCHEMAS[SHEET_TABS.QUESTION_VALIDATIONS]);
+    super('validations');
   }
 
   public static getInstance(): ValidationsRepository {

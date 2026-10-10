@@ -1,17 +1,16 @@
 /**
  * BURRA PARIKSHA CMS - Scripts & Script Versions Repositories
- * Phase 2: Google Sheets Database Architecture & Persistence
+ * Authoritative Firestore persistence
  */
 
 import { BaseRepository } from './base.repository';
-import { SHEET_SCHEMAS, SHEET_TABS } from '../schemas/google-sheets-schema';
 import { Script, ScriptVersion } from '../../types';
 
 export class ScriptsRepository extends BaseRepository<Script> {
   private static instance: ScriptsRepository | null = null;
 
   private constructor() {
-    super(SHEET_SCHEMAS[SHEET_TABS.SCRIPT]);
+    super('scripts', 'BP-S-');
   }
 
   public static getInstance(): ScriptsRepository {
@@ -41,7 +40,7 @@ export class ScriptVersionsRepository extends BaseRepository<ScriptVersion> {
   private static instance: ScriptVersionsRepository | null = null;
 
   private constructor() {
-    super(SHEET_SCHEMAS[SHEET_TABS.SCRIPT_VERSIONS]);
+    super('script_versions');
   }
 
   public static getInstance(): ScriptVersionsRepository {

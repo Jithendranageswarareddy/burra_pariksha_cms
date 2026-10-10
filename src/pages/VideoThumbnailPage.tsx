@@ -234,7 +234,7 @@ export const VideoThumbnailPage: React.FC = () => {
 
       setSuccessMessage(
         createNewVersion
-          ? `Thumbnail Version ${res.thumbnail.currentVersion} snapshot committed to Drive & Sheets!`
+          ? `Thumbnail Version ${res.thumbnail.currentVersion} snapshot committed to Drive & Firestore!`
           : 'Thumbnail metadata saved.'
       );
       setShowVersionModal(false);
@@ -442,7 +442,7 @@ export const VideoThumbnailPage: React.FC = () => {
                   <div>
                     <h3 className="text-sm font-bold text-slate-900">Thumbnail QA Status & Signoff</h3>
                     <p className="text-xs text-slate-500">
-                      Synchronized with Google Sheets <code>THUMBNAILS</code> worksheet
+                      Synchronized with Firestore <code>thumbnails</code> collection
                     </p>
                   </div>
                 </div>
@@ -873,7 +873,7 @@ export const VideoThumbnailPage: React.FC = () => {
             </div>
 
             <p className="text-xs text-slate-600">
-              This will record a permanent snapshot in the <code>THUMBNAIL_VERSIONS</code> worksheet for <strong>Version {(thumbnail?.currentVersion || 1) + 1}</strong>.
+              This will record a permanent snapshot in the <code>thumbnail_versions</code> collection for <strong>Version {(thumbnail?.currentVersion || 1) + 1}</strong>.
             </p>
 
             <div>

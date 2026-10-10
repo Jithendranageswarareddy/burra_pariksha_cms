@@ -1,17 +1,16 @@
 /**
  * BURRA PARIKSHA CMS - Assignments Repository
- * Phase 2 & Phase 10: Google Sheets Database Architecture & Team Operations
+ * Authoritative Firestore persistence
  */
 
 import { BaseRepository } from './base.repository';
-import { SHEET_SCHEMAS, SHEET_TABS } from '../schemas/google-sheets-schema';
 import { Assignment, AssignmentEntityType, AssignmentStatus } from '../../types';
 
 export class AssignmentsRepository extends BaseRepository<Assignment> {
   private static instance: AssignmentsRepository | null = null;
 
   private constructor() {
-    super(SHEET_SCHEMAS[SHEET_TABS.ASSIGNMENTS]);
+    super('assignments', 'BP-ASN-');
   }
 
   public static getInstance(): AssignmentsRepository {
@@ -107,4 +106,3 @@ export class AssignmentsRepository extends BaseRepository<Assignment> {
 }
 
 export const assignmentsRepository = AssignmentsRepository.getInstance();
-

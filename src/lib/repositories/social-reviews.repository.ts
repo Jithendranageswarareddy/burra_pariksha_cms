@@ -4,7 +4,6 @@
  */
 
 import { BaseRepository } from './base.repository';
-import { SHEET_SCHEMAS, SHEET_TABS } from '../schemas/google-sheets-schema';
 import { SocialReviewRecord, SocialQualityStatus, SocialReviewStatus } from '../../types';
 
 export class SocialReviewsRepository extends BaseRepository<SocialReviewRecord> {
@@ -12,7 +11,7 @@ export class SocialReviewsRepository extends BaseRepository<SocialReviewRecord> 
   private socialReviewStore = new Map<string, SocialReviewRecord>();
 
   private constructor() {
-    super(SHEET_SCHEMAS[SHEET_TABS.SOCIAL_REVIEWS]);
+    super('social_reviews', 'BP-REV-');
   }
 
   public static getInstance(): SocialReviewsRepository {

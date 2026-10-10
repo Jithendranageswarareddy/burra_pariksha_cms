@@ -19,7 +19,7 @@ import { auditService } from './audit.service';
 import { videoService } from './video.service';
 import { aiOrchestrator } from '../ai/ai-orchestrator.service';
 import { Question, Script, ScriptVersion, VideoProductionStatus, UserRole } from '../../types';
-import { ValidationError } from '../google-sheets/errors';
+import { ValidationError } from '../errors';
 
 export interface ScriptContentPayload {
   hookText: string;

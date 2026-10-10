@@ -3,7 +3,7 @@
  * Phase 4: Structural creation validation for Manual & AI workflows.
  */
 
-import { ValidationError } from '../google-sheets/errors';
+import { ValidationError } from '../errors';
 import {
   DIFFICULTY_LEVELS,
   CHALLENGE_TYPES,

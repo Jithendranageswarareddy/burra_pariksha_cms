@@ -46,8 +46,7 @@ import { auditService } from './audit.service';
 import { workflowService } from './workflow.service';
 import { objectAuthService, ActorContext } from './object-auth.service';
 import { SocialReviewService } from './social-review.service';
-import { ReferenceIntegrityError, ValidationError } from '../google-sheets/errors';
-import { GoogleSheetsClient } from '../google-sheets/client';
+import { ReferenceIntegrityError, ValidationError } from '../errors';
 
 export interface ContentMasterDetails {
   contentMaster: ContentMaster;
@@ -813,8 +812,6 @@ export class ContentMasterService {
       throw new Error(`Failed to update status for Content Master "${contentMasterId}".`);
     }
 
-    // 8. Cache invalidation
-    GoogleSheetsClient.getInstance().invalidateRowCache('CONTENT_MASTERS');
 
     // 9. Immutable Audit Logging & Workflow recording
     await auditService.log(

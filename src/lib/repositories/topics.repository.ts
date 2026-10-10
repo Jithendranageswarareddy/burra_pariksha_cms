@@ -1,17 +1,16 @@
 /**
  * BURRA PARIKSHA CMS - Topics Repository
- * Phase 2: Google Sheets Database Architecture & Persistence
+ * Authoritative Firestore persistence
  */
 
 import { BaseRepository } from './base.repository';
-import { SHEET_SCHEMAS, SHEET_TABS } from '../schemas/google-sheets-schema';
 import { Topic } from '../../types';
 
 export class TopicsRepository extends BaseRepository<Topic> {
   private static instance: TopicsRepository | null = null;
 
   private constructor() {
-    super(SHEET_SCHEMAS[SHEET_TABS.TOPICS]);
+    super('topics', 'BP-TOP-');
   }
 
   public static getInstance(): TopicsRepository {

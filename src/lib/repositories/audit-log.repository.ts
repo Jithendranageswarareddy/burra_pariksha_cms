@@ -1,17 +1,16 @@
 /**
  * BURRA PARIKSHA CMS — Audit Log & Users Repository
- * Sprint 4: Production Data Layer Migration (Google Sheets to Cloud Firestore)
+ * Authoritative Firestore persistence
  */
 
 import { BaseRepository } from './base.repository';
-import { SHEET_SCHEMAS, SHEET_TABS } from '../schemas/google-sheets-schema';
 import { AuditLog, User } from '../../types';
 
 export class AuditLogRepository extends BaseRepository<AuditLog> {
   private static instance: AuditLogRepository | null = null;
 
   private constructor() {
-    super(SHEET_SCHEMAS[SHEET_TABS.AUDIT_LOG]);
+    super('audit_logs', 'AUD-');
   }
 
   public static getInstance(): AuditLogRepository {
@@ -21,9 +20,12 @@ export class AuditLogRepository extends BaseRepository<AuditLog> {
     return AuditLogRepository.instance;
   }
 
-  public async findByEntity(entityId: string): Promise<AuditLog[]> {
+  public async findByEntity(entityTypeOrId: string, entityId?: string): Promise<AuditLog[]> {
     const all = await this.findAll();
-    return all.filter((l) => l.entityId === entityId);
+    if (entityId) {
+      return all.filter((l) => (l.entityType === entityTypeOrId && l.entityId === entityId) || l.entityId === entityId);
+    }
+    return all.filter((l) => l.entityId === entityTypeOrId || l.entityType === entityTypeOrId);
   }
 
   public async logEvent(
@@ -53,22 +55,48 @@ export class AuditLogRepository extends BaseRepository<AuditLog> {
   }
 
   public async logAction(
-    action: string,
-    entityType: string,
-    entityId: string,
-    userId: string,
-    details?: string | Record<string, any>
+    arg1: string,
+    arg2: string,
+    arg3: string,
+    arg4: string,
+    arg5?: string | Record<string, any>,
+    arg6?: string | Record<string, any>
   ): Promise<AuditLog> {
+    let action: string;
+    let entityId: string;
+    let actorId: string;
+    let actorName: string;
+    let details: string | Record<string, any> | undefined;
+
+    if (arg6 !== undefined || arguments.length >= 6) {
+      // Style: (actorId, actorName, action, entityType, entityId, details)
+      actorId = arg1;
+      actorName = arg2;
+      action = arg3;
+      entityId = (arg5 as string) || '';
+      details = arg6;
+    } else {
+      // Style: (action, entityType, entityId, userId, details)
+      action = arg1;
+      entityId = arg3;
+      actorId = arg4;
+      actorName = arg4;
+      details = arg5;
+    }
+
     const detailsStr = typeof details === 'object' ? JSON.stringify(details) : String(details || '');
-    return this.logEvent(action, entityId, userId, userId, detailsStr, 1);
+    return this.logEvent(action, entityId, actorId, actorName, detailsStr, 1);
   }
 }
 
 export interface UserSessionState {
+  userId?: string;
   sessionVersion: number;
   isActive: boolean;
   role: string;
-  roles: string[];
+  roles?: string[];
+  dataScope?: string;
+  updatedAt?: string;
 }
 
 export class UsersRepository extends BaseRepository<User> {
@@ -77,7 +105,7 @@ export class UsersRepository extends BaseRepository<User> {
   private userSessionStates: Map<string, UserSessionState> = new Map();
 
   private constructor() {
-    super(SHEET_SCHEMAS[SHEET_TABS.USERS]);
+    super('users', 'USR-');
   }
 
   public static getInstance(): UsersRepository {
@@ -91,7 +119,6 @@ export class UsersRepository extends BaseRepository<User> {
     return this.userSessionVersions.get(userId) ?? 1;
   }
 
-  
   public async getAuthoritativeUserSessionState(userId: string): Promise<UserSessionState | null> {
     const cached = this.userSessionStates.get(userId);
     if (cached) return cached;
@@ -131,6 +158,19 @@ export class UsersRepository extends BaseRepository<User> {
       await this.updateRecord(userId, { sessionVersion: nextVersion } as any);
     }
     return nextVersion;
+  }
+
+  public incrementSessionVersion(userId: string): number {
+    const current = this.getUserSessionVersion(userId);
+    const next = current + 1;
+    this.userSessionVersions.set(userId, next);
+    const state = this.userSessionStates.get(userId);
+    if (state) state.sessionVersion = next;
+    return next;
+  }
+
+  public async incrementSessionVersionPersistent(userId: string): Promise<number> {
+    return this.incrementUserSessionVersion(userId);
   }
 
   public async findByEmail(email: string): Promise<User | null> {

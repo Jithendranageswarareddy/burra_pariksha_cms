@@ -36,7 +36,7 @@ import {
   ValidationError,
   AuthorizationError,
   ReferenceIntegrityError,
-} from '../google-sheets/errors';
+} from '../errors';
 
 export interface CreateManualPackageInput {
   contentId: string;

@@ -208,3 +208,183 @@ export class InternalServerError extends AppError {
     });
   }
 }
+
+export class ReferenceIntegrityError extends AppError {
+  constructor(message = 'Reference integrity violation.', details?: ErrorDetails) {
+    super(message, {
+      statusCode: 400,
+      code: 'REFERENCE_INTEGRITY_ERROR',
+      details,
+    });
+  }
+}
+
+export class SequenceAllocationError extends AppError {
+  constructor(entityType: string, reason: string) {
+    super(`Failed to allocate sequence ID for entity type "${entityType}": ${reason}`, {
+      statusCode: 500,
+      code: 'SEQUENCE_ALLOCATION_ERROR',
+      details: { entityType, reason },
+    });
+  }
+}
+
+export class ConfigurationError extends AppError {
+  constructor(message: string, details?: ErrorDetails) {
+    super(message, {
+      statusCode: 400,
+      code: 'CONFIGURATION_ERROR',
+      details,
+    });
+  }
+}
+
+export class AuthorizationError extends AppError {
+  constructor(message = 'Unauthorized operation', details?: ErrorDetails) {
+    super(message, {
+      statusCode: 403,
+      code: 'AUTHORIZATION_ERROR',
+      details,
+    });
+  }
+}
+
+export class IdempotencyConflictError extends AppError {
+  constructor(
+    message = 'Idempotency key has already been used with a different request payload',
+    details?: ErrorDetails
+  ) {
+    super(message, {
+      statusCode: 409,
+      code: 'IDEMPOTENCY_CONFLICT',
+      details,
+    });
+  }
+}
+
+export class RecoveryOperationError extends AppError {
+  constructor(message: string, details?: ErrorDetails) {
+    super(message, {
+      statusCode: 500,
+      code: 'RECOVERY_OPERATION_ERROR',
+      details,
+    });
+  }
+}
+
+export class GoogleAuthError extends AppError {
+  constructor(
+    message = 'Google credentials missing or invalid',
+    details?: ErrorDetails
+  ) {
+    super(message, {
+      statusCode: 401,
+      code: 'GOOGLE_AUTH_ERROR',
+      details,
+    });
+  }
+}
+
+export type ErrorClassification = 'TRANSIENT' | 'NON_TRANSIENT';
+
+/**
+ * Sanitizes messages to guarantee private keys, tokens, or credentials are NEVER exposed.
+ */
+export function sanitizeErrorMessage(message: string): string {
+  if (!message || typeof message !== 'string') return '';
+  return message
+    .replace(/-----BEGIN[ A-Z_-]*KEY-----[\s\S]*?-----END[ A-Z_-]*KEY-----/gi, '[REDACTED_PRIVATE_KEY]')
+    .replace(/private_?key["':\s=]+("[^"]+"|[^\s,]+)/gi, 'private_key: [REDACTED]')
+    .replace(/Bearer\s+[A-Za-z0-9-_.]+/gi, 'Bearer [REDACTED]')
+    .replace(/ya29\.[A-Za-z0-9-_.]+/gi, '[REDACTED_TOKEN]')
+    .replace(/token["':\s=]+("[^"]+"|[^\s,]+)/gi, 'token: [REDACTED]')
+    .replace(/AIza[0-9A-Za-z-_]{35}/g, '[REDACTED_API_KEY]')
+    .replace(/client_?secret["':\s=]+("[^"]+"|[^\s,]+)/gi, 'client_secret: [REDACTED]')
+    .replace(/access_?token["':\s=]+("[^"]+"|[^\s,]+)/gi, 'access_token: [REDACTED]');
+}
+
+/**
+ * Classifies an error as TRANSIENT vs NON_TRANSIENT.
+ */
+export function classifyError(err: unknown): ErrorClassification {
+  if (!err) return 'NON_TRANSIENT';
+
+  if (err instanceof RateLimitExceededError) {
+    return 'TRANSIENT';
+  }
+
+  if (
+    err instanceof GoogleAuthError ||
+    err instanceof ReferenceIntegrityError ||
+    err instanceof ValidationError ||
+    err instanceof IdempotencyConflictError ||
+    err instanceof AuthorizationError ||
+    err instanceof ConfigurationError ||
+    err instanceof ForbiddenError ||
+    err instanceof UnauthorizedError ||
+    err instanceof NotFoundError
+  ) {
+    return 'NON_TRANSIENT';
+  }
+
+  const anyErr = err as any;
+  const status = Number(anyErr?.statusCode || anyErr?.status || anyErr?.code);
+  const msg = String(anyErr?.message || anyErr || '').toLowerCase();
+
+  if (status === 429 || status === 500 || status === 502 || status === 503 || status === 504) {
+    return 'TRANSIENT';
+  }
+  if (status === 400 || status === 401 || status === 403 || status === 404) {
+    return 'NON_TRANSIENT';
+  }
+
+  if (
+    msg.includes('rate limit') ||
+    msg.includes('quota exceeded') ||
+    msg.includes('econnreset') ||
+    msg.includes('etimedout') ||
+    msg.includes('econnrefused') ||
+    msg.includes('network error') ||
+    msg.includes('socket hang up') ||
+    msg.includes('backend error') ||
+    msg.includes('service unavailable') ||
+    msg.includes('timed out') ||
+    msg.includes('timeout')
+  ) {
+    return 'TRANSIENT';
+  }
+
+  return 'NON_TRANSIENT';
+}
+
+/**
+ * Sanitizes an error for safe exposure to clients and logs.
+ */
+export function sanitizeError(err: unknown): {
+  name: string;
+  code: string;
+  statusCode: number;
+  message: string;
+  isTransient: boolean;
+  classification: ErrorClassification;
+} {
+  const isErr = err instanceof Error;
+  const rawMsg = isErr ? err.message : String(err);
+  const sanitizedMsg = sanitizeErrorMessage(rawMsg);
+  const classification = classifyError(err);
+  const anyErr = err as any;
+
+  const code = anyErr?.code || (err instanceof AppError ? err.code : 'UNKNOWN_ERROR');
+  const statusCode = Number(anyErr?.statusCode || anyErr?.status || (err instanceof AppError ? err.statusCode : 500));
+  const name = isErr ? err.name : 'UnknownError';
+
+  return {
+    name,
+    code,
+    statusCode,
+    message: sanitizedMsg,
+    isTransient: classification === 'TRANSIENT',
+    classification,
+  };
+}
+

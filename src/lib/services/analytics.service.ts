@@ -19,7 +19,7 @@ import { analyticsRepository, AnalyticsRepository } from '../repositories/analyt
 import { contentMastersRepository } from '../repositories/content-masters.repository';
 import { idService } from './id.service';
 import { AuditLogRepository } from '../repositories/audit-log.repository';
-import { SEQUENCE_ENTITIES } from '../schemas/google-sheets-schema';
+import { SEQUENCE_ENTITIES } from '../schemas/domain-schemas';
 import {
   CreateSocialAnalyticsInput,
   ImportSocialAnalyticsInput,

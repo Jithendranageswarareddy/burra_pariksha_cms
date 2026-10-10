@@ -7,8 +7,8 @@
  */
 
 import { sequencesRepository } from '../repositories/sequences.repository';
-import { ID_PREFIX_MAP, SEQUENCE_ENTITIES, SequenceEntityType } from '../schemas/google-sheets-schema';
-import { SequenceAllocationError } from '../google-sheets/errors';
+import { ID_PREFIX_MAP, SEQUENCE_ENTITIES, SequenceEntityType } from '../schemas/domain-schemas';
+import { SequenceAllocationError } from '../errors';
 
 export class IdService {
   private static instance: IdService | null = null;

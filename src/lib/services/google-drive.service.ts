@@ -10,7 +10,7 @@
 
 import { google, drive_v3 } from 'googleapis';
 import { Readable } from 'stream';
-import { GoogleAuthError, ValidationError } from '../google-sheets/errors';
+import { GoogleAuthError, ValidationError } from '../errors';
 
 export interface DriveFileMetadata {
   fileId: string;

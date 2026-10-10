@@ -20,15 +20,12 @@ import {
   pinnedCommentService,
   planningService,
   productionBoardService,
-  productionSheetInitializer,
   publishingService,
   questionService,
   questionValidationService,
   scriptService,
   sequenceSafetyService,
   similarityService,
-  spreadsheetVerificationService,
-  snapshotExporterService,
   taxonomyService,
   thumbnailService,
   videoService,
@@ -47,7 +44,6 @@ import { thumbnailCandidatesRepository } from '../lib/repositories/thumbnail-can
 import { ThumbnailSafetyValidator } from '../lib/validators/thumbnail-safety.validator';
 import { geminiClient } from '../lib/ai/gemini.client';
 import { aiOrchestrator } from '../lib/ai/ai-orchestrator.service';
-import { googleSheetsClient } from '../lib/google-sheets/client';
 import { QuestionStatus, UserRole, SocialReviewStatus, RenderValidationStatus, VideoProductionStatus, WorkflowActor } from '../types';
 import { ProductionAssetValidationService } from '../lib/services/production-asset-validation.service';
 import { ActorContext } from '../lib/services/object-auth.service';
@@ -531,63 +527,26 @@ apiRouter.get('/auth/google/callback', async (req: Request, res: Response) => {
   }
 });
 
-apiRouter.get('/health', (req: Request, res: Response) => {
-  const isConfigured = googleSheetsClient.isConfigured();
-  res.json({
-    status: 'ok',
-    mode: isConfigured ? 'GOOGLE_SHEETS_PRODUCTION' : 'UNCONFIGURED',
-    timestamp: new Date().toISOString(),
-    databaseConfigured: isConfigured,
-  });
-});
-
-apiRouter.get('/sheets/health', async (req: Request, res: Response) => {
+apiRouter.get('/health', async (req: Request, res: Response) => {
   try {
-    const report = await spreadsheetVerificationService.verifySpreadsheet();
-    // Mask sensitive spreadsheet ID for unauthenticated callers
-    const sanitizedReport = {
-      ...report,
-      spreadsheetId: report.spreadsheetId ? `${report.spreadsheetId.substring(0, 4)}...${report.spreadsheetId.substring(report.spreadsheetId.length - 4)}` : '(Not configured)',
-    };
-    res.json(sanitizedReport);
-  } catch (err: any) {
-    res.status(500).json({
-      error: 'Failed to verify Google Sheets database',
-      message: err?.message || 'Unknown error',
+    const report = await operationalHealthService.getOperationalHealth();
+    const isConnected = Boolean(report.isConnected);
+    res.json({
+      status: isConnected ? 'ok' : 'degraded',
+      database: {
+        provider: 'FIRESTORE',
+        status: isConnected ? 'CONNECTED' : 'DISCONNECTED',
+      },
+      timestamp: new Date().toISOString(),
     });
-  }
-});
-
-apiRouter.post('/sheets/initialize', async (req: Request, res: Response) => {
-  try {
-    const bootstrapSecret = process.env.BOOTSTRAP_SECRET;
-    const providedSecret = req.headers['x-bootstrap-secret'] || req.body?.bootstrapSecret;
-
-    const isSecretValid = Boolean(bootstrapSecret && providedSecret === bootstrapSecret);
-
-    let isAdminSession = false;
-    const token = extractSessionToken(req);
-    if (token) {
-      const payload = authService.verifySessionToken(token);
-      if (payload && payload.role === UserRole.ADMIN) {
-        isAdminSession = true;
-      }
-    }
-
-    if (!isSecretValid && !isAdminSession) {
-      res.status(403).json({
-        error: 'Forbidden',
-        message: 'Valid bootstrap secret or ADMIN session is required for spreadsheet initialization.',
-      });
-      return;
-    }
-
-    const report = await productionSheetInitializer.initializeSpreadsheet();
-    res.json(report);
   } catch (err: any) {
     res.status(500).json({
-      error: 'Failed to initialize Google Sheets database',
-      message: err?.message || 'Unknown error',
+      status: 'error',
+      database: {
+        provider: 'FIRESTORE',
+        status: 'DISCONNECTED',
+      },
+      timestamp: new Date().toISOString(),
     });
   }
 });
@@ -629,10 +588,14 @@ apiRouter.get('/system/health', async (req: Request, res: Response) => {
 
 apiRouter.get('/system/readiness', async (req: Request, res: Response) => {
   try {
-    const isConfigured = googleSheetsClient.isConfigured();
+    const report = await operationalHealthService.getOperationalHealth();
+    const isConnected = Boolean(report.isConnected);
     res.json({
-      status: 'ready',
-      database: isConfigured ? 'GOOGLE_SHEETS_PRODUCTION' : 'UNCONFIGURED',
+      status: isConnected ? 'ready' : 'degraded',
+      database: {
+        provider: 'FIRESTORE',
+        status: isConnected ? 'CONNECTED' : 'DISCONNECTED',
+      },
       timestamp: new Date().toISOString(),
     });
   } catch (err: any) {
@@ -640,15 +603,6 @@ apiRouter.get('/system/readiness', async (req: Request, res: Response) => {
       status: 'unready',
       error: err?.message || 'Readiness diagnostic failed',
     });
-  }
-});
-
-apiRouter.get('/system/snapshot', requireRole([UserRole.ADMIN]), async (req: Request, res: Response) => {
-  try {
-    const snapshot = await snapshotExporterService.exportSnapshot();
-    res.json(snapshot);
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message || 'Failed to export snapshot' });
   }
 });
 
@@ -5156,7 +5110,6 @@ apiRouter.get('/recovery/status', requireRole([UserRole.ADMIN]), async (req: Req
     const { FullSnapshotRestorePlanService } = await import('../lib/services/full-snapshot-restore-plan.service');
     const { FullSnapshotRestoreExecutionService } = await import('../lib/services/full-snapshot-restore-execution.service');
     const { restoreValidatorService } = await import('../lib/services/restore-validator.service');
-    const { snapshotExporterService } = await import('../lib/services/snapshot-exporter.service');
     const { getSnapshotArchiveConfig } = await import('../config/snapshot.config');
     const { snapshotHistoryService } = await import('../lib/services/snapshot-history.service');
     const { snapshotSchedulerService } = await import('../lib/services/snapshot-scheduler.service');
@@ -5171,7 +5124,7 @@ apiRouter.get('/recovery/status', requireRole([UserRole.ADMIN]), async (req: Req
 
     res.json({
       backupCapability: {
-        snapshotExporterAvailable: Boolean(snapshotExporterService),
+        snapshotExporterAvailable: false,
       },
       recoveryCapability: {
         validatorAvailable: Boolean(restoreValidatorService),
@@ -5299,10 +5252,12 @@ apiRouter.post('/recovery/dry-run', requireRole([UserRole.ADMIN]), async (req: R
       });
     }
 
-    // Auto-export live snapshot if snapshot payload is omitted or empty
+    // Require explicit snapshot payload
     if (!snapshot || typeof snapshot !== 'object' || !snapshot.worksheets || !snapshot.checksum) {
-      const { snapshotExporterService } = await import('../lib/services/snapshot-exporter.service');
-      snapshot = await snapshotExporterService.exportSnapshot();
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid or missing snapshot payload. Required: worksheets and checksum.',
+      });
     }
 
     const { FullSnapshotRestorePlanService } = await import('../lib/services/full-snapshot-restore-plan.service');
@@ -5332,8 +5287,10 @@ apiRouter.post('/recovery/validate/granular', requireRole([UserRole.ADMIN]), asy
     const { entityType, entityId, snapshot } = req.body || {};
     let actualSnapshot = snapshot;
     if (!actualSnapshot || typeof actualSnapshot !== 'object' || !actualSnapshot.worksheets || !actualSnapshot.checksum) {
-      const { snapshotExporterService } = await import('../lib/services/snapshot-exporter.service');
-      actualSnapshot = await snapshotExporterService.exportSnapshot();
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid or missing snapshot payload. Required: worksheets and checksum.',
+      });
     }
 
     if (!entityType || !entityId) {

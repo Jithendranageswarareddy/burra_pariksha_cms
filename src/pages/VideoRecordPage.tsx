@@ -212,7 +212,7 @@ export const VideoRecordPage: React.FC = () => {
         assignedHost,
       });
       setSelectedVideo(updated);
-      setSuccessMessage('Host assignment updated successfully in Google Sheets.');
+      setSuccessMessage('Host assignment updated successfully in Firestore.');
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err: any) {
       setError(err?.message || 'Failed to update host assignment.');

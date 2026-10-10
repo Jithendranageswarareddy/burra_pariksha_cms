@@ -57,7 +57,7 @@ import {
   ValidationError,
   AuthorizationError,
   NotFoundError,
-} from '../google-sheets/errors';
+} from '../errors';
 
 /**
  * Unicode Grapheme-Aware Character Counter.

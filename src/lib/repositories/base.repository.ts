@@ -1,63 +1,36 @@
-
-const TAB_NAME_TO_FIRESTORE_COLLECTION: Record<string, string> = {
-  QUESTIONS: 'questions',
-  CONTENT_MASTERS: 'content_masters',
-  QUESTION_DRAFTS: 'question_drafts',
-  SCRIPTS: 'scripts',
-  SCRIPT: 'scripts',
-  SCRIPT_VERSIONS: 'script_versions',
-  VIDEOS: 'videos',
-  THUMBNAILS: 'thumbnails',
-  PINNED_COMMENTS: 'pinned_comments',
-  PUBLISHING_PACKAGES: 'publishing_packages',
-  SOCIAL_POSTS: 'social_posts',
-  SOCIAL_COMMENTS: 'social_comments',
-  SOCIAL_REVIEWS: 'social_reviews',
-  SOCIAL_ANALYTICS: 'social_analytics',
-  WORKFLOW_INSTANCES: 'workflow_instances',
-  WORKFLOW_HISTORY: 'workflow_history',
-  ASSIGNMENTS: 'assignments',
-  TAXONOMY_CATEGORIES: 'categories',
-  CATEGORIES: 'categories',
-  TAXONOMY_TOPICS: 'topics',
-  TOPICS: 'topics',
-  TAXONOMY_SUBTOPICS: 'subtopics',
-  SUBTOPICS: 'subtopics',
-  USERS: 'users',
-  QUESTION_CONFIG: 'question_config',
-  SEQUENCES: 'sequences',
-  AUDIT_LOGS: 'audit_logs',
-  VALIDATIONS: 'validations',
-};
-
 /**
- * BURRA PARIKSHA CMS — Unified Authoritative Base Repository
- * Sprint 4: Production Data Layer Migration (Google Sheets to Cloud Firestore)
+ * BURRA PARIKSHA CMS — Authoritative Domain Base Repository
  *
  * ARCHITECTURAL MANDATE:
- * 1. Cloud Firestore (ai-studio-burraparikshacon-f592ca42-39af-4d83-aff2-6870ba939b0e)
- *    is the SINGLE AUTHORITATIVE transactional persistence store for BP-CMS.
+ * 1. Cloud Firestore is the SINGLE AUTHORITATIVE transactional persistence store for BP-CMS.
  * 2. All production domain repositories inherit from this BaseRepository, which
  *    delegates transactional operations (findById, findAll, findWhere, appendRecord,
  *    updateRecord, deleteRecord) directly to FirestoreRepository<T> backed by
- *    server-side authenticated Firestore credentials.
+ *    server-side Firebase Admin SDK Firestore credentials.
  */
 
-import { SheetSchemaContract, SheetTabName } from '../schemas/google-sheets-schema';
 import { BaseEntity, IRepository } from '../db/repository.interface';
 import { CanonicalPrefix } from '../id.service';
+import { FirestoreCollectionDefinition } from '../schemas/domain-schemas';
+
+export { type FirestoreCollectionDefinition };
 
 export abstract class BaseRepository<T extends Record<string, any>> {
-  protected schema: SheetSchemaContract;
-  protected defaultPrefix?: CanonicalPrefix;
   protected collectionName: string;
+  protected defaultPrefix?: CanonicalPrefix;
   private _firestoreRepo: IRepository<T & BaseEntity> | null = null;
 
-  constructor(schema: SheetSchemaContract, defaultPrefix?: CanonicalPrefix) {
-    this.schema = schema;
-    this.defaultPrefix = defaultPrefix;
-    const mapped = TAB_NAME_TO_FIRESTORE_COLLECTION[schema.sheetName.toUpperCase()];
-    this.collectionName = mapped || schema.sheetName.toLowerCase();
+  constructor(
+    definition: FirestoreCollectionDefinition | string,
+    defaultPrefix?: CanonicalPrefix
+  ) {
+    if (typeof definition === 'string') {
+      this.collectionName = definition;
+      this.defaultPrefix = defaultPrefix;
+    } else {
+      this.collectionName = definition.collectionName;
+      this.defaultPrefix = definition.defaultPrefix ?? defaultPrefix;
+    }
   }
 
   protected async getRepo(): Promise<IRepository<T & BaseEntity>> {
@@ -68,12 +41,19 @@ export abstract class BaseRepository<T extends Record<string, any>> {
     return this._firestoreRepo;
   }
 
-  public getSheetName(): SheetTabName {
-    return this.schema.sheetName;
+  public getCollectionName(): string {
+    return this.collectionName;
   }
 
-  public getSchema(): SheetSchemaContract {
-    return this.schema;
+  /**
+   * Returns collection name for compatibility.
+   */
+  public getSheetName(): string {
+    return this.collectionName;
+  }
+
+  public getSchema(): { collectionName: string; primaryKey: string } {
+    return { collectionName: this.collectionName, primaryKey: 'id' };
   }
 
   public async getFirestoreRepository(): Promise<IRepository<T & BaseEntity>> {

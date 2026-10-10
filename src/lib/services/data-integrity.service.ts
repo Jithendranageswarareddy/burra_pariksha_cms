@@ -61,8 +61,8 @@ import {
   workflowRepository,
 } from '../repositories';
 
-import { ALL_SHEET_TABS, ID_PREFIX_MAP, SEQUENCE_ENTITIES, SequenceEntityType, SHEET_TABS } from '../schemas/google-sheets-schema';
-import { googleSheetsClient } from '../google-sheets/client';
+import { ALL_SHEET_TABS, SHEET_TABS } from '../schemas/google-sheets-schema';
+import { ID_PREFIX_MAP, SEQUENCE_ENTITIES, SequenceEntityType } from '../schemas/domain-schemas';
 import { SequenceRecord } from '../repositories/sequences.repository';
 
 export class DataIntegrityService {
@@ -1812,7 +1812,7 @@ export class DataIntegrityService {
       },
       issues,
       isReadOnly: true,
-      mode: googleSheetsClient.isConfigured() ? 'LIVE_GOOGLE_SHEETS' : 'UNCONFIGURED',
+      mode: 'CLOUD_FIRESTORE',
     };
   }
 

@@ -1,17 +1,16 @@
 /**
  * BURRA PARIKSHA CMS - Pinned Comments & Pinned Comment Versions Repositories
- * Phase 2: Google Sheets Database Architecture & Persistence
+ * Authoritative Firestore persistence
  */
 
 import { BaseRepository } from './base.repository';
-import { SHEET_SCHEMAS, SHEET_TABS } from '../schemas/google-sheets-schema';
 import { PinnedComment, PinnedCommentVersion } from '../../types';
 
 export class PinnedCommentsRepository extends BaseRepository<PinnedComment> {
   private static instance: PinnedCommentsRepository | null = null;
 
   private constructor() {
-    super(SHEET_SCHEMAS[SHEET_TABS.PINNED_COMMENTS]);
+    super('pinned_comments', 'BP-PIN-');
   }
 
   public static getInstance(): PinnedCommentsRepository {
@@ -31,7 +30,7 @@ export class PinnedCommentVersionsRepository extends BaseRepository<PinnedCommen
   private static instance: PinnedCommentVersionsRepository | null = null;
 
   private constructor() {
-    super(SHEET_SCHEMAS[SHEET_TABS.PINNED_COMMENT_VERSIONS]);
+    super('pinned_comment_versions');
   }
 
   public static getInstance(): PinnedCommentVersionsRepository {

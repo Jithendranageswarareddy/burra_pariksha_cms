@@ -28,7 +28,7 @@ import { publishingService, PublishingService } from './publishing.service';
 import { auditService } from './audit.service';
 import { workflowService } from './workflow.service';
 import { contentMasterService } from './content-master.service';
-import { ValidationError, ReferenceIntegrityError } from '../google-sheets/errors';
+import { ValidationError, ReferenceIntegrityError } from '../errors';
 
 export enum CanonicalWorkflowState {
   DRAFT = 'DRAFT',

@@ -20,7 +20,7 @@ import { auditService } from './audit.service';
 import { workflowService } from './workflow.service';
 import { googleDriveService } from './google-drive.service';
 import { Thumbnail, ThumbnailVersion, UserRole } from '../../types';
-import { ValidationError } from '../google-sheets/errors';
+import { ValidationError } from '../errors';
 
 export interface ThumbnailPayload {
   hookHeadline: string;

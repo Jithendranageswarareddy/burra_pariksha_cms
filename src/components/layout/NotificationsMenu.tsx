@@ -29,14 +29,14 @@ export const NotificationsMenu: React.FC<NotificationsMenuProps> = ({
 
         const alerts: Array<{ id: string; title: string; message: string; type: 'info' | 'warning' | 'success'; timestamp: string }> = [];
 
-        // Real Sheets DB Health
+        // Real Firestore DB Health
         if (health.status === 'fulfilled') {
-          const isConfigured = Boolean(health.value.databaseConfigured) || health.value.mode === 'GOOGLE_SHEETS_PRODUCTION';
-          if (!isConfigured) {
+          const isConnected = health.value?.database?.status === 'CONNECTED';
+          if (!isConnected) {
             alerts.push({
-              id: 'sheets-fallback',
-              title: 'Storage Fallback Active',
-              message: 'Using in-memory/local storage mode. Google Sheets DB is not currently configured.',
+              id: 'firestore-disconnected',
+              title: 'Database Disconnected',
+              message: 'Cloud Firestore connection is not currently established.',
               type: 'warning',
               timestamp: 'Current',
             });

@@ -1506,7 +1506,7 @@ export const SocialAnalyticsPage: React.FC = () => {
                 <Send className="w-3.5 h-3.5 text-indigo-600" />
                 Record Audience Comment (Manual Ingestion)
               </h4>
-              <span className="text-[10px] text-slate-400 font-mono">Isolated to ANALYTICS_SPREADSHEET_ID</span>
+              <span className="text-[10px] text-slate-400 font-mono">Persisted to Firestore</span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

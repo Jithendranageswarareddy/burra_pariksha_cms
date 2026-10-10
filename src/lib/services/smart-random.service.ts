@@ -18,7 +18,7 @@ import {
 import { taxonomyService } from './taxonomy.service';
 import { questionsRepository } from '../repositories/questions.repository';
 import { questionConfigService } from './question-config.service';
-import { ValidationError } from '../google-sheets/errors';
+import { ValidationError } from '../errors';
 import { QuestionLanguage } from '../../types';
 
 export interface ResolvedCreationParameters {

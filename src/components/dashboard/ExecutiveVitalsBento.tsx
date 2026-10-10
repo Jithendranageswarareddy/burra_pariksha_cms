@@ -138,9 +138,9 @@ export const ExecutiveVitalsBento: React.FC<ExecutiveVitalsBentoProps> = ({
         </div>
 
         <div className="mt-4 pt-3 border-t border-slate-100 grid grid-cols-3 gap-1 text-[11px]">
-          <div className="flex items-center gap-1 text-slate-600" title="Google Sheets DB">
+          <div className="flex items-center gap-1 text-slate-600" title="Cloud Firestore">
             <Database className="w-3 h-3 text-emerald-600 shrink-0" />
-            <span className="truncate font-medium">Sheets DB</span>
+            <span className="truncate font-medium">Firestore</span>
           </div>
           <div className="flex items-center gap-1 text-slate-600" title="Drive Media Storage">
             <HardDrive className="w-3 h-3 text-emerald-600 shrink-0" />

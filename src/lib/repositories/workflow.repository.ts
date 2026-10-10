@@ -1,17 +1,16 @@
 /**
  * BURRA PARIKSHA CMS - Workflow Repository
- * Phase 2: Google Sheets Database Architecture & Persistence
+ * Authoritative Firestore persistence
  */
 
 import { BaseRepository } from './base.repository';
-import { SHEET_SCHEMAS, SHEET_TABS } from '../schemas/google-sheets-schema';
 import { Workflow } from '../../types';
 
 export class WorkflowRepository extends BaseRepository<Workflow> {
   private static instance: WorkflowRepository | null = null;
 
   private constructor() {
-    super(SHEET_SCHEMAS[SHEET_TABS.WORKFLOW]);
+    super('workflow_instances');
   }
 
   public static getInstance(): WorkflowRepository {

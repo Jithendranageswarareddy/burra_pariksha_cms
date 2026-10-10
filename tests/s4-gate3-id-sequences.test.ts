@@ -17,7 +17,7 @@
 
 import assert from 'node:assert';
 import { idService } from '../src/lib/services/id.service';
-import { SEQUENCE_ENTITIES } from '../src/lib/schemas/google-sheets-schema';
+import { SEQUENCE_ENTITIES } from '../src/lib/schemas/domain-schemas';
 import { sequencesRepository } from '../src/lib/repositories/sequences.repository';
 import { getAdminFirestore } from '../src/lib/firebase/admin';
 

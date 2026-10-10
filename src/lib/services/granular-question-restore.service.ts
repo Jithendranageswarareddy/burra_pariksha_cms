@@ -16,7 +16,7 @@ import { questionsRepository, sequencesRepository } from '../repositories';
 import { taxonomyService } from './taxonomy.service';
 import { auditService, workflowService } from './audit.service';
 import { Question, QuestionStatus } from '../../types';
-import { ReferenceIntegrityError, ValidationError } from '../google-sheets/errors';
+import { ReferenceIntegrityError, ValidationError } from '../errors';
 
 export interface GranularQuestionRestoreRequest {
   snapshot: GoogleSheetsSnapshot;

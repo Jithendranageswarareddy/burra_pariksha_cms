@@ -362,7 +362,7 @@ export const DashboardPage: React.FC = () => {
         </div>
 
         <span className="text-[11px] text-slate-400 font-mono">
-          Authoritative Engine: Google Sheets DB & Gemini AI Studio
+          Authoritative Engine: Cloud Firestore & Gemini AI Studio
         </span>
       </div>
     </div>

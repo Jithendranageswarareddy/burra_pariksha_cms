@@ -1,21 +1,18 @@
 /**
  * BURRA PARIKSHA CMS - Intelligence Repository
  * Phase 28: AI Social Performance Intelligence Storage
- * 
- * Manages persistence for AI Social Performance Intelligence records (BP-SPI-######).
- * Stores data exclusively in the SEPARATE Analytics Workbook (ANALYTICS_INTELLIGENCE tab).
- * Inherits strict cross-workbook safeguards ensuring zero CMS production workbook mutation.
+ *
+ * Persists AI Social Performance Intelligence records (BP-SPI-######) to authoritative Cloud Firestore.
  */
 
 import { BaseRepository } from './base.repository';
 import { SocialPerformanceIntelligenceRecord } from '../../types';
-import { SOCIAL_PERFORMANCE_INTELLIGENCE_SCHEMA } from '../schemas/google-sheets-schema';
 
 export class IntelligenceRepository extends BaseRepository<SocialPerformanceIntelligenceRecord> {
   private static instance: IntelligenceRepository | null = null;
 
   private constructor() {
-    super(SOCIAL_PERFORMANCE_INTELLIGENCE_SCHEMA);
+    super('social_performance_intelligence', 'BP-SPI-');
   }
 
   public static getInstance(): IntelligenceRepository {
@@ -23,15 +20,6 @@ export class IntelligenceRepository extends BaseRepository<SocialPerformanceInte
       IntelligenceRepository.instance = new IntelligenceRepository();
     }
     return IntelligenceRepository.instance;
-  }
-
-  /**
-   * Overrides target spreadsheet ID to use ANALYTICS_SPREADSHEET_ID environment variable.
-   * If unconfigured, returns sentinel 'UNCONFIGURED_ANALYTICS_SPREADSHEET' to prevent
-   * accidental fallback to production GOOGLE_SHEETS_ID.
-   */
-  protected getTargetSpreadsheetId(): string | undefined {
-    return process.env.ANALYTICS_SPREADSHEET_ID || 'UNCONFIGURED_ANALYTICS_SPREADSHEET';
   }
 
   /**

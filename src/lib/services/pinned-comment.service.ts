@@ -16,7 +16,7 @@ import { workflowRepository } from '../repositories/workflow.repository';
 import { idService } from './id.service';
 import { auditService } from './audit.service';
 import { PinnedComment, PinnedCommentVersion, Workflow } from '../../types';
-import { ValidationError } from '../google-sheets/errors';
+import { ValidationError } from '../errors';
 
 export interface PinnedCommentPayload {
   commentText: string;

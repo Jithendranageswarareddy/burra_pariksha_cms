@@ -1,17 +1,16 @@
 /**
  * BURRA PARIKSHA CMS - Categories Repository
- * Phase 2: Google Sheets Database Architecture & Persistence
+ * Authoritative Firestore persistence
  */
 
 import { BaseRepository } from './base.repository';
-import { SHEET_SCHEMAS, SHEET_TABS } from '../schemas/google-sheets-schema';
 import { Category } from '../../types';
 
 export class CategoriesRepository extends BaseRepository<Category> {
   private static instance: CategoriesRepository | null = null;
 
   private constructor() {
-    super(SHEET_SCHEMAS[SHEET_TABS.CATEGORIES]);
+    super('categories', 'BP-CAT-');
   }
 
   public static getInstance(): CategoriesRepository {

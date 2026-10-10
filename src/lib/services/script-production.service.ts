@@ -16,7 +16,7 @@ import { ScriptValidator } from '../validators/script.validator';
 import { idService } from './id.service';
 import { auditService } from './audit.service';
 import { Question, Script, ScriptVersion, UserRole, Video, VideoProductionStatus, PriorityLevel } from '../../types';
-import { ValidationError } from '../google-sheets/errors';
+import { ValidationError } from '../errors';
 
 export interface ScriptGenerationResponse {
   script: Script;

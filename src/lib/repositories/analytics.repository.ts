@@ -1,26 +1,18 @@
 /**
  * BURRA PARIKSHA CMS - Analytics Repository
  * Phase 27: Social Analytics Data Layer
- * 
- * Manages social analytics snapshots in a SEPARATE analytics Google Sheet workbook
- * configured via ANALYTICS_SPREADSHEET_ID.
- * 
- * STRICT ARCHITECTURAL CONSTRAINTS:
- * - Operates on ANALYTICS_SPREADSHEET_ID.
- * - Zero write paths to production CMS workbook or entities.
- * - Graceful fallback to local store if ANALYTICS_SPREADSHEET_ID is missing.
- * - Append-only historical snapshot preservation.
+ *
+ * Persists social analytics snapshots to authoritative Cloud Firestore.
  */
 
 import { BaseRepository } from './base.repository';
-import { SOCIAL_ANALYTICS_SCHEMA } from '../schemas/google-sheets-schema';
 import { SocialAnalyticsRecord, SocialAnalyticsQueryFilters } from '../../types';
 
 export class AnalyticsRepository extends BaseRepository<SocialAnalyticsRecord> {
   private static instance: AnalyticsRepository | null = null;
 
   private constructor() {
-    super(SOCIAL_ANALYTICS_SCHEMA);
+    super('social_analytics', 'BP-ANL-');
   }
 
   public static getInstance(): AnalyticsRepository {
@@ -28,15 +20,6 @@ export class AnalyticsRepository extends BaseRepository<SocialAnalyticsRecord> {
       AnalyticsRepository.instance = new AnalyticsRepository();
     }
     return AnalyticsRepository.instance;
-  }
-
-  /**
-   * Overrides target spreadsheet ID to use ANALYTICS_SPREADSHEET_ID environment variable.
-   * If unconfigured, returns sentinel 'UNCONFIGURED_ANALYTICS_SPREADSHEET' to prevent
-   * accidental fallback to production GOOGLE_SHEETS_ID.
-   */
-  protected override getTargetSpreadsheetId(): string | undefined {
-    return process.env.ANALYTICS_SPREADSHEET_ID || undefined;
   }
 
   /**

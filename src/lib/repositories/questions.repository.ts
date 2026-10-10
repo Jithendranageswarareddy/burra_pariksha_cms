@@ -1,18 +1,18 @@
 /**
  * BURRA PARIKSHA CMS - Questions Repository
- * Phase 2: Google Sheets Database Architecture & Persistence
+ * Authoritative Firestore persistence
  */
 
 import { BaseRepository } from './base.repository';
-import { QuestionFilterInput, SHEET_SCHEMAS, SHEET_TABS } from '../schemas/google-sheets-schema';
+import { QuestionFilterInput } from '../schemas/google-sheets-schema';
 import { Question } from '../../types';
-import { ValidationError } from '../google-sheets/errors';
+import { ValidationError } from '../errors';
 
 export class QuestionsRepository extends BaseRepository<Question> {
   private static instance: QuestionsRepository | null = null;
 
   private constructor() {
-    super(SHEET_SCHEMAS[SHEET_TABS.QUESTIONS]);
+    super('questions', 'BP-Q-');
   }
 
   public static getInstance(): QuestionsRepository {
@@ -108,7 +108,7 @@ export class QuestionsRepository extends BaseRepository<Question> {
   }
 
   public async delete(id: string, options?: { actor?: { id: string; name: string }; reason?: string }): Promise<boolean> {
-    return this.deleteRecord(id, options);
+    return this.deleteRecord(id);
   }
 }
 

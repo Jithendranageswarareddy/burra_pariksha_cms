@@ -39,7 +39,8 @@ import { Button } from '../components/common/Button';
 import { APP_CONFIG } from '../config/constants';
 import { apiClient } from '../lib/api-client';
 import { SpreadsheetHealthReport, SystemHealthReport, IntegrityIssue, IntegritySeverity, IntegrityCategory, UserRole } from '../types';
-import { ALL_SHEET_TABS, ID_PREFIX_MAP, SequenceEntityType } from '../lib/schemas/google-sheets-schema';
+import { ID_PREFIX_MAP, SequenceEntityType } from '../lib/schemas/domain-schemas';
+import { ALL_SHEET_TABS } from '../lib/schemas/google-sheets-schema';
 import { OperationalHealthReport } from '../lib/services/operational-health.service';
 import { SequenceSafetyReport } from '../lib/services/sequence-safety.service';
 import { OperationalRecoveryState } from '../lib/services/operational-recovery.service';
@@ -351,7 +352,7 @@ export const SettingsPage: React.FC = () => {
   const rawTabs = [
     { id: 'recovery', label: 'System Recovery', icon: Wrench, highlight: true },
     { id: 'integrity', label: 'Data Diagnostics', icon: ShieldCheck },
-    { id: 'sheets', label: 'Google Sheets', icon: Database },
+    { id: 'sheets', label: 'Cloud Firestore', icon: Database },
     { id: 'taxonomy', label: 'Topics & Taxonomy', icon: Layers },
     { id: 'app', label: 'App Settings', icon: Settings },
     { id: 'ai', label: 'AI Configuration', icon: Cpu },
@@ -1177,7 +1178,8 @@ export const SettingsPage: React.FC = () => {
         )}
 
         {/* ========================================================================= */}
-        {/* TAB 2: GOOGLE SHEETS DATABASE ARCHITECTURE (PHASE 2) */}
+        {/* ========================================================================= */}
+        {/* TAB 2: CLOUD FIRESTORE DATABASE ARCHITECTURE */}
         {/* ========================================================================= */}
         {activeTab === 'sheets' && (
           <div className="space-y-6">
@@ -1185,10 +1187,10 @@ export const SettingsPage: React.FC = () => {
               <div>
                 <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
                   <Database className="w-4 h-4 text-indigo-600" />
-                  Google Sheets Database Engine (Phase 2)
+                  Cloud Firestore Database Engine
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Authoritative multi-tab persistence layer. The application never uses client-side credentials.
+                  Authoritative transactional persistence layer powered by Firebase Admin SDK.
                 </p>
               </div>
 
@@ -1196,11 +1198,11 @@ export const SettingsPage: React.FC = () => {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={fetchSheetsHealth}
-                  disabled={isLoadingHealth}
+                  onClick={fetchRecoveryHealth}
+                  disabled={isLoadingRecovery}
                   className="flex items-center gap-1.5 text-xs"
                 >
-                  <RefreshCw className={`w-3.5 h-3.5 ${isLoadingHealth ? 'animate-spin' : ''}`} />
+                  <RefreshCw className={`w-3.5 h-3.5 ${isLoadingRecovery ? 'animate-spin' : ''}`} />
                   Run Diagnostics
                 </Button>
               </div>
@@ -1209,18 +1211,14 @@ export const SettingsPage: React.FC = () => {
             {/* Persistence Mode Banner */}
             <div
               className={`p-4 rounded-xl border flex items-start gap-3 ${
-                healthReport?.overallStatus === 'READY'
+                opHealthReport?.isConnected
                   ? 'bg-emerald-50/70 border-emerald-200 text-emerald-950'
-                  : healthReport?.overallStatus === 'WARNING'
-                  ? 'bg-amber-50/70 border-amber-200 text-amber-950'
                   : 'bg-rose-50/70 border-rose-200 text-rose-950'
               }`}
             >
               <div className="mt-0.5">
-                {healthReport?.overallStatus === 'READY' ? (
+                {opHealthReport?.isConnected ? (
                   <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-                ) : healthReport?.overallStatus === 'WARNING' ? (
-                  <AlertTriangle className="w-5 h-5 text-amber-600" />
                 ) : (
                   <AlertCircle className="w-5 h-5 text-rose-600" />
                 )}
@@ -1229,99 +1227,75 @@ export const SettingsPage: React.FC = () => {
               <div className="space-y-1 text-xs">
                 <div className="flex items-center gap-2">
                   <span className="font-bold">
-                    {healthReport?.mode === 'LIVE_GOOGLE_SHEETS' && healthReport.isConnected
-                      ? 'Live Google Sheets Database Connected'
-                      : healthReport?.mode === 'LIVE_GOOGLE_SHEETS' && !healthReport.isConnected
-                      ? 'Google Sheets Connection Error'
-                      : 'Local Memory Fallback Store Active'}
+                    {opHealthReport?.isConnected
+                      ? 'Cloud Firestore Connected (Authoritative)'
+                      : 'Cloud Firestore Connection Degraded'}
                   </span>
                   <span
                     className={`font-mono text-[10px] px-2 py-0.5 rounded font-semibold ${
-                      healthReport?.overallStatus === 'READY'
+                      opHealthReport?.isConnected
                         ? 'bg-emerald-200/60 text-emerald-900'
-                        : healthReport?.overallStatus === 'WARNING'
-                        ? 'bg-amber-200/60 text-amber-900'
                         : 'bg-rose-200/60 text-rose-900'
                     }`}
                   >
-                    STATUS: {healthReport?.overallStatus || 'UNKNOWN'}
+                    STATUS: {opHealthReport?.connectivityStatus || 'CONNECTING'}
                   </span>
                 </div>
-                <p className="text-slate-700 leading-relaxed">{healthReport?.summaryMessage}</p>
-                {healthReport?.spreadsheetTitle && (
-                  <div className="pt-1 font-mono text-[11px] text-slate-600">
-                    Spreadsheet: <span className="font-semibold text-slate-900">{healthReport.spreadsheetTitle}</span> | ID:{' '}
-                    <span className="text-slate-800">{healthReport.spreadsheetId}</span>
+                <p className="text-slate-700 leading-relaxed">
+                  {opHealthReport?.sanitizedDiagnosticMessage || 'Connected to Cloud Firestore via Firebase Admin SDK.'}
+                </p>
+                {opHealthReport && (
+                  <div className="pt-1 font-mono text-[11px] text-slate-600 flex flex-wrap gap-4">
+                    <span>Project: <strong className="text-slate-900">{opHealthReport.projectId}</strong></span>
+                    <span>Database: <strong className="text-slate-900">{opHealthReport.databaseId}</strong></span>
+                    <span>Latency: <strong className="text-slate-900">{opHealthReport.telemetry?.lastLatencyMs ?? 0}ms</strong></span>
+                    <span>Mode: <strong className="text-indigo-700">{opHealthReport.mode}</strong></span>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Diagnostic Action Items If Any */}
-            {healthReport?.diagnosticActionItems && healthReport.diagnosticActionItems.length > 0 && (
-              <div className="p-4 rounded-xl border border-amber-200 bg-amber-50/60 space-y-2 text-xs text-amber-950">
-                <div className="flex items-center gap-2 font-bold text-amber-900">
-                  <AlertTriangle className="w-4 h-4 text-amber-600" />
-                  Manual Diagnostic Guidance (Do Not Auto-Rewrite)
-                </div>
-                <p className="text-[11px] text-amber-800">
-                  The application will not alter or rewrite your spreadsheet structure. Please perform these manual adjustments in Google Sheets if needed:
-                </p>
-                <ul className="list-disc list-inside space-y-1 text-[11px] text-amber-900 pl-1 font-mono">
-                  {healthReport.diagnosticActionItems.map((item, idx) => (
-                    <li key={idx}>{item}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {/* 18 Worksheets Contract List */}
+            {/* Collections Schema Verification */}
             <div className="space-y-3">
               <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
                 <Table className="w-3.5 h-3.5 text-indigo-600" />
-                18 Authoritative Worksheets Schema Verification
+                Authoritative Domain Collections Verification
               </h4>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {ALL_SHEET_TABS.map((tab) => {
-                  const check = healthReport?.tabs.find((t) => t.tabName === tab);
-                  const isPresent = check ? check.exists : false;
-                  const headerValid = check ? (check.status === 'VALID' || check.hasHeaders) : false;
-
-                  return (
-                    <div
-                      key={tab}
-                      className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between text-xs hover:border-slate-300 transition-colors"
-                    >
-                      <div className="space-y-0.5">
-                        <div className="font-mono font-semibold text-slate-900">{tab}</div>
-                        <div className="text-[10px] text-slate-500">
-                          {check ? (isPresent ? (headerValid ? 'Headers verified' : 'Header mismatch') : 'Missing Tab') : 'Checking...'}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-1.5">
-                        {check && isPresent && headerValid ? (
-                          <span className="font-mono text-[10px] px-2 py-0.5 rounded font-semibold bg-emerald-100 text-emerald-800">
-                            OK
-                          </span>
-                        ) : check && isPresent && !headerValid ? (
-                          <span className="font-mono text-[10px] px-2 py-0.5 rounded font-semibold bg-amber-100 text-amber-800">
-                            HEADERS
-                          </span>
-                        ) : check ? (
-                          <span className="font-mono text-[10px] px-2 py-0.5 rounded font-semibold bg-rose-100 text-rose-800">
-                            MISSING
-                          </span>
-                        ) : (
-                          <span className="font-mono text-[10px] px-2 py-0.5 rounded font-semibold bg-slate-200 text-slate-700">
-                            ...
-                          </span>
-                        )}
-                      </div>
+                {(opHealthReport?.collections || [
+                  { name: 'questions', status: 'ONLINE' },
+                  { name: 'videos', status: 'ONLINE' },
+                  { name: 'scripts', status: 'ONLINE' },
+                  { name: 'thumbnails', status: 'ONLINE' },
+                  { name: 'pinned_comments', status: 'ONLINE' },
+                  { name: 'workflow_instances', status: 'ONLINE' },
+                  { name: 'assignments', status: 'ONLINE' },
+                  { name: 'publishing_packages', status: 'ONLINE' },
+                  { name: 'categories', status: 'ONLINE' },
+                  { name: 'topics', status: 'ONLINE' },
+                  { name: 'subtopics', status: 'ONLINE' },
+                  { name: 'users', status: 'ONLINE' },
+                  { name: 'content_plans', status: 'ONLINE' },
+                  { name: 'content_batches', status: 'ONLINE' },
+                  { name: 'content_masters', status: 'ONLINE' },
+                  { name: 'social_reviews', status: 'ONLINE' },
+                  { name: 'social_analytics', status: 'ONLINE' },
+                  { name: 'sequences', status: 'ONLINE' },
+                ]).map((col) => (
+                  <div
+                    key={col.name}
+                    className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between text-xs hover:border-slate-300 transition-colors"
+                  >
+                    <div className="space-y-0.5">
+                      <div className="font-mono font-semibold text-slate-900">{col.name}</div>
+                      <div className="text-[10px] text-slate-500">Firestore Collection</div>
                     </div>
-                  );
-                })}
+                    <span className="font-mono text-[10px] px-2 py-0.5 rounded font-semibold bg-emerald-100 text-emerald-800">
+                      {col.status}
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
 

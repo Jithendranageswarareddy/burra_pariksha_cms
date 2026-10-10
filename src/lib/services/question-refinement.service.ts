@@ -13,7 +13,7 @@ import {
   refinementCandidatesRepository,
   RefinementCandidate,
 } from '../repositories';
-import { ValidationError } from '../google-sheets/errors';
+import { ValidationError } from '../errors';
 import { MathematicalValidator, MathVerificationResult } from '../ai/validators/mathematical.validator';
 import { geminiClient } from '../ai/gemini.client';
 import { aiOrchestrator } from '../ai/ai-orchestrator.service';

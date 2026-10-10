@@ -17,8 +17,8 @@ import { sequenceSafetyService, SequenceSafetyReport } from './sequence-safety.s
 import { dataIntegrityService } from './data-integrity.service';
 import { sequencesRepository } from '../repositories/sequences.repository';
 import { auditService } from './audit.service';
-import { RecoveryOperationError, ValidationError } from '../google-sheets/errors';
-import { SEQUENCE_ENTITIES, SequenceEntityType } from '../schemas/google-sheets-schema';
+import { RecoveryOperationError, ValidationError } from '../errors';
+import { SEQUENCE_ENTITIES, SequenceEntityType } from '../schemas/domain-schemas';
 
 export interface RecoveryActionPlan {
   actionId: string;
@@ -70,28 +70,27 @@ export class OperationalRecoveryService {
         severity: 'WARNING',
         isAutomatedSupported: false,
         requiresExplicitConfirmation: false,
-        description: 'Google Sheets credentials are not configured in environment variables.',
+        description: 'Firebase Admin SDK credentials are not configured in environment variables.',
         manualSteps: [
-          'Set GOOGLE_SHEETS_ID with your Google Spreadsheet ID.',
           'Set GOOGLE_SERVICE_ACCOUNT_EMAIL with your service account email.',
           'Set GOOGLE_PRIVATE_KEY with the RSA private key from your service account JSON.',
-          'Ensure the spreadsheet is shared with the service account email as Editor.',
+          'Ensure the service account has Cloud Datastore User / Firestore permissions.',
         ],
       });
     } else if (!connectivity.isConnected) {
       actionPlans.push({
         actionId: 'ACT-CONNECTIVITY-RETRY',
-        title: 'Resolve Google Sheets Accessibility Outage',
+        title: 'Resolve Cloud Firestore Connectivity Outage',
         category: 'CONNECTIVITY',
         severity: 'CRITICAL',
         isAutomatedSupported: false,
         requiresExplicitConfirmation: false,
         description: connectivity.sanitizedDiagnosticMessage,
         manualSteps: [
-          'Verify that the Google Spreadsheet exists and is not in trash.',
-          'Check that the service account has Editor permissions on the spreadsheet.',
-          'Verify that the Google Sheets API is enabled in your Google Cloud Console.',
-          'Check Google Workspace status for any ongoing Google API service disruptions.',
+          'Verify that Cloud Firestore database exists and is enabled in the Google Cloud project.',
+          'Check that the service account has Cloud Datastore User permissions.',
+          'Verify that the Firestore API is enabled in your Google Cloud Console.',
+          'Check Google Cloud status for any ongoing service disruptions.',
         ],
       });
     }
@@ -112,9 +111,8 @@ export class OperationalRecoveryService {
         proposedNewValue: proposed,
         description: anomaly.message,
         manualSteps: [
-          `Open Google Sheets and switch to the SEQUENCES worksheet tab.`,
-          `Find the row for entity_type "${anomaly.entityType}".`,
-          `Set column next_number to ${proposed ?? 'the appropriate number'}.`,
+          `Inspect the Firestore sequences collection document for entity "${anomaly.entityType}".`,
+          `Synchronize the document next_number to ${proposed ?? 'the appropriate number'}.`,
           `Verify prefix is "${anomaly.expectedPrefix}" and pad_length is ${anomaly.expectedPadLength}.`,
         ],
       });

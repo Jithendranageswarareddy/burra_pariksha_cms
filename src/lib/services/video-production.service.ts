@@ -37,7 +37,7 @@ import {
   ApproveFinalVideoInput,
   VideoWorkflowStateResult,
 } from '../../types';
-import { ValidationError } from '../google-sheets/errors';
+import { ValidationError } from '../errors';
 
 export interface WorkflowActor {
   id: string;

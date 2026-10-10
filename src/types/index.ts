@@ -229,6 +229,7 @@ export interface User {
   password_hash?: string;
   last_login_at?: string;
   sessionVersion?: number;
+  dataScope?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -1225,11 +1226,16 @@ export interface AuditLog {
   actorId: string;
   actorName: string;
   action: string;
+  eventType?: string;
   entityType: string;
   entityId: string;
   details: string;
   timestamp: string;
-  // TODO: Align logging schema with Google Sheets in Phase 2
+  stageNumber?: number;
+  version?: number;
+  isDeleted?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 // ============================================================================
@@ -1334,7 +1340,7 @@ export interface SystemHealthReport {
   };
   issues: IntegrityIssue[];
   isReadOnly: boolean;
-  mode: 'LIVE_GOOGLE_SHEETS' | 'UNCONFIGURED';
+  mode: 'CLOUD_FIRESTORE' | 'LIVE_GOOGLE_SHEETS' | 'UNCONFIGURED';
 }
 
 export interface QuestionFilterState {

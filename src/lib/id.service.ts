@@ -26,7 +26,8 @@ export type CanonicalPrefix =
   | 'pub_'
   | 'usr_'
   | 'rev_'
-  | 'aud_';
+  | 'aud_'
+  | (string & {});
 
 export type ExtendedPrefix = CanonicalPrefix | 'wfl_' | 'wfh_';
 

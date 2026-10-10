@@ -349,7 +349,7 @@ export const VideoPinnedCommentPage: React.FC = () => {
                       )}
                     </div>
                     <p className="text-xs text-slate-500">
-                      Syncs with Google Sheets <code>PINNED_COMMENTS</code>
+                      Syncs with Firestore <code>pinned_comments</code>
                     </p>
                   </div>
                 </div>

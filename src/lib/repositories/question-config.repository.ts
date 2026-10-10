@@ -7,7 +7,6 @@
  */
 
 import { BaseRepository } from './base.repository';
-import { SHEET_SCHEMAS, SHEET_TABS } from '../schemas/google-sheets-schema';
 import { QuestionConfigDimension, QuestionConfigEntry } from '../../types';
 
 export const DEFAULT_QUESTION_CONFIG: QuestionConfigEntry[] = [
@@ -41,7 +40,7 @@ export class QuestionConfigRepository extends BaseRepository<QuestionConfigEntry
   private static instance: QuestionConfigRepository | null = null;
 
   public constructor() {
-    super(SHEET_SCHEMAS[SHEET_TABS.QUESTION_CONFIG]);
+    super('question_config');
   }
 
   public static getInstance(): QuestionConfigRepository {

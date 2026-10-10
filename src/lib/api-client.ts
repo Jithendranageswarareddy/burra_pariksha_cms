@@ -236,13 +236,18 @@ class ApiClient {
     return res as T;
   }
 
-  // System & Sheets Health
-  public async getHealth(): Promise<{ status: string; mode: string; timestamp: string; spreadsheetId: string | null; databaseConfigured?: boolean }> {
+  // System & Database Health
+  public async getHealth(): Promise<{
+    status: string;
+    database?: { provider: string; status: string };
+    timestamp: string;
+    mode?: string;
+  }> {
     return this.request('/health');
   }
 
-  public async getSheetsHealth(): Promise<SpreadsheetHealthReport> {
-    return this.request('/sheets/health');
+  public async getSheetsHealth(): Promise<any> {
+    return this.request('/system/operational-health');
   }
 
   public async getSystemIntegrityHealth(): Promise<import('../types').SystemHealthReport> {

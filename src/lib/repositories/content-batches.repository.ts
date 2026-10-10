@@ -1,17 +1,16 @@
 /**
  * BURRA PARIKSHA CMS - Content Batches Repository
- * Phase 9: Content Planning, Batch Management & Question Intelligence
+ * Authoritative Firestore persistence
  */
 
 import { BaseRepository } from './base.repository';
-import { PLANNING_SHEET_TABS, SHEET_SCHEMAS } from '../schemas/google-sheets-schema';
 import { ContentBatch, ContentBatchStatus } from '../../types';
 
 export class ContentBatchesRepository extends BaseRepository<ContentBatch> {
   private static instance: ContentBatchesRepository | null = null;
 
   private constructor() {
-    super(SHEET_SCHEMAS[PLANNING_SHEET_TABS.CONTENT_BATCHES]);
+    super('content_batches', 'BP-BCH-');
   }
 
   public static getInstance(): ContentBatchesRepository {
@@ -36,15 +35,15 @@ export class ContentBatchesRepository extends BaseRepository<ContentBatch> {
     return all.filter((b) => Array.isArray(b.questionIds) && b.questionIds.includes(questionId));
   }
 
-  public async create(batch: ContentBatch): Promise<ContentBatch> {
+  public override async create(batch: ContentBatch): Promise<ContentBatch> {
     return this.appendRecord(batch);
   }
 
-  public async update(id: string, updates: Partial<ContentBatch>): Promise<ContentBatch | null> {
+  public override async update(id: string, updates: Partial<ContentBatch>): Promise<ContentBatch | null> {
     return this.updateRecord(id, updates);
   }
 
-  public async delete(id: string): Promise<boolean> {
+  public override async delete(id: string): Promise<boolean> {
     return this.deleteRecord(id);
   }
 }

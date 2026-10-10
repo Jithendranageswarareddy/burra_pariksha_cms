@@ -1,17 +1,16 @@
 /**
  * BURRA PARIKSHA CMS - Subtopics Repository
- * Phase 2: Google Sheets Database Architecture & Persistence
+ * Authoritative Firestore persistence
  */
 
 import { BaseRepository } from './base.repository';
-import { SHEET_SCHEMAS, SHEET_TABS } from '../schemas/google-sheets-schema';
 import { Subtopic } from '../../types';
 
 export class SubtopicsRepository extends BaseRepository<Subtopic> {
   private static instance: SubtopicsRepository | null = null;
 
   private constructor() {
-    super(SHEET_SCHEMAS[SHEET_TABS.SUBTOPICS]);
+    super('subtopics', 'BP-SUB-');
   }
 
   public static getInstance(): SubtopicsRepository {

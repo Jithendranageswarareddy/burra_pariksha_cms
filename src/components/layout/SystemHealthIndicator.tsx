@@ -4,7 +4,7 @@ import { apiClient } from '../../lib/api-client';
 
 export const SystemHealthIndicator: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [sheetsStatus, setSheetsStatus] = useState<string>('CHECKING...');
+  const [dbStatus, setDbStatus] = useState<string>('CHECKING...');
   const [resilienceStatus, setResilienceStatus] = useState<string>('CHECKING...');
   const [integrityStatus, setIntegrityStatus] = useState<string>('CHECKING...');
   const [refreshing, setRefreshing] = useState(false);
@@ -14,10 +14,10 @@ export const SystemHealthIndicator: React.FC = () => {
     setRefreshing(true);
     try {
       const health = await apiClient.getHealth();
-      const isConfigured = Boolean(health.databaseConfigured) || health.mode === 'GOOGLE_SHEETS_PRODUCTION';
-      setSheetsStatus(isConfigured ? 'CONNECTED' : 'LOCAL FALLBACK');
+      const isConnected = health.database?.status === 'CONNECTED';
+      setDbStatus(isConnected ? 'CONNECTED' : 'DISCONNECTED');
     } catch {
-      setSheetsStatus('LOCAL FALLBACK');
+      setDbStatus('DISCONNECTED');
     }
 
     try {
@@ -57,7 +57,7 @@ export const SystemHealthIndicator: React.FC = () => {
   }, [isOpen]);
 
   const isHealthy =
-    sheetsStatus === 'CONNECTED' &&
+    dbStatus === 'CONNECTED' &&
     (resilienceStatus === 'CONNECTED' || resilienceStatus === 'ACTIVE') &&
     integrityStatus === 'PASS';
 
@@ -71,7 +71,7 @@ export const SystemHealthIndicator: React.FC = () => {
       >
         <span
           className={`w-2 h-2 rounded-full ${
-            sheetsStatus === 'CHECKING...'
+            dbStatus === 'CHECKING...'
               ? 'bg-slate-400 animate-pulse'
               : isHealthy
               ? 'bg-emerald-500'
@@ -79,7 +79,7 @@ export const SystemHealthIndicator: React.FC = () => {
           }`}
         />
         <span className="font-semibold text-slate-700">
-          {sheetsStatus === 'CHECKING...'
+          {dbStatus === 'CHECKING...'
             ? 'Checking Health...'
             : isHealthy
             ? 'System Healthy'
@@ -104,20 +104,20 @@ export const SystemHealthIndicator: React.FC = () => {
           </div>
 
           <div className="space-y-2">
-            {/* Sheets DB */}
+            {/* Firestore DB */}
             <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-150">
               <div className="flex items-center gap-2">
                 <Database className="w-3.5 h-3.5 text-slate-500" />
-                <span className="font-medium text-slate-700">Google Sheets DB</span>
+                <span className="font-medium text-slate-700">Cloud Firestore</span>
               </div>
               <span
                 className={`font-mono font-bold text-[11px] px-1.5 py-0.5 rounded ${
-                  sheetsStatus === 'CONNECTED'
+                  dbStatus === 'CONNECTED'
                     ? 'bg-emerald-100 text-emerald-800'
-                    : 'bg-amber-100 text-amber-800'
+                    : 'bg-rose-100 text-rose-800'
                 }`}
               >
-                {sheetsStatus}
+                {dbStatus}
               </span>
             </div>
 

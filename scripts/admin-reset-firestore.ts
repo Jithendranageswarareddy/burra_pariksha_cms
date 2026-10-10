@@ -135,9 +135,7 @@ export async function runAdminReset(reseedBaseline = true): Promise<void> {
 
     if (reseedBaseline) {
       console.log('Reseeding foundational production baseline (users, taxonomy, sequences)...');
-      const initReport = await firestoreProductionInitializer
-        .getInstance()
-        .initializeProductionData();
+      const initReport = await firestoreProductionInitializer.initializeProductionData();
 
       console.log('✓ Reseeding complete:');
       console.log(`  Users seeded: ${initReport.usersSeeded}`);

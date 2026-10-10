@@ -225,7 +225,7 @@ export const VideoDetailPage: React.FC = () => {
         <AlertTriangle className="w-8 h-8 text-rose-500 mx-auto" />
         <h3 className="text-base font-bold text-slate-800">Video Record Not Found</h3>
         <p className="text-xs text-slate-500">
-          The requested video ID "{videoId}" was not found in the VIDEOS worksheet.
+          The requested video ID "{videoId}" was not found in the videos collection.
         </p>
         <Link to="/production">
           <Button variant="outline" size="sm">
@@ -489,7 +489,7 @@ export const VideoDetailPage: React.FC = () => {
                 <div className="space-y-4">
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Transition Remarks / Stage Notes (Logged in WORKFLOW sheet)
+                      Transition Remarks / Stage Notes (Logged in workflow collection)
                     </label>
                     <input
                       type="text"
@@ -557,7 +557,7 @@ export const VideoDetailPage: React.FC = () => {
                   <History className="w-4 h-4 text-indigo-600" />
                   <h3 className="text-sm font-bold text-slate-900">Workflow State Transitions</h3>
                 </div>
-                <span className="text-[11px] text-slate-400 font-mono">WORKFLOW Worksheet</span>
+                <span className="text-[11px] text-slate-400 font-mono">workflow_instances collection</span>
               </div>
 
               {video.workflowHistory && video.workflowHistory.length > 0 ? (

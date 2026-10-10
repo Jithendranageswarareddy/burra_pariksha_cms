@@ -51,7 +51,7 @@ import {
   UpdateVideoMetadataInputSchema,
   VideoFilterInput,
 } from '../schemas/google-sheets-schema';
-import { ReferenceIntegrityError, ValidationError } from '../google-sheets/errors';
+import { ReferenceIntegrityError, ValidationError } from '../errors';
 
 /**
  * Strict legal state machine transitions for Burra Pariksha video production.

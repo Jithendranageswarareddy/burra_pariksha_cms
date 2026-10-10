@@ -575,7 +575,7 @@ export const VideoReviewScriptPage: React.FC = () => {
               <Card padding="md">
                 <div className="p-4 border-b border-slate-100">
                   <h3 className="text-sm font-bold text-slate-900">Version History</h3>
-                  <p className="text-xs text-slate-500">Tracked revisions from Google Sheets</p>
+                  <p className="text-xs text-slate-500">Tracked revisions in Firestore</p>
                 </div>
                 <div className="p-4 space-y-3">
                   {versions.length === 0 ? (
@@ -699,7 +699,7 @@ export const VideoReviewScriptPage: React.FC = () => {
             </div>
 
             <p className="text-xs text-slate-600">
-              This will increment the script version counter in Google Sheets and snapshot the current 5-part script content.
+              This will increment the script version counter in Firestore and snapshot the current 5-part script content.
             </p>
 
             <div>

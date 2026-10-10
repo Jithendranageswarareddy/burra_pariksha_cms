@@ -3,7 +3,7 @@
  * Phase 7: Google Drive Real Media Infrastructure
  */
 
-import { ValidationError } from '../lib/google-sheets/errors';
+import { ValidationError } from '../lib/errors';
 
 export const ALLOWED_VIDEO_MIME_TYPES = [
   'video/mp4',

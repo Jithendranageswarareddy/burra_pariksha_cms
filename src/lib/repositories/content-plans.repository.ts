@@ -1,17 +1,16 @@
 /**
  * BURRA PARIKSHA CMS - Content Plans Repository
- * Phase 9: Content Planning, Batch Management & Question Intelligence
+ * Authoritative Firestore persistence
  */
 
 import { BaseRepository } from './base.repository';
-import { PLANNING_SHEET_TABS, SHEET_SCHEMAS } from '../schemas/google-sheets-schema';
 import { ContentPlan, ContentPlanStatus } from '../../types';
 
 export class ContentPlansRepository extends BaseRepository<ContentPlan> {
   private static instance: ContentPlansRepository | null = null;
 
   private constructor() {
-    super(SHEET_SCHEMAS[PLANNING_SHEET_TABS.CONTENT_PLANS]);
+    super('content_plans', 'BP-PLN-');
   }
 
   public static getInstance(): ContentPlansRepository {
@@ -41,15 +40,15 @@ export class ContentPlansRepository extends BaseRepository<ContentPlan> {
     return all.filter((p) => p.subtopicId === subtopicId);
   }
 
-  public async create(plan: ContentPlan): Promise<ContentPlan> {
+  public override async create(plan: ContentPlan): Promise<ContentPlan> {
     return this.appendRecord(plan);
   }
 
-  public async update(id: string, updates: Partial<ContentPlan>): Promise<ContentPlan | null> {
+  public override async update(id: string, updates: Partial<ContentPlan>): Promise<ContentPlan | null> {
     return this.updateRecord(id, updates);
   }
 
-  public async delete(id: string): Promise<boolean> {
+  public override async delete(id: string): Promise<boolean> {
     return this.deleteRecord(id);
   }
 }

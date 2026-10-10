@@ -1,17 +1,16 @@
 /**
  * BURRA PARIKSHA CMS - QuestionVideos & Videos Repositories
- * Phase 2: Google Sheets Database Architecture & Persistence
+ * Authoritative Firestore persistence
  */
 
 import { BaseRepository } from './base.repository';
-import { SHEET_SCHEMAS, SHEET_TABS } from '../schemas/google-sheets-schema';
 import { QuestionVideo, Video } from '../../types';
 
 export class QuestionVideosRepository extends BaseRepository<QuestionVideo> {
   private static instance: QuestionVideosRepository | null = null;
 
   private constructor() {
-    super(SHEET_SCHEMAS[SHEET_TABS.QUESTION_VIDEOS]);
+    super('question_videos');
   }
 
   public static getInstance(): QuestionVideosRepository {
@@ -36,7 +35,7 @@ export class VideosRepository extends BaseRepository<Video> {
   private static instance: VideosRepository | null = null;
 
   private constructor() {
-    super(SHEET_SCHEMAS[SHEET_TABS.VIDEOS]);
+    super('videos', 'BP-V-');
   }
 
   public static getInstance(): VideosRepository {

@@ -21,7 +21,7 @@ import {
   topicsRepository,
   videosRepository,
 } from '../repositories';
-import { ID_PREFIX_MAP, SEQUENCE_ENTITIES, SequenceEntityType } from '../schemas/google-sheets-schema';
+import { ID_PREFIX_MAP, SEQUENCE_ENTITIES, SequenceEntityType } from '../schemas/domain-schemas';
 
 export interface SequenceAnomaly {
   id: string;
@@ -212,8 +212,8 @@ export class SequenceSafetyService {
           expectedPrefix: expectedConfig.prefix,
           configuredPadLength: null,
           expectedPadLength: expectedConfig.padLength,
-          message: `Missing sequence configuration row in SEQUENCES tab for entity "${entityType}".`,
-          remediationGuidance: `Add row to SEQUENCES sheet: entity_type="${entityType}", next_number=${maxAllocated + 1}, prefix="${expectedConfig.prefix}", pad_length=${expectedConfig.padLength}.`,
+          message: `Missing sequence configuration document in sequences collection for entity "${entityType}".`,
+          remediationGuidance: `Create document in sequences collection: entity_type="${entityType}", next_number=${maxAllocated + 1}, prefix="${expectedConfig.prefix}", pad_length=${expectedConfig.padLength}.`,
         });
 
         sequenceSummaries.push({
@@ -247,7 +247,7 @@ export class SequenceSafetyService {
           configuredPadLength: padLength,
           expectedPadLength: expectedConfig.padLength,
           message: `Invalid next_number value "${seqRecord.nextNumber}" for entity "${entityType}". Must be a positive integer.`,
-          remediationGuidance: `Update next_number in SEQUENCES sheet for "${entityType}" to ${maxAllocated + 1}.`,
+          remediationGuidance: `Update next_number in sequences collection for "${entityType}" to ${maxAllocated + 1}.`,
         });
       }
 
@@ -266,7 +266,7 @@ export class SequenceSafetyService {
           configuredPadLength: padLength,
           expectedPadLength: expectedConfig.padLength,
           message: `Prefix mismatch for "${entityType}": found "${seqRecord.prefix}", expected "${expectedConfig.prefix}".`,
-          remediationGuidance: `Verify and update prefix column in SEQUENCES sheet to "${expectedConfig.prefix}".`,
+          remediationGuidance: `Verify and update prefix in sequences collection to "${expectedConfig.prefix}".`,
         });
       }
 
@@ -285,7 +285,7 @@ export class SequenceSafetyService {
           configuredPadLength: padLength,
           expectedPadLength: expectedConfig.padLength,
           message: `Invalid pad_length "${padLength}" for "${entityType}". Must be between 1 and 12.`,
-          remediationGuidance: `Update pad_length column in SEQUENCES sheet to ${expectedConfig.padLength}.`,
+          remediationGuidance: `Update pad_length in sequences collection to ${expectedConfig.padLength}.`,
         });
       }
 
@@ -305,7 +305,7 @@ export class SequenceSafetyService {
           configuredPadLength: padLength,
           expectedPadLength: expectedConfig.padLength,
           message: `CRITICAL SEQUENCE DRIFT: next_number (${nextNum}) is <= highest allocated ID in database (${maxAllocated}) for "${entityType}". Next allocation will cause ID collision.`,
-          remediationGuidance: `Synchronize SEQUENCES tab: set next_number for "${entityType}" to ${maxAllocated + 1}.`,
+          remediationGuidance: `Synchronize sequences collection: set next_number for "${entityType}" to ${maxAllocated + 1}.`,
         });
       }
 
@@ -334,7 +334,7 @@ export class SequenceSafetyService {
       sequences: sequenceSummaries,
       isReadOnly: true,
       concurrencyLimitationNote:
-        'Promise queue serialization protects concurrency within a single Node.js instance. Multi-instance distributed locking is not provided by the Google Sheets REST API.',
+        'Promise queue serialization and Firestore transactional OCC versioning protect sequence integrity against race conditions.',
     };
   }
 }

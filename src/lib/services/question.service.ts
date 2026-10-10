@@ -16,7 +16,7 @@ import { taxonomyService } from './taxonomy.service';
 import { workflowService } from './workflow.service';
 import { auditService } from './audit.service';
 import { contentMasterService } from './content-master.service';
-import { IdempotencyConflictError, ReferenceIntegrityError, ValidationError } from '../google-sheets/errors';
+import { IdempotencyConflictError, ReferenceIntegrityError, ValidationError } from '../errors';
 import { MultiLayerVerificationEngine } from '../validation/multi-layer-verification.engine';
 import { createHash } from 'crypto';
 

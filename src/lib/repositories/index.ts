@@ -1,6 +1,6 @@
 /**
  * BURRA PARIKSHA CMS - Repositories Barrel Export
- * Phase 2: Google Sheets Database Architecture & Persistence
+ * Authoritative Persistence: Cloud Firestore Architecture
  */
 
 export * from './base.repository';

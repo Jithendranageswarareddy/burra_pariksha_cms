@@ -1,18 +1,17 @@
 /**
  * BURRA PARIKSHA CMS - Content Masters Repository
- * Task 2: Canonical Content Master Data Persistence
+ * Authoritative Firestore persistence
  */
 
 import { BaseRepository } from './base.repository';
-import { SHEET_SCHEMAS, SHEET_TABS } from '../schemas/google-sheets-schema';
 import { ContentMaster } from '../../types';
-import { ValidationError } from '../google-sheets/errors';
+import { ValidationError } from '../errors';
 
 export class ContentMastersRepository extends BaseRepository<ContentMaster> {
   private static instance: ContentMastersRepository | null = null;
 
   private constructor() {
-    super(SHEET_SCHEMAS[SHEET_TABS.CONTENT_MASTERS]);
+    super('content_masters', 'BP-CNT-');
   }
 
   public static getInstance(): ContentMastersRepository {
@@ -48,7 +47,7 @@ export class ContentMastersRepository extends BaseRepository<ContentMaster> {
   }
 
   public async delete(id: string, options?: { actor?: { id: string; name: string }; reason?: string }): Promise<boolean> {
-    return this.deleteRecord(id, options);
+    return this.deleteRecord(id);
   }
 }
 

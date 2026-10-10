@@ -1,10 +1,9 @@
 /**
  * BURRA PARIKSHA CMS - Publishing Repository
- * Phase 2: Google Sheets Database Architecture & Persistence
+ * Authoritative Firestore persistence
  */
 
 import { BaseRepository } from './base.repository';
-import { SHEET_SCHEMAS, SHEET_TABS } from '../schemas/google-sheets-schema';
 import { Publishing, PublishingPlatformRecord, PlatformType } from '../../types';
 
 export class PublishingRepository extends BaseRepository<Publishing> {
@@ -13,7 +12,7 @@ export class PublishingRepository extends BaseRepository<Publishing> {
   private idCounter = 1;
 
   private constructor() {
-    super(SHEET_SCHEMAS[SHEET_TABS.PUBLISHING]);
+    super('publishing_packages', 'BP-PUB-');
   }
 
   public static getInstance(): PublishingRepository {
@@ -136,4 +135,3 @@ export class PublishingRepository extends BaseRepository<Publishing> {
 }
 
 export const publishingRepository = PublishingRepository.getInstance();
-

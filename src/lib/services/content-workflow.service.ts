@@ -23,7 +23,7 @@ import {
   Workflow,
   AuditLog,
 } from '../../types';
-import { ValidationError, ReferenceIntegrityError } from '../google-sheets/errors';
+import { ValidationError, ReferenceIntegrityError } from '../errors';
 
 export interface WorkflowTransitionInput {
   contentMasterId: string;

@@ -13,14 +13,13 @@
  */
 
 import { BaseRepository } from './base.repository';
-import { SOCIAL_COMMENTS_SCHEMA } from '../schemas/google-sheets-schema';
 import { SocialCommentRecord, SocialCommentQueryFilters } from '../../types';
 
 export class SocialCommentsRepository extends BaseRepository<SocialCommentRecord> {
   private static instance: SocialCommentsRepository | null = null;
 
   private constructor() {
-    super(SOCIAL_COMMENTS_SCHEMA);
+    super('social_comments', 'BP-CMT-');
   }
 
   public static getInstance(): SocialCommentsRepository {
@@ -28,15 +27,6 @@ export class SocialCommentsRepository extends BaseRepository<SocialCommentRecord
       SocialCommentsRepository.instance = new SocialCommentsRepository();
     }
     return SocialCommentsRepository.instance;
-  }
-
-  /**
-   * Overrides target spreadsheet ID to use ANALYTICS_SPREADSHEET_ID environment variable.
-   * If unconfigured, returns sentinel 'UNCONFIGURED_ANALYTICS_SPREADSHEET' to prevent
-   * accidental fallback to production GOOGLE_SHEETS_ID.
-   */
-  protected override getTargetSpreadsheetId(): string | undefined {
-    return process.env.ANALYTICS_SPREADSHEET_ID || 'UNCONFIGURED_ANALYTICS_SPREADSHEET';
   }
 
   /**

@@ -43,7 +43,7 @@ import {
   ValidationError,
   AuthorizationError,
   ReferenceIntegrityError,
-} from '../google-sheets/errors';
+} from '../errors';
 
 export class SocialQualityGateService {
   private static instance: SocialQualityGateService | null = null;

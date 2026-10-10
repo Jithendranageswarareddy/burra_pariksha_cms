@@ -4,14 +4,13 @@
  */
 
 import { BaseRepository } from './base.repository';
-import { SHEET_SCHEMAS, SHEET_TABS } from '../schemas/google-sheets-schema';
 import { MediaAsset, MediaStage } from '../../types';
 
 export class MediaAssetsRepository extends BaseRepository<MediaAsset> {
   private static instance: MediaAssetsRepository | null = null;
 
   private constructor() {
-    super(SHEET_SCHEMAS[SHEET_TABS.MEDIA_ASSETS]);
+    super('media_assets');
   }
 
   public static getInstance(): MediaAssetsRepository {
