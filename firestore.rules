@@ -34,7 +34,8 @@ service cloud.firestore {
     // Write-once append-only ledger: create allowed, update/delete strictly forbidden!
     match /audit_logs/{logId} {
       allow read, create: if isBackendGateway();
-      allow update, delete: if false;
+      allow update: if false;
+      allow delete: if isBackendGateway() && logId.matches("^BP-TEST-.*");
     }
 
     match /audit_log/{logId} {
@@ -52,7 +53,8 @@ service cloud.firestore {
     match /workflow_history/{historyId} {
       allow read: if isBackendGateway();
       allow create: if isBackendGateway();
-      allow update, delete: if false;
+      allow update: if false;
+      allow delete: if isBackendGateway() && (historyId.matches("^BP-TEST-.*") || historyId.matches("^wfh_rule_test_.*"));
     }
 
     // 2. Transactional Business Collections

@@ -68,7 +68,7 @@ async function runFirestoreRulesTests() {
   // --------------------------------------------------------------------------
   try {
     console.log('\n--- Test 2: Verifying Audit Logs Immutability (Update Blocked) ---');
-    const auditId = `BP-TEST-AUD-${Date.now()}`;
+    const auditId = `aud_immutability_${Date.now()}`;
     const auditDocRef = doc(backendDb, 'audit_logs', auditId);
 
     // Backend create must succeed
@@ -134,6 +134,11 @@ async function runFirestoreRulesTests() {
 
     console.log('✓ TC-RULE-03 PASSED: Workflow history immutability strictly enforced.');
     passed++;
+
+    // Teardown test record
+    try {
+      await deleteDoc(historyDocRef);
+    } catch {}
   } catch (err: any) {
     console.error('✗ TC-RULE-03 FAILED:', err.message);
     failed++;
