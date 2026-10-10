@@ -58,7 +58,10 @@ export class SequencesRepository extends BaseRepository<SequenceRecord> {
    * Retrieves current sequence state for given entity.
    */
   public async getSequence(entityType: string): Promise<SequenceRecord | null> {
-    return this.findById(entityType);
+    const direct = await this.findById(entityType);
+    if (direct) return direct;
+    const all = await this.findAll();
+    return all.find((s) => s.entityType === entityType || s.id === entityType) || null;
   }
 
   /**
@@ -203,6 +206,7 @@ export class SequencesRepository extends BaseRepository<SequenceRecord> {
       // Record not yet present in SEQUENCES tab, initialize starting past maxExistingId
       const allocatedNumber = maxExistingId + 1;
       const initialRecord: SequenceRecord = {
+        id: entityType,
         entityType,
         nextNumber: allocatedNumber + 1,
         prefix: config.prefix,

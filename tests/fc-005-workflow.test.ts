@@ -766,6 +766,7 @@ async function runTests() {
   console.log('\n============================================================');
   console.log(`FC-005 TEST RESULTS: ${passed} PASSED, ${failed} FAILED`);
   console.log('============================================================\n');
+  process.exit(failed > 0 ? 1 : 0);
 
   if (failed > 0) {
     process.exit(1);

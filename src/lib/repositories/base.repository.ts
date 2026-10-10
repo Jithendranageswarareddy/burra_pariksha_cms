@@ -1,3 +1,35 @@
+
+const TAB_NAME_TO_FIRESTORE_COLLECTION: Record<string, string> = {
+  QUESTIONS: 'questions',
+  CONTENT_MASTERS: 'content_masters',
+  QUESTION_DRAFTS: 'question_drafts',
+  SCRIPTS: 'scripts',
+  SCRIPT: 'scripts',
+  SCRIPT_VERSIONS: 'script_versions',
+  VIDEOS: 'videos',
+  THUMBNAILS: 'thumbnails',
+  PINNED_COMMENTS: 'pinned_comments',
+  PUBLISHING_PACKAGES: 'publishing_packages',
+  SOCIAL_POSTS: 'social_posts',
+  SOCIAL_COMMENTS: 'social_comments',
+  SOCIAL_REVIEWS: 'social_reviews',
+  SOCIAL_ANALYTICS: 'social_analytics',
+  WORKFLOW_INSTANCES: 'workflow_instances',
+  WORKFLOW_HISTORY: 'workflow_history',
+  ASSIGNMENTS: 'assignments',
+  TAXONOMY_CATEGORIES: 'categories',
+  CATEGORIES: 'categories',
+  TAXONOMY_TOPICS: 'topics',
+  TOPICS: 'topics',
+  TAXONOMY_SUBTOPICS: 'subtopics',
+  SUBTOPICS: 'subtopics',
+  USERS: 'users',
+  QUESTION_CONFIG: 'question_config',
+  SEQUENCES: 'sequences',
+  AUDIT_LOGS: 'audit_logs',
+  VALIDATIONS: 'validations',
+};
+
 /**
  * BURRA PARIKSHA CMS — Unified Authoritative Base Repository
  * Sprint 4: Production Data Layer Migration (Google Sheets to Cloud Firestore)
@@ -24,7 +56,8 @@ export abstract class BaseRepository<T extends Record<string, any>> {
   constructor(schema: SheetSchemaContract, defaultPrefix?: CanonicalPrefix) {
     this.schema = schema;
     this.defaultPrefix = defaultPrefix;
-    this.collectionName = schema.sheetName.toLowerCase();
+    const mapped = TAB_NAME_TO_FIRESTORE_COLLECTION[schema.sheetName.toUpperCase()];
+    this.collectionName = mapped || schema.sheetName.toLowerCase();
   }
 
   protected async getRepo(): Promise<IRepository<T & BaseEntity>> {

@@ -91,6 +91,26 @@ export class UsersRepository extends BaseRepository<User> {
     return this.userSessionVersions.get(userId) ?? 1;
   }
 
+  
+  public async getAuthoritativeUserSessionState(userId: string): Promise<UserSessionState | null> {
+    const cached = this.userSessionStates.get(userId);
+    if (cached) return cached;
+    const user = await this.findById(userId);
+    if (!user) return null;
+    const state: UserSessionState = {
+      userId: user.id,
+      sessionVersion: user.sessionVersion || 1,
+      role: user.role,
+      roles: user.roles || [user.role],
+      isActive: user.isActive !== false,
+      dataScope: user.dataScope,
+      updatedAt: user.updatedAt || new Date().toISOString(),
+    };
+    this.userSessionStates.set(userId, state);
+    this.userSessionVersions.set(userId, state.sessionVersion);
+    return state;
+  }
+
   public getUserSessionState(userId: string): UserSessionState | null {
     return this.userSessionStates.get(userId) || null;
   }
