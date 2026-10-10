@@ -18,6 +18,7 @@
 
 import { getAdminFirestore } from '../src/lib/firebase/admin';
 import { firestoreProductionInitializer } from '../src/lib/services/firestore-production-initializer.service';
+import { authService } from '../src/lib/services/auth.service';
 
 const KNOWN_COLLECTIONS = [
   'users',
@@ -27,6 +28,8 @@ const KNOWN_COLLECTIONS = [
   'question_config',
   'questions',
   'question_drafts',
+  'question_validations',
+  'workflow',
   'content_masters',
   'scripts',
   'script_versions',
@@ -143,6 +146,16 @@ export async function runAdminReset(reseedBaseline = true): Promise<void> {
       console.log(`  Topics seeded: ${initReport.topicsSeeded}`);
       console.log(`  Subtopics seeded: ${initReport.subtopicsSeeded}`);
       console.log(`  Question configs seeded: ${initReport.questionConfigsSeeded}`);
+
+      // Seed standard scrypt password hashes for the 3 baseline production accounts
+      const usersSnap = await db.collection('users').get();
+      const defaultPasswordHash = await authService.hashPassword('password123');
+      for (const uDoc of usersSnap.docs) {
+        if (!uDoc.data().password_hash) {
+          await uDoc.ref.update({ password_hash: defaultPasswordHash });
+        }
+      }
+      console.log('  Password hashes seeded for baseline accounts.');
     }
 
     console.log('\n============================================================');

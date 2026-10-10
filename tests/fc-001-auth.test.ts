@@ -13,6 +13,7 @@ import { usersRepository } from '../src/lib/repositories/users.repository';
 import { extractSessionToken, requireAuth, AuthenticatedRequest } from '../src/server/middleware/auth.middleware';
 import { apiRouter } from '../src/server/routes';
 import { UserRole } from '../src/types';
+import { auditLogRepository } from '../src/lib/repositories/audit-log.repository';
 
 async function runTests() {
   console.log('============================================================');
@@ -162,8 +163,63 @@ async function runTests() {
   const address = server.address() as any;
   const baseUrl = `http://127.0.0.1:${address.port}/api`;
 
+  // In-memory test isolation for usersRepository and auditLogRepository to prevent pollution in production Firestore
+  const inMemUsers = new Map<string, any>();
+  const origUsersAppend = usersRepository.appendRecord.bind(usersRepository);
+  const origUsersFindByEmail = usersRepository.findByEmail.bind(usersRepository);
+  const origUsersFindById = usersRepository.findById.bind(usersRepository);
+  const origUsersUpdate = usersRepository.update.bind(usersRepository);
+  const origAuditLogAction = auditLogRepository.logAction.bind(auditLogRepository);
+  const origAuditAppend = auditLogRepository.appendRecord.bind(auditLogRepository);
+
+  auditLogRepository.logAction = (async (actorId: string, actorName: string, action: string, entityType: string, entityId: string, changes?: any) => {
+    return {
+      id: `AUD-TEST-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      eventType: action,
+      entityId,
+      actorId,
+      actorName,
+      details: typeof changes === 'string' ? changes : JSON.stringify(changes || {}),
+      stageNumber: 1,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      version: 1,
+      isDeleted: false,
+    } as any;
+  }) as any;
+  auditLogRepository.appendRecord = (async (rec: any) => rec) as any;
+
+  usersRepository.appendRecord = async (rec: any) => {
+    inMemUsers.set(rec.id, rec);
+    usersRepository.setUserSessionState(rec.id, {
+      userId: rec.id,
+      role: rec.role,
+      roles: rec.roles || [rec.role],
+      isActive: rec.isActive !== false,
+      sessionVersion: rec.sessionVersion || 1,
+    });
+    return rec;
+  };
+  usersRepository.findByEmail = async (email: string) => {
+    for (const u of inMemUsers.values()) {
+      if (u.email.toLowerCase() === email.toLowerCase()) return u;
+    }
+    return origUsersFindByEmail(email);
+  };
+  usersRepository.findById = async (id: string) => {
+    return inMemUsers.get(id) || origUsersFindById(id);
+  };
+  usersRepository.update = (async (recordOrId: any, updates?: any) => {
+    const id = typeof recordOrId === 'string' ? recordOrId : recordOrId?.id;
+    const existing = inMemUsers.get(id) || {};
+    const updated = { ...existing, ...(updates || recordOrId) };
+    inMemUsers.set(id, updated);
+    return updated;
+  }) as any;
+
   try {
-    // Seed test user into usersRepository
+    // Seed test user into in-memory usersRepository
     const testEmail = `auth_tester_${Date.now()}@burrapariksha.com`;
     const testPassword = 'CorrectPassword123!';
     const passwordHash = await authService.hashPassword(testPassword);
@@ -222,6 +278,14 @@ async function runTests() {
   } catch (err: any) {
     console.error('✗ TC-AUTH-04/05 FAILED:', err.message);
     failed++;
+  } finally {
+    // Restore repository methods
+    usersRepository.appendRecord = origUsersAppend;
+    usersRepository.findByEmail = origUsersFindByEmail;
+    usersRepository.findById = origUsersFindById;
+    usersRepository.update = origUsersUpdate;
+    auditLogRepository.logAction = origAuditLogAction;
+    auditLogRepository.appendRecord = origAuditAppend;
   }
 
   // --------------------------------------------------------------------------

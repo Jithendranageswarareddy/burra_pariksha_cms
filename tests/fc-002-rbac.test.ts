@@ -21,6 +21,9 @@ import { questionsRepository } from '../src/lib/repositories/questions.repositor
 import { sequencesRepository } from '../src/lib/repositories/sequences.repository';
 import { workflowRepository } from '../src/lib/repositories/workflow.repository';
 import { contentMastersRepository } from '../src/lib/repositories/content-masters.repository';
+import { validationsRepository } from '../src/lib/repositories/validations.repository';
+import { auditLogRepository } from '../src/lib/repositories/audit-log.repository';
+import { auditService } from '../src/lib/services/audit.service';
 import {
   evaluateAuthorization,
   evaluateSegregationOfDuties,
@@ -89,6 +92,58 @@ async function runTests() {
     padLength: 6,
   });
   workflowRepository.appendRecord = async (rec: any) => rec;
+
+  // In-memory test isolation for usersRepository to prevent test user pollution in production Firestore
+  const inMemUsers = new Map<string, any>();
+  const origUsersAppend = usersRepository.appendRecord.bind(usersRepository);
+  const origUsersFindById = usersRepository.findById.bind(usersRepository);
+  const origUsersUpdate = usersRepository.updateRecord.bind(usersRepository);
+  const origUsersFindAll = usersRepository.findAll.bind(usersRepository);
+
+  usersRepository.appendRecord = async (rec: any) => {
+    inMemUsers.set(rec.id, rec);
+    usersRepository.setUserSessionState(rec.id, {
+      userId: rec.id,
+      role: rec.role,
+      roles: rec.roles || [rec.role],
+      isActive: rec.isActive !== false,
+      sessionVersion: rec.sessionVersion || 1,
+    });
+    return rec;
+  };
+  usersRepository.findById = async (id: string) => {
+    return inMemUsers.get(id) || origUsersFindById(id);
+  };
+  usersRepository.updateRecord = async (id: string, updates: any) => {
+    const existing = inMemUsers.get(id) || {};
+    const updated = { ...existing, ...updates, updatedAt: new Date().toISOString() };
+    inMemUsers.set(id, updated);
+    if (updates.role || updates.roles) {
+      usersRepository.setUserSessionState(id, {
+        userId: id,
+        role: updated.role,
+        roles: updated.roles || [updated.role],
+        isActive: updated.isActive !== false,
+        sessionVersion: updated.sessionVersion || 1,
+      });
+    }
+    return updated;
+  };
+  usersRepository.findAll = async () => {
+    const orig = await origUsersFindAll();
+    return [...orig, ...Array.from(inMemUsers.values())];
+  };
+
+  // Mock validations and audit log to prevent test pollution in Firestore
+  const origValidationsAppend = validationsRepository.appendRecord.bind(validationsRepository);
+  const origValidationsCreate = validationsRepository.create.bind(validationsRepository);
+  const origAuditLogAction = auditLogRepository.logAction.bind(auditLogRepository);
+  const origAuditServiceLog = auditService.log.bind(auditService);
+
+  validationsRepository.appendRecord = async (rec: any) => rec;
+  validationsRepository.create = async (rec: any) => ({ ...rec, version: 1, isDeleted: false });
+  auditLogRepository.logAction = async () => ({} as any);
+  auditService.log = async () => ({} as any);
 
   const app = express();
   app.use(express.json());
@@ -682,6 +737,15 @@ async function runTests() {
     }
 
   } finally {
+    // Restore repository methods
+    usersRepository.appendRecord = origUsersAppend;
+    usersRepository.findById = origUsersFindById;
+    usersRepository.updateRecord = origUsersUpdate;
+    usersRepository.findAll = origUsersFindAll;
+    validationsRepository.appendRecord = origValidationsAppend;
+    validationsRepository.create = origValidationsCreate;
+    auditLogRepository.logAction = origAuditLogAction;
+    auditService.log = origAuditServiceLog;
     server.close();
   }
 

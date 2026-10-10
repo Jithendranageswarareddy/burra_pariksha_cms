@@ -26,6 +26,7 @@ import {
 } from '../src/types/workflow';
 import { assertStateDimensionsDecoupled } from '../src/types/state-models';
 import { ConcurrencyConflictError, InvalidWorkflowTransitionError, ForbiddenError } from '../src/lib/errors';
+import { getAdminFirestore } from '../src/lib/firebase/admin';
 
 async function runTests() {
   console.log('============================================================');
@@ -34,6 +35,7 @@ async function runTests() {
 
   let passed = 0;
   let failed = 0;
+  const createdWorkflowIds: string[] = [];
 
   // Set up Express test application mounting apiRouter
   const app = express();
@@ -189,6 +191,7 @@ async function runTests() {
         },
         creatorUser
       );
+      createdWorkflowIds.push(instance.id);
 
       assert.strictEqual(instance.currentStep, 1, 'Initial step must be 1');
       assert.strictEqual(instance.version, 1, 'Initial version must be 1');
@@ -437,6 +440,7 @@ async function runTests() {
         },
         creatorUser
       );
+      createdWorkflowIds.push(inst.id);
 
       // 1. Attempt non-sequential forward jump: Step 1 -> Step 5 directly
       let caughtIllegalJump = false;
@@ -500,6 +504,7 @@ async function runTests() {
         },
         creatorUser
       );
+      createdWorkflowIds.push(inst.id);
 
       // Advance to Step 02
       await workflowService.transition(
@@ -562,6 +567,7 @@ async function runTests() {
         },
         adminUser
       );
+      createdWorkflowIds.push(inst.id);
 
       const res = await workflowService.transition(
         inst.id,
@@ -618,6 +624,7 @@ async function runTests() {
       const createBody = await createRes.json();
       assert.strictEqual(createBody.success, true);
       const wflId = createBody.data.workflow.id;
+      createdWorkflowIds.push(wflId);
       assert.strictEqual(createBody.data.workflow.version, 1);
 
       // 3. Setup realtime listener for workflow.step_transitioned
@@ -761,6 +768,20 @@ async function runTests() {
     }
   } finally {
     server.close();
+    // Guaranteed hard-delete teardown of all test workflow records to prevent Firestore pollution
+    try {
+      const db = getAdminFirestore();
+      for (const wflId of createdWorkflowIds) {
+        await db.collection('workflow_instances').doc(wflId).delete().catch(() => {});
+        const historySnap = await db.collection('workflow_history').where('workflowId', '==', wflId).get().catch(() => null);
+        if (historySnap && !historySnap.empty) {
+          const batch = db.batch();
+          historySnap.docs.forEach((doc) => batch.delete(doc.ref));
+          await batch.commit().catch(() => {});
+        }
+      }
+      await db.terminate().catch(() => {});
+    } catch {}
   }
 
   console.log('\n============================================================');

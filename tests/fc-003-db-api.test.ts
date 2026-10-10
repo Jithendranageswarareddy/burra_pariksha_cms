@@ -512,6 +512,9 @@ async function runTests() {
 
     console.log('✓ TC-FIRESTORE PASSED: Firestore repository adheres to IRepository contract with OCC.');
     passed++;
+
+    // Guaranteed hard-delete teardown to prevent test pollution in production Firestore
+    await firestoreRepo.delete(item.id, 2, undefined, true);
   } catch (err: any) {
     console.error('✗ TC-FIRESTORE FAILED:', err.message);
     failed++;
