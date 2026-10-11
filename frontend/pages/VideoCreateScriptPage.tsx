@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { Video, VideoProductionStatus } from '../../src/types';
+import { Video, VideoProductionStatus } from '../../shared';
 import { apiClient } from '../api/api-client';
 import { ProductionJourneyBar } from '../components/production/ProductionJourneyBar';
 import { Card } from '../design-system/components/Card';

@@ -43,7 +43,7 @@ import {
   Workflow,
   AuditLog,
   Assignment,
-} from '../../src/types';
+} from '../../shared';
 import { PRIORITY_CONFIG, VIDEO_STATUS_CONFIG, VALID_VIDEO_TRANSITIONS } from '../../src/config/constants';
 import { ScriptWorkspace } from '../components/video/ScriptWorkspace';
 import { ThumbnailWorkspace } from '../components/video/ThumbnailWorkspace';

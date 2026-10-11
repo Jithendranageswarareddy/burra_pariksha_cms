@@ -23,7 +23,7 @@ import {
   JobStatus,
   WorkflowStepNumber,
   CANONICAL_WORKFLOW_STEPS,
-} from '../../../src/types/workflow';
+} from '../../../shared';
 
 interface WorkflowStatusBarProps {
   workflowStep: WorkflowStepNumber;

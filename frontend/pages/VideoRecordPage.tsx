@@ -25,7 +25,7 @@ import {
   Check,
   Copy,
 } from 'lucide-react';
-import { Video, Script, Question, VideoProductionStatus, MediaAsset } from '../../src/types';
+import { Video, Script, Question, VideoProductionStatus, MediaAsset } from '../../shared';
 import { apiClient } from '../api/api-client';
 import { VideoWorkflowHeader } from '../components/video/VideoWorkflowHeader';
 import { ProductionJourneyBar } from '../components/production/ProductionJourneyBar';

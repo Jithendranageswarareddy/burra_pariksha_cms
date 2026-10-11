@@ -25,7 +25,7 @@ import { ProductionTable } from '../components/production/ProductionTable';
 import { EmptyState } from '../components/common/EmptyState';
 import { apiClient } from '../api/api-client';
 import { useAuth } from '../contexts/AuthContext';
-import { PriorityLevel, ProductionStats, Video, VideoProductionStatus } from '../../src/types';
+import { PriorityLevel, ProductionStats, Video, VideoProductionStatus } from '../../shared';
 
 export const ProductionTrackerPage: React.FC = () => {
   const { user } = useAuth();

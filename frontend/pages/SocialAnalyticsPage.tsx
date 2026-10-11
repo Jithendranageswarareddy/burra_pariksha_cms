@@ -53,7 +53,7 @@ import {
   SocialCommentRecord,
   CommentIntelligenceRecord,
   SocialPublishStatus,
-} from '../../src/types';
+} from '../../shared';
 
 export const SocialAnalyticsPage: React.FC = () => {
   const { contentId: paramContentId } = useParams<{ contentId?: string }>();

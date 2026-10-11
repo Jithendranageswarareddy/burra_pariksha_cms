@@ -104,6 +104,11 @@ const FORBIDDEN_FRONTEND_RULES: BoundaryRule[] = [
     pattern: /(from\s+['"][^'"]*\/database(\/[^'"]*)?['"]|import\(['"][^'"]*\/database\/[^'"]*['"]\))/,
     description: 'Direct import from database/ architectural layer',
   },
+  {
+    category: 'Legacy src/types Root Import',
+    pattern: /(from\s+['"][^'"]*\/src\/types(\/[^'"]*)?['"]|import\(['"][^'"]*\/src\/types\/[^'"]*['"]\))/,
+    description: 'Direct import of legacy src/types in frontend (must import from shared/)',
+  },
 ];
 
 const FORBIDDEN_BACKEND_RULES: BoundaryRule[] = [
@@ -344,6 +349,104 @@ async function runBoundarySuite() {
   assert(!fs.existsSync(path.resolve(__dirname, '../database/firestore/schemas/google-sheets-schema.ts')), 'Request validation schemas must NOT exist in database/firestore/schemas/');
 
   console.log(`    PASS: All database physical ownership gates passed (35 repositories, isolated adapter, schemas, rules, initialization, migrations, utilities).\n`);
+
+  // 6. SHARED LAYER BOUNDARY AUDIT
+  const sharedDir = path.resolve(__dirname, '../shared');
+  assert(fs.existsSync(sharedDir), 'shared/ directory must exist');
+
+  const allSharedFiles = scanFilesRecursively(sharedDir);
+  console.log(`[6] Scanning ${allSharedFiles.length} shared files across ${sharedDir}...`);
+
+  const sharedViolations: Array<{ file: string; rule: string; line: number }> = [];
+
+  for (const filePath of allSharedFiles) {
+    const relPath = path.relative(sharedDir, filePath).replace(/\\/g, '/');
+    const content = fs.readFileSync(filePath, 'utf-8');
+    const lines = content.split('\n');
+
+    lines.forEach((line, lineIndex) => {
+      const trimmed = line.trim();
+      if (trimmed.startsWith('//') || trimmed.startsWith('*')) return;
+
+      // Shared -> Frontend: 0
+      if (/(from\s+['"][^'"]*\/frontend\b|import\(['"][^'"]*\/frontend\b)/.test(line)) {
+        sharedViolations.push({
+          file: relPath,
+          rule: 'Direct import of frontend in shared layer',
+          line: lineIndex + 1,
+        });
+      }
+
+      // Shared -> Backend: 0
+      if (/(from\s+['"][^'"]*\/backend\b|import\(['"][^'"]*\/backend\b)/.test(line)) {
+        sharedViolations.push({
+          file: relPath,
+          rule: 'Direct import of backend in shared layer',
+          line: lineIndex + 1,
+        });
+      }
+
+      // Shared -> Database: 0
+      if (/(from\s+['"][^'"]*\/database\b|import\(['"][^'"]*\/database\b)/.test(line)) {
+        sharedViolations.push({
+          file: relPath,
+          rule: 'Direct import of database in shared layer',
+          line: lineIndex + 1,
+        });
+      }
+
+      // Shared -> src: 0
+      if (/(from\s+['"][^'"]*\/src\b|import\(['"][^'"]*\/src\b)/.test(line)) {
+        sharedViolations.push({
+          file: relPath,
+          rule: 'Direct import of src/ in shared layer',
+          line: lineIndex + 1,
+        });
+      }
+
+      // Shared -> Firebase / Firestore: 0
+      if (/(from\s+['"][^'"]*(firebase|firebase-admin)\b|import\(['"][^'"]*(firebase|firebase-admin)\b)/.test(line)) {
+        sharedViolations.push({
+          file: relPath,
+          rule: 'Direct import of Firebase/Firestore in shared layer',
+          line: lineIndex + 1,
+        });
+      }
+
+      // Shared -> AI Provider: 0
+      if (/from\s+['"]@google\/genai['"]/.test(line)) {
+        sharedViolations.push({
+          file: relPath,
+          rule: 'Direct import of AI SDK in shared layer',
+          line: lineIndex + 1,
+        });
+      }
+
+      // Shared -> process.env: 0
+      if (/\bprocess\.env\b/.test(line)) {
+        sharedViolations.push({
+          file: relPath,
+          rule: 'Reference to process.env in shared layer',
+          line: lineIndex + 1,
+        });
+      }
+    });
+  }
+
+  if (sharedViolations.length > 0) {
+    console.error(`FAILED: Found ${sharedViolations.length} shared layer boundary violations:`);
+    sharedViolations.forEach((v) => {
+      console.error(`  - shared/${v.file}:${v.line} -> ${v.rule}`);
+    });
+    process.exit(1);
+  }
+  console.log(`    PASS: Shared layer is completely isolated (0 violations across frontend, backend, database, src, AI SDK, secrets).\n`);
+
+  // Verify shared directory structure
+  assert(fs.existsSync(path.resolve(__dirname, '../shared/types')), 'shared/types/ must exist');
+  assert(fs.existsSync(path.resolve(__dirname, '../shared/contracts')), 'shared/contracts/ must exist');
+  assert(fs.existsSync(path.resolve(__dirname, '../shared/constants')), 'shared/constants/ must exist');
+  assert(fs.existsSync(path.resolve(__dirname, '../shared/index.ts')), 'shared/index.ts must exist');
 
   console.log('============================================================');
   console.log('S7 ARCHITECTURAL BOUNDARY VERIFICATION: ALL GATES PASSED');

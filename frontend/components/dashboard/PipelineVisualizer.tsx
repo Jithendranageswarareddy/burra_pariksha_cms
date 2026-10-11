@@ -15,7 +15,7 @@ import {
   Clock,
   ArrowRight,
 } from 'lucide-react';
-import { DashboardMetrics, QuestionStatus, VideoProductionStatus } from '../../../src/types';
+import { DashboardMetrics, QuestionStatus, VideoProductionStatus } from '../../../shared';
 
 interface PipelineVisualizerProps {
   metrics: DashboardMetrics;

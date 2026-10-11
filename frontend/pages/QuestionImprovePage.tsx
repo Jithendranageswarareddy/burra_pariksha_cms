@@ -30,14 +30,14 @@ import { CandidateValidationReport } from '../api/contracts';
 import {
   AiRefinementAction,
   QuestionCandidate,
-} from '../../src/types/ai';
+} from '../../shared';
 import {
   Question,
   QuestionStatus,
   DifficultyLevel,
   QuestionStyle,
   QuestionLanguage,
-} from '../../src/types';
+} from '../../shared';
 
 export const QuestionImprovePage: React.FC = () => {
   const { id } = useParams<{ id?: string }>();

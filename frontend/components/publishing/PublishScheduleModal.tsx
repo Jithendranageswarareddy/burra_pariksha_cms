@@ -3,7 +3,7 @@ import { Clock, AlertCircle, Youtube, Instagram, Facebook, Calendar, Globe } fro
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
 import { apiClient } from '../../api/api-client';
-import { Publishing, PlatformType, SocialPublishStatus } from '../../../src/types';
+import { Publishing, PlatformType, SocialPublishStatus } from '../../../shared';
 
 interface PublishScheduleModalProps {
   isOpen: boolean;

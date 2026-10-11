@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Assignment, AssignmentEntityType, AssignmentTaskType } from '../../../src/types';
+import { Assignment, AssignmentEntityType, AssignmentTaskType } from '../../../shared';
 import { apiClient } from '../../api/api-client';
 import { AssignmentStatusBadge, AssignmentPriorityBadge } from './AssignmentBadge';
 import { AssignmentModal } from './AssignmentModal';

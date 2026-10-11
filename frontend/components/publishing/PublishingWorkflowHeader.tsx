@@ -9,7 +9,7 @@ import {
   ArrowRight,
   Share2,
 } from 'lucide-react';
-import { CANONICAL_15_STEPS } from '../../../src/types/workflow';
+import { CANONICAL_15_STEPS } from '../../../shared';
 
 export interface PublishingWorkflowHeaderProps {
   currentStep: number;

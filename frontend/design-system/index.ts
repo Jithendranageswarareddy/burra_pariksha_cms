@@ -8,7 +8,7 @@
 export * from './tokens';
 
 // 2. Types
-export * from '../../src/types';
+export * from '../../shared';
 
 // 3. Components
 export * from './components/Button';

@@ -2,7 +2,7 @@ import React from 'react';
 import { Check, Lock, ChevronRight } from 'lucide-react';
 import { COLOR_TOKENS, RADIUS_TOKENS, TYPOGRAPHY_TOKENS, ICON_TOKENS } from '../tokens';
 import { ProductionWorkflowStep, StepState } from '../types';
-import { CANONICAL_15_STEPS } from '../../../src/types/workflow';
+import { CANONICAL_15_STEPS } from '../../../shared';
 
 export const PRODUCTION_WORKFLOW_STEPS: ProductionWorkflowStep[] = CANONICAL_15_STEPS.map((step) => ({
   stepNumber: step.stepNumber,

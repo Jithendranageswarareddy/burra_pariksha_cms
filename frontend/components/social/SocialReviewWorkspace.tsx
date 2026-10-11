@@ -10,7 +10,7 @@ import {
   SocialReviewStatus,
   SocialQualityStatus,
   QuestionValidationStatus,
-} from '../../../src/types';
+} from '../../../shared';
 import { apiClient } from '../../api/api-client';
 import {
   CheckCircle2,

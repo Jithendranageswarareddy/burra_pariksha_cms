@@ -39,7 +39,7 @@ import { Button } from '../components/common/Button';
 import { QuestionStatusBadge, VideoStatusBadge } from '../components/common/StatusBadge';
 import { DifficultyBadge } from '../components/common/DifficultyBadge';
 import { apiClient } from '../api/api-client';
-import { ContentMaster, ContentMasterCanonicalState, ContentMasterStatus, DifficultyLevel, UserRole } from '../../src/types';
+import { ContentMaster, ContentMasterCanonicalState, ContentMasterStatus, DifficultyLevel, UserRole } from '../../shared';
 import { ContentMasterDetails } from '../api/contracts';
 import { useAuth } from '../contexts/AuthContext';
 

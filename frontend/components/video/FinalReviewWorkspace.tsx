@@ -14,7 +14,7 @@ import {
   CheckSquare,
   Square,
 } from 'lucide-react';
-import { Video, Script, VideoProductionStatus, Question } from '../../../src/types';
+import { Video, Script, VideoProductionStatus, Question } from '../../../shared';
 import { apiClient } from '../../api/api-client';
 import { Button } from '../../design-system/components/Button';
 import { Badge } from '../../design-system/components/Badge';

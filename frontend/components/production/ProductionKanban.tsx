@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Clock, User, ArrowRight, ExternalLink, PauseCircle, Film, Scissors, CheckCircle2 } from 'lucide-react';
-import { PriorityLevel, Video, VideoProductionStatus } from '../../../src/types';
+import { PriorityLevel, Video, VideoProductionStatus } from '../../../shared';
 import { PRIORITY_CONFIG, VIDEO_STATUS_CONFIG } from '../../../src/config/constants';
 import { formatDisplayId } from '../../shared/formatters';
 

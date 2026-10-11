@@ -24,7 +24,7 @@ import {
   HelpCircle,
   FileCheck,
 } from 'lucide-react';
-import { Video, Script, Question, VideoProductionStatus } from '../../src/types';
+import { Video, Script, Question, VideoProductionStatus } from '../../shared';
 import { apiClient } from '../api/api-client';
 import { VideoWorkflowHeader } from '../components/video/VideoWorkflowHeader';
 import { PageHeader } from '../design-system/components/PageHeader';

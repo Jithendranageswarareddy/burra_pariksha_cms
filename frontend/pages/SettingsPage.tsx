@@ -38,7 +38,7 @@ import { PageHeader } from '../components/layout/PageHeader';
 import { Button } from '../components/common/Button';
 import { APP_CONFIG } from '../../src/config/constants';
 import { apiClient } from '../api/api-client';
-import { SpreadsheetHealthReport, SystemHealthReport, IntegrityIssue, IntegritySeverity, IntegrityCategory, UserRole } from '../../src/types';
+import { SpreadsheetHealthReport, SystemHealthReport, IntegrityIssue, IntegritySeverity, IntegrityCategory, UserRole } from '../../shared';
 import { OperationalHealthReport, OperationalRecoveryState } from '../api/contracts';
 import { useAuth } from '../contexts/AuthContext';
 

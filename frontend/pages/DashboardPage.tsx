@@ -21,7 +21,7 @@ import {
   Question,
   Video,
   UserRole,
-} from '../../src/types';
+} from '../../shared';
 
 export const DashboardPage: React.FC = () => {
   const { user } = useAuth();

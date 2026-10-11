@@ -1,6 +1,6 @@
 import React from 'react';
 import { DIFFICULTY_CONFIG } from '../../../src/config/constants';
-import { DifficultyLevel } from '../../../src/types';
+import { DifficultyLevel } from '../../../shared';
 import { Badge } from '../../design-system/components/Badge';
 
 interface DifficultyBadgeProps {

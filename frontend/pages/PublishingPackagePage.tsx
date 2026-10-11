@@ -37,7 +37,7 @@ import {
   SocialReviewPackageBundle,
   Thumbnail,
   PinnedComment,
-} from '../../src/types';
+} from '../../shared';
 
 export const PublishingPackagePage: React.FC = () => {
   const { videoId: routeVideoId } = useParams<{ videoId?: string }>();

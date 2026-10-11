@@ -22,8 +22,8 @@ import {
   UserWorkload,
   Video,
   Workflow,
-} from '../../src/types';
-import { GenerateCandidateInput, GenerationResult, RefineCandidateInput } from '../../src/types/ai';
+} from '../../shared';
+import { GenerateCandidateInput, GenerationResult, RefineCandidateInput } from '../../shared';
 import {
   CancelAssignmentInput,
   CompleteAssignmentInput,
@@ -253,7 +253,7 @@ class ApiClient {
     return this.request('/system/operational-health');
   }
 
-  public async getSystemIntegrityHealth(): Promise<import('../../src/types').SystemHealthReport> {
+  public async getSystemIntegrityHealth(): Promise<import('../../shared').SystemHealthReport> {
     return this.request('/system/health/integrity');
   }
 
@@ -472,25 +472,25 @@ class ApiClient {
   }
 
   // Question Validation Engine (Phase 5)
-  public async validateQuestion(id: string, options?: { skipTaxonomyLookup?: boolean; source?: string }): Promise<{ success: boolean; data: import('../../src/types').ValidationResult }> {
+  public async validateQuestion(id: string, options?: { skipTaxonomyLookup?: boolean; source?: string }): Promise<{ success: boolean; data: import('../../shared').ValidationResult }> {
     return this.request(`/questions/${encodeURIComponent(id)}/validate`, {
       method: 'POST',
       body: JSON.stringify(options || {}),
     });
   }
 
-  public async validateCandidate(question: Partial<Question>, options?: { skipTaxonomyLookup?: boolean; skipDuplicateCheck?: boolean; source?: string }): Promise<{ success: boolean; data: import('../../src/types').ValidationResult }> {
+  public async validateCandidate(question: Partial<Question>, options?: { skipTaxonomyLookup?: boolean; skipDuplicateCheck?: boolean; source?: string }): Promise<{ success: boolean; data: import('../../shared').ValidationResult }> {
     return this.request('/questions/validate-candidate', {
       method: 'POST',
       body: JSON.stringify({ question, ...options }),
     });
   }
 
-  public async getLatestValidation(id: string): Promise<{ success: boolean; data: import('../../src/types').ValidationResult | null }> {
+  public async getLatestValidation(id: string): Promise<{ success: boolean; data: import('../../shared').ValidationResult | null }> {
     return this.request(`/questions/${encodeURIComponent(id)}/validation`);
   }
 
-  public async getValidationHistory(id: string): Promise<{ success: boolean; count: number; data: import('../../src/types').ValidationResult[] }> {
+  public async getValidationHistory(id: string): Promise<{ success: boolean; count: number; data: import('../../shared').ValidationResult[] }> {
     return this.request(`/questions/${encodeURIComponent(id)}/validation-history`);
   }
 
@@ -522,7 +522,7 @@ class ApiClient {
     return this.request(`/videos/${encodeURIComponent(id)}`);
   }
 
-  public async getProductionStats(): Promise<import('../../src/types').ProductionStats> {
+  public async getProductionStats(): Promise<import('../../shared').ProductionStats> {
     return this.request('/videos/stats');
   }
 
@@ -764,7 +764,7 @@ class ApiClient {
   public async getPlatformPackage(
     videoId: string,
     platform: 'youtube' | 'instagram' | 'facebook'
-  ): Promise<import('../../src/types').PlatformPackageProjection> {
+  ): Promise<import('../../shared').PlatformPackageProjection> {
     return this.request(`/videos/${encodeURIComponent(videoId)}/publishing/package/${encodeURIComponent(platform)}`);
   }
 
@@ -773,7 +773,7 @@ class ApiClient {
     assignment: {
       assigneeId: string;
       platform?: 'youtube' | 'instagram' | 'facebook';
-      priority?: import('../../src/types').PriorityLevel;
+      priority?: import('../../shared').PriorityLevel;
       dueDate?: string;
       dueAt?: string;
       notes?: string;
@@ -800,7 +800,7 @@ class ApiClient {
   }
 
   // Scripts (Phase 6)
-  public async getScript(videoId: string): Promise<{ script: import('../../src/types').Script | null; draftProposal?: any }> {
+  public async getScript(videoId: string): Promise<{ script: import('../../shared').Script | null; draftProposal?: any }> {
     return this.request(`/videos/${encodeURIComponent(videoId)}/script`);
   }
 
@@ -817,32 +817,32 @@ class ApiClient {
     });
   }
 
-  public async getScriptVersions(scriptId: string): Promise<import('../../src/types').ScriptVersion[]> {
+  public async getScriptVersions(scriptId: string): Promise<import('../../shared').ScriptVersion[]> {
     return this.request(`/scripts/${encodeURIComponent(scriptId)}/versions`);
   }
 
-  public async saveScript(videoId: string, payload: any): Promise<{ script: import('../../src/types').Script; version?: import('../../src/types').ScriptVersion }> {
+  public async saveScript(videoId: string, payload: any): Promise<{ script: import('../../shared').Script; version?: import('../../shared').ScriptVersion }> {
     return this.request(`/videos/${encodeURIComponent(videoId)}/script`, {
       method: 'POST',
       body: JSON.stringify(payload),
     });
   }
 
-  public async revertScript(scriptId: string, versionNumber: number): Promise<import('../../src/types').Script> {
+  public async revertScript(scriptId: string, versionNumber: number): Promise<import('../../shared').Script> {
     return this.request(`/scripts/${encodeURIComponent(scriptId)}/revert`, {
       method: 'POST',
       body: JSON.stringify({ versionNumber }),
     });
   }
 
-  public async markScriptReady(videoId: string, remarks?: string): Promise<{ script: import('../../src/types').Script; videoStatus: string }> {
+  public async markScriptReady(videoId: string, remarks?: string): Promise<{ script: import('../../shared').Script; videoStatus: string }> {
     return this.request(`/videos/${encodeURIComponent(videoId)}/script/mark-ready`, {
       method: 'POST',
       body: JSON.stringify({ remarks }),
     });
   }
 
-  public async returnScriptToEditing(videoId: string, remarks?: string): Promise<{ script: import('../../src/types').Script; videoStatus: string }> {
+  public async returnScriptToEditing(videoId: string, remarks?: string): Promise<{ script: import('../../shared').Script; videoStatus: string }> {
     return this.request(`/videos/${encodeURIComponent(videoId)}/script/return-to-editing`, {
       method: 'POST',
       body: JSON.stringify({ remarks }),
@@ -855,8 +855,8 @@ class ApiClient {
     file: File,
     notes?: string
   ): Promise<{
-    thumbnail: import('../../src/types').Thumbnail;
-    version: import('../../src/types').ThumbnailVersion;
+    thumbnail: import('../../shared').Thumbnail;
+    version: import('../../shared').ThumbnailVersion;
     driveFile: any;
   }> {
     const formData = new FormData();
@@ -885,22 +885,22 @@ class ApiClient {
     return data;
   }
 
-  public async getThumbnail(videoId: string): Promise<{ thumbnail: import('../../src/types').Thumbnail | null; draftProposal?: any }> {
+  public async getThumbnail(videoId: string): Promise<{ thumbnail: import('../../shared').Thumbnail | null; draftProposal?: any }> {
     return this.request(`/videos/${encodeURIComponent(videoId)}/thumbnail`);
   }
 
-  public async getThumbnailVersions(thumbnailId: string): Promise<import('../../src/types').ThumbnailVersion[]> {
+  public async getThumbnailVersions(thumbnailId: string): Promise<import('../../shared').ThumbnailVersion[]> {
     return this.request(`/thumbnails/${encodeURIComponent(thumbnailId)}/versions`);
   }
 
-  public async saveThumbnail(videoId: string, payload: any): Promise<{ thumbnail: import('../../src/types').Thumbnail; version?: import('../../src/types').ThumbnailVersion }> {
+  public async saveThumbnail(videoId: string, payload: any): Promise<{ thumbnail: import('../../shared').Thumbnail; version?: import('../../shared').ThumbnailVersion }> {
     return this.request(`/videos/${encodeURIComponent(videoId)}/thumbnail`, {
       method: 'POST',
       body: JSON.stringify(payload),
     });
   }
 
-  public async updateThumbnailStatus(thumbnailId: string, status: string, remarks?: string): Promise<import('../../src/types').Thumbnail> {
+  public async updateThumbnailStatus(thumbnailId: string, status: string, remarks?: string): Promise<import('../../shared').Thumbnail> {
     return this.request(`/thumbnails/${encodeURIComponent(thumbnailId)}/status`, {
       method: 'PATCH',
       body: JSON.stringify({ status, remarks }),
@@ -908,7 +908,7 @@ class ApiClient {
   }
 
   // Pinned Comments (Phase 6)
-  public async getPinnedComment(videoId: string): Promise<{ pinnedComment: import('../../src/types').PinnedComment | null; draftProposal?: any }> {
+  public async getPinnedComment(videoId: string): Promise<{ pinnedComment: import('../../shared').PinnedComment | null; draftProposal?: any }> {
     return this.request(`/videos/${encodeURIComponent(videoId)}/pinned-comment`);
   }
 
@@ -919,11 +919,11 @@ class ApiClient {
     });
   }
 
-  public async getPinnedCommentVersions(pinnedCommentId: string): Promise<import('../../src/types').PinnedCommentVersion[]> {
+  public async getPinnedCommentVersions(pinnedCommentId: string): Promise<import('../../shared').PinnedCommentVersion[]> {
     return this.request(`/pinned-comments/${encodeURIComponent(pinnedCommentId)}/versions`);
   }
 
-  public async updatePinnedCommentStatus(pinnedCommentId: string, isApproved: boolean, remarks?: string): Promise<import('../../src/types').PinnedComment> {
+  public async updatePinnedCommentStatus(pinnedCommentId: string, isApproved: boolean, remarks?: string): Promise<import('../../shared').PinnedComment> {
     return this.request(`/pinned-comments/${encodeURIComponent(pinnedCommentId)}/status`, {
       method: 'PATCH',
       body: JSON.stringify({ isApproved, remarks }),
@@ -973,7 +973,7 @@ class ApiClient {
       search?: string;
     },
     refresh?: boolean
-  ): Promise<import('../../src/types').DashboardOverviewData> {
+  ): Promise<import('../../shared').DashboardOverviewData> {
     const params = new URLSearchParams();
     if (filter) {
       if (filter.topicId) params.set('topicId', filter.topicId);
@@ -990,7 +990,7 @@ class ApiClient {
     return this.request(`/dashboard/overview${qs ? `?${qs}` : ''}`);
   }
 
-  public async getDashboardMetrics(filter?: any): Promise<import('../../src/types').DashboardMetrics> {
+  public async getDashboardMetrics(filter?: any): Promise<import('../../shared').DashboardMetrics> {
     const params = new URLSearchParams();
     if (filter) {
       if (filter.topicId) params.set('topicId', filter.topicId);
@@ -999,7 +999,7 @@ class ApiClient {
     return this.request(`/dashboard/metrics${qs ? `?${qs}` : ''}`);
   }
 
-  public async getTodaysWork(filter?: any): Promise<import('../../src/types').TodaysWorkItem[]> {
+  public async getTodaysWork(filter?: any): Promise<import('../../shared').TodaysWorkItem[]> {
     const params = new URLSearchParams();
     if (filter) {
       if (filter.topicId) params.set('topicId', filter.topicId);
@@ -1008,7 +1008,7 @@ class ApiClient {
     return this.request(`/dashboard/todays-work${qs ? `?${qs}` : ''}`);
   }
 
-  public async getBottlenecks(filter?: any): Promise<import('../../src/types').BottleneckStage[]> {
+  public async getBottlenecks(filter?: any): Promise<import('../../shared').BottleneckStage[]> {
     const params = new URLSearchParams();
     if (filter) {
       if (filter.topicId) params.set('topicId', filter.topicId);
@@ -1017,7 +1017,7 @@ class ApiClient {
     return this.request(`/dashboard/bottlenecks${qs ? `?${qs}` : ''}`);
   }
 
-  public async getStaleContent(filter?: any): Promise<import('../../src/types').StaleContentItem[]> {
+  public async getStaleContent(filter?: any): Promise<import('../../shared').StaleContentItem[]> {
     const params = new URLSearchParams();
     if (filter) {
       if (filter.topicId) params.set('topicId', filter.topicId);
@@ -1026,7 +1026,7 @@ class ApiClient {
     return this.request(`/dashboard/stale-content${qs ? `?${qs}` : ''}`);
   }
 
-  public async getPublishingReadiness(filter?: any): Promise<import('../../src/types').PublishingReadinessItem[]> {
+  public async getPublishingReadiness(filter?: any): Promise<import('../../shared').PublishingReadinessItem[]> {
     const params = new URLSearchParams();
     if (filter) {
       if (filter.topicId) params.set('topicId', filter.topicId);
@@ -1039,7 +1039,7 @@ class ApiClient {
     return this.request(`/videos/${encodeURIComponent(videoId)}/publishing/readiness`);
   }
 
-  public async globalSearch(query: string): Promise<import('../../src/types').GlobalSearchResult[]> {
+  public async globalSearch(query: string): Promise<import('../../shared').GlobalSearchResult[]> {
     return this.request(`/search?q=${encodeURIComponent(query)}`);
   }
 
@@ -1047,7 +1047,7 @@ class ApiClient {
   // Phase 9: Content Planning, Batches & Intelligence
   // ==========================================
 
-  public async getContentPlans(filter?: { topicId?: string; status?: string }): Promise<import('../../src/types').ContentPlan[]> {
+  public async getContentPlans(filter?: { topicId?: string; status?: string }): Promise<import('../../shared').ContentPlan[]> {
     const params = new URLSearchParams();
     if (filter) {
       if (filter.topicId) params.set('topicId', filter.topicId);
@@ -1057,31 +1057,31 @@ class ApiClient {
     return this.request(`/planning/plans${qs ? `?${qs}` : ''}`);
   }
 
-  public async getContentPlanById(id: string): Promise<import('../../src/types').ContentPlan> {
+  public async getContentPlanById(id: string): Promise<import('../../shared').ContentPlan> {
     return this.request(`/planning/plans/${encodeURIComponent(id)}`);
   }
 
-  public async createContentPlan(input: any): Promise<import('../../src/types').ContentPlan> {
+  public async createContentPlan(input: any): Promise<import('../../shared').ContentPlan> {
     return this.request('/planning/plans', {
       method: 'POST',
       body: JSON.stringify(input),
     });
   }
 
-  public async updateContentPlan(id: string, input: any): Promise<import('../../src/types').ContentPlan> {
+  public async updateContentPlan(id: string, input: any): Promise<import('../../shared').ContentPlan> {
     return this.request(`/planning/plans/${encodeURIComponent(id)}`, {
       method: 'PUT',
       body: JSON.stringify(input),
     });
   }
 
-  public async approveContentPlan(id: string): Promise<import('../../src/types').ContentPlan> {
+  public async approveContentPlan(id: string): Promise<import('../../shared').ContentPlan> {
     return this.request(`/planning/plans/${encodeURIComponent(id)}/approve`, {
       method: 'POST',
     });
   }
 
-  public async transitionPlanStatus(id: string, status: string): Promise<import('../../src/types').ContentPlan> {
+  public async transitionPlanStatus(id: string, status: string): Promise<import('../../shared').ContentPlan> {
     return this.request(`/planning/plans/${encodeURIComponent(id)}/status`, {
       method: 'POST',
       body: JSON.stringify({ status }),
@@ -1094,7 +1094,7 @@ class ApiClient {
     });
   }
 
-  public async getContentBatches(filter?: { planId?: string; status?: string }): Promise<{ batch: import('../../src/types').ContentBatch; metrics: import('../../src/types').BatchProgressMetrics }[]> {
+  public async getContentBatches(filter?: { planId?: string; status?: string }): Promise<{ batch: import('../../shared').ContentBatch; metrics: import('../../shared').BatchProgressMetrics }[]> {
     const params = new URLSearchParams();
     if (filter) {
       if (filter.planId) params.set('planId', filter.planId);
@@ -1104,14 +1104,14 @@ class ApiClient {
     return this.request(`/planning/batches${qs ? `?${qs}` : ''}`);
   }
 
-  public async createContentBatch(input: any): Promise<{ batch: import('../../src/types').ContentBatch; metrics: import('../../src/types').BatchProgressMetrics }> {
+  public async createContentBatch(input: any): Promise<{ batch: import('../../shared').ContentBatch; metrics: import('../../shared').BatchProgressMetrics }> {
     return this.request('/planning/batches', {
       method: 'POST',
       body: JSON.stringify(input),
     });
   }
 
-  public async updateContentBatch(id: string, input: any): Promise<{ batch: import('../../src/types').ContentBatch; metrics: import('../../src/types').BatchProgressMetrics }> {
+  public async updateContentBatch(id: string, input: any): Promise<{ batch: import('../../shared').ContentBatch; metrics: import('../../shared').BatchProgressMetrics }> {
     return this.request(`/planning/batches/${encodeURIComponent(id)}`, {
       method: 'PUT',
       body: JSON.stringify(input),
@@ -1124,18 +1124,18 @@ class ApiClient {
     });
   }
 
-  public async linkBatchQuestions(batchId: string, questionIds: string[], action: 'ADD' | 'REMOVE' | 'SET' = 'SET'): Promise<{ batch: import('../../src/types').ContentBatch; metrics: import('../../src/types').BatchProgressMetrics }> {
+  public async linkBatchQuestions(batchId: string, questionIds: string[], action: 'ADD' | 'REMOVE' | 'SET' = 'SET'): Promise<{ batch: import('../../shared').ContentBatch; metrics: import('../../shared').BatchProgressMetrics }> {
     return this.request(`/planning/batches/${encodeURIComponent(batchId)}/questions`, {
       method: 'POST',
       body: JSON.stringify({ questionIds, action }),
     });
   }
 
-  public async getCoverageOverview(): Promise<import('../../src/types').CoverageOverviewData> {
+  public async getCoverageOverview(): Promise<import('../../shared').CoverageOverviewData> {
     return this.request('/planning/coverage');
   }
 
-  public async getGapAnalysis(): Promise<import('../../src/types').ContentGapAnalysis> {
+  public async getGapAnalysis(): Promise<import('../../shared').ContentGapAnalysis> {
     return this.request('/planning/gaps');
   }
 
@@ -1150,7 +1150,7 @@ class ApiClient {
     });
   }
 
-  public async generateAiContentPlanRecommendation(input: any): Promise<import('../../src/types').AiContentPlanRecommendation> {
+  public async generateAiContentPlanRecommendation(input: any): Promise<import('../../shared').AiContentPlanRecommendation> {
     return this.request('/planning/ai-recommendation', {
       method: 'POST',
       body: JSON.stringify(input),
@@ -1424,12 +1424,12 @@ class ApiClient {
     return res;
   }
 
-  public async getProductionBoard(): Promise<import('../../src/types').ProductionBoardItem[]> {
+  public async getProductionBoard(): Promise<import('../../shared').ProductionBoardItem[]> {
     return this.request('/production-board');
   }
 
   // Phase 8H / Step 09: Canonical Social Content Review
-  public async getSocialReviewPackage(questionId: string): Promise<{ success: boolean; data: import('../../src/types').SocialReviewPackageBundle }> {
+  public async getSocialReviewPackage(questionId: string): Promise<{ success: boolean; data: import('../../shared').SocialReviewPackageBundle }> {
     return this.request(`/social-enhancement/review/${encodeURIComponent(questionId)}`);
   }
 
@@ -1439,7 +1439,7 @@ class ApiClient {
     versionHash: string,
     reason?: string,
     feedbackCategories?: string[]
-  ): Promise<{ success: boolean; data: import('../../src/types').SocialReviewPackageBundle; record: import('../../src/types').SocialReviewRecord }> {
+  ): Promise<{ success: boolean; data: import('../../shared').SocialReviewPackageBundle; record: import('../../shared').SocialReviewRecord }> {
     return this.request('/social-reviews/decision', {
       method: 'POST',
       body: JSON.stringify({ questionId, decision, versionHash, reason, feedbackCategories }),
@@ -1451,7 +1451,7 @@ class ApiClient {
     versionHash: string,
     reason?: string,
     feedbackCategories?: string[]
-  ): Promise<{ success: boolean; data: import('../../src/types').SocialReviewPackageBundle; record: import('../../src/types').SocialReviewRecord }> {
+  ): Promise<{ success: boolean; data: import('../../shared').SocialReviewPackageBundle; record: import('../../shared').SocialReviewRecord }> {
     return this.submitSocialReviewDecision(
       questionId,
       'APPROVED',
@@ -1466,7 +1466,7 @@ class ApiClient {
     versionHash: string,
     reason: string,
     feedbackCategories?: string[]
-  ): Promise<{ success: boolean; data: import('../../src/types').SocialReviewPackageBundle; record: import('../../src/types').SocialReviewRecord }> {
+  ): Promise<{ success: boolean; data: import('../../shared').SocialReviewPackageBundle; record: import('../../shared').SocialReviewRecord }> {
     return this.submitSocialReviewDecision(
       questionId,
       'CHANGES_REQUESTED',
@@ -1481,7 +1481,7 @@ class ApiClient {
     versionHash: string,
     reason: string,
     feedbackCategories?: string[]
-  ): Promise<{ success: boolean; data: import('../../src/types').SocialReviewPackageBundle; record: import('../../src/types').SocialReviewRecord }> {
+  ): Promise<{ success: boolean; data: import('../../shared').SocialReviewPackageBundle; record: import('../../shared').SocialReviewRecord }> {
     return this.submitSocialReviewDecision(
       questionId,
       'REJECTED',
@@ -1491,53 +1491,53 @@ class ApiClient {
     );
   }
 
-  public async getSocialReviewHistory(questionId: string): Promise<{ success: boolean; data: import('../../src/types').SocialReviewRecord[] }> {
+  public async getSocialReviewHistory(questionId: string): Promise<{ success: boolean; data: import('../../shared').SocialReviewRecord[] }> {
     return this.request(`/social-enhancement/review/${encodeURIComponent(questionId)}/history`);
   }
 
-  public async getSocialReviewsList(): Promise<{ success: boolean; data: import('../../src/types').SocialReviewRecord[] }> {
+  public async getSocialReviewsList(): Promise<{ success: boolean; data: import('../../shared').SocialReviewRecord[] }> {
     return this.request('/social-reviews');
   }
 
   public async getSocialReviewItem(reviewId: string): Promise<{
     success: boolean;
-    data: import('../../src/types').SocialReviewPackageBundle;
-    review?: import('../../src/types').SocialReviewRecord | null;
+    data: import('../../shared').SocialReviewPackageBundle;
+    review?: import('../../shared').SocialReviewRecord | null;
     questionId: string;
     canReview?: boolean;
   }> {
     return this.request(`/social-reviews/item/${encodeURIComponent(reviewId)}`);
   }
 
-  public async getContentMasters(): Promise<{ success: boolean; count: number; data: import('../../src/types').ContentMaster[] }> {
-    return this.request<{ success: boolean; count: number; data: import('../../src/types').ContentMaster[] }>('/content-masters');
+  public async getContentMasters(): Promise<{ success: boolean; count: number; data: import('../../shared').ContentMaster[] }> {
+    return this.request<{ success: boolean; count: number; data: import('../../shared').ContentMaster[] }>('/content-masters');
   }
 
   public async getContentMasterDetails(id: string): Promise<{ success: boolean; data: ContentMasterDetails }> {
     return this.request<{ success: boolean; data: ContentMasterDetails }>(`/content-masters/${encodeURIComponent(id)}`);
   }
 
-  public async getContentMasterCanonicalState(id: string): Promise<{ success: boolean; data: import('../../src/types').ContentMasterCanonicalState }> {
-    return this.request<{ success: boolean; data: import('../../src/types').ContentMasterCanonicalState }>(`/content-masters/${encodeURIComponent(id)}/canonical-state`);
+  public async getContentMasterCanonicalState(id: string): Promise<{ success: boolean; data: import('../../shared').ContentMasterCanonicalState }> {
+    return this.request<{ success: boolean; data: import('../../shared').ContentMasterCanonicalState }>(`/content-masters/${encodeURIComponent(id)}/canonical-state`);
   }
 
-  public async transitionContentMasterStatus(id: string, targetStatus: string, remarks?: string): Promise<{ success: boolean; data: import('../../src/types').ContentMaster }> {
-    return this.request<{ success: boolean; data: import('../../src/types').ContentMaster }>(`/content-masters/${encodeURIComponent(id)}/transition`, {
+  public async transitionContentMasterStatus(id: string, targetStatus: string, remarks?: string): Promise<{ success: boolean; data: import('../../shared').ContentMaster }> {
+    return this.request<{ success: boolean; data: import('../../shared').ContentMaster }>(`/content-masters/${encodeURIComponent(id)}/transition`, {
       method: 'POST',
       body: JSON.stringify({ targetStatus, remarks }),
     });
   }
 
-  public async archiveContentMaster(id: string, reason?: string): Promise<{ success: boolean; data: import('../../src/types').ContentMaster }> {
-    return this.request<{ success: boolean; data: import('../../src/types').ContentMaster }>(`/content-masters/${encodeURIComponent(id)}/archive`, {
+  public async archiveContentMaster(id: string, reason?: string): Promise<{ success: boolean; data: import('../../shared').ContentMaster }> {
+    return this.request<{ success: boolean; data: import('../../shared').ContentMaster }>(`/content-masters/${encodeURIComponent(id)}/archive`, {
       method: 'POST',
       body: JSON.stringify({ reason }),
     });
   }
 
   public async recordSocialAnalytics(
-    input: import('../../src/types').CreateSocialAnalyticsInput
-  ): Promise<{ success: boolean; record?: import('../../src/types').SocialAnalyticsRecord; error?: string }> {
+    input: import('../../shared').CreateSocialAnalyticsInput
+  ): Promise<{ success: boolean; record?: import('../../shared').SocialAnalyticsRecord; error?: string }> {
     return this.request('/analytics', {
       method: 'POST',
       body: JSON.stringify(input),
@@ -1546,13 +1546,13 @@ class ApiClient {
 
   public async getSocialAnalyticsForContent(
     contentId: string
-  ): Promise<{ success: boolean; count: number; contentId: string; records: import('../../src/types').SocialAnalyticsRecord[] }> {
+  ): Promise<{ success: boolean; count: number; contentId: string; records: import('../../shared').SocialAnalyticsRecord[] }> {
     return this.request(`/analytics/content/${encodeURIComponent(contentId)}`);
   }
 
   public async querySocialAnalytics(
-    filters?: import('../../src/types').SocialAnalyticsQueryFilters
-  ): Promise<{ success: boolean; count: number; records: import('../../src/types').SocialAnalyticsRecord[] }> {
+    filters?: import('../../shared').SocialAnalyticsQueryFilters
+  ): Promise<{ success: boolean; count: number; records: import('../../shared').SocialAnalyticsRecord[] }> {
     const params = new URLSearchParams();
     if (filters?.contentId) params.append('contentId', filters.contentId);
     if (filters?.platform) params.append('platform', filters.platform);
@@ -1565,8 +1565,8 @@ class ApiClient {
   }
 
   public async getSocialAnalyticsSummary(
-    filters?: import('../../src/types').SocialAnalyticsQueryFilters
-  ): Promise<{ success: boolean; summary: import('../../src/types').SocialAnalyticsSummary }> {
+    filters?: import('../../shared').SocialAnalyticsQueryFilters
+  ): Promise<{ success: boolean; summary: import('../../shared').SocialAnalyticsSummary }> {
     const params = new URLSearchParams();
     if (filters?.contentId) params.append('contentId', filters.contentId);
     if (filters?.platform) params.append('platform', filters.platform);
@@ -1579,19 +1579,19 @@ class ApiClient {
   // Phase 28: Performance Intelligence
   public async getIntelligenceReports(
     limit: number = 20
-  ): Promise<{ success: boolean; count: number; reports: import('../../src/types').SocialPerformanceIntelligenceRecord[] }> {
+  ): Promise<{ success: boolean; count: number; reports: import('../../shared').SocialPerformanceIntelligenceRecord[] }> {
     return this.request(`/analytics/intelligence?limit=${limit}`);
   }
 
   public async getIntelligenceReportById(
     id: string
-  ): Promise<{ success: boolean; report?: import('../../src/types').SocialPerformanceIntelligenceRecord }> {
+  ): Promise<{ success: boolean; report?: import('../../shared').SocialPerformanceIntelligenceRecord }> {
     return this.request(`/analytics/intelligence/${encodeURIComponent(id)}`);
   }
 
   public async generateIntelligenceReport(
     input?: { contentId?: string; platform?: string; startDate?: string; endDate?: string; topicId?: string; subtopicId?: string }
-  ): Promise<{ success: boolean; record?: import('../../src/types').SocialPerformanceIntelligenceRecord; error?: string }> {
+  ): Promise<{ success: boolean; record?: import('../../shared').SocialPerformanceIntelligenceRecord; error?: string }> {
     return this.request('/analytics/intelligence', {
       method: 'POST',
       body: JSON.stringify(input || {}),
@@ -1601,13 +1601,13 @@ class ApiClient {
   // Phase 29: Content Strategy
   public async getStrategyRecommendations(
     limit: number = 10
-  ): Promise<{ success: boolean; count: number; data: import('../../src/types').ContentStrategyRecommendation[] }> {
+  ): Promise<{ success: boolean; count: number; data: import('../../shared').ContentStrategyRecommendation[] }> {
     return this.request(`/content-strategy/recommendations?limit=${limit}`);
   }
 
   public async generateStrategyRecommendation(
     input?: { sourceReportId?: string }
-  ): Promise<{ success: boolean; recommendation?: import('../../src/types').ContentStrategyRecommendation; error?: string }> {
+  ): Promise<{ success: boolean; recommendation?: import('../../shared').ContentStrategyRecommendation; error?: string }> {
     return this.request('/content-strategy/recommendations', {
       method: 'POST',
       body: JSON.stringify(input || {}),
@@ -1616,7 +1616,7 @@ class ApiClient {
 
   public async applyStrategyRecommendation(
     id: string
-  ): Promise<{ success: boolean; data?: import('../../src/types').ContentStrategyRecommendation; error?: string }> {
+  ): Promise<{ success: boolean; data?: import('../../shared').ContentStrategyRecommendation; error?: string }> {
     return this.request(`/content-strategy/recommendations/${encodeURIComponent(id)}/apply`, {
       method: 'POST',
     });
@@ -1624,8 +1624,8 @@ class ApiClient {
 
   // Phase 30: Audience Social Comments (Strictly in Analytics Workbook)
   public async createSocialComment(
-    input: import('../../src/types').CreateSocialCommentInput
-  ): Promise<{ success: boolean; record?: import('../../src/types').SocialCommentRecord; isDuplicate?: boolean; error?: string }> {
+    input: import('../../shared').CreateSocialCommentInput
+  ): Promise<{ success: boolean; record?: import('../../shared').SocialCommentRecord; isDuplicate?: boolean; error?: string }> {
     return this.request('/social-comments', {
       method: 'POST',
       body: JSON.stringify(input),
@@ -1633,7 +1633,7 @@ class ApiClient {
   }
 
   public async importSocialComments(
-    input: import('../../src/types').ImportSocialCommentsInput
+    input: import('../../shared').ImportSocialCommentsInput
   ): Promise<{
     success: boolean;
     importedCount: number;
@@ -1649,8 +1649,8 @@ class ApiClient {
   }
 
   public async getSocialComments(
-    filters?: import('../../src/types').SocialCommentQueryFilters
-  ): Promise<{ success: boolean; count: number; records: import('../../src/types').SocialCommentRecord[] }> {
+    filters?: import('../../shared').SocialCommentQueryFilters
+  ): Promise<{ success: boolean; count: number; records: import('../../shared').SocialCommentRecord[] }> {
     const params = new URLSearchParams();
     if (filters?.contentId) params.append('contentId', filters.contentId);
     if (filters?.videoId) params.append('videoId', filters.videoId);
@@ -1669,20 +1669,20 @@ class ApiClient {
 
   public async getSocialCommentsForContent(
     contentId: string
-  ): Promise<{ success: boolean; count: number; contentId: string; records: import('../../src/types').SocialCommentRecord[] }> {
+  ): Promise<{ success: boolean; count: number; contentId: string; records: import('../../shared').SocialCommentRecord[] }> {
     return this.request(`/social-comments/content/${encodeURIComponent(contentId)}`);
   }
 
   public async getSocialCommentById(
     id: string
-  ): Promise<{ success: boolean; record?: import('../../src/types').SocialCommentRecord; error?: string }> {
+  ): Promise<{ success: boolean; record?: import('../../shared').SocialCommentRecord; error?: string }> {
     return this.request(`/social-comments/${encodeURIComponent(id)}`);
   }
 
   // Phase 30 / C3: AI Comment Intelligence & Misconception Engine
   public async generateCommentIntelligence(
-    input: import('../../src/types').GenerateCommentIntelligenceInput
-  ): Promise<{ success: boolean; record?: import('../../src/types').CommentIntelligenceRecord; error?: string }> {
+    input: import('../../shared').GenerateCommentIntelligenceInput
+  ): Promise<{ success: boolean; record?: import('../../shared').CommentIntelligenceRecord; error?: string }> {
     return this.request('/comment-intelligence/analyze', {
       method: 'POST',
       body: JSON.stringify(input),
@@ -1691,19 +1691,19 @@ class ApiClient {
 
   public async getCommentIntelligenceReports(
     limit: number = 20
-  ): Promise<{ success: boolean; count: number; reports: import('../../src/types').CommentIntelligenceRecord[] }> {
+  ): Promise<{ success: boolean; count: number; reports: import('../../shared').CommentIntelligenceRecord[] }> {
     return this.request(`/comment-intelligence?limit=${limit}`);
   }
 
   public async getCommentIntelligenceForContent(
     contentId: string
-  ): Promise<{ success: boolean; count: number; contentId: string; reports: import('../../src/types').CommentIntelligenceRecord[] }> {
+  ): Promise<{ success: boolean; count: number; contentId: string; reports: import('../../shared').CommentIntelligenceRecord[] }> {
     return this.request(`/comment-intelligence/content/${encodeURIComponent(contentId)}`);
   }
 
   public async getCommentIntelligenceById(
     id: string
-  ): Promise<{ success: boolean; record?: import('../../src/types').CommentIntelligenceRecord; error?: string }> {
+  ): Promise<{ success: boolean; record?: import('../../shared').CommentIntelligenceRecord; error?: string }> {
     return this.request(`/comment-intelligence/${encodeURIComponent(id)}`);
   }
 }

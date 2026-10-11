@@ -10,7 +10,7 @@ import {
   Target,
   Award,
 } from 'lucide-react';
-import { User } from '../../../src/types';
+import { User } from '../../../shared';
 
 interface ExecutiveHeroBannerProps {
   user: User | null;

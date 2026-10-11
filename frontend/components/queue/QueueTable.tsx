@@ -4,7 +4,7 @@ import { PlayCircle, FileText, ArrowRight, ExternalLink, Video as VideoIcon } fr
 import { DifficultyBadge } from '../common/DifficultyBadge';
 import { VideoStatusBadge } from '../common/StatusBadge';
 import { PRIORITY_CONFIG } from '../../../src/config/constants';
-import { DifficultyLevel, PriorityLevel, Video, VideoProductionStatus } from '../../../src/types';
+import { DifficultyLevel, PriorityLevel, Video, VideoProductionStatus } from '../../../shared';
 
 interface QueueTableProps {
   videos: Video[];

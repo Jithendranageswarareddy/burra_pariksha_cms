@@ -17,7 +17,7 @@ import {
   Sparkles,
   FileText,
 } from 'lucide-react';
-import { Video, Script, VideoProductionStatus, MediaAsset } from '../../../src/types';
+import { Video, Script, VideoProductionStatus, MediaAsset } from '../../../shared';
 import { apiClient } from '../../api/api-client';
 import { Button } from '../common/Button';
 

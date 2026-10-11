@@ -46,7 +46,7 @@ import {
   PublishingReadinessItem,
   User,
   VideoProductionStatus,
-} from '../../src/types';
+} from '../../shared';
 import { apiClient } from '../api/api-client';
 
 export const PublishingPage: React.FC = () => {

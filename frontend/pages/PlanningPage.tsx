@@ -63,7 +63,7 @@ import {
   QuestionLanguage,
   QuestionStyle,
   TopicCoverage,
-} from '../../src/types';
+} from '../../shared';
 import { DiversityRadarReport, QuestionSimilarityMatch } from '../api/contracts';
 
 type ActiveTab = 'plans' | 'batches' | 'coverage' | 'gaps' | 'radar' | 'ai-assistant';

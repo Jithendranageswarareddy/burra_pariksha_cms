@@ -16,7 +16,7 @@ import {
   ValidTransitionTarget,
   WorkflowStepNumber,
   CANONICAL_WORKFLOW_STEPS,
-} from '../../../src/types/workflow';
+} from '../../../shared';
 
 interface WorkflowActionPanelProps {
   workflow: WorkflowInstanceDocument;

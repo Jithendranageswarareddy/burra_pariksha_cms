@@ -30,7 +30,7 @@ import {
   PublishingReadinessItem,
   CanonicalProductionReadiness,
   VideoProductionStatus,
-} from '../../../src/types';
+} from '../../../shared';
 import { SocialStatusBadge, VideoStatusBadge } from '../common/StatusBadge';
 
 export interface PublishingTableProps {

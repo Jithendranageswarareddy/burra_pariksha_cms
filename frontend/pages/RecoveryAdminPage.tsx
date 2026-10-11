@@ -32,7 +32,7 @@ import { PageHeader } from '../components/layout/PageHeader';
 import { Button } from '../components/common/Button';
 import { useAuth } from '../contexts/AuthContext';
 import { apiClient, RecoveryStatusResponse, SnapshotHistoryItem } from '../api/api-client';
-import { UserRole } from '../../src/types';
+import { UserRole } from '../../shared';
 
 export const RecoveryAdminPage: React.FC = () => {
   const { user } = useAuth();

@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Sparkles, ShieldCheck, Check, Edit3, BookOpen } from 'lucide-react';
 import { Badge } from '../../design-system/components/Badge';
-import { CANONICAL_15_STEPS } from '../../../src/types/workflow';
+import { CANONICAL_15_STEPS } from '../../../shared';
 
 export interface QuestionWorkflowHeaderProps {
   currentStep: number;

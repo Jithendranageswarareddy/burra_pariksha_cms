@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { Card, CardContent } from '../../design-system/components/Card';
 import { Button } from '../../design-system/components/Button';
 import { Badge } from '../../design-system/components/Badge';
-import { SocialAnalyticsSummary } from '../../../src/types';
+import { SocialAnalyticsSummary } from '../../../shared';
 
 export interface ChannelPerformanceSectionProps {
   summary: SocialAnalyticsSummary | null;

@@ -7,7 +7,7 @@ import {
   AssignmentTaskType,
   PriorityLevel,
   User,
-} from '../../../src/types';
+} from '../../../shared';
 import { apiClient } from '../../api/api-client';
 import {
   X,

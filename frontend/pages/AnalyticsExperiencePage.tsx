@@ -59,7 +59,7 @@ import {
   SocialAnalyticsRecord,
   SocialAnalyticsSummary,
   SocialPerformanceIntelligenceRecord,
-} from '../../src/types';
+} from '../../shared';
 
 export type AnalyticsSection =
   | 'overview'

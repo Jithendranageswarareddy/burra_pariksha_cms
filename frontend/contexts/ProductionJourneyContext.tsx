@@ -19,9 +19,9 @@ import {
   QuestionStatus,
   VideoProductionStatus,
   SocialPublishStatus,
-} from '../../src/types';
+} from '../../shared';
 import { apiClient } from '../api/api-client';
-import { CANONICAL_15_STEPS } from '../../src/types/workflow';
+import { CANONICAL_15_STEPS } from '../../shared';
 import { getCanonicalStageRoute, WorkflowContext } from '../../src/lib/routing/workflow-routes';
 
 export interface CanonicalIds {

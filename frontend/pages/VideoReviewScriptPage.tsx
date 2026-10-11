@@ -12,7 +12,7 @@ import {
   ArrowLeft,
   Film,
 } from 'lucide-react';
-import { Video, Script, ScriptVersion, Question, VideoProductionStatus } from '../../src/types';
+import { Video, Script, ScriptVersion, Question, VideoProductionStatus } from '../../shared';
 import { apiClient } from '../api/api-client';
 import { VideoWorkflowHeader } from '../components/video/VideoWorkflowHeader';
 import { PageHeader } from '../design-system/components/PageHeader';

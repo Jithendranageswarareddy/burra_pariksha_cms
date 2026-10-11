@@ -38,7 +38,7 @@ import {
   VideoProductionStatus,
   QuestionValidationStatus,
   Video,
-} from '../../src/types';
+} from '../../shared';
 
 export const QuestionVerifyApprovePage: React.FC = () => {
   const { id } = useParams<{ id?: string }>();

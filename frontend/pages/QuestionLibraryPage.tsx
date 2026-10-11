@@ -21,7 +21,7 @@ import { SearchInput } from '../components/common/SearchInput';
 import { QuestionTable } from '../components/questions/QuestionTable';
 import { EmptyState } from '../components/common/EmptyState';
 import { QuestionWorkflowHeader } from '../components/questions/QuestionWorkflowHeader';
-import { DifficultyLevel, Question, QuestionStatus, VideoProductionStatus } from '../../src/types';
+import { DifficultyLevel, Question, QuestionStatus, VideoProductionStatus } from '../../shared';
 import { apiClient } from '../api/api-client';
 
 export const QuestionLibraryPage: React.FC = () => {

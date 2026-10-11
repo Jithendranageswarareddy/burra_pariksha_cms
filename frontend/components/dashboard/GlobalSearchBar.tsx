@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Search, Loader2, FileQuestion, Video, FileText, Image, MessageSquare, UserCheck, ArrowRight, X, Sparkles, CheckCheck, Share2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { apiClient } from '../../api/api-client';
-import { GlobalSearchResult } from '../../../src/types';
+import { GlobalSearchResult } from '../../../shared';
 
 export interface GlobalSearchBarProps {
   placeholder?: string;

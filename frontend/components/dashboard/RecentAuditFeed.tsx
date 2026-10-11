@@ -1,5 +1,5 @@
 import React from 'react';
-import { AuditLog } from '../../../src/types';
+import { AuditLog } from '../../../shared';
 import {
   Activity,
   Clock,

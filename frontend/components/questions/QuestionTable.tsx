@@ -13,7 +13,7 @@ import {
   Square,
   CheckSquare,
 } from 'lucide-react';
-import { DifficultyLevel, Question, QuestionLanguage, QuestionStatus } from '../../../src/types';
+import { DifficultyLevel, Question, QuestionLanguage, QuestionStatus } from '../../../shared';
 import { QuestionStatusBadge, VideoStatusBadge } from '../common/StatusBadge';
 import { DifficultyBadge } from '../common/DifficultyBadge';
 import { formatDisplayId } from '../../shared/formatters';

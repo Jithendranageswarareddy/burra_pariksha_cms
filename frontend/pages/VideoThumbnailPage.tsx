@@ -24,7 +24,7 @@ import {
   Film,
   FileCheck,
 } from 'lucide-react';
-import { Video, Thumbnail, ThumbnailVersion, Question } from '../../src/types';
+import { Video, Thumbnail, ThumbnailVersion, Question } from '../../shared';
 import { apiClient } from '../api/api-client';
 import { AssetWorkflowHeader } from '../components/social/AssetWorkflowHeader';
 import { PageHeader } from '../design-system/components/PageHeader';

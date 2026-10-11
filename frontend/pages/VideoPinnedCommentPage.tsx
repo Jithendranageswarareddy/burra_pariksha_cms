@@ -18,7 +18,7 @@ import {
   FileText,
   ShieldCheck,
 } from 'lucide-react';
-import { Video, PinnedComment, Question } from '../../src/types';
+import { Video, PinnedComment, Question } from '../../shared';
 import { apiClient } from '../api/api-client';
 import { AssetWorkflowHeader } from '../components/social/AssetWorkflowHeader';
 import { PageHeader } from '../design-system/components/PageHeader';

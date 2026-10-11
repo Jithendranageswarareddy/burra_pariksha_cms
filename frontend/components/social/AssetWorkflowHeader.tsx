@@ -9,7 +9,7 @@ import {
   Calendar,
 } from 'lucide-react';
 import { Badge } from '../../design-system/components/Badge';
-import { CANONICAL_15_STEPS } from '../../../src/types/workflow';
+import { CANONICAL_15_STEPS } from '../../../shared';
 
 export interface AssetWorkflowHeaderProps {
   currentStep: number;

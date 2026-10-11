@@ -3,7 +3,7 @@ import { Copy, Check, ShieldCheck, AlertCircle, RefreshCw, FileText, ExternalLin
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
 import { apiClient } from '../../api/api-client';
-import { PlatformPackageProjection, PlatformType } from '../../../src/types';
+import { PlatformPackageProjection, PlatformType } from '../../../shared';
 
 interface PackageCopierModalProps {
   isOpen: boolean;

@@ -4,7 +4,7 @@
  * Maps technical IDs and statuses to clean, user-friendly action-oriented presentation strings.
  */
 
-import { VideoProductionStatus } from '../../src/types';
+import { VideoProductionStatus } from '../../shared';
 
 /**
  * Format technical entity IDs (e.g. BP-CNT-000203 -> Content #203, BP-Q-000203 -> Question #203, BP-V-000044 -> Video #44)

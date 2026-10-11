@@ -14,7 +14,7 @@ import {
   CanonicalWorkflowStep,
   CANONICAL_WORKFLOW_STEPS,
   WorkflowStepNumber,
-} from '../../../src/types/workflow';
+} from '../../../shared';
 
 interface WorkflowBreadcrumbProps {
   currentStep: WorkflowStepNumber;

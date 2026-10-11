@@ -32,7 +32,7 @@ import {
   SocialReviewStatus,
   Video,
   VideoProductionStatus,
-} from '../../../src/types';
+} from '../../../shared';
 import { apiClient } from '../../api/api-client';
 import { Button } from '../common/Button';
 

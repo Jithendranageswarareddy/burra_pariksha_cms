@@ -158,7 +158,7 @@ export class DataIntegrityService {
     // Fast lookup maps
     const topicMap = new Map<string, Topic>(topics.map((t) => [t.id, t]));
     const subtopicMap = new Map<string, Subtopic>(subtopics.map((s) => [s.id, s]));
-    const questionMap = new Map<string, Question>(questions.map((q) => [q.id, q]));
+    const questionMap = new Map<string, Question>(questions.map((q: any) => [q.id, q] as [string, Question]));
     const videoMap = new Map<string, Video>(videos.map((v) => [v.id, v]));
     const scriptMap = new Map<string, Script>(scripts.map((s) => [s.id, s]));
     const thumbnailMap = new Map<string, Thumbnail>(thumbnails.map((t) => [t.id, t]));

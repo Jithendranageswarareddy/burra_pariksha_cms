@@ -25,7 +25,7 @@ import { PageHeader } from '../components/layout/PageHeader';
 import { Button } from '../components/common/Button';
 import { EmptyState } from '../components/common/EmptyState';
 import { apiClient } from '../api/api-client';
-import { ProductionBoardItem, VideoProductionStatus, DifficultyLevel } from '../../src/types';
+import { ProductionBoardItem, VideoProductionStatus, DifficultyLevel } from '../../shared';
 import { VIDEO_STATUS_CONFIG } from '../../src/config/constants';
 
 const READINESS_BADGE_CONFIG: Record<string, { label: string; bg: string; text: string; border: string }> = {

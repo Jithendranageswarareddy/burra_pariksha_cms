@@ -32,7 +32,7 @@ import {
   ChevronUp,
   Plus,
 } from 'lucide-react';
-import { Video, Script, VideoProductionStatus, AssignmentTaskType, MediaAsset } from '../../../src/types';
+import { Video, Script, VideoProductionStatus, AssignmentTaskType, MediaAsset } from '../../../shared';
 import { apiClient } from '../../api/api-client';
 import { Button } from '../common/Button';
 import { VideoStatusBadge } from '../common/StatusBadge';

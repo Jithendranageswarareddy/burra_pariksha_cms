@@ -4,7 +4,7 @@
  */
 
 import { BaseRepository } from './base.repository';
-import { Question, QuestionDifficulty, QuestionStatus, VideoProductionStatus } from '../../../src/types';
+import { Question, QuestionDifficulty, QuestionStatus, VideoProductionStatus } from '../../../shared';
 import { ValidationError } from '../../../src/lib/errors';
 
 export interface QuestionFilterInput {

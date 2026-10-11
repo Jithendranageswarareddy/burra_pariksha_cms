@@ -9,7 +9,7 @@ import {
   Sparkles,
   Share2,
 } from 'lucide-react';
-import { PinnedComment } from '../../../src/types';
+import { PinnedComment } from '../../../shared';
 import { apiClient } from '../../api/api-client';
 import { Button } from '../common/Button';
 

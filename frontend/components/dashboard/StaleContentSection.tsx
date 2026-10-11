@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Clock, AlertTriangle, ArrowRight, ShieldAlert, CheckCircle2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { StaleContentItem } from '../../../src/types';
+import { StaleContentItem } from '../../../shared';
 
 interface StaleContentSectionProps {
   items: StaleContentItem[];

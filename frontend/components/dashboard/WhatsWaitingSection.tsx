@@ -3,7 +3,7 @@ import { FileCheck, Scissors, Film, CheckSquare, UploadCloud, ArrowUpRight, Chec
 import { Link } from 'react-router-dom';
 import { Card } from '../../design-system/components/Card';
 import { Badge } from '../../design-system/components/Badge';
-import { UserRole } from '../../../src/types';
+import { UserRole } from '../../../shared';
 
 export interface WaitingCounts {
   questionsToReview: number;

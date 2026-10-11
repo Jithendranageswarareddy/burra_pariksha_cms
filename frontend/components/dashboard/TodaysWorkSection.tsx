@@ -11,7 +11,7 @@ import {
   FileQuestion,
   Filter,
 } from 'lucide-react';
-import { TodaysWorkItem } from '../../../src/types';
+import { TodaysWorkItem } from '../../../shared';
 
 interface TodaysWorkSectionProps {
   items: TodaysWorkItem[];

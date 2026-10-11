@@ -1,6 +1,6 @@
 import React from 'react';
 import { QUESTION_STATUS_CONFIG, SOCIAL_STATUS_CONFIG, VIDEO_STATUS_CONFIG } from '../../../src/config/constants';
-import { QuestionStatus, SocialPublishStatus, VideoProductionStatus } from '../../../src/types';
+import { QuestionStatus, SocialPublishStatus, VideoProductionStatus } from '../../../shared';
 
 interface QuestionStatusBadgeProps {
   status: QuestionStatus;

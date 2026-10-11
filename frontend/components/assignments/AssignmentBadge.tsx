@@ -1,5 +1,5 @@
 import React from 'react';
-import { AssignmentStatus, PriorityLevel } from '../../../src/types';
+import { AssignmentStatus, PriorityLevel } from '../../../shared';
 import { CheckCircle2, Clock, AlertTriangle, AlertCircle, PlayCircle, XCircle } from 'lucide-react';
 
 interface StatusBadgeProps {

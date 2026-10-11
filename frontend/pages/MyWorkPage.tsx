@@ -7,7 +7,7 @@ import {
   PriorityLevel,
   User,
   UserRole,
-} from '../../src/types';
+} from '../../shared';
 import { apiClient } from '../api/api-client';
 import { useAuth } from '../contexts/AuthContext';
 import { PageHeader } from '../components/layout/PageHeader';

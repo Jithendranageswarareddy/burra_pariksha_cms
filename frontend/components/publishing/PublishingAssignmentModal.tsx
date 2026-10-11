@@ -3,7 +3,7 @@ import { UserCheck, Users, AlertCircle, Calendar, ShieldCheck, Flag, FileText } 
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
 import { apiClient } from '../../api/api-client';
-import { Publishing, Assignment, User, PlatformType, PriorityLevel, UserRole } from '../../../src/types';
+import { Publishing, Assignment, User, PlatformType, PriorityLevel, UserRole } from '../../../shared';
 
 interface PublishingAssignmentModalProps {
   isOpen: boolean;

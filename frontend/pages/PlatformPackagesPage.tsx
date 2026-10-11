@@ -36,7 +36,7 @@ import {
   PlatformType,
   Publishing,
   SocialReviewPackageBundle,
-} from '../../src/types';
+} from '../../shared';
 
 export const PlatformPackagesPage: React.FC = () => {
   const { videoId: routeVideoId } = useParams<{ videoId?: string }>();

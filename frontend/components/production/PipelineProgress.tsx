@@ -1,5 +1,5 @@
 import React from 'react';
-import { VideoProductionStatus } from '../../../src/types';
+import { VideoProductionStatus } from '../../../shared';
 import { VIDEO_STATUS_CONFIG } from '../../../src/config/constants';
 
 interface PipelineProgressProps {

@@ -26,190 +26,49 @@ export * from './deployment-release';
 // 1. WORKFLOW & STATUS CONSTANTS / ENUMS
 // ============================================================================
 
-export enum QuestionStatus {
-  DRAFT = 'DRAFT',
-  GENERATED = 'GENERATED',
-  EDITING = 'EDITING',
-  APPROVED = 'APPROVED',
-  REJECTED = 'REJECTED',
-  ARCHIVED = 'ARCHIVED',
-}
+import {
+  QuestionStatus,
+  QuestionValidationStatus,
+  RenderValidationStatus,
+  VideoProductionStatus,
+  CanonicalProductionReadiness,
+  DifficultyLevel,
+  type QuestionDifficulty,
+  QuestionLanguage,
+  PublishingPlatform,
+  SocialPublishStatus,
+  QuestionStyle,
+  PriorityLevel,
+  ContentPlanStatus,
+  ContentBatchStatus,
+  AssignmentStatus,
+  UserRole,
+  AssignmentRole,
+  AssignmentEntityType,
+  AssignmentTaskType,
+} from '../../shared';
 
-export enum QuestionValidationStatus {
-  NOT_VALIDATED = 'NOT_VALIDATED',
-  VALIDATING = 'VALIDATING',
-  VALID = 'VALID',
-  NEEDS_REVIEW = 'NEEDS_REVIEW',
-  INVALID = 'INVALID',
-}
-
-export enum RenderValidationStatus {
-  NOT_VALIDATED = 'NOT_VALIDATED',
-  VALID = 'VALID',
-  INVALID = 'INVALID',
-  NEEDS_REVIEW = 'NEEDS_REVIEW',
-}
-
-export enum VideoProductionStatus {
-  NOT_STARTED = 'NOT_STARTED',
-  QUEUED = 'QUEUED',
-  SCRIPT_REQUIRED = 'SCRIPT_REQUIRED',
-  SCRIPT_READY = 'SCRIPT_READY',
-  RECORDING = 'RECORDING',
-  RECORDED = 'RECORDED',
-  EDITING = 'EDITING',
-  EDITED = 'EDITED',
-  FINAL_REVIEW = 'FINAL_REVIEW',
-  READY_TO_UPLOAD = 'READY_TO_UPLOAD',
-  UPLOADED = 'UPLOADED',
-  ON_HOLD = 'ON_HOLD',
-  CANCELLED = 'CANCELLED',
-}
-
-export enum CanonicalProductionReadiness {
-  RENDER_NOT_STARTED = 'RENDER_NOT_STARTED',
-  RENDER_METADATA_INCOMPLETE = 'RENDER_METADATA_INCOMPLETE',
-  RENDER_INVALID = 'RENDER_INVALID',
-  RENDER_VALID_BUT_EDITING = 'RENDER_VALID_BUT_EDITING',
-  EDITING_COMPLETE = 'EDITING_COMPLETE',
-  READY_FOR_PUBLISHING = 'READY_FOR_PUBLISHING',
-}
-
-export enum DifficultyLevel {
-  EASY = 'EASY',
-  MEDIUM = 'MEDIUM',
-  HARD = 'HARD',
-}
-
-export enum QuestionLanguage {
-  ENGLISH = 'ENGLISH',
-  TELUGU = 'TELUGU',
-  HINGLISH = 'HINGLISH',
-  TELUGU_ENGLISH = 'TELUGU_ENGLISH',
-}
-
-export enum PublishingPlatform {
-  YOUTUBE = 'YOUTUBE',
-  INSTAGRAM = 'INSTAGRAM',
-  FACEBOOK = 'FACEBOOK',
-}
-
-export enum SocialPublishStatus {
-  NOT_STARTED = 'NOT_STARTED',
-  DRAFT = 'DRAFT',
-  SCHEDULED = 'SCHEDULED',
-  UPLOADED = 'UPLOADED',
-  PUBLISHED = 'PUBLISHED',
-  FAILED = 'FAILED',
-}
-
-export enum QuestionStyle {
-  REAL_WORLD_SCENARIO = 'Real-World Scenario',
-  STORY_BASED = 'Story-Based Scenario',
-  PUZZLE = 'Logical Puzzle',
-  LOGICAL_PUZZLE = 'Logical Puzzle',
-  TRICK_QUESTION = 'Trick Question / Misdirection Trap',
-  SPEED_CHALLENGE = 'Speed Challenge / Fast Calculation',
-  SPEED_MATH_TRICK = 'Speed Math / Mental Calculation',
-  EXAM_STYLE = 'Standard Exam Style',
-  LOGIC_CHALLENGE = 'Logic Challenge / Deductive Reasoning',
-  COMMENT_CHALLENGE = 'Comment Challenge / Audience Brain Teaser',
-  DATA_INTERPRETATION = 'Data Interpretation / Chart Analysis',
-  VERBAL_TRAP = 'Verbal Trap / Ambiguity',
-  CONCEPTUAL_PROBE = 'Conceptual Probe',
-}
-
-export enum PriorityLevel {
-  LOW = 'LOW',
-  NORMAL = 'NORMAL',
-  MEDIUM = 'MEDIUM',
-  HIGH = 'HIGH',
-  URGENT = 'URGENT',
-}
-
-export enum ContentPlanStatus {
-  DRAFT = 'DRAFT',
-  APPROVED = 'APPROVED',
-  IN_PROGRESS = 'IN_PROGRESS',
-  COMPLETED = 'COMPLETED',
-  CANCELLED = 'CANCELLED',
-}
-
-export enum ContentBatchStatus {
-  PLANNED = 'PLANNED',
-  ACTIVE = 'ACTIVE',
-  REVIEW = 'REVIEW',
-  COMPLETED = 'COMPLETED',
-  CANCELLED = 'CANCELLED',
-}
-
-export enum AssignmentStatus {
-  ASSIGNED = 'ASSIGNED',
-  IN_PROGRESS = 'IN_PROGRESS',
-  BLOCKED = 'BLOCKED',
-  COMPLETED = 'COMPLETED',
-  CANCELLED = 'CANCELLED',
-}
-
-export enum UserRole {
-  ADMIN = 'ADMIN',
-  PUBLISHER = 'PUBLISHER',
-  CONTENT_MANAGER = 'CONTENT_MANAGER',
-  TOPIC_LEAD = 'TOPIC_LEAD',
-  QUESTION_CREATOR = 'QUESTION_CREATOR',
-  QUESTION_EDITOR = 'QUESTION_EDITOR',
-  TELUGU_TRANSLATOR = 'TELUGU_TRANSLATOR',
-  STUDIO_PRESENTER = 'STUDIO_PRESENTER',
-  SCRIPT_WRITER = 'SCRIPT_WRITER',
-  VIDEO_EDITOR = 'VIDEO_EDITOR',
-  THUMBNAIL_DESIGNER = 'THUMBNAIL_DESIGNER',
-  DESIGNER = 'DESIGNER',
-  PUBLISHING_MANAGER = 'PUBLISHING_MANAGER',
-  COMMUNITY_MANAGER = 'COMMUNITY_MANAGER',
-  CREATOR = 'CREATOR',
-  EDITOR = 'EDITOR',
-  ANALYTICS_VIEWER = 'ANALYTICS_VIEWER',
-  REVIEWER = 'REVIEWER',
-  SPEAKER = 'SPEAKER',
-  CONTENT_WRITER = 'CONTENT_WRITER',
-}
-
-export enum AssignmentRole {
-  CONTENT_WRITER = 'CONTENT_WRITER',
-  QUESTION_EDITOR = 'QUESTION_EDITOR',
-  SCRIPT_WRITER = 'SCRIPT_WRITER',
-  SPEAKER = 'SPEAKER',
-  VIDEO_EDITOR = 'VIDEO_EDITOR',
-  DESIGNER = 'DESIGNER',
-  PUBLISHING_MANAGER = 'PUBLISHING_MANAGER',
-  ADMIN = 'ADMIN',
-  REVIEWER = 'REVIEWER',
-  EDITOR = 'EDITOR',
-}
-
-export enum AssignmentEntityType {
-  CONTENT_MASTER = 'CONTENT_MASTER',
-  QUESTION = 'QUESTION',
-  VIDEO = 'VIDEO',
-  SCRIPT = 'SCRIPT',
-  THUMBNAIL = 'THUMBNAIL',
-  PUBLISHING = 'PUBLISHING',
-  CONTENT_PLAN = 'CONTENT_PLAN',
-  CONTENT_BATCH = 'CONTENT_BATCH',
-}
-
-export enum AssignmentTaskType {
-  SCRIPTING = 'SCRIPTING',
-  RECORDING = 'RECORDING',
-  EDITING = 'EDITING',
-  THUMBNAIL = 'THUMBNAIL',
-  REVIEW = 'REVIEW',
-  QUESTION_CREATION = 'QUESTION_CREATION',
-  QUESTION_REVIEW = 'QUESTION_REVIEW',
-  PUBLISHING = 'PUBLISHING',
-  PLANNING = 'PLANNING',
-  BATCH_PRODUCTION = 'BATCH_PRODUCTION',
-}
+export {
+  QuestionStatus,
+  QuestionValidationStatus,
+  RenderValidationStatus,
+  VideoProductionStatus,
+  CanonicalProductionReadiness,
+  DifficultyLevel,
+  type QuestionDifficulty,
+  QuestionLanguage,
+  PublishingPlatform,
+  SocialPublishStatus,
+  QuestionStyle,
+  PriorityLevel,
+  ContentPlanStatus,
+  ContentBatchStatus,
+  AssignmentStatus,
+  UserRole,
+  AssignmentRole,
+  AssignmentEntityType,
+  AssignmentTaskType,
+};
 
 // ============================================================================
 // 2. DOMAIN ENTITY INTERFACES (Google Sheets Tabs Representation)

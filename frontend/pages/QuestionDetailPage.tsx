@@ -35,7 +35,7 @@ import { ProductionJourneyBar } from '../components/production/ProductionJourney
 import { useProductionJourney } from '../contexts/ProductionJourneyContext';
 import { apiClient } from '../api/api-client';
 import { CandidateValidationReport } from '../api/contracts';
-import { AiRefinementAction, QuestionCandidate } from '../../src/types/ai';
+import { AiRefinementAction, QuestionCandidate } from '../../shared';
 import {
   DifficultyLevel,
   Question,
@@ -45,7 +45,7 @@ import {
   VideoProductionStatus,
   Workflow,
   AuditLog,
-} from '../../src/types';
+} from '../../shared';
 
 export const QuestionDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();

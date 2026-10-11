@@ -42,13 +42,13 @@ import {
   QuestionConfigEntry,
   ValidationResult,
   QuestionValidationStatus,
-} from '../../src/types';
+} from '../../shared';
 import {
   AiRefinementAction,
   GenerateCandidateInput,
   QuestionCandidate,
   RefineCandidateInput,
-} from '../../src/types/ai';
+} from '../../shared';
 import { CandidateValidationReport } from '../api/contracts';
 import { MathVerificationResult } from '../api/contracts';
 import { QUESTION_CREATION_CONFIG } from '../../src/config/question-creation.config';

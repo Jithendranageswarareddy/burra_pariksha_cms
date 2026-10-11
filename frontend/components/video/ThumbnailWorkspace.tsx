@@ -23,7 +23,7 @@ import {
   Brain,
   Zap,
 } from 'lucide-react';
-import { Thumbnail, ThumbnailVersion, Video } from '../../../src/types';
+import { Thumbnail, ThumbnailVersion, Video } from '../../../shared';
 import { apiClient } from '../../api/api-client';
 import { Button } from '../../design-system/components/Button';
 import { Badge } from '../../design-system/components/Badge';

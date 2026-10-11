@@ -29,7 +29,7 @@ import {
   ProductionStats,
   Video as VideoType,
   VideoProductionStatus,
-} from '../../src/types';
+} from '../../shared';
 
 export const QueuePage: React.FC = () => {
   const { user } = useAuth();

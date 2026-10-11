@@ -1,6 +1,6 @@
 import React from 'react';
 import { Filter, X, RefreshCw } from 'lucide-react';
-import { Topic } from '../../../src/types';
+import { Topic } from '../../../shared';
 
 interface DashboardFilterBarProps {
   topics: Topic[];

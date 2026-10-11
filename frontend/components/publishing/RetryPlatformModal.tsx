@@ -3,7 +3,7 @@ import { RotateCcw, Clock, AlertTriangle, AlertCircle, Calendar, CheckCircle2 } 
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
 import { apiClient } from '../../api/api-client';
-import { Publishing, PlatformType, SocialPublishStatus } from '../../../src/types';
+import { Publishing, PlatformType, SocialPublishStatus } from '../../../shared';
 
 interface RetryPlatformModalProps {
   isOpen: boolean;
