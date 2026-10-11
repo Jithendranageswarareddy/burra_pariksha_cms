@@ -24,7 +24,7 @@ import { canonicalIdService } from '../src/lib/id.service';
 import { apiRouter } from '../src/server/routes';
 import * as repos from '../src/lib/repositories';
 import * as services from '../src/lib/services';
-import * as apiClient from '../src/lib/api-client';
+import * as apiClient from '../frontend/api/api-client';
 import * as errors from '../src/lib/errors';
 import { getAdminFirestore } from '../src/lib/firebase/admin';
 

@@ -43,7 +43,7 @@ import {
 import { validateRequest } from '../src/server/middleware/validation.middleware';
 import { requestIdMiddleware } from '../src/server/middleware/request-id.middleware';
 import { globalErrorHandler } from '../src/server/middleware/error.middleware';
-import { ApiClientError } from '../src/lib/api-client';
+import { ApiClientError } from '../frontend/api/api-client';
 
 interface TestQuestionEntity extends BaseEntity {
   title: string;
