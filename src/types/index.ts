@@ -1239,8 +1239,6 @@ export interface SpreadsheetHealthReport {
   totalTabsExpected: number;
   totalTabsFound: number;
   tabs: TabVerificationResult[];
-  sequencesConfigured: boolean;
-  missingSequences: string[];
   taxonomyIntegrity: {
     isValid: boolean;
     issues: string[];

@@ -444,7 +444,7 @@ export const SettingsPage: React.FC = () => {
                   Operational Reliability, Resilience & Recovery Center
                 </h3>
                 <p className="text-xs text-slate-500 mt-1">
-                  Google Sheets API resilience diagnostics, exponential retry telemetry, sequence safety verification, and audited recovery workflows.
+                  Resilience diagnostics, exponential retry telemetry, data integrity verification, and audited recovery workflows.
                 </p>
               </div>
 

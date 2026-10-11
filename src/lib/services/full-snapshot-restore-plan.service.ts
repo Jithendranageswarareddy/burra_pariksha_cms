@@ -109,7 +109,6 @@ export const EXACT_RESTORE_DEPENDENCY_ORDER = [
   'PUBLISHING',
   'WORKFLOW',
   'AUDIT_LOG',
-  'SEQUENCES',
 ] as const;
 
 export const IMMUTABLE_VERSION_ENTITIES = [

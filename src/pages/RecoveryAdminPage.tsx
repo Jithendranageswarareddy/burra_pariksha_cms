@@ -927,7 +927,7 @@ export const RecoveryAdminPage: React.FC = () => {
             <div className="w-10 h-10 border-3 border-indigo-500 border-t-transparent rounded-full animate-spin" />
             <div>
               <p className="text-sm font-semibold text-slate-200">Executing Read-Only Dry Run Preflight...</p>
-              <p className="text-xs text-slate-400 mt-0.5">Validating schemas, foreign keys, sequence safety, and immutable versions.</p>
+              <p className="text-xs text-slate-400 mt-0.5">Validating schemas, foreign keys, data integrity, and immutable versions.</p>
             </div>
           </div>
         )}
@@ -1065,41 +1065,21 @@ export const RecoveryAdminPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Sequence Safety & Immutable Versions Details */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Sequence Warnings */}
-              <div className="p-4 bg-slate-950/60 border border-slate-800/80 rounded-xl space-y-2" id="dry-run-sequence-warnings">
-                <div className="flex items-center gap-2">
-                  <ListOrdered className="w-4 h-4 text-indigo-400" />
-                  <h4 className="text-xs font-bold text-slate-200">Sequence Protection Warnings</h4>
-                </div>
-                {dryRunResult.sequenceWarningCount > 0 ? (
-                  <p className="text-xs text-amber-300">
-                    {dryRunResult.sequenceWarningCount} sequence warning(s) detected. Forward-only order enforced.
-                  </p>
-                ) : (
-                  <p className="text-xs text-slate-400">
-                    Forward-only sequence enforcement active. Zero sequence rollbacks detected.
-                  </p>
-                )}
+            {/* Immutable Version Restrictions */}
+            <div className="p-4 bg-slate-950/60 border border-slate-800/80 rounded-xl space-y-2" id="dry-run-immutable-status">
+              <div className="flex items-center gap-2">
+                <Lock className="w-4 h-4 text-indigo-400" />
+                <h4 className="text-xs font-bold text-slate-200">Immutable Version Restrictions</h4>
               </div>
-
-              {/* Immutable Version Protection */}
-              <div className="p-4 bg-slate-950/60 border border-slate-800/80 rounded-xl space-y-2" id="dry-run-immutable-status">
-                <div className="flex items-center gap-2">
-                  <Lock className="w-4 h-4 text-indigo-400" />
-                  <h4 className="text-xs font-bold text-slate-200">Immutable Version Restrictions</h4>
-                </div>
-                <p className="text-xs text-slate-300">
-                  3 Immutable Version Entities Protected (<code className="font-mono text-indigo-300">SCRIPT_VERSIONS</code>, <code className="font-mono text-indigo-300">THUMBNAIL_VERSIONS</code>, <code className="font-mono text-indigo-300">PINNED_COMMENT_VERSIONS</code>). Updates and deletes are strictly prohibited.
-                </p>
-              </div>
+              <p className="text-xs text-slate-300">
+                3 Immutable Version Entities Protected (<code className="font-mono text-indigo-300">SCRIPT_VERSIONS</code>, <code className="font-mono text-indigo-300">THUMBNAIL_VERSIONS</code>, <code className="font-mono text-indigo-300">PINNED_COMMENT_VERSIONS</code>). Updates and deletes are strictly prohibited.
+              </p>
             </div>
 
-            {/* 19-Worksheet Exact Dependency Order */}
+            {/* 17-Worksheet Exact Dependency Order */}
             <div className="p-4 bg-slate-950/60 border border-slate-800/80 rounded-xl space-y-3" id="dry-run-dependency-order">
               <div className="flex items-center justify-between">
-                <h4 className="text-xs font-bold text-slate-200">Exact 18-Worksheet Restore Execution Order</h4>
+                <h4 className="text-xs font-bold text-slate-200">Exact 17-Worksheet Restore Execution Order</h4>
                 <span className="text-[10px] font-mono text-slate-400">Strict Topo-Sort Dependency Hierarchy</span>
               </div>
               <div className="flex flex-wrap gap-1.5 text-[11px] font-mono">
@@ -1121,7 +1101,6 @@ export const RecoveryAdminPage: React.FC = () => {
                   '15. PUBLISHING',
                   '16. WORKFLOW',
                   '17. AUDIT_LOG',
-                  '18. SEQUENCES',
                 ].map((step, idx) => (
                   <span
                     key={idx}
@@ -1346,29 +1325,15 @@ export const RecoveryAdminPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Sequence Notice & Immutable Notice */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Sequence Safety Notice */}
-              <div className="p-4 bg-slate-950/60 border border-slate-800/80 rounded-xl space-y-1" id="granular-sequence-notice">
-                <div className="flex items-center gap-2">
-                  <ListOrdered className="w-4 h-4 text-indigo-400" />
-                  <h4 className="text-xs font-bold text-slate-200">Sequence Safety</h4>
-                </div>
-                <p className="text-xs text-slate-400">
-                  Forward-only sequence enforcement active. Manual counter overrides are strictly disabled.
-                </p>
+            {/* Immutable Version Safety Notice */}
+            <div className="p-4 bg-slate-950/60 border border-slate-800/80 rounded-xl space-y-1" id="granular-immutable-notice">
+              <div className="flex items-center gap-2">
+                <Lock className="w-4 h-4 text-indigo-400" />
+                <h4 className="text-xs font-bold text-slate-200">Immutable Version Restriction</h4>
               </div>
-
-              {/* Immutable Version Safety Notice */}
-              <div className="p-4 bg-slate-950/60 border border-slate-800/80 rounded-xl space-y-1" id="granular-immutable-notice">
-                <div className="flex items-center gap-2">
-                  <Lock className="w-4 h-4 text-indigo-400" />
-                  <h4 className="text-xs font-bold text-slate-200">Immutable Version Restriction</h4>
-                </div>
-                <p className="text-xs text-slate-400">
-                  Version tables (<code className="font-mono text-indigo-300">SCRIPT_VERSIONS</code>, <code className="font-mono text-indigo-300">THUMBNAIL_VERSIONS</code>, <code className="font-mono text-indigo-300">PINNED_COMMENT_VERSIONS</code>) are append-only. Version updates and deletes are prohibited.
-                </p>
-              </div>
+              <p className="text-xs text-slate-400">
+                Version tables (<code className="font-mono text-indigo-300">SCRIPT_VERSIONS</code>, <code className="font-mono text-indigo-300">THUMBNAIL_VERSIONS</code>, <code className="font-mono text-indigo-300">PINNED_COMMENT_VERSIONS</code>) are append-only. Version updates and deletes are prohibited.
+              </p>
             </div>
 
             {/* Step 7 & 8: Confirmation & Execution Gate */}
@@ -1540,8 +1505,8 @@ export const RecoveryAdminPage: React.FC = () => {
         {isFullDryRunLoading && (
           <div className="p-8 bg-slate-950/60 rounded-lg border border-slate-800/80 flex flex-col items-center justify-center text-center space-y-2" id="full-restore-loading">
             <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-            <p className="text-xs font-semibold text-slate-200">Analyzing Snapshot & Generating 19-Worksheet Restore Plan...</p>
-            <p className="text-[11px] text-slate-400">Verifying checksums, schema constraints, foreign key graphs, sequence states, and version ledgers.</p>
+            <p className="text-xs font-semibold text-slate-200">Analyzing Snapshot & Generating 17-Worksheet Restore Plan...</p>
+            <p className="text-[11px] text-slate-400">Verifying checksums, schema constraints, foreign key graphs, data integrity, and version ledgers.</p>
           </div>
         )}
 
@@ -1676,11 +1641,11 @@ export const RecoveryAdminPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Step 6: 19-Worksheet Execution Dependency Order */}
+            {/* Step 6: 17-Worksheet Execution Dependency Order */}
             <div className="p-4 bg-slate-950/60 border border-slate-800 rounded-xl space-y-3" id="full-restore-dependency-order">
               <div className="flex items-center gap-2">
                 <ListOrdered className="w-4 h-4 text-indigo-400" />
-                <h4 className="text-xs font-bold text-slate-200">Strict 18-Worksheet Dependency Execution Order</h4>
+                <h4 className="text-xs font-bold text-slate-200">Strict 17-Worksheet Dependency Execution Order</h4>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 text-[11px] font-mono">
                 {[
@@ -1688,7 +1653,7 @@ export const RecoveryAdminPage: React.FC = () => {
                   '4. CONTENT_PLANS', '5. CONTENT_BATCHES', '6. QUESTIONS', '7. VIDEOS',
                   '8. SCRIPT', '9. SCRIPT_VERSIONS', '10. THUMBNAILS', '11. THUMBNAIL_VERSIONS',
                   '12. PINNED_COMMENTS', '13. PINNED_COMMENT_VERSIONS', '14. ASSIGNMENTS',
-                  '15. PUBLISHING', '16. WORKFLOW', '17. AUDIT_LOG', '18. SEQUENCES'
+                  '15. PUBLISHING', '16. WORKFLOW', '17. AUDIT_LOG'
                 ].map((ws, i) => (
                   <div key={i} className="px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded text-slate-300 truncate">
                     {ws}
@@ -2033,7 +1998,7 @@ export const RecoveryAdminPage: React.FC = () => {
                         <span>VERIFIED INTEGRITY — SHA-256 CHECKSUM MATCHES MANIFEST</span>
                       </div>
                       <p className="text-[11px] text-slate-300">
-                        Worksheets Verified: <span className="font-mono text-emerald-400 font-semibold">{Object.keys(retrievedSnapshotPayload.worksheets || {}).length}</span> | Total Sequences: <span className="font-mono text-indigo-300 font-semibold">{retrievedSnapshotPayload.sequences?.length || 0}</span>
+                        Worksheets Verified: <span className="font-mono text-emerald-400 font-semibold">{Object.keys(retrievedSnapshotPayload.worksheets || {}).length}</span>
                       </p>
                       <div className="p-2 bg-slate-950 rounded border border-slate-800 max-h-32 overflow-y-auto space-y-1">
                         {Object.entries(retrievedSnapshotPayload.worksheets || {}).map(([name, ws]: [string, any]) => (

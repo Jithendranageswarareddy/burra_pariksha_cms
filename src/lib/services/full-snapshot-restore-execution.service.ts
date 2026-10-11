@@ -249,25 +249,6 @@ export class FullSnapshotRestoreExecutionService {
 
       const isImmutable = IMMUTABLE_VERSION_ENTITIES.includes(entityType as any);
 
-      // Handle SEQUENCES tab separately with forward-only validation
-      if (entityType === 'SEQUENCES') {
-        const seqResult = await this.executeSequenceWorksheet(wsPlan.operations);
-        if (!seqResult.success) {
-          executionStopped = true;
-          failedWorksheet = 'SEQUENCES';
-          failedOpId = seqResult.failedOpId;
-          errors.push(`Sequence reconciliation failed: ${seqResult.error}`);
-          recordsFailed += seqResult.failedCount;
-          break;
-        } else {
-          recordsUpdated += seqResult.updatedCount;
-          recordsUnchanged += seqResult.unchangedCount;
-          sequenceChanges.push(...seqResult.sequenceChanges);
-          worksheetsProcessed.push(entityType);
-        }
-        continue;
-      }
-
       // Standard Repository Entity Execution
       const repository = this.getRepositoryForEntityType(entityType);
       if (!repository) {
@@ -474,27 +455,6 @@ export class FullSnapshotRestoreExecutionService {
     };
   }
 
-  /**
-   * Forward-only sequence reconciliation across all domain entities.
-   */
-  private async executeSequenceWorksheet(operations: RestorePlannedOperation[]): Promise<{
-    success: boolean;
-    updatedCount: number;
-    unchangedCount: number;
-    failedCount: number;
-    sequenceChanges: Array<{ entityType: string; previousValue: number; newValue: number }>;
-    failedOpId?: string;
-    error?: string;
-  }> {
-    // Sequences collection is decommissioned in Sprint 6 (UUID canonical IDs).
-    return {
-      success: true,
-      updatedCount: 0,
-      unchangedCount: operations.length,
-      failedCount: 0,
-      sequenceChanges: [],
-    };
-  }
 
   /**
    * Normalizes record payload for exact content equality comparisons.

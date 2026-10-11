@@ -138,7 +138,13 @@ async function runSprint6RegressionSuite() {
     console.log('\n[Check 5] Verifying SequenceAllocationError and sequence allocation mechanics are deleted...');
     assert.strictEqual((errors as any).SequenceAllocationError, undefined, 'SequenceAllocationError must not exist');
     assert.strictEqual((canonicalIdService as any).allocateNextNumber, undefined, 'allocateNextNumber must not exist on canonicalIdService');
-    console.log('  -> PASS: SequenceAllocationError and allocateNextNumber are eliminated.');
+    assert.strictEqual((canonicalIdService as any).allocateQuestionId, undefined, 'allocateQuestionId must not exist on canonicalIdService');
+    assert.strictEqual((canonicalIdService as any).allocateVideoId, undefined, 'allocateVideoId must not exist on canonicalIdService');
+    assert.strictEqual((canonicalIdService as any).allocateScriptId, undefined, 'allocateScriptId must not exist on canonicalIdService');
+    assert.strictEqual((canonicalIdService as any).allocateThumbnailId, undefined, 'allocateThumbnailId must not exist on canonicalIdService');
+    assert.strictEqual((canonicalIdService as any).allocateTopicId, undefined, 'allocateTopicId must not exist on canonicalIdService');
+    assert.strictEqual((canonicalIdService as any).allocateSubtopicId, undefined, 'allocateSubtopicId must not exist on canonicalIdService');
+    console.log('  -> PASS: SequenceAllocationError, allocateNextNumber, and all allocate*Id aliases are eliminated.');
     passed++;
   } catch (err: any) {
     console.error('  -> FAIL Check 5:', err.message);

@@ -80,26 +80,31 @@ Example: `qst_a80b1dfa-12e2-45e3-b684-297eb098198f`
 
 ### Core Code Contract
 ```typescript
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
 
 export class CanonicalIdService {
   public generateCanonicalId(prefix: string): string {
-    const cleanPrefix = prefix.endsWith('_') ? prefix : `${prefix}_`;
-    return `${cleanPrefix}${uuidv4()}`;
+    const uuid = randomUUID();
+    return `${prefix}${uuid}`;
   }
 
-  public async generateQuestionId(): Promise<string> {
+  // All 26 entity types exclusively use synchronous generate*Id() naming
+  public generateQuestionId(): string {
     return this.generateCanonicalId('qst_');
   }
 
-  public async generateVideoId(): Promise<string> {
+  public generateVideoId(): string {
     return this.generateCanonicalId('vid_');
   }
 
-  // All 26 entities supported synchronously & asynchronously...
+  public generateScriptId(): string {
+    return this.generateCanonicalId('scr_');
+  }
+
+  // Pure in-memory generation with zero database locks and zero allocate*Id() aliases.
 }
 
-export const canonicalIdService = new CanonicalIdService();
+export const canonicalIdService = CanonicalIdService.getInstance();
 ```
 
 ---
@@ -138,8 +143,11 @@ All 18 production domain services migrate from database sequence allocation to d
    - Decommissioned the "Sequence Safety Matrix" and "Sequence Synchronizer" modals.
    - Removed the obsolete sequence increment configuration tables.
 3. **Recovery Administration (`src/pages/RecoveryAdminPage.tsx`)**:
-   - Removed the "Sequence Forward-Only Safety" card and counter verification buttons.
-   - Snapshot recovery services now preserve entity IDs directly or assign canonical UUIDs without requiring sequence allocation tables.
+   - Completely removed all sequence safety warnings, `sequenceWarningCount`, and forward-only sequence notices.
+   - Removed `18. SEQUENCES` from the dependency execution topology diagram (now 17 canonical domain entities).
+   - Removed `Total Sequences` metric display and any sequence-specific payload extraction.
+   - Decommissioned the obsolete "Sequence Forward-Only Safety" card and counter verification buttons.
+   - Recovery workflows operate purely on schema validation, foreign-key graphs, and immutable versions with zero entity-ID sequence concepts.
 
 ---
 
