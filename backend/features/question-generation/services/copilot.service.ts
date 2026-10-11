@@ -33,7 +33,7 @@ import {
 } from '../../../../src/types/copilot';
 import { DifficultyLevel, QuestionStatus, QuestionStyle, VideoProductionStatus, SocialReviewStatus, UserRole, Assignment, Question, Video, Script, Thumbnail, PinnedComment, SocialReviewRecord } from '../../../../shared';
 import { ActorContext, ObjectAuthorizationService } from '../../../infrastructure/auth/services/object-auth.service';
-import { aiOrchestrator } from '../../../infrastructure/ai/ai-orchestrator.service';
+import { aiOrchestrator } from '../../../ai/orchestrator';
 import { ProductionDashboardService } from '../../../infrastructure/services/production-dashboard.service';
 import {
   questionsRepository,

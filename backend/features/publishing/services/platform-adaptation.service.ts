@@ -20,9 +20,8 @@ import { SocialMetadataPayload, AdaptedPlatformPackage, MultiPlatformAdaptationP
 import {
   SocialInvarianceValidator,
   SourceQuestionContext,
-} from '../../question-verification/validation/social-invariance.validator';
-import { aiOrchestrator } from '../../../infrastructure/ai/ai-orchestrator.service';
-import { AIProviderOptions } from '../../../infrastructure/ai/types';
+} from '../../../ai/validators';
+import { aiOrchestrator, AIProviderOptions } from '../../../ai/orchestrator';
 import { platformAdaptationsRepository } from '../../../../database/firestore/repositories/platform-adaptations.repository';
 import { contentMastersRepository } from '../../../../database/firestore/repositories/content-masters.repository';
 import { questionsRepository } from '../../../../database/firestore/repositories/questions.repository';
@@ -30,7 +29,7 @@ import { auditService } from '../../../infrastructure/audit/services/audit.servi
 import { canonicalIdService } from '../../../../src/lib/id.service';
 import {
   PlatformAdaptationValidator,
-} from '../../question-verification/validation/platform-adaptation.validator';
+} from '../../../ai/validators';
 import {
   ValidationError,
   AuthorizationError,

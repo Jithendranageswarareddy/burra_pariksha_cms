@@ -20,9 +20,9 @@ import { questionsRepository } from '../../../../database/firestore/repositories
 import { scriptsRepository } from '../../../../database/firestore/repositories/scripts.repository';
 import { videosRepository } from '../../../../database/firestore/repositories/videos.repository';
 import { publishingRepository } from '../../../../database/firestore/repositories/publishing.repository';
-import { aiOrchestrator } from '../../../infrastructure/ai/ai-orchestrator.service';
+import { aiOrchestrator } from '../../../ai/orchestrator';
 import { auditService } from '../../../infrastructure/audit/services/audit.service';
-import { PinnedCommentSafetyValidator } from '../../question-verification/validation/pinned-comment-safety.validator';
+import { PinnedCommentSafetyValidator } from '../../../ai/validators';
 import {
   ValidationError,
   AuthorizationError,

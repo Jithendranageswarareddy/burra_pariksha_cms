@@ -17,7 +17,7 @@ import { questionsRepository } from '../../../../database/firestore/repositories
 import { canonicalIdService } from '../../../../src/lib/id.service';
 import { auditService } from '../../../infrastructure/audit/services/audit.service';
 import { videoService } from './video.service';
-import { aiOrchestrator } from '../../../infrastructure/ai/ai-orchestrator.service';
+import { aiOrchestrator } from '../../../ai/orchestrator';
 import { Question, Script, ScriptVersion, VideoProductionStatus, UserRole } from '../../../../shared';
 import { ValidationError } from '../../../../src/lib/errors';
 

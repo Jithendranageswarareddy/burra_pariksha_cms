@@ -14,10 +14,10 @@ import {
   RefinementCandidate,
 } from '../../../database/firestore/repositories';
 import { ValidationError } from '../../../src/lib/errors';
-import { MathematicalValidator, MathVerificationResult } from '../../features/question-verification/ai/mathematical.validator';
-import { geminiClient } from '../ai/gemini.client';
-import { aiOrchestrator } from '../ai/ai-orchestrator.service';
-import { AIProviderError } from '../ai/error';
+import { MathematicalValidator, MathVerificationResult } from '../../ai/validators';
+import { geminiClient } from '../../ai/providers';
+import { aiOrchestrator } from '../../ai/orchestrator';
+import { AIProviderError } from '../../ai/errors';
 import { ContentMasterStatus, DifficultyLevel, QuestionLanguage, QuestionStatus, Question, UserRole } from '../../../shared';
 
 export interface Actor {

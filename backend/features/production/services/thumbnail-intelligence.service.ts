@@ -28,10 +28,10 @@ import { videosRepository } from '../../../../database/firestore/repositories/vi
 import { mediaAssetsRepository } from '../../../../database/firestore/repositories/media-assets.repository';
 import { driveSyncService } from '../../../infrastructure/services/drive-sync.service';
 import { googleDriveService } from '../../../infrastructure/services/google-drive.service';
-import { aiOrchestrator } from '../../../infrastructure/ai/ai-orchestrator.service';
+import { aiOrchestrator } from '../../../ai/orchestrator';
 import { auditService } from '../../../infrastructure/audit/services/audit.service';
 import { idService } from '../../../infrastructure/services/id.service';
-import { ThumbnailSafetyValidator } from '../../question-verification/validation/thumbnail-safety.validator';
+import { ThumbnailSafetyValidator } from '../../../ai/validators';
 import { ValidationError, ReferenceIntegrityError, AuthorizationError } from '../../../../src/lib/errors';
 import { WorkflowActor } from './video-production.service';
 export type { WorkflowActor };

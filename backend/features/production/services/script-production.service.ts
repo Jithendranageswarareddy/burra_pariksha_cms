@@ -11,8 +11,8 @@
 import { questionsRepository } from '../../../../database/firestore/repositories/questions.repository';
 import { videosRepository } from '../../../../database/firestore/repositories/videos.repository';
 import { scriptsRepository, scriptVersionsRepository } from '../../../../database/firestore/repositories/scripts.repository';
-import { aiOrchestrator } from '../../../infrastructure/ai/ai-orchestrator.service';
-import { ScriptValidator } from '../../question-verification/validation/script.validator';
+import { aiOrchestrator } from '../../../ai/orchestrator';
+import { ScriptValidator } from '../../../ai/validators';
 import { canonicalIdService } from '../../../../src/lib/id.service';
 import { auditService } from '../../../infrastructure/audit/services/audit.service';
 import { Question, Script, ScriptVersion, UserRole, Video, VideoProductionStatus, PriorityLevel } from '../../../../shared';

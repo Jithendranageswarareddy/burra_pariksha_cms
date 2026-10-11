@@ -18,17 +18,17 @@ import { commentIntelligenceRepository, CommentIntelligenceRepository } from '..
 import { contentMastersRepository } from '../../../../database/firestore/repositories/content-masters.repository';
 import { canonicalIdService } from '../../../../src/lib/id.service';
 import { AuditLogRepository } from '../../../../database/firestore/repositories/audit-log.repository';
-import { aiOrchestrator } from '../../../infrastructure/ai/ai-orchestrator.service';
+import { aiOrchestrator } from '../../../ai/orchestrator';
 import { AIProvenance } from '../../../../src/types/ai';
 import {
   CommentIntelligenceGenAISchema,
   CommentIntelligenceZodSchema,
   CommentIntelligenceAIOutput,
-} from '../../../infrastructure/ai/comment-intelligence.schema';
+} from '../../../ai/schemas';
 import {
   BURRA_PARIKSHA_COMMENT_INTELLIGENCE_SYSTEM_INSTRUCTION,
   buildCommentIntelligencePrompt,
-} from '../../ai/prompts/comment-intelligence.prompt';
+} from '../../../ai/prompts';
 import { GenerateCommentIntelligenceInputSchema } from '../../../../src/lib/schemas/google-sheets-schema';
 import { CommentIntelligenceRecord, GenerateCommentIntelligenceInput, SocialCommentRecord } from '../../../../shared';
 

@@ -13,8 +13,8 @@ import {
   SocialInvarianceValidator,
   SourceQuestionContext,
   EnhancedSocialScriptContext,
-} from '../../question-verification/validation/social-invariance.validator';
-import { aiOrchestrator } from '../../../infrastructure/ai/ai-orchestrator.service';
+} from '../../../ai/validators';
+import { aiOrchestrator } from '../../../ai/orchestrator';
 import { PlatformAdaptationService } from '../../publishing/services/platform-adaptation.service';
 import { socialQualityService } from './social-quality.service';
 

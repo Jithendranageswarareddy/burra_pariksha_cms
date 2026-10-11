@@ -26,8 +26,8 @@ import { pinnedCommentPackagesRepository } from '../../../../database/firestore/
 import { mediaAssetsRepository } from '../../../../database/firestore/repositories/media-assets.repository';
 import { socialReviewsRepository } from '../../../../database/firestore/repositories/social-reviews.repository';
 import { auditService } from '../../../infrastructure/audit/services/audit.service';
-import { SocialQualityGateValidator } from '../../question-verification/validation/social-quality-gate.validator';
-import { aiOrchestrator } from '../../../infrastructure/ai/ai-orchestrator.service';
+import { SocialQualityGateValidator } from '../../../ai/validators';
+import { aiOrchestrator } from '../../../ai/orchestrator';
 import {
   ValidationError,
   AuthorizationError,

@@ -15,7 +15,7 @@ import { taxonomyService } from '../../domain/taxonomy/services/taxonomy.service
 import { contentPlansRepository } from '../../../database/firestore/repositories/content-plans.repository';
 import { auditLogRepository } from '../../../database/firestore/repositories/audit-log.repository';
 import { canonicalIdService } from '../../../src/lib/id.service';
-import { aiOrchestrator } from '../ai/ai-orchestrator.service';
+import { aiOrchestrator } from '../../ai/orchestrator';
 import { ContentStrategyRecommendation, ContentPlan, QuestionLanguage, PriorityLevel, ContentPlanStatus, CommentIntelligenceRecord } from '../../../shared';
 import { RecommendationStatus } from '../../../src/types';
 import { AIProvenance } from '../../../src/types/ai';

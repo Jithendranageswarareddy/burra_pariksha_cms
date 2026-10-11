@@ -17,11 +17,10 @@ import { intelligenceRepository, IntelligenceRepository } from '../../../../data
 import { canonicalIdService } from '../../../../src/lib/id.service';
 import { taxonomyService } from '../../../domain/taxonomy/services/taxonomy.service';
 import { AuditLogRepository } from '../../../../database/firestore/repositories/audit-log.repository';
-import { geminiClient } from '../../../infrastructure/ai/gemini.client';
-import { aiOrchestrator } from '../../../infrastructure/ai/ai-orchestrator.service';
+import { aiOrchestrator } from '../../../ai/orchestrator';
 import { AIProvenance } from '../../../../src/types/ai';
-import { PerformanceIntelligenceGenAISchema, PerformanceIntelligenceZodSchema, PerformanceIntelligenceAIOutput } from '../../../infrastructure/ai/performance-intelligence.schema';
-import { BURRA_PARIKSHA_PERFORMANCE_INTELLIGENCE_SYSTEM_INSTRUCTION, buildPerformanceIntelligencePrompt } from '../../ai/prompts/performance-intelligence.prompt';
+import { PerformanceIntelligenceGenAISchema, PerformanceIntelligenceZodSchema, PerformanceIntelligenceAIOutput } from '../../../ai/schemas';
+import { BURRA_PARIKSHA_PERFORMANCE_INTELLIGENCE_SYSTEM_INSTRUCTION, buildPerformanceIntelligencePrompt } from '../../../ai/prompts';
 import { DimensionMetricAggregate, PostingTimeMetricAggregate, PostingTimeRecommendation, SocialAnalyticsQueryFilters, SocialAnalyticsRecord, SocialAnalyticsSummary, SocialPerformanceIntelligenceRecord } from '../../../../shared';
 import { ApplyStrategyRecommendationInput, ApplyStrategyRecommendationResult, GeneratePerformanceIntelligenceInput, QuestionStudioStrategyRecommendation } from '../../../../src/types';
 

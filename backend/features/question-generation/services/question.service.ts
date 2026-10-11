@@ -17,7 +17,7 @@ import { workflowService } from '../../../infrastructure/services/workflow.servi
 import { auditService } from '../../../infrastructure/audit/services/audit.service';
 import { contentMasterService } from '../../../infrastructure/services/content-master.service';
 import { IdempotencyConflictError, ReferenceIntegrityError, ValidationError } from '../../../../src/lib/errors';
-import { MultiLayerVerificationEngine } from '../../question-verification/validation/multi-layer-verification.engine';
+import { MultiLayerVerificationEngine } from '../../../ai/validators';
 import { createHash } from 'crypto';
 
 export interface DuplicateMatch {
@@ -99,7 +99,7 @@ const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const IDEMPOTENCY_MAX_ENTRIES = 1000;
 
 import { videoService } from '../../production/services/video.service';
-import { QuestionCreationRequestPayload, QuestionCreationValidator } from '../../question-verification/validation/question-creation.validator';
+import { QuestionCreationRequestPayload, QuestionCreationValidator } from '../../../ai/validators';
 import { smartRandomService } from '../../../infrastructure/services/smart-random.service';
 import { questionConfigService } from '../../../infrastructure/services/question-config.service';
 

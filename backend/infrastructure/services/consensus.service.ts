@@ -14,9 +14,7 @@ import {
   ConsensusVerdict,
   VerifierResult,
 } from '../../../src/types/consensus';
-import { QuestionCandidate } from '../ai/types';
-import { multiAIProviderRegistry } from '../ai/provider-registry';
-import { aiOrchestrator } from '../ai/ai-orchestrator.service';
+import { QuestionCandidate, multiAIProviderRegistry, aiOrchestrator } from '../../ai/orchestrator';
 import { AIProviderId, AIRequest } from '../../../src/types/ai';
 
 export class AuthorizationError extends Error {

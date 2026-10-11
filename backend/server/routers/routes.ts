@@ -40,9 +40,9 @@ import {
 import { questionDraftService } from '../../features/question-generation/services/question-draft.service';
 import { questionDraftsRepository } from '../../../database/firestore/repositories/question-drafts.repository';
 import { thumbnailCandidatesRepository } from '../../../database/firestore/repositories/thumbnail-candidates.repository';
-import { ThumbnailSafetyValidator } from '../../features/question-verification/validation/thumbnail-safety.validator';
-import { geminiClient } from '../../infrastructure/ai/gemini.client';
-import { aiOrchestrator } from '../../infrastructure/ai/ai-orchestrator.service';
+import { ThumbnailSafetyValidator } from '../../ai/validators';
+import { geminiClient } from '../../ai/providers';
+import { aiOrchestrator } from '../../ai/orchestrator';
 import { QuestionStatus, UserRole, SocialReviewStatus, RenderValidationStatus, VideoProductionStatus } from '../../../shared';
 import { WorkflowActor } from '../../../src/types';
 import { ProductionAssetValidationService } from '../../infrastructure/services/production-asset-validation.service';

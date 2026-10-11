@@ -14,7 +14,7 @@ import { questionDraftsRepository } from '../../../../database/firestore/reposit
 import { validationsRepository } from '../../../../database/firestore/repositories/validations.repository';
 import { auditService } from '../../../infrastructure/audit/services/audit.service';
 import { questionDraftService } from '../../question-generation/services/question-draft.service';
-import { QuestionValidationEngine, ValidationPipelineOptions } from '../validation/question-validation.engine';
+import { QuestionValidationEngine, ValidationPipelineOptions } from '../../../ai/validators';
 import { Question, QuestionStatus, ValidationResult, QuestionValidationStatus } from '../../../../shared';
 
 export interface ValidationActor {

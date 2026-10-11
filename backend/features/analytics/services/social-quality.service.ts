@@ -9,9 +9,8 @@ import {
   SocialInvarianceValidator,
   SourceQuestionContext,
   EnhancedSocialScriptContext,
-} from '../../question-verification/validation/social-invariance.validator';
-import { aiOrchestrator } from '../../../infrastructure/ai/ai-orchestrator.service';
-import { AIProviderOptions } from '../../../infrastructure/ai/types';
+} from '../../../ai/validators';
+import { aiOrchestrator, AIProviderOptions } from '../../../ai/orchestrator';
 import { detectAnswerLeakage } from '../../publishing/services/platform-adaptation.service';
 
 export const QUALITY_DIMENSION_WEIGHTS: Record<SocialQualityDimension, number> = {
