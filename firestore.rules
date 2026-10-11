@@ -165,9 +165,6 @@ service cloud.firestore {
       allow read, write: if isBackendGateway();
     }
 
-    match /sequences/{seqId} {
-      allow read, write: if isBackendGateway();
-    }
 
     match /analytics_intelligences/{intelId} {
       allow read, write: if isBackendGateway();

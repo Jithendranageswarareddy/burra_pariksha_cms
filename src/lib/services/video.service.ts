@@ -18,7 +18,7 @@ import {
   usersRepository,
 } from '../repositories';
 import { mediaAssetsRepository } from '../repositories/media-assets.repository';
-import { idService } from './id.service';
+import { canonicalIdService } from '../id.service';
 import { workflowService } from './workflow.service';
 import { auditService } from './audit.service';
 import { assignmentService } from './assignment.service';
@@ -259,8 +259,8 @@ export class VideoService {
       );
     }
 
-    // 5. Allocate permanent Video ID using SEQUENCES (BP-V-000001)
-    const videoId = await idService.allocateVideoId();
+    // 5. Generate canonical Video ID (vid_<uuid>)
+    const videoId = canonicalIdService.generateVideoId();
 
     const now = new Date().toISOString();
     // Ensure Content Master ID exists on Question
@@ -983,7 +983,7 @@ export class VideoService {
         }
       } else {
         const primaryQuestionId = contentDetails.questions[0]?.id || `BP-Q-000000`;
-        const newVideoId = await idService.generateId('VIDEO');
+        const newVideoId = canonicalIdService.generateVideoId();
         const newVideoPayload: Video = {
           id: newVideoId,
           contentId: targetContentId,

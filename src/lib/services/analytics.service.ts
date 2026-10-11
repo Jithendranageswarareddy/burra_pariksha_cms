@@ -17,9 +17,8 @@
 
 import { analyticsRepository, AnalyticsRepository } from '../repositories/analytics.repository';
 import { contentMastersRepository } from '../repositories/content-masters.repository';
-import { idService } from './id.service';
+import { canonicalIdService } from '../id.service';
 import { AuditLogRepository } from '../repositories/audit-log.repository';
-import { SEQUENCE_ENTITIES } from '../schemas/domain-schemas';
 import {
   CreateSocialAnalyticsInput,
   ImportSocialAnalyticsInput,
@@ -49,8 +48,8 @@ export class AnalyticsService {
    * Validates canonical Content ID format and existence.
    */
   public async validateCanonicalContentId(contentId: string): Promise<boolean> {
-    const CANONICAL_REGEX = /^BP-CNT-\d{6}$/;
-    if (!contentId || !CANONICAL_REGEX.test(contentId)) {
+    const isCanonical = /^BP-CNT-\d{6}$/.test(contentId) || /^cnt_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(contentId);
+    if (!contentId || !isCanonical) {
       return false;
     }
 
@@ -99,8 +98,8 @@ export class AnalyticsService {
       };
     }
 
-    // 3. Generate sequential ID: BP-ANL-######
-    const id = await idService.allocateSocialAnalyticsId();
+    // 3. Generate canonical UUID ID: anl_<uuid>
+    const id = canonicalIdService.generateSocialAnalyticsId();
 
     // 4. Construct historical snapshot record
     const now = new Date().toISOString();

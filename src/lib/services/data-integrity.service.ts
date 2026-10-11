@@ -49,7 +49,6 @@ import {
   questionVideosRepository,
   scriptsRepository,
   scriptVersionsRepository,
-  sequencesRepository,
   subtopicsRepository,
   thumbnailsRepository,
   thumbnailVersionsRepository,
@@ -60,8 +59,6 @@ import {
 } from '../repositories';
 
 import { ALL_SHEET_TABS, SHEET_TABS } from '../schemas/google-sheets-schema';
-import { ID_PREFIX_MAP, SEQUENCE_ENTITIES, SequenceEntityType } from '../schemas/domain-schemas';
-import { SequenceRecord } from '../repositories/sequences.repository';
 
 export class DataIntegrityService {
   private static instance: DataIntegrityService | null = null;
@@ -139,7 +136,6 @@ export class DataIntegrityService {
       assignments,
       publishingRecords,
       auditLogs,
-      sequences,
     ] = await Promise.all([
       usersRepository.findAll().catch(() => [] as User[]),
       topicsRepository.findAll().catch(() => [] as Topic[]),
@@ -157,7 +153,6 @@ export class DataIntegrityService {
       assignmentsRepository.findAll().catch(() => [] as any[]),
       publishingRepository.findAll().catch(() => [] as Publishing[]),
       auditLogRepository.findAll().catch(() => [] as AuditLog[]),
-      sequencesRepository.findAll().catch(() => [] as SequenceRecord[]),
     ]);
 
     // Fast lookup maps
@@ -210,7 +205,7 @@ export class DataIntegrityService {
             'ID_INTEGRITY',
             sheetName,
             `Duplicate primary ID "${idStr}" detected in worksheet "${sheetName}".`,
-            `Locate duplicated ID "${idStr}" in "${sheetName}" and manually reassign a unique sequence ID.`,
+            `Locate duplicated ID "${idStr}" in "${sheetName}" and manually reassign a unique canonical ID.`,
             sheetName,
             idStr,
             idField
@@ -1422,100 +1417,7 @@ export class DataIntegrityService {
       }
     });
 
-    // =========================================================================
-    // J. SEQUENCE INTEGRITY CHECKS
-    // =========================================================================
-    const maxIdsByEntity: Record<string, number> = {
-      [SEQUENCE_ENTITIES.QUESTION]: Math.max(0, ...questions.map((q) => this.extractNumericId(q.id, ID_PREFIX_MAP[SEQUENCE_ENTITIES.QUESTION]?.prefix) || 0)),
-      [SEQUENCE_ENTITIES.VIDEO]: Math.max(0, ...videos.map((v) => this.extractNumericId(v.id, ID_PREFIX_MAP[SEQUENCE_ENTITIES.VIDEO]?.prefix) || 0)),
-      [SEQUENCE_ENTITIES.SCRIPT]: Math.max(0, ...scripts.map((s) => this.extractNumericId(s.id, ID_PREFIX_MAP[SEQUENCE_ENTITIES.SCRIPT]?.prefix) || 0)),
-      [SEQUENCE_ENTITIES.THUMBNAIL]: Math.max(0, ...thumbnails.map((t) => this.extractNumericId(t.id, ID_PREFIX_MAP[SEQUENCE_ENTITIES.THUMBNAIL]?.prefix) || 0)),
-      [SEQUENCE_ENTITIES.PINNED_COMMENT]: Math.max(0, ...pinnedComments.map((p) => this.extractNumericId(p.id, ID_PREFIX_MAP[SEQUENCE_ENTITIES.PINNED_COMMENT]?.prefix) || 0)),
-      [SEQUENCE_ENTITIES.TOPIC]: Math.max(0, ...topics.map((t) => this.extractNumericId(t.id, ID_PREFIX_MAP[SEQUENCE_ENTITIES.TOPIC]?.prefix) || 0)),
-      [SEQUENCE_ENTITIES.SUBTOPIC]: Math.max(0, ...subtopics.map((s) => this.extractNumericId(s.id, ID_PREFIX_MAP[SEQUENCE_ENTITIES.SUBTOPIC]?.prefix) || 0)),
-      // Note: USER IDs use timestamp-based allocation (allocateUserId: USR-#### via Date.now()),
-      // not monotonic counter allocation from SEQUENCES table.
-      [SEQUENCE_ENTITIES.CONTENT_PLAN]: 0,
-      [SEQUENCE_ENTITIES.CONTENT_BATCH]: 0,
-      [SEQUENCE_ENTITIES.ASSIGNMENT]: Math.max(0, ...assignments.map((a) => this.extractNumericId(a.id, ID_PREFIX_MAP[SEQUENCE_ENTITIES.ASSIGNMENT]?.prefix) || 0)),
-    };
-
-    const seenSeqEntities = new Set<string>();
-
-    sequences.forEach((seq) => {
-      if (!seq.entityType || seq.entityType.trim() === '') {
-        addIssue(
-          'CRITICAL',
-          'SEQUENCE_INTEGRITY',
-          SHEET_TABS.SEQUENCES,
-          `Sequence row has empty entity_type.`,
-          `Define entity_type in SEQUENCES tab (e.g. QUESTION, VIDEO).`,
-          'SEQUENCE',
-          'UNKNOWN',
-          'entityType'
-        );
-        return;
-      }
-
-      if (seenSeqEntities.has(seq.entityType.toUpperCase())) {
-        addIssue(
-          'ERROR',
-          'SEQUENCE_INTEGRITY',
-          SHEET_TABS.SEQUENCES,
-          `Duplicate sequence row for entity_type "${seq.entityType}".`,
-          `Remove duplicate sequence rows in SEQUENCES tab.`,
-          'SEQUENCE',
-          seq.entityType,
-          'entityType'
-        );
-      } else {
-        seenSeqEntities.add(seq.entityType.toUpperCase());
-      }
-
-      const nextNum = Number(seq.nextNumber);
-      if (isNaN(nextNum) || nextNum <= 0) {
-        addIssue(
-          'CRITICAL',
-          'SEQUENCE_INTEGRITY',
-          SHEET_TABS.SEQUENCES,
-          `Sequence for "${seq.entityType}" has non-numeric or invalid next_number (${seq.nextNumber}).`,
-          `Set next_number to a valid integer >= 1 in SEQUENCES tab for "${seq.entityType}".`,
-          'SEQUENCE',
-          seq.entityType,
-          'nextNumber'
-        );
-      } else {
-        const maxExisting = maxIdsByEntity[seq.entityType];
-        if (maxExisting !== undefined && nextNum <= maxExisting) {
-          addIssue(
-            'ERROR',
-            'SEQUENCE_INTEGRITY',
-            SHEET_TABS.SEQUENCES,
-            `Sequence next_number (${nextNum}) for "${seq.entityType}" is not ahead of highest existing record ID (${maxExisting}). Risk of duplicate ID generation!`,
-            `Manually update SEQUENCES tab so next_number for "${seq.entityType}" is at least ${maxExisting + 1}.`,
-            'SEQUENCE',
-            seq.entityType,
-            'nextNumber'
-          );
-        }
-      }
-    });
-
-    // Check missing expected sequence rows
-    Object.values(SEQUENCE_ENTITIES).forEach((entity) => {
-      if (!seenSeqEntities.has(entity)) {
-        addIssue(
-          'ERROR',
-          'SEQUENCE_INTEGRITY',
-          SHEET_TABS.SEQUENCES,
-          `Missing sequence definition for required entity "${entity}" in SEQUENCES worksheet.`,
-          `Add sequence row with entity_type="${entity}", next_number=1, prefix="${(ID_PREFIX_MAP as any)[entity]?.prefix || 'BP-'}" in SEQUENCES.`,
-          'SEQUENCE',
-          entity,
-          'entityType'
-        );
-      }
-    });
+    // J. Entity ID sequences are permanently decommissioned (Sprint 6 Canonical UUID IDs).
 
     // =========================================================================
     // K. ASSIGNMENT & TEAM INTEGRITY CHECKS (Phase 10)
@@ -1711,7 +1613,6 @@ export class DataIntegrityService {
         case SHEET_TABS.ASSIGNMENTS: return assignments.length;
         case SHEET_TABS.PUBLISHING: return publishingRecords.length;
         case SHEET_TABS.AUDIT_LOG: return auditLogs.length;
-        case SHEET_TABS.SEQUENCES: return sequences.length;
         default: return 0;
       }
     };
@@ -1731,7 +1632,7 @@ export class DataIntegrityService {
     });
 
     const categoriesList: { category: IntegrityCategory; name: string; description: string }[] = [
-      { category: 'ID_INTEGRITY', name: 'Primary & Sequence ID Integrity', description: 'Checks primary key presence, uniqueness, prefixes, and sequence ranges.' },
+      { category: 'ID_INTEGRITY', name: 'Primary & Canonical ID Integrity', description: 'Checks primary key presence, uniqueness, and canonical prefixes.' },
       { category: 'QUESTION_INTEGRITY', name: 'Question Taxonomy & Options Integrity', description: 'Validates category/topic/subtopic relations, options uniqueness, and workflow validity.' },
       { category: 'VIDEO_INTEGRITY', name: 'Video Production & Association Integrity', description: 'Checks question-video linkages, single active video constraint, and production readiness.' },
       { category: 'SCRIPT_INTEGRITY', name: 'Script & Version Chain Integrity', description: 'Verifies script-to-video mapping, version sequence numbering, and content readiness.' },
@@ -1740,7 +1641,6 @@ export class DataIntegrityService {
       { category: 'PUBLISHING_INTEGRITY', name: 'Manual Publishing Records Integrity', description: 'Validates URLs, published timestamps, platform statuses, and pre-flight readiness.' },
       { category: 'WORKFLOW_INTEGRITY', name: 'Workflow Lifecycle & State Machine Integrity', description: 'Validates state transitions, entity links, and terminal state invariants.' },
       { category: 'AUDIT_LOG_INTEGRITY', name: 'Administrative Audit Trail Integrity', description: 'Verifies logging format, timestamps, entity IDs, and action tracking.' },
-      { category: 'SEQUENCE_INTEGRITY', name: 'Sequences Table Allocation Integrity', description: 'Guarantees next_number values are valid and ahead of existing IDs.' },
       { category: 'ASSIGNMENT_INTEGRITY', name: 'Team Assignments & Entity Association', description: 'Validates assignee presence, active status, target entity links, and duplicate prevention.' },
       { category: 'USER_INTEGRITY', name: 'Team Directory & Role Assignment', description: 'Checks user profile completeness, role authorization, and active status.' },
     ];

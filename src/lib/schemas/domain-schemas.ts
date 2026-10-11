@@ -1,11 +1,12 @@
 /**
  * BURRA PARIKSHA CMS — Authoritative Domain & Firestore Schemas
+ * Sprint 6: Complete Removal of Entity ID Sequence Infrastructure
  *
- * Single Source of Truth for Firestore Collections, Canonical Prefixes,
- * Sequence Entities, and Domain Entity Definitions.
+ * Single Source of Truth for Firestore Collections and Domain Entity Definitions.
  *
  * Architecture:
  * React -> Express API -> Domain Services -> Domain Repositories -> FirestoreRepository -> Firebase Admin SDK -> Cloud Firestore
+ * All entity IDs are generated via CanonicalIdService (UUID v4 with typed prefixes).
  */
 
 import { CanonicalPrefix } from '../id.service';
@@ -43,7 +44,6 @@ export const DOMAIN_COLLECTIONS = {
   SUBTOPICS: 'subtopics',
   USERS: 'users',
   QUESTION_CONFIG: 'question_config',
-  SEQUENCES: 'sequences',
   AUDIT_LOGS: 'audit_logs',
   VALIDATIONS: 'validations',
   CONTENT_PLANS: 'content_plans',
@@ -56,49 +56,3 @@ export const DOMAIN_COLLECTIONS = {
 } as const;
 
 export type DomainCollectionName = typeof DOMAIN_COLLECTIONS[keyof typeof DOMAIN_COLLECTIONS];
-
-export const SEQUENCE_ENTITIES = {
-  QUESTION: 'QUESTION',
-  VIDEO: 'VIDEO',
-  SCRIPT: 'SCRIPT',
-  THUMBNAIL: 'THUMBNAIL',
-  PINNED_COMMENT: 'PINNED_COMMENT',
-  TOPIC: 'TOPIC',
-  SUBTOPIC: 'SUBTOPIC',
-  USER: 'USER',
-  CONTENT_PLAN: 'CONTENT_PLAN',
-  CONTENT_BATCH: 'CONTENT_BATCH',
-  ASSIGNMENT: 'ASSIGNMENT',
-  CONTENT_MASTER: 'CONTENT_MASTER',
-  SOCIAL_REVIEW: 'SOCIAL_REVIEW',
-  SOCIAL_ANALYTICS: 'SOCIAL_ANALYTICS',
-  SOCIAL_PERFORMANCE_INTELLIGENCE: 'SOCIAL_PERFORMANCE_INTELLIGENCE',
-  PLATFORM_ADAPTATION: 'PLATFORM_ADAPTATION',
-  CONTENT_STRATEGY: 'CONTENT_STRATEGY',
-  SOCIAL_COMMENT: 'SOCIAL_COMMENT',
-  COMMENT_INTELLIGENCE: 'COMMENT_INTELLIGENCE',
-} as const;
-
-export type SequenceEntityType = typeof SEQUENCE_ENTITIES[keyof typeof SEQUENCE_ENTITIES];
-
-export const ID_PREFIX_MAP: Record<SequenceEntityType, { prefix: string; padLength: number }> = {
-  [SEQUENCE_ENTITIES.QUESTION]: { prefix: 'BP-Q-', padLength: 6 },
-  [SEQUENCE_ENTITIES.VIDEO]: { prefix: 'BP-V-', padLength: 6 },
-  [SEQUENCE_ENTITIES.SCRIPT]: { prefix: 'BP-S-', padLength: 6 },
-  [SEQUENCE_ENTITIES.THUMBNAIL]: { prefix: 'BP-T-', padLength: 6 },
-  [SEQUENCE_ENTITIES.PINNED_COMMENT]: { prefix: 'BP-PIN-', padLength: 6 },
-  [SEQUENCE_ENTITIES.TOPIC]: { prefix: 'BP-TOP-', padLength: 4 },
-  [SEQUENCE_ENTITIES.SUBTOPIC]: { prefix: 'BP-SUB-', padLength: 6 },
-  [SEQUENCE_ENTITIES.USER]: { prefix: 'USR-', padLength: 3 },
-  [SEQUENCE_ENTITIES.CONTENT_PLAN]: { prefix: 'BP-PLN-', padLength: 4 },
-  [SEQUENCE_ENTITIES.CONTENT_BATCH]: { prefix: 'BP-BCH-', padLength: 4 },
-  [SEQUENCE_ENTITIES.ASSIGNMENT]: { prefix: 'BP-ASN-', padLength: 6 },
-  [SEQUENCE_ENTITIES.CONTENT_MASTER]: { prefix: 'BP-CNT-', padLength: 6 },
-  [SEQUENCE_ENTITIES.SOCIAL_REVIEW]: { prefix: 'BP-REV-', padLength: 6 },
-  [SEQUENCE_ENTITIES.SOCIAL_ANALYTICS]: { prefix: 'BP-ANL-', padLength: 6 },
-  [SEQUENCE_ENTITIES.SOCIAL_PERFORMANCE_INTELLIGENCE]: { prefix: 'BP-SPI-', padLength: 6 },
-  [SEQUENCE_ENTITIES.PLATFORM_ADAPTATION]: { prefix: 'BP-ADP-', padLength: 6 },
-  [SEQUENCE_ENTITIES.CONTENT_STRATEGY]: { prefix: 'BP-STR-', padLength: 6 },
-  [SEQUENCE_ENTITIES.SOCIAL_COMMENT]: { prefix: 'BP-CMT-', padLength: 6 },
-  [SEQUENCE_ENTITIES.COMMENT_INTELLIGENCE]: { prefix: 'BP-CMI-', padLength: 6 },
-};

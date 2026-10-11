@@ -43,7 +43,6 @@ export const SHEET_TABS = {
   ASSIGNMENTS: 'ASSIGNMENTS',
   PUBLISHING: 'PUBLISHING',
   AUDIT_LOG: 'AUDIT_LOG',
-  SEQUENCES: 'SEQUENCES',
   CONTENT_MASTERS: 'CONTENT_MASTERS',
   QUESTION_VALIDATIONS: 'QUESTION_VALIDATIONS',
   SOCIAL_REVIEWS: 'SOCIAL_REVIEWS',
@@ -77,7 +76,6 @@ export const ALL_SHEET_TABS: SheetTabName[] = [
   SHEET_TABS.ASSIGNMENTS,
   SHEET_TABS.PUBLISHING,
   SHEET_TABS.AUDIT_LOG,
-  SHEET_TABS.SEQUENCES,
   SHEET_TABS.CONTENT_MASTERS,
   SHEET_TABS.SOCIAL_REVIEWS,
   SHEET_TABS.QUESTION_VALIDATIONS,
@@ -86,56 +84,6 @@ export const ALL_SHEET_TABS: SheetTabName[] = [
   PLANNING_SHEET_TABS.CONTENT_PLANS,
   PLANNING_SHEET_TABS.CONTENT_BATCHES,
 ];
-
-// ============================================================================
-// 2. ID PREFIXES FOR SEQUENCES
-// ============================================================================
-
-export const SEQUENCE_ENTITIES = {
-  QUESTION: 'QUESTION',
-  VIDEO: 'VIDEO',
-  SCRIPT: 'SCRIPT',
-  THUMBNAIL: 'THUMBNAIL',
-  PINNED_COMMENT: 'PINNED_COMMENT',
-  TOPIC: 'TOPIC',
-  SUBTOPIC: 'SUBTOPIC',
-  USER: 'USER',
-  CONTENT_PLAN: 'CONTENT_PLAN',
-  CONTENT_BATCH: 'CONTENT_BATCH',
-  ASSIGNMENT: 'ASSIGNMENT',
-  CONTENT_MASTER: 'CONTENT_MASTER',
-  SOCIAL_REVIEW: 'SOCIAL_REVIEW',
-  SOCIAL_ANALYTICS: 'SOCIAL_ANALYTICS',
-  SOCIAL_PERFORMANCE_INTELLIGENCE: 'SOCIAL_PERFORMANCE_INTELLIGENCE',
-  PLATFORM_ADAPTATION: 'PLATFORM_ADAPTATION',
-  CONTENT_STRATEGY: 'CONTENT_STRATEGY',
-  SOCIAL_COMMENT: 'SOCIAL_COMMENT',
-  COMMENT_INTELLIGENCE: 'COMMENT_INTELLIGENCE',
-} as const;
-
-export type SequenceEntityType = typeof SEQUENCE_ENTITIES[keyof typeof SEQUENCE_ENTITIES];
-
-export const ID_PREFIX_MAP: Record<SequenceEntityType, { prefix: string; padLength: number }> = {
-  [SEQUENCE_ENTITIES.QUESTION]: { prefix: 'BP-Q-', padLength: 6 },
-  [SEQUENCE_ENTITIES.VIDEO]: { prefix: 'BP-V-', padLength: 6 },
-  [SEQUENCE_ENTITIES.SCRIPT]: { prefix: 'BP-S-', padLength: 6 },
-  [SEQUENCE_ENTITIES.THUMBNAIL]: { prefix: 'BP-T-', padLength: 6 },
-  [SEQUENCE_ENTITIES.PINNED_COMMENT]: { prefix: 'BP-PIN-', padLength: 6 },
-  [SEQUENCE_ENTITIES.TOPIC]: { prefix: 'BP-TOP-', padLength: 4 },
-  [SEQUENCE_ENTITIES.SUBTOPIC]: { prefix: 'BP-SUB-', padLength: 6 },
-  [SEQUENCE_ENTITIES.USER]: { prefix: 'USR-', padLength: 3 },
-  [SEQUENCE_ENTITIES.CONTENT_PLAN]: { prefix: 'BP-PLN-', padLength: 4 },
-  [SEQUENCE_ENTITIES.CONTENT_BATCH]: { prefix: 'BP-BCH-', padLength: 4 },
-  [SEQUENCE_ENTITIES.ASSIGNMENT]: { prefix: 'BP-ASN-', padLength: 6 },
-  [SEQUENCE_ENTITIES.CONTENT_MASTER]: { prefix: 'BP-CNT-', padLength: 6 },
-  [SEQUENCE_ENTITIES.SOCIAL_REVIEW]: { prefix: 'BP-REV-', padLength: 6 },
-  [SEQUENCE_ENTITIES.SOCIAL_ANALYTICS]: { prefix: 'BP-ANL-', padLength: 6 },
-  [SEQUENCE_ENTITIES.SOCIAL_PERFORMANCE_INTELLIGENCE]: { prefix: 'BP-SPI-', padLength: 6 },
-  [SEQUENCE_ENTITIES.PLATFORM_ADAPTATION]: { prefix: 'BP-ADP-', padLength: 6 },
-  [SEQUENCE_ENTITIES.CONTENT_STRATEGY]: { prefix: 'BP-STR-', padLength: 6 },
-  [SEQUENCE_ENTITIES.SOCIAL_COMMENT]: { prefix: 'BP-CMT-', padLength: 6 },
-  [SEQUENCE_ENTITIES.COMMENT_INTELLIGENCE]: { prefix: 'BP-CMI-', padLength: 6 },
-};
 
 // ============================================================================
 // 3. EXPLICIT COLUMN DEFINITIONS PER SHEET
@@ -593,20 +541,6 @@ export const SHEET_SCHEMAS: Record<SheetTabName, SheetSchemaContract> = {
       { name: 'quality_status_at_review', propertyKey: 'qualityStatusAtReview', type: 'string', required: false },
       { name: 'is_admin_override', propertyKey: 'isAdminOverride', type: 'boolean', required: false },
       { name: 'reviewed_at', propertyKey: 'reviewedAt', type: 'date', required: true },
-    ],
-  },
-
-  // 18. SEQUENCES
-  [SHEET_TABS.SEQUENCES]: {
-    sheetName: SHEET_TABS.SEQUENCES,
-    purpose: 'Source of truth for permanent unique auto-incrementing domain IDs',
-    primaryKey: 'entity_type',
-    columns: [
-      { name: 'entity_type', propertyKey: 'entityType', type: 'string', required: true, isPrimaryKey: true },
-      { name: 'next_number', propertyKey: 'nextNumber', type: 'number', required: true },
-      { name: 'prefix', propertyKey: 'prefix', type: 'string', required: false },
-      { name: 'pad_length', propertyKey: 'padLength', type: 'number', required: false },
-      { name: 'updated_at', propertyKey: 'updatedAt', type: 'date', required: false },
     ],
   },
 

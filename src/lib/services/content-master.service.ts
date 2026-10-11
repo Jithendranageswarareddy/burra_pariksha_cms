@@ -16,7 +16,7 @@ import {
   socialReviewsRepository,
   workflowRepository,
 } from '../repositories';
-import { IdService } from './id.service';
+import { CanonicalIdService } from '../id.service';
 import {
   ContentMaster,
   ContentMasterStatus,
@@ -101,10 +101,10 @@ export interface MigrationExecutionResult {
 
 export class ContentMasterService {
   private static instance: ContentMasterService | null = null;
-  private idService: IdService;
+  private idService: CanonicalIdService;
 
   private constructor() {
-    this.idService = IdService.getInstance();
+    this.idService = CanonicalIdService.getInstance();
   }
 
   public static getInstance(): ContentMasterService {
@@ -122,7 +122,7 @@ export class ContentMasterService {
     actorId = 'USR-SYSTEM',
     actorName = 'System'
   ): Promise<ContentMaster> {
-    const id = await this.idService.allocateContentMasterId();
+    const id = this.idService.generateContentMasterId();
     const now = new Date().toISOString();
 
     const master: ContentMaster = {

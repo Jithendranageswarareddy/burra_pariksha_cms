@@ -15,7 +15,7 @@ import { thumbnailsRepository, thumbnailVersionsRepository } from '../repositori
 import { videosRepository } from '../repositories/videos.repository';
 import { questionsRepository } from '../repositories/questions.repository';
 import { publishingRepository } from '../repositories/publishing.repository';
-import { idService } from './id.service';
+import { canonicalIdService } from '../id.service';
 import { auditService } from './audit.service';
 import { workflowService } from './workflow.service';
 import { googleDriveService } from './google-drive.service';
@@ -123,7 +123,7 @@ export class ThumbnailService {
 
     if (!existing) {
       // 1. Create Initial Thumbnail Record (Version 1)
-      const thumbnailId = await idService.allocateThumbnailId();
+      const thumbnailId = canonicalIdService.generateThumbnailId();
       const newThumbnail: Thumbnail = {
         id: thumbnailId,
         contentId: video.contentId || video.contentMasterId,
@@ -426,7 +426,7 @@ export class ThumbnailService {
 
       if (!existing) {
         // Create initial thumbnail record
-        const thumbnailId = await idService.allocateThumbnailId();
+        const thumbnailId = canonicalIdService.generateThumbnailId();
         const newThumbnail: Thumbnail = {
           id: thumbnailId,
           contentId: targetContentId,

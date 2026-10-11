@@ -219,15 +219,6 @@ export class ReferenceIntegrityError extends AppError {
   }
 }
 
-export class SequenceAllocationError extends AppError {
-  constructor(entityType: string, reason: string) {
-    super(`Failed to allocate sequence ID for entity type "${entityType}": ${reason}`, {
-      statusCode: 500,
-      code: 'SEQUENCE_ALLOCATION_ERROR',
-      details: { entityType, reason },
-    });
-  }
-}
 
 export class ConfigurationError extends AppError {
   constructor(message: string, details?: ErrorDetails) {

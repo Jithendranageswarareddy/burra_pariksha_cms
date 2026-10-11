@@ -28,7 +28,7 @@ import { auditLogRepository } from '../repositories/audit-log.repository';
 import { auditService } from './audit.service';
 import { workflowService } from './workflow.service';
 import { videoService } from './video.service';
-import { idService } from './id.service';
+import { canonicalIdService } from '../id.service';
 import { platformAdaptationService } from './platform-adaptation.service';
 import { analyticsService } from './analytics.service';
 import {
@@ -1372,8 +1372,8 @@ export class PublishingService {
       );
     }
 
-    // 8. Allocate Sequence ID & Construct Record
-    const id = await idService.allocateAssignmentId();
+    // 8. Generate Canonical ID & Construct Record: asn_<uuid>
+    const id = canonicalIdService.generateAssignmentId();
     const now = new Date().toISOString();
     const dueDate = input.dueDate || input.dueAt || undefined;
     const cleanNotes = (input.notes || '').trim();

@@ -11,7 +11,7 @@ import { contentMastersRepository } from '../repositories/content-masters.reposi
 import { validationsRepository } from '../repositories/validations.repository';
 import { CreateQuestionInput, CreateQuestionInputSchema, QuestionFilterInput, UpdateQuestionInputSchema } from '../schemas/google-sheets-schema';
 import { Question, QuestionStatus, VideoProductionStatus, QuestionValidationStatus, UserRole } from '../../types';
-import { idService } from './id.service';
+import { canonicalIdService } from '../id.service';
 import { taxonomyService } from './taxonomy.service';
 import { workflowService } from './workflow.service';
 import { auditService } from './audit.service';
@@ -588,8 +588,8 @@ export class QuestionService {
       }
     }
 
-    // Now safely allocate sequence and create Content Master
-    const id = await idService.allocateQuestionId();
+    // Generate canonical UUID ID: qst_<uuid>
+    const id = canonicalIdService.generateQuestionId();
     let createdContentMaster = false;
 
     if (!contentMasterId) {

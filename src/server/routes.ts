@@ -24,7 +24,6 @@ import {
   questionService,
   questionValidationService,
   scriptService,
-  sequenceSafetyService,
   similarityService,
   taxonomyService,
   thumbnailService,
@@ -1110,18 +1109,7 @@ apiRouter.get('/system/operational-health', async (req: Request, res: Response) 
   }
 });
 
-// Phase 8B: Sequence Safety & Invariant Diagnostics
-apiRouter.get('/system/sequence-safety', async (req: Request, res: Response) => {
-  try {
-    const report = await sequenceSafetyService.auditSequences();
-    res.json(report);
-  } catch (err: any) {
-    res.status(500).json({
-      error: 'Failed to audit sequence safety',
-      message: err?.message || 'Unknown error',
-    });
-  }
-});
+
 
 // Phase 8B: Operational Recovery State & Action Plans
 apiRouter.get('/system/recovery/state', async (req: Request, res: Response) => {
@@ -1136,25 +1124,7 @@ apiRouter.get('/system/recovery/state', async (req: Request, res: Response) => {
   }
 });
 
-// Phase 8B: Explicit Administrative Sequence Synchronization
-apiRouter.post('/system/recovery/sync-sequence', requireRole([UserRole.ADMIN]), async (req: Request, res: Response) => {
-  try {
-    const { entityType, proposedNextNumber, confirmed } = req.body;
-    const currentActor = getRequestActor(req);
-    const result = await operationalRecoveryService.synchronizeSequence(
-      entityType,
-      Number(proposedNextNumber),
-      currentActor,
-      Boolean(confirmed)
-    );
-    res.json(result);
-  } catch (err: any) {
-    res.status(err?.statusCode || 400).json({
-      error: err?.name || 'Sequence Synchronization Failed',
-      message: err?.message || 'Failed to synchronize sequence',
-    });
-  }
-});
+
 
 // ----------------------------------------------------
 // Taxonomy Endpoints

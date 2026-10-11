@@ -39,10 +39,8 @@ import { Button } from '../components/common/Button';
 import { APP_CONFIG } from '../config/constants';
 import { apiClient } from '../lib/api-client';
 import { SpreadsheetHealthReport, SystemHealthReport, IntegrityIssue, IntegritySeverity, IntegrityCategory, UserRole } from '../types';
-import { ID_PREFIX_MAP, SequenceEntityType } from '../lib/schemas/domain-schemas';
 import { ALL_SHEET_TABS } from '../lib/schemas/google-sheets-schema';
 import { OperationalHealthReport } from '../lib/services/operational-health.service';
-import { SequenceSafetyReport } from '../lib/services/sequence-safety.service';
 import { OperationalRecoveryState } from '../lib/services/operational-recovery.service';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -75,15 +73,8 @@ export const SettingsPage: React.FC = () => {
 
   // Operational Reliability & Recovery State (Phase 8B)
   const [opHealthReport, setOpHealthReport] = useState<OperationalHealthReport | null>(null);
-  const [seqSafetyReport, setSeqSafetyReport] = useState<SequenceSafetyReport | null>(null);
   const [recoveryState, setRecoveryState] = useState<OperationalRecoveryState | null>(null);
   const [isLoadingRecovery, setIsLoadingRecovery] = useState(false);
-
-  // Sequence Sync Modal State
-  const [syncTargetEntity, setSyncTargetEntity] = useState<string | null>(null);
-  const [syncProposedNumber, setSyncProposedNumber] = useState<number>(1);
-  const [syncConfirmed, setSyncConfirmed] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
 
   // Live Taxonomy State (Tab 3)
   const [liveTaxonomyTree, setLiveTaxonomyTree] = useState<any[]>([]);
@@ -269,43 +260,17 @@ export const SettingsPage: React.FC = () => {
   const fetchRecoveryHealth = async () => {
     setIsLoadingRecovery(true);
     try {
-      const [opHealth, seqSafety, recState] = await Promise.all([
+      const [opHealth, recState] = await Promise.all([
         apiClient.getOperationalHealth(),
-        apiClient.getSequenceSafety(),
         apiClient.getRecoveryState(),
       ]);
       setOpHealthReport(opHealth);
-      setSeqSafetyReport(seqSafety);
       setRecoveryState(recState);
-      setNotification({ text: 'Operational health & sequence safety refreshed.', type: 'success' });
+      setNotification({ text: 'Operational health & recovery state refreshed.', type: 'success' });
     } catch (err: any) {
       setNotification({ text: `Failed to fetch operational state: ${err?.message || 'Error'}`, type: 'error' });
     } finally {
       setIsLoadingRecovery(false);
-    }
-  };
-
-  const handleSyncSequence = async () => {
-    if (!syncTargetEntity || !syncConfirmed) return;
-    setIsSyncing(true);
-    try {
-      const res = await apiClient.syncSequence(
-        syncTargetEntity,
-        syncProposedNumber,
-        true,
-        { id: 'USR-001', name: 'Admin / Operations Lead' }
-      );
-      setNotification({
-        text: `Successfully synchronized "${syncTargetEntity}" sequence to next_number=${res.updatedNextNumber}. Audit Log: ${res.auditLogId}`,
-        type: 'success',
-      });
-      setSyncTargetEntity(null);
-      setSyncConfirmed(false);
-      await fetchRecoveryHealth();
-    } catch (err: any) {
-      setNotification({ text: `Sequence sync failed: ${err?.message || 'Error'}`, type: 'error' });
-    } finally {
-      setIsSyncing(false);
     }
   };
 
@@ -569,100 +534,6 @@ export const SettingsPage: React.FC = () => {
               </div>
             )}
 
-            {/* Sequence Safety & Invariant Matrix */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                  <Hash className="w-3.5 h-3.5 text-indigo-600" />
-                  Domain Entity Sequence Safety & Allocation Invariant Matrix
-                </h4>
-                <span className="text-xs text-slate-400 font-mono">
-                  {seqSafetyReport?.healthyCount || 0}/{seqSafetyReport?.totalChecked || 8} Sequences Healthy
-                </span>
-              </div>
-
-              <div className="border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase text-[10px] tracking-wider">
-                    <tr>
-                      <th className="py-2.5 px-4">Entity Type</th>
-                      <th className="py-2.5 px-4 text-center">Configured Prefix</th>
-                      <th className="py-2.5 px-4 text-center">Pad Length</th>
-                      <th className="py-2.5 px-4 text-center">Next Number</th>
-                      <th className="py-2.5 px-4 text-center">Max ID in DB</th>
-                      <th className="py-2.5 px-4 text-center">Status</th>
-                      <th className="py-2.5 px-4 text-right">Recovery Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 bg-white">
-                    {seqSafetyReport?.sequences.map((seq) => {
-                      const isDrift = seq.nextNumber <= seq.detectedMaxIdNumber;
-                      const isAnomaly = seq.status === 'ANOMALY';
-                      return (
-                        <tr key={seq.entityType} className="hover:bg-slate-50/80 transition-colors">
-                          <td className="py-2.5 px-4 font-mono font-medium text-slate-900">
-                            {seq.entityType}
-                          </td>
-                          <td className="py-2.5 px-4 text-center font-mono text-slate-600">
-                            {seq.prefix}
-                          </td>
-                          <td className="py-2.5 px-4 text-center font-mono text-slate-600">
-                            {seq.padLength}
-                          </td>
-                          <td className="py-2.5 px-4 text-center font-mono font-bold text-slate-900">
-                            {seq.nextNumber}
-                          </td>
-                          <td className="py-2.5 px-4 text-center font-mono text-indigo-700 font-semibold">
-                            {seq.detectedMaxIdNumber}
-                          </td>
-                          <td className="py-2.5 px-4 text-center">
-                            <span
-                              className={`font-mono text-[10px] px-2 py-0.5 rounded font-semibold ${
-                                !isAnomaly
-                                  ? 'bg-emerald-100 text-emerald-800'
-                                  : 'bg-rose-100 text-rose-800'
-                              }`}
-                            >
-                              {!isAnomaly ? 'HEALTHY' : 'ANOMALY'}
-                            </span>
-                          </td>
-                          <td className="py-2.5 px-4 text-right">
-                            {isDrift || isAnomaly ? (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setSyncTargetEntity(seq.entityType);
-                                  setSyncProposedNumber(seq.detectedMaxIdNumber + 1);
-                                  setSyncConfirmed(false);
-                                }}
-                                className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded text-[11px] font-semibold transition-colors shadow-2xs"
-                              >
-                                Fix Sequence
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setSyncTargetEntity(seq.entityType);
-                                  setSyncProposedNumber(Math.max(seq.nextNumber, seq.detectedMaxIdNumber + 1));
-                                  setSyncConfirmed(false);
-                                }}
-                                className="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-[10px] font-medium transition-colors"
-                              >
-                                Adjust
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-              <p className="text-[11px] text-slate-400 italic">
-                {seqSafetyReport?.concurrencyLimitationNote}
-              </p>
-            </div>
 
             {/* Action Plans & Remediation Guides */}
             {recoveryState && recoveryState.actionPlans.length > 0 && (
@@ -721,80 +592,6 @@ export const SettingsPage: React.FC = () => {
               </div>
             )}
 
-            {/* Sequence Synchronization Modal */}
-            {syncTargetEntity && (
-              <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-                <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-4 animate-in zoom-in-95">
-                  <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-                    <div className="font-bold text-sm text-slate-900 flex items-center gap-2">
-                      <Wrench className="w-4 h-4 text-amber-600" />
-                      Synchronize Sequence: {syncTargetEntity}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setSyncTargetEntity(null)}
-                      className="text-slate-400 hover:text-slate-600 text-xs"
-                    >
-                      ✕
-                    </button>
-                  </div>
-
-                  <p className="text-xs text-slate-600 leading-relaxed">
-                    This administrative recovery operation adjusts the next allocated number in the authoritative <code className="font-mono bg-slate-100 px-1 py-0.5 rounded">SEQUENCES</code> worksheet.
-                  </p>
-
-                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2 text-xs">
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Entity:</span>
-                      <span className="font-mono font-bold text-slate-900">{syncTargetEntity}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Proposed Next Number:</span>
-                      <input
-                        type="number"
-                        min="1"
-                        value={syncProposedNumber}
-                        onChange={(e) => setSyncProposedNumber(parseInt(e.target.value, 10) || 1)}
-                        className="w-24 text-right font-mono font-bold text-xs bg-white border border-slate-300 rounded px-2 py-0.5"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-2 pt-2">
-                    <input
-                      type="checkbox"
-                      id="confirmSync"
-                      checked={syncConfirmed}
-                      onChange={(e) => setSyncConfirmed(e.target.checked)}
-                      className="mt-0.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                    />
-                    <label htmlFor="confirmSync" className="text-xs text-slate-700 leading-snug cursor-pointer select-none">
-                      I explicitly confirm this sequence update. An audited <code className="font-mono text-[10px]">AUDIT_LOG</code> operational event will be recorded.
-                    </label>
-                  </div>
-
-                  <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setSyncTargetEntity(null)}
-                      disabled={isSyncing}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      onClick={handleSyncSequence}
-                      disabled={!syncConfirmed || isSyncing}
-                      className="bg-amber-600 hover:bg-amber-700 text-white"
-                    >
-                      {isSyncing ? 'Synchronizing...' : 'Execute Synchronization'}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         )}
 
@@ -1072,7 +869,6 @@ export const SettingsPage: React.FC = () => {
                     <option value="PUBLISHING_INTEGRITY">Publishing</option>
                     <option value="WORKFLOW_INTEGRITY">Workflow</option>
                     <option value="AUDIT_LOG_INTEGRITY">Audit Log</option>
-                    <option value="SEQUENCE_INTEGRITY">Sequences</option>
                   </select>
 
                   {/* Search Input */}
@@ -1279,8 +1075,6 @@ export const SettingsPage: React.FC = () => {
                   { name: 'content_batches', status: 'ONLINE' },
                   { name: 'content_masters', status: 'ONLINE' },
                   { name: 'social_reviews', status: 'ONLINE' },
-                  { name: 'social_analytics', status: 'ONLINE' },
-                  { name: 'sequences', status: 'ONLINE' },
                 ]).map((col) => (
                   <div
                     key={col.name}
@@ -1292,25 +1086,6 @@ export const SettingsPage: React.FC = () => {
                     </div>
                     <span className="font-mono text-[10px] px-2 py-0.5 rounded font-semibold bg-emerald-100 text-emerald-800">
                       {col.status}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Sequence Table Config Map */}
-            <div className="space-y-3 pt-2">
-              <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                <Hash className="w-3.5 h-3.5 text-indigo-600" />
-                Auto-Increment ID Sequence Config (Prefix & Padding)
-              </h4>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 text-xs font-mono">
-                {Object.entries(ID_PREFIX_MAP).map(([entity, config]) => (
-                  <div key={entity} className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg flex items-center justify-between">
-                    <span className="text-slate-700">{entity}</span>
-                    <span className="font-semibold text-indigo-600 bg-white px-2 py-0.5 rounded border border-slate-200">
-                      {config.prefix} (Pad: {config.padLength})
                     </span>
                   </div>
                 ))}

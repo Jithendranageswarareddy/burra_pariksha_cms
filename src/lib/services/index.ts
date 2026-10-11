@@ -15,7 +15,6 @@ export * from './audit.service';
 export * from './workflow.service';
 export * from './dashboard.service';
 export * from './data-integrity.service';
-export * from './sequence-safety.service';
 export * from './operational-health.service';
 export * from './operational-recovery.service';
 export * from './planning.service';

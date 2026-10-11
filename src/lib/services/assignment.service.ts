@@ -19,7 +19,7 @@ import {
   contentBatchesRepository,
   auditLogRepository,
 } from '../repositories';
-import { idService } from './id.service';
+import { canonicalIdService } from '../id.service';
 import { workflowService } from './audit.service';
 import {
   Assignment,
@@ -254,7 +254,7 @@ export class AssignmentService {
   // ============================================================================
 
   /**
-   * Creates a new team assignment with verification, sequence ID allocation, and audit.
+   * Creates a new team assignment with verification, canonical UUID ID allocation, and audit.
    */
   public async createAssignment(
     input: CreateAssignmentInput,
@@ -293,8 +293,8 @@ export class AssignmentService {
         );
       }
 
-      // 4. Allocate permanent sequence-backed ID
-      const id = await idService.allocateAssignmentId();
+      // 4. Generate canonical ID: asn_<uuid>
+      const id = canonicalIdService.generateAssignmentId();
       const now = new Date().toISOString();
       const dueDate = input.dueDate || input.dueAt || undefined;
 
@@ -867,7 +867,7 @@ export class AssignmentService {
 
     const roleString = rolesArray.join(', ');
 
-    const id = await idService.allocateId('USERS');
+    const id = canonicalIdService.generateUserId();
     const now = new Date().toISOString();
     const user: User = {
       id,

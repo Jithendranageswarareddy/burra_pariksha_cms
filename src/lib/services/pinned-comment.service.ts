@@ -13,7 +13,7 @@ import { publishingRepository } from '../repositories/publishing.repository';
 import { videosRepository } from '../repositories/videos.repository';
 import { questionsRepository } from '../repositories/questions.repository';
 import { workflowRepository } from '../repositories/workflow.repository';
-import { idService } from './id.service';
+import { canonicalIdService } from '../id.service';
 import { auditService } from './audit.service';
 import { PinnedComment, PinnedCommentVersion, Workflow } from '../../types';
 import { ValidationError } from '../errors';
@@ -95,7 +95,7 @@ export class PinnedCommentService {
     const now = new Date().toISOString();
 
     if (!existing) {
-      const pinId = await idService.allocatePinnedCommentId();
+      const pinId = canonicalIdService.generatePinnedCommentId();
       const newRecord: PinnedComment = {
         id: pinId,
         contentId: video.contentId || video.contentMasterId,
@@ -236,7 +236,7 @@ export class PinnedCommentService {
     }
 
     // Workflow record
-    const wfId = await idService.generateId('WORKFLOW' as any).catch(() => `WF-${Date.now().toString().slice(-6)}`);
+    const wfId = canonicalIdService.generateWorkflowId();
     const wfEntry: Workflow = {
       id: wfId,
       entityType: 'PUBLISHING',

@@ -14,7 +14,7 @@
 import { scriptsRepository, scriptVersionsRepository } from '../repositories/scripts.repository';
 import { videosRepository } from '../repositories/videos.repository';
 import { questionsRepository } from '../repositories/questions.repository';
-import { idService } from './id.service';
+import { canonicalIdService } from '../id.service';
 import { auditService } from './audit.service';
 import { videoService } from './video.service';
 import { aiOrchestrator } from '../ai/ai-orchestrator.service';
@@ -183,7 +183,7 @@ export class ScriptService {
 
     if (!existing) {
       // 1. Create Brand New Script (Version 1)
-      const scriptId = await idService.allocateScriptId();
+      const scriptId = canonicalIdService.generateScriptId();
       const newScript: Script = {
         id: scriptId,
         contentId: video.contentId || video.contentMasterId,

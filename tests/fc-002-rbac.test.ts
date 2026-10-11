@@ -18,7 +18,6 @@ import { questionConfigService } from '../src/lib/services/question-config.servi
 import { DEFAULT_QUESTION_CONFIG } from '../src/lib/repositories/question-config.repository';
 import { taxonomyService } from '../src/lib/services/taxonomy.service';
 import { questionsRepository } from '../src/lib/repositories/questions.repository';
-import { sequencesRepository } from '../src/lib/repositories/sequences.repository';
 import { workflowRepository } from '../src/lib/repositories/workflow.repository';
 import { contentMastersRepository } from '../src/lib/repositories/content-masters.repository';
 import { validationsRepository } from '../src/lib/repositories/validations.repository';
@@ -85,11 +84,6 @@ async function runTests() {
     return updated;
   };
 
-  sequencesRepository.allocateNextNumber = async (entityType: string) => ({
-    allocatedNumber: 1,
-    prefix: entityType === 'CONTENT_MASTER' ? 'BP-CNT-' : 'BP-Q-',
-    padLength: 6,
-  });
   workflowRepository.appendRecord = async (rec: any) => rec;
 
   // In-memory test isolation for usersRepository to prevent test user pollution in production Firestore

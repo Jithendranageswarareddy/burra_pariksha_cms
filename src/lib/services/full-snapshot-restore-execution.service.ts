@@ -41,7 +41,6 @@ import {
   IMMUTABLE_VERSION_ENTITIES
 } from './full-snapshot-restore-plan.service';
 import { FULL_RESTORE_CONFIRMATION_PHRASE } from './full-snapshot-restore.service';
-import { SequenceSafetyService } from './sequence-safety.service';
 import { auditService, workflowService } from './audit.service';
 import {
   topicsRepository,
@@ -61,7 +60,6 @@ import {
   publishingRepository,
   workflowRepository,
   auditLogRepository,
-  sequencesRepository,
   BaseRepository
 } from '../repositories';
 
@@ -102,12 +100,9 @@ export class FullSnapshotRestoreExecutionService {
   private static instance: FullSnapshotRestoreExecutionService | null = null;
   private preflightService: FullSnapshotPreflightService;
   private planService: FullSnapshotRestorePlanService;
-  private sequenceSafetyService: SequenceSafetyService;
-
   private constructor() {
     this.preflightService = FullSnapshotPreflightService.getInstance();
     this.planService = FullSnapshotRestorePlanService.getInstance();
-    this.sequenceSafetyService = SequenceSafetyService.getInstance();
   }
 
   public static getInstance(): FullSnapshotRestoreExecutionService {
@@ -491,64 +486,13 @@ export class FullSnapshotRestoreExecutionService {
     failedOpId?: string;
     error?: string;
   }> {
-    let updatedCount = 0;
-    let unchangedCount = 0;
-    let failedCount = 0;
-    const sequenceChanges: Array<{ entityType: string; previousValue: number; newValue: number }> = [];
-
-    for (const op of operations) {
-      const entityType = op.payload?.entityName || op.payload?.entityType || op.recordId;
-      const targetNextNum = Number(op.payload?.currentValue || op.payload?.nextNumber || 0);
-
-      if (!entityType) {
-        unchangedCount++;
-        continue;
-      }
-
-      try {
-        const currentRecord = await sequencesRepository.getSequence(entityType);
-        const currentNextNum = currentRecord ? Number(currentRecord.nextNumber) : 1;
-
-        // Determine max allocated ID suffix across table
-        const maxAllocated = await this.sequenceSafetyService.getMaxAllocatedIdForEntity(entityType as any);
-        const safeMinNext = Math.max(currentNextNum, maxAllocated + 1);
-
-        // Sequence must remain forward-only: take the max of target, current, and allocated
-        const finalNextNumber = Math.max(targetNextNum, safeMinNext);
-
-        if (finalNextNumber > currentNextNum) {
-          await sequencesRepository.updateRecord(entityType, {
-            nextNumber: finalNextNumber,
-            updatedAt: new Date().toISOString(),
-          });
-          sequenceChanges.push({
-            entityType,
-            previousValue: currentNextNum,
-            newValue: finalNextNumber,
-          });
-          updatedCount++;
-        } else {
-          unchangedCount++;
-        }
-      } catch (seqErr: any) {
-        return {
-          success: false,
-          updatedCount,
-          unchangedCount,
-          failedCount: 1,
-          sequenceChanges,
-          failedOpId: op.operationId,
-          error: `Error updating sequence for ${entityType}: ${seqErr?.message}`,
-        };
-      }
-    }
-
+    // Sequences collection is decommissioned in Sprint 6 (UUID canonical IDs).
     return {
       success: true,
-      updatedCount,
-      unchangedCount,
-      failedCount,
-      sequenceChanges,
+      updatedCount: 0,
+      unchangedCount: operations.length,
+      failedCount: 0,
+      sequenceChanges: [],
     };
   }
 
@@ -602,8 +546,6 @@ export class FullSnapshotRestoreExecutionService {
         return workflowRepository;
       case 'AUDIT_LOG':
         return auditLogRepository;
-      case 'SEQUENCES':
-        return sequencesRepository;
       default:
         return null;
     }

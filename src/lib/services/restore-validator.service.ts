@@ -24,7 +24,6 @@ import {
   subtopicsRepository,
   assignmentsRepository,
   publishingRepository,
-  sequencesRepository 
 } from '../repositories';
 
 export interface RestoreValidationRequest {
@@ -344,26 +343,7 @@ export class RestoreValidatorService {
       }
     }
 
-    // 4. Sequence Safety Validation (Forward-only, no rollback)
-    if (snapshot.sequences && Array.isArray(snapshot.sequences)) {
-      let prodSequences: any[] = [];
-      try {
-        prodSequences = await sequencesRepository.findAll();
-      } catch {
-        prodSequences = [];
-      }
-      const prodSeqMap = new Map(prodSequences.map((s: any) => [s.entityName || s.name, s.currentIndex || s.nextIndex || 0]));
-
-      for (const snapSeq of snapshot.sequences) {
-        const entityName = snapSeq.entityName || snapSeq.name;
-        const snapIndex = snapSeq.currentIndex || snapSeq.nextIndex || 0;
-        const prodIndex = prodSeqMap.get(entityName) || 0;
-
-        if (snapIndex < prodIndex) {
-          sequenceWarnings.push(`Sequence rollback detected for "${entityName}": snapshot index (${snapIndex}) is lower than production index (${prodIndex}). Sequence counter will be kept forward-only.`);
-        }
-      }
-    }
+    // 4. Sequence Safety: Decommissioned (Sprint 6 Canonical UUID architecture).
 
     const isValid = conflicts.length === 0 && missingDependencies.length === 0 && schemaErrors.length === 0;
 

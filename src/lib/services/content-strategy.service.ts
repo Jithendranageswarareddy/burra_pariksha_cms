@@ -14,7 +14,7 @@ import { analyticsService } from './analytics.service';
 import { taxonomyService } from './taxonomy.service';
 import { contentPlansRepository } from '../repositories/content-plans.repository';
 import { auditLogRepository } from '../repositories/audit-log.repository';
-import { idService } from './id.service';
+import { canonicalIdService } from '../id.service';
 import { aiOrchestrator } from '../ai/ai-orchestrator.service';
 import { ContentStrategyRecommendation, ContentPlan, RecommendationStatus, QuestionLanguage, PriorityLevel, ContentPlanStatus, CommentIntelligenceRecord } from '../../types';
 import { AIProvenance } from '../../types/ai';
@@ -230,8 +230,8 @@ Respond with a strictly formatted JSON object having these fields:
       const finalEvidence = generatedData?.evidence || recEvidence;
       const finalConfidence = generatedData?.confidenceLevel || recConfidence;
 
-      // Allocate unique, sequential strategy ID (BP-STR-######)
-      const strategyId = await idService.allocateContentStrategyId();
+      // Generate unique strategy ID (str_<uuid>)
+      const strategyId = canonicalIdService.generateContentStrategyId();
 
       const recommendation: ContentStrategyRecommendation = {
         id: strategyId,
@@ -338,8 +338,8 @@ Respond with a strictly formatted JSON object having these fields:
         return { success: false, error: `Taxonomy validation failed: Suggested subtopic ID "${rec.subtopicId}" does not exist in taxonomy.`, auditLogged: false };
       }
 
-      // Allocate unique Content Plan ID (BP-PLN-####)
-      const planId = await idService.allocateContentPlanId();
+      // Generate unique Content Plan ID (pln_<uuid>)
+      const planId = canonicalIdService.generateContentPlanId();
 
       const newPlan: ContentPlan = {
         id: planId,

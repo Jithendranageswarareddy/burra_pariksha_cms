@@ -3,9 +3,8 @@
  * Phase 2: Google Sheets Database Architecture & Persistence
  */
 
-import { auditLogRepository, workflowRepository, sequencesRepository } from '../repositories';
+import { auditLogRepository, workflowRepository } from '../repositories';
 import { AuditLog, Workflow } from '../../types';
-import { SEQUENCE_ENTITIES } from '../schemas/domain-schemas';
 import { sanitizeErrorMessage } from '../errors';
 
 export class AuditService {

@@ -16,7 +16,7 @@
  */
 
 import assert from 'node:assert';
-import { DOMAIN_COLLECTIONS, SEQUENCE_ENTITIES } from '../src/lib/schemas/domain-schemas';
+import { DOMAIN_COLLECTIONS } from '../src/lib/schemas/domain-schemas';
 import { idService } from '../src/lib/services/id.service';
 import { taxonomyService } from '../src/lib/services/taxonomy.service';
 import { PRODUCTION_TOPICS, PRODUCTION_SUBTOPICS } from '../src/lib/data/production-taxonomy';
@@ -87,7 +87,8 @@ async function runSprint5RegressionTests() {
   try {
     console.log('\nAssertion 4: Verifying idService has NO allocateCategoryId method...');
     assert.strictEqual((idService as any).allocateCategoryId, undefined, 'allocateCategoryId must not exist on idService');
-    assert.strictEqual((SEQUENCE_ENTITIES as any).CATEGORY, undefined, 'SEQUENCE_ENTITIES.CATEGORY must not exist');
+    const domainSchemasModule = await import('../src/lib/schemas/domain-schemas');
+    assert.strictEqual((domainSchemasModule as any).SEQUENCE_ENTITIES, undefined, 'SEQUENCE_ENTITIES is decommissioned in Sprint 6');
     console.log('✓ PASSED: No category ID allocator or sequence entity exists.');
     passed++;
   } catch (err: any) {
@@ -221,10 +222,8 @@ async function runSprint5RegressionTests() {
   try {
     console.log('\nAssertion 11: Verifying google-sheets-schema and restore-validator.service...');
     const sheetsSchemaModule = await import('../src/lib/schemas/google-sheets-schema');
-    assert.strictEqual((sheetsSchemaModule.SEQUENCE_ENTITIES as any).CATEGORY, undefined, 'google-sheets-schema SEQUENCE_ENTITIES.CATEGORY must not exist');
-    assert.strictEqual((sheetsSchemaModule.ID_PREFIX_MAP as any).CATEGORY, undefined, 'google-sheets-schema ID_PREFIX_MAP.CATEGORY must not exist');
-    const hasBpCat = Object.values(sheetsSchemaModule.ID_PREFIX_MAP).some((entry: any) => entry.prefix === 'BP-CAT-');
-    assert.strictEqual(hasBpCat, false, 'BP-CAT- prefix must not exist in ID_PREFIX_MAP');
+    assert.strictEqual((sheetsSchemaModule as any).SEQUENCE_ENTITIES, undefined, 'google-sheets-schema SEQUENCE_ENTITIES must not exist in Sprint 6');
+    assert.strictEqual((sheetsSchemaModule as any).ID_PREFIX_MAP, undefined, 'google-sheets-schema ID_PREFIX_MAP must not exist in Sprint 6');
 
     const fs = await import('node:fs');
     const path = await import('node:path');

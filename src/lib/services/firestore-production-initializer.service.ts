@@ -6,7 +6,7 @@
  * 1. Seeds foundational users (Admin, Content Lead, QA Reviewer, Video Editor, Presenter)
  * 2. Seeds production taxonomy (Categories, Topics, Subtopics)
  * 3. Seeds production question_config entries (Styles, Contexts, Focus Dimensions)
- * 4. Initializes sequence counters with canonical prefixes
+ * 4. Seeds canonical configuration entries
  * 5. Verifies zero loss, atomic OCC initialization, and audit logging
  */
 
@@ -122,23 +122,11 @@ export class FirestoreProductionInitializerService {
           },
           {
             id: 'CFG-CTX-001',
-            dimension: 'CULTURAL_CONTEXT',
+            dimension: 'REAL_LIFE_CONTEXT',
             code: 'TELUGU_EVERYDAY',
             displayLabel: 'Telugu Everyday Life',
             description: 'Local cultural references authentic to Telangana and Andhra Pradesh',
             aiPromptGuidance: 'Use authentic Telugu names, festivals, local food, and currency.',
-            sortOrder: 10,
-            isActive: true,
-            isDefault: true,
-            updatedAt: nowIso,
-          },
-          {
-            id: 'CFG-FOC-001',
-            dimension: 'PEDAGOGICAL_FOCUS',
-            code: 'CONCEPT_MASTERY',
-            displayLabel: 'Concept Mastery & Deep Reasoning',
-            description: 'Focus on first-principles understanding rather than rote memorization',
-            aiPromptGuidance: 'Highlight underlying mathematical/scientific principles.',
             sortOrder: 10,
             isActive: true,
             isDefault: true,
@@ -155,7 +143,7 @@ export class FirestoreProductionInitializerService {
 
     return {
       timestamp: new Date().toISOString(),
-      collectionsInitialized: ['users', 'topics', 'subtopics', 'question_config', 'sequences', 'audit_logs'],
+      collectionsInitialized: ['users', 'topics', 'subtopics', 'question_config', 'audit_logs'],
       usersSeeded,
       topicsSeeded,
       subtopicsSeeded,

@@ -14,7 +14,7 @@
 
 import { analyticsService } from './analytics.service';
 import { intelligenceRepository, IntelligenceRepository } from '../repositories/intelligence.repository';
-import { idService } from './id.service';
+import { canonicalIdService } from '../id.service';
 import { taxonomyService } from './taxonomy.service';
 import { AuditLogRepository } from '../repositories/audit-log.repository';
 import { geminiClient } from '../ai/gemini.client';
@@ -99,8 +99,8 @@ export class SocialPerformanceIntelligenceService {
       const provenance = aiResult.provenance;
       const modelUsed = provenance.model || 'gemini-3.8-flash';
 
-      // 6. Generate sequential ID: BP-SPI-######
-      const id = await idService.allocateIntelligenceId();
+      // 6. Generate canonical ID: spi_<uuid>
+      const id = canonicalIdService.generateIntelligenceId();
       const now = new Date().toISOString();
 
       // 7. Construct complete intelligence record

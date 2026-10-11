@@ -16,7 +16,7 @@
 import { socialCommentsRepository, SocialCommentsRepository } from '../repositories/social-comments.repository';
 import { commentIntelligenceRepository, CommentIntelligenceRepository } from '../repositories/comment-intelligence.repository';
 import { contentMastersRepository } from '../repositories/content-masters.repository';
-import { idService } from './id.service';
+import { canonicalIdService } from '../id.service';
 import { AuditLogRepository } from '../repositories/audit-log.repository';
 import { aiOrchestrator } from '../ai/ai-orchestrator.service';
 import { AIProvenance } from '../../types/ai';
@@ -148,8 +148,8 @@ export class CommentIntelligenceService {
       const provenance = aiResult.provenance;
       const modelUsed = provenance.model || 'gemini-2.5-flash';
 
-      // 7. Allocate Centralized Sequential ID: BP-CMI-######
-      const id = await idService.allocateCommentIntelligenceId();
+      // 7. Generate Canonical ID: cmi_<uuid>
+      const id = canonicalIdService.generateCommentIntelligenceId();
       const now = new Date().toISOString();
 
       // 8. Assemble Full Comment Intelligence Record

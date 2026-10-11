@@ -1697,8 +1697,8 @@ export const RecoveryAdminPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Step 7, 8: Immutable Version, Sequence & Deletion Safety Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Step 7, 8: Immutable Version & Deletion Safety Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Immutable Version Protection */}
               <div className="p-3.5 bg-slate-950/60 border border-slate-800 rounded-lg space-y-1" id="full-restore-immutable-versions-notice">
                 <div className="flex items-center gap-2">
@@ -1707,17 +1707,6 @@ export const RecoveryAdminPage: React.FC = () => {
                 </div>
                 <p className="text-[11px] text-slate-400 leading-relaxed">
                   <code className="text-indigo-300 font-mono">SCRIPT_VERSIONS</code>, <code className="text-indigo-300 font-mono">THUMBNAIL_VERSIONS</code>, and <code className="text-indigo-300 font-mono">PINNED_COMMENT_VERSIONS</code> permit ONLY CREATE or NO_CHANGE. UPDATE and DELETE are strictly prohibited.
-                </p>
-              </div>
-
-              {/* Sequence Safety */}
-              <div className="p-3.5 bg-slate-950/60 border border-slate-800 rounded-lg space-y-1" id="full-restore-sequence-safety-notice">
-                <div className="flex items-center gap-2">
-                  <ListOrdered className="w-4 h-4 text-indigo-400" />
-                  <h5 className="text-xs font-bold text-slate-200">Sequence Forward-Only Safety</h5>
-                </div>
-                <p className="text-[11px] text-slate-400 leading-relaxed">
-                  Sequences are strictly forward-only. Manual counter edits and rollbacks are disabled. Any sequence rollback attempt blocks execution immediately.
                 </p>
               </div>
 

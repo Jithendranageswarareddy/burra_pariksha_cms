@@ -20,11 +20,9 @@ import { operationalHealthService } from '../src/lib/services/operational-health
 import { questionsRepository } from '../src/lib/repositories/questions.repository';
 import { topicsRepository } from '../src/lib/repositories/topics.repository';
 import { usersRepository } from '../src/lib/repositories/users.repository';
-import { sequencesRepository } from '../src/lib/repositories/sequences.repository';
 import { auditLogRepository } from '../src/lib/repositories/audit-log.repository';
 import { analyticsRepository } from '../src/lib/repositories/analytics.repository';
-import { idService } from '../src/lib/services/id.service';
-import { SEQUENCE_ENTITIES } from '../src/lib/schemas/domain-schemas';
+import { canonicalIdService } from '../src/lib/id.service';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -96,34 +94,20 @@ async function runDecouplingSuite() {
   assert.strictEqual(questionsRepository.getCollectionName(), 'questions');
   assert.strictEqual(topicsRepository.getCollectionName(), 'topics');
   assert.strictEqual(usersRepository.getCollectionName(), 'users');
-  assert.strictEqual(sequencesRepository.getCollectionName(), 'sequences');
   assert.strictEqual(auditLogRepository.getCollectionName(), 'audit_logs');
   assert.strictEqual(analyticsRepository.getCollectionName(), 'social_analytics');
   console.log('  -> PASS: All core domain repositories target canonical Firestore collections.');
 
-  // 5. Sequence Safety Verification: Allocates monotonic IDs in Firestore sequences collection
-  console.log('\n[Check 5] Verifying ID sequence allocation operates on Firestore sequences...');
+  // 5. Canonical ID Verification: Generates collision-resistant UUID-based IDs without database sequences
+  console.log('\n[Check 5] Verifying canonical UUID ID generation without database sequence counters...');
+  const allocatedId = canonicalIdService.generateQuestionId();
+  assert.ok(/^qst_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(allocatedId), `Question ID must match qst_<uuid>, got ${allocatedId}`);
+
+  // Confirm Firestore sequences collection is not touched
   const firestore = getAdminFirestore();
-  const testSeqRef = firestore.collection('sequences').doc(SEQUENCE_ENTITIES.QUESTION);
-  
-  // Read before state
-  const beforeDoc = await testSeqRef.get();
-  const beforeVal = beforeDoc.exists ? (beforeDoc.data()?.nextNumber ?? 1) : 1;
-
-  const allocatedId = await idService.allocateQuestionId();
-  assert.ok(/^BP-Q-\d{6}$/.test(allocatedId), `Question ID must match BP-Q-######, got ${allocatedId}`);
-
-  const afterDoc = await testSeqRef.get();
-  const afterVal = afterDoc.data()?.nextNumber;
-  assert.ok(afterVal !== undefined && afterVal >= beforeVal, 'Firestore sequences document must reflect incremented nextNumber');
-
-  // Restore baseline
-  if (beforeDoc.exists) {
-    await testSeqRef.set(beforeDoc.data()!);
-  } else {
-    await testSeqRef.delete();
-  }
-  console.log('  -> PASS: Monotonic sequence allocation verified against Firestore sequences collection.');
+  const seqsSnapshot = await firestore.collection('sequences').get();
+  assert.strictEqual(seqsSnapshot.size, 0, 'Firestore sequences collection must be empty / unused');
+  console.log('  -> PASS: Canonical UUID ID generation verified with zero reliance on sequences collection.');
 
   // 6. UI Regression Check: Verify key UI components do not display "Google Sheets DB"
   console.log('\n[Check 6] Verifying user-facing UI components do not report Google Sheets DB...');

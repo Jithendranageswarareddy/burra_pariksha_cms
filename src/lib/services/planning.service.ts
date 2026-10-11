@@ -10,7 +10,7 @@ import { contentPlansRepository } from '../repositories/content-plans.repository
 import { contentBatchesRepository } from '../repositories/content-batches.repository';
 import { questionsRepository } from '../repositories/questions.repository';
 import { videosRepository } from '../repositories/videos.repository';
-import { idService } from './id.service';
+import { canonicalIdService } from '../id.service';
 import { taxonomyService } from './taxonomy.service';
 import { auditService } from './audit.service';
 import {
@@ -66,8 +66,8 @@ export class PlanningService {
       input.subtopicId
     );
 
-    // 2. Allocate permanent canonical ID
-    const planId = await idService.allocateContentPlanId();
+    // 2. Generate canonical ID: pln_<uuid>
+    const planId = canonicalIdService.generateContentPlanId();
     const now = new Date().toISOString();
 
     const plan: ContentPlan = {
@@ -353,7 +353,7 @@ export class PlanningService {
       throw new Error(`Content Plan '${input.planId}' does not exist.`);
     }
 
-    const batchId = await idService.allocateContentBatchId();
+    const batchId = canonicalIdService.generateContentBatchId();
     const now = new Date().toISOString();
 
     const batch: ContentBatch = {

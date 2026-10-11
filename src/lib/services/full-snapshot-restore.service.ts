@@ -30,8 +30,7 @@ import {
   assignmentsRepository,
   publishingRepository,
   workflowRepository,
-  auditLogRepository,
-  sequencesRepository
+  auditLogRepository
 } from '../repositories';
 
 export const FULL_RESTORE_CONFIRMATION_PHRASE = 'RESTORE ALL DATA';
@@ -55,7 +54,6 @@ export const FULL_RESTORE_ENTITY_ORDER = [
   'PUBLISHING',
   'WORKFLOW',
   'AUDIT_LOG',
-  'SEQUENCES',
 ] as const;
 
 export type FullRestoreEntityType = typeof FULL_RESTORE_ENTITY_ORDER[number];
@@ -190,7 +188,7 @@ export class FullSnapshotRestoreService {
     const prodData: Record<string, Map<string, any>> = {};
     try {
       const [
-        tops, subs, usrs, plans, batches, qs, vids, scrs, scvers, thumbs, thvers, pcs, pcvers, assigns, pubs, wfs, audits, seqs
+        tops, subs, usrs, plans, batches, qs, vids, scrs, scvers, thumbs, thvers, pcs, pcvers, assigns, pubs, wfs, audits
       ] = await Promise.all([
         topicsRepository.findAll().catch(() => []),
         subtopicsRepository.findAll().catch(() => []),
@@ -209,7 +207,6 @@ export class FullSnapshotRestoreService {
         publishingRepository.findAll().catch(() => []),
         workflowRepository.findAll().catch(() => []),
         auditLogRepository.findAll().catch(() => []),
-        sequencesRepository.findAll().catch(() => []),
       ]);
 
       const createMap = (items: any[], versionType?: 'SCRIPT' | 'THUMBNAIL' | 'PINNED_COMMENT') => {
@@ -256,7 +253,6 @@ export class FullSnapshotRestoreService {
       prodData['PUBLISHING'] = createMap(pubs);
       prodData['WORKFLOW'] = createMap(wfs);
       prodData['AUDIT_LOG'] = createMap(audits);
-      prodData['SEQUENCES'] = createMap(seqs);
     } catch {
       // Fallback empty prod data
     }
@@ -351,21 +347,7 @@ export class FullSnapshotRestoreService {
           }
         }
 
-        // Sequence rollback checks
-        if (entityType === 'SEQUENCES') {
-          const snapSeq = Number(obj.currentValue || obj.value || obj.nextNumber || 0);
-          const prodSeq = existing ? Number(existing.nextNumber || existing.currentValue || existing.value || 0) : 0;
-          if (snapSeq > 0 && prodSeq > 0 && snapSeq < prodSeq) {
-            const warning = `Sequence rollback risk for ${obj.entityName || recordId} (Snapshot: ${snapSeq}, Prod: ${prodSeq}).`;
-            tabSeqWarnings.push(warning);
-            sequenceWarnings.push(warning);
-            globalConflicts.push({
-              entityType,
-              entityId: recordId,
-              reason: `Sequence rollback prohibited`,
-            });
-          }
-        }
+        // Sequence rollback checks: Decommissioned (Sprint 6 Canonical UUID architecture).
       }
 
       entityPlans[entityType] = {

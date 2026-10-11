@@ -1157,10 +1157,6 @@ class ApiClient {
     return this.request('/system/operational-health');
   }
 
-  public async getSequenceSafety(): Promise<import('./services/sequence-safety.service').SequenceSafetyReport> {
-    return this.request('/system/sequence-safety');
-  }
-
   public async getRecoveryState(): Promise<import('./services/operational-recovery.service').OperationalRecoveryState> {
     return this.request('/system/recovery/state');
   }
@@ -1251,17 +1247,6 @@ class ApiClient {
     });
   }
 
-  public async syncSequence(
-    entityType: string,
-    proposedNextNumber: number,
-    confirmed: boolean,
-    actor?: { id: string; name: string }
-  ): Promise<any> {
-    return this.request('/system/recovery/sync-sequence', {
-      method: 'POST',
-      body: JSON.stringify({ entityType, proposedNextNumber, confirmed, actor }),
-    });
-  }
 
   // ==========================================
   // PHASE 10: Team Operations & Assignments

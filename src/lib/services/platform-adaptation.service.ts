@@ -49,7 +49,7 @@ import { platformAdaptationsRepository } from '../repositories/platform-adaptati
 import { contentMastersRepository } from '../repositories/content-masters.repository';
 import { questionsRepository } from '../repositories/questions.repository';
 import { auditService } from './audit.service';
-import { idService } from './id.service';
+import { canonicalIdService } from '../id.service';
 import {
   PlatformAdaptationValidator,
 } from '../validators/platform-adaptation.validator';
@@ -807,7 +807,7 @@ Respond in pure JSON matching this exact structure:
       throw new ValidationError(`Platform validation failed: ${validation.issues.join('; ')}`);
     }
 
-    const adaptationId = await idService.allocatePlatformAdaptationId();
+    const adaptationId = canonicalIdService.generatePlatformAdaptationId();
     const now = new Date().toISOString();
 
     const adaptationRecord: PlatformAdaptationRecord = {

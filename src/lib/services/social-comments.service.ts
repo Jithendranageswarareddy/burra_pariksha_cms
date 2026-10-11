@@ -17,7 +17,7 @@
 
 import { socialCommentsRepository, SocialCommentsRepository } from '../repositories/social-comments.repository';
 import { contentMastersRepository } from '../repositories/content-masters.repository';
-import { idService } from './id.service';
+import { canonicalIdService } from '../id.service';
 import { AuditLogRepository } from '../repositories/audit-log.repository';
 import {
   CreateSocialCommentInputSchema,
@@ -164,8 +164,8 @@ export class SocialCommentsService {
       }
     }
 
-    // 3. Allocate sequential ID: BP-CMT-######
-    const id = await idService.allocateSocialCommentId();
+    // 3. Generate canonical ID: cmt_<uuid>
+    const id = canonicalIdService.generateSocialCommentId();
 
     // 4. Construct audience comment record (preserves immutable fields)
     const now = new Date().toISOString();

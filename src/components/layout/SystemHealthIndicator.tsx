@@ -142,7 +142,7 @@ export const SystemHealthIndicator: React.FC = () => {
             <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-150">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="w-3.5 h-3.5 text-slate-500" />
-                <span className="font-medium text-slate-700">Sequence Integrity</span>
+                <span className="font-medium text-slate-700">Data Integrity</span>
               </div>
               <span
                 className={`font-mono font-bold text-[11px] px-1.5 py-0.5 rounded ${

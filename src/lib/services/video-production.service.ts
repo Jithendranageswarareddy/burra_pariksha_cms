@@ -20,7 +20,7 @@ import { scriptsRepository } from '../repositories/scripts.repository';
 import { videosRepository } from '../repositories/videos.repository';
 import { mediaAssetsRepository } from '../repositories/media-assets.repository';
 import { driveSyncService } from './drive-sync.service';
-import { idService } from './id.service';
+import { canonicalIdService } from '../id.service';
 import { auditService } from './audit.service';
 import { workflowService } from './workflow.service';
 import {
@@ -178,7 +178,7 @@ export class VideoProductionService {
 
     const now = new Date().toISOString();
     if (!video) {
-      const videoId = await idService.allocateVideoId();
+      const videoId = canonicalIdService.generateVideoId();
       const newVideo: Video = {
         id: videoId,
         contentId: canonicalContentId,

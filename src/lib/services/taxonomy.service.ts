@@ -10,7 +10,7 @@
 import { topicsRepository, subtopicsRepository } from '../repositories';
 import { Subtopic, Topic } from '../../types';
 import { ReferenceIntegrityError, ValidationError } from '../errors';
-import { idService } from './id.service';
+import { canonicalIdService } from '../id.service';
 import { auditService } from './audit.service';
 import {
   CreateTopicInputSchema,
@@ -169,7 +169,7 @@ export class TaxonomyService {
       throw new ValidationError(`A Topic with the slug "${slug}" already exists (ID: ${duplicateSlug.id}).`);
     }
 
-    const id = await idService.allocateTopicId();
+    const id = canonicalIdService.generateTopicId();
     const now = new Date().toISOString();
 
     const topic: Topic = {
@@ -425,7 +425,7 @@ export class TaxonomyService {
       );
     }
 
-    const id = await idService.allocateSubtopicId();
+    const id = canonicalIdService.generateSubtopicId();
     const now = new Date().toISOString();
 
     const subtopic: Subtopic = {

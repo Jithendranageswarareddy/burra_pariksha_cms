@@ -1,29 +1,20 @@
 /**
  * BURRA PARIKSHA CMS - Operational Recovery Service
  * Phase 8B: Operational Reliability, Recovery & Production Hardening
+ * Sprint 6: Zero Sequence Architecture
  * 
  * Provides safe, administrative diagnostic workflows and audited recovery operations.
- * 
- * SAFETY RULES:
- * 1. Read-only diagnostics are prioritized by default.
- * 2. Any mutating administrative recovery requires explicit confirmation (`confirmed === true`).
- * 3. Shows previous and proposed new values.
- * 4. Logs audited operational event with sanitized payloads.
- * 5. Never deletes or clears worksheets, never rewrites schemas.
+ * Focuses on genuine infrastructure: Cloud Firestore connectivity, auth credentials,
+ * data integrity, and system health.
  */
 
 import { operationalHealthService, OperationalHealthReport } from './operational-health.service';
-import { sequenceSafetyService, SequenceSafetyReport } from './sequence-safety.service';
-import { dataIntegrityService } from './data-integrity.service';
-import { sequencesRepository } from '../repositories/sequences.repository';
 import { auditService } from './audit.service';
-import { RecoveryOperationError, ValidationError } from '../errors';
-import { SEQUENCE_ENTITIES, SequenceEntityType } from '../schemas/domain-schemas';
 
 export interface RecoveryActionPlan {
   actionId: string;
   title: string;
-  category: 'CONNECTIVITY' | 'SCHEMA' | 'SEQUENCE' | 'TAXONOMY' | 'RELATIONSHIP';
+  category: 'CONNECTIVITY' | 'SCHEMA' | 'TAXONOMY' | 'RELATIONSHIP';
   severity: 'CRITICAL' | 'ERROR' | 'WARNING' | 'INFO';
   isAutomatedSupported: boolean;
   requiresExplicitConfirmation: boolean;
@@ -36,9 +27,8 @@ export interface RecoveryActionPlan {
 export interface OperationalRecoveryState {
   generatedAt: string;
   connectivity: OperationalHealthReport;
-  sequenceSafety: SequenceSafetyReport;
   actionPlans: RecoveryActionPlan[];
-  isReadOnly: true;
+  isReadOnly: boolean;
 }
 
 export class OperationalRecoveryService {
@@ -58,7 +48,6 @@ export class OperationalRecoveryService {
    */
   public async getRecoveryState(): Promise<OperationalRecoveryState> {
     const connectivity = await operationalHealthService.getOperationalHealth();
-    const sequenceSafety = await sequenceSafetyService.auditSequences();
     const actionPlans: RecoveryActionPlan[] = [];
 
     // 1. Connectivity remediation action plans
@@ -95,120 +84,12 @@ export class OperationalRecoveryService {
       });
     }
 
-    // 2. Sequence safety remediation action plans
-    for (const anomaly of sequenceSafety.anomalies) {
-      const isSequenceDrift = anomaly.anomalyType === 'SEQUENCE_BEHIND_MAX_ID';
-      const proposed = anomaly.detectedMaxAllocatedId !== null ? anomaly.detectedMaxAllocatedId + 1 : null;
-
-      actionPlans.push({
-        actionId: `ACT-SEQ-${anomaly.entityType}-${anomaly.anomalyType}`,
-        title: `Remediate Sequence ${anomaly.entityType} (${anomaly.anomalyType})`,
-        category: 'SEQUENCE',
-        severity: anomaly.severity,
-        isAutomatedSupported: isSequenceDrift && proposed !== null,
-        requiresExplicitConfirmation: true,
-        previousValue: anomaly.currentNextNumber,
-        proposedNewValue: proposed,
-        description: anomaly.message,
-        manualSteps: [
-          `Inspect the Firestore sequences collection document for entity "${anomaly.entityType}".`,
-          `Synchronize the document next_number to ${proposed ?? 'the appropriate number'}.`,
-          `Verify prefix is "${anomaly.expectedPrefix}" and pad_length is ${anomaly.expectedPadLength}.`,
-        ],
-      });
-    }
-
     return {
       generatedAt: new Date().toISOString(),
       connectivity,
-      sequenceSafety,
       actionPlans,
       isReadOnly: true,
     };
-  }
-
-  /**
-   * Safely synchronizes a drifted sequence's next_number to a verified safe value
-   * with explicit confirmation and mandatory audit logging.
-   */
-  public async synchronizeSequence(
-    entityType: SequenceEntityType,
-    proposedNextNumber: number,
-    actor: { id: string; name: string },
-    confirmed: boolean
-  ): Promise<{
-    success: boolean;
-    entityType: string;
-    previousNextNumber: number;
-    updatedNextNumber: number;
-    auditLogId: string;
-  }> {
-    if (!confirmed) {
-      throw new ValidationError(
-        'Administrative sequence synchronization requires explicit confirmation (confirmed: true).'
-      );
-    }
-
-    if (!Object.values(SEQUENCE_ENTITIES).includes(entityType)) {
-      throw new ValidationError(`Unknown sequence entity type: "${entityType}".`);
-    }
-
-    if (!proposedNextNumber || proposedNextNumber <= 0 || !Number.isInteger(proposedNextNumber)) {
-      throw new ValidationError(`Proposed next_number (${proposedNextNumber}) must be a positive integer.`);
-    }
-
-    // Read current value
-    const existingSeq = await sequencesRepository.getSequence(entityType);
-    const prevNextNum = existingSeq ? Number(existingSeq.nextNumber) : 1;
-
-    // Verify proposed is >= highest allocated ID
-    const maxAllocated = await sequenceSafetyService.getMaxAllocatedIdForEntity(entityType);
-    if (proposedNextNumber <= maxAllocated) {
-      throw new RecoveryOperationError(
-        `Cannot set next_number for "${entityType}" to ${proposedNextNumber}: it is <= max allocated ID (${maxAllocated}) in database.`
-      );
-    }
-
-    try {
-      if (existingSeq) {
-        await sequencesRepository.updateRecord(entityType, {
-          nextNumber: proposedNextNumber,
-          updatedAt: new Date().toISOString(),
-        });
-      } else {
-        await sequencesRepository.appendRecord({
-          entityType,
-          nextNumber: proposedNextNumber,
-          prefix: 'BP-',
-          padLength: 6,
-          updatedAt: new Date().toISOString(),
-        });
-      }
-
-      // Log operational audit trail
-      const auditLog = await auditService.logOperationalEvent(
-        'ADMIN_SYNCHRONIZE_SEQUENCE',
-        'RECOVERY',
-        {
-          entityType,
-          previousNextNumber: prevNextNum,
-          updatedNextNumber: proposedNextNumber,
-          detectedMaxAllocatedId: maxAllocated,
-          reason: 'Manual administrative recovery for sequence synchronization',
-        },
-        actor
-      );
-
-      return {
-        success: true,
-        entityType,
-        previousNextNumber: prevNextNum,
-        updatedNextNumber: proposedNextNumber,
-        auditLogId: auditLog.id,
-      };
-    } catch (err: any) {
-      throw new RecoveryOperationError(`Failed to synchronize sequence "${entityType}": ${err?.message || 'Error'}`);
-    }
   }
 }
 

@@ -13,7 +13,7 @@ import { videosRepository } from '../repositories/videos.repository';
 import { scriptsRepository, scriptVersionsRepository } from '../repositories/scripts.repository';
 import { aiOrchestrator } from '../ai/ai-orchestrator.service';
 import { ScriptValidator } from '../validators/script.validator';
-import { idService } from './id.service';
+import { canonicalIdService } from '../id.service';
 import { auditService } from './audit.service';
 import { Question, Script, ScriptVersion, UserRole, Video, VideoProductionStatus, PriorityLevel } from '../../types';
 import { ValidationError } from '../errors';
@@ -51,8 +51,8 @@ export class ScriptProductionService {
       return existingVideos[0];
     }
 
-    // Allocate new video ID and append a draft Video record
-    const videoId = await idService.allocateVideoId();
+    // Generate canonical video ID: vid_<uuid>
+    const videoId = canonicalIdService.generateVideoId();
     const newVideo: Video = {
       id: videoId,
       questionId: question.id,
@@ -103,7 +103,7 @@ export class ScriptProductionService {
 
     if (!existingScript) {
       // 4a. Initial script candidate (Version 1)
-      const scriptId = await idService.allocateScriptId();
+      const scriptId = canonicalIdService.generateScriptId();
       const newScript: Script = {
         id: scriptId,
         contentId: question.contentMasterId || (question as any).contentId,
