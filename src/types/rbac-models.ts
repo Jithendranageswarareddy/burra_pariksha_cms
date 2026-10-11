@@ -418,7 +418,7 @@ export const BROWNFIELD_ROLE_DISPOSITIONS: Record<string, BrownfieldRoleDisposit
     brownfieldRole: 'TOPIC_LEAD',
     canonicalRole: CanonicalRbacRole.CONTENT_LEAD,
     disposition: 'MODIFY',
-    description: 'Scoped curriculum category review',
+    description: 'Scoped curriculum topic review',
   },
   TELUGU_TRANSLATOR: {
     brownfieldRole: 'TELUGU_TRANSLATOR',

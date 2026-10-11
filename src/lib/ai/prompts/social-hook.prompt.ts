@@ -45,7 +45,6 @@ export function buildSocialHookPrompt(
     correctAnswer?: string;
     correct_answer?: string;
     explanation?: string;
-    categoryName?: string;
     topicName?: string;
     realWorldContext?: string;
     presentationType?: string;

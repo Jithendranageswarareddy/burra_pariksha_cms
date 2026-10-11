@@ -52,7 +52,6 @@ import {
 import {
   AiContentPlanRecommendation,
   BatchProgressMetrics,
-  CategoryCoverage,
   ContentBatch,
   ContentBatchStatus,
   ContentGapAnalysis,
@@ -83,8 +82,7 @@ export const PlanningPage: React.FC = () => {
   const [radar, setRadar] = useState<DiversityRadarReport | null>(null);
 
   // Taxonomy Reference for Forms
-  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
-  const [topics, setTopics] = useState<{ id: string; name: string; categoryId: string }[]>([]);
+  const [topics, setTopics] = useState<{ id: string; name: string }[]>([]);
   const [subtopics, setSubtopics] = useState<{ id: string; name: string; topicId: string }[]>([]);
   const [allQuestions, setAllQuestions] = useState<any[]>([]);
 
@@ -95,7 +93,6 @@ export const PlanningPage: React.FC = () => {
   // Create Plan Modal State
   const [isCreatePlanOpen, setIsCreatePlanOpen] = useState(false);
   const [planForm, setPlanForm] = useState({
-    categoryId: '',
     topicId: '',
     subtopicId: '',
     difficulty: DifficultyLevel.MEDIUM,
@@ -130,7 +127,6 @@ export const PlanningPage: React.FC = () => {
 
   // AI Assistant State
   const [aiForm, setAiForm] = useState({
-    categoryId: '',
     topicId: '',
     targetTotalCount: 20,
     language: QuestionLanguage.ENGLISH,
@@ -166,7 +162,6 @@ export const PlanningPage: React.FC = () => {
         fetch('/api/questions').then((r) => r.json()),
       ]);
 
-      if (taxRes.categories) setCategories(taxRes.categories);
       if (taxRes.topics) setTopics(taxRes.topics);
       if (taxRes.subtopics) setSubtopics(taxRes.subtopics);
       if (Array.isArray(qRes)) setAllQuestions(qRes);
@@ -318,7 +313,6 @@ export const PlanningPage: React.FC = () => {
   const handleGoToQuestionGenerator = (plan: ContentPlan) => {
     const params = new URLSearchParams({
       planId: plan.id,
-      categoryId: plan.categoryId,
       topicId: plan.topicId,
       subtopicId: plan.subtopicId,
       difficulty: plan.difficulty,
@@ -384,7 +378,6 @@ export const PlanningPage: React.FC = () => {
     try {
       const targetSub = subtopics.find((s) => s.id === sub.subtopicId);
       const targetTop = targetSub ? topics.find((t) => t.id === targetSub.topicId) : null;
-      const targetCat = targetTop ? categories.find((c) => c.id === targetTop.categoryId) : null;
 
       if (!targetSub || !targetTop) {
         throw new Error('Taxonomy mapping missing for recommended subtopic.');
@@ -394,7 +387,6 @@ export const PlanningPage: React.FC = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          categoryId: targetCat?.id || '',
           topicId: targetTop.id,
           subtopicId: targetSub.id,
           difficulty: DifficultyLevel.MEDIUM,
@@ -443,12 +435,10 @@ export const PlanningPage: React.FC = () => {
     const sub = subtopics.find((s) => s.id === subtopicId);
     if (!sub) return;
     const top = topics.find((t) => t.id === sub.topicId);
-    const cat = top ? categories.find((c) => c.id === top.categoryId) : null;
 
-    if (cat && top) {
+    if (top) {
       setPlanForm({
         ...planForm,
-        categoryId: cat.id,
         topicId: top.id,
         subtopicId: sub.id,
         targetQuestionCount: 10,
@@ -1541,7 +1531,7 @@ export const PlanningPage: React.FC = () => {
             </div>
 
             <div className="divide-y divide-slate-800">
-              {coverage.categories.flatMap((c) => c.topics).map((top) => {
+              {coverage.topics.map((top) => {
                 const isExpanded = expandedTopicId === top.topicId;
                 return (
                   <div key={top.topicId} className="bg-slate-900">
@@ -1914,7 +1904,7 @@ export const PlanningPage: React.FC = () => {
               <div className="flex items-center justify-between pb-4 border-b border-slate-800">
                 <div>
                   <span className="text-xs font-bold text-amber-400 uppercase tracking-wide block">Advisory AI Curriculum Proposal</span>
-                  <h3 className="text-xl font-bold text-white">{aiRecommendation.categoryName} Curriculum Blueprint</h3>
+                  <h3 className="text-xl font-bold text-white">{aiRecommendation.topicName} Curriculum Blueprint</h3>
                 </div>
                 <span className="text-xs bg-indigo-500/20 text-indigo-300 px-3 py-1 rounded-full border border-indigo-500/30 font-semibold">
                   Target: {aiRecommendation.targetTotalCount} Questions

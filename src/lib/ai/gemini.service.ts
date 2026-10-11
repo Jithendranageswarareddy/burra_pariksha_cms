@@ -309,8 +309,6 @@ export class GeminiService implements AIProvider {
       challenge_type: rawCandidate.challenge_type || input.challengeType || 'Standard Challenge',
       presentation_type: rawCandidate.presentation_type || input.presentationType || 'Standard Text',
       taxonomy: {
-        categoryId: input.categoryId,
-        categoryName: input.categoryName,
         topicId: input.topicId,
         topicName: input.topicName,
         subtopicId: input.subtopicId,
@@ -458,7 +456,6 @@ export class GeminiService implements AIProvider {
    * confirm/approve the recommendation before any plan or batch is created.
    */
   public async generateContentPlanRecommendation(input: {
-    categoryId?: string;
     topicId?: string;
     targetTotalCount?: number;
     language?: QuestionLanguage;
@@ -466,21 +463,13 @@ export class GeminiService implements AIProvider {
     focusContext?: string;
   }): Promise<AiContentPlanRecommendation> {
     const targetTotal = input.targetTotalCount || 20;
-    let categoryName = 'Aptitude Content';
-    if (input.categoryId) {
-      const category = await taxonomyService.getCategoryById(input.categoryId);
-      categoryName = category ? category.name : input.categoryId;
-    }
 
-    let topics = await taxonomyService.getTopics(input.categoryId);
+    let topics = await taxonomyService.getTopics();
     if (input.topicId) {
       topics = topics.filter((t) => t.id === input.topicId);
     }
 
-    const topicName = input.topicId && topics.length > 0 ? topics[0].name : undefined;
-    if (topicName && (!input.categoryId || categoryName === 'Aptitude Content')) {
-      categoryName = topicName;
-    }
+    const topicName = input.topicId && topics.length > 0 ? topics[0].name : (topics[0]?.name || 'All Topics');
 
     // Fetch existing questions to detect zero/low coverage
     const allQuestions = await questionsRepository.findAll();
@@ -543,14 +532,14 @@ export class GeminiService implements AIProvider {
 
     const batchSuggestions: AiPlanBatchSuggestion[] = [
       {
-        batchName: `${categoryName} Sprint A — Foundational Mastery`,
+        batchName: `${topicName} Sprint A — Foundational Mastery`,
         targetCount: Math.ceil(targetTotal / 2),
         priority: PriorityLevel.HIGH,
         rationale: 'Focuses on core speed tricks and high-frequency exam patterns with visual explanations.',
         subtopicIds: subtopicRecommendations.slice(0, Math.ceil(subtopicRecommendations.length / 2)).map((s) => s.subtopicId),
       },
       {
-        batchName: `${categoryName} Sprint B — Advanced Edge Cases`,
+        batchName: `${topicName} Sprint B — Advanced Edge Cases`,
         targetCount: Math.floor(targetTotal / 2),
         priority: PriorityLevel.NORMAL,
         rationale: 'Multi-step calculation traps, deceptive distractors, and rapid mental math shortcuts.',
@@ -559,12 +548,10 @@ export class GeminiService implements AIProvider {
     ];
 
     return {
-      categoryId: input.categoryId,
-      categoryName,
-      topicId: input.topicId,
+      topicId: topics[0]?.id || input.topicId || '',
       topicName,
       targetTotalCount: targetTotal,
-      pedagogicalRationale: `Targeting high-yield topics under ${categoryName} with balanced 30% Easy / 50% Medium / 20% Hard cognitive load, closing ${subtopicRecommendations.filter((s) => s.rationale.includes('Zero-Coverage')).length} zero-coverage gap(s).`,
+      pedagogicalRationale: `Targeting high-yield subtopics under ${topicName} with balanced 30% Easy / 50% Medium / 20% Hard cognitive load, closing ${subtopicRecommendations.filter((s) => s.rationale.includes('Zero-Coverage')).length} zero-coverage gap(s).`,
       priorityFocusAreas: [
         'Prioritize zero-coverage subtopics to ensure comprehensive syllabus breadth',
         'Incorporate practical real-world scenarios to boost viewer retention',
@@ -593,7 +580,6 @@ export class GeminiService implements AIProvider {
       correctAnswer?: string;
       correct_answer?: string;
       explanation?: string;
-      categoryName?: string;
       topicName?: string;
       realWorldContext?: string;
       real_world_context?: string;

@@ -179,7 +179,7 @@ async function runS4PersistenceTests() {
     const report = await firestoreProductionInitializer.initializeProductionData();
     assert.strictEqual(report.success, true, 'Initialization must succeed');
     assert(report.collectionsInitialized.includes('users'));
-    assert(report.collectionsInitialized.includes('categories'));
+    assert(report.collectionsInitialized.includes('topics'));
     console.log('✓ TC-S4-04 PASSED: Production dataset initializer ran cleanly and idempotently.');
     passed++;
   } catch (err: any) {

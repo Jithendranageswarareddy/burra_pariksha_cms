@@ -58,7 +58,6 @@ export function buildTeleprompterScriptPrompt(
     correctAnswer?: string;
     correct_answer?: string;
     explanation?: string;
-    categoryName?: string;
     topicName?: string;
   },
   selectedHookText: string,

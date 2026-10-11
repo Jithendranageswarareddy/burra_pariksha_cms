@@ -20,8 +20,6 @@ export enum AiRefinementAction {
 }
 
 export interface GenerateCandidateInput {
-  categoryId?: string;
-  categoryName?: string;
   topicId: string;
   topicName?: string;
   subtopicId: string;
@@ -52,8 +50,6 @@ export interface QuestionCandidate {
   challenge_type?: string;
   presentation_type?: string;
   taxonomy?: {
-    categoryId: string;
-    categoryName?: string;
     topicId: string;
     topicName?: string;
     subtopicId: string;

@@ -71,7 +71,6 @@ export interface StudioCandidate {
   optionD: string;
   correctAnswer: 'A' | 'B' | 'C' | 'D';
   explanation: string;
-  categoryId?: string;
   topicId: string;
   subtopicId: string;
   difficulty: string;

@@ -13,7 +13,6 @@
 
 import {
   AuditLog,
-  Category,
   IntegrityCategory,
   IntegrityCheckSummary,
   IntegrityIssue,
@@ -43,7 +42,6 @@ import {
 import {
   assignmentsRepository,
   auditLogRepository,
-  categoriesRepository,
   pinnedCommentsRepository,
   pinnedCommentVersionsRepository,
   publishingRepository,
@@ -126,7 +124,6 @@ export class DataIntegrityService {
     // Parallel fetch of all 18 authoritative datasets (single pass per worksheet)
     const [
       users,
-      categories,
       topics,
       subtopics,
       questions,
@@ -145,7 +142,6 @@ export class DataIntegrityService {
       sequences,
     ] = await Promise.all([
       usersRepository.findAll().catch(() => [] as User[]),
-      categoriesRepository.findAll().catch(() => [] as Category[]),
       topicsRepository.findAll().catch(() => [] as Topic[]),
       subtopicsRepository.findAll().catch(() => [] as Subtopic[]),
       questionsRepository.findAll().catch(() => [] as Question[]),
@@ -165,7 +161,6 @@ export class DataIntegrityService {
     ]);
 
     // Fast lookup maps
-    const categoryMap = new Map<string, Category>(categories.map((c) => [c.id, c]));
     const topicMap = new Map<string, Topic>(topics.map((t) => [t.id, t]));
     const subtopicMap = new Map<string, Subtopic>(subtopics.map((s) => [s.id, s]));
     const questionMap = new Map<string, Question>(questions.map((q) => [q.id, q]));
@@ -261,7 +256,6 @@ export class DataIntegrityService {
     };
 
     checkWorksheetIds(SHEET_TABS.USERS, users, 'id', 'USR-');
-    checkWorksheetIds(SHEET_TABS.CATEGORIES, categories, 'id', 'BP-CAT-', ['CAT-QA', 'CAT-LR', 'CAT-DI', 'CAT-VA']);
     checkWorksheetIds(SHEET_TABS.TOPICS, topics, 'id', 'BP-TOP-');
     checkWorksheetIds(SHEET_TABS.SUBTOPICS, subtopics, 'id', 'BP-SUB-');
     checkWorksheetIds(SHEET_TABS.QUESTIONS, questions, 'id', 'BP-Q-');
@@ -1437,7 +1431,6 @@ export class DataIntegrityService {
       [SEQUENCE_ENTITIES.SCRIPT]: Math.max(0, ...scripts.map((s) => this.extractNumericId(s.id, ID_PREFIX_MAP[SEQUENCE_ENTITIES.SCRIPT]?.prefix) || 0)),
       [SEQUENCE_ENTITIES.THUMBNAIL]: Math.max(0, ...thumbnails.map((t) => this.extractNumericId(t.id, ID_PREFIX_MAP[SEQUENCE_ENTITIES.THUMBNAIL]?.prefix) || 0)),
       [SEQUENCE_ENTITIES.PINNED_COMMENT]: Math.max(0, ...pinnedComments.map((p) => this.extractNumericId(p.id, ID_PREFIX_MAP[SEQUENCE_ENTITIES.PINNED_COMMENT]?.prefix) || 0)),
-      [SEQUENCE_ENTITIES.CATEGORY]: Math.max(0, ...categories.map((c) => this.extractNumericId(c.id, ID_PREFIX_MAP[SEQUENCE_ENTITIES.CATEGORY]?.prefix) || 0)),
       [SEQUENCE_ENTITIES.TOPIC]: Math.max(0, ...topics.map((t) => this.extractNumericId(t.id, ID_PREFIX_MAP[SEQUENCE_ENTITIES.TOPIC]?.prefix) || 0)),
       [SEQUENCE_ENTITIES.SUBTOPIC]: Math.max(0, ...subtopics.map((s) => this.extractNumericId(s.id, ID_PREFIX_MAP[SEQUENCE_ENTITIES.SUBTOPIC]?.prefix) || 0)),
       // Note: USER IDs use timestamp-based allocation (allocateUserId: USR-#### via Date.now()),
@@ -1703,7 +1696,6 @@ export class DataIntegrityService {
     const countBySheet = (name: string) => {
       switch (name) {
         case SHEET_TABS.USERS: return users.length;
-        case SHEET_TABS.CATEGORIES: return categories.length;
         case SHEET_TABS.TOPICS: return topics.length;
         case SHEET_TABS.SUBTOPICS: return subtopics.length;
         case SHEET_TABS.QUESTIONS: return questions.length;

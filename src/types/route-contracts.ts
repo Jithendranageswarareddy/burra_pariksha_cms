@@ -136,7 +136,7 @@ export const CANONICAL_ROUTE_CONTRACTS: Record<CanonicalRouteId, CanonicalRouteC
     permittedActions: [AuthorizationAction.VIEW],
     isHumanGated: false,
     uiStates: {
-      loading: 'Skeleton tabular view with category filter badges',
+      loading: 'Skeleton tabular view with topic filter badges',
       empty: 'No questions match the current filter criteria.',
       error: 'Failed to retrieve question inventory. Click to refresh.',
       forbidden403: 'Access denied: Requires QUESTION:VIEW capability.',

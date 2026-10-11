@@ -25,11 +25,6 @@ export class ContentPlansRepository extends BaseRepository<ContentPlan> {
     return all.filter((p) => p.status === status);
   }
 
-  public async findByCategoryId(categoryId: string): Promise<ContentPlan[]> {
-    const all = await this.findAll();
-    return all.filter((p) => p.categoryId === categoryId);
-  }
-
   public async findByTopicId(topicId: string): Promise<ContentPlan[]> {
     const all = await this.findAll();
     return all.filter((p) => p.topicId === topicId);

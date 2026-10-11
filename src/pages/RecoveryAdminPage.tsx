@@ -1099,30 +1099,29 @@ export const RecoveryAdminPage: React.FC = () => {
             {/* 19-Worksheet Exact Dependency Order */}
             <div className="p-4 bg-slate-950/60 border border-slate-800/80 rounded-xl space-y-3" id="dry-run-dependency-order">
               <div className="flex items-center justify-between">
-                <h4 className="text-xs font-bold text-slate-200">Exact 19-Worksheet Restore Execution Order</h4>
+                <h4 className="text-xs font-bold text-slate-200">Exact 18-Worksheet Restore Execution Order</h4>
                 <span className="text-[10px] font-mono text-slate-400">Strict Topo-Sort Dependency Hierarchy</span>
               </div>
               <div className="flex flex-wrap gap-1.5 text-[11px] font-mono">
                 {[
-                  '1. CATEGORIES',
-                  '2. TOPICS',
-                  '3. SUBTOPICS',
-                  '4. USERS',
-                  '5. CONTENT_PLANS',
-                  '6. CONTENT_BATCHES',
-                  '7. QUESTIONS',
-                  '8. VIDEOS',
-                  '9. SCRIPT',
-                  '10. SCRIPT_VERSIONS',
-                  '11. THUMBNAILS',
-                  '12. THUMBNAIL_VERSIONS',
-                  '13. PINNED_COMMENTS',
-                  '14. PINNED_COMMENT_VERSIONS',
-                  '15. ASSIGNMENTS',
-                  '16. PUBLISHING',
-                  '17. WORKFLOW',
-                  '18. AUDIT_LOG',
-                  '19. SEQUENCES',
+                  '1. TOPICS',
+                  '2. SUBTOPICS',
+                  '3. USERS',
+                  '4. CONTENT_PLANS',
+                  '5. CONTENT_BATCHES',
+                  '6. QUESTIONS',
+                  '7. VIDEOS',
+                  '8. SCRIPT',
+                  '9. SCRIPT_VERSIONS',
+                  '10. THUMBNAILS',
+                  '11. THUMBNAIL_VERSIONS',
+                  '12. PINNED_COMMENTS',
+                  '13. PINNED_COMMENT_VERSIONS',
+                  '14. ASSIGNMENTS',
+                  '15. PUBLISHING',
+                  '16. WORKFLOW',
+                  '17. AUDIT_LOG',
+                  '18. SEQUENCES',
                 ].map((step, idx) => (
                   <span
                     key={idx}
@@ -1681,15 +1680,15 @@ export const RecoveryAdminPage: React.FC = () => {
             <div className="p-4 bg-slate-950/60 border border-slate-800 rounded-xl space-y-3" id="full-restore-dependency-order">
               <div className="flex items-center gap-2">
                 <ListOrdered className="w-4 h-4 text-indigo-400" />
-                <h4 className="text-xs font-bold text-slate-200">Strict 19-Worksheet Dependency Execution Order</h4>
+                <h4 className="text-xs font-bold text-slate-200">Strict 18-Worksheet Dependency Execution Order</h4>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 text-[11px] font-mono">
                 {[
-                  '1. CATEGORIES', '2. TOPICS', '3. SUBTOPICS', '4. USERS',
-                  '5. CONTENT_PLANS', '6. CONTENT_BATCHES', '7. QUESTIONS', '8. VIDEOS',
-                  '9. SCRIPT', '10. SCRIPT_VERSIONS', '11. THUMBNAILS', '12. THUMBNAIL_VERSIONS',
-                  '13. PINNED_COMMENTS', '14. PINNED_COMMENT_VERSIONS', '15. ASSIGNMENTS',
-                  '16. PUBLISHING', '17. WORKFLOW', '18. AUDIT_LOG', '19. SEQUENCES'
+                  '1. TOPICS', '2. SUBTOPICS', '3. USERS',
+                  '4. CONTENT_PLANS', '5. CONTENT_BATCHES', '6. QUESTIONS', '7. VIDEOS',
+                  '8. SCRIPT', '9. SCRIPT_VERSIONS', '10. THUMBNAILS', '11. THUMBNAIL_VERSIONS',
+                  '12. PINNED_COMMENTS', '13. PINNED_COMMENT_VERSIONS', '14. ASSIGNMENTS',
+                  '15. PUBLISHING', '16. WORKFLOW', '17. AUDIT_LOG', '18. SEQUENCES'
                 ].map((ws, i) => (
                   <div key={i} className="px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded text-slate-300 truncate">
                     {ws}

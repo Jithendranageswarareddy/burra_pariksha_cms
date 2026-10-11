@@ -22,7 +22,6 @@
 | **Social Review** | `BP-REV-` | `social_reviews` | Authoritative | Version OCC |
 | **Question Config** | `BP-QCFG-` | `question_configs` | Authoritative | Version OCC |
 | **Media Asset** | `BP-MED-` | `media_assets` | Authoritative | Version OCC |
-| **Category** | `BP-CAT-` | `categories` | Authoritative | Version OCC |
 | **Topic** | `BP-TOP-` | `topics` | Authoritative | Version OCC |
 | **Subtopic** | `BP-SUB-` | `subtopics` | Authoritative | Version OCC |
 | **Sequence Counter** | `SEQ-` | `sequences` | Authoritative | Atomic Counter |

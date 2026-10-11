@@ -135,7 +135,7 @@ export const GlobalSearchBar: React.FC<GlobalSearchBarProps> = ({
                         {item.id}
                       </span>
                       <span className="text-[10px] text-slate-500 font-medium">
-                        {item.topic || item.category || 'General'}
+                        {item.topic || 'General'}
                       </span>
                     </div>
                     <div className="text-xs font-semibold text-slate-800 truncate group-hover:text-indigo-700">

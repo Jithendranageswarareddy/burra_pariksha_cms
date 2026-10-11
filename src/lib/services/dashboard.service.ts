@@ -15,7 +15,6 @@ import {
   scriptsRepository,
   thumbnailsRepository,
   pinnedCommentsRepository,
-  categoriesRepository,
   topicsRepository,
   auditLogRepository,
   assignmentsRepository,
@@ -49,7 +48,6 @@ import {
 } from '../../types';
 
 export interface DashboardFilterOptions {
-  categoryId?: string;
   topicId?: string;
   difficulty?: string;
   priority?: string;
@@ -257,7 +255,6 @@ export class DashboardService {
         id: v.id,
         entityType: 'VIDEO',
         title: safeTruncate(v.title || q?.questionText, 60, `Video for Question ${v.questionId}`),
-        category: q?.categoryName || q?.categoryId || 'Quantitative Aptitude',
         topic: q?.topicName || q?.topicId || 'General',
         currentStatus: v.status,
         priority: 'URGENT',
@@ -278,7 +275,6 @@ export class DashboardService {
         id: v.id,
         entityType: 'VIDEO',
         title: safeTruncate(v.title || q?.questionText, 60, `Video for Question ${v.questionId}`),
-        category: q?.categoryName || q?.categoryId || 'Quantitative Aptitude',
         topic: q?.topicName || q?.topicId || 'General',
         currentStatus: v.status,
         priority: 'HIGH',
@@ -299,7 +295,6 @@ export class DashboardService {
         id: v.id,
         entityType: 'VIDEO',
         title: safeTruncate(v.title || q?.questionText, 60, `Video for Question ${v.questionId}`),
-        category: q?.categoryName || q?.categoryId || 'Quantitative Aptitude',
         topic: q?.topicName || q?.topicId || 'General',
         currentStatus: v.status,
         priority: v.priority === 'HIGH' || v.priority === 'URGENT' ? 'HIGH' : 'MEDIUM',
@@ -320,7 +315,6 @@ export class DashboardService {
         id: v.id,
         entityType: 'VIDEO',
         title: safeTruncate(v.title || q?.questionText, 60, `Video for Question ${v.questionId}`),
-        category: q?.categoryName || q?.categoryId || 'Quantitative Aptitude',
         topic: q?.topicName || q?.topicId || 'General',
         currentStatus: v.status,
         priority: 'HIGH',
@@ -341,7 +335,6 @@ export class DashboardService {
         id: v.id,
         entityType: 'VIDEO',
         title: safeTruncate(v.title || q?.questionText, 60, `Video for Question ${v.questionId}`),
-        category: q?.categoryName || q?.categoryId || 'Quantitative Aptitude',
         topic: q?.topicName || q?.topicId || 'General',
         currentStatus: v.status,
         priority: 'HIGH',
@@ -362,7 +355,6 @@ export class DashboardService {
         id: v.id,
         entityType: 'VIDEO',
         title: safeTruncate(v.title || q?.questionText, 60, `Video for Question ${v.questionId}`),
-        category: q?.categoryName || q?.categoryId || 'Quantitative Aptitude',
         topic: q?.topicName || q?.topicId || 'General',
         currentStatus: v.status,
         priority: 'MEDIUM',
@@ -383,7 +375,6 @@ export class DashboardService {
         id: q.id,
         entityType: 'QUESTION',
         title: safeTruncate(q.questionText, 60, `Question ${q.id}`),
-        category: q.categoryName || q.categoryId,
         topic: q.topicName || q.topicId,
         currentStatus: q.status,
         priority: 'HIGH',
@@ -405,7 +396,6 @@ export class DashboardService {
         id: pub.videoId,
         entityType: 'VIDEO',
         title: safeTruncate(vid?.title || q?.questionText, 60, `Publishing Record for ${pub.videoId}`),
-        category: q?.categoryName || q?.categoryId || 'Quantitative Aptitude',
         topic: q?.topicName || q?.topicId || 'General',
         currentStatus: 'INCOMPLETE_PUBLISHING',
         priority: 'MEDIUM',
@@ -425,7 +415,6 @@ export class DashboardService {
         id: q.id,
         entityType: 'QUESTION',
         title: safeTruncate(q.questionText, 60, `Question ${q.id}`),
-        category: q.categoryName || q.categoryId,
         topic: q.topicName || q.topicId,
         currentStatus: q.status,
         priority: 'NORMAL',
@@ -584,7 +573,6 @@ export class DashboardService {
         id: v.id,
         entityType: 'VIDEO',
         title: safeTruncate(v.title || q?.questionText, 60, `Video for Question ${v.questionId}`),
-        category: q?.categoryName || q?.categoryId || 'Quantitative Aptitude',
         topic: q?.topicName || q?.topicId || 'General',
         currentStatus: v.status,
         daysInStage: days,
@@ -613,7 +601,6 @@ export class DashboardService {
         id: q.id,
         entityType: 'QUESTION',
         title: safeTruncate(q.questionText, 60, `Question ${q.id}`),
-        category: q.categoryName || q.categoryId,
         topic: q.topicName || q.topicId,
         currentStatus: q.status,
         daysInStage: days,
@@ -676,7 +663,6 @@ export class DashboardService {
       results.push({
         videoId: v.id,
         title: safeTruncate(v.title || q?.questionText, 60, `Video for Question ${v.questionId}`),
-        category: q?.categoryName || q?.categoryId || 'Quantitative Aptitude',
         topic: q?.topicName || q?.topicId || 'General',
         videoRenderReady,
         thumbnailApproved,
@@ -714,10 +700,9 @@ export class DashboardService {
 
     const actor: ActorContext = existingActor || { id: userId, role: userRole as UserRole };
     const q = query.toLowerCase().trim();
-    const [questions, videos, categories, topics, scripts, thumbnails, pinnedComments, assignments, contentMasters, socialReviews, publishingRecords] = await Promise.all([
+    const [questions, videos, topics, scripts, thumbnails, pinnedComments, assignments, contentMasters, socialReviews, publishingRecords] = await Promise.all([
       questionsRepository.findAll(),
       videosRepository.findAll(),
-      categoriesRepository.findAll(),
       topicsRepository.findAll(),
       scriptsRepository.findAll().catch(() => []),
       thumbnailsRepository.findAll().catch(() => []),
@@ -737,7 +722,6 @@ export class DashboardService {
 
     const results: GlobalSearchResult[] = [];
 
-    const catMap = new Map(categories.map((c) => [c.id, c.name]));
     const topicMap = new Map(topics.map((t) => [t.id, t.name]));
     const qMap = new Map<string, Question>(questions.map((item) => [item.id, item]));
     const vMap = new Map(videos.map((v) => [v.id, v]));
@@ -786,7 +770,6 @@ export class DashboardService {
             type: 'CONTENT_MASTER' as any,
             title: safeTruncate(m.title, 60, `Content Master ${m.id}`),
             subtitle: `Content Master • ${m.status} • Primary: ${m.primaryQuestionId || 'N/A'}`,
-            category: primaryQuestion?.categoryName || catMap.get(m.categoryId || '') || 'General',
             topic: primaryQuestion?.topicName || topicMap.get(m.topicId || '') || 'General',
             status: m.status,
             url: targetUrl,
@@ -810,7 +793,6 @@ export class DashboardService {
               type: 'CONTENT_MASTER' as any,
               title: safeTruncate(m.title, 60, `Content Master ${m.id}`),
               subtitle: `Content Master • ${m.status} • Primary: ${m.primaryQuestionId || 'N/A'}`,
-              category: primaryQuestion?.categoryName || catMap.get(m.categoryId || '') || 'General',
               topic: primaryQuestion?.topicName || topicMap.get(m.topicId || '') || 'General',
               status: m.status,
               url: targetUrl,
@@ -826,8 +808,7 @@ export class DashboardService {
       const matchId = (item.id || '').toLowerCase().includes(q);
       const matchText = (item.questionText || '').toLowerCase().includes(q);
       const matchTopic = (item.topicName || topicMap.get(item.topicId) || item.topicId || '').toLowerCase().includes(q);
-      const matchCat = (item.categoryName || catMap.get(item.categoryId) || item.categoryId || '').toLowerCase().includes(q);
-      return matchId || matchText || matchTopic || matchCat;
+      return matchId || matchText || matchTopic;
     });
 
     if (matchingQuestions.length > 0 && results.length < 25) {
@@ -838,7 +819,6 @@ export class DashboardService {
             type: 'QUESTION',
             title: safeTruncate(item.questionText, 60, `Question ${item.id}`),
             subtitle: `Question • ${item.difficulty || 'MEDIUM'} • ${QUESTION_STATUS_CONFIG[item.status]?.label || item.status}`,
-            category: item.categoryName || catMap.get(item.categoryId) || item.categoryId || 'General',
             topic: item.topicName || topicMap.get(item.topicId) || item.topicId || 'General',
             status: item.status,
             url: `/questions/${encodeURIComponent(item.id)}`,
@@ -857,7 +837,6 @@ export class DashboardService {
               type: 'QUESTION',
               title: safeTruncate(item.questionText, 60, `Question ${item.id}`),
               subtitle: `Question • ${item.difficulty || 'MEDIUM'} • ${QUESTION_STATUS_CONFIG[item.status]?.label || item.status}`,
-              category: item.categoryName || catMap.get(item.categoryId) || item.categoryId || 'General',
               topic: item.topicName || topicMap.get(item.topicId) || item.topicId || 'General',
               status: item.status,
               url: `/questions/${encodeURIComponent(item.id)}`,
@@ -874,25 +853,21 @@ export class DashboardService {
       const matchId = (v.id || '').toLowerCase().includes(q);
       const matchQId = (v.questionId || '').toLowerCase().includes(q);
       const matchTitle = (v.title || '').toLowerCase().includes(q);
-      const catName = question?.categoryName || (question ? catMap.get(question.categoryId) : '') || 'Quantitative Aptitude';
       const topName = question?.topicName || (question ? topicMap.get(question.topicId) : '') || 'General';
       const matchTopic = topName.toLowerCase().includes(q);
-      const matchCat = catName.toLowerCase().includes(q);
-      return matchId || matchQId || matchTitle || matchTopic || matchCat;
+      return matchId || matchQId || matchTitle || matchTopic;
     });
 
     if (matchingVideos.length > 0 && results.length < 50) {
       if (isManagerOrAdmin) {
         for (const v of matchingVideos) {
           const question = qMap.get(v.questionId);
-          const catName = question?.categoryName || (question ? catMap.get(question.categoryId) : '') || 'Quantitative Aptitude';
           const topName = question?.topicName || (question ? topicMap.get(question.topicId) : '') || 'General';
           results.push({
             id: v.id,
             type: 'VIDEO',
             title: safeTruncate(v.title || question?.questionText, 60, `Video for Question ${v.questionId}`),
             subtitle: `Video • ${VIDEO_STATUS_CONFIG[v.status]?.label || v.status} • Priority: ${v.priority}`,
-            category: catName,
             topic: topName,
             status: v.status,
             url: `/production/${encodeURIComponent(v.id)}`,
@@ -907,14 +882,12 @@ export class DashboardService {
           if (authDecisions[i]) {
             const v = matchingVideos[i];
             const question = qMap.get(v.questionId);
-            const catName = question?.categoryName || (question ? catMap.get(question.categoryId) : '') || 'Quantitative Aptitude';
             const topName = question?.topicName || (question ? topicMap.get(question.topicId) : '') || 'General';
             results.push({
               id: v.id,
               type: 'VIDEO',
               title: safeTruncate(v.title || question?.questionText, 60, `Video for Question ${v.questionId}`),
               subtitle: `Video • ${VIDEO_STATUS_CONFIG[v.status]?.label || v.status} • Priority: ${v.priority}`,
-              category: catName,
               topic: topName,
               status: v.status,
               url: `/production/${encodeURIComponent(v.id)}`,
@@ -945,14 +918,12 @@ export class DashboardService {
           for (const s of matchingScripts) {
             const v = vMap.get(s.videoId);
             const qRecord = v ? qMap.get(v.questionId) : undefined;
-            const catName = qRecord?.categoryName || (qRecord ? catMap.get(qRecord.categoryId) : '') || 'General';
             const topName = qRecord?.topicName || (qRecord ? topicMap.get(qRecord.topicId) : '') || 'General';
             results.push({
               id: s.id,
               type: 'SCRIPT',
               title: safeTruncate(s.hook || s.content || v?.title || `Script for ${s.videoId}`, 60, `Script ${s.id}`),
               subtitle: `Script • ${s.status || 'DRAFT'} • Video: ${s.videoId}`,
-              category: catName,
               topic: topName,
               status: s.status || 'DRAFT',
               url: `/production/${encodeURIComponent(s.videoId)}?tab=script`,
@@ -968,14 +939,12 @@ export class DashboardService {
               const s = matchingScripts[i];
               const v = vMap.get(s.videoId);
               const qRecord = v ? qMap.get(v.questionId) : undefined;
-              const catName = qRecord?.categoryName || (qRecord ? catMap.get(qRecord.categoryId) : '') || 'General';
               const topName = qRecord?.topicName || (qRecord ? topicMap.get(qRecord.topicId) : '') || 'General';
               results.push({
                 id: s.id,
                 type: 'SCRIPT',
                 title: safeTruncate(s.hook || s.content || v?.title || `Script for ${s.videoId}`, 60, `Script ${s.id}`),
                 subtitle: `Script • ${s.status || 'DRAFT'} • Video: ${s.videoId}`,
-                category: catName,
                 topic: topName,
                 status: s.status || 'DRAFT',
                 url: `/production/${encodeURIComponent(s.videoId)}?tab=script`,
@@ -1001,14 +970,12 @@ export class DashboardService {
           for (const t of matchingThumbnails) {
             const v = vMap.get(t.videoId);
             const qRecord = v ? qMap.get(v.questionId) : undefined;
-            const catName = qRecord?.categoryName || (qRecord ? catMap.get(qRecord.categoryId) : '') || 'General';
             const topName = qRecord?.topicName || (qRecord ? topicMap.get(qRecord.topicId) : '') || 'General';
             results.push({
               id: t.id,
               type: 'THUMBNAIL',
               title: safeTruncate(t.conceptTitle || t.prompt || `Thumbnail for ${t.videoId}`, 60, `Thumbnail ${t.id}`),
               subtitle: `Thumbnail • ${t.status || 'PENDING'} • Video: ${t.videoId}`,
-              category: catName,
               topic: topName,
               status: t.status || 'PENDING',
               url: `/production/${encodeURIComponent(t.videoId)}?tab=thumbnail`,
@@ -1024,14 +991,12 @@ export class DashboardService {
               const t = matchingThumbnails[i];
               const v = vMap.get(t.videoId);
               const qRecord = v ? qMap.get(v.questionId) : undefined;
-              const catName = qRecord?.categoryName || (qRecord ? catMap.get(qRecord.categoryId) : '') || 'General';
               const topName = qRecord?.topicName || (qRecord ? topicMap.get(qRecord.topicId) : '') || 'General';
               results.push({
                 id: t.id,
                 type: 'THUMBNAIL',
                 title: safeTruncate(t.conceptTitle || t.prompt || `Thumbnail for ${t.videoId}`, 60, `Thumbnail ${t.id}`),
                 subtitle: `Thumbnail • ${t.status || 'PENDING'} • Video: ${t.videoId}`,
-                category: catName,
                 topic: topName,
                 status: t.status || 'PENDING',
                 url: `/production/${encodeURIComponent(t.videoId)}?tab=thumbnail`,
@@ -1057,14 +1022,12 @@ export class DashboardService {
           for (const p of matchingComments) {
             const v = vMap.get(p.videoId);
             const qRecord = v ? qMap.get(v.questionId) : undefined;
-            const catName = qRecord?.categoryName || (qRecord ? catMap.get(qRecord.categoryId) : '') || 'General';
             const topName = qRecord?.topicName || (qRecord ? topicMap.get(qRecord.topicId) : '') || 'General';
             results.push({
               id: p.id,
               type: 'PINNED_COMMENT',
               title: safeTruncate(p.commentText || `Pinned comment for ${p.videoId}`, 60, `Comment ${p.id}`),
               subtitle: `Pinned Comment • ${p.status || 'DRAFT'} • Video: ${p.videoId}`,
-              category: catName,
               topic: topName,
               status: p.status || 'DRAFT',
               url: `/production/${encodeURIComponent(p.videoId)}?tab=pinned-comment`,
@@ -1080,14 +1043,12 @@ export class DashboardService {
               const p = matchingComments[i];
               const v = vMap.get(p.videoId);
               const qRecord = v ? qMap.get(v.questionId) : undefined;
-              const catName = qRecord?.categoryName || (qRecord ? catMap.get(qRecord.categoryId) : '') || 'General';
               const topName = qRecord?.topicName || (qRecord ? topicMap.get(qRecord.topicId) : '') || 'General';
               results.push({
                 id: p.id,
                 type: 'PINNED_COMMENT',
                 title: safeTruncate(p.commentText || `Pinned comment for ${p.videoId}`, 60, `Comment ${p.id}`),
                 subtitle: `Pinned Comment • ${p.status || 'DRAFT'} • Video: ${p.videoId}`,
-                category: catName,
                 topic: topName,
                 status: p.status || 'DRAFT',
                 url: `/production/${encodeURIComponent(p.videoId)}?tab=pinned-comment`,
@@ -1123,7 +1084,6 @@ export class DashboardService {
           type: 'ASSIGNMENT',
           title: safeTruncate(`Assignment: ${a.assigneeName || 'Unassigned'} (${a.role})`, 60, `Assignment ${a.id}`),
           subtitle: `Assignment • ${a.status} • Entity: ${entityId}`,
-          category: 'Team Operations',
           topic: a.role || 'General',
           status: a.status,
           url,
@@ -1160,7 +1120,6 @@ export class DashboardService {
         if (isManagerOrAdmin) {
           for (const sr of matchingReviews) {
             const qRecord = sr.questionId ? qMap.get(sr.questionId) : undefined;
-            const catName = qRecord?.categoryName || (qRecord ? catMap.get(qRecord.categoryId) : '') || 'Quality Assurance';
             const topName = qRecord?.topicName || (qRecord ? topicMap.get(qRecord.topicId) : '') || 'Social Review';
             results.push({
               id: sr.id,
@@ -1171,7 +1130,6 @@ export class DashboardService {
                 `Review ${sr.id}`
               ),
               subtitle: `Social Review • ${sr.decision || 'PENDING'} • Question: ${sr.questionId}${sr.reviewerName ? ` • Reviewer: ${sr.reviewerName}` : ''}`,
-              category: catName,
               topic: topName,
               status: sr.decision || 'PENDING',
               url: sr.questionId ? `/questions/${encodeURIComponent(sr.questionId)}` : `/questions`,
@@ -1196,7 +1154,6 @@ export class DashboardService {
             if (authDecisions[i]) {
               const sr = matchingReviews[i];
               const qRecord = sr.questionId ? qMap.get(sr.questionId) : undefined;
-              const catName = qRecord?.categoryName || (qRecord ? catMap.get(qRecord.categoryId) : '') || 'Quality Assurance';
               const topName = qRecord?.topicName || (qRecord ? topicMap.get(qRecord.topicId) : '') || 'Social Review';
               results.push({
                 id: sr.id,
@@ -1207,7 +1164,6 @@ export class DashboardService {
                   `Review ${sr.id}`
                 ),
                 subtitle: `Social Review • ${sr.decision || 'PENDING'} • Question: ${sr.questionId}${sr.reviewerName ? ` • Reviewer: ${sr.reviewerName}` : ''}`,
-                category: catName,
                 topic: topName,
                 status: sr.decision || 'PENDING',
                 url: sr.questionId ? `/questions/${encodeURIComponent(sr.questionId)}` : `/questions`,
@@ -1242,7 +1198,6 @@ export class DashboardService {
         if (isManagerOrAdmin) {
           for (const p of matchingPublishing) {
             const qRecord = p.questionId ? qMap.get(p.questionId) : undefined;
-            const catName = qRecord?.categoryName || (qRecord ? catMap.get(qRecord.categoryId) : '') || 'Publishing';
             const topName = qRecord?.topicName || (qRecord ? topicMap.get(qRecord.topicId) : '') || 'Distribution';
             results.push({
               id: p.id,
@@ -1253,7 +1208,6 @@ export class DashboardService {
                 `Publishing ${p.id}`
               ),
               subtitle: `Publishing • ${p.finalVideoStatus || 'READY'} • Video: ${p.videoId}`,
-              category: catName,
               topic: topName,
               status: p.finalVideoStatus || 'READY',
               url: p.videoId ? `/publishing?videoId=${encodeURIComponent(p.videoId)}` : `/publishing`,
@@ -1268,7 +1222,6 @@ export class DashboardService {
             if (authDecisions[i]) {
               const p = matchingPublishing[i];
               const qRecord = p.questionId ? qMap.get(p.questionId) : undefined;
-              const catName = qRecord?.categoryName || (qRecord ? catMap.get(qRecord.categoryId) : '') || 'Publishing';
               const topName = qRecord?.topicName || (qRecord ? topicMap.get(qRecord.topicId) : '') || 'Distribution';
               results.push({
                 id: p.id,
@@ -1279,7 +1232,6 @@ export class DashboardService {
                   `Publishing ${p.id}`
                 ),
                 subtitle: `Publishing • ${p.finalVideoStatus || 'READY'} • Video: ${p.videoId}`,
-                category: catName,
                 topic: topName,
                 status: p.finalVideoStatus || 'READY',
                 url: p.videoId ? `/publishing?videoId=${encodeURIComponent(p.videoId)}` : `/publishing`,
@@ -1379,7 +1331,6 @@ export class DashboardService {
   private applyQuestionFilters(questions: Question[], filters?: DashboardFilterOptions): Question[] {
     if (!filters) return questions;
     return questions.filter((q) => {
-      if (filters.categoryId && q.categoryId !== filters.categoryId) return false;
       if (filters.topicId && q.topicId !== filters.topicId) return false;
       if (filters.difficulty && q.difficulty !== filters.difficulty) return false;
       if (filters.questionStatus && q.status !== filters.questionStatus) return false;
@@ -1402,7 +1353,6 @@ export class DashboardService {
     if (!filters) return videos;
     return videos.filter((v) => {
       const q = questionsMap?.get(v.questionId);
-      if (filters.categoryId && q && q.categoryId !== filters.categoryId) return false;
       if (filters.topicId && q && q.topicId !== filters.topicId) return false;
       if (filters.difficulty && q && q.difficulty !== filters.difficulty) return false;
       if (filters.videoStatus && v.status !== filters.videoStatus) return false;

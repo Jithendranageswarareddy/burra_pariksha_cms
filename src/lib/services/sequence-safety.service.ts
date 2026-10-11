@@ -11,7 +11,6 @@
 
 import { sequencesRepository } from '../repositories/sequences.repository';
 import {
-  categoriesRepository,
   contentMastersRepository,
   pinnedCommentsRepository,
   questionsRepository,
@@ -121,11 +120,6 @@ export class SequenceSafetyService {
         case SEQUENCE_ENTITIES.PINNED_COMMENT: {
           const items = await pinnedCommentsRepository.findAll();
           ids = items.map((p) => p.id);
-          break;
-        }
-        case SEQUENCE_ENTITIES.CATEGORY: {
-          const items = await categoriesRepository.findAll();
-          ids = items.map((c) => c.id);
           break;
         }
         case SEQUENCE_ENTITIES.TOPIC: {

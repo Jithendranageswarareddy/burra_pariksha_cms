@@ -1,60 +1,16 @@
 /**
  * BURRA PARIKSHA CMS — Production Taxonomy Seed Data
  *
- * Authoritative taxonomy definitions for aptitude categories, topics, and subtopics.
- * Seeded into Google Sheets during production database initialization.
+ * Authoritative taxonomy definitions for topics and subtopics (2-tier: TOPIC -> SUBTOPIC).
+ * Seeded into Firestore during production database initialization.
  */
 
-import { Category, Subtopic, Topic } from '../../types';
-
-export const PRODUCTION_CATEGORIES: Category[] = [
-  {
-    id: 'CAT-QA',
-    name: 'Quantitative Aptitude',
-    slug: 'quantitative-aptitude',
-    description: 'Arithmetic, Algebra, Geometry, Numbers & Calculation Puzzles',
-    colorCode: '#2563eb',
-    topicsCount: 14,
-    questionsCount: 42,
-    createdAt: '2026-01-10T10:00:00Z',
-  },
-  {
-    id: 'CAT-LR',
-    name: 'Logical Reasoning',
-    slug: 'logical-reasoning',
-    description: 'Puzzles, Coding-Decoding, Syllogisms, Direction & Blood Relations',
-    colorCode: '#7c3aed',
-    topicsCount: 12,
-    questionsCount: 35,
-    createdAt: '2026-01-10T10:00:00Z',
-  },
-  {
-    id: 'CAT-DI',
-    name: 'Data Interpretation',
-    slug: 'data-interpretation',
-    description: 'Charts, Tables, Pie Diagrams, Caselets & Trend Analytics',
-    colorCode: '#0891b2',
-    topicsCount: 8,
-    questionsCount: 19,
-    createdAt: '2026-01-15T10:00:00Z',
-  },
-  {
-    id: 'CAT-VA',
-    name: 'Verbal Ability',
-    slug: 'verbal-ability',
-    description: 'Vocabulary, Critical Reasoning, Sentence Correction & Reading Comprehension',
-    colorCode: '#d97706',
-    topicsCount: 10,
-    questionsCount: 24,
-    createdAt: '2026-01-20T10:00:00Z',
-  },
-];
+import { Subtopic, Topic } from '../../types';
 
 export const PRODUCTION_TOPICS: Topic[] = [
   // QA Topics
   {
     id: 'TOP-QA-01',
-    categoryId: 'CAT-QA',
     name: 'Time, Speed & Distance',
     slug: 'time-speed-distance',
     description: 'Relative speed, trains, races, and average speed problems',
@@ -63,7 +19,6 @@ export const PRODUCTION_TOPICS: Topic[] = [
   },
   {
     id: 'TOP-QA-02',
-    categoryId: 'CAT-QA',
     name: 'Time & Work',
     slug: 'time-and-work',
     description: 'Work efficiency, pipes & cisterns, wages, and work equivalence',
@@ -72,7 +27,6 @@ export const PRODUCTION_TOPICS: Topic[] = [
   },
   {
     id: 'TOP-QA-03',
-    categoryId: 'CAT-QA',
     name: 'Profit, Loss & Discount',
     slug: 'profit-loss-discount',
     description: 'Marked price, successive discounts, false weights, and cheating dealer tricks',
@@ -81,7 +35,6 @@ export const PRODUCTION_TOPICS: Topic[] = [
   },
   {
     id: 'TOP-QA-04',
-    categoryId: 'CAT-QA',
     name: 'Percentages & Ratios',
     slug: 'percentages-ratios',
     description: 'Percentage change, mixtures, proportions, and partnership shares',
@@ -91,7 +44,6 @@ export const PRODUCTION_TOPICS: Topic[] = [
   // LR Topics
   {
     id: 'TOP-LR-01',
-    categoryId: 'CAT-LR',
     name: 'Clocks & Calendars',
     slug: 'clocks-calendars',
     description: 'Angle between hands, faulty clocks, leap years, and odd days',
@@ -100,7 +52,6 @@ export const PRODUCTION_TOPICS: Topic[] = [
   },
   {
     id: 'TOP-LR-02',
-    categoryId: 'CAT-LR',
     name: 'Coding & Decoding',
     slug: 'coding-decoding',
     description: 'Letter shifting, number substitution, matrix codes, and conditional rules',
@@ -109,7 +60,6 @@ export const PRODUCTION_TOPICS: Topic[] = [
   },
   {
     id: 'TOP-LR-03',
-    categoryId: 'CAT-LR',
     name: 'Direction & Blood Relations',
     slug: 'direction-blood-relations',
     description: 'Shadow problems, complex family trees, and compass shifts',

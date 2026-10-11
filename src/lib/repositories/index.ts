@@ -5,7 +5,6 @@
 
 export * from './base.repository';
 
-export * from './categories.repository';
 export * from './topics.repository';
 export * from './subtopics.repository';
 export * from './questions.repository';

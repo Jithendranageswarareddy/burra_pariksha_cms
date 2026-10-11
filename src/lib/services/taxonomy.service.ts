@@ -1,14 +1,14 @@
 /**
  * BURRA PARIKSHA CMS - Taxonomy Service
- * Phase 3: Taxonomy Engine & Architecture
+ * Phase 3 / Sprint 5: Pure 2-Tier Taxonomy Engine (TOPIC -> SUBTOPIC)
  * 
- * Manages Topics and Subtopics as the primary operational taxonomy,
- * maintains legacy Category compatibility, enforces strict relational integrity,
- * provides bulk import dry-run capabilities, and caches lookups for high performance.
+ * Manages Topics and Subtopics as the authoritative operational taxonomy,
+ * enforces strict relational integrity, provides bulk import dry-run capabilities,
+ * and caches lookups for high performance.
  */
 
-import { categoriesRepository, topicsRepository, subtopicsRepository } from '../repositories';
-import { Category, Subtopic, Topic } from '../../types';
+import { topicsRepository, subtopicsRepository } from '../repositories';
+import { Subtopic, Topic } from '../../types';
 import { ReferenceIntegrityError, ValidationError } from '../errors';
 import { idService } from './id.service';
 import { auditService } from './audit.service';
@@ -25,23 +25,8 @@ import {
   UpdateSubtopicInput,
 } from '../schemas/google-sheets-schema';
 
-export interface CreateCategoryInput {
-  name: string;
-  slug?: string;
-  description?: string;
-  colorCode?: string;
-}
-
-export interface TaxonomyTreeItem {
-  id: string;
-  name: string;
-  slug: string;
-  description?: string;
-  colorCode?: string;
-  topicsCount?: number;
-  questionsCount?: number;
-  createdAt: string;
-  topics: Array<Topic & { subtopics: Subtopic[] }>;
+export interface TaxonomyTreeItem extends Topic {
+  subtopics: Subtopic[];
 }
 
 export interface PureTaxonomyTopic extends Topic {
@@ -78,7 +63,7 @@ export interface BulkImportDryRunReport {
     duplicateCount: number;
   };
   plan: {
-    topicsToCreate: Array<{ name: string; slug: string; categoryId?: string; description?: string; displayOrder?: number }>;
+    topicsToCreate: Array<{ name: string; slug: string; description?: string; displayOrder?: number }>;
     subtopicsToCreate: Array<{ topicName: string; name: string; slug: string; description?: string; notes?: string; displayOrder?: number }>;
   };
   errors: Array<{ index: number; type: string; message: string }>;
@@ -87,10 +72,9 @@ export interface BulkImportDryRunReport {
 export class TaxonomyService {
   private static instance: TaxonomyService | null = null;
 
-  // In-memory cache to prevent N+1 sheet reads
+  // In-memory cache to prevent N+1 sheet/db reads
   private topicsCache: Topic[] | null = null;
   private subtopicsCache: Subtopic[] | null = null;
-  private categoriesCache: Category[] | null = null;
   private cacheTimestamp: number = 0;
   private readonly CACHE_TTL_MS = 60000; // 1 minute TTL
 
@@ -106,7 +90,6 @@ export class TaxonomyService {
   public invalidateCache(): void {
     this.topicsCache = null;
     this.subtopicsCache = null;
-    this.categoriesCache = null;
     this.cacheTimestamp = 0;
   }
 
@@ -114,7 +97,6 @@ export class TaxonomyService {
     return (
       this.topicsCache !== null &&
       this.subtopicsCache !== null &&
-      this.categoriesCache !== null &&
       Date.now() - this.cacheTimestamp < this.CACHE_TTL_MS
     );
   }
@@ -128,69 +110,10 @@ export class TaxonomyService {
   }
 
   // ----------------------------------------------------
-  // Category Methods (Legacy & Grouping Compatibility)
-  // ----------------------------------------------------
-
-  public async getCategories(): Promise<Category[]> {
-    if (this.isCacheValid() && this.categoriesCache) {
-      return this.categoriesCache;
-    }
-    const categories = await categoriesRepository.findAll();
-    this.categoriesCache = categories;
-    return categories;
-  }
-
-  public async getCategoryById(id: string): Promise<Category | null> {
-    const categories = await this.getCategories();
-    const found = categories.find((c) => c.id === id);
-    if (found) return found;
-    return null;
-  }
-
-  public async createCategory(
-    input: CreateCategoryInput,
-    actor?: { id: string; name: string }
-  ): Promise<Category> {
-    if (!input.name || input.name.trim().length === 0) {
-      throw new ValidationError('Category name is required and cannot be empty.');
-    }
-
-    const id = await idService.allocateCategoryId();
-    const slug = input.slug?.trim() || this.slugify(input.name);
-    const now = new Date().toISOString();
-
-    const category: Category = {
-      id,
-      name: input.name.trim(),
-      slug,
-      description: input.description?.trim() || '',
-      colorCode: input.colorCode?.trim() || '#3B82F6',
-      createdAt: now,
-    };
-
-    const saved = await categoriesRepository.appendRecord(category);
-    this.invalidateCache();
-
-    if (actor) {
-      await auditService.log(
-        actor.id,
-        actor.name,
-        'TAXONOMY_CATEGORY_CREATED',
-        'CATEGORY',
-        saved.id,
-        { name: saved.name, slug: saved.slug }
-      );
-    }
-
-    return saved;
-  }
-
-  // ----------------------------------------------------
-  // Topic Methods (Primary Operational Taxonomy Level)
+  // Topic Methods (Top-Level Operational Taxonomy)
   // ----------------------------------------------------
 
   public async getTopics(
-    categoryId?: string,
     options: { includeInactive?: boolean } = {}
   ): Promise<Topic[]> {
     let topics: Topic[];
@@ -202,10 +125,6 @@ export class TaxonomyService {
     }
 
     let filtered = topics;
-
-    if (categoryId) {
-      filtered = filtered.filter((t) => t.categoryId === categoryId);
-    }
 
     if (!options.includeInactive) {
       filtered = filtered.filter((t) => t.isActive !== false);
@@ -221,7 +140,7 @@ export class TaxonomyService {
   }
 
   public async getTopicById(id: string): Promise<Topic | null> {
-    const all = await this.getTopics(undefined, { includeInactive: true });
+    const all = await this.getTopics({ includeInactive: true });
     return all.find((t) => t.id === id) || null;
   }
 
@@ -234,7 +153,7 @@ export class TaxonomyService {
     const slug = validated.slug?.trim() || this.slugify(cleanName);
 
     // Duplicate Prevention - Check Topic name uniqueness (case-insensitive)
-    const allTopics = await this.getTopics(undefined, { includeInactive: true });
+    const allTopics = await this.getTopics({ includeInactive: true });
     const duplicateName = allTopics.find(
       (t) => (t.name || '').trim().toLowerCase() === cleanName.toLowerCase()
     );
@@ -250,22 +169,11 @@ export class TaxonomyService {
       throw new ValidationError(`A Topic with the slug "${slug}" already exists (ID: ${duplicateSlug.id}).`);
     }
 
-    // Parent Category Check (optional)
-    if (validated.categoryId) {
-      const category = await this.getCategoryById(validated.categoryId);
-      if (!category) {
-        throw new ReferenceIntegrityError(
-          `Referenced Category with ID "${validated.categoryId}" does not exist in the CATEGORIES sheet.`
-        );
-      }
-    }
-
     const id = await idService.allocateTopicId();
     const now = new Date().toISOString();
 
     const topic: Topic = {
       id,
-      categoryId: validated.categoryId || undefined,
       name: cleanName,
       slug,
       description: validated.description?.trim() || '',
@@ -285,7 +193,7 @@ export class TaxonomyService {
         'TAXONOMY_TOPIC_CREATED',
         'TOPIC',
         saved.id,
-        { name: saved.name, categoryId: saved.categoryId, slug: saved.slug }
+        { name: saved.name, slug: saved.slug }
       );
     }
 
@@ -303,7 +211,7 @@ export class TaxonomyService {
       throw new ReferenceIntegrityError(`Topic with ID "${id}" does not exist.`);
     }
 
-    const allTopics = await this.getTopics(undefined, { includeInactive: true });
+    const allTopics = await this.getTopics({ includeInactive: true });
 
     // Validate name uniqueness if changed
     if (validated.name && validated.name.trim().toLowerCase() !== existing.name.toLowerCase()) {
@@ -327,22 +235,11 @@ export class TaxonomyService {
       }
     }
 
-    // Parent category check if changed
-    if (validated.categoryId && validated.categoryId !== existing.categoryId) {
-      const category = await this.getCategoryById(validated.categoryId);
-      if (!category) {
-        throw new ReferenceIntegrityError(
-          `Referenced Category with ID "${validated.categoryId}" does not exist.`
-        );
-      }
-    }
-
     const now = new Date().toISOString();
     const updated: Topic = {
       ...existing,
       name: validated.name !== undefined ? validated.name.trim() : existing.name,
       slug: validated.slug !== undefined ? validated.slug.trim() : (validated.name ? this.slugify(validated.name) : existing.slug),
-      categoryId: validated.categoryId !== undefined ? validated.categoryId : existing.categoryId,
       description: validated.description !== undefined ? validated.description.trim() : existing.description,
       displayOrder: validated.displayOrder !== undefined ? validated.displayOrder : existing.displayOrder,
       isActive: validated.isActive !== undefined ? validated.isActive : existing.isActive,
@@ -503,7 +400,7 @@ export class TaxonomyService {
     const parentTopic = await this.getTopicById(validated.topicId);
     if (!parentTopic) {
       throw new ReferenceIntegrityError(
-        `Referenced Topic with ID "${validated.topicId}" does not exist in the TOPICS sheet.`
+        `Referenced Topic with ID "${validated.topicId}" does not exist in the TOPICS collection.`
       );
     }
 
@@ -645,23 +542,11 @@ export class TaxonomyService {
   }
 
   // ----------------------------------------------------
-  // Search & Tree Methods
+  // Search & Tree Methods (2-Tier: Topic -> Subtopic)
   // ----------------------------------------------------
 
-  public async searchCategories(query: string): Promise<Category[]> {
-    const all = await this.getCategories();
-    if (!query || !query.trim()) return all;
-    const q = query.toLowerCase().trim();
-    return all.filter(
-      (c) =>
-        c.name.toLowerCase().includes(q) ||
-        Boolean(c.slug && c.slug.toLowerCase().includes(q)) ||
-        (c.description && c.description.toLowerCase().includes(q))
-    );
-  }
-
-  public async searchTopics(query: string, categoryId?: string): Promise<Topic[]> {
-    const all = await this.getTopics(categoryId, { includeInactive: true });
+  public async searchTopics(query: string): Promise<Topic[]> {
+    const all = await this.getTopics({ includeInactive: true });
     if (!query || !query.trim()) return all;
     const q = query.toLowerCase().trim();
     return all.filter(
@@ -685,57 +570,12 @@ export class TaxonomyService {
     );
   }
 
-  public async getTaxonomyTree(options: { includeInactive?: boolean } = {}): Promise<TaxonomyTreeItem[]> {
-    const [categories, topics, subtopics] = await Promise.all([
-      this.getCategories(),
-      this.getTopics(undefined, options),
-      this.getSubtopics(undefined, options),
-    ]);
-
-    const result: TaxonomyTreeItem[] = categories.map((cat) => {
-      const catTopics = topics.filter((t) => t.categoryId === cat.id);
-      const enrichedTopics = catTopics.map((top) => {
-        const topSubtopics = subtopics.filter((s) => s.topicId === top.id);
-        return {
-          ...top,
-          subtopics: topSubtopics,
-        };
-      });
-
-      return {
-        ...cat,
-        topics: enrichedTopics,
-      };
-    });
-
-    // Also include unassigned/standalone topics under a virtual container if present
-    const standaloneTopics = topics.filter((t) => !t.categoryId);
-    if (standaloneTopics.length > 0) {
-      const enrichedStandalone = standaloneTopics.map((top) => ({
-        ...top,
-        subtopics: subtopics.filter((s) => s.topicId === top.id),
-      }));
-      result.push({
-        id: 'CAT-GENERAL',
-        name: 'General / Uncategorized Topics',
-        slug: 'general-topics',
-        description: 'Standalone topics without assigned parent category',
-        colorCode: '#6B7280',
-        createdAt: new Date().toISOString(),
-        topics: enrichedStandalone,
-      });
-    }
-
-    return result;
-  }
-
   /**
-   * Pure Topic -> Subtopic 2-tier tree (No Category layer).
-   * Fully compliant with Phase 04 Pure Taxonomy architecture.
+   * Pure Topic -> Subtopic 2-tier tree.
    */
   public async getPureTopicTree(options: { includeInactive?: boolean } = {}): Promise<PureTaxonomyTopic[]> {
     const [topics, subtopics] = await Promise.all([
-      this.getTopics(undefined, options),
+      this.getTopics(options),
       this.getSubtopics(undefined, options),
     ]);
 
@@ -746,12 +586,18 @@ export class TaxonomyService {
   }
 
   /**
+   * Canonical taxonomy tree (2-tier Topic -> Subtopic).
+   */
+  public async getTaxonomyTree(options: { includeInactive?: boolean } = {}): Promise<TaxonomyTreeItem[]> {
+    return this.getPureTopicTree(options);
+  }
+
+  /**
    * Authoritative taxonomy metrics and data gap diagnostics.
-   * Reports exact topic counts, subtopic counts per topic, and identifies missing authoritative items.
    */
   public async getTaxonomyMetrics(): Promise<TaxonomyMetrics> {
     const [allTopics, allSubtopics] = await Promise.all([
-      this.getTopics(undefined, { includeInactive: true }),
+      this.getTopics({ includeInactive: true }),
       this.getSubtopics(undefined, { includeInactive: true }),
     ]);
 
@@ -788,8 +634,8 @@ export class TaxonomyService {
     const hasDataGap = totalTopics < targetTopics || totalSubtopics < targetTotalSubtopics;
 
     const dataGapMessage = hasDataGap
-      ? `Authoritative data gap: ${totalTopics}/${targetTopics} Topics present. ${totalSubtopics}/${targetTotalSubtopics} Subtopics present (${missingSubtopics} Subtopics missing across ${incompleteTopicIds.length} Topics). Per Phase 04 Rule 3 & 6, missing subtopics must not be synthetically manufactured.`
-      : 'Authoritative taxonomy is 100% complete (100 Topics x 100 Subtopics = 10,000 total).';
+      ? `Authoritative data gap: ${totalTopics}/${targetTopics} Topics present. ${totalSubtopics}/${targetTotalSubtopics} Subtopics present (${missingSubtopics} Subtopics missing across ${incompleteTopicIds.length} Topics).`
+      : 'Authoritative taxonomy is 100% complete.';
 
     return {
       totalTopics,
@@ -816,15 +662,12 @@ export class TaxonomyService {
 
   /**
    * Validates Question Taxonomy Alignment:
-   * Verifies that the referenced Subtopic exists and belongs to the specified Topic.
-   * Prevents inconsistent combinations where Question.topicId = TOP-A and Question.subtopicId = SUB-B
-   * where SUB-B belongs to TOP-B.
+   * Verifies that the referenced Subtopic exists and belongs directly to the specified Topic.
    */
   public async validateQuestionTaxonomy(
     topicId: string,
-    subtopicId: string,
-    categoryId?: string
-  ): Promise<{ topic: Topic; subtopic: Subtopic; category?: Category }> {
+    subtopicId: string
+  ): Promise<{ topic: Topic; subtopic: Subtopic }> {
     if (!topicId) {
       throw new ValidationError('Topic ID is required.');
     }
@@ -838,54 +681,37 @@ export class TaxonomyService {
     ]);
 
     if (!topic) {
-      throw new ReferenceIntegrityError(`Referenced Topic with ID "${topicId}" does not exist in the TOPICS sheet.`);
+      throw new ReferenceIntegrityError(`Referenced Topic with ID "${topicId}" does not exist in the TOPICS collection.`);
     }
     if (topic.isActive === false) {
       throw new ValidationError(`Referenced Topic "${topic.name}" (${topic.id}) is inactive and cannot be used.`);
     }
 
     if (!subtopic) {
-      throw new ReferenceIntegrityError(`Referenced Subtopic with ID "${subtopicId}" does not exist in the SUBTOPICS sheet.`);
+      throw new ReferenceIntegrityError(`Referenced Subtopic with ID "${subtopicId}" does not exist in the SUBTOPICS collection.`);
     }
     if (subtopic.isActive === false) {
       throw new ValidationError(`Referenced Subtopic "${subtopic.name}" (${subtopic.id}) is inactive and cannot be used.`);
     }
 
-    // STRICT INTEGRITY CHECK: Subtopic MUST belong to the specified Topic
+    // STRICT INTEGRITY CHECK: Subtopic MUST belong directly to the specified Topic
     if (subtopic.topicId !== topicId) {
       throw new ReferenceIntegrityError(
         `Taxonomy integrity violation: Subtopic "${subtopic.name}" (${subtopic.id}) belongs to Topic "${subtopic.topicId}", not "${topic.name}" (${topicId}).`
       );
     }
 
-    let category: Category | undefined = undefined;
-    if (categoryId) {
-      category = (await this.getCategoryById(categoryId)) || undefined;
-      if (!category) {
-        throw new ReferenceIntegrityError(`Referenced Category with ID "${categoryId}" does not exist.`);
-      }
-      if (topic.categoryId && topic.categoryId !== categoryId) {
-        throw new ReferenceIntegrityError(
-          `Taxonomy integrity violation: Topic "${topic.name}" (${topic.id}) belongs to Category "${topic.categoryId}", not "${categoryId}".`
-        );
-      }
-    } else if (topic.categoryId) {
-      category = (await this.getCategoryById(topic.categoryId)) || undefined;
-    }
-
-    return { topic, subtopic, category };
+    return { topic, subtopic };
   }
 
   /**
-   * Legacy wrapper for 3-level validation (Category -> Topic -> Subtopic)
+   * Alias for 2-tier validation (Topic -> Subtopic)
    */
   public async validateTaxonomy(
-    categoryId: string | undefined,
     topicId: string,
     subtopicId: string
-  ): Promise<{ category?: Category; topic: Topic; subtopic: Subtopic }> {
-    const result = await this.validateQuestionTaxonomy(topicId, subtopicId, categoryId);
-    return { category: result.category, topic: result.topic, subtopic: result.subtopic };
+  ): Promise<{ topic: Topic; subtopic: Subtopic }> {
+    return this.validateQuestionTaxonomy(topicId, subtopicId);
   }
 
   // ----------------------------------------------------
@@ -894,11 +720,11 @@ export class TaxonomyService {
 
   public async bulkImportDryRun(input: BulkImportTaxonomyInput): Promise<BulkImportDryRunReport> {
     const validated = BulkImportTaxonomyInputSchema.parse(input);
-    const existingTopics = await this.getTopics(undefined, { includeInactive: true });
+    const existingTopics = await this.getTopics({ includeInactive: true });
     const existingSubtopics = await this.getSubtopics(undefined, { includeInactive: true });
 
     const errors: Array<{ index: number; type: string; message: string }> = [];
-    const topicsToCreate: Array<{ name: string; slug: string; categoryId?: string; description?: string; displayOrder?: number }> = [];
+    const topicsToCreate: Array<{ name: string; slug: string; description?: string; displayOrder?: number }> = [];
     const subtopicsToCreate: Array<{ topicName: string; name: string; slug: string; description?: string; notes?: string; displayOrder?: number }> = [];
 
     const seenTopicNamesInBatch = new Set<string>();
@@ -936,7 +762,6 @@ export class TaxonomyService {
         topicsToCreate.push({
           name: tCleanName,
           slug: tSlug,
-          categoryId: tInput.categoryId,
           description: tInput.description,
           displayOrder: tInput.displayOrder,
         });
@@ -1018,7 +843,7 @@ export class TaxonomyService {
     }
 
     const topicNameToIdMap = new Map<string, string>();
-    const existingTopics = await this.getTopics(undefined, { includeInactive: true });
+    const existingTopics = await this.getTopics({ includeInactive: true });
     existingTopics.forEach((t) => topicNameToIdMap.set(t.name.trim().toLowerCase(), t.id));
 
     let createdTopicsCount = 0;
@@ -1030,7 +855,6 @@ export class TaxonomyService {
         {
           name: tPlan.name,
           slug: tPlan.slug,
-          categoryId: tPlan.categoryId,
           description: tPlan.description,
           displayOrder: tPlan.displayOrder,
         },

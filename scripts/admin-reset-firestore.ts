@@ -146,7 +146,6 @@ export async function runAdminReset(reseedBaseline = true): Promise<void> {
 
       console.log('✓ Seeding complete:');
       console.log(`  Users seeded: ${initReport.usersSeeded}`);
-      console.log(`  Categories seeded: ${initReport.categoriesSeeded}`);
       console.log(`  Topics seeded: ${initReport.topicsSeeded}`);
       console.log(`  Subtopics seeded: ${initReport.subtopicsSeeded}`);
       console.log(`  Question configs seeded: ${initReport.questionConfigsSeeded}`);

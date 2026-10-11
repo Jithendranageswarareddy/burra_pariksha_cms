@@ -221,13 +221,12 @@ export class GranularQuestionRestoreService {
       };
     }
 
-    // 5. Taxonomy Validation (Category -> Topic -> Subtopic)
-    const categoryId = snapshotRow.categoryId || '';
+    // 5. Taxonomy Validation (Topic -> Subtopic)
     const topicId = snapshotRow.topicId || '';
     const subtopicId = snapshotRow.subtopicId || '';
 
     try {
-      await taxonomyService.validateTaxonomy(categoryId, topicId, subtopicId);
+      await taxonomyService.validateTaxonomy(topicId, subtopicId);
     } catch (err: any) {
       return {
         success: false,
@@ -254,8 +253,6 @@ export class GranularQuestionRestoreService {
     const now = new Date().toISOString();
     const restoredQuestion: Question = {
       id: questionId,
-      categoryId,
-      categoryName: snapshotRow.categoryName || '',
       topicId,
       topicName: snapshotRow.topicName || '',
       subtopicId,
@@ -383,7 +380,6 @@ export class GranularQuestionRestoreService {
             questionId,
             operation,
             snapshotChecksum: snapshot.checksum,
-            categoryId,
             topicId,
             subtopicId,
           }

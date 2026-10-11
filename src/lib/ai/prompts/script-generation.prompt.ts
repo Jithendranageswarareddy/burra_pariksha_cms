@@ -46,7 +46,6 @@ export function buildTeluguScriptPrompt(question: Question | QuestionCandidate |
   correctAnswer?: string;
   correct_answer?: string;
   explanation?: string;
-  categoryName?: string;
   topicName?: string;
   realWorldContext?: string;
   real_world_context?: string;

@@ -19,7 +19,6 @@ import {
 import {
   Assignment,
   AuditLog,
-  Category,
   MyWorkSummary,
   Publishing,
   Question,
@@ -263,16 +262,10 @@ class ApiClient {
     return this.request(`/taxonomy/pure-tree?includeInactive=${includeInactive}`);
   }
 
-  public async getCategories(): Promise<Category[]> {
-    return this.request('/categories');
-  }
-
   public async getTopics(
-    categoryId?: string,
     options?: { search?: string; includeInactive?: boolean }
   ): Promise<Topic[]> {
     const params = new URLSearchParams();
-    if (categoryId) params.set('categoryId', categoryId);
     if (options?.search) params.set('search', options.search);
     if (options?.includeInactive) params.set('includeInactive', 'true');
     const qs = params.toString();
@@ -357,7 +350,6 @@ class ApiClient {
     const params = new URLSearchParams();
     if (filter) {
       if (filter.search) params.set('search', filter.search);
-      if (filter.categoryId) params.set('categoryId', filter.categoryId);
       if (filter.topicId) params.set('topicId', filter.topicId);
       if (filter.subtopicId) params.set('subtopicId', filter.subtopicId);
       if (filter.difficulty) params.set('difficulty', filter.difficulty);
@@ -503,7 +495,6 @@ class ApiClient {
     status?: string;
     priority?: string;
     search?: string;
-    categoryId?: string;
     topicId?: string;
     difficulty?: string;
     assignedHost?: string;
@@ -514,7 +505,6 @@ class ApiClient {
       if (filter.status) params.set('status', filter.status);
       if (filter.priority) params.set('priority', filter.priority);
       if (filter.search) params.set('search', filter.search);
-      if (filter.categoryId) params.set('categoryId', filter.categoryId);
       if (filter.topicId) params.set('topicId', filter.topicId);
       if (filter.difficulty) params.set('difficulty', filter.difficulty);
       if (filter.assignedHost) params.set('assignedHost', filter.assignedHost);
@@ -971,7 +961,6 @@ class ApiClient {
   // Phase 7: Operations Dashboard & Global Search
   public async getDashboardOverview(
     filter?: {
-      categoryId?: string;
       topicId?: string;
       difficulty?: string;
       priority?: string;
@@ -983,7 +972,6 @@ class ApiClient {
   ): Promise<import('../types').DashboardOverviewData> {
     const params = new URLSearchParams();
     if (filter) {
-      if (filter.categoryId) params.set('categoryId', filter.categoryId);
       if (filter.topicId) params.set('topicId', filter.topicId);
       if (filter.difficulty) params.set('difficulty', filter.difficulty);
       if (filter.priority) params.set('priority', filter.priority);
@@ -1001,7 +989,6 @@ class ApiClient {
   public async getDashboardMetrics(filter?: any): Promise<import('../types').DashboardMetrics> {
     const params = new URLSearchParams();
     if (filter) {
-      if (filter.categoryId) params.set('categoryId', filter.categoryId);
       if (filter.topicId) params.set('topicId', filter.topicId);
     }
     const qs = params.toString();
@@ -1011,7 +998,6 @@ class ApiClient {
   public async getTodaysWork(filter?: any): Promise<import('../types').TodaysWorkItem[]> {
     const params = new URLSearchParams();
     if (filter) {
-      if (filter.categoryId) params.set('categoryId', filter.categoryId);
       if (filter.topicId) params.set('topicId', filter.topicId);
     }
     const qs = params.toString();
@@ -1021,7 +1007,6 @@ class ApiClient {
   public async getBottlenecks(filter?: any): Promise<import('../types').BottleneckStage[]> {
     const params = new URLSearchParams();
     if (filter) {
-      if (filter.categoryId) params.set('categoryId', filter.categoryId);
       if (filter.topicId) params.set('topicId', filter.topicId);
     }
     const qs = params.toString();
@@ -1031,7 +1016,6 @@ class ApiClient {
   public async getStaleContent(filter?: any): Promise<import('../types').StaleContentItem[]> {
     const params = new URLSearchParams();
     if (filter) {
-      if (filter.categoryId) params.set('categoryId', filter.categoryId);
       if (filter.topicId) params.set('topicId', filter.topicId);
     }
     const qs = params.toString();
@@ -1041,7 +1025,6 @@ class ApiClient {
   public async getPublishingReadiness(filter?: any): Promise<import('../types').PublishingReadinessItem[]> {
     const params = new URLSearchParams();
     if (filter) {
-      if (filter.categoryId) params.set('categoryId', filter.categoryId);
       if (filter.topicId) params.set('topicId', filter.topicId);
     }
     const qs = params.toString();
@@ -1060,10 +1043,9 @@ class ApiClient {
   // Phase 9: Content Planning, Batches & Intelligence
   // ==========================================
 
-  public async getContentPlans(filter?: { categoryId?: string; topicId?: string; status?: string }): Promise<import('../types').ContentPlan[]> {
+  public async getContentPlans(filter?: { topicId?: string; status?: string }): Promise<import('../types').ContentPlan[]> {
     const params = new URLSearchParams();
     if (filter) {
-      if (filter.categoryId) params.set('categoryId', filter.categoryId);
       if (filter.topicId) params.set('topicId', filter.topicId);
       if (filter.status) params.set('status', filter.status);
     }

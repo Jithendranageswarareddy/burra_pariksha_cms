@@ -72,7 +72,6 @@ YOUR CORE PEDAGOGICAL & CONTENT PRINCIPLES:
  * Builds the user prompt for drafting a new question candidate.
  */
 export function buildGenerationPrompt(input: GenerateCandidateInput): string {
-  const category = sanitizePromptInput(input.categoryName || input.categoryId);
   const topic = sanitizePromptInput(input.topicName || input.topicId);
   const subtopic = sanitizePromptInput(input.subtopicName || input.subtopicId);
   const difficulty = input.difficulty || DifficultyLevel.MEDIUM;
@@ -135,7 +134,6 @@ export function buildGenerationPrompt(input: GenerateCandidateInput): string {
   return `Create a high-quality aptitude question candidate adhering to the following parameters:
 
 TAXONOMY DOMAIN:
-- Category: ${category}
 - Topic: ${topic}
 - Subtopic: ${subtopic}
 

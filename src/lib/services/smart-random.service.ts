@@ -22,8 +22,6 @@ import { ValidationError } from '../errors';
 import { QuestionLanguage } from '../../types';
 
 export interface ResolvedCreationParameters {
-  categoryId: string;
-  categoryName: string;
   topicId: string;
   topicName: string;
   subtopicId: string;
@@ -37,7 +35,6 @@ export interface ResolvedCreationParameters {
 }
 
 export interface SmartRandomInput {
-  categoryId?: string;
   topicId?: string;
   subtopicId?: string;
   difficulty?: string;
@@ -204,8 +201,6 @@ export class SmartRandomService {
       input.difficulty === 'SMART_RANDOM';
 
     return {
-      categoryId: topicObj.categoryId || input.categoryId || '',
-      categoryName: '',
       topicId: topicObj.id,
       topicName: topicObj.name,
       subtopicId: subtopicObj.id,

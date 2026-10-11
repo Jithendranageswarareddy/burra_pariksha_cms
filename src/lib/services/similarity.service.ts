@@ -27,12 +27,10 @@ export interface DiversityRadarReport {
   similarityMatches: QuestionSimilarityMatch[];
   diversityWarnings: ContentDiversityWarning[];
   taxonomyConcentrations: {
-    categoryId: string;
-    categoryName: string;
     topicId: string;
     topicName: string;
     questionCount: number;
-    shareOfCategory: number;
+    shareOfTotal: number;
   }[];
   healthScore: number; // 0 to 100
   generatedAt: string;
@@ -117,7 +115,7 @@ export class SimilarityService {
           matchedText: q.questionText,
           similarityScore: 1.0,
           type: 'EXACT_DUPLICATE',
-          reason: `Exact identical question text matches ${q.id} in ${q.categoryName} > ${q.topicName}`,
+          reason: `Exact identical question text matches ${q.id} in ${q.topicName} > ${q.subtopicName}`,
         });
       } else {
         const score = this.calculateJaccardSimilarity(candidateText, q.questionText);
@@ -129,7 +127,7 @@ export class SimilarityService {
             matchedText: q.questionText,
             similarityScore: score,
             type: 'HIGH_SIMILARITY',
-            reason: `High semantic/lexical overlap (${Math.round(score * 100)}%) with ${q.id} in ${q.categoryName} > ${q.topicName}`,
+            reason: `High semantic/lexical overlap (${Math.round(score * 100)}%) with ${q.id} in ${q.topicName} > ${q.subtopicName}`,
           });
         }
       }
@@ -143,7 +141,6 @@ export class SimilarityService {
    */
   public async generateDiversityRadarReport(): Promise<DiversityRadarReport> {
     const questions = await questionsRepository.findAll();
-    const categories = await taxonomyService.getCategories();
     const topics = await taxonomyService.getTopics();
 
     const matches: QuestionSimilarityMatch[] = [];
@@ -192,70 +189,60 @@ export class SimilarityService {
 
     // 2. Taxonomy Concentrations & Topic Share
     const taxonomyConcentrations: {
-      categoryId: string;
-      categoryName: string;
       topicId: string;
       topicName: string;
       questionCount: number;
-      shareOfCategory: number;
+      shareOfTotal: number;
     }[] = [];
 
-    for (const cat of categories) {
-      const catQuestions = questions.filter((q) => q.categoryId === cat.id);
-      const catTopics = topics.filter((t) => t.categoryId === cat.id);
+    const totalQuestionsCount = questions.length;
 
-      if (catQuestions.length === 0) continue;
+    for (const top of topics) {
+      const topQuestions = questions.filter((q) => q.topicId === top.id);
+      if (topQuestions.length === 0) continue;
 
-      for (const top of catTopics) {
-        const topQuestions = catQuestions.filter((q) => q.topicId === top.id);
-        const share = Math.round((topQuestions.length / catQuestions.length) * 100);
+      const share = totalQuestionsCount > 0 ? Math.round((topQuestions.length / totalQuestionsCount) * 100) : 0;
 
-        if (topQuestions.length > 0) {
-          taxonomyConcentrations.push({
-            categoryId: cat.id,
-            categoryName: cat.name,
-            topicId: top.id,
-            topicName: top.name,
-            questionCount: topQuestions.length,
-            shareOfCategory: share,
-          });
-        }
+      taxonomyConcentrations.push({
+        topicId: top.id,
+        topicName: top.name,
+        questionCount: topQuestions.length,
+        shareOfTotal: share,
+      });
 
-        // Concentration warning if single topic takes > 50% in a populated category
-        if (share > 50 && catQuestions.length >= 8) {
-          warnings.push({
-            type: 'SUBTOPIC_CONCENTRATION',
-            severity: 'MEDIUM',
-            title: `High Topic Concentration: ${top.name}`,
-            description: `Topic '${top.name}' accounts for ${share}% (${topQuestions.length}/${catQuestions.length}) of all questions in '${cat.name}'.`,
-            affectedEntities: [top.id],
-            recommendation: `Diversify content generation into other topics under ${cat.name} to maintain pedagogical balance.`,
-          });
-        }
+      // Concentration warning if single topic takes > 40% across repository
+      if (share > 40 && totalQuestionsCount >= 10) {
+        warnings.push({
+          type: 'SUBTOPIC_CONCENTRATION',
+          severity: 'MEDIUM',
+          title: `High Topic Concentration: ${top.name}`,
+          description: `Topic '${top.name}' accounts for ${share}% (${topQuestions.length}/${totalQuestionsCount}) of all questions in repository.`,
+          affectedEntities: [top.id],
+          recommendation: `Diversify content generation into other topics to maintain pedagogical balance.`,
+        });
       }
 
-      // 3. Difficulty Skew Check
-      const easyCount = catQuestions.filter((q) => q.difficulty === 'EASY').length;
-      const medCount = catQuestions.filter((q) => q.difficulty === 'MEDIUM').length;
-      const hardCount = catQuestions.filter((q) => q.difficulty === 'HARD').length;
+      // Difficulty Skew Check within Topic
+      const easyCount = topQuestions.filter((q) => q.difficulty === 'EASY').length;
+      const hardCount = topQuestions.filter((q) => q.difficulty === 'HARD').length;
 
-      if (catQuestions.length >= 6) {
-        if (easyCount / catQuestions.length > 0.7) {
+      if (topQuestions.length >= 6) {
+        if (easyCount / topQuestions.length > 0.7) {
           warnings.push({
             type: 'DIFFICULTY_SKEW',
             severity: 'MEDIUM',
-            title: `Excessive Easy Difficulty Skew: ${cat.name}`,
-            description: `${Math.round((easyCount / catQuestions.length) * 100)}% of questions in ${cat.name} are marked EASY.`,
-            affectedEntities: [cat.id],
+            title: `Excessive Easy Difficulty Skew: ${top.name}`,
+            description: `${Math.round((easyCount / topQuestions.length) * 100)}% of questions in ${top.name} are marked EASY.`,
+            affectedEntities: [top.id],
             recommendation: `Create more MEDIUM and HARD challenge questions for competitive exam readiness.`,
           });
-        } else if (hardCount / catQuestions.length > 0.7) {
+        } else if (hardCount / topQuestions.length > 0.7) {
           warnings.push({
             type: 'DIFFICULTY_SKEW',
             severity: 'MEDIUM',
-            title: `Excessive Hard Difficulty Skew: ${cat.name}`,
-            description: `${Math.round((hardCount / catQuestions.length) * 100)}% of questions in ${cat.name} are marked HARD.`,
-            affectedEntities: [cat.id],
+            title: `Excessive Hard Difficulty Skew: ${top.name}`,
+            description: `${Math.round((hardCount / topQuestions.length) * 100)}% of questions in ${top.name} are marked HARD.`,
+            affectedEntities: [top.id],
             recommendation: `Include introductory EASY and standard MEDIUM foundational problems.`,
           });
         }

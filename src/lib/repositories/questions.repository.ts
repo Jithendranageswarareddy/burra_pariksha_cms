@@ -50,7 +50,6 @@ export class QuestionsRepository extends BaseRepository<Question> {
         const query = filter.search.toLowerCase().trim();
         const matchesText = q.questionText?.toLowerCase().includes(query);
         const matchesId = q.id?.toLowerCase().includes(query);
-        const matchesCategory = q.categoryName?.toLowerCase().includes(query);
         const matchesTopic = q.topicName?.toLowerCase().includes(query);
         const matchesSubtopic = q.subtopicName?.toLowerCase().includes(query);
         const matchesTag = q.tags?.some((t) => t.toLowerCase().includes(query));
@@ -63,14 +62,9 @@ export class QuestionsRepository extends BaseRepository<Question> {
           q.options.d?.toLowerCase().includes(query)
         );
 
-        if (!matchesText && !matchesId && !matchesCategory && !matchesTopic && !matchesSubtopic && !matchesTag && !matchesOptions && !matchesRealWorldContext && !matchesExplanation) {
+        if (!matchesText && !matchesId && !matchesTopic && !matchesSubtopic && !matchesTag && !matchesOptions && !matchesRealWorldContext && !matchesExplanation) {
           return false;
         }
-      }
-
-      // Exact category
-      if (filter.categoryId && q.categoryId !== filter.categoryId) {
-        return false;
       }
 
       // Exact topic

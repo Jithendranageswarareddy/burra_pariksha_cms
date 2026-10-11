@@ -13,7 +13,6 @@ import { GoogleSheetsSnapshot, WorksheetSnapshot } from './snapshot-exporter.ser
 import { RestoreValidatorService } from './restore-validator.service';
 import { ALL_SHEET_TABS, SHEET_TABS } from '../schemas/google-sheets-schema';
 import { 
-  categoriesRepository,
   contentMastersRepository,
   topicsRepository,
   subtopicsRepository,
@@ -38,7 +37,6 @@ import {
 export const FULL_RESTORE_CONFIRMATION_PHRASE = 'RESTORE ALL DATA';
 
 export const FULL_RESTORE_ENTITY_ORDER = [
-  'CATEGORIES',
   'TOPICS',
   'SUBTOPICS',
   'USERS',
@@ -192,9 +190,8 @@ export class FullSnapshotRestoreService {
     const prodData: Record<string, Map<string, any>> = {};
     try {
       const [
-        cats, tops, subs, usrs, plans, batches, qs, vids, scrs, scvers, thumbs, thvers, pcs, pcvers, assigns, pubs, wfs, audits, seqs
+        tops, subs, usrs, plans, batches, qs, vids, scrs, scvers, thumbs, thvers, pcs, pcvers, assigns, pubs, wfs, audits, seqs
       ] = await Promise.all([
-        categoriesRepository.findAll().catch(() => []),
         topicsRepository.findAll().catch(() => []),
         subtopicsRepository.findAll().catch(() => []),
         usersRepository.findAll().catch(() => []),
@@ -219,7 +216,6 @@ export class FullSnapshotRestoreService {
         const map = new Map<string, any>();
         for (const x of items) {
           if (x.id) map.set(x.id, x);
-          if (x.categoryId) map.set(x.categoryId, x);
           if (x.topicId) map.set(x.topicId, x);
           if (x.subtopicId) map.set(x.subtopicId, x);
           if (x.userId) map.set(x.userId, x);
@@ -243,7 +239,6 @@ export class FullSnapshotRestoreService {
         return map;
       };
 
-      prodData['CATEGORIES'] = createMap(cats);
       prodData['TOPICS'] = createMap(tops);
       prodData['SUBTOPICS'] = createMap(subs);
       prodData['USERS'] = createMap(usrs);

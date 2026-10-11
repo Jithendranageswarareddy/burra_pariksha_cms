@@ -1189,56 +1189,17 @@ apiRouter.get('/taxonomy/metrics', async (req: Request, res: Response) => {
   }
 });
 
-apiRouter.get('/categories', async (req: Request, res: Response) => {
-  try {
-    const search = req.query.search as string | undefined;
-    if (search) {
-      const results = await taxonomyService.searchCategories(search);
-      res.json(results);
-      return;
-    }
-    const categories = await taxonomyService.getCategories();
-    res.json(categories);
-  } catch (err: any) {
-    res.status(500).json({ error: err?.message || 'Failed to fetch categories' });
-  }
-});
-
-apiRouter.get('/categories/:id', async (req: Request, res: Response) => {
-  try {
-    const category = await taxonomyService.getCategoryById(req.params.id);
-    if (!category) {
-      res.status(404).json({ error: `Category with ID "${req.params.id}" not found` });
-      return;
-    }
-    res.json(category);
-  } catch (err: any) {
-    res.status(500).json({ error: err?.message || 'Failed to fetch category' });
-  }
-});
-
-apiRouter.post('/categories', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER]), async (req: Request, res: Response) => {
-  try {
-    const actor = getRequestActor(req);
-    const category = await taxonomyService.createCategory(req.body, actor);
-    res.status(201).json(category);
-  } catch (err: any) {
-    res.status(err?.statusCode || 400).json({ error: err?.message || 'Failed to create category' });
-  }
-});
-
 // TOPICS ENDPOINTS
 apiRouter.get('/topics', async (req: Request, res: Response) => {
   try {
-    const categoryId = req.query.categoryId as string | undefined;
     const search = req.query.search as string | undefined;
     const includeInactive = req.query.includeInactive === 'true';
     if (search) {
-      const results = await taxonomyService.searchTopics(search, categoryId);
+      const results = await taxonomyService.searchTopics(search);
       res.json(results);
       return;
     }
-    const topics = await taxonomyService.getTopics(categoryId, { includeInactive });
+    const topics = await taxonomyService.getTopics({ includeInactive });
     res.json(topics);
   } catch (err: any) {
     res.status(500).json({ error: err?.message || 'Failed to fetch topics' });
@@ -1557,11 +1518,10 @@ apiRouter.post(['/questions/create', '/v1/questions/create'], requireCapability(
 apiRouter.get('/questions', async (req: Request, res: Response) => {
   try {
     const actor = getRequestActor(req);
-    const { search, categoryId, topicId, subtopicId, difficulty, status, videoStatus } = req.query;
+    const { search, topicId, subtopicId, difficulty, status, videoStatus } = req.query;
 
     const filter = {
       search: typeof search === 'string' ? search : undefined,
-      categoryId: typeof categoryId === 'string' ? categoryId : undefined,
       topicId: typeof topicId === 'string' ? topicId : undefined,
       subtopicId: typeof subtopicId === 'string' ? subtopicId : undefined,
       difficulty: typeof difficulty === 'string' ? (difficulty as any) : undefined,
@@ -1887,7 +1847,6 @@ apiRouter.get('/videos', async (req: Request, res: Response) => {
       status: req.query.status as any,
       priority: req.query.priority as any,
       search: req.query.search as string,
-      categoryId: req.query.categoryId as string,
       topicId: req.query.topicId as string,
       difficulty: req.query.difficulty as any,
       assignedHost: req.query.assignedHost as string,
@@ -4050,7 +4009,6 @@ apiRouter.get(
 apiRouter.get('/dashboard/overview', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER]), async (req: Request, res: Response) => {
   try {
     const filters = {
-      categoryId: req.query.categoryId as string | undefined,
       topicId: req.query.topicId as string | undefined,
       difficulty: req.query.difficulty as string | undefined,
       priority: req.query.priority as string | undefined,
@@ -4069,7 +4027,6 @@ apiRouter.get('/dashboard/overview', requireRole([UserRole.ADMIN, UserRole.CONTE
 apiRouter.get('/dashboard/metrics', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER]), async (req: Request, res: Response) => {
   try {
     const filters = {
-      categoryId: req.query.categoryId as string | undefined,
       topicId: req.query.topicId as string | undefined,
       difficulty: req.query.difficulty as string | undefined,
       priority: req.query.priority as string | undefined,
@@ -4086,7 +4043,6 @@ apiRouter.get('/dashboard/metrics', requireRole([UserRole.ADMIN, UserRole.CONTEN
 apiRouter.get('/dashboard/todays-work', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER]), async (req: Request, res: Response) => {
   try {
     const filters = {
-      categoryId: req.query.categoryId as string | undefined,
       topicId: req.query.topicId as string | undefined,
       difficulty: req.query.difficulty as string | undefined,
       priority: req.query.priority as string | undefined,
@@ -4103,7 +4059,6 @@ apiRouter.get('/dashboard/todays-work', requireRole([UserRole.ADMIN, UserRole.CO
 apiRouter.get('/dashboard/bottlenecks', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER]), async (req: Request, res: Response) => {
   try {
     const filters = {
-      categoryId: req.query.categoryId as string | undefined,
       topicId: req.query.topicId as string | undefined,
     };
     const bottlenecks = await dashboardService.getBottlenecks(filters);
@@ -4116,7 +4071,6 @@ apiRouter.get('/dashboard/bottlenecks', requireRole([UserRole.ADMIN, UserRole.CO
 apiRouter.get('/dashboard/stale-content', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER]), async (req: Request, res: Response) => {
   try {
     const filters = {
-      categoryId: req.query.categoryId as string | undefined,
       topicId: req.query.topicId as string | undefined,
       priority: req.query.priority as string | undefined,
     };
@@ -4130,7 +4084,6 @@ apiRouter.get('/dashboard/stale-content', requireRole([UserRole.ADMIN, UserRole.
 apiRouter.get('/dashboard/publishing-readiness', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER]), async (req: Request, res: Response) => {
   try {
     const filters = {
-      categoryId: req.query.categoryId as string | undefined,
       topicId: req.query.topicId as string | undefined,
     };
     const readiness = await dashboardService.getPublishingReadiness(filters);
@@ -4158,9 +4111,8 @@ apiRouter.get('/search', requireAuth, async (req: Request, res: Response) => {
 
 apiRouter.get('/planning/plans', async (req: Request, res: Response) => {
   try {
-    const { categoryId, topicId, status } = req.query;
+    const { topicId, status } = req.query;
     const plans = await planningService.getAllContentPlans({
-      categoryId: categoryId as string,
       topicId: topicId as string,
       status: status as any,
     });

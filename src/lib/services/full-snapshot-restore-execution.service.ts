@@ -44,7 +44,6 @@ import { FULL_RESTORE_CONFIRMATION_PHRASE } from './full-snapshot-restore.servic
 import { SequenceSafetyService } from './sequence-safety.service';
 import { auditService, workflowService } from './audit.service';
 import {
-  categoriesRepository,
   topicsRepository,
   subtopicsRepository,
   usersRepository,
@@ -568,8 +567,6 @@ export class FullSnapshotRestoreExecutionService {
    */
   private getRepositoryForEntityType(entityType: string): BaseRepository<any> | null {
     switch (entityType) {
-      case 'CATEGORIES':
-        return categoriesRepository;
       case 'TOPICS':
         return topicsRepository;
       case 'SUBTOPICS':

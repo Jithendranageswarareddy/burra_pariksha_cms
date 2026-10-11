@@ -1272,7 +1272,6 @@ export const SettingsPage: React.FC = () => {
                   { name: 'workflow_instances', status: 'ONLINE' },
                   { name: 'assignments', status: 'ONLINE' },
                   { name: 'publishing_packages', status: 'ONLINE' },
-                  { name: 'categories', status: 'ONLINE' },
                   { name: 'topics', status: 'ONLINE' },
                   { name: 'subtopics', status: 'ONLINE' },
                   { name: 'users', status: 'ONLINE' },

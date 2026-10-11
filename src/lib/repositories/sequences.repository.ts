@@ -15,7 +15,6 @@ import { videosRepository } from './videos.repository';
 import { scriptsRepository } from './scripts.repository';
 import { thumbnailsRepository } from './thumbnails.repository';
 import { pinnedCommentsRepository } from './pinned-comments.repository';
-import { categoriesRepository } from './categories.repository';
 import { topicsRepository } from './topics.repository';
 import { subtopicsRepository } from './subtopics.repository';
 import { usersRepository } from './users.repository';
@@ -81,8 +80,6 @@ export class SequencesRepository extends BaseRepository<SequenceRecord> {
         return thumbnailsRepository;
       case SEQUENCE_ENTITIES.PINNED_COMMENT:
         return pinnedCommentsRepository;
-      case SEQUENCE_ENTITIES.CATEGORY:
-        return categoriesRepository;
       case SEQUENCE_ENTITIES.TOPIC:
         return topicsRepository;
       case SEQUENCE_ENTITIES.SUBTOPIC:

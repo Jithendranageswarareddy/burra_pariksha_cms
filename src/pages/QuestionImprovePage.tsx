@@ -109,16 +109,7 @@ export const QuestionImprovePage: React.FC = () => {
 
         let topicsList: any[] = pureTree;
         if (!topicsList || topicsList.length === 0) {
-          const legacyTree = await apiClient.getTaxonomyTree().catch(() => []);
-          const flattened: any[] = [];
-          legacyTree.forEach((cat: any) => {
-            if (cat.topics) {
-              cat.topics.forEach((top: any) => {
-                flattened.push({ ...top, categoryId: cat.id, categoryName: cat.name });
-              });
-            }
-          });
-          topicsList = flattened;
+          topicsList = await apiClient.getTopics().catch(() => []);
         }
 
         setTopics(topicsList);

@@ -270,7 +270,6 @@ export class VideoService {
         {
           title: question.questionText ? question.questionText.slice(0, 100) : `Content Master for ${question.id}`,
           primaryQuestionId: question.id,
-          categoryId: question.categoryId,
           topicId: question.topicId,
           subtopicId: question.subtopicId,
           createdBy: actor.id,
@@ -674,9 +673,6 @@ export class VideoService {
           return v.priority === filter.priority;
         });
       }
-      if (filter.categoryId) {
-        videos = videos.filter((v) => v.question?.categoryId === filter.categoryId);
-      }
       if (filter.topicId) {
         videos = videos.filter((v) => v.question?.topicId === filter.topicId);
       }
@@ -701,8 +697,7 @@ export class VideoService {
             v.title.toLowerCase().includes(query) ||
             v.questionId.toLowerCase().includes(query) ||
             v.question?.questionText.toLowerCase().includes(query) ||
-            v.question?.topicName?.toLowerCase().includes(query) ||
-            v.question?.categoryName?.toLowerCase().includes(query)
+            v.question?.topicName?.toLowerCase().includes(query)
         );
       }
     }

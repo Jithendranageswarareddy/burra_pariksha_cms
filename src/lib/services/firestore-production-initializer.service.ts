@@ -11,7 +11,7 @@
  */
 
 import { FirestoreRepository } from '../db/firestore.repository';
-import { PRODUCTION_CATEGORIES, PRODUCTION_TOPICS, PRODUCTION_SUBTOPICS } from '../data/production-taxonomy';
+import { PRODUCTION_TOPICS, PRODUCTION_SUBTOPICS } from '../data/production-taxonomy';
 import { User, UserRole, QuestionConfigEntry } from '../../types';
 import { authService } from './auth.service';
 
@@ -19,7 +19,6 @@ export interface FirestoreInitReport {
   timestamp: string;
   collectionsInitialized: string[];
   usersSeeded: number;
-  categoriesSeeded: number;
   topicsSeeded: number;
   subtopicsSeeded: number;
   questionConfigsSeeded: number;
@@ -43,13 +42,11 @@ export class FirestoreProductionInitializerService {
 
   public async initializeProductionData(options?: FirestoreInitOptions): Promise<FirestoreInitReport> {
     const usersRepo = new FirestoreRepository<User & { version: number; createdAt: string; updatedAt: string; isDeleted: boolean }>('users', 'usr_' as any);
-    const categoriesRepo = new FirestoreRepository<any>('categories', 'cat_' as any);
     const topicsRepo = new FirestoreRepository<any>('topics', 'top_' as any);
     const subtopicsRepo = new FirestoreRepository<any>('subtopics', 'sub_' as any);
     const questionConfigRepo = new FirestoreRepository<any>('question_config', 'CFG-' as any);
 
     let usersSeeded = 0;
-    let categoriesSeeded = 0;
     let topicsSeeded = 0;
     let subtopicsSeeded = 0;
     let questionConfigsSeeded = 0;
@@ -90,14 +87,10 @@ export class FirestoreProductionInitializerService {
       }
     }
 
-    // 2. Seed taxonomy ONLY if explicitly requested (allows clean manual CRUD in production)
+    // 2. Seed 2-tier taxonomy (Topic -> Subtopic) ONLY if explicitly requested
     if (options?.seedTaxonomy) {
-      const existingCategories = await categoriesRepo.findMany({ limit: 5 });
-      if (existingCategories.length === 0) {
-        for (const cat of PRODUCTION_CATEGORIES) {
-          await categoriesRepo.create(cat);
-          categoriesSeeded++;
-        }
+      const existingTopics = await topicsRepo.findMany({ limit: 5 });
+      if (existingTopics.length === 0) {
         for (const top of PRODUCTION_TOPICS) {
           await topicsRepo.create(top);
           topicsSeeded++;
@@ -162,9 +155,8 @@ export class FirestoreProductionInitializerService {
 
     return {
       timestamp: new Date().toISOString(),
-      collectionsInitialized: ['users', 'categories', 'topics', 'subtopics', 'question_config', 'sequences', 'audit_logs'],
+      collectionsInitialized: ['users', 'topics', 'subtopics', 'question_config', 'sequences', 'audit_logs'],
       usersSeeded,
-      categoriesSeeded,
       topicsSeeded,
       subtopicsSeeded,
       questionConfigsSeeded,

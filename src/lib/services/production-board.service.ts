@@ -156,7 +156,6 @@ export class ProductionBoardService {
         questionId: question.id,
         title: video.title || (question?.questionText ? (question.questionText.length > 50 ? `${question.questionText.substring(0, 50)}...` : question.questionText) : `Video for Question ${video.questionId}`),
         questionText: question.questionText,
-        category: question.categoryId,
         topic: question.topicId,
         subtopic: question.subtopicId,
         difficulty: question.difficulty as DifficultyLevel,

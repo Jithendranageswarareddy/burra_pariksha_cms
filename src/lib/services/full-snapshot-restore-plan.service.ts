@@ -92,7 +92,6 @@ export interface FullRestorePlan {
 }
 
 export const EXACT_RESTORE_DEPENDENCY_ORDER = [
-  'CATEGORIES',
   'TOPICS',
   'SUBTOPICS',
   'USERS',

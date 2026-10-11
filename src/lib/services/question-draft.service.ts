@@ -18,7 +18,6 @@ export interface SaveDraftInput {
   id?: string;
   topicId: string;
   subtopicId: string;
-  categoryId?: string;
   difficulty: string;
   language?: string;
   questionText: string;
@@ -94,7 +93,6 @@ export class QuestionDraftService {
       id: draftId,
       topicId: input.topicId,
       subtopicId: input.subtopicId,
-      categoryId: input.categoryId,
       difficulty: input.difficulty || 'Intermediate',
       language: input.language || 'TELUGU',
       questionText: rawText,
@@ -251,7 +249,6 @@ export class QuestionDraftService {
         creationMode: 'ai',
         topicId: draft.topicId,
         subtopicId: draft.subtopicId,
-        categoryId: draft.categoryId,
         difficulty: draft.difficulty as any,
         language: draft.language as any,
         questionText: draft.questionText,

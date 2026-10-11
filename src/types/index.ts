@@ -235,29 +235,11 @@ export interface User {
 }
 
 /**
- * CATEGORIES Sheet Tab
- * High-level aptitude categories (e.g., Quantitative Aptitude, Logical Reasoning).
- */
-export interface Category {
-  id: string; // e.g. CAT-01
-  name: string;
-  slug: string;
-  description?: string;
-  colorCode?: string;
-  topicsCount?: number;
-  questionsCount?: number;
-  createdAt: string;
-  // TODO: Verify exact column headers with Google Sheet in Phase 2
-}
-
-/**
- * TOPICS Sheet Tab
- * Subject domains (e.g., Time & Work, Number Series).
- * Can optionally belong to a Category for high-level grouping.
+ * TOPICS Sheet Tab / Cloud Firestore Collection
+ * Top-level Subject domains (e.g., Time & Work, Number Series).
  */
 export interface Topic {
   id: string; // e.g. TOP-101 or BP-TOP-001
-  categoryId?: string; // Optional reference to Category.id
   name: string;
   slug: string;
   description?: string;
@@ -269,9 +251,9 @@ export interface Topic {
 }
 
 /**
- * SUBTOPICS Sheet Tab
+ * SUBTOPICS Sheet Tab / Cloud Firestore Collection
  * Granular sub-division (e.g., Pipes & Cisterns, Relative Speed).
- * Belongs to exactly one Topic.
+ * Belongs directly to exactly one Topic.
  */
 export interface Subtopic {
   id: string; // e.g. SUB-1001 or BP-SUB-0001
@@ -309,7 +291,6 @@ export interface ContentMaster {
   title: string;
   status: ContentMasterStatus | string;
   primaryQuestionId?: string;
-  categoryId?: string;
   topicId?: string;
   subtopicId?: string;
   createdBy?: string;
@@ -378,8 +359,6 @@ export interface Question {
   id: string; // e.g. BP-Q-1042
   contentId?: string; // Canonical correlation identity BP-CNT-######
   contentMasterId?: string; // Reference to ContentMaster.id (BP-CNT-****** or legacy BP-MST-******)
-  categoryId?: string; // Legacy/compatibility grouping; frozen production taxonomy is Topic -> Subtopic
-  categoryName?: string;
   topicId: string;
   topicName: string;
   subtopicId: string;
@@ -433,8 +412,6 @@ export interface QuestionDraft {
   topicName?: string;
   subtopicId: string;
   subtopicName?: string;
-  categoryId?: string;
-  categoryName?: string;
   difficulty: DifficultyLevel | string;
   language?: QuestionLanguage | string;
   questionText: string;
@@ -1345,8 +1322,8 @@ export interface SystemHealthReport {
 
 export interface QuestionFilterState {
   search: string;
-  categoryId: string;
   topicId: string;
+  subtopicId?: string;
   difficulty: string;
   questionStatus: string;
   videoStatus: string;
@@ -1404,7 +1381,6 @@ export interface TodaysWorkItem {
   id: string;
   entityType: 'QUESTION' | 'VIDEO';
   title: string;
-  category: string;
   topic: string;
   currentStatus: string;
   priority: 'URGENT' | 'HIGH' | 'MEDIUM' | 'LOW' | 'NORMAL';
@@ -1427,7 +1403,6 @@ export interface StaleContentItem {
   id: string;
   entityType: 'QUESTION' | 'VIDEO';
   title: string;
-  category: string;
   topic: string;
   currentStatus: string;
   daysInStage: number;
@@ -1439,7 +1414,6 @@ export interface StaleContentItem {
 export interface PublishingReadinessItem {
   videoId: string;
   title: string;
-  category: string;
   topic: string;
   videoRenderReady: boolean;
   thumbnailApproved: boolean;
@@ -1460,7 +1434,6 @@ export interface GlobalSearchResult {
   type: 'QUESTION' | 'VIDEO' | 'SCRIPT' | 'THUMBNAIL' | 'PINNED_COMMENT' | 'ASSIGNMENT' | 'CONTENT_MASTER' | 'SOCIAL_REVIEW' | 'PUBLISHING';
   title: string;
   subtitle: string;
-  category: string;
   topic: string;
   status: string;
   url: string;
@@ -1497,8 +1470,6 @@ export interface DashboardOverviewData {
  */
 export interface ContentPlan {
   id: string; // e.g. BP-PLN-0001
-  categoryId?: string; // Legacy/compatibility grouping; frozen production taxonomy is Topic -> Subtopic
-  categoryName?: string;
   topicId: string;
   topicName: string;
   subtopicId: string;
@@ -1562,8 +1533,6 @@ export interface SubtopicCoverage {
   subtopicName: string;
   topicId: string;
   topicName: string;
-  categoryId: string;
-  categoryName: string;
   totalQuestions: number;
   byStatus: {
     draft: number;
@@ -1593,8 +1562,6 @@ export interface SubtopicCoverage {
 export interface TopicCoverage {
   topicId: string;
   topicName: string;
-  categoryId: string;
-  categoryName: string;
   totalQuestions: number;
   subtopicsCount: number;
   activeSubtopicsCount: number;
@@ -1603,21 +1570,8 @@ export interface TopicCoverage {
   subtopics: SubtopicCoverage[];
 }
 
-export interface CategoryCoverage {
-  categoryId: string;
-  categoryName: string;
-  colorCode?: string;
-  totalQuestions: number;
-  totalTopics: number;
-  totalSubtopics: number;
-  coveredSubtopics: number;
-  coveragePercentage: number;
-  topics: TopicCoverage[];
-}
-
 export interface CoverageOverviewData {
   totalQuestions: number;
-  totalCategories: number;
   totalTopics: number;
   totalSubtopics: number;
   coveredSubtopicsCount: number;
@@ -1643,7 +1597,7 @@ export interface CoverageOverviewData {
     approved: number;
     rejected: number;
   };
-  categories: CategoryCoverage[];
+  topics: TopicCoverage[];
 }
 
 export interface ContentGapAnalysis {
@@ -1651,33 +1605,28 @@ export interface ContentGapAnalysis {
     subtopicId: string;
     subtopicName: string;
     topicName: string;
-    categoryName: string;
   }[];
   lowCoverageSubtopics: {
     subtopicId: string;
     subtopicName: string;
     topicName: string;
-    categoryName: string;
     currentCount: number;
   }[];
   difficultyGaps: {
     topicId: string;
     topicName: string;
-    categoryName: string;
     missingDifficulties: DifficultyLevel[];
     recommendation: string;
   }[];
   languageGaps: {
     topicId: string;
     topicName: string;
-    categoryName: string;
     missingLanguages: QuestionLanguage[];
     recommendation: string;
   }[];
   concentrationRisks: {
     topicId: string;
     topicName: string;
-    categoryName: string;
     questionCount: number;
     percentageOfTotal: number;
     warning: string;
@@ -1715,10 +1664,8 @@ export interface AiPlanBatchSuggestion {
 }
 
 export interface AiContentPlanRecommendation {
-  categoryId: string;
-  categoryName: string;
-  topicId?: string;
-  topicName?: string;
+  topicId: string;
+  topicName: string;
   targetTotalCount: number;
   pedagogicalRationale: string;
   priorityFocusAreas: string[];
@@ -1736,7 +1683,6 @@ export interface ProductionBoardItem {
   questionId: string;
   title: string;
   questionText: string;
-  category: string;
   topic: string;
   subtopic?: string;
   difficulty?: DifficultyLevel;

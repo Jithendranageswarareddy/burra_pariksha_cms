@@ -52,7 +52,6 @@ async function runTests() {
   (taxonomyService as any).subtopicsCache = [
     { id: 'ST01', topicId: 'T01', name: 'Triangles', slug: 'triangles', isActive: true, sortOrder: 1 },
   ];
-  (taxonomyService as any).categoriesCache = [];
   (taxonomyService as any).cacheTimestamp = Date.now();
 
   // In-memory questions, masters, sequence, and workflow mocks for offline test environment

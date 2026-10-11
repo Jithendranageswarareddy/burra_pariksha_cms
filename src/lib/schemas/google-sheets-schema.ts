@@ -28,7 +28,6 @@ import {
 
 export const SHEET_TABS = {
   USERS: 'USERS',
-  CATEGORIES: 'CATEGORIES',
   TOPICS: 'TOPICS',
   SUBTOPICS: 'SUBTOPICS',
   QUESTIONS: 'QUESTIONS',
@@ -63,7 +62,6 @@ export type SheetTabName = typeof SHEET_TABS[keyof typeof SHEET_TABS] | Planning
 
 export const ALL_SHEET_TABS: SheetTabName[] = [
   SHEET_TABS.USERS,
-  SHEET_TABS.CATEGORIES,
   SHEET_TABS.TOPICS,
   SHEET_TABS.SUBTOPICS,
   SHEET_TABS.QUESTIONS,
@@ -176,7 +174,6 @@ export const SHEET_SCHEMAS: Record<SheetTabName, SheetSchemaContract> = {
       { name: 'title', propertyKey: 'title', type: 'string', required: true },
       { name: 'status', propertyKey: 'status', type: 'string', required: true },
       { name: 'primary_question_id', propertyKey: 'primaryQuestionId', type: 'string', required: false, isForeignKey: true, foreignKeyTarget: { sheet: SHEET_TABS.QUESTIONS, column: 'id' } },
-      { name: 'category_id', propertyKey: 'categoryId', type: 'string', required: false, isForeignKey: true, foreignKeyTarget: { sheet: SHEET_TABS.CATEGORIES, column: 'id' } },
       { name: 'topic_id', propertyKey: 'topicId', type: 'string', required: false, isForeignKey: true, foreignKeyTarget: { sheet: SHEET_TABS.TOPICS, column: 'id' } },
       { name: 'subtopic_id', propertyKey: 'subtopicId', type: 'string', required: false, isForeignKey: true, foreignKeyTarget: { sheet: SHEET_TABS.SUBTOPICS, column: 'id' } },
       { name: 'created_by', propertyKey: 'createdBy', type: 'string', required: false },
@@ -223,30 +220,13 @@ export const SHEET_SCHEMAS: Record<SheetTabName, SheetSchemaContract> = {
     ],
   },
 
-  // 2. CATEGORIES
-  [SHEET_TABS.CATEGORIES]: {
-    sheetName: SHEET_TABS.CATEGORIES,
-    purpose: 'Top-level aptitude domains (e.g. Quantitative Aptitude, Logical Reasoning)',
-    primaryKey: 'id',
-    columns: [
-      { name: 'id', propertyKey: 'id', type: 'string', required: true, isPrimaryKey: true },
-      { name: 'name', propertyKey: 'name', type: 'string', required: true },
-      { name: 'slug', propertyKey: 'slug', type: 'string', required: true },
-      { name: 'description', propertyKey: 'description', type: 'string', required: false },
-      { name: 'color_code', propertyKey: 'colorCode', type: 'string', required: false },
-      { name: 'created_at', propertyKey: 'createdAt', type: 'date', required: true },
-      { name: 'updated_at', propertyKey: 'updatedAt', type: 'date', required: true },
-    ],
-  },
-
-  // 3. TOPICS
+  // 2. TOPICS (Top-level taxonomy)
   [SHEET_TABS.TOPICS]: {
     sheetName: SHEET_TABS.TOPICS,
-    purpose: 'Subject domains nested under categories (e.g. Time & Work, Number Series)',
+    purpose: 'Top-level subject domains (e.g. Time & Work, Number Series)',
     primaryKey: 'id',
     columns: [
       { name: 'id', propertyKey: 'id', type: 'string', required: true, isPrimaryKey: true },
-      { name: 'category_id', propertyKey: 'categoryId', type: 'string', required: false, isForeignKey: true, foreignKeyTarget: { sheet: SHEET_TABS.CATEGORIES, column: 'id' } },
       { name: 'name', propertyKey: 'name', type: 'string', required: true },
       { name: 'slug', propertyKey: 'slug', type: 'string', required: true },
       { name: 'description', propertyKey: 'description', type: 'string', required: false },
@@ -257,7 +237,7 @@ export const SHEET_SCHEMAS: Record<SheetTabName, SheetSchemaContract> = {
     ],
   },
 
-  // 4. SUBTOPICS
+  // 3. SUBTOPICS
   [SHEET_TABS.SUBTOPICS]: {
     sheetName: SHEET_TABS.SUBTOPICS,
     purpose: 'Granular sub-skills nested under topics (e.g. Pipes & Cisterns, Relative Speed)',
@@ -276,7 +256,7 @@ export const SHEET_SCHEMAS: Record<SheetTabName, SheetSchemaContract> = {
     ],
   },
 
-  // 5. QUESTIONS
+  // 4. QUESTIONS
   [SHEET_TABS.QUESTIONS]: {
     sheetName: SHEET_TABS.QUESTIONS,
     purpose: 'Authoritative question bank repository',
@@ -285,8 +265,6 @@ export const SHEET_SCHEMAS: Record<SheetTabName, SheetSchemaContract> = {
       { name: 'id', propertyKey: 'id', type: 'string', required: true, isPrimaryKey: true },
       { name: 'content_id', propertyKey: 'contentId', type: 'string', required: false },
       { name: 'content_master_id', propertyKey: 'contentMasterId', type: 'string', required: false, isForeignKey: true, foreignKeyTarget: { sheet: SHEET_TABS.CONTENT_MASTERS, column: 'id' } },
-      { name: 'category_id', propertyKey: 'categoryId', type: 'string', required: false, isForeignKey: true, foreignKeyTarget: { sheet: SHEET_TABS.CATEGORIES, column: 'id' } },
-      { name: 'category_name', propertyKey: 'categoryName', type: 'string', required: false },
       { name: 'topic_id', propertyKey: 'topicId', type: 'string', required: true, isForeignKey: true, foreignKeyTarget: { sheet: SHEET_TABS.TOPICS, column: 'id' } },
       { name: 'topic_name', propertyKey: 'topicName', type: 'string', required: true },
       { name: 'subtopic_id', propertyKey: 'subtopicId', type: 'string', required: true, isForeignKey: true, foreignKeyTarget: { sheet: SHEET_TABS.SUBTOPICS, column: 'id' } },
@@ -641,8 +619,6 @@ export const SHEET_SCHEMAS: Record<SheetTabName, SheetSchemaContract> = {
     primaryKey: 'id',
     columns: [
       { name: 'id', propertyKey: 'id', type: 'string', required: true, isPrimaryKey: true },
-      { name: 'category_id', propertyKey: 'categoryId', type: 'string', required: false },
-      { name: 'category_name', propertyKey: 'categoryName', type: 'string', required: false },
       { name: 'topic_id', propertyKey: 'topicId', type: 'string', required: true },
       { name: 'topic_name', propertyKey: 'topicName', type: 'string', required: true },
       { name: 'subtopic_id', propertyKey: 'subtopicId', type: 'string', required: true },
@@ -771,8 +747,6 @@ const QuestionInputBaseSchema = z.object({
   id: z.string().optional(),
   contentId: z.string().optional(),
   contentMasterId: z.string().optional(),
-  categoryId: z.string().optional(),
-  categoryName: z.string().optional(),
   topicId: z.string().min(1, 'Topic ID is required'),
   topicName: z.string().optional(),
   subtopicId: z.string().min(1, 'Subtopic ID is required'),
@@ -889,7 +863,6 @@ export type UpdateQuestionInput = z.infer<typeof UpdateQuestionInputSchema>;
 
 export const QuestionFilterSchema = z.object({
   search: z.string().optional(),
-  categoryId: z.string().optional(),
   topicId: z.string().optional(),
   subtopicId: z.string().optional(),
   difficulty: z.nativeEnum(DifficultyLevel).optional(),
@@ -961,7 +934,6 @@ export type UpdateVideoMetadataInput = z.infer<typeof UpdateVideoMetadataInputSc
 
 export const VideoFilterSchema = z.object({
   search: z.string().optional(),
-  categoryId: z.string().optional(),
   topicId: z.string().optional(),
   difficulty: z.nativeEnum(DifficultyLevel).optional(),
   status: z.nativeEnum(VideoProductionStatus).optional(),
@@ -1040,8 +1012,6 @@ export type UpdatePublishingInput = z.infer<typeof UpdatePublishingInputSchema>;
 // ============================================================================
 
 export const CreateContentPlanInputSchema = z.object({
-  categoryId: z.string().optional(),
-  categoryName: z.string().optional(),
   topicId: z.string().min(1, 'Topic ID is required'),
   topicName: z.string().optional(),
   subtopicId: z.string().min(1, 'Subtopic ID is required'),
@@ -1104,7 +1074,6 @@ export const LinkBatchQuestionsInputSchema = z.object({
 export type LinkBatchQuestionsInput = z.infer<typeof LinkBatchQuestionsInputSchema>;
 
 export const AiContentPlanRequestSchema = z.object({
-  categoryId: z.string().optional(),
   topicId: z.string().optional(),
   targetTotalCount: z.number().int().min(5, 'Target total count must be at least 5').max(100, 'Target count capped at 100 per recommendation').default(20),
   language: z.nativeEnum(QuestionLanguage).optional().default(QuestionLanguage.TELUGU),
@@ -1205,7 +1174,6 @@ export const CreateContentMasterInputSchema = z.object({
   title: z.string().min(1, 'Title is required'),
   status: z.union([z.nativeEnum(ContentMasterStatus), z.string()]).optional().default(ContentMasterStatus.ACTIVE),
   primaryQuestionId: z.string().optional(),
-  categoryId: z.string().optional(),
   topicId: z.string().optional(),
   subtopicId: z.string().optional(),
   createdBy: z.string().optional(),
@@ -1226,7 +1194,6 @@ export type UpdateContentMasterInput = z.infer<typeof UpdateContentMasterInputSc
 
 export const CreateTopicInputSchema = z.object({
   name: z.string().min(1, 'Topic name is required'),
-  categoryId: z.string().optional(),
   slug: z.string().optional(),
   description: z.string().optional(),
   displayOrder: z.number().optional(),
@@ -1238,7 +1205,6 @@ export type CreateTopicInput = z.input<typeof CreateTopicInputSchema>;
 export const UpdateTopicInputSchema = z.object({
   id: z.string().min(1, 'Topic ID is required for update'),
   name: z.string().min(1).optional(),
-  categoryId: z.string().optional(),
   slug: z.string().optional(),
   description: z.string().optional(),
   displayOrder: z.number().optional(),
@@ -1275,7 +1241,6 @@ export type UpdateSubtopicInput = z.infer<typeof UpdateSubtopicInputSchema>;
 export const BulkImportTaxonomyItemSchema = z.object({
   name: z.string().min(1, 'Topic name is required'),
   slug: z.string().optional(),
-  categoryId: z.string().optional(),
   description: z.string().optional(),
   displayOrder: z.number().optional(),
   subtopics: z.array(

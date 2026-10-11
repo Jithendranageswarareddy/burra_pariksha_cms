@@ -20,11 +20,6 @@ export class TopicsRepository extends BaseRepository<Topic> {
     return TopicsRepository.instance;
   }
 
-  public async findByCategoryId(categoryId: string): Promise<Topic[]> {
-    const all = await this.findAll();
-    return all.filter((t) => t.categoryId === categoryId);
-  }
-
   public async findByName(name: string): Promise<Topic | null> {
     const all = await this.findAll();
     const clean = name.trim().toLowerCase();

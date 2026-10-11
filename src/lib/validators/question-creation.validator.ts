@@ -14,7 +14,6 @@ import { QuestionLanguage, QuestionStyle } from '../../types';
 
 export interface QuestionCreationRequestPayload {
   creationMode: 'manual' | 'ai';
-  categoryId?: string;
   topicId: string;
   subtopicId: string;
   difficulty: string;

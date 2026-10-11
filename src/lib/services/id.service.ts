@@ -69,10 +69,6 @@ export class IdService {
     return this.generateId(SEQUENCE_ENTITIES.PINNED_COMMENT);
   }
 
-  public async allocateCategoryId(): Promise<string> {
-    return this.generateId(SEQUENCE_ENTITIES.CATEGORY);
-  }
-
   public async allocateTopicId(): Promise<string> {
     return this.generateId(SEQUENCE_ENTITIES.TOPIC);
   }

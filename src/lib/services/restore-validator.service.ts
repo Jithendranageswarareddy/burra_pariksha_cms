@@ -20,7 +20,6 @@ import {
   thumbnailVersionsRepository,
   pinnedCommentsRepository,
   pinnedCommentVersionsRepository,
-  categoriesRepository,
   topicsRepository,
   subtopicsRepository,
   assignmentsRepository,
@@ -169,7 +168,6 @@ export class RestoreValidatorService {
     let currentThumbnailVersions: any[] = [];
     let currentPinnedComments: any[] = [];
     let currentPinnedCommentVersions: any[] = [];
-    let currentCategories: any[] = [];
     let currentTopics: any[] = [];
     let currentSubtopics: any[] = [];
 
@@ -182,7 +180,6 @@ export class RestoreValidatorService {
       currentThumbnailVersions = await thumbnailVersionsRepository.findAll();
       currentPinnedComments = await pinnedCommentsRepository.findAll();
       currentPinnedCommentVersions = await pinnedCommentVersionsRepository.findAll();
-      currentCategories = await categoriesRepository.findAll();
       currentTopics = await topicsRepository.findAll();
       currentSubtopics = await subtopicsRepository.findAll();
     } catch {
@@ -198,7 +195,6 @@ export class RestoreValidatorService {
     const thumbnailVersionMap = new Map(currentThumbnailVersions.map((tv: any) => [`${tv.thumbnailId}_${tv.versionNumber}`, tv]));
     const pinnedCommentMap = new Map(currentPinnedComments.map((pc: any) => [pc.id || pc.pinnedCommentId, pc]));
     const pinnedCommentVersionMap = new Map(currentPinnedCommentVersions.map((pcv: any) => [`${pcv.pinnedCommentId}_${pcv.versionNumber}`, pcv]));
-    const categoryMap = new Map(currentCategories.map((c: any) => [c.id || c.categoryId, c]));
     const topicMap = new Map(currentTopics.map((t: any) => [t.id || t.topicId, t]));
     const subtopicMap = new Map(currentSubtopics.map((st: any) => [st.id || st.subtopicId, st]));
 

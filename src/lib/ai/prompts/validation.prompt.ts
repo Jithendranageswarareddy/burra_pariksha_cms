@@ -22,7 +22,6 @@ export function buildQuestionValidationPrompt(question: {
   options: { a: string; b: string; c: string; d: string };
   correctAnswer: string;
   explanation: string;
-  categoryName?: string;
   topicName?: string;
   subtopicName?: string;
   difficulty?: string;

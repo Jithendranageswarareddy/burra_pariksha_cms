@@ -30,7 +30,7 @@
 | **User** | `USERS` | `users` | `USR-###` | `sessionVersion`, `version` | Yes |
 | **Question Draft** | `QUESTIONS` (drafts) | `question_drafts` | `BP-DFT-######` | `version` | Yes |
 | **Question** | `QUESTIONS` | `questions` | `BP-Q-######` | `version` | Yes |
-| **Category** | `CATEGORIES` | `categories` | `BP-CAT-###` | `version` | Yes |
+| **Category (Historical)** | `CATEGORIES` *(Removed S5)* | `categories` *(Removed S5)* | `BP-CAT-###` | `version` | Yes |
 | **Topic** | `TOPICS` | `topics` | `BP-TOP-####` | `version` | Yes |
 | **Subtopic** | `SUBTOPICS` | `subtopics` | `BP-SUB-######` | `version` | Yes |
 | **Video** | `VIDEOS` | `videos` | `BP-V-######` | `version` | Yes |

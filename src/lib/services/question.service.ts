@@ -23,7 +23,6 @@ import { createHash } from 'crypto';
 export interface DuplicateMatch {
   questionId: string;
   questionText: string;
-  categoryName: string;
   topicName: string;
   status: QuestionStatus;
   videoStatus: VideoProductionStatus;
@@ -140,7 +139,6 @@ export class QuestionService {
     const tags = Array.isArray(payload.tags) ? [...payload.tags].map(t => String(t).trim()).sort() : [];
 
     const normalizedObject = {
-      categoryId: (payload.categoryId || '').trim(),
       challengeType: (payload.challengeType || '').trim(),
       contentMasterId: (payload.contentMasterId || '').trim(),
       correctAnswer: (payload.correctAnswer || '').trim(),
@@ -263,7 +261,6 @@ export class QuestionService {
         matches.push({
           questionId: existing.id,
           questionText: existing.questionText,
-          categoryName: existing.categoryName,
           topicName: existing.topicName,
           status: existing.status,
           videoStatus: existing.videoStatus,
@@ -311,7 +308,6 @@ export class QuestionService {
     // 2. Map normalized input to QuestionCreationRequestPayload
     const payload: QuestionCreationRequestPayload = {
       creationMode: 'manual',
-      categoryId: validatedInput.categoryId,
       topicId: validatedInput.topicId,
       subtopicId: validatedInput.subtopicId,
       difficulty: validatedInput.difficulty,
@@ -470,7 +466,6 @@ export class QuestionService {
     }
 
     const resolvedParams = await smartRandomService.resolveParameters({
-      categoryId: requestPayload.categoryId,
       topicId: requestPayload.topicId,
       subtopicId: requestPayload.subtopicId,
       difficulty: requestPayload.difficulty,
@@ -482,7 +477,6 @@ export class QuestionService {
 
     const topicId = resolvedParams.topicId;
     const subtopicId = resolvedParams.subtopicId;
-    const categoryId = resolvedParams.categoryId || requestPayload.categoryId;
     const difficulty = resolvedParams.difficulty;
     const realLifeContext = resolvedParams.realLifeContext;
     const challengeType = resolvedParams.challengeType;
@@ -517,10 +511,9 @@ export class QuestionService {
     }
 
     // 3. Validate Taxonomy Integrity
-    const { category, topic, subtopic } = await taxonomyService.validateQuestionTaxonomy(
+    const { topic, subtopic } = await taxonomyService.validateQuestionTaxonomy(
       topicId,
-      subtopicId,
-      categoryId
+      subtopicId
     );
 
     const now = new Date().toISOString();
@@ -532,8 +525,6 @@ export class QuestionService {
       id: 'PRE-SAVE-CHECK',
       contentId: '',
       contentMasterId: '',
-      categoryId: category?.id || categoryId || '',
-      categoryName: category?.name || '',
       topicId: topic.id,
       topicName: topic.name,
       subtopicId: subtopic.id,
@@ -608,7 +599,6 @@ export class QuestionService {
             ? requestPayload.questionText.slice(0, 100)
             : `Content Master for Question ${id}`,
           primaryQuestionId: id,
-          categoryId: category?.id || categoryId || '',
           topicId: topic.id,
           subtopicId: subtopic.id,
           createdBy: actor.id,
@@ -742,7 +732,6 @@ export class QuestionService {
           creationMode: requestPayload.creationMode,
           questionId: id,
           contentMasterId,
-          categoryId: category?.id || categoryId || '',
           topicId: topic.id,
           subtopicId: subtopic.id,
           difficulty,
@@ -797,24 +786,19 @@ export class QuestionService {
     }
 
     // 2. Validate taxonomy if any taxonomy field changed
-    const targetCat = updates.categoryId || existing.categoryId;
     const targetTopic = updates.topicId || existing.topicId;
     const targetSubtopic = updates.subtopicId || existing.subtopicId;
 
     let enrichedTaxonomy = {
-      categoryId: existing.categoryId,
-      categoryName: existing.categoryName,
       topicId: existing.topicId,
       topicName: existing.topicName,
       subtopicId: existing.subtopicId,
       subtopicName: existing.subtopicName,
     };
 
-    if (updates.categoryId || updates.topicId || updates.subtopicId) {
-      const { category, topic, subtopic } = await taxonomyService.validateQuestionTaxonomy(targetTopic, targetSubtopic, targetCat);
+    if (updates.topicId || updates.subtopicId) {
+      const { topic, subtopic } = await taxonomyService.validateQuestionTaxonomy(targetTopic, targetSubtopic);
       enrichedTaxonomy = {
-        categoryId: category?.id || targetCat || '',
-        categoryName: category?.name || '',
         topicId: topic.id,
         topicName: topic.name,
         subtopicId: subtopic.id,
@@ -900,6 +884,9 @@ export class QuestionService {
       lastValidationId: isMaterialEdit ? '' : (updates as any).lastValidationId || existing.lastValidationId,
       updatedAt: new Date().toISOString(),
     };
+
+    delete updatedRecord.categoryId;
+    delete updatedRecord.categoryName;
 
     if (updatedRecord.questionText) {
       updatedRecord.question = updatedRecord.questionText;

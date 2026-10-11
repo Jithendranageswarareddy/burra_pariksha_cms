@@ -15,7 +15,6 @@ import { taxonomyService } from './taxonomy.service';
 import { auditService } from './audit.service';
 import {
   BatchProgressMetrics,
-  CategoryCoverage,
   ContentBatch,
   ContentBatchStatus,
   ContentGapAnalysis,
@@ -61,11 +60,10 @@ export class PlanningService {
     input: CreateContentPlanInput,
     actor: { id: string; name: string } = { id: 'USR-001', name: 'Admin / Content Lead' }
   ): Promise<ContentPlan> {
-    // 1. Validate taxonomy hierarchy (Topic -> Subtopic primary, optional legacy category)
-    const { category, topic, subtopic } = await taxonomyService.validateQuestionTaxonomy(
+    // 1. Validate taxonomy hierarchy (Topic -> Subtopic)
+    const { topic, subtopic } = await taxonomyService.validateQuestionTaxonomy(
       input.topicId,
-      input.subtopicId,
-      input.categoryId
+      input.subtopicId
     );
 
     // 2. Allocate permanent canonical ID
@@ -74,8 +72,6 @@ export class PlanningService {
 
     const plan: ContentPlan = {
       id: planId,
-      categoryId: category?.id || input.categoryId || '',
-      categoryName: category?.name || input.categoryName || '',
       topicId: topic.id,
       topicName: topic.name,
       subtopicId: subtopic.id,
@@ -105,7 +101,6 @@ export class PlanningService {
       planId,
       {
         targetQuestionCount: plan.targetQuestionCount,
-        category: plan.categoryName,
         topic: plan.topicName,
         subtopic: plan.subtopicName,
         difficulty: plan.difficulty,
@@ -266,7 +261,6 @@ export class PlanningService {
    * Retrieves all Content Plans enriched with current progress and batch count.
    */
   public async getAllContentPlans(filter?: {
-    categoryId?: string;
     topicId?: string;
     status?: ContentPlanStatus;
   }): Promise<ContentPlan[]> {
@@ -274,9 +268,6 @@ export class PlanningService {
     const allQuestions = await questionsRepository.findAll();
     const allBatches = await contentBatchesRepository.findAll();
 
-    if (filter?.categoryId) {
-      plans = plans.filter((p) => p.categoryId === filter.categoryId);
-    }
     if (filter?.topicId) {
       plans = plans.filter((p) => p.topicId === filter.topicId);
     }
@@ -629,7 +620,6 @@ export class PlanningService {
    * Calculates comprehensive hierarchical coverage overview across all taxonomy nodes.
    */
   public async getCoverageOverview(): Promise<CoverageOverviewData> {
-    const categories = await taxonomyService.getCategories();
     const topics = await taxonomyService.getTopics();
     const subtopics = await taxonomyService.getSubtopics();
     const questions = await questionsRepository.findAll();
@@ -652,167 +642,135 @@ export class PlanningService {
     let appCount = 0;
     let rejCount = 0;
 
-    const categoryCoverages: CategoryCoverage[] = [];
+    const topicCoverages: TopicCoverage[] = [];
 
-    for (const cat of categories) {
-      const catTopics = topics.filter((t) => t.categoryId === cat.id);
-      const topicCoverages: TopicCoverage[] = [];
-      let catQuestionsCount = 0;
-      let catSubtopicsCount = 0;
-      let catCoveredSubtopicsCount = 0;
+    for (const top of topics) {
+      const topSubtopics = subtopics.filter((s) => s.topicId === top.id);
+      const subtopicCoverages: SubtopicCoverage[] = [];
+      let topQuestionsCount = 0;
+      let topActiveSubtopicsCount = 0;
+      let topZeroSubtopicsCount = 0;
 
-      for (const top of catTopics) {
-        const topSubtopics = subtopics.filter((s) => s.topicId === top.id);
-        const subtopicCoverages: SubtopicCoverage[] = [];
-        let topQuestionsCount = 0;
-        let topActiveSubtopicsCount = 0;
-        let topZeroSubtopicsCount = 0;
+      for (const sub of topSubtopics) {
+        const subQuestions = questions.filter((q) => q.subtopicId === sub.id);
+        const count = subQuestions.length;
+        topQuestionsCount += count;
 
-        for (const sub of topSubtopics) {
-          catSubtopicsCount++;
-          const subQuestions = questions.filter((q) => q.subtopicId === sub.id);
-          const count = subQuestions.length;
-          topQuestionsCount += count;
-          catQuestionsCount += count;
+        const byStatus = {
+          draft: 0,
+          generated: 0,
+          editing: 0,
+          approved: 0,
+          rejected: 0,
+        };
 
-          const byStatus = {
-            draft: 0,
-            generated: 0,
-            editing: 0,
-            approved: 0,
-            rejected: 0,
-          };
+        const byDifficulty = {
+          easy: 0,
+          medium: 0,
+          hard: 0,
+        };
 
-          const byDifficulty = {
-            easy: 0,
-            medium: 0,
-            hard: 0,
-          };
+        const byLanguage = {
+          english: 0,
+          telugu: 0,
+        };
 
-          const byLanguage = {
-            english: 0,
-            telugu: 0,
-          };
+        const byProduction = {
+          queued: 0,
+          inProduction: 0,
+          published: 0,
+        };
 
-          const byProduction = {
-            queued: 0,
-            inProduction: 0,
-            published: 0,
-          };
-
-          for (const q of subQuestions) {
-            // Status counts
-            if (q.status === QuestionStatus.DRAFT) {
-              byStatus.draft++;
-              draftCount++;
-            } else if (q.status === QuestionStatus.GENERATED) {
-              byStatus.generated++;
-              genCount++;
-            } else if (q.status === QuestionStatus.EDITING) {
-              byStatus.editing++;
-              editCount++;
-            } else if (q.status === QuestionStatus.APPROVED) {
-              byStatus.approved++;
-              appCount++;
-            } else if (q.status === QuestionStatus.REJECTED) {
-              byStatus.rejected++;
-              rejCount++;
-            }
-
-            // Difficulty counts
-            if (q.difficulty === DifficultyLevel.EASY) {
-              byDifficulty.easy++;
-              easyCount++;
-            } else if (q.difficulty === DifficultyLevel.MEDIUM) {
-              byDifficulty.medium++;
-              medCount++;
-            } else if (q.difficulty === DifficultyLevel.HARD) {
-              byDifficulty.hard++;
-              hardCount++;
-            }
-
-            // Language counts
-            if (q.language === QuestionLanguage.TELUGU) {
-              byLanguage.telugu++;
-              telCount++;
-            } else {
-              byLanguage.english++;
-              engCount++;
-            }
-
-            // Video Production
-            const v = videos.find((vid) => vid.questionId === q.id);
-            if (v) {
-              if (v.status === VideoProductionStatus.QUEUED) byProduction.queued++;
-              else if (v.status === VideoProductionStatus.UPLOADED) byProduction.published++;
-              else byProduction.inProduction++;
-            }
+        for (const q of subQuestions) {
+          // Status counts
+          if (q.status === QuestionStatus.DRAFT) {
+            byStatus.draft++;
+            draftCount++;
+          } else if (q.status === QuestionStatus.GENERATED) {
+            byStatus.generated++;
+            genCount++;
+          } else if (q.status === QuestionStatus.EDITING) {
+            byStatus.editing++;
+            editCount++;
+          } else if (q.status === QuestionStatus.APPROVED) {
+            byStatus.approved++;
+            appCount++;
+          } else if (q.status === QuestionStatus.REJECTED) {
+            byStatus.rejected++;
+            rejCount++;
           }
 
-          const isZero = count === 0;
-          const isLow = count > 0 && count < 3;
+          // Difficulty counts
+          if (q.difficulty === DifficultyLevel.EASY) {
+            byDifficulty.easy++;
+            easyCount++;
+          } else if (q.difficulty === DifficultyLevel.MEDIUM) {
+            byDifficulty.medium++;
+            medCount++;
+          } else if (q.difficulty === DifficultyLevel.HARD) {
+            byDifficulty.hard++;
+            hardCount++;
+          }
 
-          if (isZero) {
-            zeroCoverageSubtopicsCount++;
-            topZeroSubtopicsCount++;
+          // Language counts
+          if (q.language === QuestionLanguage.TELUGU) {
+            byLanguage.telugu++;
+            telCount++;
           } else {
-            totalCoveredSubtopics++;
-            catCoveredSubtopicsCount++;
-            topActiveSubtopicsCount++;
-            if (isLow) lowCoverageSubtopicsCount++;
+            byLanguage.english++;
+            engCount++;
           }
 
-          subtopicCoverages.push({
-            subtopicId: sub.id,
-            subtopicName: sub.name,
-            topicId: top.id,
-            topicName: top.name,
-            categoryId: cat.id,
-            categoryName: cat.name,
-            totalQuestions: count,
-            byStatus,
-            byDifficulty,
-            byLanguage,
-            byProduction,
-            isZeroCoverage: isZero,
-            isLowCoverage: isLow,
-          });
+          // Video Production
+          const v = videos.find((vid) => vid.questionId === q.id);
+          if (v) {
+            if (v.status === VideoProductionStatus.QUEUED) byProduction.queued++;
+            else if (v.status === VideoProductionStatus.UPLOADED) byProduction.published++;
+            else byProduction.inProduction++;
+          }
         }
 
-        const topCoveragePct =
-          topSubtopics.length > 0
-            ? Math.round((topActiveSubtopicsCount / topSubtopics.length) * 100)
-            : 0;
+        const isZero = count === 0;
+        const isLow = count > 0 && count < 3;
 
-        topicCoverages.push({
+        if (isZero) {
+          zeroCoverageSubtopicsCount++;
+          topZeroSubtopicsCount++;
+        } else {
+          totalCoveredSubtopics++;
+          topActiveSubtopicsCount++;
+          if (isLow) lowCoverageSubtopicsCount++;
+        }
+
+        subtopicCoverages.push({
+          subtopicId: sub.id,
+          subtopicName: sub.name,
           topicId: top.id,
           topicName: top.name,
-          categoryId: cat.id,
-          categoryName: cat.name,
-          totalQuestions: topQuestionsCount,
-          subtopicsCount: topSubtopics.length,
-          activeSubtopicsCount: topActiveSubtopicsCount,
-          zeroSubtopicsCount: topZeroSubtopicsCount,
-          coveragePercentage: topCoveragePct,
-          subtopics: subtopicCoverages,
+          totalQuestions: count,
+          byStatus,
+          byDifficulty,
+          byLanguage,
+          byProduction,
+          isZeroCoverage: isZero,
+          isLowCoverage: isLow,
         });
       }
 
-      const catCoveragePct =
-        catSubtopicsCount > 0
-          ? Math.round((catCoveredSubtopicsCount / catSubtopicsCount) * 100)
+      const topCoveragePct =
+        topSubtopics.length > 0
+          ? Math.round((topActiveSubtopicsCount / topSubtopics.length) * 100)
           : 0;
 
-      categoryCoverages.push({
-        categoryId: cat.id,
-        categoryName: cat.name,
-        colorCode: cat.colorCode,
-        totalQuestions: catQuestionsCount,
-        totalTopics: catTopics.length,
-        totalSubtopics: catSubtopicsCount,
-        coveredSubtopics: catCoveredSubtopicsCount,
-        coveragePercentage: catCoveragePct,
-        topics: topicCoverages,
+      topicCoverages.push({
+        topicId: top.id,
+        topicName: top.name,
+        totalQuestions: topQuestionsCount,
+        subtopicsCount: topSubtopics.length,
+        activeSubtopicsCount: topActiveSubtopicsCount,
+        zeroSubtopicsCount: topZeroSubtopicsCount,
+        coveragePercentage: topCoveragePct,
+        subtopics: subtopicCoverages,
       });
     }
 
@@ -824,7 +782,6 @@ export class PlanningService {
 
     return {
       totalQuestions: totalQuestionsCount,
-      totalCategories: categories.length,
       totalTopics: topics.length,
       totalSubtopics: subtopics.length,
       coveredSubtopicsCount: totalCoveredSubtopics,
@@ -850,7 +807,7 @@ export class PlanningService {
         approved: appCount,
         rejected: rejCount,
       },
-      categories: categoryCoverages,
+      topics: topicCoverages,
     };
   }
 
@@ -864,21 +821,18 @@ export class PlanningService {
       subtopicId: string;
       subtopicName: string;
       topicName: string;
-      categoryName: string;
     }[] = [];
 
     const lowCoverageSubtopics: {
       subtopicId: string;
       subtopicName: string;
       topicName: string;
-      categoryName: string;
       currentCount: number;
     }[] = [];
 
     const difficultyGaps: {
       topicId: string;
       topicName: string;
-      categoryName: string;
       missingDifficulties: DifficultyLevel[];
       recommendation: string;
     }[] = [];
@@ -886,7 +840,6 @@ export class PlanningService {
     const languageGaps: {
       topicId: string;
       topicName: string;
-      categoryName: string;
       missingLanguages: QuestionLanguage[];
       recommendation: string;
     }[] = [];
@@ -894,90 +847,82 @@ export class PlanningService {
     const concentrationRisks: {
       topicId: string;
       topicName: string;
-      categoryName: string;
       questionCount: number;
       percentageOfTotal: number;
       warning: string;
     }[] = [];
 
-    for (const cat of coverage.categories) {
-      for (const top of cat.topics) {
-        // Check topic concentration
-        if (coverage.totalQuestions > 10) {
-          const pct = Math.round((top.totalQuestions / coverage.totalQuestions) * 100);
-          if (pct > 35) {
-            concentrationRisks.push({
-              topicId: top.topicId,
-              topicName: top.topicName,
-              categoryName: cat.categoryName,
-              questionCount: top.totalQuestions,
-              percentageOfTotal: pct,
-              warning: `Topic '${top.topicName}' represents ${pct}% of the entire question repository.`,
-            });
-          }
+    for (const top of coverage.topics) {
+      // Check topic concentration
+      if (coverage.totalQuestions > 10) {
+        const pct = Math.round((top.totalQuestions / coverage.totalQuestions) * 100);
+        if (pct > 35) {
+          concentrationRisks.push({
+            topicId: top.topicId,
+            topicName: top.topicName,
+            questionCount: top.totalQuestions,
+            percentageOfTotal: pct,
+            warning: `Topic '${top.topicName}' represents ${pct}% of the entire question repository.`,
+          });
+        }
+      }
+
+      // Aggregate topic level difficulty coverage
+      let hasEasy = false;
+      let hasMed = false;
+      let hasHard = false;
+      let hasEng = false;
+      let hasTel = false;
+
+      for (const sub of top.subtopics) {
+        if (sub.isZeroCoverage) {
+          zeroCoverageSubtopics.push({
+            subtopicId: sub.subtopicId,
+            subtopicName: sub.subtopicName,
+            topicName: top.topicName,
+          });
+        } else if (sub.isLowCoverage) {
+          lowCoverageSubtopics.push({
+            subtopicId: sub.subtopicId,
+            subtopicName: sub.subtopicName,
+            topicName: top.topicName,
+            currentCount: sub.totalQuestions,
+          });
         }
 
-        // Aggregate topic level difficulty coverage
-        let hasEasy = false;
-        let hasMed = false;
-        let hasHard = false;
-        let hasEng = false;
-        let hasTel = false;
+        if (sub.byDifficulty.easy > 0) hasEasy = true;
+        if (sub.byDifficulty.medium > 0) hasMed = true;
+        if (sub.byDifficulty.hard > 0) hasHard = true;
 
-        for (const sub of top.subtopics) {
-          if (sub.isZeroCoverage) {
-            zeroCoverageSubtopics.push({
-              subtopicId: sub.subtopicId,
-              subtopicName: sub.subtopicName,
-              topicName: top.topicName,
-              categoryName: cat.categoryName,
-            });
-          } else if (sub.isLowCoverage) {
-            lowCoverageSubtopics.push({
-              subtopicId: sub.subtopicId,
-              subtopicName: sub.subtopicName,
-              topicName: top.topicName,
-              categoryName: cat.categoryName,
-              currentCount: sub.totalQuestions,
-            });
-          }
+        if (sub.byLanguage.english > 0) hasEng = true;
+        if (sub.byLanguage.telugu > 0) hasTel = true;
+      }
 
-          if (sub.byDifficulty.easy > 0) hasEasy = true;
-          if (sub.byDifficulty.medium > 0) hasMed = true;
-          if (sub.byDifficulty.hard > 0) hasHard = true;
+      if (top.totalQuestions > 0) {
+        const missingDiffs: DifficultyLevel[] = [];
+        if (!hasEasy) missingDiffs.push(DifficultyLevel.EASY);
+        if (!hasMed) missingDiffs.push(DifficultyLevel.MEDIUM);
+        if (!hasHard) missingDiffs.push(DifficultyLevel.HARD);
 
-          if (sub.byLanguage.english > 0) hasEng = true;
-          if (sub.byLanguage.telugu > 0) hasTel = true;
+        if (missingDiffs.length > 0) {
+          difficultyGaps.push({
+            topicId: top.topicId,
+            topicName: top.topicName,
+            missingDifficulties: missingDiffs,
+            recommendation: `Create ${missingDiffs.join(', ')} questions for balanced syllabus mastery.`,
+          });
         }
 
-        if (top.totalQuestions > 0) {
-          const missingDiffs: DifficultyLevel[] = [];
-          if (!hasEasy) missingDiffs.push(DifficultyLevel.EASY);
-          if (!hasMed) missingDiffs.push(DifficultyLevel.MEDIUM);
-          if (!hasHard) missingDiffs.push(DifficultyLevel.HARD);
+        const missingLangs: QuestionLanguage[] = [];
+        if (!hasTel) missingLangs.push(QuestionLanguage.TELUGU);
 
-          if (missingDiffs.length > 0) {
-            difficultyGaps.push({
-              topicId: top.topicId,
-              topicName: top.topicName,
-              categoryName: cat.categoryName,
-              missingDifficulties: missingDiffs,
-              recommendation: `Create ${missingDiffs.join(', ')} questions for balanced syllabus mastery.`,
-            });
-          }
-
-          const missingLangs: QuestionLanguage[] = [];
-          if (!hasTel) missingLangs.push(QuestionLanguage.TELUGU);
-
-          if (missingLangs.length > 0 && top.totalQuestions >= 5) {
-            languageGaps.push({
-              topicId: top.topicId,
-              topicName: top.topicName,
-              categoryName: cat.categoryName,
-              missingLanguages: missingLangs,
-              recommendation: `Translate or author questions in Telugu to support bilingual regional aspirants.`,
-            });
-          }
+        if (missingLangs.length > 0 && top.totalQuestions >= 5) {
+          languageGaps.push({
+            topicId: top.topicId,
+            topicName: top.topicName,
+            missingLanguages: missingLangs,
+            recommendation: `Translate or author questions in Telugu to support bilingual regional aspirants.`,
+          });
         }
       }
     }

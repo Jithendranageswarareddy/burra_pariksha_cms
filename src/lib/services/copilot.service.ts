@@ -1022,9 +1022,9 @@ Hook Style: ${hookStyle}`;
     this.checkAccess(actor);
 
     const question = await questionsRepository.findById(contentId);
-    const category = question ? question.categoryName : 'General';
+    const topic = question ? question.topicName : 'General';
 
-    const prompt = `Generate hashtag recommendations for educational topic category: "${category}"`;
+    const prompt = `Generate hashtag recommendations for educational topic: "${topic}"`;
 
     const aiResponse = await aiOrchestrator.executeTask({
       task: 'GENERATION',

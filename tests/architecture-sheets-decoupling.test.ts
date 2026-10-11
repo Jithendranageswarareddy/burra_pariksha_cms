@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url';
 import { getAdminFirestore } from '../src/lib/firebase/admin';
 import { operationalHealthService } from '../src/lib/services/operational-health.service';
 import { questionsRepository } from '../src/lib/repositories/questions.repository';
-import { categoriesRepository } from '../src/lib/repositories/categories.repository';
+import { topicsRepository } from '../src/lib/repositories/topics.repository';
 import { usersRepository } from '../src/lib/repositories/users.repository';
 import { sequencesRepository } from '../src/lib/repositories/sequences.repository';
 import { auditLogRepository } from '../src/lib/repositories/audit-log.repository';
@@ -94,7 +94,7 @@ async function runDecouplingSuite() {
   // 4. Repositories Verification: Assert repositories target Firestore collections
   console.log('\n[Check 4] Verifying authoritative domain repositories use Firestore collections...');
   assert.strictEqual(questionsRepository.getCollectionName(), 'questions');
-  assert.strictEqual(categoriesRepository.getCollectionName(), 'categories');
+  assert.strictEqual(topicsRepository.getCollectionName(), 'topics');
   assert.strictEqual(usersRepository.getCollectionName(), 'users');
   assert.strictEqual(sequencesRepository.getCollectionName(), 'sequences');
   assert.strictEqual(auditLogRepository.getCollectionName(), 'audit_logs');
