@@ -1,21 +1,9 @@
 /**
- * BURRA PARIKSHA CMS - Client API Bridge
- * Phase 2: Google Sheets Database Architecture & Persistence
+ * BURRA PARIKSHA CMS - Frontend API Client
  * 
  * Provides type-safe fetch abstractions for calling server-side API endpoints.
  */
 
-import {
-  CancelAssignmentInput,
-  CompleteAssignmentInput,
-  CreateAssignmentInput,
-  CreateQuestionInput,
-  CreateUserInput,
-  QuestionFilterInput,
-  ReassignAssignmentInput,
-  UpdateAssignmentInput,
-  UpdateUserInput,
-} from '../../src/lib/schemas/google-sheets-schema';
 import {
   Assignment,
   AuditLog,
@@ -37,6 +25,15 @@ import {
 } from '../../src/types';
 import { GenerateCandidateInput, GenerationResult, RefineCandidateInput } from '../../src/lib/ai/types';
 import {
+  CancelAssignmentInput,
+  CompleteAssignmentInput,
+  CreateAssignmentInput,
+  CreateQuestionInput,
+  CreateUserInput,
+  QuestionFilterInput,
+  ReassignAssignmentInput,
+  UpdateAssignmentInput,
+  UpdateUserInput,
   ContentMasterDetails,
   DiversityRadarReport,
   QuestionSimilarityMatch,

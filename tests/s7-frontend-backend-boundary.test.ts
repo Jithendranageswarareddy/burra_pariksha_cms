@@ -49,6 +49,16 @@ const FORBIDDEN_RULES: BoundaryRule[] = [
     description: 'Direct import of database repositories',
   },
   {
+    category: 'Database & Schema Infrastructure',
+    pattern: /(from\s+['"][^'"]*\/schemas(\/[^'"]*)?['"]|import\(['"][^'"]*\/schemas\/[^'"]*['"]\))/,
+    description: 'Direct import of database/validation schemas or Google Sheets schema contracts',
+  },
+  {
+    category: 'Database Adapters & Infrastructure',
+    pattern: /(from\s+['"][^'"]*\/db(\/[^'"]*)?['"]|import\(['"][^'"]*\/db\/[^'"]*['"]\))/,
+    description: 'Direct import of database layer or db adapters',
+  },
+  {
     category: 'Firestore & Firebase Admin',
     pattern: /(from\s+['"][^'"]*(firebase|firebase-admin)(\/[^'"]*)?['"]|import\(['"][^'"]*(firebase|firebase-admin)[^'"]*['"]\))/,
     description: 'Direct import of Firebase Admin SDK or Firestore adapters',

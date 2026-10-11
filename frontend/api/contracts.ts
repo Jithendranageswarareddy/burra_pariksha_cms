@@ -4,21 +4,27 @@
  *
  * Defines pure, client-safe DTO interfaces for API responses and payloads.
  * Frontend presentation code consumes these serializable contracts rather than
- * importing server-side domain services, AI validators, or database infrastructure.
+ * importing server-side domain services, AI validators, or database/schema infrastructure.
  */
 
 import {
-  ContentMaster,
-  ContentDiversityWarning,
-  Question,
-  Video,
-  Script,
-  Thumbnail,
-  PinnedComment,
-  Publishing,
-  SocialReviewRecord,
   Assignment,
+  AssignmentEntityType,
   AuditLog,
+  ContentDiversityWarning,
+  ContentMaster,
+  DifficultyLevel,
+  PinnedComment,
+  PriorityLevel,
+  Publishing,
+  Question,
+  QuestionStatus,
+  QuestionStyle,
+  Script,
+  SocialReviewRecord,
+  Thumbnail,
+  Video,
+  VideoProductionStatus,
   Workflow,
 } from '../../src/types';
 
@@ -158,4 +164,121 @@ export interface CandidateValidationReport {
     isNumericProblem: boolean;
   };
   mathematicalVerification?: MathVerificationResult;
+}
+
+// ==========================================
+// 5. API Request DTO Contracts
+// ==========================================
+
+export interface CancelAssignmentInput {
+  reason?: string;
+}
+
+export interface CompleteAssignmentInput {
+  notes?: string;
+}
+
+export interface CreateAssignmentInput {
+  entityType: AssignmentEntityType | string;
+  entityId: string;
+  assigneeId: string;
+  assignmentRole?: string;
+  taskType: string;
+  priority?: PriorityLevel;
+  dueDate?: string;
+  dueAt?: string;
+  notes?: string;
+}
+
+export interface ReassignAssignmentInput {
+  newAssigneeId: string;
+  notes?: string;
+}
+
+export interface UpdateAssignmentInput {
+  taskType?: string;
+  status?: string;
+  priority?: PriorityLevel;
+  dueDate?: string;
+  dueAt?: string;
+  notes?: string;
+}
+
+export interface CreateUserInput {
+  name: string;
+  email: string;
+  role?: string;
+  roles?: string[];
+  avatarUrl?: string;
+  isActive?: boolean;
+  password_hash?: string;
+  last_login_at?: string;
+}
+
+export interface UpdateUserInput {
+  name?: string;
+  email?: string;
+  role?: string;
+  roles?: string[];
+  avatarUrl?: string;
+  isActive?: boolean;
+  password_hash?: string;
+  last_login_at?: string;
+}
+
+export interface QuestionFilterInput {
+  search?: string;
+  topicId?: string;
+  subtopicId?: string;
+  difficulty?: DifficultyLevel;
+  status?: QuestionStatus;
+  videoStatus?: VideoProductionStatus;
+}
+
+export interface CreateQuestionInput {
+  id?: string;
+  contentId?: string;
+  contentMasterId?: string;
+  topicId: string;
+  topicName?: string;
+  subtopicId: string;
+  subtopicName?: string;
+  difficulty: DifficultyLevel | string;
+  language?: string;
+  questionText: string;
+  question?: string;
+  content?: string;
+  options: {
+    a: string;
+    b: string;
+    c: string;
+    d: string;
+  };
+  optionA?: string;
+  optionB?: string;
+  optionC?: string;
+  optionD?: string;
+  correctAnswer: 'A' | 'B' | 'C' | 'D';
+  explanation: string;
+  realWorldContext?: string;
+  realLifeContext?: string;
+  challengeType?: string;
+  presentationType?: string;
+  questionStyle?: QuestionStyle | string;
+  status?: QuestionStatus;
+  videoStatus?: VideoProductionStatus;
+  tags?: string[];
+  source?: string;
+  aiPromptUsed?: string;
+  aiModel?: string;
+  aiPrompt?: string;
+  originalityScore?: number;
+  authorId?: string;
+  author?: string;
+  generationMode?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  validationStatus?: string;
+  validationScore?: number;
+  lastValidationId?: string;
 }
