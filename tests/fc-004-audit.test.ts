@@ -32,12 +32,12 @@ import {
 import { logger, StructuredLogEntry } from '../src/lib/logger';
 import { InMemoryRepository, BaseEntity } from '../src/lib/db';
 import { ValidationError } from '../src/lib/errors';
-import { authService } from '../src/lib/services/auth.service';
+import { authService } from '../backend/infrastructure/auth/services/auth.service';
 import { usersRepository } from '../src/lib/repositories/users.repository';
 import { UserRole } from '../src/types';
 import { CanonicalRbacRole } from '../src/types/rbac-models';
-import { apiRouter } from '../src/server/routes';
-import { healthRouter } from '../src/server/health.routes';
+import { apiRouter } from '../backend/server/routers/routes';
+import { healthRouter } from '../backend/server/health.routes';
 
 interface TestAuditEntity extends BaseEntity {
   name: string;

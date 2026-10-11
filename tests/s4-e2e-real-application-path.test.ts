@@ -25,7 +25,7 @@
 import assert from 'node:assert';
 import http from 'node:http';
 import express from 'express';
-import { centralAuthorizationService } from '../src/lib/services/central-authorization.service';
+import { centralAuthorizationService } from '../backend/infrastructure/auth/services/central-authorization.service';
 import { AuthorizationResource, AuthorizationAction, CanonicalRbacRole } from '../src/types/rbac-models';
 import { FirestoreRepository } from '../src/lib/db/firestore.repository';
 import { QuestionStatus } from '../src/types';

@@ -8,27 +8,27 @@
 import assert from 'node:assert';
 import http from 'node:http';
 import express, { Request } from 'express';
-import { authService } from '../src/lib/services/auth.service';
+import { authService } from '../backend/infrastructure/auth/services/auth.service';
 import { usersRepository } from '../src/lib/repositories/users.repository';
-import { questionDraftService } from '../src/lib/services/question-draft.service';
-import { apiRouter, getRequestActor, UnauthenticatedActorError } from '../src/server/routes';
+import { questionDraftService } from '../backend/features/question-generation/services/question-draft.service';
+import { apiRouter, getRequestActor, UnauthenticatedActorError } from '../backend/server/routers/routes';
 import { UserRole } from '../src/types';
 import { CanonicalRbacRole, AuthorizationResource, AuthorizationAction } from '../src/types/rbac-models';
-import { questionConfigService } from '../src/lib/services/question-config.service';
+import { questionConfigService } from '../backend/infrastructure/services/question-config.service';
 import { DEFAULT_QUESTION_CONFIG } from '../src/lib/repositories/question-config.repository';
-import { taxonomyService } from '../src/lib/services/taxonomy.service';
+import { taxonomyService } from '../backend/domain/taxonomy/services/taxonomy.service';
 import { questionsRepository } from '../src/lib/repositories/questions.repository';
 import { workflowRepository } from '../src/lib/repositories/workflow.repository';
 import { contentMastersRepository } from '../src/lib/repositories/content-masters.repository';
 import { validationsRepository } from '../src/lib/repositories/validations.repository';
 import { auditLogRepository } from '../src/lib/repositories/audit-log.repository';
-import { auditService } from '../src/lib/services/audit.service';
+import { auditService } from '../backend/infrastructure/audit/services/audit.service';
 import {
   evaluateAuthorization,
   evaluateSegregationOfDuties,
   evaluateAiGating,
   AuthorizationErrorCode,
-} from '../src/lib/auth/rbac-evaluator';
+} from '../backend/infrastructure/security/rbac-evaluator';
 
 async function runTests() {
   console.log('============================================================');

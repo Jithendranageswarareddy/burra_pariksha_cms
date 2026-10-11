@@ -23,7 +23,7 @@ import {
   Video,
   Workflow,
 } from '../../src/types';
-import { GenerateCandidateInput, GenerationResult, RefineCandidateInput } from '../../src/lib/ai/types';
+import { GenerateCandidateInput, GenerationResult, RefineCandidateInput } from '../../src/types/ai';
 import {
   CancelAssignmentInput,
   CompleteAssignmentInput,

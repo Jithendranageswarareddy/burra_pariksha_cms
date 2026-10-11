@@ -17,8 +17,8 @@
  */
 
 import { getAdminFirestore } from '../src/lib/firebase/admin';
-import { firestoreProductionInitializer } from '../src/lib/services/firestore-production-initializer.service';
-import { authService } from '../src/lib/services/auth.service';
+import { firestoreProductionInitializer } from '../backend/features/recovery/services/firestore-production-initializer.service';
+import { authService } from '../backend/infrastructure/auth/services/auth.service';
 
 const KNOWN_COLLECTIONS = [
   'users',

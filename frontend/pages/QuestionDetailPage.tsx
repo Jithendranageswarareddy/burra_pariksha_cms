@@ -35,7 +35,7 @@ import { ProductionJourneyBar } from '../components/production/ProductionJourney
 import { useProductionJourney } from '../contexts/ProductionJourneyContext';
 import { apiClient } from '../api/api-client';
 import { CandidateValidationReport } from '../api/contracts';
-import { AiRefinementAction, QuestionCandidate } from '../../src/lib/ai/types';
+import { AiRefinementAction, QuestionCandidate } from '../../src/types/ai';
 import {
   DifficultyLevel,
   Question,

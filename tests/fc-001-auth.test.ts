@@ -8,10 +8,10 @@
 import assert from 'node:assert';
 import http from 'node:http';
 import express from 'express';
-import { authService } from '../src/lib/services/auth.service';
+import { authService } from '../backend/infrastructure/auth/services/auth.service';
 import { usersRepository } from '../src/lib/repositories/users.repository';
-import { extractSessionToken, requireAuth, AuthenticatedRequest } from '../src/server/middleware/auth.middleware';
-import { apiRouter } from '../src/server/routes';
+import { extractSessionToken, requireAuth, AuthenticatedRequest } from '../backend/server/middleware/auth.middleware';
+import { apiRouter } from '../backend/server/routers/routes';
 import { UserRole } from '../src/types';
 import { auditLogRepository } from '../src/lib/repositories/audit-log.repository';
 

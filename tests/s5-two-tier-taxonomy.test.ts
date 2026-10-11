@@ -17,11 +17,11 @@
 
 import assert from 'node:assert';
 import { DOMAIN_COLLECTIONS } from '../src/lib/schemas/domain-schemas';
-import { idService } from '../src/lib/services/id.service';
-import { taxonomyService } from '../src/lib/services/taxonomy.service';
+import { idService } from '../backend/infrastructure/services/id.service';
+import { taxonomyService } from '../backend/domain/taxonomy/services/taxonomy.service';
 import { PRODUCTION_TOPICS, PRODUCTION_SUBTOPICS } from '../src/lib/data/production-taxonomy';
-import { firestoreProductionInitializer } from '../src/lib/services/firestore-production-initializer.service';
-import { apiRouter } from '../src/server/routes';
+import { firestoreProductionInitializer } from '../backend/features/recovery/services/firestore-production-initializer.service';
+import { apiRouter } from '../backend/server/routers/routes';
 import * as repos from '../src/lib/repositories';
 
 async function runSprint5RegressionTests() {
@@ -227,7 +227,7 @@ async function runSprint5RegressionTests() {
 
     const fs = await import('node:fs');
     const path = await import('node:path');
-    const validatorSrc = fs.readFileSync(path.join(process.cwd(), 'src/lib/services/restore-validator.service.ts'), 'utf-8');
+    const validatorSrc = fs.readFileSync(path.join(process.cwd(), 'backend/features/recovery/services/restore-validator.service.ts'), 'utf-8');
     assert.strictEqual(validatorSrc.includes('categoryid'), false, 'restore-validator.service.ts must not contain categoryid');
 
     console.log('✓ PASSED: Google Sheets sequence schemas and Restore Validator are 100% free of Category references.');

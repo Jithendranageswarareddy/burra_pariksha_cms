@@ -22,8 +22,8 @@ import {
   evaluateAuthorization,
   evaluateSegregationOfDuties,
   AuthorizationErrorCode,
-} from '../src/lib/auth/rbac-evaluator';
-import { centralAuthorizationService } from '../src/lib/services/central-authorization.service';
+} from '../backend/infrastructure/security/rbac-evaluator';
+import { centralAuthorizationService } from '../backend/infrastructure/auth/services/central-authorization.service';
 
 async function runSprint3RegressionSuite() {
   console.log('============================================================');

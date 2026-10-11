@@ -20,7 +20,7 @@ import assert from 'node:assert';
 import { FirestoreRepository } from '../src/lib/db/firestore.repository';
 import { BaseEntity, RepositoryAuditEvent } from '../src/lib/db/repository.interface';
 import { ConcurrencyConflictError } from '../src/lib/errors';
-import { firestoreProductionInitializer } from '../src/lib/services/firestore-production-initializer.service';
+import { firestoreProductionInitializer } from '../backend/features/recovery/services/firestore-production-initializer.service';
 import { getAdminFirestore } from '../src/lib/firebase/admin';
 import { SYNTHETIC_TEST_MARKERS } from './fixtures/synthetic-test-fixtures';
 

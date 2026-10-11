@@ -14,7 +14,7 @@
 
 import assert from 'node:assert';
 import '../src/config/env';
-import { authService } from '../src/lib/services/auth.service';
+import { authService } from '../backend/infrastructure/auth/services/auth.service';
 import { UserRole } from '../src/types';
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';

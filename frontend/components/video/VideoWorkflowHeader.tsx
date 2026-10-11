@@ -11,7 +11,7 @@ import {
   Image as ImageIcon,
 } from 'lucide-react';
 import { Badge } from '../../design-system/components/Badge';
-import { CANONICAL_15_STEPS } from '../../../src/lib/workflow/canonical-workflow';
+import { CANONICAL_15_STEPS } from '../../../src/types/workflow';
 
 export interface VideoWorkflowHeaderProps {
   currentStep: number;

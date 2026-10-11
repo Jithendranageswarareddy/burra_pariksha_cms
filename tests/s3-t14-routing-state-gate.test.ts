@@ -27,7 +27,7 @@ import {
   mapPublishingToWorkflowState,
   mapSocialReviewToWorkflowState,
   CanonicalWorkflowState,
-} from '../src/lib/workflow/canonical-workflow';
+} from '../backend/domain/workflow/canonical-workflow';
 import {
   VideoProductionStatus,
   SocialPublishStatus,

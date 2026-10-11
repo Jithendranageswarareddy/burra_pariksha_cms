@@ -48,7 +48,7 @@ import {
   GenerateCandidateInput,
   QuestionCandidate,
   RefineCandidateInput,
-} from '../../src/lib/ai/types';
+} from '../../src/types/ai';
 import { CandidateValidationReport } from '../api/contracts';
 import { MathVerificationResult } from '../api/contracts';
 import { QUESTION_CREATION_CONFIG } from '../../src/config/question-creation.config';

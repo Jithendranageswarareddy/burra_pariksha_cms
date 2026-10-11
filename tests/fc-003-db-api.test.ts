@@ -40,9 +40,9 @@ import {
   createErrorResponse,
   ApiErrorCode,
 } from '../src/types/api-contracts';
-import { validateRequest } from '../src/server/middleware/validation.middleware';
-import { requestIdMiddleware } from '../src/server/middleware/request-id.middleware';
-import { globalErrorHandler } from '../src/server/middleware/error.middleware';
+import { validateRequest } from '../backend/server/middleware/validation.middleware';
+import { requestIdMiddleware } from '../backend/server/middleware/request-id.middleware';
+import { globalErrorHandler } from '../backend/server/middleware/error.middleware';
 import { ApiClientError } from '../frontend/api/api-client';
 
 interface TestQuestionEntity extends BaseEntity {

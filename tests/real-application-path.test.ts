@@ -17,7 +17,7 @@
  */
 
 import assert from 'node:assert';
-import { centralAuthorizationService } from '../src/lib/services/central-authorization.service';
+import { centralAuthorizationService } from '../backend/infrastructure/auth/services/central-authorization.service';
 import { AuthorizationResource, AuthorizationAction, CanonicalRbacRole } from '../src/types/rbac-models';
 import { questionsRepository } from '../src/lib/repositories/questions.repository';
 import { contentMastersRepository } from '../src/lib/repositories/content-masters.repository';

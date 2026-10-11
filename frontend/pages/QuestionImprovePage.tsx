@@ -30,7 +30,7 @@ import { CandidateValidationReport } from '../api/contracts';
 import {
   AiRefinementAction,
   QuestionCandidate,
-} from '../../src/lib/ai/types';
+} from '../../src/types/ai';
 import {
   Question,
   QuestionStatus,

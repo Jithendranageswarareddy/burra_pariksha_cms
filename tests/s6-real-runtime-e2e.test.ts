@@ -16,11 +16,11 @@
 
 import assert from 'node:assert';
 import { getAdminFirestore } from '../src/lib/firebase/admin';
-import { taxonomyService } from '../src/lib/services/taxonomy.service';
-import { questionService } from '../src/lib/services/question.service';
-import { scriptService } from '../src/lib/services/script.service';
-import { scriptProductionService } from '../src/lib/services/script-production.service';
-import { videoService } from '../src/lib/services/video.service';
+import { taxonomyService } from '../backend/domain/taxonomy/services/taxonomy.service';
+import { questionService } from '../backend/features/question-generation/services/question.service';
+import { scriptService } from '../backend/features/production/services/script.service';
+import { scriptProductionService } from '../backend/features/production/services/script-production.service';
+import { videoService } from '../backend/features/production/services/video.service';
 import { topicsRepository } from '../src/lib/repositories/topics.repository';
 import { subtopicsRepository } from '../src/lib/repositories/subtopics.repository';
 import { questionsRepository } from '../src/lib/repositories/questions.repository';
@@ -28,7 +28,7 @@ import { scriptsRepository } from '../src/lib/repositories/scripts.repository';
 import { videosRepository } from '../src/lib/repositories/videos.repository';
 import { workflowRepository } from '../src/lib/repositories/workflow.repository';
 import { canonicalIdService } from '../src/lib/id.service';
-import { firestoreProductionInitializer } from '../src/lib/services/firestore-production-initializer.service';
+import { firestoreProductionInitializer } from '../backend/features/recovery/services/firestore-production-initializer.service';
 import { QuestionStatus } from '../src/types';
 
 const UUID_V4_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;

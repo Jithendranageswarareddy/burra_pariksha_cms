@@ -16,7 +16,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getAdminFirestore } from '../src/lib/firebase/admin';
-import { operationalHealthService } from '../src/lib/services/operational-health.service';
+import { operationalHealthService } from '../backend/infrastructure/services/operational-health.service';
 import { questionsRepository } from '../src/lib/repositories/questions.repository';
 import { topicsRepository } from '../src/lib/repositories/topics.repository';
 import { usersRepository } from '../src/lib/repositories/users.repository';

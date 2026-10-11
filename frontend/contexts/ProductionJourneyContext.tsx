@@ -21,7 +21,7 @@ import {
   SocialPublishStatus,
 } from '../../src/types';
 import { apiClient } from '../api/api-client';
-import { CANONICAL_15_STEPS } from '../../src/lib/workflow/canonical-workflow';
+import { CANONICAL_15_STEPS } from '../../src/types/workflow';
 import { getCanonicalStageRoute, WorkflowContext } from '../../src/lib/routing/workflow-routes';
 
 export interface CanonicalIds {

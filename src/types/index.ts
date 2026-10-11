@@ -8,6 +8,7 @@
 import { AIProvenance } from './ai';
 
 export * from './ai';
+export * from './workflow';
 export * from './consensus';
 export * from './copilot';
 export * from './realtime-architecture';

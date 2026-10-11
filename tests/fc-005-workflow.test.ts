@@ -13,10 +13,10 @@
 import assert from 'node:assert';
 import http from 'node:http';
 import express from 'express';
-import { apiRouter } from '../src/server/routes';
-import { authService } from '../src/lib/services/auth.service';
+import { apiRouter } from '../backend/server/routers/routes';
+import { authService } from '../backend/infrastructure/auth/services/auth.service';
 import { usersRepository } from '../src/lib/repositories/users.repository';
-import { workflowService, workflowEngine } from '../src/lib/workflow';
+import { workflowService, workflowEngine } from '../backend/domain/workflow';
 import { realtimeEventBus } from '../src/lib/realtime/event-bus';
 import { auditDispatcher } from '../src/lib/audit';
 import {

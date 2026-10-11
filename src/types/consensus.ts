@@ -4,7 +4,7 @@
  */
 
 import { AIProviderId } from './ai';
-import { QuestionCandidate } from '../lib/ai/types';
+import { QuestionCandidate } from './ai';
 
 export type ConsensusVerdict = 'CORRECT' | 'INCORRECT' | 'AMBIGUOUS' | 'UNCERTAIN';
 
