@@ -27,13 +27,13 @@ import {
   SocialPlatform,
   TeleprompterSegmentSection,
 } from '../../../../src/types';
-import { questionsRepository } from '../../../../src/lib/repositories/questions.repository';
-import { contentMastersRepository } from '../../../../src/lib/repositories/content-masters.repository';
-import { socialReviewsRepository } from '../../../../src/lib/repositories/social-reviews.repository';
-import { auditLogRepository } from '../../../../src/lib/repositories/audit-log.repository';
-import { workflowRepository } from '../../../../src/lib/repositories/workflow.repository';
-import { videosRepository } from '../../../../src/lib/repositories/videos.repository';
-import { scriptsRepository } from '../../../../src/lib/repositories/scripts.repository';
+import { questionsRepository } from '../../../../database/firestore/repositories/questions.repository';
+import { contentMastersRepository } from '../../../../database/firestore/repositories/content-masters.repository';
+import { socialReviewsRepository } from '../../../../database/firestore/repositories/social-reviews.repository';
+import { auditLogRepository } from '../../../../database/firestore/repositories/audit-log.repository';
+import { workflowRepository } from '../../../../database/firestore/repositories/workflow.repository';
+import { videosRepository } from '../../../../database/firestore/repositories/videos.repository';
+import { scriptsRepository } from '../../../../database/firestore/repositories/scripts.repository';
 import { SocialEnhancementService } from './social-enhancement.service';
 import { PlatformAdaptationService } from '../../publishing/services/platform-adaptation.service';
 

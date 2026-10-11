@@ -56,7 +56,7 @@ import {
   usersRepository,
   videosRepository,
   workflowRepository,
-} from '../../../../src/lib/repositories';
+} from '../../../../database/firestore/repositories';
 
 import { ALL_SHEET_TABS, SHEET_TABS } from '../../../../src/lib/schemas/google-sheets-schema';
 

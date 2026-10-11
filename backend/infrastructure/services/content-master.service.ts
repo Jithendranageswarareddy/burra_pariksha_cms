@@ -15,7 +15,7 @@ import {
   auditLogRepository,
   socialReviewsRepository,
   workflowRepository,
-} from '../../../src/lib/repositories';
+} from '../../../database/firestore/repositories';
 import { CanonicalIdService } from '../../../src/lib/id.service';
 import {
   ContentMaster,

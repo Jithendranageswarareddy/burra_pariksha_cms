@@ -8,7 +8,7 @@
 
 import { GoogleSheetsSnapshot, WorksheetSnapshot } from './snapshot-exporter.service';
 import { restoreValidatorService, RestoreValidationResult } from './restore-validator.service';
-import { pinnedCommentsRepository, pinnedCommentVersionsRepository, videosRepository } from '../../../../src/lib/repositories';
+import { pinnedCommentsRepository, pinnedCommentVersionsRepository, videosRepository } from '../../../../database/firestore/repositories';
 import { auditService, workflowService } from '../../../infrastructure/audit/services/audit.service';
 import { PinnedComment, PinnedCommentVersion } from '../../../../src/types';
 

@@ -12,7 +12,7 @@
  * Uses Firebase Admin SDK.
  */
 
-import { getAdminFirestore } from '../src/lib/firebase/admin';
+import { getAdminFirestore } from '../database/firestore/adapter/admin';
 
 async function purgeTestRecords() {
   const db = getAdminFirestore();

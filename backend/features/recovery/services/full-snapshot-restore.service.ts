@@ -31,7 +31,7 @@ import {
   publishingRepository,
   workflowRepository,
   auditLogRepository
-} from '../../../../src/lib/repositories';
+} from '../../../../database/firestore/repositories';
 
 export const FULL_RESTORE_CONFIRMATION_PHRASE = 'RESTORE ALL DATA';
 

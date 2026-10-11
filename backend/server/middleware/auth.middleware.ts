@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { authService } from '../../infrastructure/auth/services/auth.service';
-import { usersRepository, UserSessionState } from '../../../src/lib/repositories/users.repository';
+import { usersRepository, UserSessionState } from '../../../database/firestore/repositories/users.repository';
 import { UserRole } from '../../../src/types';
 import { createErrorResponse, ApiErrorCode } from '../../../src/types/api-contracts';
 import {

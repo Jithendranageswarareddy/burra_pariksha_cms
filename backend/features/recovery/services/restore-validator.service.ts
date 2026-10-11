@@ -24,7 +24,7 @@ import {
   subtopicsRepository,
   assignmentsRepository,
   publishingRepository,
-} from '../../../../src/lib/repositories';
+} from '../../../../database/firestore/repositories';
 
 export interface RestoreValidationRequest {
   snapshot: GoogleSheetsSnapshot;

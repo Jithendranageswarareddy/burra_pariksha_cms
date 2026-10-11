@@ -23,7 +23,7 @@ import {
   auditLogRepository,
   topicsRepository,
   subtopicsRepository,
-} from '../../../src/lib/repositories';
+} from '../../../database/firestore/repositories';
 import { objectAuthService, ActorContext } from '../auth/services/object-auth.service';
 import { publishingService } from '../../features/publishing/services/publishing.service';
 import { taxonomyService } from '../../domain/taxonomy/services/taxonomy.service';

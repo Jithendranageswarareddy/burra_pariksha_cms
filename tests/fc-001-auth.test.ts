@@ -9,11 +9,11 @@ import assert from 'node:assert';
 import http from 'node:http';
 import express from 'express';
 import { authService } from '../backend/infrastructure/auth/services/auth.service';
-import { usersRepository } from '../src/lib/repositories/users.repository';
+import { usersRepository } from '../database/firestore/repositories/users.repository';
 import { extractSessionToken, requireAuth, AuthenticatedRequest } from '../backend/server/middleware/auth.middleware';
 import { apiRouter } from '../backend/server/routers/routes';
 import { UserRole } from '../src/types';
-import { auditLogRepository } from '../src/lib/repositories/audit-log.repository';
+import { auditLogRepository } from '../database/firestore/repositories/audit-log.repository';
 
 async function runTests() {
   console.log('============================================================');

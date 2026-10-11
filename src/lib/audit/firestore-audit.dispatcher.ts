@@ -22,7 +22,7 @@ import { IAuditDispatcher, AuditQueryResult } from './audit-dispatcher.interface
 import { InMemoryAuditDispatcher } from './in-memory-audit.dispatcher';
 import { canonicalIdService } from '../id.service';
 import { ValidationError } from '../errors';
-import { entityToFirestoreDocument, firestoreDocumentToEntity } from '../db/firestore-converters';
+import { entityToFirestoreDocument, firestoreDocumentToEntity } from '../../../database/firestore/utilities/firestore-converters';
 
 export class FirestoreAuditDispatcher implements IAuditDispatcher {
   public readonly collectionName = 'audit_events';

@@ -8,7 +8,7 @@
  */
 
 import { QuestionDraft, QuestionStatus, UserRole } from '../../../../src/types';
-import { questionDraftsRepository } from '../../../../src/lib/repositories/question-drafts.repository';
+import { questionDraftsRepository } from '../../../../database/firestore/repositories/question-drafts.repository';
 import { taxonomyService } from '../../../domain/taxonomy/services/taxonomy.service';
 import { questionService } from './question.service';
 import { auditService } from '../../../infrastructure/audit/services/audit.service';

@@ -20,8 +20,8 @@
  */
 
 import assert from 'node:assert';
-import { FirestoreRepository } from '../src/lib/db/firestore.repository';
-import { getAdminFirestore } from '../src/lib/firebase/admin';
+import { FirestoreRepository } from '../database/firestore/adapter/firestore.repository';
+import { getAdminFirestore } from '../database/firestore/adapter/admin';
 import { SYNTHETIC_TEST_MARKERS } from './fixtures/synthetic-test-fixtures';
 
 async function run15StepPersistenceTest() {

@@ -21,7 +21,7 @@ import {
   usersRepository,
   contentMastersRepository,
   socialReviewsRepository,
-} from '../../../src/lib/repositories';
+} from '../../../database/firestore/repositories';
 import { assignmentService } from '../auth/services/assignment.service';
 import { objectAuthService, ActorContext } from '../auth/services/object-auth.service';
 import { ProductionAssetValidationService } from './production-asset-validation.service';

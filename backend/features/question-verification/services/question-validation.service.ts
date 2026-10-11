@@ -9,9 +9,9 @@
  * - Integration with questionsRepository and validationsRepository
  */
 
-import { questionsRepository } from '../../../../src/lib/repositories/questions.repository';
-import { questionDraftsRepository } from '../../../../src/lib/repositories/question-drafts.repository';
-import { validationsRepository } from '../../../../src/lib/repositories/validations.repository';
+import { questionsRepository } from '../../../../database/firestore/repositories/questions.repository';
+import { questionDraftsRepository } from '../../../../database/firestore/repositories/question-drafts.repository';
+import { validationsRepository } from '../../../../database/firestore/repositories/validations.repository';
 import { auditService } from '../../../infrastructure/audit/services/audit.service';
 import { questionDraftService } from '../../question-generation/services/question-draft.service';
 import { QuestionValidationEngine, ValidationPipelineOptions } from '../validation/question-validation.engine';

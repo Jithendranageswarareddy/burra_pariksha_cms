@@ -17,8 +17,8 @@
 import assert from 'node:assert/strict';
 import { spawn, ChildProcess } from 'node:child_process';
 import puppeteer from 'puppeteer-core';
-import { QuestionsRepository } from '../src/lib/repositories/questions.repository';
-import { AuditLogRepository } from '../src/lib/repositories/audit-log.repository';
+import { QuestionsRepository } from '../database/firestore/repositories/questions.repository';
+import { AuditLogRepository } from '../database/firestore/repositories/audit-log.repository';
 
 const TEST_PORT = 3006;
 const BASE_URL = `http://localhost:${TEST_PORT}`;

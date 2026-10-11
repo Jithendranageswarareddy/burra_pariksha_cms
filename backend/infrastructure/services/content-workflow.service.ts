@@ -13,7 +13,7 @@ import {
   scriptsRepository,
   thumbnailsRepository,
   pinnedCommentsRepository,
-} from '../../../src/lib/repositories';
+} from '../../../database/firestore/repositories';
 import {
   ContentMaster,
   ContentMasterStatus,

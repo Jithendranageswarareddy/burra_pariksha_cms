@@ -10,7 +10,7 @@ import { createServer as createViteServer } from 'vite';
 import { apiRouter } from './routers/routes';
 import { healthRouter } from './health.routes';
 import { snapshotSchedulerService } from '../features/recovery/services/snapshot-scheduler.service';
-import { usersRepository } from '../../src/lib/repositories/users.repository';
+import { usersRepository } from '../../database/firestore/repositories/users.repository';
 import { googleDriveService } from '../infrastructure/services/google-drive.service';
 
 import { validateEnvironmentRuntime } from '../../src/config/env.contract';

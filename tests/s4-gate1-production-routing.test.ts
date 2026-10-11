@@ -18,9 +18,9 @@ import http from 'node:http';
 import express from 'express';
 import { apiRouter } from '../backend/server/routers/routes';
 import { authService } from '../backend/infrastructure/auth/services/auth.service';
-import { questionsRepository } from '../src/lib/repositories/questions.repository';
-import { FirestoreRepository } from '../src/lib/db/firestore.repository';
-import { getAdminFirestore } from '../src/lib/firebase/admin';
+import { questionsRepository } from '../database/firestore/repositories/questions.repository';
+import { FirestoreRepository } from '../database/firestore/adapter/firestore.repository';
+import { getAdminFirestore } from '../database/firestore/adapter/admin';
 import { SYNTHETIC_TEST_MARKERS } from './fixtures/synthetic-test-fixtures';
 
 function makeRequest(

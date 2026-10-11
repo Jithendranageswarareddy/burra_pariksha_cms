@@ -6,7 +6,7 @@
  * structural pattern overuse detection, and taxonomy concentration diagnostics.
  */
 
-import { questionsRepository } from '../../../../src/lib/repositories/questions.repository';
+import { questionsRepository } from '../../../../database/firestore/repositories/questions.repository';
 import { taxonomyService } from '../../../domain/taxonomy/services/taxonomy.service';
 import { ContentDiversityWarning, Question } from '../../../../src/types';
 

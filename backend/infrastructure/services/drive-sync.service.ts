@@ -5,8 +5,8 @@
 import { Readable } from 'stream';
 import crypto from 'crypto';
 import { googleDriveService } from './google-drive.service';
-import { mediaAssetsRepository } from '../../../src/lib/repositories/media-assets.repository';
-import { contentMastersRepository } from '../../../src/lib/repositories/content-masters.repository';
+import { mediaAssetsRepository } from '../../../database/firestore/repositories/media-assets.repository';
+import { contentMastersRepository } from '../../../database/firestore/repositories/content-masters.repository';
 import { MediaAsset, MediaStage } from '../../../src/types';
 import { ValidationError } from '../../../src/lib/errors';
 

@@ -17,10 +17,10 @@
  */
 
 import assert from 'node:assert';
-import { FirestoreRepository } from '../src/lib/db/firestore.repository';
+import { FirestoreRepository } from '../database/firestore/adapter/firestore.repository';
 import { BaseEntity } from '../src/lib/db/repository.interface';
 import { ConcurrencyConflictError } from '../src/lib/errors';
-import { getAdminFirestore } from '../src/lib/firebase/admin';
+import { getAdminFirestore } from '../database/firestore/adapter/admin';
 import { SYNTHETIC_TEST_MARKERS } from './fixtures/synthetic-test-fixtures';
 
 interface TestQuestionRecord extends BaseEntity {

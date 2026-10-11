@@ -99,6 +99,11 @@ const FORBIDDEN_FRONTEND_RULES: BoundaryRule[] = [
     pattern: /\bprocess\.env\b/,
     description: 'Access to server-only process.env secrets in client bundle',
   },
+  {
+    category: 'Database Root Import',
+    pattern: /(from\s+['"][^'"]*\/database(\/[^'"]*)?['"]|import\(['"][^'"]*\/database\/[^'"]*['"]\))/,
+    description: 'Direct import from database/ architectural layer',
+  },
 ];
 
 const FORBIDDEN_BACKEND_RULES: BoundaryRule[] = [
@@ -243,7 +248,102 @@ async function runBoundarySuite() {
     const fullPath = path.resolve(__dirname, '..', d);
     assert(!fs.existsSync(fullPath), `Legacy backend directory ${d} must not exist`);
   }
-  console.log(`    PASS: All 8 legacy backend implementation locations decommissioned.\n`);
+  // 4. DATABASE LAYER BOUNDARY AUDIT
+  const databaseDir = path.resolve(__dirname, '../database/firestore');
+  assert(fs.existsSync(databaseDir), 'database/firestore/ directory must exist');
+
+  const allDatabaseFiles = scanFilesRecursively(databaseDir);
+  console.log(`[4] Scanning ${allDatabaseFiles.length} database files across ${databaseDir}...`);
+
+  const databaseViolations: Array<{ file: string; rule: string; line: number }> = [];
+
+  for (const filePath of allDatabaseFiles) {
+    const relPath = path.relative(databaseDir, filePath).replace(/\\/g, '/');
+    const content = fs.readFileSync(filePath, 'utf-8');
+    const lines = content.split('\n');
+
+    lines.forEach((line, lineIndex) => {
+      const trimmed = line.trim();
+      if (trimmed.startsWith('//') || trimmed.startsWith('*')) return;
+
+      // No imports from frontend
+      if (/from\s+['"][^'"]*\/frontend\//.test(line)) {
+        databaseViolations.push({
+          file: relPath,
+          rule: 'Direct import of frontend/ modules in database layer',
+          line: lineIndex + 1,
+        });
+      }
+
+      // No React presentation
+      if (/from\s+['"](react|react-dom|react-router-dom)['"]/.test(line)) {
+        databaseViolations.push({
+          file: relPath,
+          rule: 'Import of React presentation libraries in database layer',
+          line: lineIndex + 1,
+        });
+      }
+
+      // No request validation schemas / API contracts in database layer
+      if (/from\s+['"][^'"]*google-sheets-schema['"]/.test(line)) {
+        databaseViolations.push({
+          file: relPath,
+          rule: 'Import of API request validation schema in database layer',
+          line: lineIndex + 1,
+        });
+      }
+    });
+  }
+
+  if (databaseViolations.length > 0) {
+    console.error(`FAILED: Found ${databaseViolations.length} database boundary violations:`);
+    databaseViolations.forEach((v) => {
+      console.error(`  - database/${v.file}:${v.line} -> ${v.rule}`);
+    });
+    process.exit(1);
+  }
+  console.log(`    PASS: Zero frontend/React/request-validation leaks in database/firestore/ (0 violations).\n`);
+
+  // 5. DATABASE PHYSICAL OWNERSHIP & ARCHITECTURE AUDIT
+  console.log('[5] Verifying physical database ownership...');
+  assert(fs.existsSync(path.resolve(__dirname, '../database/firestore/adapter/firestore.repository.ts')), 'Firestore repository adapter must exist');
+  assert(fs.existsSync(path.resolve(__dirname, '../database/firestore/adapter/admin.ts')), 'Firebase admin adapter must exist');
+  assert(fs.existsSync(path.resolve(__dirname, '../database/firestore/rules/firestore.rules')), 'database/firestore/rules/firestore.rules must exist');
+  assert(fs.existsSync(path.resolve(__dirname, '../database/firestore/schemas/domain-schemas.ts')), 'domain-schemas.ts must exist under database/firestore/schemas');
+  assert(fs.existsSync(path.resolve(__dirname, '../database/firestore/initialization/firestore-production-initializer.ts')), 'Firestore initializer must exist');
+  assert(fs.existsSync(path.resolve(__dirname, '../database/firestore/migrations/firestore-migration.ts')), 'Firestore migration engine must exist');
+  assert(fs.existsSync(path.resolve(__dirname, '../database/firestore/utilities/firestore-converters.ts')), 'Firestore converters must exist');
+
+  // Verify 34 repository implementations in database/firestore/repositories/
+  const repoFiles = fs.readdirSync(path.resolve(__dirname, '../database/firestore/repositories'))
+    .filter((f) => f.endsWith('.repository.ts'));
+  assert.strictEqual(repoFiles.length, 34, `Expected 34 repository implementations in database/firestore/repositories/, found ${repoFiles.length}`);
+  assert(fs.existsSync(path.resolve(__dirname, '../database/firestore/repositories/index.ts')), 'repositories index.ts must exist');
+
+  // Decommissioned database dirs in src/
+  const decommissionedDbDirs = [
+    'src/lib/repositories',
+    'src/lib/firebase',
+  ];
+  for (const d of decommissionedDbDirs) {
+    const fullPath = path.resolve(__dirname, '..', d);
+    assert(!fs.existsSync(fullPath), `Legacy database directory ${d} must not exist`);
+  }
+
+  // Decommissioned root firestore.rules
+  assert(!fs.existsSync(path.resolve(__dirname, '../firestore.rules')), 'Root firestore.rules must be relocated to database/firestore/rules/firestore.rules');
+
+  // Verify firebase.json points to database/firestore/rules/firestore.rules
+  const firebaseJsonPath = path.resolve(__dirname, '../firebase.json');
+  assert(fs.existsSync(firebaseJsonPath), 'firebase.json must exist');
+  const firebaseJson = JSON.parse(fs.readFileSync(firebaseJsonPath, 'utf-8'));
+  assert.strictEqual(firebaseJson.firestore.rules, 'database/firestore/rules/firestore.rules', 'firebase.json must point firestore.rules to database/firestore/rules/firestore.rules');
+
+  // Verify request validation schemas remain OUTSIDE database/firestore
+  assert(fs.existsSync(path.resolve(__dirname, '../src/lib/schemas/google-sheets-schema.ts')), 'Request validation schemas must remain in src/lib/schemas/');
+  assert(!fs.existsSync(path.resolve(__dirname, '../database/firestore/schemas/google-sheets-schema.ts')), 'Request validation schemas must NOT exist in database/firestore/schemas/');
+
+  console.log(`    PASS: All database physical ownership gates passed (35 repositories, isolated adapter, schemas, rules, initialization, migrations, utilities).\n`);
 
   console.log('============================================================');
   console.log('S7 ARCHITECTURAL BOUNDARY VERIFICATION: ALL GATES PASSED');

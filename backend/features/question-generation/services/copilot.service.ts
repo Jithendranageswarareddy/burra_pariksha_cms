@@ -56,7 +56,7 @@ import {
   thumbnailsRepository,
   pinnedCommentsRepository,
   socialReviewsRepository,
-} from '../../../../src/lib/repositories';
+} from '../../../../database/firestore/repositories';
 
 export class CopilotAuthorizationError extends Error {
   constructor(message: string) {

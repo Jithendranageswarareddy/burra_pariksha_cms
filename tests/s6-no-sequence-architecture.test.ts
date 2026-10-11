@@ -19,14 +19,14 @@ import assert from 'node:assert';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { DOMAIN_COLLECTIONS } from '../src/lib/schemas/domain-schemas';
+import { DOMAIN_COLLECTIONS } from '../database/firestore/schemas/domain-schemas';
 import { canonicalIdService } from '../src/lib/id.service';
 import { apiRouter } from '../backend/server/routers/routes';
-import * as repos from '../src/lib/repositories';
+import * as repos from '../database/firestore/repositories';
 import * as services from '../backend/infrastructure/services';
 import * as apiClient from '../frontend/api/api-client';
 import * as errors from '../src/lib/errors';
-import { getAdminFirestore } from '../src/lib/firebase/admin';
+import { getAdminFirestore } from '../database/firestore/adapter/admin';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -156,7 +156,7 @@ async function runSprint6RegressionSuite() {
   // --------------------------------------------------------------------------
   try {
     console.log('\n[Check 6] Verifying no sequence counter state exists...');
-    const schemasModule = await import('../src/lib/schemas/domain-schemas');
+    const schemasModule = await import('../database/firestore/schemas/domain-schemas');
     assert.strictEqual((schemasModule as any).SEQUENCE_ENTITIES, undefined, 'SEQUENCE_ENTITIES must not exist');
     assert.strictEqual((schemasModule as any).ID_PREFIX_MAP, undefined, 'ID_PREFIX_MAP must not exist');
     console.log('  -> PASS: No sequence entity map or sequence counter exists.');

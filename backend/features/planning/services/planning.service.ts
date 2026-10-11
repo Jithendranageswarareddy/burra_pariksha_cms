@@ -6,10 +6,10 @@
  * taxonomy coverage aggregation, target vs. actual tracking, and gap analytics.
  */
 
-import { contentPlansRepository } from '../../../../src/lib/repositories/content-plans.repository';
-import { contentBatchesRepository } from '../../../../src/lib/repositories/content-batches.repository';
-import { questionsRepository } from '../../../../src/lib/repositories/questions.repository';
-import { videosRepository } from '../../../../src/lib/repositories/videos.repository';
+import { contentPlansRepository } from '../../../../database/firestore/repositories/content-plans.repository';
+import { contentBatchesRepository } from '../../../../database/firestore/repositories/content-batches.repository';
+import { questionsRepository } from '../../../../database/firestore/repositories/questions.repository';
+import { videosRepository } from '../../../../database/firestore/repositories/videos.repository';
 import { canonicalIdService } from '../../../../src/lib/id.service';
 import { taxonomyService } from '../../../domain/taxonomy/services/taxonomy.service';
 import { auditService } from '../../../infrastructure/audit/services/audit.service';

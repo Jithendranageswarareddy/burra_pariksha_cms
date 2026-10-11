@@ -38,21 +38,21 @@ import {
   driveSyncService,
 } from '../../infrastructure/services';
 import { questionDraftService } from '../../features/question-generation/services/question-draft.service';
-import { questionDraftsRepository } from '../../../src/lib/repositories/question-drafts.repository';
-import { thumbnailCandidatesRepository } from '../../../src/lib/repositories/thumbnail-candidates.repository';
+import { questionDraftsRepository } from '../../../database/firestore/repositories/question-drafts.repository';
+import { thumbnailCandidatesRepository } from '../../../database/firestore/repositories/thumbnail-candidates.repository';
 import { ThumbnailSafetyValidator } from '../../features/question-verification/validation/thumbnail-safety.validator';
 import { geminiClient } from '../../infrastructure/ai/gemini.client';
 import { aiOrchestrator } from '../../infrastructure/ai/ai-orchestrator.service';
 import { QuestionStatus, UserRole, SocialReviewStatus, RenderValidationStatus, VideoProductionStatus, WorkflowActor } from '../../../src/types';
 import { ProductionAssetValidationService } from '../../infrastructure/services/production-asset-validation.service';
 import { ActorContext } from '../../infrastructure/auth/services/object-auth.service';
-import { usersRepository } from '../../../src/lib/repositories/users.repository';
-import { questionsRepository } from '../../../src/lib/repositories/questions.repository';
-import { mediaAssetsRepository } from '../../../src/lib/repositories/media-assets.repository';
-import { videosRepository } from '../../../src/lib/repositories/videos.repository';
-import { socialReviewsRepository } from '../../../src/lib/repositories/social-reviews.repository';
-import { thumbnailsRepository } from '../../../src/lib/repositories/thumbnails.repository';
-import { scriptsRepository, scriptVersionsRepository } from '../../../src/lib/repositories/scripts.repository';
+import { usersRepository } from '../../../database/firestore/repositories/users.repository';
+import { questionsRepository } from '../../../database/firestore/repositories/questions.repository';
+import { mediaAssetsRepository } from '../../../database/firestore/repositories/media-assets.repository';
+import { videosRepository } from '../../../database/firestore/repositories/videos.repository';
+import { socialReviewsRepository } from '../../../database/firestore/repositories/social-reviews.repository';
+import { thumbnailsRepository } from '../../../database/firestore/repositories/thumbnails.repository';
+import { scriptsRepository, scriptVersionsRepository } from '../../../database/firestore/repositories/scripts.repository';
 import { SocialEnhancementService } from '../../features/analytics/services/social-enhancement.service';
 import { SocialReviewService } from '../../features/analytics/services/social-review.service';
 import {

@@ -23,7 +23,7 @@ import {
   publishingRepository,
   assignmentsRepository,
   usersRepository,
-} from '../../../src/lib/repositories';
+} from '../../../database/firestore/repositories';
 
 export class ProductionBoardService {
   private static instance: ProductionBoardService | null = null;

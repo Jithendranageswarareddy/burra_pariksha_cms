@@ -13,18 +13,18 @@
  */
 
 import crypto from 'crypto';
-import { publishingRepository } from '../../../../src/lib/repositories/publishing.repository';
-import { socialReviewsRepository } from '../../../../src/lib/repositories/social-reviews.repository';
-import { contentMastersRepository } from '../../../../src/lib/repositories/content-masters.repository';
-import { videosRepository } from '../../../../src/lib/repositories/videos.repository';
-import { questionsRepository } from '../../../../src/lib/repositories/questions.repository';
-import { thumbnailsRepository } from '../../../../src/lib/repositories/thumbnails.repository';
-import { pinnedCommentsRepository } from '../../../../src/lib/repositories/pinned-comments.repository';
-import { pinnedCommentPackagesRepository } from '../../../../src/lib/repositories/pinned-comment-packages.repository';
-import { scriptsRepository } from '../../../../src/lib/repositories/scripts.repository';
-import { assignmentsRepository } from '../../../../src/lib/repositories/assignments.repository';
-import { usersRepository } from '../../../../src/lib/repositories/users.repository';
-import { auditLogRepository } from '../../../../src/lib/repositories/audit-log.repository';
+import { publishingRepository } from '../../../../database/firestore/repositories/publishing.repository';
+import { socialReviewsRepository } from '../../../../database/firestore/repositories/social-reviews.repository';
+import { contentMastersRepository } from '../../../../database/firestore/repositories/content-masters.repository';
+import { videosRepository } from '../../../../database/firestore/repositories/videos.repository';
+import { questionsRepository } from '../../../../database/firestore/repositories/questions.repository';
+import { thumbnailsRepository } from '../../../../database/firestore/repositories/thumbnails.repository';
+import { pinnedCommentsRepository } from '../../../../database/firestore/repositories/pinned-comments.repository';
+import { pinnedCommentPackagesRepository } from '../../../../database/firestore/repositories/pinned-comment-packages.repository';
+import { scriptsRepository } from '../../../../database/firestore/repositories/scripts.repository';
+import { assignmentsRepository } from '../../../../database/firestore/repositories/assignments.repository';
+import { usersRepository } from '../../../../database/firestore/repositories/users.repository';
+import { auditLogRepository } from '../../../../database/firestore/repositories/audit-log.repository';
 import { auditService } from '../../../infrastructure/audit/services/audit.service';
 import { workflowService } from '../../../infrastructure/services/workflow.service';
 import { videoService } from '../../production/services/video.service';

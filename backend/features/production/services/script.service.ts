@@ -11,9 +11,9 @@
  * - Comprehensive WORKFLOW and AUDIT_LOG integration
  */
 
-import { scriptsRepository, scriptVersionsRepository } from '../../../../src/lib/repositories/scripts.repository';
-import { videosRepository } from '../../../../src/lib/repositories/videos.repository';
-import { questionsRepository } from '../../../../src/lib/repositories/questions.repository';
+import { scriptsRepository, scriptVersionsRepository } from '../../../../database/firestore/repositories/scripts.repository';
+import { videosRepository } from '../../../../database/firestore/repositories/videos.repository';
+import { questionsRepository } from '../../../../database/firestore/repositories/questions.repository';
 import { canonicalIdService } from '../../../../src/lib/id.service';
 import { auditService } from '../../../infrastructure/audit/services/audit.service';
 import { videoService } from './video.service';

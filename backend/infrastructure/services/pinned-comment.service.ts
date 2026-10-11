@@ -8,11 +8,11 @@
  * - Syncs pinned_comment_ready in PUBLISHING worksheet
  */
 
-import { pinnedCommentsRepository, pinnedCommentVersionsRepository } from '../../../src/lib/repositories/pinned-comments.repository';
-import { publishingRepository } from '../../../src/lib/repositories/publishing.repository';
-import { videosRepository } from '../../../src/lib/repositories/videos.repository';
-import { questionsRepository } from '../../../src/lib/repositories/questions.repository';
-import { workflowRepository } from '../../../src/lib/repositories/workflow.repository';
+import { pinnedCommentsRepository, pinnedCommentVersionsRepository } from '../../../database/firestore/repositories/pinned-comments.repository';
+import { publishingRepository } from '../../../database/firestore/repositories/publishing.repository';
+import { videosRepository } from '../../../database/firestore/repositories/videos.repository';
+import { questionsRepository } from '../../../database/firestore/repositories/questions.repository';
+import { workflowRepository } from '../../../database/firestore/repositories/workflow.repository';
 import { canonicalIdService } from '../../../src/lib/id.service';
 import { auditService } from '../audit/services/audit.service';
 import { PinnedComment, PinnedCommentVersion, Workflow } from '../../../src/types';

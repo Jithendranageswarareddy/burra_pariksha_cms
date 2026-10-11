@@ -15,10 +15,10 @@
  * 7. Strictly NO AI analysis (reserved for C3).
  */
 
-import { socialCommentsRepository, SocialCommentsRepository } from '../../../../src/lib/repositories/social-comments.repository';
-import { contentMastersRepository } from '../../../../src/lib/repositories/content-masters.repository';
+import { socialCommentsRepository, SocialCommentsRepository } from '../../../../database/firestore/repositories/social-comments.repository';
+import { contentMastersRepository } from '../../../../database/firestore/repositories/content-masters.repository';
 import { canonicalIdService } from '../../../../src/lib/id.service';
-import { AuditLogRepository } from '../../../../src/lib/repositories/audit-log.repository';
+import { AuditLogRepository } from '../../../../database/firestore/repositories/audit-log.repository';
 import {
   CreateSocialCommentInputSchema,
   ImportSocialCommentsInputSchema,

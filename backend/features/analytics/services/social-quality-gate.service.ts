@@ -27,15 +27,15 @@ import {
   UserRole,
   VideoProductionStatus,
 } from '../../../../src/types';
-import { contentMastersRepository } from '../../../../src/lib/repositories/content-masters.repository';
-import { questionsRepository } from '../../../../src/lib/repositories/questions.repository';
-import { scriptsRepository, scriptVersionsRepository } from '../../../../src/lib/repositories/scripts.repository';
-import { videosRepository } from '../../../../src/lib/repositories/videos.repository';
-import { thumbnailsRepository, thumbnailVersionsRepository } from '../../../../src/lib/repositories/thumbnails.repository';
-import { thumbnailCandidatesRepository } from '../../../../src/lib/repositories/thumbnail-candidates.repository';
-import { pinnedCommentPackagesRepository } from '../../../../src/lib/repositories/pinned-comment-packages.repository';
-import { mediaAssetsRepository } from '../../../../src/lib/repositories/media-assets.repository';
-import { socialReviewsRepository } from '../../../../src/lib/repositories/social-reviews.repository';
+import { contentMastersRepository } from '../../../../database/firestore/repositories/content-masters.repository';
+import { questionsRepository } from '../../../../database/firestore/repositories/questions.repository';
+import { scriptsRepository, scriptVersionsRepository } from '../../../../database/firestore/repositories/scripts.repository';
+import { videosRepository } from '../../../../database/firestore/repositories/videos.repository';
+import { thumbnailsRepository, thumbnailVersionsRepository } from '../../../../database/firestore/repositories/thumbnails.repository';
+import { thumbnailCandidatesRepository } from '../../../../database/firestore/repositories/thumbnail-candidates.repository';
+import { pinnedCommentPackagesRepository } from '../../../../database/firestore/repositories/pinned-comment-packages.repository';
+import { mediaAssetsRepository } from '../../../../database/firestore/repositories/media-assets.repository';
+import { socialReviewsRepository } from '../../../../database/firestore/repositories/social-reviews.repository';
 import { auditService } from '../../../infrastructure/audit/services/audit.service';
 import { SocialQualityGateValidator } from '../../question-verification/validation/social-quality-gate.validator';
 import { aiOrchestrator } from '../../../infrastructure/ai/ai-orchestrator.service';

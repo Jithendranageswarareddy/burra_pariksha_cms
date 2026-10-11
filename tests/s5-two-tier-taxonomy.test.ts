@@ -16,13 +16,13 @@
  */
 
 import assert from 'node:assert';
-import { DOMAIN_COLLECTIONS } from '../src/lib/schemas/domain-schemas';
+import { DOMAIN_COLLECTIONS } from '../database/firestore/schemas/domain-schemas';
 import { idService } from '../backend/infrastructure/services/id.service';
 import { taxonomyService } from '../backend/domain/taxonomy/services/taxonomy.service';
 import { PRODUCTION_TOPICS, PRODUCTION_SUBTOPICS } from '../src/lib/data/production-taxonomy';
 import { firestoreProductionInitializer } from '../backend/features/recovery/services/firestore-production-initializer.service';
 import { apiRouter } from '../backend/server/routers/routes';
-import * as repos from '../src/lib/repositories';
+import * as repos from '../database/firestore/repositories';
 
 async function runSprint5RegressionTests() {
   console.log('================================================================');
@@ -87,7 +87,7 @@ async function runSprint5RegressionTests() {
   try {
     console.log('\nAssertion 4: Verifying idService has NO allocateCategoryId method...');
     assert.strictEqual((idService as any).allocateCategoryId, undefined, 'allocateCategoryId must not exist on idService');
-    const domainSchemasModule = await import('../src/lib/schemas/domain-schemas');
+    const domainSchemasModule = await import('../database/firestore/schemas/domain-schemas');
     assert.strictEqual((domainSchemasModule as any).SEQUENCE_ENTITIES, undefined, 'SEQUENCE_ENTITIES is decommissioned in Sprint 6');
     console.log('✓ PASSED: No category ID allocator or sequence entity exists.');
     passed++;

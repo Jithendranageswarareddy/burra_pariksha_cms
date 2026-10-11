@@ -5,4 +5,4 @@
 
 export * from './repository.interface';
 export * from './in-memory.repository';
-export * from './firestore.repository';
+export * from '../../../database/firestore/adapter/firestore.repository';

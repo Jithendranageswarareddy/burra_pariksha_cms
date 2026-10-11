@@ -12,7 +12,7 @@ import {
   auditLogRepository,
   refinementCandidatesRepository,
   RefinementCandidate,
-} from '../../../src/lib/repositories';
+} from '../../../database/firestore/repositories';
 import { ValidationError } from '../../../src/lib/errors';
 import { MathematicalValidator, MathVerificationResult } from '../../features/question-verification/ai/mathematical.validator';
 import { geminiClient } from '../ai/gemini.client';

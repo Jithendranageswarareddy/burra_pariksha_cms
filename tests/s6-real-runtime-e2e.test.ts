@@ -15,18 +15,18 @@
  */
 
 import assert from 'node:assert';
-import { getAdminFirestore } from '../src/lib/firebase/admin';
+import { getAdminFirestore } from '../database/firestore/adapter/admin';
 import { taxonomyService } from '../backend/domain/taxonomy/services/taxonomy.service';
 import { questionService } from '../backend/features/question-generation/services/question.service';
 import { scriptService } from '../backend/features/production/services/script.service';
 import { scriptProductionService } from '../backend/features/production/services/script-production.service';
 import { videoService } from '../backend/features/production/services/video.service';
-import { topicsRepository } from '../src/lib/repositories/topics.repository';
-import { subtopicsRepository } from '../src/lib/repositories/subtopics.repository';
-import { questionsRepository } from '../src/lib/repositories/questions.repository';
-import { scriptsRepository } from '../src/lib/repositories/scripts.repository';
-import { videosRepository } from '../src/lib/repositories/videos.repository';
-import { workflowRepository } from '../src/lib/repositories/workflow.repository';
+import { topicsRepository } from '../database/firestore/repositories/topics.repository';
+import { subtopicsRepository } from '../database/firestore/repositories/subtopics.repository';
+import { questionsRepository } from '../database/firestore/repositories/questions.repository';
+import { scriptsRepository } from '../database/firestore/repositories/scripts.repository';
+import { videosRepository } from '../database/firestore/repositories/videos.repository';
+import { workflowRepository } from '../database/firestore/repositories/workflow.repository';
 import { canonicalIdService } from '../src/lib/id.service';
 import { firestoreProductionInitializer } from '../backend/features/recovery/services/firestore-production-initializer.service';
 import { QuestionStatus } from '../src/types';

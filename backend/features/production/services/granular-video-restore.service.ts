@@ -12,7 +12,7 @@
 
 import { GoogleSheetsSnapshot, WorksheetSnapshot } from '../../recovery/services/snapshot-exporter.service';
 import { restoreValidatorService, RestoreValidationResult } from '../../recovery/services/restore-validator.service';
-import { videosRepository, questionsRepository } from '../../../../src/lib/repositories';
+import { videosRepository, questionsRepository } from '../../../../database/firestore/repositories';
 import { auditService, workflowService } from '../../../infrastructure/audit/services/audit.service';
 import { Video, VideoProductionStatus } from '../../../../src/types';
 

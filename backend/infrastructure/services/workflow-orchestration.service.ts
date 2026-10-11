@@ -18,10 +18,10 @@ import {
   ContentMasterStatus,
   SocialPublishStatus,
 } from '../../../src/types';
-import { questionsRepository } from '../../../src/lib/repositories/questions.repository';
-import { videosRepository } from '../../../src/lib/repositories/videos.repository';
-import { contentMastersRepository } from '../../../src/lib/repositories/content-masters.repository';
-import { assignmentsRepository } from '../../../src/lib/repositories/assignments.repository';
+import { questionsRepository } from '../../../database/firestore/repositories/questions.repository';
+import { videosRepository } from '../../../database/firestore/repositories/videos.repository';
+import { contentMastersRepository } from '../../../database/firestore/repositories/content-masters.repository';
+import { assignmentsRepository } from '../../../database/firestore/repositories/assignments.repository';
 import { ObjectAuthorizationService, ActorContext } from '../auth/services/object-auth.service';
 import { SocialReviewService } from '../../features/analytics/services/social-review.service';
 import { publishingService, PublishingService } from '../../features/publishing/services/publishing.service';

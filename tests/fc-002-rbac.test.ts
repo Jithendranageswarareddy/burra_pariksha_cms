@@ -9,19 +9,19 @@ import assert from 'node:assert';
 import http from 'node:http';
 import express, { Request } from 'express';
 import { authService } from '../backend/infrastructure/auth/services/auth.service';
-import { usersRepository } from '../src/lib/repositories/users.repository';
+import { usersRepository } from '../database/firestore/repositories/users.repository';
 import { questionDraftService } from '../backend/features/question-generation/services/question-draft.service';
 import { apiRouter, getRequestActor, UnauthenticatedActorError } from '../backend/server/routers/routes';
 import { UserRole } from '../src/types';
 import { CanonicalRbacRole, AuthorizationResource, AuthorizationAction } from '../src/types/rbac-models';
 import { questionConfigService } from '../backend/infrastructure/services/question-config.service';
-import { DEFAULT_QUESTION_CONFIG } from '../src/lib/repositories/question-config.repository';
+import { DEFAULT_QUESTION_CONFIG } from '../database/firestore/repositories/question-config.repository';
 import { taxonomyService } from '../backend/domain/taxonomy/services/taxonomy.service';
-import { questionsRepository } from '../src/lib/repositories/questions.repository';
-import { workflowRepository } from '../src/lib/repositories/workflow.repository';
-import { contentMastersRepository } from '../src/lib/repositories/content-masters.repository';
-import { validationsRepository } from '../src/lib/repositories/validations.repository';
-import { auditLogRepository } from '../src/lib/repositories/audit-log.repository';
+import { questionsRepository } from '../database/firestore/repositories/questions.repository';
+import { workflowRepository } from '../database/firestore/repositories/workflow.repository';
+import { contentMastersRepository } from '../database/firestore/repositories/content-masters.repository';
+import { validationsRepository } from '../database/firestore/repositories/validations.repository';
+import { auditLogRepository } from '../database/firestore/repositories/audit-log.repository';
 import { auditService } from '../backend/infrastructure/audit/services/audit.service';
 import {
   evaluateAuthorization,

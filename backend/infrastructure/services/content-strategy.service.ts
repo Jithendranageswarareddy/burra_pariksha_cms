@@ -7,13 +7,13 @@
  * AI provenance and zero-mutation safety boundaries.
  */
 
-import { strategyRecommendationRepository } from '../../../src/lib/repositories/strategy-recommendation.repository';
+import { strategyRecommendationRepository } from '../../../database/firestore/repositories/strategy-recommendation.repository';
 import { socialPerformanceIntelligenceService } from '../../features/analytics/services/social-performance-intelligence.service';
-import { commentIntelligenceRepository } from '../../../src/lib/repositories/comment-intelligence.repository';
+import { commentIntelligenceRepository } from '../../../database/firestore/repositories/comment-intelligence.repository';
 import { analyticsService } from '../../features/analytics/services/analytics.service';
 import { taxonomyService } from '../../domain/taxonomy/services/taxonomy.service';
-import { contentPlansRepository } from '../../../src/lib/repositories/content-plans.repository';
-import { auditLogRepository } from '../../../src/lib/repositories/audit-log.repository';
+import { contentPlansRepository } from '../../../database/firestore/repositories/content-plans.repository';
+import { auditLogRepository } from '../../../database/firestore/repositories/audit-log.repository';
 import { canonicalIdService } from '../../../src/lib/id.service';
 import { aiOrchestrator } from '../ai/ai-orchestrator.service';
 import { ContentStrategyRecommendation, ContentPlan, RecommendationStatus, QuestionLanguage, PriorityLevel, ContentPlanStatus, CommentIntelligenceRecord } from '../../../src/types';

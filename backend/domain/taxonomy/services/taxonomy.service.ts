@@ -7,7 +7,7 @@
  * and caches lookups for high performance.
  */
 
-import { topicsRepository, subtopicsRepository } from '../../../../src/lib/repositories';
+import { topicsRepository, subtopicsRepository } from '../../../../database/firestore/repositories';
 import { Subtopic, Topic } from '../../../../src/types';
 import { ReferenceIntegrityError, ValidationError } from '../../../../src/lib/errors';
 import { canonicalIdService } from '../../../../src/lib/id.service';

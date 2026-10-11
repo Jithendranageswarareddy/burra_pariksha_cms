@@ -8,7 +8,7 @@
 
 import { GoogleSheetsSnapshot, WorksheetSnapshot } from '../../recovery/services/snapshot-exporter.service';
 import { restoreValidatorService, RestoreValidationResult } from '../../recovery/services/restore-validator.service';
-import { thumbnailsRepository, thumbnailVersionsRepository, videosRepository } from '../../../../src/lib/repositories';
+import { thumbnailsRepository, thumbnailVersionsRepository, videosRepository } from '../../../../database/firestore/repositories';
 import { auditService, workflowService } from '../../../infrastructure/audit/services/audit.service';
 import { Thumbnail, ThumbnailVersion } from '../../../../src/types';
 

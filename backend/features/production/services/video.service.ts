@@ -16,8 +16,8 @@ import {
   auditLogRepository,
   publishingRepository,
   usersRepository,
-} from '../../../../src/lib/repositories';
-import { mediaAssetsRepository } from '../../../../src/lib/repositories/media-assets.repository';
+} from '../../../../database/firestore/repositories';
+import { mediaAssetsRepository } from '../../../../database/firestore/repositories/media-assets.repository';
 import { canonicalIdService } from '../../../../src/lib/id.service';
 import { workflowService } from '../../../infrastructure/services/workflow.service';
 import { auditService } from '../../../infrastructure/audit/services/audit.service';

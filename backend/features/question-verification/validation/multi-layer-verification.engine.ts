@@ -32,7 +32,7 @@ import { AmbiguityDetector } from './ambiguity.detector';
 import { ConsistencyValidator } from './consistency.validator';
 import { FairnessValidator } from './fairness.validator';
 import { similarityService } from '../../planning/services/similarity.service';
-import { questionsRepository } from '../../../../src/lib/repositories/questions.repository';
+import { questionsRepository } from '../../../../database/firestore/repositories/questions.repository';
 import { evaluateBlindDerivedResult, GeminiBlindVerifierProvider } from '../ai/blind-verifier';
 
 export type VerificationLayerStatus = 'VERIFIED' | 'FAILED' | 'UNVERIFIED' | 'N/A';

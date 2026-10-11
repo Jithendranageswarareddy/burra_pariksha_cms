@@ -33,7 +33,7 @@ import { logger, StructuredLogEntry } from '../src/lib/logger';
 import { InMemoryRepository, BaseEntity } from '../src/lib/db';
 import { ValidationError } from '../src/lib/errors';
 import { authService } from '../backend/infrastructure/auth/services/auth.service';
-import { usersRepository } from '../src/lib/repositories/users.repository';
+import { usersRepository } from '../database/firestore/repositories/users.repository';
 import { UserRole } from '../src/types';
 import { CanonicalRbacRole } from '../src/types/rbac-models';
 import { apiRouter } from '../backend/server/routers/routes';

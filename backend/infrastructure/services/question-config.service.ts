@@ -6,7 +6,7 @@
  * (Real-Life Contexts and Question Styles) backed by the QUESTION_CONFIG Google Sheet.
  */
 
-import { questionConfigRepository, QuestionConfigRepository } from '../../../src/lib/repositories/question-config.repository';
+import { questionConfigRepository, QuestionConfigRepository } from '../../../database/firestore/repositories/question-config.repository';
 import { GroupedQuestionConfig, QuestionConfigDimension, QuestionConfigEntry } from '../../../src/types';
 import { QuestionConfigEntryZodSchema } from '../../../src/lib/schemas/google-sheets-schema';
 

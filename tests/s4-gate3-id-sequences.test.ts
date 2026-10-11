@@ -21,7 +21,7 @@
 
 import assert from 'node:assert';
 import { canonicalIdService } from '../src/lib/id.service';
-import { getAdminFirestore } from '../src/lib/firebase/admin';
+import { getAdminFirestore } from '../database/firestore/adapter/admin';
 
 async function testGate3CanonicalIds() {
   console.log('============================================================');

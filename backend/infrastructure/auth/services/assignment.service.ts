@@ -18,7 +18,7 @@ import {
   contentPlansRepository,
   contentBatchesRepository,
   auditLogRepository,
-} from '../../../../src/lib/repositories';
+} from '../../../../database/firestore/repositories';
 import { canonicalIdService } from '../../../../src/lib/id.service';
 import { workflowService } from '../../audit/services/audit.service';
 import {

@@ -16,7 +16,7 @@
  *   npx tsx scripts/admin-reset-firestore.ts --confirm-wipe-all-data
  */
 
-import { getAdminFirestore } from '../src/lib/firebase/admin';
+import { getAdminFirestore } from '../database/firestore/adapter/admin';
 import { firestoreProductionInitializer } from '../backend/features/recovery/services/firestore-production-initializer.service';
 import { authService } from '../backend/infrastructure/auth/services/auth.service';
 

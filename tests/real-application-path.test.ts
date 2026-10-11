@@ -19,9 +19,9 @@
 import assert from 'node:assert';
 import { centralAuthorizationService } from '../backend/infrastructure/auth/services/central-authorization.service';
 import { AuthorizationResource, AuthorizationAction, CanonicalRbacRole } from '../src/types/rbac-models';
-import { questionsRepository } from '../src/lib/repositories/questions.repository';
-import { contentMastersRepository } from '../src/lib/repositories/content-masters.repository';
-import { getAdminFirestore } from '../src/lib/firebase/admin';
+import { questionsRepository } from '../database/firestore/repositories/questions.repository';
+import { contentMastersRepository } from '../database/firestore/repositories/content-masters.repository';
+import { getAdminFirestore } from '../database/firestore/adapter/admin';
 import { SYNTHETIC_TEST_MARKERS } from './fixtures/synthetic-test-fixtures';
 
 async function runApplicationPathTest() {

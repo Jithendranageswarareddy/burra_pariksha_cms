@@ -22,13 +22,13 @@ import {
   EngagementQualityReport,
   PinnedCommentPackageHistory,
 } from '../../../../src/types';
-import { pinnedCommentPackagesRepository } from '../../../../src/lib/repositories/pinned-comment-packages.repository';
-import { pinnedCommentsRepository, pinnedCommentVersionsRepository } from '../../../../src/lib/repositories/pinned-comments.repository';
-import { contentMastersRepository } from '../../../../src/lib/repositories/content-masters.repository';
-import { questionsRepository } from '../../../../src/lib/repositories/questions.repository';
-import { scriptsRepository } from '../../../../src/lib/repositories/scripts.repository';
-import { videosRepository } from '../../../../src/lib/repositories/videos.repository';
-import { publishingRepository } from '../../../../src/lib/repositories/publishing.repository';
+import { pinnedCommentPackagesRepository } from '../../../../database/firestore/repositories/pinned-comment-packages.repository';
+import { pinnedCommentsRepository, pinnedCommentVersionsRepository } from '../../../../database/firestore/repositories/pinned-comments.repository';
+import { contentMastersRepository } from '../../../../database/firestore/repositories/content-masters.repository';
+import { questionsRepository } from '../../../../database/firestore/repositories/questions.repository';
+import { scriptsRepository } from '../../../../database/firestore/repositories/scripts.repository';
+import { videosRepository } from '../../../../database/firestore/repositories/videos.repository';
+import { publishingRepository } from '../../../../database/firestore/repositories/publishing.repository';
 import { aiOrchestrator } from '../../../infrastructure/ai/ai-orchestrator.service';
 import { auditService } from '../../../infrastructure/audit/services/audit.service';
 import { PinnedCommentSafetyValidator } from '../../question-verification/validation/pinned-comment-safety.validator';

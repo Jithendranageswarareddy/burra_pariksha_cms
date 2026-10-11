@@ -16,7 +16,7 @@ import {
   LANGUAGES,
 } from '../../../src/config/question-creation.config';
 import { taxonomyService } from '../../domain/taxonomy/services/taxonomy.service';
-import { questionsRepository } from '../../../src/lib/repositories/questions.repository';
+import { questionsRepository } from '../../../database/firestore/repositories/questions.repository';
 import { questionConfigService } from './question-config.service';
 import { ValidationError } from '../../../src/lib/errors';
 import { QuestionLanguage } from '../../../src/types';

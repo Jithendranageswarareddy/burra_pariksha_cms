@@ -6,9 +6,9 @@
  * workflow state machine transitions, and video queueing.
  */
 
-import { questionsRepository } from '../../../../src/lib/repositories/questions.repository';
-import { contentMastersRepository } from '../../../../src/lib/repositories/content-masters.repository';
-import { validationsRepository } from '../../../../src/lib/repositories/validations.repository';
+import { questionsRepository } from '../../../../database/firestore/repositories/questions.repository';
+import { contentMastersRepository } from '../../../../database/firestore/repositories/content-masters.repository';
+import { validationsRepository } from '../../../../database/firestore/repositories/validations.repository';
 import { CreateQuestionInput, CreateQuestionInputSchema, QuestionFilterInput, UpdateQuestionInputSchema } from '../../../../src/lib/schemas/google-sheets-schema';
 import { Question, QuestionStatus, VideoProductionStatus, QuestionValidationStatus, UserRole } from '../../../../src/types';
 import { canonicalIdService } from '../../../../src/lib/id.service';

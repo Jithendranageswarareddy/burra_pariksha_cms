@@ -10,7 +10,7 @@
  */
 
 import { IRepository } from '../../../src/lib/db/repository.interface';
-import { FirestoreRepository } from '../../../src/lib/db/firestore.repository';
+import { FirestoreRepository } from '../../../database/firestore/adapter/firestore.repository';
 import { WorkflowInstanceDocument, WorkflowHistoryEntry } from '../../../src/types/workflow';
 import { connectRepositoryToAudit } from '../../../src/lib/audit';
 

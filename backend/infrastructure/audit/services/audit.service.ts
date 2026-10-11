@@ -3,7 +3,7 @@
  * Phase 2: Google Sheets Database Architecture & Persistence
  */
 
-import { auditLogRepository, workflowRepository } from '../../../../src/lib/repositories';
+import { auditLogRepository, workflowRepository } from '../../../../database/firestore/repositories';
 import { AuditLog, Workflow } from '../../../../src/types';
 import { sanitizeErrorMessage } from '../../../../src/lib/errors';
 

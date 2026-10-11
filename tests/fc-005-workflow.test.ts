@@ -15,7 +15,7 @@ import http from 'node:http';
 import express from 'express';
 import { apiRouter } from '../backend/server/routers/routes';
 import { authService } from '../backend/infrastructure/auth/services/auth.service';
-import { usersRepository } from '../src/lib/repositories/users.repository';
+import { usersRepository } from '../database/firestore/repositories/users.repository';
 import { workflowService, workflowEngine } from '../backend/domain/workflow';
 import { realtimeEventBus } from '../src/lib/realtime/event-bus';
 import { auditDispatcher } from '../src/lib/audit';
@@ -26,7 +26,7 @@ import {
 } from '../src/types/workflow';
 import { assertStateDimensionsDecoupled } from '../src/types/state-models';
 import { ConcurrencyConflictError, InvalidWorkflowTransitionError, ForbiddenError } from '../src/lib/errors';
-import { getAdminFirestore } from '../src/lib/firebase/admin';
+import { getAdminFirestore } from '../database/firestore/adapter/admin';
 
 async function runTests() {
   console.log('============================================================');

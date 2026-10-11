@@ -7,7 +7,7 @@
  * GUARANTEE: Never exposes private keys, authorization headers, or secrets.
  */
 
-import { getAdminFirestore } from '../../../src/lib/firebase/admin';
+import { getAdminFirestore } from '../../../database/firestore/adapter/admin';
 import { sanitizeErrorMessage } from '../../../src/lib/errors';
 
 export type ConnectivityStatus = 'CONNECTED' | 'DEGRADED' | 'CONFIGURATION_ERROR' | 'UNAVAILABLE';

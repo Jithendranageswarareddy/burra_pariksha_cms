@@ -15,10 +15,10 @@
  * 8. Zero auto-publish: Final stage approves video for distribution, does not auto-post.
  */
 
-import { questionsRepository } from '../../../../src/lib/repositories/questions.repository';
-import { scriptsRepository } from '../../../../src/lib/repositories/scripts.repository';
-import { videosRepository } from '../../../../src/lib/repositories/videos.repository';
-import { mediaAssetsRepository } from '../../../../src/lib/repositories/media-assets.repository';
+import { questionsRepository } from '../../../../database/firestore/repositories/questions.repository';
+import { scriptsRepository } from '../../../../database/firestore/repositories/scripts.repository';
+import { videosRepository } from '../../../../database/firestore/repositories/videos.repository';
+import { mediaAssetsRepository } from '../../../../database/firestore/repositories/media-assets.repository';
 import { driveSyncService } from '../../../infrastructure/services/drive-sync.service';
 import { canonicalIdService } from '../../../../src/lib/id.service';
 import { auditService } from '../../../infrastructure/audit/services/audit.service';

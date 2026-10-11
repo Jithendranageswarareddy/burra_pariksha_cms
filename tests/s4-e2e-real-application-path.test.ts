@@ -27,9 +27,9 @@ import http from 'node:http';
 import express from 'express';
 import { centralAuthorizationService } from '../backend/infrastructure/auth/services/central-authorization.service';
 import { AuthorizationResource, AuthorizationAction, CanonicalRbacRole } from '../src/types/rbac-models';
-import { FirestoreRepository } from '../src/lib/db/firestore.repository';
+import { FirestoreRepository } from '../database/firestore/adapter/firestore.repository';
 import { QuestionStatus } from '../src/types';
-import { getAdminFirestore } from '../src/lib/firebase/admin';
+import { getAdminFirestore } from '../database/firestore/adapter/admin';
 
 function makeRequest(
   port: number,

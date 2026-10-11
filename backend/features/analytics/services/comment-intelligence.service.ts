@@ -13,11 +13,11 @@
  * 5. Metadata-only Audit Logging: Logs operations without leaking raw audience text into audit tables.
  */
 
-import { socialCommentsRepository, SocialCommentsRepository } from '../../../../src/lib/repositories/social-comments.repository';
-import { commentIntelligenceRepository, CommentIntelligenceRepository } from '../../../../src/lib/repositories/comment-intelligence.repository';
-import { contentMastersRepository } from '../../../../src/lib/repositories/content-masters.repository';
+import { socialCommentsRepository, SocialCommentsRepository } from '../../../../database/firestore/repositories/social-comments.repository';
+import { commentIntelligenceRepository, CommentIntelligenceRepository } from '../../../../database/firestore/repositories/comment-intelligence.repository';
+import { contentMastersRepository } from '../../../../database/firestore/repositories/content-masters.repository';
 import { canonicalIdService } from '../../../../src/lib/id.service';
-import { AuditLogRepository } from '../../../../src/lib/repositories/audit-log.repository';
+import { AuditLogRepository } from '../../../../database/firestore/repositories/audit-log.repository';
 import { aiOrchestrator } from '../../../infrastructure/ai/ai-orchestrator.service';
 import { AIProvenance } from '../../../../src/types/ai';
 import {

@@ -45,9 +45,9 @@ import {
 } from '../../question-verification/validation/social-invariance.validator';
 import { aiOrchestrator } from '../../../infrastructure/ai/ai-orchestrator.service';
 import { AIProviderOptions } from '../../../infrastructure/ai/types';
-import { platformAdaptationsRepository } from '../../../../src/lib/repositories/platform-adaptations.repository';
-import { contentMastersRepository } from '../../../../src/lib/repositories/content-masters.repository';
-import { questionsRepository } from '../../../../src/lib/repositories/questions.repository';
+import { platformAdaptationsRepository } from '../../../../database/firestore/repositories/platform-adaptations.repository';
+import { contentMastersRepository } from '../../../../database/firestore/repositories/content-masters.repository';
+import { questionsRepository } from '../../../../database/firestore/repositories/questions.repository';
 import { auditService } from '../../../infrastructure/audit/services/audit.service';
 import { canonicalIdService } from '../../../../src/lib/id.service';
 import {

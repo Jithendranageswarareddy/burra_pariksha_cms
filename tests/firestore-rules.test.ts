@@ -24,7 +24,7 @@ import {
   terminate,
 } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
-import { getAdminFirestore } from '../src/lib/firebase/admin';
+import { getAdminFirestore } from '../database/firestore/adapter/admin';
 
 async function runFirestoreRulesTests() {
   console.log('============================================================');

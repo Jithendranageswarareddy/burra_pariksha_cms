@@ -80,7 +80,7 @@ import {
   RefineCandidateInput,
 } from './types';
 import { taxonomyService } from '../../domain/taxonomy/services/taxonomy.service';
-import { questionsRepository } from '../../../src/lib/repositories/questions.repository';
+import { questionsRepository } from '../../../database/firestore/repositories/questions.repository';
 import { ScriptContentPayload } from '../../features/production/services/script.service';
 
 async function withTimeout<T>(promise: Promise<T>, ms: number = 30000, errorMsg: string = 'Gemini API call timed out'): Promise<T> {

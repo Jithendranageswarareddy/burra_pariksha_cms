@@ -30,14 +30,14 @@ import {
   Script,
   Video,
 } from '../../../../src/types';
-import { thumbnailCandidatesRepository } from '../../../../src/lib/repositories/thumbnail-candidates.repository';
-import { thumbnailsRepository } from '../../../../src/lib/repositories/thumbnails.repository';
-import { thumbnailVersionsRepository } from '../../../../src/lib/repositories/thumbnail-versions.repository';
-import { contentMastersRepository } from '../../../../src/lib/repositories/content-masters.repository';
-import { questionsRepository } from '../../../../src/lib/repositories/questions.repository';
-import { scriptsRepository } from '../../../../src/lib/repositories/scripts.repository';
-import { videosRepository } from '../../../../src/lib/repositories/videos.repository';
-import { mediaAssetsRepository } from '../../../../src/lib/repositories/media-assets.repository';
+import { thumbnailCandidatesRepository } from '../../../../database/firestore/repositories/thumbnail-candidates.repository';
+import { thumbnailsRepository } from '../../../../database/firestore/repositories/thumbnails.repository';
+import { thumbnailVersionsRepository } from '../../../../database/firestore/repositories/thumbnail-versions.repository';
+import { contentMastersRepository } from '../../../../database/firestore/repositories/content-masters.repository';
+import { questionsRepository } from '../../../../database/firestore/repositories/questions.repository';
+import { scriptsRepository } from '../../../../database/firestore/repositories/scripts.repository';
+import { videosRepository } from '../../../../database/firestore/repositories/videos.repository';
+import { mediaAssetsRepository } from '../../../../database/firestore/repositories/media-assets.repository';
 import { driveSyncService } from '../../../infrastructure/services/drive-sync.service';
 import { googleDriveService } from '../../../infrastructure/services/google-drive.service';
 import { aiOrchestrator } from '../../../infrastructure/ai/ai-orchestrator.service';

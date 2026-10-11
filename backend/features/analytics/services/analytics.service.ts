@@ -15,10 +15,10 @@
  * 6. Non-blocking & graceful: handles unconfigured analytics spreadsheet gracefully via local fallback.
  */
 
-import { analyticsRepository, AnalyticsRepository } from '../../../../src/lib/repositories/analytics.repository';
-import { contentMastersRepository } from '../../../../src/lib/repositories/content-masters.repository';
+import { analyticsRepository, AnalyticsRepository } from '../../../../database/firestore/repositories/analytics.repository';
+import { contentMastersRepository } from '../../../../database/firestore/repositories/content-masters.repository';
 import { canonicalIdService } from '../../../../src/lib/id.service';
-import { AuditLogRepository } from '../../../../src/lib/repositories/audit-log.repository';
+import { AuditLogRepository } from '../../../../database/firestore/repositories/audit-log.repository';
 import {
   CreateSocialAnalyticsInput,
   ImportSocialAnalyticsInput,

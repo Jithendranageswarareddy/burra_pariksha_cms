@@ -13,10 +13,10 @@
  */
 
 import { analyticsService } from './analytics.service';
-import { intelligenceRepository, IntelligenceRepository } from '../../../../src/lib/repositories/intelligence.repository';
+import { intelligenceRepository, IntelligenceRepository } from '../../../../database/firestore/repositories/intelligence.repository';
 import { canonicalIdService } from '../../../../src/lib/id.service';
 import { taxonomyService } from '../../../domain/taxonomy/services/taxonomy.service';
-import { AuditLogRepository } from '../../../../src/lib/repositories/audit-log.repository';
+import { AuditLogRepository } from '../../../../database/firestore/repositories/audit-log.repository';
 import { geminiClient } from '../../../infrastructure/ai/gemini.client';
 import { aiOrchestrator } from '../../../infrastructure/ai/ai-orchestrator.service';
 import { AIProvenance } from '../../../../src/types/ai';

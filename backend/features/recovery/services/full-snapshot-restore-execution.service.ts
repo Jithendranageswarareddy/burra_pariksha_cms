@@ -61,7 +61,7 @@ import {
   workflowRepository,
   auditLogRepository,
   BaseRepository
-} from '../../../../src/lib/repositories';
+} from '../../../../database/firestore/repositories';
 
 export interface FullSnapshotRestoreExecutionRequest {
   snapshot: GoogleSheetsSnapshot;

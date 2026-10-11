@@ -11,10 +11,10 @@
  * - WORKFLOW and AUDIT_LOG integration
  */
 
-import { thumbnailsRepository, thumbnailVersionsRepository } from '../../../../src/lib/repositories/thumbnails.repository';
-import { videosRepository } from '../../../../src/lib/repositories/videos.repository';
-import { questionsRepository } from '../../../../src/lib/repositories/questions.repository';
-import { publishingRepository } from '../../../../src/lib/repositories/publishing.repository';
+import { thumbnailsRepository, thumbnailVersionsRepository } from '../../../../database/firestore/repositories/thumbnails.repository';
+import { videosRepository } from '../../../../database/firestore/repositories/videos.repository';
+import { questionsRepository } from '../../../../database/firestore/repositories/questions.repository';
+import { publishingRepository } from '../../../../database/firestore/repositories/publishing.repository';
 import { canonicalIdService } from '../../../../src/lib/id.service';
 import { auditService } from '../../../infrastructure/audit/services/audit.service';
 import { workflowService } from '../../../infrastructure/services/workflow.service';

@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { usersRepository } from '../../../../src/lib/repositories/users.repository';
+import { usersRepository } from '../../../../database/firestore/repositories/users.repository';
 import { auditService } from '../../audit/services/audit.service';
 import { User } from '../../../../src/types';
 
