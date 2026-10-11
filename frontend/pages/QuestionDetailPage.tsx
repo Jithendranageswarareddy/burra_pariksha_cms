@@ -34,7 +34,7 @@ import { EntityAssignmentsSection } from '../components/assignments/EntityAssign
 import { ProductionJourneyBar } from '../components/production/ProductionJourneyBar';
 import { useProductionJourney } from '../contexts/ProductionJourneyContext';
 import { apiClient } from '../api/api-client';
-import { CandidateValidator, CandidateValidationReport } from '../../src/lib/ai/validators/candidate.validator';
+import { CandidateValidationReport } from '../api/contracts';
 import { AiRefinementAction, QuestionCandidate } from '../../src/lib/ai/types';
 import {
   DifficultyLevel,
@@ -201,21 +201,50 @@ export const QuestionDetailPage: React.FC = () => {
   }, [editQuestionText, isEditing, id]);
 
   // Live validation on edit form fields
+  // Live validation on edit form fields
   useEffect(() => {
     if (!isEditing) return;
-    const report = CandidateValidator.validate({
-      content: editQuestionText,
-      option_a: editOptA,
-      option_b: editOptB,
-      option_c: editOptC,
-      option_d: editOptD,
-      correct_answer: editCorrectAnswer,
-      explanation: editExplanation,
-      language: editLanguage,
-      question_style: editQuestionStyle,
-      real_world_context: editRealWorldContext,
-    });
-    setClientReport(report);
+    const timer = setTimeout(async () => {
+      const localErrors: string[] = [];
+      const localWarnings: string[] = [];
+      if (!editQuestionText.trim()) localErrors.push('Question text is required.');
+      if (!editOptA.trim() || !editOptB.trim() || !editOptC.trim() || !editOptD.trim()) {
+        localErrors.push('All 4 options (A, B, C, D) are required.');
+      }
+      if (!editCorrectAnswer) localErrors.push('Correct answer is required.');
+      if (!editExplanation.trim()) localWarnings.push('Explanation is recommended.');
+
+      try {
+        const res = await apiClient.validateCandidate({
+          questionText: editQuestionText,
+          options: { a: editOptA, b: editOptB, c: editOptC, d: editOptD },
+          correctAnswer: editCorrectAnswer as any,
+          explanation: editExplanation,
+          language: editLanguage,
+          questionStyle: editQuestionStyle,
+          realLifeContext: editRealWorldContext,
+        } as any, { skipDuplicateCheck: true });
+
+        const backendErrors = (res.data?.errors || []).map((e: any) => typeof e === 'string' ? e : e.message || e.rule);
+        const backendWarnings = (res.data?.warnings || []).map((w: any) => typeof w === 'string' ? w : w.message || w.rule);
+        const allErrors = Array.from(new Set([...localErrors, ...backendErrors]));
+        const allWarnings = Array.from(new Set([...localWarnings, ...backendWarnings]));
+
+        setClientReport({
+          isValid: allErrors.length === 0,
+          errors: allErrors,
+          warnings: allWarnings,
+        });
+      } catch {
+        setClientReport({
+          isValid: localErrors.length === 0,
+          errors: localErrors,
+          warnings: localWarnings,
+        });
+      }
+    }, 250);
+
+    return () => clearTimeout(timer);
   }, [
     isEditing,
     editQuestionText,

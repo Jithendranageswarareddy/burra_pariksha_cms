@@ -36,6 +36,13 @@ import {
   Workflow,
 } from '../../src/types';
 import { GenerateCandidateInput, GenerationResult, RefineCandidateInput } from '../../src/lib/ai/types';
+import {
+  ContentMasterDetails,
+  DiversityRadarReport,
+  QuestionSimilarityMatch,
+  OperationalHealthReport,
+  OperationalRecoveryState,
+} from './contracts';
 
 export class ApiClientError extends Error {
   public readonly statusCode: number;
@@ -475,7 +482,7 @@ class ApiClient {
     });
   }
 
-  public async validateCandidate(question: Partial<Question>, options?: { skipTaxonomyLookup?: boolean; source?: string }): Promise<{ success: boolean; data: import('../../src/types').ValidationResult }> {
+  public async validateCandidate(question: Partial<Question>, options?: { skipTaxonomyLookup?: boolean; skipDuplicateCheck?: boolean; source?: string }): Promise<{ success: boolean; data: import('../../src/types').ValidationResult }> {
     return this.request('/questions/validate-candidate', {
       method: 'POST',
       body: JSON.stringify({ question, ...options }),
@@ -1135,11 +1142,11 @@ class ApiClient {
     return this.request('/planning/gaps');
   }
 
-  public async getSimilarityRadar(): Promise<import('../../src/lib/services/similarity.service').DiversityRadarReport> {
+  public async getSimilarityRadar(): Promise<DiversityRadarReport> {
     return this.request('/planning/similarity-radar');
   }
 
-  public async checkPlanSimilarity(text: string, excludeQuestionId?: string, threshold?: number): Promise<{ matches: import('../../src/lib/services/similarity.service').QuestionSimilarityMatch[]; isDuplicate: boolean }> {
+  public async checkPlanSimilarity(text: string, excludeQuestionId?: string, threshold?: number): Promise<{ matches: QuestionSimilarityMatch[]; isDuplicate: boolean }> {
     return this.request('/planning/similarity-check', {
       method: 'POST',
       body: JSON.stringify({ text, excludeQuestionId, threshold }),
@@ -1153,11 +1160,11 @@ class ApiClient {
     });
   }
 
-  public async getOperationalHealth(): Promise<import('../../src/lib/services/operational-health.service').OperationalHealthReport> {
+  public async getOperationalHealth(): Promise<OperationalHealthReport> {
     return this.request('/system/operational-health');
   }
 
-  public async getRecoveryState(): Promise<import('../../src/lib/services/operational-recovery.service').OperationalRecoveryState> {
+  public async getRecoveryState(): Promise<OperationalRecoveryState> {
     return this.request('/system/recovery/state');
   }
 
@@ -1509,8 +1516,8 @@ class ApiClient {
     return this.request<{ success: boolean; count: number; data: import('../../src/types').ContentMaster[] }>('/content-masters');
   }
 
-  public async getContentMasterDetails(id: string): Promise<{ success: boolean; data: import('../../src/lib/services/content-master.service').ContentMasterDetails }> {
-    return this.request<{ success: boolean; data: import('../../src/lib/services/content-master.service').ContentMasterDetails }>(`/content-masters/${encodeURIComponent(id)}`);
+  public async getContentMasterDetails(id: string): Promise<{ success: boolean; data: ContentMasterDetails }> {
+    return this.request<{ success: boolean; data: ContentMasterDetails }>(`/content-masters/${encodeURIComponent(id)}`);
   }
 
   public async getContentMasterCanonicalState(id: string): Promise<{ success: boolean; data: import('../../src/types').ContentMasterCanonicalState }> {

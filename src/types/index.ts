@@ -1424,6 +1424,7 @@ export interface PublishingReadinessItem {
     facebook: SocialPublishStatus;
   };
   actionUrl: string;
+  canonicalProductionReadiness?: CanonicalProductionReadiness;
 }
 
 export interface GlobalSearchResult {

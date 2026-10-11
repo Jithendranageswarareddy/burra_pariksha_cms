@@ -32,7 +32,6 @@ import {
   VideoProductionStatus,
 } from '../../../src/types';
 import { SocialStatusBadge, VideoStatusBadge } from '../common/StatusBadge';
-import { ProductionAssetValidationService } from '../../../src/lib/services/production-asset-validation.service';
 
 export interface PublishingTableProps {
   records: Publishing[];
@@ -349,11 +348,7 @@ export const PublishingTable: React.FC<PublishingTableProps> = ({
                     <div className="space-y-1.5">
                       <VideoStatusBadge status={video?.status || (rec.finalVideoStatus as any)} size="sm" />
                       <div>
-                        {getCanonicalReadinessBadge(
-                          video
-                            ? ProductionAssetValidationService.determineReadiness(video, { isReady: isGateDReady })
-                            : undefined
-                        )}
+                        {getCanonicalReadinessBadge(readiness?.canonicalProductionReadiness)}
                       </div>
                     </div>
                   </td>

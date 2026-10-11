@@ -24,6 +24,7 @@ import {
 } from '../repositories';
 import { assignmentService } from './assignment.service';
 import { objectAuthService, ActorContext } from './object-auth.service';
+import { ProductionAssetValidationService } from './production-asset-validation.service';
 import {
   AGING_THRESHOLDS,
   BOTTLENECK_CONFIG,
@@ -676,6 +677,7 @@ export class DashboardService {
           facebook: pub?.facebook?.status || SocialPublishStatus.NOT_STARTED,
         },
         actionUrl: `/publishing?videoId=${encodeURIComponent(v.id)}`,
+        canonicalProductionReadiness: ProductionAssetValidationService.determineReadiness(v, { isReady: status === 'READY' }),
       });
     }
 

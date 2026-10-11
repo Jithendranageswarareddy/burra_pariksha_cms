@@ -49,8 +49,8 @@ import {
   QuestionCandidate,
   RefineCandidateInput,
 } from '../../src/lib/ai/types';
-import { CandidateValidator, CandidateValidationReport } from '../../src/lib/ai/validators/candidate.validator';
-import { MathVerificationResult } from '../../src/lib/ai/validators/mathematical.validator';
+import { CandidateValidationReport } from '../api/contracts';
+import { MathVerificationResult } from '../api/contracts';
 import { QUESTION_CREATION_CONFIG } from '../../src/config/question-creation.config';
 
 const REAL_WORLD_HOOK_SUGGESTIONS = [
@@ -564,24 +564,75 @@ export const QuestionStudioPage: React.FC = () => {
       clearTimeout(validationTimerRef.current);
     }
 
-    validationTimerRef.current = setTimeout(() => {
-      const candidateForVal: Partial<QuestionCandidate> & { mathematicalVerification?: MathVerificationResult } = {
-        content: candidate.questionText,
-        option_a: candidate.optionA,
-        option_b: candidate.optionB,
-        option_c: candidate.optionC,
-        option_d: candidate.optionD,
-        correct_answer: candidate.correctAnswer,
-        explanation: candidate.explanation,
-        language: candidate.language,
-        question_style: questionStyle,
-        real_world_context: candidate.realLifeContext,
-        mathematicalVerification: candidate.mathematicalVerification,
-      };
+    validationTimerRef.current = setTimeout(async () => {
+      const localErrors: string[] = [];
+      const localWarnings: string[] = [];
+      if (!candidate.questionText?.trim()) {
+        localErrors.push('Question text is required.');
+      }
+      if (!candidate.optionA?.trim() || !candidate.optionB?.trim() || !candidate.optionC?.trim() || !candidate.optionD?.trim()) {
+        localErrors.push('All 4 options (A, B, C, D) are required.');
+      }
+      if (!candidate.correctAnswer) {
+        localErrors.push('Correct answer must be specified (A, B, C, or D).');
+      }
+      if (!candidate.explanation?.trim()) {
+        localWarnings.push('Explanation is recommended.');
+      }
 
-      const report = CandidateValidator.validate(candidateForVal);
-      if (currentRequestId === validationRequestIdRef.current) {
-        setClientReport(report);
+      try {
+        const res = await apiClient.validateCandidate({
+          questionText: candidate.questionText,
+          options: {
+            a: candidate.optionA || '',
+            b: candidate.optionB || '',
+            c: candidate.optionC || '',
+            d: candidate.optionD || '',
+          },
+          correctAnswer: candidate.correctAnswer as any,
+          explanation: candidate.explanation,
+          language: candidate.language,
+          questionStyle: candidate.questionStyle || questionStyle,
+          realLifeContext: candidate.realLifeContext,
+        } as any, { skipDuplicateCheck: true });
+
+        if (currentRequestId === validationRequestIdRef.current) {
+          const backendVal = res.data;
+          const backendErrors = (backendVal?.errors || []).map((e: any) => typeof e === 'string' ? e : e.message || e.rule);
+          const backendWarnings = (backendVal?.warnings || []).map((w: any) => typeof w === 'string' ? w : w.message || w.rule);
+          const allErrors = Array.from(new Set([...localErrors, ...backendErrors]));
+          const allWarnings = Array.from(new Set([...localWarnings, ...backendWarnings]));
+
+          setClientReport({
+            isValid: allErrors.length === 0,
+            errors: allErrors,
+            warnings: allWarnings,
+            metrics: {
+              charCount: candidate.questionText?.length || 0,
+              explanationCharCount: candidate.explanation?.length || 0,
+              hasBurraTrick: Boolean(candidate.explanation && candidate.explanation.toLowerCase().includes('trick')),
+              hasTeluguScript: /[\u0C00-\u0C7F]/.test(candidate.questionText || ''),
+              isNumericProblem: /\d+/.test(candidate.questionText || ''),
+            },
+            mathematicalVerification: candidate.mathematicalVerification,
+          });
+        }
+      } catch {
+        if (currentRequestId === validationRequestIdRef.current) {
+          setClientReport({
+            isValid: localErrors.length === 0,
+            errors: localErrors,
+            warnings: localWarnings,
+            metrics: {
+              charCount: candidate.questionText?.length || 0,
+              explanationCharCount: candidate.explanation?.length || 0,
+              hasBurraTrick: false,
+              hasTeluguScript: false,
+              isNumericProblem: false,
+            },
+            mathematicalVerification: candidate.mathematicalVerification,
+          });
+        }
       }
     }, 250);
 
@@ -706,27 +757,18 @@ export const QuestionStudioPage: React.FC = () => {
       setHasCandidate(true);
       setGenerationDuration(res.metadata?.generationDurationMs || res.metadata?.latencyMs || Date.now() - startTime);
 
-      const clientValidation = CandidateValidator.validate({
-        ...generated,
-        mathematicalVerification: mathVerification,
-      });
-
-      if (res.validation?.mathematicalVerification?.status === 'FAILED') {
-        const mergedErrors = Array.from(new Set([...clientValidation.errors, ...(res.validation.errors || [])]));
+      if (res.validation) {
         setClientReport({
-          ...clientValidation,
-          isValid: false,
-          errors: mergedErrors,
-          mathematicalVerification: res.validation.mathematicalVerification,
-        });
-      } else if (res.validation) {
-        setClientReport({
-          ...clientValidation,
-          mathematicalVerification: res.validation.mathematicalVerification || clientValidation.mathematicalVerification,
-          isValid: clientValidation.isValid,
+          ...res.validation,
+          mathematicalVerification: res.validation.mathematicalVerification || mathVerification,
         });
       } else {
-        setClientReport(clientValidation);
+        setClientReport({
+          isValid: true,
+          errors: [],
+          warnings: [],
+          mathematicalVerification: mathVerification,
+        });
       }
 
       triggerDuplicateCheck(generated.content);
@@ -788,27 +830,18 @@ export const QuestionStudioPage: React.FC = () => {
         mathematicalVerification: mathVerification,
       }));
 
-      const clientValidation = CandidateValidator.validate({
-        ...refined,
-        mathematicalVerification: mathVerification,
-      });
-
-      if (res.validation?.mathematicalVerification?.status === 'FAILED') {
-        const mergedErrors = Array.from(new Set([...clientValidation.errors, ...(res.validation.errors || [])]));
+      if (res.validation) {
         setClientReport({
-          ...clientValidation,
-          isValid: false,
-          errors: mergedErrors,
-          mathematicalVerification: res.validation.mathematicalVerification,
-        });
-      } else if (res.validation) {
-        setClientReport({
-          ...clientValidation,
-          mathematicalVerification: res.validation.mathematicalVerification || clientValidation.mathematicalVerification,
-          isValid: clientValidation.isValid,
+          ...res.validation,
+          mathematicalVerification: res.validation.mathematicalVerification || mathVerification,
         });
       } else {
-        setClientReport(clientValidation);
+        setClientReport({
+          isValid: true,
+          errors: [],
+          warnings: [],
+          mathematicalVerification: mathVerification,
+        });
       }
 
       triggerDuplicateCheck(refined.content);

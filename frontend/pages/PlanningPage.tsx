@@ -64,7 +64,7 @@ import {
   QuestionStyle,
   TopicCoverage,
 } from '../../src/types';
-import { DiversityRadarReport, QuestionSimilarityMatch } from '../../src/lib/services/similarity.service';
+import { DiversityRadarReport, QuestionSimilarityMatch } from '../api/contracts';
 
 type ActiveTab = 'plans' | 'batches' | 'coverage' | 'gaps' | 'radar' | 'ai-assistant';
 

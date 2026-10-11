@@ -39,9 +39,7 @@ import { Button } from '../components/common/Button';
 import { APP_CONFIG } from '../../src/config/constants';
 import { apiClient } from '../api/api-client';
 import { SpreadsheetHealthReport, SystemHealthReport, IntegrityIssue, IntegritySeverity, IntegrityCategory, UserRole } from '../../src/types';
-import { ALL_SHEET_TABS } from '../../src/lib/schemas/google-sheets-schema';
-import { OperationalHealthReport } from '../../src/lib/services/operational-health.service';
-import { OperationalRecoveryState } from '../../src/lib/services/operational-recovery.service';
+import { OperationalHealthReport, OperationalRecoveryState } from '../api/contracts';
 import { useAuth } from '../contexts/AuthContext';
 
 export const SettingsPage: React.FC = () => {

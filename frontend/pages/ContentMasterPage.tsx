@@ -40,7 +40,7 @@ import { QuestionStatusBadge, VideoStatusBadge } from '../components/common/Stat
 import { DifficultyBadge } from '../components/common/DifficultyBadge';
 import { apiClient } from '../api/api-client';
 import { ContentMaster, ContentMasterCanonicalState, ContentMasterStatus, DifficultyLevel, UserRole } from '../../src/types';
-import { ContentMasterDetails } from '../../src/lib/services/content-master.service';
+import { ContentMasterDetails } from '../api/contracts';
 import { useAuth } from '../contexts/AuthContext';
 
 const renderContentMasterStatusBadge = (status?: string) => {

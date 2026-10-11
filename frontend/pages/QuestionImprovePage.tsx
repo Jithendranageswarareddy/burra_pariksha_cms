@@ -26,7 +26,7 @@ import { PageLoading } from '../design-system/components/Loading';
 import { EmptyState } from '../design-system/components/EmptyState';
 import { QuestionWorkflowHeader } from '../components/questions/QuestionWorkflowHeader';
 import { apiClient } from '../api/api-client';
-import { CandidateValidator, CandidateValidationReport } from '../../src/lib/ai/validators/candidate.validator';
+import { CandidateValidationReport } from '../api/contracts';
 import {
   AiRefinementAction,
   QuestionCandidate,
@@ -167,20 +167,27 @@ export const QuestionImprovePage: React.FC = () => {
       setTags(q.tags ? q.tags.join(', ') : 'Aptitude');
       setIsDirty(false);
 
-      // Validate on load
-      const report = CandidateValidator.validate({
-        content: q.questionText,
-        option_a: q.options?.a,
-        option_b: q.options?.b,
-        option_c: q.options?.c,
-        option_d: q.options?.d,
-        correct_answer: (q.correctAnswer?.toUpperCase() as any) || 'A',
-        explanation: q.explanation,
-        language: (q.language as QuestionLanguage) || QuestionLanguage.ENGLISH,
-        question_style: q.questionStyle,
-        real_world_context: q.realWorldContext,
-      });
-      setClientReport(report);
+      // Validate on load via API boundary
+      try {
+        const valRes = await apiClient.validateCandidate({
+          questionText: q.questionText,
+          options: q.options,
+          correctAnswer: (q.correctAnswer?.toUpperCase() as any) || 'A',
+          explanation: q.explanation,
+          language: q.language,
+          questionStyle: q.questionStyle,
+          realLifeContext: q.realWorldContext,
+        } as any, { skipDuplicateCheck: true });
+        const bErrors = (valRes.data?.errors || []).map((e: any) => typeof e === 'string' ? e : e.message || e.rule);
+        const bWarnings = (valRes.data?.warnings || []).map((w: any) => typeof w === 'string' ? w : w.message || w.rule);
+        setClientReport({
+          isValid: bErrors.length === 0,
+          errors: bErrors,
+          warnings: bWarnings,
+        });
+      } catch {
+        setClientReport({ isValid: true, errors: [], warnings: [] });
+      }
     } catch (err: any) {
       setErrorMessage(err?.message || `Question "${qId}" could not be loaded.`);
     } finally {
@@ -233,19 +240,53 @@ export const QuestionImprovePage: React.FC = () => {
       style?: string;
       ctx?: string;
     }) => {
-      const qCandidate: Partial<QuestionCandidate> = {
-        content: updates.text !== undefined ? updates.text : questionText,
-        option_a: updates.a !== undefined ? updates.a : optionA,
-        option_b: updates.b !== undefined ? updates.b : optionB,
-        option_c: updates.c !== undefined ? updates.c : optionC,
-        option_d: updates.d !== undefined ? updates.d : optionD,
-        correct_answer: updates.ans !== undefined ? updates.ans : correctAnswer,
-        explanation: updates.exp !== undefined ? updates.exp : explanation,
-        language: updates.lang !== undefined ? updates.lang : language,
-        question_style: updates.style !== undefined ? updates.style : questionStyle,
-        real_world_context: updates.ctx !== undefined ? updates.ctx : realLifeContext,
-      };
-      setClientReport(CandidateValidator.validate(qCandidate));
+      const text = updates.text !== undefined ? updates.text : questionText;
+      const a = updates.a !== undefined ? updates.a : optionA;
+      const b = updates.b !== undefined ? updates.b : optionB;
+      const c = updates.c !== undefined ? updates.c : optionC;
+      const d = updates.d !== undefined ? updates.d : optionD;
+      const ans = updates.ans !== undefined ? updates.ans : correctAnswer;
+      const exp = updates.exp !== undefined ? updates.exp : explanation;
+      const lang = updates.lang !== undefined ? updates.lang : language;
+      const style = updates.style !== undefined ? updates.style : questionStyle;
+      const ctx = updates.ctx !== undefined ? updates.ctx : realLifeContext;
+
+      const localErrors: string[] = [];
+      const localWarnings: string[] = [];
+      if (!text.trim()) localErrors.push('Question text is required.');
+      if (!a.trim() || !b.trim() || !c.trim() || !d.trim()) localErrors.push('All 4 options (A, B, C, D) are required.');
+      if (!ans) localErrors.push('Correct answer is required.');
+      if (!exp.trim()) localWarnings.push('Explanation is recommended.');
+
+      setClientReport({
+        isValid: localErrors.length === 0,
+        errors: localErrors,
+        warnings: localWarnings,
+      });
+
+      apiClient.validateCandidate({
+        questionText: text,
+        options: { a, b, c, d },
+        correctAnswer: ans as any,
+        explanation: exp,
+        language: lang,
+        questionStyle: style,
+        realLifeContext: ctx,
+      } as any, { skipDuplicateCheck: true })
+        .then((res) => {
+          const bErrors = (res.data?.errors || []).map((e: any) => typeof e === 'string' ? e : e.message || e.rule);
+          const bWarnings = (res.data?.warnings || []).map((w: any) => typeof w === 'string' ? w : w.message || w.rule);
+          const mergedErrors = Array.from(new Set([...localErrors, ...bErrors]));
+          const mergedWarnings = Array.from(new Set([...localWarnings, ...bWarnings]));
+          setClientReport({
+            isValid: mergedErrors.length === 0,
+            errors: mergedErrors,
+            warnings: mergedWarnings,
+          });
+        })
+        .catch(() => {
+          // Keep local validation
+        });
     },
     [questionText, optionA, optionB, optionC, optionD, correctAnswer, explanation, language, questionStyle, realLifeContext]
   );
