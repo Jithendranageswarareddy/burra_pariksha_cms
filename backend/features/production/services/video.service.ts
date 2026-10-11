@@ -27,22 +27,7 @@ import { googleDriveService } from '../../../infrastructure/services/google-driv
 import { objectAuthService, ActorContext } from '../../../infrastructure/auth/services/object-auth.service';
 import { validateMediaUpload } from '../../../../src/config/media-upload.config';
 import { Readable } from 'stream';
-import {
-  Assignment,
-  AssignmentEntityType,
-  PriorityLevel,
-  ProductionStats,
-  Publishing,
-  Question,
-  QuestionStatus,
-  Video,
-  MediaAsset,
-  VideoProductionStatus,
-  Workflow,
-  AuditLog,
-  UserRole,
-  RenderValidationStatus,
-} from '../../../../src/types';
+import { Assignment, AssignmentEntityType, PriorityLevel, ProductionStats, Publishing, Question, QuestionStatus, Video, MediaAsset, VideoProductionStatus, Workflow, AuditLog, UserRole, RenderValidationStatus } from '../../../../shared';
 import { ProductionAssetValidationService } from '../../../infrastructure/services/production-asset-validation.service';
 import {
   AssignVideoInput,

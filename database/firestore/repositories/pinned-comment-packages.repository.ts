@@ -5,7 +5,7 @@
  * Manages structured engagement packages, revision histories, and workflow state.
  */
 
-import { PinnedCommentPackage, PinnedCommentPackageVersion } from '../../../src/types';
+import { PinnedCommentPackage, PinnedCommentPackageVersion } from '../../../shared';
 
 export class PinnedCommentPackagesRepository {
   private static instance: PinnedCommentPackagesRepository | null = null;

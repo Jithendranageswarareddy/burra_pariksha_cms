@@ -19,7 +19,7 @@ import { canonicalIdService } from '../../../../src/lib/id.service';
 import { auditService } from '../../../infrastructure/audit/services/audit.service';
 import { workflowService } from '../../../infrastructure/services/workflow.service';
 import { googleDriveService } from '../../../infrastructure/services/google-drive.service';
-import { Thumbnail, ThumbnailVersion, UserRole } from '../../../../src/types';
+import { Thumbnail, ThumbnailVersion, UserRole } from '../../../../shared';
 import { ValidationError } from '../../../../src/lib/errors';
 
 export interface ThumbnailPayload {

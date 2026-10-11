@@ -22,19 +22,8 @@ import { aiOrchestrator } from '../../../infrastructure/ai/ai-orchestrator.servi
 import { AIProvenance } from '../../../../src/types/ai';
 import { PerformanceIntelligenceGenAISchema, PerformanceIntelligenceZodSchema, PerformanceIntelligenceAIOutput } from '../../../infrastructure/ai/performance-intelligence.schema';
 import { BURRA_PARIKSHA_PERFORMANCE_INTELLIGENCE_SYSTEM_INSTRUCTION, buildPerformanceIntelligencePrompt } from '../../ai/prompts/performance-intelligence.prompt';
-import {
-  ApplyStrategyRecommendationInput,
-  ApplyStrategyRecommendationResult,
-  DimensionMetricAggregate,
-  GeneratePerformanceIntelligenceInput,
-  PostingTimeMetricAggregate,
-  PostingTimeRecommendation,
-  QuestionStudioStrategyRecommendation,
-  SocialAnalyticsQueryFilters,
-  SocialAnalyticsRecord,
-  SocialAnalyticsSummary,
-  SocialPerformanceIntelligenceRecord,
-} from '../../../../src/types';
+import { DimensionMetricAggregate, PostingTimeMetricAggregate, PostingTimeRecommendation, SocialAnalyticsQueryFilters, SocialAnalyticsRecord, SocialAnalyticsSummary, SocialPerformanceIntelligenceRecord } from '../../../../shared';
+import { ApplyStrategyRecommendationInput, ApplyStrategyRecommendationResult, GeneratePerformanceIntelligenceInput, QuestionStudioStrategyRecommendation } from '../../../../src/types';
 
 export class SocialPerformanceIntelligenceService {
   private static instance: SocialPerformanceIntelligenceService | null = null;

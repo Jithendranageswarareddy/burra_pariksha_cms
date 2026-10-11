@@ -14,15 +14,7 @@ import {
   thumbnailsRepository,
   pinnedCommentsRepository,
 } from '../../../database/firestore/repositories';
-import {
-  ContentMaster,
-  ContentMasterStatus,
-  UserRole,
-  Assignment,
-  AssignmentStatus,
-  Workflow,
-  AuditLog,
-} from '../../../src/types';
+import { ContentMaster, ContentMasterStatus, UserRole, Assignment, AssignmentStatus, Workflow, AuditLog } from '../../../shared';
 import { ValidationError, ReferenceIntegrityError } from '../../../src/lib/errors';
 
 export interface WorkflowTransitionInput {

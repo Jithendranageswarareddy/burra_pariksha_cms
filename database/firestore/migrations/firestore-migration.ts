@@ -10,14 +10,7 @@
  */
 
 import crypto from 'node:crypto';
-import {
-  User,
-  Question,
-  QuestionDraft,
-  Video,
-  Assignment,
-  AuditLog,
-} from '../../../src/types';
+import { User, Question, QuestionDraft, Video, Assignment, AuditLog } from '../../../shared';
 
 export interface MigrationParityReport {
   timestamp: string;

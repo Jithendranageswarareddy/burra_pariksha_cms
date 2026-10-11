@@ -3,19 +3,12 @@
  * Phase 4: Gemini AI Question Studio
  */
 
-import { DifficultyLevel, QuestionLanguage, QuestionStyle } from '../../../src/types';
+import { DifficultyLevel, QuestionLanguage, QuestionStyle } from '../../../shared';
 import { CandidateValidationReport } from '../../features/question-verification/ai/candidate.validator';
 import { AIErrorClassification } from './error';
 import { MathVerificationResult } from '../../features/question-verification/ai/mathematical.validator';
 
-import {
-  AiRefinementAction,
-  GenerateCandidateInput,
-  QuestionCandidate,
-  RefineCandidateInput,
-  GenerationMetadata,
-  GenerationResult,
-} from '../../../src/types/ai';
+import { AiRefinementAction, GenerateCandidateInput, QuestionCandidate, RefineCandidateInput, GenerationMetadata, GenerationResult } from '../../../shared';
 
 export { AiRefinementAction };
 export type {

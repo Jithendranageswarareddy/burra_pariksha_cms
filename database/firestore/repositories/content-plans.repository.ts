@@ -4,7 +4,7 @@
  */
 
 import { BaseRepository } from './base.repository';
-import { ContentPlan, ContentPlanStatus } from '../../../src/types';
+import { ContentPlan, ContentPlanStatus } from '../../../shared';
 
 export class ContentPlansRepository extends BaseRepository<ContentPlan> {
   private static instance: ContentPlansRepository | null = null;

@@ -7,7 +7,7 @@
  * Content Master generation, and multi-layer verification save gates.
  */
 
-import { QuestionDraft } from '../../../src/types';
+import { QuestionDraft } from '../../../shared';
 
 export class QuestionDraftsRepository {
   private static instance: QuestionDraftsRepository | null = null;

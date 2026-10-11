@@ -234,6 +234,15 @@ export interface ValidationEvidence {
   confidence: number;
   reasoningSummary: string;
   detectedIssues: string[];
+  answerAssessment?: {
+    declaredAnswerCorrect: boolean;
+    confidence: number;
+    notes: string;
+  };
+  explanationAssessment?: {
+    isClearAndAccurate: boolean;
+    notes: string;
+  };
   timestamp: string;
 }
 

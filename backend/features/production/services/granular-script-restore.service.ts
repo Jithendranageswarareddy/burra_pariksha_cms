@@ -10,7 +10,7 @@ import { GoogleSheetsSnapshot, WorksheetSnapshot } from '../../recovery/services
 import { restoreValidatorService, RestoreValidationResult } from '../../recovery/services/restore-validator.service';
 import { scriptsRepository, scriptVersionsRepository, videosRepository, questionsRepository } from '../../../../database/firestore/repositories';
 import { auditService, workflowService } from '../../../infrastructure/audit/services/audit.service';
-import { Script, ScriptVersion } from '../../../../src/types';
+import { Script, ScriptVersion } from '../../../../shared';
 
 export interface GranularScriptRestoreRequest {
   snapshot: GoogleSheetsSnapshot;

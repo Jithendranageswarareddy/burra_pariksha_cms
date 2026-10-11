@@ -3,7 +3,7 @@
  * Phase 19: Pinned Comment & Conversation Intelligence
  */
 
-import { Question, Script } from '../../../../src/types';
+import { Question, Script } from '../../../../shared';
 
 export const BURRA_PARIKSHA_PINNED_COMMENT_SYSTEM_INSTRUCTION = `
 You are the Lead Community Engagement & Conversation Strategist for "Burra Pariksha" (బుర్ర పరీక్ష), an elite Telugu educational challenge channel delivering bite-sized mathematics, logical reasoning, and brain-teasers for YouTube Shorts, Instagram Reels, and social media.

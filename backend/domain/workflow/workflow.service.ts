@@ -11,16 +11,8 @@
  * FC-004 audit dispatching, and realtime SSE event broadcasting.
  */
 
-import {
-  WorkflowInstanceDocument,
-  WorkflowHistoryEntry,
-  WorkflowActorContext,
-  WorkflowTransitionInput,
-  WorkflowTransitionResult,
-  CreateWorkflowInstanceInput,
-  CreateWorkflowInstanceSchema,
-  WorkflowTransitionRequestSchema,
-} from '../../../src/types/workflow';
+import { WorkflowInstanceDocument, WorkflowActorContext, WorkflowTransitionInput, WorkflowTransitionResult } from '../../../shared';
+import { WorkflowHistoryEntry, CreateWorkflowInstanceInput, CreateWorkflowInstanceSchema, WorkflowTransitionRequestSchema } from '../../../src/types/workflow';
 import { workflowEngine } from './workflow-engine';
 import {
   workflowInstancesRepository,

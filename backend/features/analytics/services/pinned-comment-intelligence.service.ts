@@ -11,17 +11,8 @@
  * - Downstream Google Sheets Database Synchronization (PINNED_COMMENTS & PUBLISHING)
  */
 
-import {
-  PinnedCommentPackage,
-  PinnedCommentPackageVersion,
-  PinnedComment,
-  PinnedCommentPackageStatus,
-  Question,
-  WorkflowActor,
-  UserRole,
-  EngagementQualityReport,
-  PinnedCommentPackageHistory,
-} from '../../../../src/types';
+import { PinnedCommentPackage, PinnedCommentPackageVersion, PinnedComment, PinnedCommentPackageStatus, Question, UserRole } from '../../../../shared';
+import { WorkflowActor, EngagementQualityReport, PinnedCommentPackageHistory } from '../../../../src/types';
 import { pinnedCommentPackagesRepository } from '../../../../database/firestore/repositories/pinned-comment-packages.repository';
 import { pinnedCommentsRepository, pinnedCommentVersionsRepository } from '../../../../database/firestore/repositories/pinned-comments.repository';
 import { contentMastersRepository } from '../../../../database/firestore/repositories/content-masters.repository';

@@ -262,6 +262,24 @@ Test executed: `tests/s7-frontend-backend-boundary.test.ts`
 
 ---
 
-## 18. Remaining Debt
+## 18. Remediation & Debt Closure (S7-T08 Remediation)
 
-- In subsequent sprint tasks (e.g. S7-T09), backend services and repository imports still referencing `src/types` can be progressively updated to import directly from `shared/types` and `shared/constants`, allowing the eventual removal of the `src/types/` compatibility barrel.
+### 18.1 Complete Direct Shared Import Extraction
+- **Scope**: Audited all 137 production files across `backend/` and `database/` that previously imported shared domain types indirectly through `src/types`.
+- **Classification**:
+  - **Legitimately Shared Domain Symbols (63 symbols)**: `Question`, `Topic`, `Subtopic`, `Script`, `Video`, `Thumbnail`, `User`, `Assignment`, `Workflow`, `AuditLogEntry`, `Publishing`, status enums (`QuestionStatus`, `QuestionValidationStatus`, `VideoProductionStatus`, `SocialPublishStatus`, `SocialReviewStatus`, etc.).
+  - **Backend-Internal Symbols (20 symbols)**: `AIProviderId`, `AIRequest`, `AIProvenance`, `resolveBrownfieldRole`, `roleHasCapability`, `getRoleCapabilities`, `QuestionValidatorProvider`, `WorkflowActor`, `Copilot*`, `Consensus*`.
+- **Migration**: 121 backend and database production files migrated to import canonical shared types directly from `shared` (`../../shared`, `../../../shared`, `../../../../shared`).
+- **Mixed Import Splitting**: Files requiring both shared contracts and backend internals cleanly separate direct imports from `shared` and internal imports from `src/types`.
+- **Database Layer**: 100% of domain repository imports in `database/firestore/repositories/` now import domain entities directly from `shared`.
+- **`src/types` Role**: `src/types` is strictly an internal backend module for internal mechanisms (AI provider adapters, RBAC evaluators, validation engines). It is no longer a compatibility barrel for shared domain concepts.
+
+### 18.2 Dependency Invariants
+- `frontend → src/types`: **0 imports** (100% direct from `shared`)
+- `frontend → backend implementation`: **0 imports**
+- `frontend → database`: **0 imports**
+- `backend/database → shared (canonical domain)`: **100% direct imports**
+- `shared → {frontend, backend, database, src, @google/genai, process.env}`: **0 imports / 0 references** (Completely isolated)
+
+### 18.3 S7-T08 Remaining Architectural Debt
+- **Remaining Debt**: **NONE** (S7-T08 shared contract extraction is 100% closed).

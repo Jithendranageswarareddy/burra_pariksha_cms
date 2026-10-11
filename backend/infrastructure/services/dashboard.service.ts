@@ -31,22 +31,7 @@ import {
   QUESTION_STATUS_CONFIG,
   VIDEO_STATUS_CONFIG,
 } from '../../../src/config/constants';
-import {
-  BottleneckStage,
-  DashboardMetrics,
-  DashboardOverviewData,
-  GlobalSearchResult,
-  PriorityLevel,
-  PublishingReadinessItem,
-  Question,
-  QuestionStatus,
-  SocialPublishStatus,
-  StaleContentItem,
-  TodaysWorkItem,
-  UserRole,
-  Video,
-  VideoProductionStatus,
-} from '../../../src/types';
+import { BottleneckStage, DashboardMetrics, DashboardOverviewData, GlobalSearchResult, PriorityLevel, PublishingReadinessItem, Question, QuestionStatus, SocialPublishStatus, StaleContentItem, TodaysWorkItem, UserRole, Video, VideoProductionStatus } from '../../../shared';
 
 export interface DashboardFilterOptions {
   topicId?: string;

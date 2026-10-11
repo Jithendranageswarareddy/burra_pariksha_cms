@@ -7,7 +7,7 @@
  */
 
 import { questionConfigRepository, QuestionConfigRepository } from '../../../database/firestore/repositories/question-config.repository';
-import { GroupedQuestionConfig, QuestionConfigDimension, QuestionConfigEntry } from '../../../src/types';
+import { GroupedQuestionConfig, QuestionConfigDimension, QuestionConfigEntry } from '../../../shared';
 import { QuestionConfigEntryZodSchema } from '../../../src/lib/schemas/google-sheets-schema';
 
 export class QuestionConfigError extends Error {

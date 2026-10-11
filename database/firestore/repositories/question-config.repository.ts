@@ -7,7 +7,7 @@
  */
 
 import { BaseRepository } from './base.repository';
-import { QuestionConfigDimension, QuestionConfigEntry } from '../../../src/types';
+import { QuestionConfigDimension, QuestionConfigEntry } from '../../../shared';
 
 export const DEFAULT_QUESTION_CONFIG: QuestionConfigEntry[] = [
   {

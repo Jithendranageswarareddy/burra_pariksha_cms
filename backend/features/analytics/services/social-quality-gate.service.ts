@@ -14,19 +14,8 @@
  */
 
 import crypto from 'crypto';
-import {
-  SocialReviewStatus,
-  SocialReviewDecision,
-  PackageArtifactHashes,
-  PackageVersionLock,
-  CompleteContentPackage,
-  SocialReviewRecord,
-  ProductionReadinessResult,
-  SocialQualityGateReport,
-  WorkflowActor,
-  UserRole,
-  VideoProductionStatus,
-} from '../../../../src/types';
+import { SocialReviewStatus, SocialReviewDecision, SocialReviewRecord, UserRole, VideoProductionStatus } from '../../../../shared';
+import { PackageArtifactHashes, PackageVersionLock, CompleteContentPackage, ProductionReadinessResult, SocialQualityGateReport, WorkflowActor } from '../../../../src/types';
 import { contentMastersRepository } from '../../../../database/firestore/repositories/content-masters.repository';
 import { questionsRepository } from '../../../../database/firestore/repositories/questions.repository';
 import { scriptsRepository, scriptVersionsRepository } from '../../../../database/firestore/repositories/scripts.repository';

@@ -43,7 +43,8 @@ import { thumbnailCandidatesRepository } from '../../../database/firestore/repos
 import { ThumbnailSafetyValidator } from '../../features/question-verification/validation/thumbnail-safety.validator';
 import { geminiClient } from '../../infrastructure/ai/gemini.client';
 import { aiOrchestrator } from '../../infrastructure/ai/ai-orchestrator.service';
-import { QuestionStatus, UserRole, SocialReviewStatus, RenderValidationStatus, VideoProductionStatus, WorkflowActor } from '../../../src/types';
+import { QuestionStatus, UserRole, SocialReviewStatus, RenderValidationStatus, VideoProductionStatus } from '../../../shared';
+import { WorkflowActor } from '../../../src/types';
 import { ProductionAssetValidationService } from '../../infrastructure/services/production-asset-validation.service';
 import { ActorContext } from '../../infrastructure/auth/services/object-auth.service';
 import { usersRepository } from '../../../database/firestore/repositories/users.repository';
@@ -90,14 +91,8 @@ import {
   extractSessionToken,
   AuthenticatedRequest,
 } from '../middleware/auth.middleware';
-import {
-  CanonicalRbacRole,
-  CANONICAL_RBAC_ROLES,
-  getRoleCapabilities,
-  resolveBrownfieldRole,
-  roleHasCapability,
-  AuthorizationResource,
-} from '../../../src/types/rbac-models';
+import { CanonicalRbacRole, CANONICAL_RBAC_ROLES, AuthorizationResource } from '../../../shared';
+import { getRoleCapabilities, resolveBrownfieldRole, roleHasCapability } from '../../../src/types/rbac-models';
 import { createSuccessResponse, createErrorResponse, ApiErrorCode } from '../../../src/types/api-contracts';
 import { requestIdMiddleware } from '../middleware/request-id.middleware';
 import { globalErrorHandler } from '../middleware/error.middleware';

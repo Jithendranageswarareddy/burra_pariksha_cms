@@ -15,7 +15,7 @@ import { aiOrchestrator } from '../../../infrastructure/ai/ai-orchestrator.servi
 import { ScriptValidator } from '../../question-verification/validation/script.validator';
 import { canonicalIdService } from '../../../../src/lib/id.service';
 import { auditService } from '../../../infrastructure/audit/services/audit.service';
-import { Question, Script, ScriptVersion, UserRole, Video, VideoProductionStatus, PriorityLevel } from '../../../../src/types';
+import { Question, Script, ScriptVersion, UserRole, Video, VideoProductionStatus, PriorityLevel } from '../../../../shared';
 import { ValidationError } from '../../../../src/lib/errors';
 
 export interface ScriptGenerationResponse {

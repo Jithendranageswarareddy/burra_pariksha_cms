@@ -16,7 +16,8 @@ import { contentPlansRepository } from '../../../database/firestore/repositories
 import { auditLogRepository } from '../../../database/firestore/repositories/audit-log.repository';
 import { canonicalIdService } from '../../../src/lib/id.service';
 import { aiOrchestrator } from '../ai/ai-orchestrator.service';
-import { ContentStrategyRecommendation, ContentPlan, RecommendationStatus, QuestionLanguage, PriorityLevel, ContentPlanStatus, CommentIntelligenceRecord } from '../../../src/types';
+import { ContentStrategyRecommendation, ContentPlan, QuestionLanguage, PriorityLevel, ContentPlanStatus, CommentIntelligenceRecord } from '../../../shared';
+import { RecommendationStatus } from '../../../src/types';
 import { AIProvenance } from '../../../src/types/ai';
 
 export class ContentStrategyService {

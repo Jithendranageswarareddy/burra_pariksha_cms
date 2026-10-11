@@ -4,7 +4,7 @@
  */
 
 import { auditLogRepository, workflowRepository } from '../../../../database/firestore/repositories';
-import { AuditLog, Workflow } from '../../../../src/types';
+import { AuditLog, Workflow } from '../../../../shared';
 import { sanitizeErrorMessage } from '../../../../src/lib/errors';
 
 export class AuditService {

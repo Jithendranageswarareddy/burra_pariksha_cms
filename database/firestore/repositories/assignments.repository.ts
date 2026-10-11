@@ -4,7 +4,7 @@
  */
 
 import { BaseRepository } from './base.repository';
-import { Assignment, AssignmentEntityType, AssignmentStatus } from '../../../src/types';
+import { Assignment, AssignmentEntityType, AssignmentStatus } from '../../../shared';
 
 export class AssignmentsRepository extends BaseRepository<Assignment> {
   private static instance: AssignmentsRepository | null = null;

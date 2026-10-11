@@ -10,7 +10,7 @@ import {
   PRESENTATION_TYPES,
   LANGUAGES,
 } from '../../../../src/config/question-creation.config';
-import { QuestionLanguage, QuestionStyle } from '../../../../src/types';
+import { QuestionLanguage, QuestionStyle } from '../../../../shared';
 
 export interface QuestionCreationRequestPayload {
   creationMode: 'manual' | 'ai';

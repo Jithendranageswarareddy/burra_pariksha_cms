@@ -9,24 +9,8 @@
  */
 
 import crypto from 'crypto';
-import {
-  Question,
-  QuestionValidationStatus,
-  QuestionLanguage,
-  SocialReviewStatus,
-  SocialReviewRecord,
-  SocialReviewPackageBundle,
-  SubmitSocialReviewInput,
-  UserRole,
-  HookVariant,
-  SpokenTeleprompterScriptPayload,
-  SocialMetadataPayload,
-  MultiPlatformAdaptationPayload,
-  SocialQualityAssessmentPayload,
-  SocialQualityStatus,
-  SocialPlatform,
-  TeleprompterSegmentSection,
-} from '../../../../src/types';
+import { Question, QuestionValidationStatus, QuestionLanguage, SocialReviewStatus, SocialReviewRecord, SocialReviewPackageBundle, UserRole, SocialQualityStatus, SocialPlatform } from '../../../../shared';
+import { SubmitSocialReviewInput, HookVariant, SpokenTeleprompterScriptPayload, SocialMetadataPayload, MultiPlatformAdaptationPayload, SocialQualityAssessmentPayload, TeleprompterSegmentSection } from '../../../../src/types';
 import { questionsRepository } from '../../../../database/firestore/repositories/questions.repository';
 import { contentMastersRepository } from '../../../../database/firestore/repositories/content-masters.repository';
 import { socialReviewsRepository } from '../../../../database/firestore/repositories/social-reviews.repository';

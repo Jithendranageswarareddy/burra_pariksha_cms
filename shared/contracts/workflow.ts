@@ -9,6 +9,11 @@ import {
   PublishStatus,
   ValidationStatus,
   WorkflowStepNumber,
+  FiveDimensionalState,
+  ContentStatus,
+  MediaStatus,
+  PublicationStatus,
+  JobStatus,
 } from '../constants/workflow';
 
 export interface WorkflowDimensionState {
@@ -53,16 +58,32 @@ export interface WorkflowInstanceDocument {
   entityType: WorkflowEntityType;
   entityId: string;
   currentStep: WorkflowStepNumber;
-  contentStatus: string;
-  mediaStatus: string;
-  publicationStatus: string;
-  jobStatus: string;
+  contentStatus: ContentStatus | string;
+  mediaStatus: MediaStatus | string;
+  publicationStatus: PublicationStatus | string;
+  jobStatus: JobStatus | string;
   authorId?: string;
   lastTransitionAt: string;
-  version?: number;
+  lastTransitionBy?: string;
+  metadata?: Record<string, unknown>;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+  isDeleted: boolean;
 }
 
 export type TransitionType = 'FORWARD' | 'REJECT' | 'REVISE' | 'RETRY' | 'OVERRIDE';
+
+export interface TransitionRule {
+  fromStep: WorkflowStepNumber;
+  toStep: WorkflowStepNumber;
+  action: string;
+  type: TransitionType | string;
+  requiredCapability: string;
+  isVerificationGate?: boolean;
+  resultingDimensions?: Partial<FiveDimensionalState>;
+  description: string;
+}
 
 export interface ValidTransitionTarget {
   targetStep: WorkflowStepNumber;

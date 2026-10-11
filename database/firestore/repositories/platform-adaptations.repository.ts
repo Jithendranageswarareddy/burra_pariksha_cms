@@ -9,13 +9,8 @@
  * - Querying by Content ID, Platform, Status, Version, CreatedBy, UpdatedAt
  */
 
-import {
-  PlatformAdaptationRecord,
-  PlatformAdaptationVersion,
-  PlatformAdaptationSearchFilters,
-  PlatformType,
-  PlatformAdaptationAuditEntry,
-} from '../../../src/types';
+import { PlatformType } from '../../../shared';
+import { PlatformAdaptationRecord, PlatformAdaptationVersion, PlatformAdaptationSearchFilters, PlatformAdaptationAuditEntry } from '../../../src/types';
 
 export class PlatformAdaptationsRepository {
   private static instance: PlatformAdaptationsRepository | null = null;

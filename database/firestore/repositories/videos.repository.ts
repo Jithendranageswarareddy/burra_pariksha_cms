@@ -4,7 +4,7 @@
  */
 
 import { BaseRepository } from './base.repository';
-import { QuestionVideo, Video } from '../../../src/types';
+import { QuestionVideo, Video } from '../../../shared';
 
 export class QuestionVideosRepository extends BaseRepository<QuestionVideo> {
   private static instance: QuestionVideosRepository | null = null;

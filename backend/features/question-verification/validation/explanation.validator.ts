@@ -9,7 +9,7 @@
  * - Alignment with calculated results where available
  */
 
-import { ExplanationVerificationResult, ValidationCheckItem } from '../../../../src/types';
+import { ExplanationVerificationResult, ValidationCheckItem } from '../../../../shared';
 
 export class ExplanationValidator {
   public static validate(

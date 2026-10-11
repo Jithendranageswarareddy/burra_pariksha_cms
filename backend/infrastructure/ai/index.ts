@@ -4,7 +4,17 @@
  */
 
 export * from './types';
-export * from '../../../src/types/ai';
+export type {
+  AIProviderId,
+  AITaskType,
+  AIProviderHealthState,
+  AIFailureCategory,
+  AIGenerationSource,
+  IAIProvider,
+  AIRequest,
+  AINormalizedResponse,
+  AIProviderHealth,
+} from '../../../src/types/ai';
 export * from './config';
 export * from './error';
 export * from './registry';

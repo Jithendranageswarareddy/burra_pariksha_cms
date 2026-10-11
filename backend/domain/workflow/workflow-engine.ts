@@ -10,13 +10,7 @@
  * prerequisite gate checks, and orthogonal 5-dimensional state resolution.
  */
 
-import {
-  WorkflowInstanceDocument,
-  WorkflowActorContext,
-  WorkflowStepNumber,
-  ValidTransitionTarget,
-  TransitionRule,
-} from '../../../src/types/workflow';
+import { WorkflowInstanceDocument, WorkflowActorContext, WorkflowStepNumber, ValidTransitionTarget, TransitionRule } from '../../../shared';
 import { IWorkflowEngine, WorkflowPrerequisiteValidationResult } from './workflow-engine.interface';
 import {
   findTransitionRule,
@@ -28,7 +22,8 @@ import {
   InvalidWorkflowTransitionError,
   ValidationError,
 } from '../../../src/lib/errors';
-import { CanonicalRbacRole, roleHasCapability, resolveBrownfieldRole } from '../../../src/types/rbac-models';
+import { CanonicalRbacRole } from '../../../shared';
+import { roleHasCapability, resolveBrownfieldRole } from '../../../src/types/rbac-models';
 
 export class WorkflowEngine implements IWorkflowEngine {
   private static instance: WorkflowEngine | null = null;

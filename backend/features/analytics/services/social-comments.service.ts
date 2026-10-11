@@ -23,13 +23,7 @@ import {
   CreateSocialCommentInputSchema,
   ImportSocialCommentsInputSchema,
 } from '../../../../src/lib/schemas/google-sheets-schema';
-import {
-  CreateSocialCommentInput,
-  ImportSocialCommentsInput,
-  SocialCommentRecord,
-  SocialCommentQueryFilters,
-  SocialCommentStatus,
-} from '../../../../src/types';
+import { CreateSocialCommentInput, ImportSocialCommentsInput, SocialCommentRecord, SocialCommentQueryFilters, SocialCommentStatus } from '../../../../shared';
 
 export interface CommentIngestionResult {
   success: boolean;

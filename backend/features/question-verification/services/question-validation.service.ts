@@ -15,12 +15,7 @@ import { validationsRepository } from '../../../../database/firestore/repositori
 import { auditService } from '../../../infrastructure/audit/services/audit.service';
 import { questionDraftService } from '../../question-generation/services/question-draft.service';
 import { QuestionValidationEngine, ValidationPipelineOptions } from '../validation/question-validation.engine';
-import {
-  Question,
-  QuestionStatus,
-  ValidationResult,
-  QuestionValidationStatus,
-} from '../../../../src/types';
+import { Question, QuestionStatus, ValidationResult, QuestionValidationStatus } from '../../../../shared';
 
 export interface ValidationActor {
   id: string;

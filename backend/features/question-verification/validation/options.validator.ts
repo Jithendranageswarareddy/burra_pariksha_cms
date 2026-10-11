@@ -15,7 +15,7 @@
  * - Required options present
  */
 
-import { ValidationCheckItem } from '../../../../src/types';
+import { ValidationCheckItem } from '../../../../shared';
 
 export interface OptionsValidationResult {
   isValid: boolean;

@@ -7,29 +7,14 @@
  * bidirectional mappings from backend statuses to canonical lifecycle states.
  */
 
-import {
-  Question,
-  QuestionStatus,
-  Video,
-  VideoProductionStatus,
-  Script,
-  Thumbnail,
-  Publishing,
-  SocialPublishStatus,
-  SocialReviewPackageBundle,
-  SocialReviewStatus,
-  ContentMaster,
-} from '../../../src/types';
+import { Question, QuestionStatus, Video, VideoProductionStatus, Script, Thumbnail, Publishing, SocialPublishStatus, SocialReviewPackageBundle, SocialReviewStatus, ContentMaster } from '../../../shared';
 
 // ============================================================================
 // 1. CANONICAL WORKFLOW STATE MODEL
 // ============================================================================
 
-import {
-  CanonicalWorkflowState,
-  CanonicalStepDefinition,
-  CANONICAL_15_STEPS,
-} from '../../../src/types/workflow';
+import { CanonicalStepDefinition, CANONICAL_15_STEPS } from '../../../shared';
+import { CanonicalWorkflowState } from '../../../src/types/workflow';
 
 export {
   CanonicalWorkflowState,

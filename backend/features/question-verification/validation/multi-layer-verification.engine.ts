@@ -21,7 +21,7 @@
  * - N/A applies ONLY when a layer genuinely does not apply (e.g. non-math question).
  */
 
-import { Question, QuestionValidationStatus, QuestionLanguage } from '../../../../src/types';
+import { Question, QuestionValidationStatus, QuestionLanguage } from '../../../../shared';
 import { QuestionCreationValidator } from './question-creation.validator';
 import { taxonomyService } from '../../../domain/taxonomy/services/taxonomy.service';
 import { questionConfigService } from '../../../infrastructure/services/question-config.service';

@@ -11,33 +11,7 @@
  * or alters worksheet data in any way.
  */
 
-import {
-  AuditLog,
-  IntegrityCategory,
-  IntegrityCheckSummary,
-  IntegrityIssue,
-  IntegritySeverity,
-  PinnedComment,
-  PinnedCommentVersion,
-  PriorityLevel,
-  Publishing,
-  Question,
-  QuestionStatus,
-  QuestionVideo,
-  Script,
-  ScriptVersion,
-  SocialPublishStatus,
-  Subtopic,
-  SystemHealthReport,
-  Thumbnail,
-  ThumbnailVersion,
-  Topic,
-  User,
-  Video,
-  VideoProductionStatus,
-  Workflow,
-  WorksheetHealthSummary,
-} from '../../../../src/types';
+import { AuditLog, IntegrityCategory, IntegrityCheckSummary, IntegrityIssue, IntegritySeverity, PinnedComment, PinnedCommentVersion, PriorityLevel, Publishing, Question, QuestionStatus, QuestionVideo, Script, ScriptVersion, SocialPublishStatus, Subtopic, SystemHealthReport, Thumbnail, ThumbnailVersion, Topic, User, Video, VideoProductionStatus, Workflow, WorksheetHealthSummary } from '../../../../shared';
 
 import {
   assignmentsRepository,

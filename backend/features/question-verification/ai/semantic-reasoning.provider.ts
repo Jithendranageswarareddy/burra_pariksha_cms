@@ -1,4 +1,5 @@
-import { QuestionValidatorProvider, Question, ValidationEvidence } from '../../../../src/types';
+import { Question, ValidationEvidence } from '../../../../shared';
+import { QuestionValidatorProvider } from '../../../../src/types';
 import { geminiClient } from '../../../infrastructure/ai/gemini.client';
 import { DEFAULT_AI_CONFIG } from '../../../infrastructure/ai/config';
 
@@ -95,7 +96,7 @@ A: ${question.options?.a || ''}
 B: ${question.options?.b || ''}
 C: ${question.options?.c || ''}
 D: ${question.options?.d || ''}
-Declared Answer: ${question.options?.correctAnswer || (question as any).correctAnswer || ''}
+Declared Answer: ${(question.options as any)?.correctAnswer || (question as any).correctAnswer || ''}
 Explanation: """${question.explanation || ''}"""
 `;
 

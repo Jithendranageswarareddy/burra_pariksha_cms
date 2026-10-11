@@ -3,21 +3,8 @@
  * Phase 8G: Quality & Engagement Intelligence Engine
  */
 
-import {
-  MultiPlatformAdaptationPayload,
-  Question,
-  QuestionValidationStatus,
-  SocialEnhancementPayload,
-  SocialInvarianceReport,
-  SocialPlatform,
-  SocialQualityAssessmentMethod,
-  SocialQualityAssessmentPayload,
-  SocialQualityDimension,
-  SocialQualityFinding,
-  SocialQualityFindingSeverity,
-  SocialQualityStatus,
-  PLATFORM_ADAPTATION_CONFIG,
-} from '../../../../src/types';
+import { Question, QuestionValidationStatus, SocialPlatform, SocialQualityStatus } from '../../../../shared';
+import { MultiPlatformAdaptationPayload, SocialEnhancementPayload, SocialInvarianceReport, SocialQualityAssessmentMethod, SocialQualityAssessmentPayload, SocialQualityDimension, SocialQualityFinding, SocialQualityFindingSeverity, PLATFORM_ADAPTATION_CONFIG } from '../../../../src/types';
 import {
   SocialInvarianceValidator,
   SourceQuestionContext,

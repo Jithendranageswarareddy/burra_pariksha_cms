@@ -7,22 +7,8 @@
  * and preparing versionable JSON snapshots for ScriptVersion compatibility.
  */
 
-import {
-  Question,
-  QuestionValidationStatus,
-  QuestionLanguage,
-  SocialEnhancementPayload,
-  SocialEnhancementStatus,
-  HookStyle,
-  SocialPlatform,
-  SocialInvarianceReport,
-  SpokenTeleprompterScriptPayload,
-  SocialMetadataPayload,
-  MultiPlatformAdaptationPayload,
-  SocialQualityAssessmentPayload,
-  TeleprompterSegment,
-  TeleprompterSegmentSection,
-} from '../../../../src/types';
+import { Question, QuestionValidationStatus, QuestionLanguage, SocialPlatform } from '../../../../shared';
+import { SocialEnhancementPayload, SocialEnhancementStatus, HookStyle, SocialInvarianceReport, SpokenTeleprompterScriptPayload, SocialMetadataPayload, MultiPlatformAdaptationPayload, SocialQualityAssessmentPayload, TeleprompterSegment, TeleprompterSegmentSection } from '../../../../src/types';
 import {
   SocialInvarianceValidator,
   SourceQuestionContext,

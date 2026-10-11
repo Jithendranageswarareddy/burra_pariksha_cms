@@ -4,7 +4,7 @@
  */
 
 import { BaseRepository } from './base.repository';
-import { Script, ScriptVersion } from '../../../src/types';
+import { Script, ScriptVersion } from '../../../shared';
 
 export class ScriptsRepository extends BaseRepository<Script> {
   private static instance: ScriptsRepository | null = null;

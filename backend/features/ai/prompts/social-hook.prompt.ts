@@ -6,7 +6,8 @@
  * presentation strategy for validated educational questions.
  */
 
-import { HookStyle, Question, QuestionLanguage } from '../../../../src/types';
+import { Question, QuestionLanguage } from '../../../../shared';
+import { HookStyle } from '../../../../src/types';
 import { QuestionCandidate } from '../../../infrastructure/ai/types';
 
 export const BURRA_PARIKSHA_SOCIAL_HOOK_SYSTEM_INSTRUCTION = `You are the Lead Short-Form Educational Content Strategist for "Burra Pariksha" (బుర్ర పరీక్ష), an educational brand producing high-retention 30-60 second vertical videos (Reels/Shorts) for competitive exam aspirants (APPSC, TSPSC, SI, Constable, RRB, SSC, Banking).

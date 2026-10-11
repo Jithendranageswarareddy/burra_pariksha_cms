@@ -3,12 +3,8 @@
  * Phase 8G: Quality & Engagement Intelligence Engine
  */
 
-import {
-  MultiPlatformAdaptationPayload,
-  Question,
-  QuestionLanguage,
-  SocialEnhancementPayload,
-} from '../../../../src/types';
+import { Question, QuestionLanguage } from '../../../../shared';
+import { MultiPlatformAdaptationPayload, SocialEnhancementPayload } from '../../../../src/types';
 
 export function buildSocialQualitySystemPrompt(language: QuestionLanguage): string {
   const isTelugu = language === QuestionLanguage.TELUGU;

@@ -11,7 +11,8 @@
 
 import { IRepository } from '../../../src/lib/db/repository.interface';
 import { FirestoreRepository } from '../../../database/firestore/adapter/firestore.repository';
-import { WorkflowInstanceDocument, WorkflowHistoryEntry } from '../../../src/types/workflow';
+import { WorkflowInstanceDocument } from '../../../shared';
+import { WorkflowHistoryEntry } from '../../../src/types/workflow';
 import { connectRepositoryToAudit } from '../../../src/lib/audit';
 
 // Authoritative repositories using FC-003 generic Firestore adapter

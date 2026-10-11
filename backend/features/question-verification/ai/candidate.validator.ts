@@ -14,7 +14,7 @@
 
 import { QuestionCandidateZodSchema } from '../../../infrastructure/ai/question-candidate.schema';
 import { QuestionCandidate } from '../../../infrastructure/ai/types';
-import { QuestionLanguage, QuestionStyle } from '../../../../src/types';
+import { QuestionLanguage, QuestionStyle } from '../../../../shared';
 import { MathematicalValidator, MathVerificationResult } from './mathematical.validator';
 import {
   BlindVerifierProvider,

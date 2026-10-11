@@ -4,7 +4,7 @@
  */
 
 import { BaseRepository } from './base.repository';
-import { ValidationResult, QuestionValidationStatus } from '../../../src/types';
+import { ValidationResult, QuestionValidationStatus } from '../../../shared';
 
 export class ValidationsRepository extends BaseRepository<any> {
   private static instance: ValidationsRepository | null = null;

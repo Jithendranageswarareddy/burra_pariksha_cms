@@ -15,30 +15,8 @@
  */
 
 import crypto from 'crypto';
-import {
-  Question,
-  QuestionValidationStatus,
-  QuestionLanguage,
-  SocialMetadataPayload,
-  AdaptedPlatformPackage,
-  MultiPlatformAdaptationPayload,
-  SocialPlatform,
-  PLATFORM_ADAPTATION_CONFIG,
-  SocialEnhancementStatus,
-  PlatformType,
-  PlatformAdaptationStatus,
-  AdaptationGenerationSource,
-  PlatformAdaptationRecord,
-  PlatformAdaptationVersion,
-  PlatformAdaptationSearchFilters,
-  CreatePlatformAdaptationInput,
-  UpdatePlatformAdaptationInput,
-  AiAdaptationRecommendation,
-  WorkflowActor,
-  UserRole,
-  PlatformSpecificWording,
-  PlatformThumbnailConsideration,
-} from '../../../../src/types';
+import { Question, QuestionValidationStatus, QuestionLanguage, SocialPlatform, PlatformType, UserRole } from '../../../../shared';
+import { SocialMetadataPayload, AdaptedPlatformPackage, MultiPlatformAdaptationPayload, PLATFORM_ADAPTATION_CONFIG, SocialEnhancementStatus, PlatformAdaptationStatus, AdaptationGenerationSource, PlatformAdaptationRecord, PlatformAdaptationVersion, PlatformAdaptationSearchFilters, CreatePlatformAdaptationInput, UpdatePlatformAdaptationInput, AiAdaptationRecommendation, WorkflowActor, PlatformSpecificWording, PlatformThumbnailConsideration } from '../../../../src/types';
 import {
   SocialInvarianceValidator,
   SourceQuestionContext,

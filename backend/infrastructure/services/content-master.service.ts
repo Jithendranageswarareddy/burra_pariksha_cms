@@ -17,27 +17,7 @@ import {
   workflowRepository,
 } from '../../../database/firestore/repositories';
 import { CanonicalIdService } from '../../../src/lib/id.service';
-import {
-  ContentMaster,
-  ContentMasterStatus,
-  Question,
-  Video,
-  Script,
-  Thumbnail,
-  PinnedComment,
-  Publishing,
-  Assignment,
-  AuditLog,
-  SocialReviewRecord,
-  ContentMasterCanonicalState,
-  ContentMasterReadinessResult,
-  QuestionValidationStatus,
-  QuestionStatus,
-  VideoProductionStatus,
-  SocialReviewStatus,
-  SocialPublishStatus,
-  Workflow,
-} from '../../../src/types';
+import { ContentMaster, ContentMasterStatus, Question, Video, Script, Thumbnail, PinnedComment, Publishing, Assignment, AuditLog, SocialReviewRecord, ContentMasterCanonicalState, ContentMasterReadinessResult, QuestionValidationStatus, QuestionStatus, VideoProductionStatus, SocialReviewStatus, SocialPublishStatus, Workflow } from '../../../shared';
 import {
   CreateContentMasterInput,
   UpdateContentMasterInput,

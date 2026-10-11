@@ -8,7 +8,7 @@
 
 import { questionsRepository } from '../../../../database/firestore/repositories/questions.repository';
 import { taxonomyService } from '../../../domain/taxonomy/services/taxonomy.service';
-import { ContentDiversityWarning, Question } from '../../../../src/types';
+import { ContentDiversityWarning, Question } from '../../../../shared';
 
 export interface QuestionSimilarityMatch {
   sourceQuestionId: string;

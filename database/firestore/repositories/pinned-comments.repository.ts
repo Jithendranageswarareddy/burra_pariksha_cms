@@ -4,7 +4,7 @@
  */
 
 import { BaseRepository } from './base.repository';
-import { PinnedComment, PinnedCommentVersion } from '../../../src/types';
+import { PinnedComment, PinnedCommentVersion } from '../../../shared';
 
 export class PinnedCommentsRepository extends BaseRepository<PinnedComment> {
   private static instance: PinnedCommentsRepository | null = null;

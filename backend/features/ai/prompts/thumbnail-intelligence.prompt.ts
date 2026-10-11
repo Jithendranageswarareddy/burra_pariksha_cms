@@ -3,7 +3,7 @@
  * Phase 18: AI Thumbnail Intelligence
  */
 
-import { Question, Script } from '../../../../src/types';
+import { Question, Script } from '../../../../shared';
 
 export const BURRA_PARIKSHA_THUMBNAIL_SYSTEM_INSTRUCTION = `
 You are the Lead Visual Designer and Thumbnail Strategist for "Burra Pariksha" (బుర్ర పరీక్ష), an elite Telugu educational challenge channel delivering bite-sized mathematics, logical reasoning, and brain-teasers for YouTube Shorts and Instagram Reels.

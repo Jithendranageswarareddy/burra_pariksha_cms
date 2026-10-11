@@ -6,7 +6,7 @@
  * Decouples AI generation from human-approved assets.
  */
 
-import { ThumbnailCandidate, ThumbnailCandidateVersion } from '../../../src/types';
+import { ThumbnailCandidate, ThumbnailCandidateVersion } from '../../../shared';
 
 export class ThumbnailCandidatesRepository {
   private static instance: ThumbnailCandidatesRepository | null = null;

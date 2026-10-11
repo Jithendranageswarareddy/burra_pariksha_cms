@@ -9,11 +9,8 @@
  * F. Platform Adaptations (Fidelity without hallucination)
  */
 
-import {
-  CompleteContentPackage,
-  SocialQualityGateReport,
-  VideoProductionStatus,
-} from '../../../../src/types';
+import { VideoProductionStatus } from '../../../../shared';
+import { CompleteContentPackage, SocialQualityGateReport } from '../../../../src/types';
 import { ThumbnailSafetyValidator } from './thumbnail-safety.validator';
 import { PinnedCommentSafetyValidator } from './pinned-comment-safety.validator';
 

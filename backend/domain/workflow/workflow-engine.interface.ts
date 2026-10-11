@@ -7,14 +7,7 @@
  * - docs/architecture/08-STATE-MODEL.md
  */
 
-import {
-  WorkflowInstanceDocument,
-  WorkflowActorContext,
-  WorkflowTransitionResult,
-  ValidTransitionTarget,
-  TransitionRule,
-  WorkflowStepNumber,
-} from '../../../src/types/workflow';
+import { WorkflowInstanceDocument, WorkflowActorContext, WorkflowTransitionResult, ValidTransitionTarget, TransitionRule, WorkflowStepNumber } from '../../../shared';
 
 export interface WorkflowPrerequisiteValidationResult {
   valid: boolean;

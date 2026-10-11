@@ -30,11 +30,7 @@ import {
   buildCommentIntelligencePrompt,
 } from '../../ai/prompts/comment-intelligence.prompt';
 import { GenerateCommentIntelligenceInputSchema } from '../../../../src/lib/schemas/google-sheets-schema';
-import {
-  CommentIntelligenceRecord,
-  GenerateCommentIntelligenceInput,
-  SocialCommentRecord,
-} from '../../../../src/types';
+import { CommentIntelligenceRecord, GenerateCommentIntelligenceInput, SocialCommentRecord } from '../../../../shared';
 
 export class CommentIntelligenceService {
   private static instance: CommentIntelligenceService | null = null;

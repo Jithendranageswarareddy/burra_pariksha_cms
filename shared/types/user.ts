@@ -20,6 +20,8 @@ export interface User {
   roles?: (UserRole | string)[];
   avatarUrl?: string;
   isActive: boolean;
+  password_hash?: string;
+  sessionVersion?: number;
   dataScope?: string;
   last_login_at?: string;
   createdAt: string;

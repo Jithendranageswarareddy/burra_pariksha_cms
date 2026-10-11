@@ -6,7 +6,7 @@
  */
 
 import { z } from 'zod';
-import { DifficultyLevel, QuestionLanguage } from '../../../src/types';
+import { DifficultyLevel, QuestionLanguage } from '../../../shared';
 
 export enum SchemaType {
   STRING = 'STRING',

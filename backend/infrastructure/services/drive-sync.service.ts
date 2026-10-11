@@ -7,7 +7,7 @@ import crypto from 'crypto';
 import { googleDriveService } from './google-drive.service';
 import { mediaAssetsRepository } from '../../../database/firestore/repositories/media-assets.repository';
 import { contentMastersRepository } from '../../../database/firestore/repositories/content-masters.repository';
-import { MediaAsset, MediaStage } from '../../../src/types';
+import { MediaAsset, MediaStage } from '../../../shared';
 import { ValidationError } from '../../../src/lib/errors';
 
 export interface UploadAssetParams {

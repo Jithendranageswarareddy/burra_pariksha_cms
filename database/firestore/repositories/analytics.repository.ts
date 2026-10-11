@@ -6,7 +6,7 @@
  */
 
 import { BaseRepository } from './base.repository';
-import { SocialAnalyticsRecord, SocialAnalyticsQueryFilters } from '../../../src/types';
+import { SocialAnalyticsRecord, SocialAnalyticsQueryFilters } from '../../../shared';
 
 export class AnalyticsRepository extends BaseRepository<SocialAnalyticsRecord> {
   private static instance: AnalyticsRepository | null = null;

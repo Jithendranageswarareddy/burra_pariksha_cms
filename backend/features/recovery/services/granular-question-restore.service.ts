@@ -15,7 +15,7 @@ import { restoreValidatorService, RestoreValidationResult } from './restore-vali
 import { questionsRepository } from '../../../../database/firestore/repositories';
 import { taxonomyService } from '../../../domain/taxonomy/services/taxonomy.service';
 import { auditService, workflowService } from '../../../infrastructure/audit/services/audit.service';
-import { Question, QuestionStatus } from '../../../../src/types';
+import { Question, QuestionStatus } from '../../../../shared';
 import { ReferenceIntegrityError, ValidationError } from '../../../../src/lib/errors';
 
 export interface GranularQuestionRestoreRequest {

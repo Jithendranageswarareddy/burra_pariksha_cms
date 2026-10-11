@@ -4,7 +4,7 @@
  */
 
 import { BaseRepository } from './base.repository';
-import { Thumbnail, ThumbnailVersion } from '../../../src/types';
+import { Thumbnail, ThumbnailVersion } from '../../../shared';
 
 export class ThumbnailsRepository extends BaseRepository<Thumbnail> {
   private static instance: ThumbnailsRepository | null = null;

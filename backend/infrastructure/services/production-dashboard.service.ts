@@ -27,23 +27,8 @@ import {
 import { objectAuthService, ActorContext } from '../auth/services/object-auth.service';
 import { publishingService } from '../../features/publishing/services/publishing.service';
 import { taxonomyService } from '../../domain/taxonomy/services/taxonomy.service';
-import {
-  DifficultyLevel,
-  QuestionLanguage,
-  QuestionStatus,
-  QuestionStyle,
-  VideoProductionStatus,
-  SocialReviewStatus,
-  UserRole,
-  ProductionQueueType,
-  ProductionSearchOptions,
-  ProductionSearchResultItem,
-  ProductionSearchResult,
-  ProductionQueueItem,
-  ProductionQueueResult,
-  ProductionDashboardMetrics,
-  ProductionContentDetails,
-} from '../../../src/types';
+import { DifficultyLevel, QuestionLanguage, QuestionStatus, QuestionStyle, VideoProductionStatus, SocialReviewStatus, UserRole } from '../../../shared';
+import { ProductionQueueType, ProductionSearchOptions, ProductionSearchResultItem, ProductionSearchResult, ProductionQueueItem, ProductionQueueResult, ProductionDashboardMetrics, ProductionContentDetails } from '../../../src/types';
 
 export interface ProductionContextData {
   allMasters: any[];

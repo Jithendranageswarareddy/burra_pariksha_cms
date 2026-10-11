@@ -21,13 +21,8 @@ import { AIProviderError } from './error';
 import { GenAiQuestionCandidateResponseSchema } from './question-candidate.schema';
 import { buildGenerationPrompt, BURRA_PARIKSHA_SYSTEM_INSTRUCTION } from '../../features/ai/prompts/generation.prompt';
 import { QuestionCreationValidator } from '../../features/question-verification/validation/question-creation.validator';
-import {
-  AiContentPlanRecommendation,
-  AiThumbnailConcept,
-  HookStyle,
-  Question,
-  QuestionLanguage,
-} from '../../../src/types';
+import { AiContentPlanRecommendation, Question, QuestionLanguage } from '../../../shared';
+import { AiThumbnailConcept, HookStyle } from '../../../src/types';
 import { ScriptContentPayload } from '../../features/production/services/script.service';
 
 export interface OrchestratorTaskOptions {

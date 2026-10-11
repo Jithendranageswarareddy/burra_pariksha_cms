@@ -6,7 +6,7 @@
  */
 
 import { BaseRepository } from './base.repository';
-import { CommentIntelligenceRecord } from '../../../src/types';
+import { CommentIntelligenceRecord } from '../../../shared';
 
 export class CommentIntelligenceRepository extends BaseRepository<CommentIntelligenceRecord> {
   private static instance: CommentIntelligenceRepository | null = null;

@@ -4,7 +4,7 @@
  */
 
 import { BaseRepository } from './base.repository';
-import { AuditLog, User } from '../../../src/types';
+import { AuditLog, User } from '../../../shared';
 
 export class AuditLogRepository extends BaseRepository<AuditLog> {
   private static instance: AuditLogRepository | null = null;

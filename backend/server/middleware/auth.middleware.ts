@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { authService } from '../../infrastructure/auth/services/auth.service';
 import { usersRepository, UserSessionState } from '../../../database/firestore/repositories/users.repository';
-import { UserRole } from '../../../src/types';
+import { UserRole } from '../../../shared';
 import { createErrorResponse, ApiErrorCode } from '../../../src/types/api-contracts';
 import {
   evaluateAuthorization,
@@ -9,12 +9,8 @@ import {
   AuthorizationErrorCode,
   TargetResourceContext,
 } from '../../infrastructure/security/rbac-evaluator';
-import {
-  CapabilityString,
-  parseCapability,
-  resolveBrownfieldRole,
-  CanonicalRbacRole,
-} from '../../../src/types/rbac-models';
+import { CapabilityString, parseCapability, CanonicalRbacRole } from '../../../shared';
+import { resolveBrownfieldRole } from '../../../src/types/rbac-models';
 
 export interface AuthUserContext {
   id: string;

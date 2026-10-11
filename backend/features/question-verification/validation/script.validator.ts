@@ -3,7 +3,7 @@
  * Enforces strict quality and safety invariance rules on script candidates.
  */
 
-import { Question, Script } from '../../../../src/types';
+import { Question, Script } from '../../../../shared';
 
 export interface ScriptValidationReport {
   isValid: boolean;
@@ -95,10 +95,10 @@ export class ScriptValidator {
     }
 
     // 6. Options remain represented correctly where needed
-    const options = question.options || {};
+    const options = question.options;
     const problemText = (script.problemStatement || '').toLowerCase();
     
-    if (options.a && !problemText.includes('ఎ') && !problemText.includes('a')) {
+    if (options?.a && !problemText.includes('ఎ') && !problemText.includes('a')) {
       errors.push('Options Representation Warning: Spoken question narration should list options for audience participation.');
     }
 

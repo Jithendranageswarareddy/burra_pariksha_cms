@@ -8,7 +8,7 @@
  * - Physical & mathematical impossibilities (negative time, negative speed, probability > 1)
  */
 
-import { ValidationCheckItem } from '../../../../src/types';
+import { ValidationCheckItem } from '../../../../shared';
 
 export class FairnessValidator {
   public static validate(

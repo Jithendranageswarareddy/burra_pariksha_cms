@@ -8,7 +8,7 @@
  */
 
 import { topicsRepository, subtopicsRepository } from '../../../../database/firestore/repositories';
-import { Subtopic, Topic } from '../../../../src/types';
+import { Subtopic, Topic } from '../../../../shared';
 import { ReferenceIntegrityError, ValidationError } from '../../../../src/lib/errors';
 import { canonicalIdService } from '../../../../src/lib/id.service';
 import { auditService } from '../../../infrastructure/audit/services/audit.service';

@@ -18,22 +18,8 @@
  * Reference: docs/architecture/09-RBAC-CAPABILITY-MATRIX.md
  */
 
-import {
-  AuthorizationResource,
-  AuthorizationAction,
-  CanonicalRbacRole,
-  CapabilityString,
-  formatCapability,
-  parseCapability,
-  resolveBrownfieldRole,
-  roleHasCapability,
-  isHumanGatedCapability,
-  isHumanGatedStage,
-  HUMAN_GATED_STAGES,
-  DataScope,
-  ROLE_DEFAULT_DATA_SCOPES,
-  type AdministrativeOverrideContext,
-} from '../../../src/types/rbac-models';
+import { AuthorizationResource, AuthorizationAction, CanonicalRbacRole, CapabilityString, formatCapability, parseCapability } from '../../../shared';
+import { resolveBrownfieldRole, roleHasCapability, isHumanGatedCapability, isHumanGatedStage, HUMAN_GATED_STAGES, DataScope, ROLE_DEFAULT_DATA_SCOPES, type AdministrativeOverrideContext } from '../../../src/types/rbac-models';
 
 // ============================================================================
 // 1. AUTHORIZATION ERROR CODES (Section 15.2)

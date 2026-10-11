@@ -4,7 +4,7 @@
  */
 
 import { BaseRepository } from './base.repository';
-import { ContentBatch, ContentBatchStatus } from '../../../src/types';
+import { ContentBatch, ContentBatchStatus } from '../../../shared';
 
 export class ContentBatchesRepository extends BaseRepository<ContentBatch> {
   private static instance: ContentBatchesRepository | null = null;

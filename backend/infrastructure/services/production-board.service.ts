@@ -3,15 +3,7 @@
  * Task 3E.2.1: Unified Production Board Read Model
  */
 
-import {
-  ProductionBoardItem,
-  VideoProductionStatus,
-  SocialPublishStatus,
-  DifficultyLevel,
-  User,
-  RenderValidationStatus,
-  CanonicalProductionReadiness,
-} from '../../../src/types';
+import { ProductionBoardItem, VideoProductionStatus, SocialPublishStatus, DifficultyLevel, User, RenderValidationStatus, CanonicalProductionReadiness } from '../../../shared';
 import { publishingService } from '../../features/publishing/services/publishing.service';
 import { ProductionAssetValidationService } from './production-asset-validation.service';
 import {

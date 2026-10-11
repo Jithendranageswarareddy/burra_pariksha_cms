@@ -18,14 +18,7 @@ import { MathematicalValidator, MathVerificationResult } from '../../features/qu
 import { geminiClient } from '../ai/gemini.client';
 import { aiOrchestrator } from '../ai/ai-orchestrator.service';
 import { AIProviderError } from '../ai/error';
-import {
-  ContentMasterStatus,
-  DifficultyLevel,
-  QuestionLanguage,
-  QuestionStatus,
-  Question,
-  UserRole,
-} from '../../../src/types';
+import { ContentMasterStatus, DifficultyLevel, QuestionLanguage, QuestionStatus, Question, UserRole } from '../../../shared';
 
 export interface Actor {
   id: string;

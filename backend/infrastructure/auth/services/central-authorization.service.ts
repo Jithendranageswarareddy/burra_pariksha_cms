@@ -12,23 +12,8 @@
  * User -> Roles -> Capabilities -> Page Access -> Action Access -> Data Scope -> Workflow Eligibility -> Admin Override
  */
 
-import {
-  AuthorizationResource,
-  AuthorizationAction,
-  CanonicalRbacRole,
-  CapabilityString,
-  DataScope,
-  UiActionState,
-  UiActionDecision,
-  AdministrativeOverrideContext,
-  ROLE_DEFAULT_DATA_SCOPES,
-  STAGE_WORKFLOW_REGISTRY,
-  formatCapability,
-  parseCapability,
-  resolveBrownfieldRole,
-  roleHasCapability,
-  getRoleCapabilities,
-} from '../../../../src/types/rbac-models';
+import { AuthorizationResource, AuthorizationAction, CanonicalRbacRole, CapabilityString, formatCapability, parseCapability } from '../../../../shared';
+import { DataScope, UiActionState, UiActionDecision, AdministrativeOverrideContext, ROLE_DEFAULT_DATA_SCOPES, STAGE_WORKFLOW_REGISTRY, resolveBrownfieldRole, roleHasCapability, getRoleCapabilities } from '../../../../src/types/rbac-models';
 import {
   evaluateAuthorization,
   evaluateSegregationOfDuties,

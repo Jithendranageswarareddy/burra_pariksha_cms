@@ -4,7 +4,7 @@
  */
 
 import { BaseRepository } from './base.repository';
-import { MediaAsset, MediaStage } from '../../../src/types';
+import { MediaAsset, MediaStage } from '../../../shared';
 
 export class MediaAssetsRepository extends BaseRepository<MediaAsset> {
   private static instance: MediaAssetsRepository | null = null;

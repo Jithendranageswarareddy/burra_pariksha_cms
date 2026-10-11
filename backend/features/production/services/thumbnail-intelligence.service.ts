@@ -16,20 +16,8 @@
  * - AI failure fallback & manual candidate creation
  */
 
-import {
-  AiThumbnailConcept,
-  ThumbnailCandidate,
-  ThumbnailCandidateVersion,
-  Thumbnail,
-  ThumbnailVersion,
-  ThumbnailProductionHistory,
-  ThumbnailSafetyReport,
-  MediaAsset,
-  UserRole,
-  Question,
-  Script,
-  Video,
-} from '../../../../src/types';
+import { ThumbnailCandidate, ThumbnailCandidateVersion, Thumbnail, ThumbnailVersion, ThumbnailSafetyReport, MediaAsset, UserRole, Question, Script, Video } from '../../../../shared';
+import { AiThumbnailConcept, ThumbnailProductionHistory } from '../../../../src/types';
 import { thumbnailCandidatesRepository } from '../../../../database/firestore/repositories/thumbnail-candidates.repository';
 import { thumbnailsRepository } from '../../../../database/firestore/repositories/thumbnails.repository';
 import { thumbnailVersionsRepository } from '../../../../database/firestore/repositories/thumbnail-versions.repository';

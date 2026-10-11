@@ -6,7 +6,7 @@
  * with prompt injection protection.
  */
 
-import { DifficultyLevel, QuestionLanguage } from '../../../../src/types';
+import { DifficultyLevel, QuestionLanguage } from '../../../../shared';
 import { GenerateCandidateInput } from '../../../infrastructure/ai/types';
 
 /**

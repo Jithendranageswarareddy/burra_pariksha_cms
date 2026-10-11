@@ -10,7 +10,7 @@ import { GoogleSheetsSnapshot, WorksheetSnapshot } from '../../recovery/services
 import { restoreValidatorService, RestoreValidationResult } from '../../recovery/services/restore-validator.service';
 import { thumbnailsRepository, thumbnailVersionsRepository, videosRepository } from '../../../../database/firestore/repositories';
 import { auditService, workflowService } from '../../../infrastructure/audit/services/audit.service';
-import { Thumbnail, ThumbnailVersion } from '../../../../src/types';
+import { Thumbnail, ThumbnailVersion } from '../../../../shared';
 
 export interface GranularThumbnailRestoreRequest {
   snapshot: GoogleSheetsSnapshot;

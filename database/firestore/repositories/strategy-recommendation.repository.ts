@@ -6,7 +6,7 @@
  */
 
 import { BaseRepository } from './base.repository';
-import { ContentStrategyRecommendation } from '../../../src/types';
+import { ContentStrategyRecommendation } from '../../../shared';
 
 export class StrategyRecommendationRepository extends BaseRepository<ContentStrategyRecommendation> {
   private static instance: StrategyRecommendationRepository | null = null;

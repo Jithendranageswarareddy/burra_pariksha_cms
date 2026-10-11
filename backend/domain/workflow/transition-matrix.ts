@@ -7,12 +7,7 @@
  * - docs/architecture/08-STATE-MODEL.md
  */
 
-import {
-  TransitionRule,
-  WorkflowStepNumber,
-  CANONICAL_WORKFLOW_STEPS,
-  WorkflowInstanceDocument,
-} from '../../../src/types/workflow';
+import { TransitionRule, WorkflowStepNumber, CANONICAL_WORKFLOW_STEPS, WorkflowInstanceDocument } from '../../../shared';
 
 /**
  * Authoritative Canonical Transition Rules Table.

@@ -23,20 +23,8 @@ import { driveSyncService } from '../../../infrastructure/services/drive-sync.se
 import { canonicalIdService } from '../../../../src/lib/id.service';
 import { auditService } from '../../../infrastructure/audit/services/audit.service';
 import { workflowService } from '../../../infrastructure/services/workflow.service';
-import {
-  Video,
-  MediaAsset,
-  MediaStage,
-  VideoProductionStatus,
-  UserRole,
-  PriorityLevel,
-  VideoProductionWorkflowState,
-  InitializeRawVideoInput,
-  TransitionToEditingInput,
-  UploadEditedVideoInput,
-  ApproveFinalVideoInput,
-  VideoWorkflowStateResult,
-} from '../../../../src/types';
+import { Video, MediaAsset, MediaStage, VideoProductionStatus, UserRole, PriorityLevel } from '../../../../shared';
+import { VideoProductionWorkflowState, InitializeRawVideoInput, TransitionToEditingInput, UploadEditedVideoInput, ApproveFinalVideoInput, VideoWorkflowStateResult } from '../../../../src/types';
 import { ValidationError } from '../../../../src/lib/errors';
 
 export interface WorkflowActor {

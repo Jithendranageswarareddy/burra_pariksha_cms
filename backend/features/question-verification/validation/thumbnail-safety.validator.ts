@@ -9,7 +9,7 @@
  * - Prevents deceptive or misleading claims
  */
 
-import { Question, ThumbnailSafetyReport } from '../../../../src/types';
+import { Question, ThumbnailSafetyReport } from '../../../../shared';
 
 export class ThumbnailSafetyValidator {
   /**

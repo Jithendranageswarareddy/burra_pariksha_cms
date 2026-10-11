@@ -6,7 +6,8 @@
  * Isolates Gemini SDK details within the adapter and returns structured ValidationEvidence.
  */
 
-import { Question, QuestionValidatorProvider, ValidationEvidence } from '../../../../src/types';
+import { Question, ValidationEvidence } from '../../../../shared';
+import { QuestionValidatorProvider } from '../../../../src/types';
 import { DEFAULT_AI_CONFIG } from '../../../infrastructure/ai/config';
 import { geminiClient } from '../../../infrastructure/ai/gemini.client';
 import { classifyAIError } from '../../../infrastructure/ai/error';

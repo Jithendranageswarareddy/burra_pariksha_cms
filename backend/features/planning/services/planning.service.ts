@@ -13,23 +13,7 @@ import { videosRepository } from '../../../../database/firestore/repositories/vi
 import { canonicalIdService } from '../../../../src/lib/id.service';
 import { taxonomyService } from '../../../domain/taxonomy/services/taxonomy.service';
 import { auditService } from '../../../infrastructure/audit/services/audit.service';
-import {
-  BatchProgressMetrics,
-  ContentBatch,
-  ContentBatchStatus,
-  ContentGapAnalysis,
-  ContentPlan,
-  ContentPlanStatus,
-  CoverageOverviewData,
-  DifficultyLevel,
-  PriorityLevel,
-  Question,
-  QuestionLanguage,
-  QuestionStatus,
-  SubtopicCoverage,
-  TopicCoverage,
-  VideoProductionStatus,
-} from '../../../../src/types';
+import { BatchProgressMetrics, ContentBatch, ContentBatchStatus, ContentGapAnalysis, ContentPlan, ContentPlanStatus, CoverageOverviewData, DifficultyLevel, PriorityLevel, Question, QuestionLanguage, QuestionStatus, SubtopicCoverage, TopicCoverage, VideoProductionStatus } from '../../../../shared';
 import {
   CreateContentBatchInput,
   CreateContentPlanInput,

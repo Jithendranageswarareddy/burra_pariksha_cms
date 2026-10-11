@@ -6,7 +6,7 @@
  * tailored for 30-60 second Reels and Shorts.
  */
 
-import { Question } from '../../../../src/types';
+import { Question } from '../../../../shared';
 import { QuestionCandidate } from '../../../infrastructure/ai/types';
 
 export const BURRA_PARIKSHA_SCRIPT_SYSTEM_INSTRUCTION = `You are the lead content creator and presenter for "Burra Pariksha" (బుర్ర పరీక్ష), an educational brand creating viral 30-60 second vertical videos (Reels/Shorts) for Andhra Pradesh and Telangana competitive exam aspirants (APPSC, TSPSC, SI/Constable, RRB, SSC, Banking).

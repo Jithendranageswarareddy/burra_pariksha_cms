@@ -10,7 +10,7 @@ import { GoogleSheetsSnapshot, WorksheetSnapshot } from '../../recovery/services
 import { restoreValidatorService, RestoreValidationResult } from '../../recovery/services/restore-validator.service';
 import { publishingRepository, videosRepository } from '../../../../database/firestore/repositories';
 import { auditService, workflowService } from '../../../infrastructure/audit/services/audit.service';
-import { Publishing } from '../../../../src/types';
+import { Publishing } from '../../../../shared';
 
 export interface GranularPublishingRestoreRequest {
   snapshot: GoogleSheetsSnapshot;

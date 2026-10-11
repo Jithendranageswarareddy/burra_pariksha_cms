@@ -6,7 +6,7 @@
  * administrator-edited candidate state.
  */
 
-import { DifficultyLevel, QuestionLanguage } from '../../../../src/types';
+import { DifficultyLevel, QuestionLanguage } from '../../../../shared';
 import { AiRefinementAction, QuestionCandidate, RefineCandidateInput } from '../../../infrastructure/ai/types';
 import { sanitizePromptInput } from './generation.prompt';
 

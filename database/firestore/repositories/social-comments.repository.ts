@@ -13,7 +13,7 @@
  */
 
 import { BaseRepository } from './base.repository';
-import { SocialCommentRecord, SocialCommentQueryFilters } from '../../../src/types';
+import { SocialCommentRecord, SocialCommentQueryFilters } from '../../../shared';
 
 export class SocialCommentsRepository extends BaseRepository<SocialCommentRecord> {
   private static instance: SocialCommentsRepository | null = null;

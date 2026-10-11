@@ -9,7 +9,7 @@
  * - Insufficient information preventing deterministic resolution
  */
 
-import { AmbiguityResult, ValidationCheckItem } from '../../../../src/types';
+import { AmbiguityResult, ValidationCheckItem } from '../../../../shared';
 
 export class AmbiguityDetector {
   public static detect(

@@ -19,13 +19,8 @@ import { analyticsRepository, AnalyticsRepository } from '../../../../database/f
 import { contentMastersRepository } from '../../../../database/firestore/repositories/content-masters.repository';
 import { canonicalIdService } from '../../../../src/lib/id.service';
 import { AuditLogRepository } from '../../../../database/firestore/repositories/audit-log.repository';
-import {
-  CreateSocialAnalyticsInput,
-  ImportSocialAnalyticsInput,
-  SocialAnalyticsRecord,
-  SocialAnalyticsQueryFilters,
-  SocialAnalyticsSummary,
-} from '../../../../src/types';
+import { CreateSocialAnalyticsInput, SocialAnalyticsRecord, SocialAnalyticsQueryFilters, SocialAnalyticsSummary } from '../../../../shared';
+import { ImportSocialAnalyticsInput } from '../../../../src/types';
 
 export class AnalyticsService {
   private static instance: AnalyticsService | null = null;

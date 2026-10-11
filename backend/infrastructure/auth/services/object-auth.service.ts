@@ -7,17 +7,7 @@
  * and user metadata.
  */
 
-import {
-  UserRole,
-  Question,
-  Video,
-  Script,
-  Thumbnail,
-  PinnedComment,
-  ContentMaster,
-  Publishing,
-  Assignment,
-} from '../../../../src/types';
+import { UserRole, Question, Video, Script, Thumbnail, PinnedComment, ContentMaster, Publishing, Assignment } from '../../../../shared';
 import { assignmentsRepository } from '../../../../database/firestore/repositories/assignments.repository';
 import { questionsRepository } from '../../../../database/firestore/repositories/questions.repository';
 import { videosRepository } from '../../../../database/firestore/repositories/videos.repository';

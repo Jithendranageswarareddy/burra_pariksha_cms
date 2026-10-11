@@ -3,7 +3,7 @@
  * Phase 30: Audience Social Comment Analysis Prompt Generator
  */
 
-import { SocialCommentRecord } from '../../../../src/types';
+import { SocialCommentRecord } from '../../../../shared';
 
 export const BURRA_PARIKSHA_COMMENT_INTELLIGENCE_SYSTEM_INSTRUCTION = `You are the Audience Intelligence & Pedagogical Quality Director for Burra Pariksha (a high-engagement educational content platform).
 

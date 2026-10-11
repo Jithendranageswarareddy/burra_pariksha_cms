@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import { usersRepository } from '../../../../database/firestore/repositories/users.repository';
 import { auditService } from '../../audit/services/audit.service';
-import { User } from '../../../../src/types';
+import { User } from '../../../../shared';
 
 export interface SessionPayload {
   userId: string;

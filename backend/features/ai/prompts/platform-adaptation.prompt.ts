@@ -3,7 +3,8 @@
  * Phase 8F: Multi-Platform Adaptation Engine
  */
 
-import { Question, QuestionLanguage, SocialMetadataPayload } from '../../../../src/types';
+import { Question, QuestionLanguage } from '../../../../shared';
+import { SocialMetadataPayload } from '../../../../src/types';
 
 export function buildPlatformAdaptationSystemPrompt(language: QuestionLanguage): string {
   const isTelugu = language === QuestionLanguage.TELUGU;

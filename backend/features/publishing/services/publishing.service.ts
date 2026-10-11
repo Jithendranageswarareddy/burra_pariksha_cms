@@ -31,35 +31,8 @@ import { videoService } from '../../production/services/video.service';
 import { canonicalIdService } from '../../../../src/lib/id.service';
 import { platformAdaptationService } from './platform-adaptation.service';
 import { analyticsService } from '../../analytics/services/analytics.service';
-import {
-  Publishing,
-  SocialPublishStatus,
-  VideoProductionStatus,
-  UserRole,
-  Video,
-  QuestionValidationStatus,
-  SocialReviewStatus,
-  QuestionStatus,
-  RenderValidationStatus,
-  CanonicalProductionReadiness,
-  PlatformPackageProjection,
-  PlatformType,
-  Assignment,
-  AssignmentEntityType,
-  AssignmentStatus,
-  AssignmentTaskType,
-  AssignmentRole,
-  PriorityLevel,
-  PublisherPackage,
-  PublishingReadinessEvaluation,
-  PublishingBlockerCode,
-  PublishingPlatformRecord,
-  PublishingPlatformStatus,
-  PublisherPackageSearchFilters,
-  MarkManuallyPublishedInput,
-  MarkPublishingFailedInput,
-  WorkflowActor,
-} from '../../../../src/types';
+import { Publishing, SocialPublishStatus, VideoProductionStatus, UserRole, Video, QuestionValidationStatus, SocialReviewStatus, QuestionStatus, RenderValidationStatus, CanonicalProductionReadiness, PlatformPackageProjection, PlatformType, Assignment, AssignmentEntityType, AssignmentStatus, AssignmentTaskType, AssignmentRole, PriorityLevel, PublishingPlatformRecord } from '../../../../shared';
+import { PublisherPackage, PublishingReadinessEvaluation, PublishingBlockerCode, PublishingPlatformStatus, PublisherPackageSearchFilters, MarkManuallyPublishedInput, MarkPublishingFailedInput, WorkflowActor } from '../../../../src/types';
 import { SocialReviewService } from '../../analytics/services/social-review.service';
 import { ProductionAssetValidationService } from '../../../infrastructure/services/production-asset-validation.service';
 import { ObjectAuthorizationService } from '../../../infrastructure/auth/services/object-auth.service';
@@ -1849,7 +1822,7 @@ export class PublishingService {
         socialReviewStatus: (socialReview?.status || 'REJECTED') as any,
         publishingReadiness: readiness.isReadyToPublish ? 'READY_TO_PUBLISH' : 'NOT_READY',
         publishingStatus:
-          publishingRecord?.status || (readiness.isReadyToPublish ? 'READY_TO_PUBLISH' : 'NOT_READY'),
+          ((publishingRecord?.status as any) || (readiness.isReadyToPublish ? 'READY_TO_PUBLISH' : 'NOT_READY')) as any,
       },
     };
   }

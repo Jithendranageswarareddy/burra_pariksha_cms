@@ -4,7 +4,7 @@
  */
 
 import { BaseRepository } from './base.repository';
-import { SocialReviewRecord, SocialQualityStatus, SocialReviewStatus } from '../../../src/types';
+import { SocialReviewRecord, SocialQualityStatus, SocialReviewStatus } from '../../../shared';
 
 export class SocialReviewsRepository extends BaseRepository<SocialReviewRecord> {
   private static instance: SocialReviewsRepository | null = null;

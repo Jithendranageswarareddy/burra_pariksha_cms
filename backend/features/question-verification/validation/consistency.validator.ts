@@ -8,7 +8,7 @@
  * - Absence of unrendered translation placeholders
  */
 
-import { ValidationCheckItem, QuestionLanguage } from '../../../../src/types';
+import { ValidationCheckItem, QuestionLanguage } from '../../../../shared';
 
 export class ConsistencyValidator {
   public static validate(

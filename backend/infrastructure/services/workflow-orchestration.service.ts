@@ -6,18 +6,7 @@
  * across Questions, Validation, Videos, Social Packages, Reviews, Publishing, and Archiving.
  */
 
-import {
-  Question,
-  QuestionStatus,
-  QuestionValidationStatus,
-  Video,
-  VideoProductionStatus,
-  SocialReviewStatus,
-  UserRole,
-  ContentMaster,
-  ContentMasterStatus,
-  SocialPublishStatus,
-} from '../../../src/types';
+import { Question, QuestionStatus, QuestionValidationStatus, Video, VideoProductionStatus, SocialReviewStatus, UserRole, ContentMaster, ContentMasterStatus, SocialPublishStatus } from '../../../shared';
 import { questionsRepository } from '../../../database/firestore/repositories/questions.repository';
 import { videosRepository } from '../../../database/firestore/repositories/videos.repository';
 import { contentMastersRepository } from '../../../database/firestore/repositories/content-masters.repository';

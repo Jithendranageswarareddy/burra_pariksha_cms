@@ -21,21 +21,7 @@ import {
 } from '../../../../database/firestore/repositories';
 import { canonicalIdService } from '../../../../src/lib/id.service';
 import { workflowService } from '../../audit/services/audit.service';
-import {
-  Assignment,
-  AssignmentEntityType,
-  AssignmentStatus,
-  AssignmentTaskType,
-  MyWorkSummary,
-  PriorityLevel,
-  TeamWorkloadSummary,
-  UnassignedWorkItem,
-  User,
-  UserRole,
-  UserWorkload,
-  Video,
-  VideoProductionStatus,
-} from '../../../../src/types';
+import { Assignment, AssignmentEntityType, AssignmentStatus, AssignmentTaskType, MyWorkSummary, PriorityLevel, TeamWorkloadSummary, UnassignedWorkItem, User, UserRole, UserWorkload, Video, VideoProductionStatus } from '../../../../shared';
 import {
   CreateAssignmentInput,
   UpdateAssignmentInput,

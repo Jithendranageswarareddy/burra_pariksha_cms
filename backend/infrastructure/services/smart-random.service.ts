@@ -19,7 +19,7 @@ import { taxonomyService } from '../../domain/taxonomy/services/taxonomy.service
 import { questionsRepository } from '../../../database/firestore/repositories/questions.repository';
 import { questionConfigService } from './question-config.service';
 import { ValidationError } from '../../../src/lib/errors';
-import { QuestionLanguage } from '../../../src/types';
+import { QuestionLanguage } from '../../../shared';
 
 export interface ResolvedCreationParameters {
   topicId: string;

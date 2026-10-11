@@ -4,7 +4,7 @@
  */
 
 import { BaseRepository } from './base.repository';
-import { Subtopic } from '../../../src/types';
+import { Subtopic } from '../../../shared';
 
 export class SubtopicsRepository extends BaseRepository<Subtopic> {
   private static instance: SubtopicsRepository | null = null;

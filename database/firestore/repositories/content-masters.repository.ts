@@ -4,7 +4,7 @@
  */
 
 import { BaseRepository } from './base.repository';
-import { ContentMaster } from '../../../src/types';
+import { ContentMaster } from '../../../shared';
 import { ValidationError } from '../../../src/lib/errors';
 
 export class ContentMastersRepository extends BaseRepository<ContentMaster> {

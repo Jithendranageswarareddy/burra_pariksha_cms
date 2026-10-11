@@ -11,7 +11,7 @@
  * 6. Human review remains authoritative. AI cannot auto-approve or publish.
  */
 
-import { QuestionLanguage } from '../../../../src/types';
+import { QuestionLanguage } from '../../../../shared';
 import { QuestionCandidate } from '../../../infrastructure/ai/types';
 import { geminiClient } from '../../../infrastructure/ai/gemini.client';
 import { DEFAULT_AI_CONFIG } from '../../../infrastructure/ai/config';

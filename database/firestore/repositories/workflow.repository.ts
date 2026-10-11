@@ -4,7 +4,7 @@
  */
 
 import { BaseRepository } from './base.repository';
-import { Workflow } from '../../../src/types';
+import { Workflow } from '../../../shared';
 
 export class WorkflowRepository extends BaseRepository<Workflow> {
   private static instance: WorkflowRepository | null = null;

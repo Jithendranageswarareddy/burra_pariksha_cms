@@ -4,7 +4,7 @@
  */
 
 import { BaseRepository } from './base.repository';
-import { Publishing, PublishingPlatformRecord, PlatformType } from '../../../src/types';
+import { Publishing, PublishingPlatformRecord, PlatformType } from '../../../shared';
 
 export class PublishingRepository extends BaseRepository<Publishing> {
   private static instance: PublishingRepository | null = null;

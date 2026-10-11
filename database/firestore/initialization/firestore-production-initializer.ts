@@ -12,7 +12,7 @@
 
 import { FirestoreRepository } from '../adapter/firestore.repository';
 import { PRODUCTION_TOPICS, PRODUCTION_SUBTOPICS } from '../../../src/lib/data/production-taxonomy';
-import { User, UserRole, QuestionConfigEntry } from '../../../src/types';
+import { User, UserRole, QuestionConfigEntry } from '../../../shared';
 import { authService } from '../../../backend/infrastructure/auth/services/auth.service';
 
 export interface FirestoreInitReport {

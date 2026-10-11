@@ -15,7 +15,7 @@ import { questionsRepository } from '../../../database/firestore/repositories/qu
 import { workflowRepository } from '../../../database/firestore/repositories/workflow.repository';
 import { canonicalIdService } from '../../../src/lib/id.service';
 import { auditService } from '../audit/services/audit.service';
-import { PinnedComment, PinnedCommentVersion, Workflow } from '../../../src/types';
+import { PinnedComment, PinnedCommentVersion, Workflow } from '../../../shared';
 import { ValidationError } from '../../../src/lib/errors';
 
 export interface PinnedCommentPayload {

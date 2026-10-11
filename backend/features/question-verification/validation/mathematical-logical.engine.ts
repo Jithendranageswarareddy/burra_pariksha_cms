@@ -10,7 +10,7 @@
  * - NOT_APPLICABLE: Purely verbal, conceptual, or non-numerical question.
  */
 
-import { MathematicalLogicalResult } from '../../../../src/types';
+import { MathematicalLogicalResult } from '../../../../shared';
 
 export interface SolverSolution {
   problemType: string;

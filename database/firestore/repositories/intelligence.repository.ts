@@ -6,7 +6,7 @@
  */
 
 import { BaseRepository } from './base.repository';
-import { SocialPerformanceIntelligenceRecord } from '../../../src/types';
+import { SocialPerformanceIntelligenceRecord } from '../../../shared';
 
 export class IntelligenceRepository extends BaseRepository<SocialPerformanceIntelligenceRecord> {
   private static instance: IntelligenceRepository | null = null;

@@ -7,12 +7,13 @@
  * allocation, Content Master creation, or multi-layer verification blocking save gates.
  */
 
-import { QuestionDraft, QuestionStatus, UserRole } from '../../../../src/types';
+import { QuestionDraft, QuestionStatus, UserRole } from '../../../../shared';
 import { questionDraftsRepository } from '../../../../database/firestore/repositories/question-drafts.repository';
 import { taxonomyService } from '../../../domain/taxonomy/services/taxonomy.service';
 import { questionService } from './question.service';
 import { auditService } from '../../../infrastructure/audit/services/audit.service';
-import { type AdministrativeOverrideContext, CanonicalRbacRole, resolveBrownfieldRole } from '../../../../src/types/rbac-models';
+import { CanonicalRbacRole } from '../../../../shared';
+import { type AdministrativeOverrideContext, resolveBrownfieldRole } from '../../../../src/types/rbac-models';
 
 export interface SaveDraftInput {
   id?: string;

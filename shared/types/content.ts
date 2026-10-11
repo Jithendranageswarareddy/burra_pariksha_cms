@@ -6,9 +6,11 @@
 import {
   ContentMasterStatus,
   DifficultyLevel,
+  PlatformType,
   PriorityLevel,
   RenderValidationStatus,
   SocialPublishStatus,
+  SocialQualityStatus,
   SocialReviewDecision,
   SocialReviewStatus,
   VideoProductionStatus,
@@ -245,6 +247,27 @@ export interface MediaAsset {
   version: number;
 }
 
+export interface AiThumbnailCuriosityFraming {
+  curiosityAngle: string;
+  psychologicalTrigger: string;
+  hypothesis: string;
+}
+
+export interface AiThumbnailVisualDirection {
+  composition: string;
+  colorPalette: string[];
+  focalPoint: string;
+  emotionOrExpression: string;
+  brandingElements: string;
+}
+
+export interface AiThumbnailAudienceTargeting {
+  primaryAudience: string;
+  secondaryAudience: string;
+  languageStyle: 'TELUGU' | 'ENGLISH' | 'BILINGUAL';
+  difficultyPerception: 'LOOKS_EASY_BUT_HARD' | 'CHALLENGE_FOR_GENIUSES' | 'FAST_TRICK';
+}
+
 export interface ThumbnailCandidate {
   id: string;
   contentId: string;
@@ -254,9 +277,9 @@ export interface ThumbnailCandidate {
   conceptName: string;
   abVariant: string;
   hookHeadline: string;
-  curiosityFraming?: any;
-  visualDirection?: any;
-  audienceTargeting?: any;
+  curiosityFraming: AiThumbnailCuriosityFraming;
+  visualDirection: AiThumbnailVisualDirection;
+  audienceTargeting: AiThumbnailAudienceTargeting;
   version: number;
   status: 'DRAFT' | 'IN_REVIEW' | 'APPROVED' | 'REJECTED';
   assignedReviewerId?: string;
@@ -338,6 +361,16 @@ export interface PinnedCommentPackage {
   updatedAt: string;
 }
 
+export interface PinnedCommentPackageVersion {
+  id: string; // e.g. BP-PCV-######-1
+  packageId: string;
+  versionNumber: number;
+  contentSnapshot: Partial<PinnedCommentPackage>;
+  editedBy: string;
+  changeSummary?: string;
+  createdAt: string;
+}
+
 export interface PlatformPublishInfo {
   status: SocialPublishStatus;
   videoUrl?: string;
@@ -381,6 +414,39 @@ export interface Publishing {
   updatedAt: string;
 }
 
+export type PublishingPlatformStatus = 'READY' | 'SCHEDULED' | 'PUBLISHING' | 'PUBLISHED' | 'FAILED' | 'RETRY_PENDING' | string;
+
+export interface PublishingPlatformRecord {
+  id: string; // e.g. BP-PUB-000001
+  contentId: string;
+  platform: PlatformType | string;
+  platformAdaptationId: string;
+  adaptationVersion: number;
+  canonicalSourceHash: string;
+  adaptationHash: string;
+  videoId: string;
+  videoVersion: number;
+  thumbnailId: string;
+  thumbnailVersion: number;
+  pinnedCommentPackageId?: string;
+  pinnedCommentVersion?: number;
+  status?: PublishingPlatformStatus;
+  publishedAt?: string;
+  publishedBy?: string;
+  publishedByName?: string;
+  publishedByRole?: string;
+  externalUrl?: string;
+  platformPostId?: string;
+  publicationNotes?: string;
+  failureReason?: string;
+  failedAt?: string;
+  failedBy?: string;
+  retryCount?: number;
+  lastRetriedAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface PlatformPackageProjection {
   platform: string;
   videoId: string;
@@ -416,12 +482,24 @@ export interface SocialReviewRecord {
   decisionReason?: string;
   feedbackCategories?: string[];
   overallQualityScoreAtReview?: number;
+  qualityStatusAtReview?: SocialQualityStatus;
   isAdminOverride?: boolean;
   reviewedAt?: string;
   assignedReviewerId?: string;
   reviewedBy?: string;
   reviewedByName?: string;
   reviewedByRole?: string;
+  versionLock?: any;
+  validationSummary?: {
+    isValid: boolean;
+    issues: string[];
+    warnings: string[];
+    checksPassed: string[];
+  };
+  aiRecommendation?: any;
+  isInvalidated?: boolean;
+  invalidatedReason?: string;
+  invalidatedAt?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -818,9 +896,9 @@ export interface SocialPerformanceIntelligenceRecord {
     byTopic: DimensionMetricAggregate[];
     bySubtopic: DimensionMetricAggregate[];
     byDifficulty: DimensionMetricAggregate[];
-    byChallengeType?: DimensionMetricAggregate[];
-    byLanguage?: DimensionMetricAggregate[];
-    byPresentationType?: DimensionMetricAggregate[];
+    byChallengeType: DimensionMetricAggregate[];
+    byLanguage: DimensionMetricAggregate[];
+    byPresentationType: DimensionMetricAggregate[];
     postingTimeAnalysis?: {
       byHourOfDay: PostingTimeMetricAggregate[];
       byDayOfWeek: PostingTimeMetricAggregate[];
@@ -920,8 +998,11 @@ export interface CommentIntelligenceRecord {
   modelUsed: string;
   promptVersion: string;
   isFallbackMode: boolean;
+  provenance?: any;
   evidenceTraceability?: any;
 }
+
+export type RecommendationStatus = 'ACTIVE' | 'APPLIED' | 'REJECTED' | 'STALE' | string;
 
 export interface ContentStrategyRecommendation {
   id: string;
@@ -929,17 +1010,23 @@ export interface ContentStrategyRecommendation {
   sourceReportId?: string;
   topicId: string;
   subtopicId: string;
-  difficulty: 'EASY' | 'MEDIUM' | 'HARD';
+  difficulty: 'EASY' | 'MEDIUM' | 'HARD' | string;
   questionStyle: string;
   context: string;
   hook: string;
   presentation: string;
   platformConsiderations?: string;
-  status: any;
+  status: RecommendationStatus;
   evidence: string;
   sampleSize: number;
-  confidenceLevel: 'HIGH' | 'MEDIUM' | 'LOW' | 'INSUFFICIENT_DATA';
-  version: number;
+  confidenceLevel: 'HIGH' | 'MEDIUM' | 'LOW' | 'INSUFFICIENT_DATA' | string;
+  provenance?: any;
+  appliedAt?: string;
+  appliedBy?: string;
+  rejectedAt?: string;
+  rejectedBy?: string;
+  staleAt?: string;
+  version?: number;
 }
 
 export interface DashboardMetrics {
@@ -1210,5 +1297,3 @@ export interface GenerateCommentIntelligenceInput {
   analysisScope?: CommentIntelligenceScope | string;
   commentIds?: string[];
 }
-
-

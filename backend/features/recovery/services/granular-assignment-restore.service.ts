@@ -10,7 +10,7 @@ import { GoogleSheetsSnapshot, WorksheetSnapshot } from './snapshot-exporter.ser
 import { restoreValidatorService, RestoreValidationResult } from './restore-validator.service';
 import { assignmentsRepository, usersRepository, questionsRepository, videosRepository, scriptsRepository, thumbnailsRepository, pinnedCommentsRepository, publishingRepository } from '../../../../database/firestore/repositories';
 import { auditService, workflowService } from '../../../infrastructure/audit/services/audit.service';
-import { Assignment, AssignmentStatus } from '../../../../src/types';
+import { Assignment, AssignmentStatus } from '../../../../shared';
 
 export interface GranularAssignmentRestoreRequest {
   snapshot: GoogleSheetsSnapshot;

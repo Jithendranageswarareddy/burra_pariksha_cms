@@ -1,4 +1,4 @@
-import { Video, RenderValidationStatus, VideoProductionStatus, CanonicalProductionReadiness } from '../../../src/types';
+import { Video, RenderValidationStatus, VideoProductionStatus, CanonicalProductionReadiness } from '../../../shared';
 
 export class ProductionAssetValidationService {
   /**
