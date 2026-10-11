@@ -156,9 +156,6 @@ service cloud.firestore {
       allow read, write: if isBackendGateway();
     }
 
-    match /categories/{catId} {
-      allow read, write: if isBackendGateway();
-    }
 
     match /topics/{topicId} {
       allow read, write: if isBackendGateway();

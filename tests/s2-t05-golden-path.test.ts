@@ -141,7 +141,6 @@ async function runGoldenPath() {
     // --------------------------------------------------------------------------
     console.log('--- Steps 6 & 7: Question Creation & Save ---');
     const draftPayload = {
-      categoryId: 'CAT-QA',
       topicId: 'BP-TOP-001',
       subtopicId: 'BP-SUB-0001',
       difficulty: 'Medium',

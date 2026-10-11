@@ -206,7 +206,7 @@ export class RestoreValidatorService {
       if (!ws || !ws.rows || ws.rows.length === 0) continue;
 
       const { headers, rows } = ws;
-      const idIdx = headers.findIndex(h => h.toLowerCase() === 'id' || h.toLowerCase() === 'questionid' || h.toLowerCase() === 'videoid' || h.toLowerCase() === 'scriptid' || h.toLowerCase() === 'thumbnailid' || h.toLowerCase() === 'pinnedcommentid' || h.toLowerCase() === 'categoryid' || h.toLowerCase() === 'topicid' || h.toLowerCase() === 'subtopicid');
+      const idIdx = headers.findIndex(h => h.toLowerCase() === 'id' || h.toLowerCase() === 'questionid' || h.toLowerCase() === 'videoid' || h.toLowerCase() === 'scriptid' || h.toLowerCase() === 'thumbnailid' || h.toLowerCase() === 'pinnedcommentid' || h.toLowerCase() === 'topicid' || h.toLowerCase() === 'subtopicid');
 
       for (const row of rows) {
         const recordObj: Record<string, any> = {};

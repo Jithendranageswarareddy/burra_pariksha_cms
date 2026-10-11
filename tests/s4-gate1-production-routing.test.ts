@@ -121,7 +121,6 @@ async function testGate1ProductionRouting() {
       {
         questionText: synthQuestionText,
         question: synthQuestionText,
-        categoryId: 'CAT-QA',
         topicId: 'TOP-QA-01',
         subtopicId: 'SUB-01',
         difficulty: 'MEDIUM',

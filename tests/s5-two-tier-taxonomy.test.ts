@@ -216,6 +216,29 @@ async function runSprint5RegressionTests() {
   }
 
   // --------------------------------------------------------------------------
+  // Assertion 11: Google Sheets schema & Restore Validator have zero legacy Category
+  // --------------------------------------------------------------------------
+  try {
+    console.log('\nAssertion 11: Verifying google-sheets-schema and restore-validator.service...');
+    const sheetsSchemaModule = await import('../src/lib/schemas/google-sheets-schema');
+    assert.strictEqual((sheetsSchemaModule.SEQUENCE_ENTITIES as any).CATEGORY, undefined, 'google-sheets-schema SEQUENCE_ENTITIES.CATEGORY must not exist');
+    assert.strictEqual((sheetsSchemaModule.ID_PREFIX_MAP as any).CATEGORY, undefined, 'google-sheets-schema ID_PREFIX_MAP.CATEGORY must not exist');
+    const hasBpCat = Object.values(sheetsSchemaModule.ID_PREFIX_MAP).some((entry: any) => entry.prefix === 'BP-CAT-');
+    assert.strictEqual(hasBpCat, false, 'BP-CAT- prefix must not exist in ID_PREFIX_MAP');
+
+    const fs = await import('node:fs');
+    const path = await import('node:path');
+    const validatorSrc = fs.readFileSync(path.join(process.cwd(), 'src/lib/services/restore-validator.service.ts'), 'utf-8');
+    assert.strictEqual(validatorSrc.includes('categoryid'), false, 'restore-validator.service.ts must not contain categoryid');
+
+    console.log('✓ PASSED: Google Sheets sequence schemas and Restore Validator are 100% free of Category references.');
+    passed++;
+  } catch (err: any) {
+    console.error('✗ FAILED:', err.message);
+    failed++;
+  }
+
+  // --------------------------------------------------------------------------
   // Summary
   // --------------------------------------------------------------------------
   console.log('\n================================================================');

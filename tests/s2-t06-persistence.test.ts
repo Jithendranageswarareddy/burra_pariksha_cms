@@ -138,7 +138,6 @@ async function runPersistenceProof() {
     const creatorAuth = await loginUser(BASE_URL, CREATOR_EMAIL, CREATOR_PASSWORD);
 
     const draftPayload = {
-      categoryId: 'CAT-QA',
       topicId: 'BP-TOP-001',
       subtopicId: 'BP-SUB-0001',
       difficulty: 'Medium',
