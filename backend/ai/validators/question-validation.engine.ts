@@ -27,6 +27,7 @@ export interface ValidationPipelineOptions {
   actor?: string;
   skipTaxonomyLookup?: boolean;
   skipDuplicateCheck?: boolean;
+  existingQuestions?: Question[];
 }
 
 export class QuestionValidationEngine {
@@ -373,6 +374,7 @@ export class QuestionValidationEngine {
       actor: options.actor,
       skipTaxonomyLookup: options.skipTaxonomyLookup,
       skipDuplicateCheck: options.skipDuplicateCheck,
+      existingQuestions: options.existingQuestions,
     });
 
     const realAuthoritativeMath = multiLayerReport.layers['LAYER_4_INDEPENDENT_AI'];

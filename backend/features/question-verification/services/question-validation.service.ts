@@ -80,9 +80,12 @@ export class QuestionValidationService {
       { statusBefore: question.validationStatus || QuestionValidationStatus.NOT_VALIDATED }
     );
 
+    const existingQuestions = pipelineOptions.existingQuestions || (pipelineOptions.skipDuplicateCheck ? [] : await questionsRepository.findAll());
+
     // Run the full validation engine
     const result = await QuestionValidationEngine.validate(question, {
       ...pipelineOptions,
+      existingQuestions,
       actor: actorName,
     });
 

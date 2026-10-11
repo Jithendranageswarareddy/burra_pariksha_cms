@@ -3,7 +3,7 @@
  * Safe registry/adapter abstraction for experimental AI endpoints without inventing undocumented external APIs.
  */
 
-import { AIProviderId, AIRequest } from '../../../src/types/ai';
+import { AIProviderId, AIRequest } from '../orchestrator/types';
 import { BaseAIProviderAdapter } from './base.adapter';
 
 export class ExperimentalLabsProviderAdapter extends BaseAIProviderAdapter {

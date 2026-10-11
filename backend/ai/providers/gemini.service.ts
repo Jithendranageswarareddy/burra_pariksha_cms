@@ -55,7 +55,7 @@ import {
   buildSocialQualitySystemPrompt,
   buildSocialQualityUserPrompt,
 } from '../prompts/social-quality.prompt';
-import { AiContentPlanRecommendation, AiPlanBatchSuggestion, AiPlanRecommendationSubtopic, DifficultyLevel, PriorityLevel, Question, QuestionLanguage, Script, Video } from '../../../shared';
+import { AiContentPlanRecommendation, AiPlanBatchSuggestion, AiPlanRecommendationSubtopic, DifficultyLevel, PriorityLevel, Question, QuestionLanguage, Script, Video, ScriptContentPayload } from '../../../shared';
 import { AiThumbnailConcept, HookStyle, TeleprompterSegment, TeleprompterSegmentSection } from '../../../src/types';
 import {
   AIProvider,
@@ -67,8 +67,6 @@ import {
   RefineCandidateInput,
 } from '../orchestrator/types';
 import { taxonomyService } from '../../domain/taxonomy/services/taxonomy.service';
-import { questionsRepository } from '../../../database/firestore/repositories/questions.repository';
-import { ScriptContentPayload } from '../../features/production/services/script.service';
 
 async function withTimeout<T>(promise: Promise<T>, ms: number = 30000, errorMsg: string = 'Gemini API call timed out'): Promise<T> {
   const effectiveMs = process.env.GEMINI_API_KEY ? ms : 200;
@@ -448,6 +446,7 @@ export class GeminiService implements AIProvider {
     language?: QuestionLanguage;
     preferredDifficulties?: DifficultyLevel[];
     focusContext?: string;
+    allQuestions?: Question[];
   }): Promise<AiContentPlanRecommendation> {
     const targetTotal = input.targetTotalCount || 20;
 
@@ -458,8 +457,8 @@ export class GeminiService implements AIProvider {
 
     const topicName = input.topicId && topics.length > 0 ? topics[0].name : (topics[0]?.name || 'All Topics');
 
-    // Fetch existing questions to detect zero/low coverage
-    const allQuestions = await questionsRepository.findAll();
+    // Use passed questions or empty array
+    const allQuestions = input.allQuestions || [];
     const subtopicRecommendations: AiPlanRecommendationSubtopic[] = [];
 
     // Collect all eligible subtopics

@@ -3,7 +3,7 @@
  */
 
 import { GoogleGenAI } from '@google/genai';
-import { AIProviderId, AIRequest } from '../../../src/types/ai';
+import { AIProviderId, AIRequest } from '../orchestrator/types';
 import { BaseAIProviderAdapter } from './base.adapter';
 
 export class GeminiProviderAdapter extends BaseAIProviderAdapter {

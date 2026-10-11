@@ -2,7 +2,7 @@
  * BURRA PARIKSHA CMS - Phase 24 Cohere Provider Adapter
  */
 
-import { AIProviderId, AIRequest } from '../../../src/types/ai';
+import { AIProviderId, AIRequest } from '../orchestrator/types';
 import { BaseAIProviderAdapter } from './base.adapter';
 
 export class CohereProviderAdapter extends BaseAIProviderAdapter {

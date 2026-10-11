@@ -166,6 +166,15 @@ export interface QuestionVideo {
   createdAt: string;
 }
 
+export interface ScriptContentPayload {
+  hookText: string;
+  problemStatement: string;
+  stepByStepSolution: string;
+  speedTrickOrTakeaway: string;
+  callToAction: string;
+  notes?: string;
+}
+
 export interface Script {
   id: string; // e.g. scr_uuid or SCR-204
   contentId?: string;

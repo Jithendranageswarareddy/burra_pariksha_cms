@@ -4280,7 +4280,11 @@ apiRouter.post('/planning/similarity-check', async (req: Request, res: Response)
 apiRouter.post('/planning/ai-recommendation', async (req: Request, res: Response) => {
   try {
     const validated = AiContentPlanRequestSchema.parse(req.body);
-    const recommendation = await aiOrchestrator.generateContentPlanRecommendation(validated);
+    const allQuestions = await questionsRepository.findAll();
+    const recommendation = await aiOrchestrator.generateContentPlanRecommendation({
+      ...validated,
+      allQuestions,
+    });
     res.json(recommendation);
   } catch (err: any) {
     res.status(400).json({ error: 'Failed to generate AI plan recommendation', message: err?.message });

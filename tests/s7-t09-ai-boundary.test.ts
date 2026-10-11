@@ -131,6 +131,149 @@ async function runTests() {
     failed++;
   }
 
+  // 6. Zero Feature Dependencies in backend/ai
+  try {
+    const scanDirForPattern = (dir: string, pattern: RegExp): string[] => {
+      let results: string[] = [];
+      const list = fs.readdirSync(dir);
+      for (const file of list) {
+        const fullPath = path.join(dir, file);
+        const stat = fs.statSync(fullPath);
+        if (stat.isDirectory()) {
+          results = results.concat(scanDirForPattern(fullPath, pattern));
+        } else if (file.endsWith('.ts') || file.endsWith('.tsx')) {
+          const content = fs.readFileSync(fullPath, 'utf-8');
+          if (pattern.test(content)) {
+            results.push(fullPath);
+          }
+        }
+      }
+      return results;
+    };
+
+    const featureLeaks = scanDirForPattern('backend/ai', /from\s+['"][^'"]*features/);
+    assert.strictEqual(
+      featureLeaks.length,
+      0,
+      `backend/ai must have ZERO imports from backend/features. Found leaks in: ${featureLeaks.join(', ')}`
+    );
+
+    console.log('✓ TC-AI-06 PASSED: backend/ai has zero dependencies on backend/features.');
+    passed++;
+  } catch (err: any) {
+    console.error('✗ TC-AI-06 FAILED:', err.message);
+    failed++;
+  }
+
+  // 7. Zero Database & Persistence Dependencies in backend/ai
+  try {
+    const scanDirForPattern = (dir: string, pattern: RegExp): string[] => {
+      let results: string[] = [];
+      const list = fs.readdirSync(dir);
+      for (const file of list) {
+        const fullPath = path.join(dir, file);
+        const stat = fs.statSync(fullPath);
+        if (stat.isDirectory()) {
+          results = results.concat(scanDirForPattern(fullPath, pattern));
+        } else if (file.endsWith('.ts') || file.endsWith('.tsx')) {
+          const content = fs.readFileSync(fullPath, 'utf-8');
+          if (pattern.test(content)) {
+            results.push(fullPath);
+          }
+        }
+      }
+      return results;
+    };
+
+    const dbLeaks = scanDirForPattern('backend/ai', /from\s+['"][^'"]*(database|repositories)/);
+    assert.strictEqual(
+      dbLeaks.length,
+      0,
+      `backend/ai must have ZERO database/repository imports. Found leaks in: ${dbLeaks.join(', ')}`
+    );
+
+    console.log('✓ TC-AI-07 PASSED: backend/ai has zero dependencies on database repositories.');
+    passed++;
+  } catch (err: any) {
+    console.error('✗ TC-AI-07 FAILED:', err.message);
+    failed++;
+  }
+
+  // 8. Zero src/types/ai dependencies in backend/ai (Canonical Ownership)
+  try {
+    const scanDirForPattern = (dir: string, pattern: RegExp): string[] => {
+      let results: string[] = [];
+      const list = fs.readdirSync(dir);
+      for (const file of list) {
+        const fullPath = path.join(dir, file);
+        const stat = fs.statSync(fullPath);
+        if (stat.isDirectory()) {
+          results = results.concat(scanDirForPattern(fullPath, pattern));
+        } else if (file.endsWith('.ts') || file.endsWith('.tsx')) {
+          const content = fs.readFileSync(fullPath, 'utf-8');
+          if (pattern.test(content)) {
+            results.push(fullPath);
+          }
+        }
+      }
+      return results;
+    };
+
+    const typeLeaks = scanDirForPattern('backend/ai', /from\s+['"][^'"]*src\/types\/ai/);
+    assert.strictEqual(
+      typeLeaks.length,
+      0,
+      `backend/ai must have ZERO imports from src/types/ai (canonical definitions live in backend/ai/orchestrator/types). Found leaks in: ${typeLeaks.join(', ')}`
+    );
+
+    console.log('✓ TC-AI-08 PASSED: backend/ai has zero dependencies on legacy src/types/ai.');
+    passed++;
+  } catch (err: any) {
+    console.error('✗ TC-AI-08 FAILED:', err.message);
+    failed++;
+  }
+
+  // 9. Zero backend/ai imports in Frontend and Shared
+  try {
+    const scanDirForPattern = (dir: string, pattern: RegExp): string[] => {
+      let results: string[] = [];
+      const list = fs.readdirSync(dir);
+      for (const file of list) {
+        const fullPath = path.join(dir, file);
+        const stat = fs.statSync(fullPath);
+        if (stat.isDirectory()) {
+          results = results.concat(scanDirForPattern(fullPath, pattern));
+        } else if (file.endsWith('.ts') || file.endsWith('.tsx')) {
+          const content = fs.readFileSync(fullPath, 'utf-8');
+          if (pattern.test(content)) {
+            results.push(fullPath);
+          }
+        }
+      }
+      return results;
+    };
+
+    const frontendAiLeaks = scanDirForPattern('frontend', /from\s+['"][^'"]*backend\/ai/);
+    const sharedAiLeaks = scanDirForPattern('shared', /from\s+['"][^'"]*backend\/ai/);
+
+    assert.strictEqual(
+      frontendAiLeaks.length,
+      0,
+      `Frontend must have ZERO backend/ai imports. Found: ${frontendAiLeaks.join(', ')}`
+    );
+    assert.strictEqual(
+      sharedAiLeaks.length,
+      0,
+      `Shared must have ZERO backend/ai imports. Found: ${sharedAiLeaks.join(', ')}`
+    );
+
+    console.log('✓ TC-AI-09 PASSED: Zero backend/ai imports in frontend or shared.');
+    passed++;
+  } catch (err: any) {
+    console.error('✗ TC-AI-09 FAILED:', err.message);
+    failed++;
+  }
+
   console.log('\n============================================================');
   console.log(`S7-T09 TEST RESULTS: ${passed} PASSED, ${failed} FAILED`);
   console.log('============================================================\n');

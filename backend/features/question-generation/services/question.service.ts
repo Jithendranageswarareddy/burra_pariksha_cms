@@ -565,11 +565,14 @@ export class QuestionService {
       updatedAt: now,
     };
 
+    const existingQuestions = requestPayload.skipDuplicateCheck ? [] : await questionsRepository.findAll();
+
     const verificationReport = await MultiLayerVerificationEngine.verify(preSaveQuestion, {
       actor: actor.name,
       humanReview: (requestPayload as any).humanReview,
       aiVerifierResult: (requestPayload as any).aiVerifierResult,
       skipDuplicateCheck: requestPayload.skipDuplicateCheck,
+      existingQuestions,
     });
 
     if (verificationReport.aggregatedStatus === 'FAILED' || !verificationReport.canSave) {
@@ -920,8 +923,10 @@ export class QuestionService {
     }
 
     // Run multi-layer verification on merged update payload
+    const existingQuestions = await questionsRepository.findAll();
     const verificationReport = await MultiLayerVerificationEngine.verify(updatedRecord, {
       actor: actor.name,
+      existingQuestions,
     });
 
     if (verificationReport.aggregatedStatus === 'FAILED' || !verificationReport.canSave) {

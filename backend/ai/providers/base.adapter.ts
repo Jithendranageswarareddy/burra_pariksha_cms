@@ -15,7 +15,7 @@ import {
   AIRequest,
   AITaskType,
   IAIProvider,
-} from '../../../src/types/ai';
+} from '../orchestrator/types';
 
 export abstract class BaseAIProviderAdapter implements IAIProvider {
   public abstract readonly providerId: AIProviderId;

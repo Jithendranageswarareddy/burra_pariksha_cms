@@ -18,17 +18,10 @@ import { canonicalIdService } from '../../../../src/lib/id.service';
 import { auditService } from '../../../infrastructure/audit/services/audit.service';
 import { videoService } from './video.service';
 import { aiOrchestrator } from '../../../ai/orchestrator';
-import { Question, Script, ScriptVersion, VideoProductionStatus, UserRole } from '../../../../shared';
+import { Question, Script, ScriptVersion, VideoProductionStatus, UserRole, ScriptContentPayload } from '../../../../shared';
 import { ValidationError } from '../../../../src/lib/errors';
 
-export interface ScriptContentPayload {
-  hookText: string;
-  problemStatement: string;
-  stepByStepSolution: string;
-  speedTrickOrTakeaway: string;
-  callToAction: string;
-  notes?: string;
-}
+export type { ScriptContentPayload };
 
 export interface SaveScriptOptions extends ScriptContentPayload {
   createNewVersion?: boolean;

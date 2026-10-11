@@ -8,7 +8,7 @@ import {
   AIProviderMetadata,
   AITaskType,
   IAIProvider,
-} from '../../../src/types/ai';
+} from './types';
 import { GeminiProviderAdapter } from '../providers/gemini.adapter';
 import { OpenRouterProviderAdapter } from '../providers/openrouter.adapter';
 import { GroqProviderAdapter } from '../providers/groq.adapter';

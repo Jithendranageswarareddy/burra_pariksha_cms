@@ -12,8 +12,11 @@ import {
   AIRequest,
   AITaskType,
   IAIProvider,
-} from '../../../src/types/ai';
-import { GenerateCandidateInput, GenerationResult, QuestionCandidate, RefineCandidateInput } from './types';
+  GenerateCandidateInput,
+  GenerationResult,
+  QuestionCandidate,
+  RefineCandidateInput,
+} from './types';
 import { MultiAIProviderRegistry, multiAIProviderRegistry } from './provider-registry';
 import { questionConfigService } from '../../infrastructure/services/question-config.service';
 import { geminiService } from '../providers/gemini.service';
@@ -21,9 +24,8 @@ import { AIProviderError } from '../errors';
 import { GenAiQuestionCandidateResponseSchema } from '../schemas/question-candidate.schema';
 import { buildGenerationPrompt, BURRA_PARIKSHA_SYSTEM_INSTRUCTION } from '../prompts/generation.prompt';
 import { QuestionCreationValidator } from '../validators/question-creation.validator';
-import { AiContentPlanRecommendation, Question, QuestionLanguage } from '../../../shared';
+import { AiContentPlanRecommendation, Question, QuestionLanguage, ScriptContentPayload } from '../../../shared';
 import { AiThumbnailConcept, HookStyle } from '../../../src/types';
-import { ScriptContentPayload } from '../../features/production/services/script.service';
 
 export interface OrchestratorTaskOptions {
   preferredProviderId?: AIProviderId;

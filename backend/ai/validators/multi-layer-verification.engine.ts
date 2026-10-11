@@ -21,7 +21,7 @@
  * - N/A applies ONLY when a layer genuinely does not apply (e.g. non-math question).
  */
 
-import { Question, QuestionValidationStatus, QuestionLanguage } from '../../../shared';
+import { Question, QuestionValidationStatus, QuestionLanguage, normalizeText, calculateJaccardSimilarity } from '../../../shared';
 import { QuestionCreationValidator } from './question-creation.validator';
 import { taxonomyService } from '../../domain/taxonomy/services/taxonomy.service';
 import { questionConfigService } from '../../infrastructure/services/question-config.service';
@@ -31,8 +31,6 @@ import { ExplanationValidator } from './explanation.validator';
 import { AmbiguityDetector } from './ambiguity.detector';
 import { ConsistencyValidator } from './consistency.validator';
 import { FairnessValidator } from './fairness.validator';
-import { similarityService } from '../../features/planning/services/similarity.service';
-import { questionsRepository } from '../../../database/firestore/repositories/questions.repository';
 import { evaluateBlindDerivedResult, GeminiBlindVerifierProvider } from './blind-verifier';
 
 export type VerificationLayerStatus = 'VERIFIED' | 'FAILED' | 'UNVERIFIED' | 'N/A';
@@ -627,16 +625,13 @@ export class MultiLayerVerificationEngine {
 
     if (!options.skipDuplicateCheck && questionText) {
       try {
-        let existingQuestions = options.existingQuestions;
-        if (!existingQuestions) {
-          existingQuestions = await questionsRepository.findAll();
-        }
+        const existingQuestions = options.existingQuestions || [];
 
-        const normalizedCandidate = similarityService.normalizeText(questionText);
+        const normalizedCandidate = normalizeText(questionText);
 
         for (const existing of existingQuestions) {
           if (questionId && existing.id === questionId) continue;
-          const normalizedExisting = similarityService.normalizeText(existing.questionText);
+          const normalizedExisting = normalizeText(existing.questionText);
 
           if (normalizedCandidate && normalizedCandidate === normalizedExisting) {
             l8Status = 'FAILED';
@@ -645,7 +640,7 @@ export class MultiLayerVerificationEngine {
             dupMatches.push({ id: existing.id, score: 1.0, type: 'EXACT_DUPLICATE', text: existing.questionText });
             break;
           } else {
-            const score = similarityService.calculateJaccardSimilarity(questionText, existing.questionText);
+            const score = calculateJaccardSimilarity(questionText, existing.questionText);
             if (score >= 0.85) {
               l8Status = 'FAILED';
               const msg = `Near duplicate detected (${Math.round(score * 100)}% similarity with existing question ID ${existing.id})`;
