@@ -1,446 +1,271 @@
 # BP-CMS — Antigravity Engineering & Architecture Rules
 
-## 0. Prime Directive
+## 0. Prime Directive: Real Working Code & Runtime Application First
 
-Build and preserve a real, working Burra Pariksha Content Management System (BP-CMS).
-
-Every implementation must be:
-
-1. Functionally correct.
-2. Consistent with the current authoritative architecture.
-3. Verifiable by tests, lint/type checks, build, and runtime probes where applicable.
-4. Incremental and reversible.
-5. Committed and pushed to `origin/main` only after verification.
-
-Do not declare work complete from documentation alone.
+1. **Real Working Code is Primary**:
+   - Building and delivering real, functioning application features, components, services, and modules is always the top priority.
+   - The primary goal is a working, reliable, real-time application that users can actually run and operate.
+2. **Build & Runtime Verification Mandatory**:
+   - Always verify that the code, feature, or module compiles cleanly without errors (`npm run build`) and passes type checks (`npm run lint`).
+   - Never consider a feature completed based on abstract specifications alone; real code must exist, compile, and function.
+3. **Documentation is Secondary**:
+   - Extensive markdown documentation or reports are secondary to working code.
+   - Do not spend excessive effort generating verbose documentation at the expense of implementing and verifying real code.
 
 ---
 
-## 1. Source-of-Truth Hierarchy
+## 1. Source-of-Truth Authority Hierarchy
 
-When information conflicts, resolve it in this order:
+When specifications, codebase patterns, or documentation conflict, Antigravity MUST resolve conflicts using the following strict hierarchy:
 
-1. **Working production code and tests** — operational reality.
-2. **Sprint 7 Architecture Baseline** — authoritative structural architecture:
-   `docs/sprints/sprint-07/S7-ARCHITECTURE-BASELINE.md`
-3. **Active architecture ADRs** — especially:
-   - `docs/architecture/25-TWO-TIER-TAXONOMY-ARCHITECTURE.md`
-   - `docs/architecture/26-COLLISION-RESISTANT-UUID-CANONICAL-ID-ARCHITECTURE.md`
-4. **Feature/domain contracts** under `docs/features/`.
-5. Historical sprint reports and exploratory documents.
+1. **Working Production Code and Tests** — Current operational reality and verified runtime behavior.
+2. **Sprint 7 Architecture Baseline** (`docs/sprints/sprint-07/S7-ARCHITECTURE-BASELINE.md`) — Authoritative structural and modular design baseline.
+3. **Active Architecture ADRs** — Authoritative domain-specific decisions:
+   - `docs/architecture/25-TWO-TIER-TAXONOMY-ARCHITECTURE.md` (2-Tier Taxonomy)
+   - `docs/architecture/26-COLLISION-RESISTANT-UUID-CANONICAL-ID-ARCHITECTURE.md` (UUID Entity IDs)
+4. **Feature & Domain Contracts** under `docs/features/`.
+5. **Historical Sprint Documentation** (`docs/execution/`, past sprint reports, historical spikes).
 
-Never revive an obsolete design merely because an older document, comment, test, or filename still contains it. When stale documentation is discovered, update or clearly deprecate it rather than treating it as current architecture.
-
----
-
-## 2. Canonical BP-CMS Business Architecture
-
-BP-CMS follows the canonical 15-step production workflow:
-
-1. Question Generation
-2. Question Verification
-3. Audience Script
-4. Teleprompter & Filming
-5. Raw Video
-6. Editing Bay
-7. Final QC
-8. Thumbnail
-9. Social Review
-10. Publishing Setup
-11. Published
-12. Platform Sync
-13. Analytics
-14. Performance Review
-15. Intelligence Loop
-
-Preserve this business lifecycle unless an explicit architecture/product decision changes it.
-
-### Canonical taxonomy
-
-The active taxonomy is:
-
-**Topic → Subtopic**
-
-There is no active runtime Category entity. Do not reintroduce Category into new code, schemas, APIs, UI, seed data, or documentation.
-
-### Canonical entity IDs
-
-Entity IDs use the centralized UUID-based ID strategy.
-
-Do not create, restore, or extend database-backed sequence/counter infrastructure for new entities. Do not add sequence administration, sequence repair, or `allocate*Id` compatibility mechanisms.
-
-Historical identifiers may be preserved only when required for compatibility or auditability.
+> [!CRITICAL]
+> **Historical documents must NEVER override the current architecture.** Never revive an obsolete design merely because an older document, comment, test, or filename still contains it.
 
 ---
 
-## 3. Canonical 10-Layer Architecture
+## 2. Stale Architecture Rule
 
-BP-CMS has these logical layers:
-
-1. **FRONTEND** — React presentation, interaction, client state, UX.
-2. **API** — HTTP REST gateway, request validation, serialization.
-3. **BACKEND** — application services, use cases, domain/business rules.
-4. **WORKFLOW** — canonical 15-step state machine, transition gates, GAR-02.
-5. **AI** — Gemini providers, prompts, structured parsing, AI validators/orchestration.
-6. **DATABASE** — Firestore persistence, repositories, schemas, transactions/batches.
-7. **INTEGRATIONS** — Google Drive, GCS where used, YouTube and other external adapters.
-8. **SHARED** — genuinely isomorphic types, DTOs, enums, and pure utilities.
-9. **CONFIGURATION** — runtime/build/business configuration and safe public UI configuration.
-10. **TEST** — unit, integration, e2e, foundation, regression, security, fixtures.
-
-These are logical boundaries even while the repository is being migrated toward the target vertical-slice structure.
+When stale Google Sheets, Category, sequence, or other obsolete architecture references are discovered:
+- **Do NOT revive that architecture.**
+- **Identify it as legacy.**
+- **Follow the current authoritative architecture.**
+- **Update the stale reference when it is inside the scope of the task.**
 
 ---
 
-## 4. Dependency Direction — Mandatory
-
-The allowed high-level flow is:
-
-`Frontend → API → Backend → Workflow / AI / Integrations / Database`
-
-Shared contracts may be consumed by both client and server.
-
-### Frontend MUST NOT directly import
-
-- Firestore repositories or database adapters.
-- Firebase Admin SDK.
-- Backend application/domain services.
-- Backend validation engines.
-- Gemini SDK/provider implementations.
-- Server-only AI validators.
-- Database initialization, migration, seed, recovery, or backup machinery.
-- Server secrets or `process.env`.
-
-The browser communicates with the server through the API client.
-
-### Backend MUST NOT import
-
-- React components.
-- JSX.
-- React hooks.
-- Frontend presentation modules or client-only contexts.
-
-### Shared MUST remain pure
-
-Shared modules must not depend on:
-
-- React.
-- Express request/response types.
-- Firebase Admin.
-- Firestore adapters.
-- Gemini/provider SDKs.
-- Server secrets.
-- Feature-specific server implementation details.
-
-### Production code MUST NOT import from
-
-`tests/`
-
-Tests may import production code; production code must never depend on tests or fixtures.
-
----
-
-## 5. Firestore Is the Authoritative Database
+## 3. Cloud Firestore Authority
 
 **Cloud Firestore is the sole authoritative transactional datastore for BP-CMS.**
 
-Use the server-side persistence path:
-
-`React → Express API → Backend/Domain Services → Firestore Repositories → Firebase Admin → Cloud Firestore`
-
-Repositories own persistence mechanics only. Business rules, validation, authorization, and workflow decisions belong above the repository layer.
-
-### Google Sheets rule
-
-**Google Sheets is NOT a transactional database and MUST NOT be used as runtime application state.**
-
-Do not:
-
-- Read/write runtime entities from Google Sheets.
-- Add new Google Sheets persistence adapters.
-- Treat spreadsheet schemas as the source of truth for application data.
-- Add Google Sheets IDs, synchronization logic, or concurrency rules to the transactional data path.
-
-Google Sheets may be used only for an explicitly approved secondary purpose such as export/reporting/analytics workflows, never as the authoritative runtime datastore.
-
-Any stale "Google Sheets database" wording is legacy and must not guide implementation.
+1. **Transactional Authority**: All runtime application entities (questions, question drafts, topics, subtopics, scripts, videos, thumbnails, publishing records, users, audit logs) must be persisted through the backend persistence layer into Cloud Firestore.
+2. **Separation of Concerns**:
+   - **Repositories Own Persistence Mechanics**: Reading/writing Firestore documents, executing queries, and handling atomic transactions/batches. Repositories MUST NOT make business workflow decisions.
+   - **Domain Services Own Business Rules**: Invariant validation, role authorization, and state transitions reside strictly in backend/domain services.
+3. **Frontend Isolation**: The frontend must NEVER directly access Firestore. No direct Firestore SDK initialization, queries, or listeners in client-side code.
+4. **Firebase Admin Server-Side Only**: Firebase Admin SDK (`firebase-admin`) must remain strictly server-side.
+5. **Credentials Security**: The server uses explicit Firebase Admin credentials (`GOOGLE_SERVICE_ACCOUNT_EMAIL`, `GOOGLE_PRIVATE_KEY`) or approved ADC fallback. Credentials and service account keys must never be exposed to the client or committed to git.
 
 ---
 
-## 6. Current Persistence and Security Rules
+## 4. Google Sheets Decommissioning Rule
 
-The Firebase Admin path is server-side only.
+**Google Sheets is NOT the transactional database and MUST NOT be used as runtime application state.**
 
-The application uses explicit Firebase Admin credentials:
-
-- `GOOGLE_SERVICE_ACCOUNT_EMAIL`
-- `GOOGLE_PRIVATE_KEY`
-
-with the approved ADC fallback where implemented.
-
-`firebase-applet-config.json` is metadata/configuration only and must not contain secrets.
-
-Never commit:
-
-- service-account JSON files,
-- private keys,
-- API keys,
-- OAuth refresh tokens,
-- session secrets,
-- passwords,
-- `.env` files containing credentials.
+1. **Zero Runtime Persistence**: Do NOT read or write runtime entities from Google Sheets.
+2. **Zero New Sheets Infrastructure**: Do NOT introduce new Sheets repositories, Sheets persistence adapters, Sheets runtime synchronization, or spreadsheet-based transactional concurrency.
+3. **Schemas Are Not Authoritative**: Do NOT treat Sheets schemas or tab definitions as authoritative application data models.
+4. **Approved Secondary Use Only**: Google Sheets may only be used for an explicitly approved secondary purpose such as export/reporting/analytics, if such a purpose exists in the current architecture. It must NEVER participate in the transactional data path.
+5. **No Active Instructions**: Any legacy wording or documentation instructing Antigravity to treat Google Sheets as a database is obsolete and overridden by this rule.
 
 ---
 
-## 7. API and Frontend Contract
+## 5. Canonical Two-Tier Taxonomy Architecture
 
-All client/server communication must use typed API contracts.
+The authoritative taxonomy is strictly two-tier:
 
-Frontend components should call feature-oriented API client methods, not ad-hoc raw `fetch()` calls.
+$$\text{\textbf{Topic}} \longrightarrow \text{\textbf{Subtopic}}$$
 
-API routes must:
-
-1. Authenticate and authorize.
-2. Validate request payloads.
-3. Delegate to backend/use-case services.
-4. Return the standard response contract and appropriate HTTP status.
-
-Do not put business calculations, Firestore queries, workflow decisions, or AI orchestration directly inside route handlers.
-
----
-
-## 8. AI Boundary
-
-AI is a server-side capability.
-
-The frontend must not call Gemini directly and must not contain privileged Gemini provider implementations or server-side AI validators.
-
-AI is advisory:
-
-- AI may generate candidates, explanations, scripts, tags, suggestions, and analyses.
-- AI must not silently approve workflow transitions.
-- Human review remains mandatory for approval/publication gates.
-
-Provider/API credentials remain server-side.
+1. **Topic is Top-Level**: Autonomous root taxonomy entity (`top_<uuid>` or legacy `TOP-*`) with no parent category.
+2. **Subtopic Belongs to Topic**: Child entity (`sub_<uuid>` or legacy `SUB-*`) referencing its parent via mandatory `topicId`.
+3. **Category is Obsolete**: The legacy `Category` concept is permanently obsolete and must NOT be reintroduced into:
+   - Runtime entities
+   - Firestore collections
+   - APIs
+   - UI (forms, matrices, filters, breadcrumbs, search)
+   - New schemas
+   - Seed data
+   - Documentation
+   - New feature logic
 
 ---
 
-## 9. Workflow Authority and GAR-02
+## 6. Entity ID Architecture (UUID-Based)
 
-The backend/workflow layer is authoritative for business state transitions.
+The canonical entity ID strategy is distributed, collision-resistant UUID-based IDs generated by `src/lib/id.service.ts`:
 
-The workflow engine owns transition rules for the canonical 15-step lifecycle.
+$$\text{Format: } \langle\text{prefix}\rangle\_\langle\text{uuid\_v4}\rangle \quad (\text{e.g., } \texttt{qst\_...}, \texttt{vid\_...}, \texttt{scr\_...}, \texttt{thm\_...}, \texttt{top\_...}, \texttt{sub\_...})$$
 
-Enforce:
-
-`authorId !== reviewerId`
-
-for approval operations where GAR-02 applies.
-
-The frontend may display status and available actions, but it cannot bypass workflow gates, authorization, or transition validation.
-
-Every meaningful workflow progression/rejection must preserve the required audit trail.
+1. **Stateless ID Generation**: IDs are generated locally and statelessly via `generate*Id()` methods without database round-trips or coordination.
+2. **Prohibited Sequence Infrastructure**: Do NOT reintroduce:
+   - Database-backed sequence allocation (`sequences` Firestore collection)
+   - Sequence counters or numeric counters
+   - Sequence repair systems or forward-only guard services
+   - Sequence administration UI or sync tools
+   - `allocate*Id()` compatibility infrastructure
+3. **Historical IDs**: Historical identifiers (e.g., `QST-001`, `TOP-101`) may only be preserved where required for backward compatibility or audit logs.
 
 ---
 
-## 10. Critical Save vs. Verify Contract
+## 7. Frontend / Backend Boundary
 
-This distinction is mandatory:
+The codebase enforces strict unidirectional dependency flow:
 
-**SAVE DRAFT ≠ VERIFY**
+$$\text{\textbf{Frontend}} \longrightarrow \text{\textbf{API Client}} \longrightarrow \text{\textbf{API Gateway / Backend}} \longrightarrow \text{\textbf{Database / AI / Workflow / Integrations}}$$
 
-### SAVE DRAFT
+### Frontend MUST NOT Directly Import or Access:
+- ❌ Cloud Firestore repositories (`src/lib/repositories/*`)
+- ❌ Firestore adapters or Firestore SDK instances (`src/lib/firebase/*`)
+- ❌ Firebase Admin SDK (`firebase-admin`)
+- ❌ Backend application/domain services (`src/lib/services/*`)
+- ❌ Backend algorithmic validation engines (`src/lib/validation/*`, `CandidateValidator`)
+- ❌ Gemini provider SDKs (`@google/genai`) or AI provider implementations
+- ❌ Server-side AI validators (`src/lib/ai/validators/*`)
+- ❌ Database initialization, migration, seed, recovery, or backup infrastructure
+- ❌ Server secrets or `process.env`
 
-- Persists user-entered draft data to Firestore.
-- Performs only minimal required presence/shape checks.
-- Does not silently execute strict verification.
-- Does not automatically navigate to the verification page.
-- Must provide an explicit success/failure result.
-- Retains the draft ID and leaves the user in the editing workflow.
+### Backend MUST NOT Import:
+- ❌ React presentation code (components, pages, JSX, hooks, client contexts)
 
-### SUBMIT FOR VERIFICATION
+### Shared Contracts:
+- Modules in `shared/` must be pure TypeScript (interfaces, DTOs, enums, pure utilities) free of React, Express, Firebase Admin, or server secrets.
 
-- Is an explicit user action.
+### Test Isolation:
+- Production code must NEVER import from `tests/`.
+
+---
+
+## 8. API Rules
+
+1. **Typed API Client Functions**: Frontend communication with the server must go through typed API client functions (e.g., `apiClient.saveQuestionDraft(payload)`). Do not encourage ad-hoc direct `fetch()` calls when a feature API client should exist.
+2. **Route Responsibilities**: API routes should:
+   - Authenticate and authorize requests (via middleware).
+   - Validate incoming payloads using Zod schemas.
+   - Delegate immediately to backend domain services.
+   - Serialize standardized responses (`ApiResponseEnvelope<T>`).
+3. **Zero Inline Business Logic**: Do NOT place business calculations, Firestore queries, workflow decisions, or AI orchestration directly into route handlers.
+
+---
+
+## 9. AI Boundary (Human-in-the-Loop AP-009)
+
+1. **Server-Side Only**: Gemini LLM and privileged AI capabilities are strictly server-side. The frontend must not directly call Gemini or import provider implementations.
+2. **Advisory Role**: AI is strictly advisory:
+   - AI generates candidates, suggests explanations, drafts audience scripts, and proposes metadata.
+   - AI must NEVER silently approve business workflow transitions.
+3. **Human Review Mandatory**: Human-in-the-loop review and approval by an authenticated user is mandatory for all publication stages.
+4. **Token & Cost Observability**: Token throttling, prompts, and credentials remain governed on the server.
+
+---
+
+## 10. Workflow Authority and GAR-02 Rule
+
+1. **Canonical 15-Step Workflow**: Preserve the sequential business stages (01 Question Generation through 15 Social Performance Analytics).
+2. **Backend Authoritative**: The backend workflow engine (`workflow-engine.service.ts`) is authoritative for:
+   - State machine transitions
+   - Role capability checks
+   - Validation gates
+   - Anti-self-approval enforcement
+3. **Anti-Self-Approval (GAR-02 Rule)**: The author of an artifact cannot approve their own work:
+   $$\text{\texttt{authorId}} \neq \text{\texttt{approverId}}$$
+4. **Frontend Presentation Only**: The frontend presents workflow state and allowed actions; it cannot bypass transition gates.
+5. **Immutable Audit Trail**: Every stage progression, rejection, or edit must generate an audit log record.
+
+---
+
+## 11. Save vs. Verify Operational Contract
+
+This distinction is an explicit, mandatory architectural rule:
+
+$$\text{\textbf{SAVE DRAFT}} \neq \text{\textbf{VERIFY}}$$
+
+### SAVE DRAFT:
+- Persists user-entered draft data to Firestore (`question_drafts` collection).
+- Performs only minimal required checks (field presence, basic shape).
+- Remains in the editing workflow on the current page.
+- Shows explicit save success/failure feedback (e.g., in-place toast).
+- Does NOT automatically navigate to verification.
+- Does NOT silently execute Stage 02 verification.
+- Clears dirty state and retains the draft ID.
+
+### SUBMIT FOR VERIFICATION:
+- Is an explicit, deliberate user action.
 - Requires a saved draft.
-- Requests the Stage 01 → Stage 02 transition.
-- Runs authoritative verification on the verification workflow/page.
+- Initiates the Stage 01 $\rightarrow$ Stage 02 workflow transition.
+- Invokes authoritative verification rules on the dedicated verification workspace.
 
-Never couple successful draft persistence to automatic verification in a way that makes a saved draft appear to have failed.
-
----
-
-## 11. Feature Isolation — Sprint 7
-
-Sprint 7 uses a vertical feature-slice architecture.
-
-Target logical structure:
-
-`features/<feature-name>/`
-- `frontend/`
-- `backend/`
-- `shared/`
-- `tests/`
-
-Central infrastructure remains centralized, including Firestore connection/adapters, authentication middleware, shared design-system primitives, and the canonical ID generator.
-
-### Feature-isolation rule
-
-A coding agent working on one feature should inspect only the required feature slice plus the small set of shared/infrastructure contracts it legitimately depends on.
-
-Do not make unrelated feature files part of a change merely for convenience.
-
-Question Generation (Stage 01) is the first migration slice.
+> [!WARNING]
+> Never couple successful draft persistence to automatic verification in a way that makes a valid saved draft appear to have failed.
 
 ---
 
-## 12. Question Generation Rules
+## 12. Vertical Feature-Slice Architecture (Sprint 7)
 
-For Question Generation:
+Sprint 7 transitions the codebase to a vertical feature-slice architecture to make each capability independently understandable, changeable, and testable:
 
-- Topic and Subtopic options must come from the authoritative application data/API, not duplicated hardcoded business lists.
-- AI generation must use the backend AI boundary.
-- Candidate validation must be exposed through a server API rather than importing backend validation engines into the browser.
-- Draft persistence must remain fast and persistence-focused.
-- Saving a draft must not automatically trigger Stage 02 verification.
-- "Submit for Verification" must be explicit.
-- Do not modify unrelated workflow stages while isolating Stage 01.
+```
+features/<feature-name>/
+├── frontend/                     # UI components, pages, local hooks
+├── backend/                      # Route handlers, use cases, domain services
+├── shared/                       # Feature DTOs, contracts, interfaces
+└── tests/                        # Feature-focused unit & integration tests
+```
 
-Stable technical enums may be shared when they are genuinely isomorphic; business data that lives in Firestore must not be duplicated in the UI as a second source of truth.
-
----
-
-## 13. Large Files and Monoliths
-
-Large files must be decomposed incrementally.
-
-Known high-risk areas include:
-
-- `src/server/routes.ts`
-- `src/types/index.ts`
-- `src/lib/api-client.ts`
-- oversized feature pages and services identified in the Sprint 7 baseline.
-
-Do not perform a big-bang rewrite.
-
-Decompose one feature or responsibility at a time while preserving behavior.
-
-Never combine a migration/refactor with an unrelated visual redesign or new business behavior unless the task explicitly requires it.
+1. **Central Infrastructure Remains Centralized**: Foundational infrastructure stays centralized:
+   - Database connection & Admin SDK (`backend/infrastructure/database/`)
+   - Authentication middleware (`backend/infrastructure/auth/`)
+   - Canonical ID generator (`shared/lib/id.service.ts`)
+   - Design system primitives (`frontend/shared/design-system/`)
+2. **Smallest Relevant Inspection Scope**: When working on a feature, inspect only the relevant feature slice plus legitimate shared/infrastructure dependencies.
+3. **Zero Cross-Feature Leakage**: Do not perform broad repository scanning or unrelated cross-feature modifications.
 
 ---
 
-## 14. No Destructive Database Testing
+## 13. Change-Scope Discipline
 
-Never run destructive reset/seed/cleanup operations against the genuine live Firestore dataset merely to make tests easier.
-
-Before executing tests that can mutate persistent state, determine whether they target:
-
-- unit/in-memory data,
-- isolated test data,
-- a controlled integration environment,
-- or real production data.
-
-Do not wipe users, taxonomy, questions, audit history, or other live collections as part of refactoring.
+Every implementation task must maintain strict change-scope discipline:
+- **Inspect before modifying**: Understand baseline contracts before making edits.
+- **Implement the smallest correct change**: Satisfy the task requirements with minimal surface area.
+- **Do not combine unrelated refactors**: Keep tasks focused on their explicit objective.
+- **Do not perform big-bang migrations**: Restructure incrementally slice-by-slice.
+- **Do not redesign unrelated UI**: Preserve visual layout unless explicitly instructed.
+- **Do not alter unrelated workflow stages**: Leave unaffected stages untouched.
+- **Do not create unnecessary compatibility layers for obsolete architecture**: Delete dead patterns cleanly rather than maintaining legacy shims.
 
 ---
 
-## 15. Required Engineering Execution Cycle
+## 14. Database Safety (Zero Destructive Operations)
 
-For every implementation task:
+**Destructive operations against the real Firestore environment are strictly prohibited during normal development and refactoring.**
 
-**Inspect → Plan narrowly → Implement → Test → Lint/typecheck → Build → Runtime probe when needed → Commit → Push → Verify**
+Never reset, wipe, or purge:
+- `users`
+- `topics` / `subtopics` (taxonomy)
+- `questions` / `question_drafts`
+- `audit_logs`
+- Workflow data
+- Production collections
 
-Minimum quality gates:
+merely to make testing easier.
 
-- `npm run lint`
-- `npm run build`
-- targeted tests for the changed feature
-- broader regression tests when the change crosses boundaries
-
-After commit:
-
-- push to `origin/main`
-- verify the remote `main` points to the new commit
-- ensure the working tree is clean
-- report the actual commit SHA
-
-Do not claim completion when a gate failed or when the GitHub state is unverified.
+Before running tests that mutate state:
+- Ensure they execute against synthetic/mock data, in-memory fixtures, or isolated test records.
+- Never trigger production reset/seed scripts unless explicitly instructed by the user with documented intent.
 
 ---
 
-## 16. Documentation Rules
+## 15. Mandatory Engineering Execution Cycle
 
-Documentation must describe the actual current architecture.
+Every implementation task must follow this verified workflow:
 
-When architecture changes:
+$$\text{Inspect} \longrightarrow \text{Plan narrowly} \longrightarrow \text{Implement} \longrightarrow \text{Test} \longrightarrow \text{Lint/typecheck} \longrightarrow \text{Build} \longrightarrow \text{Runtime verification} \longrightarrow \text{Commit} \longrightarrow \text{Push} \longrightarrow \text{Verify}$$
 
-1. Update the authoritative architecture document when required.
-2. Update stale comments/configuration references discovered in the touched scope.
-3. Clearly distinguish current architecture from historical migration records.
-
-Do not preserve obsolete Google Sheets, Category, or sequence architecture merely because old documentation contains it.
-
-Do not invent a new source of truth when an authoritative contract already exists.
-
----
-
-## 17. Change-Scope Discipline
-
-Every task must have an explicit scope.
-
-For a focused task:
-
-- inspect only the relevant feature and its direct dependencies first;
-- change only the files necessary to satisfy the task;
-- avoid opportunistic cleanup in unrelated modules;
-- do not alter unrelated workflow stages, data models, integrations, or UI;
-- preserve existing behavior unless the task explicitly changes that behavior.
-
-When a dependency must be changed, make the smallest architectural change that restores the boundary.
-
----
-
-## 18. Migration Rules
-
-All Sprint 7 migrations follow these rules:
-
-1. One feature slice at a time.
-2. Preserve runtime invariants.
-3. No big-bang repository rewrite.
-4. No unrelated redesign during migration.
-5. No destructive production database operations.
-6. No secrets committed.
-7. Keep `main` authoritative and synchronized.
-8. Make architectural boundaries statically testable wherever practical.
-9. Remove stale dependencies rather than adding compatibility layers for obsolete architecture.
-10. Every migration step must leave the repository buildable and testable.
-
----
-
-## 19. Legacy Architecture That MUST NOT Be Reintroduced
-
-The following are explicitly obsolete unless a new approved architecture decision says otherwise:
-
-- Google Sheets as runtime/transactional database.
-- Category as an active taxonomy layer.
-- Database-backed sequence/counter infrastructure for entity IDs.
-- Direct browser access to Firestore.
-- Direct browser access to Gemini/provider APIs.
-- Frontend imports of backend services or backend validation engines.
-- Save-Draft → automatic-Verify coupling.
-- Feature-specific business data duplicated as hardcoded UI state when an authoritative API/data source exists.
-- Large cross-feature edits performed merely to make one feature work.
-
----
-
-## 20. Primary Instruction for Antigravity
-
-Before changing code, read:
-
-1. `AGENTS.md`
-2. `docs/sprints/sprint-07/S7-ARCHITECTURE-BASELINE.md`
-3. The relevant feature/domain contract
-4. The relevant current implementation and tests
-
-Then implement the smallest correct change that moves the repository toward the frozen architecture.
-
-When a current implementation conflicts with these rules, do not silently invent a third architecture. Surface the conflict, follow the current authoritative code/architecture hierarchy, and make the minimum change required by the active task.
+1. **Mandatory Quality Gates**:
+   - `npm run lint` (static typecheck & linting must pass cleanly)
+   - `npm run build` (production bundle compilation must succeed with zero errors)
+   - Targeted automated tests for the changed scope
+2. **Git Commit & Push**:
+   - Stage only files within the task scope (`git add <files>`).
+   - Commit with descriptive conventional message.
+   - Push directly to `origin/main`.
+3. **Verification**:
+   - Confirm `HEAD == origin/main`.
+   - Confirm clean working tree (`git status`).
+   - Report the actual commit SHA to the user.
