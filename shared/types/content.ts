@@ -8,6 +8,7 @@ import {
   DifficultyLevel,
   PlatformType,
   PriorityLevel,
+  QuestionValidationStatus,
   RenderValidationStatus,
   SocialPublishStatus,
   SocialQualityStatus,
@@ -1346,8 +1347,18 @@ export interface SocialCTA {
   sharePrompt: string;
 }
 
+export type SocialInvarianceAnchorType =
+  | 'NUMERIC'
+  | 'PERCENTAGE'
+  | 'CURRENCY'
+  | 'UNIT'
+  | 'OPTION_IDENTITY'
+  | 'CORRECT_ANSWER'
+  | 'DIRECTION_KEYWORD'
+  | 'ORDERING_CONSTRAINT';
+
 export interface SocialInvarianceAnchor {
-  type: string;
+  type: SocialInvarianceAnchorType;
   originalValue: string;
   enhancedValue?: string;
   status: 'PRESERVED' | 'MUTATED' | 'MISSING';
@@ -1365,7 +1376,7 @@ export interface SocialInvarianceViolation {
 export interface SocialInvarianceReport {
   status: 'VALID' | 'INVALID' | 'NEEDS_REVIEW';
   isValid: boolean;
-  sourceQuestionValidationStatus: any;
+  sourceQuestionValidationStatus: QuestionValidationStatus;
   preservedAnchorsCount: number;
   mutatedAnchorsCount: number;
   violations: SocialInvarianceViolation[];
@@ -1494,17 +1505,24 @@ export interface EngagementQualityReport {
 }
 
 export interface PlatformSpecificWording {
-  hookText?: string;
-  bodyText?: string;
-  ctaText?: string;
-  rulesOrConstraintText?: string;
+  shortsOrReelsNote?: string;
+  toneStyle?: string;
+  audienceHookStyle?: string;
+  platformSpecificKeywords?: string[];
+  additionalPlatformNotes?: string;
 }
 
 export interface PlatformThumbnailConsideration {
-  aspectRatio: string;
-  safeZones: string;
-  visualFocus: string;
-  titlePlacement: string;
+  aspectRatioRecommendation?: string;
+  safeZoneNotes?: string;
+  cropNotes?: string;
+  reelCoverNotes?: string;
+  hookTextRecommendation?: string;
+  approvedThumbnailRef?: {
+    thumbnailId: string;
+    version: number;
+    driveFileId?: string;
+  };
 }
 
 export interface CreatePlatformAdaptationInput {
