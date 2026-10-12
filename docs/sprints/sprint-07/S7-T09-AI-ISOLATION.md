@@ -113,10 +113,11 @@ The automated architectural verification test validates 9 distinct quality crite
 6. **TC-AI-06**: `backend/ai` has **ZERO** dependencies on `backend/features`.
 7. **TC-AI-07**: `backend/ai` has **ZERO** dependencies on `database/` or Firestore repositories.
 8. **TC-AI-08**: `backend/ai` has **ZERO** dependencies on `src/types/ai`.
-9. **TC-AI-09**: Frontend and shared layers have **ZERO** imports from `backend/ai`.
+9. **TC-AI-10**: `backend/ai` has **ZERO** dependencies on `src/` (types, config, or lib).
+10. **TC-AI-09**: Frontend and shared layers have **ZERO** imports from `backend/ai`.
 
 **Test Execution**:
 ```bash
 npx tsx tests/s7-t09-ai-boundary.test.ts
-# Result: 9 PASSED, 0 FAILED
+# Result: 10 PASSED, 0 FAILED
 ```

@@ -6,8 +6,7 @@
  * based on a validated Question and selected Phase 8C Hook & Presentation Strategy.
  */
 
-import { Question, QuestionLanguage } from '../../../shared';
-import { HookStyle } from '../../../src/types';
+import { Question, QuestionLanguage, HookStyle } from '../../../shared';
 import { QuestionCandidate } from '../orchestrator/types';
 
 export const BURRA_PARIKSHA_TELEPROMPTER_SCRIPT_SYSTEM_INSTRUCTION = `You are the Lead Short-Form Video Director and Scriptwriter for "Burra Pariksha" (బుర్ర పరీక్ష), an educational social media channel creating high-retention 30-60 second vertical videos (YouTube Shorts, Instagram Reels) for competitive exam aspirants.

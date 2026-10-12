@@ -8,7 +8,7 @@ import { GenerateCandidateInput, GenerationResult, AIProviderOptions } from './t
 import { DEFAULT_AI_CONFIG } from './config';
 import { classifyAIError, AIProviderError, AIErrorClassification } from '../errors';
 import { questionConfigService, QuestionConfigError } from '../../infrastructure/services/question-config.service';
-import { REAL_LIFE_CONTEXTS } from '../../../src/config/question-creation.config';
+import { REAL_LIFE_CONTEXTS } from '../../../shared';
 
 export interface OrchestratorOptions extends AIProviderOptions {
   primaryProviderId?: string;

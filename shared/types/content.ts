@@ -1306,3 +1306,259 @@ export interface GenerateCommentIntelligenceInput {
   analysisScope?: CommentIntelligenceScope | string;
   commentIds?: string[];
 }
+
+export enum HookStyle {
+  CURIOSITY = 'CURIOSITY',
+  BRAIN_CHALLENGE = 'BRAIN_CHALLENGE',
+  SPEED_CHALLENGE = 'SPEED_CHALLENGE',
+  REAL_WORLD = 'REAL_WORLD',
+  EXAM_CHALLENGE = 'EXAM_CHALLENGE',
+}
+
+export interface HookVariant {
+  id: string;
+  style: HookStyle;
+  text: string;
+  spokenTeluguText: string;
+  onScreenOverlayText: string;
+  estimatedDurationSeconds: number;
+  invarianceCheckPassed?: boolean;
+  answerLeakageDetected?: boolean;
+  rationale?: string;
+}
+
+export interface PresentationStrategy {
+  visualOpening: string;
+  onScreenTitleOverlay: string;
+  questionRevealTimingMs: number;
+  optionRevealTimingMs: number;
+  answerRevealTimingMs: number;
+  explanationTimingMs: number;
+  visualEmphasisNotes: string;
+  diagramOrChartSuggestion?: string;
+  pacingWpm: number;
+}
+
+export interface SocialCTA {
+  callToActionText: string;
+  spokenTeluguCta: string;
+  commentChallengePrompt: string;
+  sharePrompt: string;
+}
+
+export interface SocialInvarianceAnchor {
+  type: string;
+  originalValue: string;
+  enhancedValue?: string;
+  status: 'PRESERVED' | 'MUTATED' | 'MISSING';
+  details?: string;
+}
+
+export interface SocialInvarianceViolation {
+  anchorType: string;
+  severity: 'CRITICAL' | 'WARNING';
+  message: string;
+  originalFragment: string;
+  mutatedFragment: string;
+}
+
+export interface SocialInvarianceReport {
+  status: 'VALID' | 'INVALID' | 'NEEDS_REVIEW';
+  isValid: boolean;
+  sourceQuestionValidationStatus: any;
+  preservedAnchorsCount: number;
+  mutatedAnchorsCount: number;
+  violations: SocialInvarianceViolation[];
+  warnings: string[];
+  anchors: SocialInvarianceAnchor[];
+  checkedAt: string;
+}
+
+export enum TeleprompterSegmentSection {
+  HOOK = 'HOOK',
+  HOOK_TRANSITION = 'HOOK_TRANSITION',
+  QUESTION = 'QUESTION',
+  OPTIONS = 'OPTIONS',
+  PAUSE_CHALLENGE = 'PAUSE_CHALLENGE',
+  SOLUTION = 'SOLUTION',
+  SPEED_TRICK = 'SPEED_TRICK',
+  CTA = 'CTA',
+}
+
+export interface TeleprompterSegment {
+  id: string;
+  section: TeleprompterSegmentSection;
+  spokenText: string;
+  teleprompterText: string;
+  estimatedDurationSeconds: number;
+  pauseDurationSeconds?: number;
+  pauseAfterMs?: number;
+  emphasisWords?: string[];
+  visualCardPrompt?: string;
+}
+
+export interface SpokenTeleprompterScriptPayload {
+  id: string;
+  questionId: string;
+  selectedHookStyle: HookStyle;
+  selectedHookText: string;
+  language: any;
+  totalEstimatedDurationSeconds: number;
+  pacingWpm: number;
+  segments: TeleprompterSegment[];
+  invarianceReport?: SocialInvarianceReport;
+  invarianceCheckPassed: boolean;
+  answerLeakageDetected: boolean;
+  status: any;
+  generatedAt: string;
+}
+
+export interface SocialMetadataPayload {
+  id: string;
+  questionId: string;
+  language: any;
+  shortTitle: string;
+  socialCaption: string;
+  extendedDescription: string;
+  hashtags: string[];
+  keywords: string[];
+  topicLabel: string;
+  subtopicLabel: string;
+  difficultyLabel: string;
+  challengeTypeLabel: string;
+  cta: {
+    primaryText: string;
+    pinnedCommentPrompt: string;
+  };
+  invarianceReport?: SocialInvarianceReport;
+  invarianceCheckPassed: boolean;
+  answerLeakageDetected: boolean;
+  status: any;
+  generatedAt: string;
+}
+
+export interface SocialEnhancementPayload {
+  id: string;
+  questionId: string;
+  videoId?: string;
+  contentMasterId?: string;
+  language: any;
+  hooks: HookVariant[];
+  selectedHookId?: string;
+  presentationStrategy: PresentationStrategy;
+  teleprompterScript: SpokenTeleprompterScriptPayload;
+  socialMetadata: SocialMetadataPayload;
+  status: any;
+  invarianceReport?: SocialInvarianceReport;
+  generatedAt: string;
+}
+
+export interface MultiPlatformAdaptationPayload {
+  id: string;
+  questionId: string;
+  canonicalMetadataId: string;
+  language: any;
+  variants: Record<string, any>;
+  isAllValid: boolean;
+  aiCallsCount: number;
+  status: any;
+  generatedAt: string;
+}
+
+export interface AiThumbnailConcept {
+  id: string;
+  contentId: string;
+  questionId: string;
+  scriptId?: string;
+  videoId?: string;
+  conceptName: string;
+  hookHeadline: string;
+  curiosityFraming: AiThumbnailCuriosityFraming;
+  visualDirection: AiThumbnailVisualDirection;
+  audienceTargeting: AiThumbnailAudienceTargeting;
+  abVariant: 'A' | 'B' | 'C' | string;
+  isAiGenerated: boolean;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface EngagementQualityReport {
+  isValid: boolean;
+  isMeaningful: boolean;
+  hasBannedPlaceholders: boolean;
+  leaksAnswer: boolean;
+  encouragesDiscussion: boolean;
+  encouragesParticipation: boolean;
+  issues: string[];
+  suggestions: string[];
+}
+
+export interface PlatformSpecificWording {
+  hookText?: string;
+  bodyText?: string;
+  ctaText?: string;
+  rulesOrConstraintText?: string;
+}
+
+export interface PlatformThumbnailConsideration {
+  aspectRatio: string;
+  safeZones: string;
+  visualFocus: string;
+  titlePlacement: string;
+}
+
+export interface CreatePlatformAdaptationInput {
+  contentId: string;
+  platform: any;
+  title?: string;
+  description?: string;
+  caption?: string;
+  hashtags?: string[];
+  callToAction?: string;
+  platformSpecificWording?: PlatformSpecificWording;
+  thumbnailConsiderations?: PlatformThumbnailConsideration;
+}
+
+export interface UpdatePlatformAdaptationInput {
+  title?: string;
+  description?: string;
+  caption?: string;
+  hashtags?: string[];
+  callToAction?: string;
+  platformSpecificWording?: PlatformSpecificWording;
+  thumbnailConsiderations?: PlatformThumbnailConsideration;
+  status?: any;
+}
+
+export interface CompleteContentPackage {
+  contentId: string;
+  contentMaster: any;
+  question: any;
+  questionVersion: number;
+  script: Script;
+  scriptVersionNumber: number;
+  video: any;
+  videoVersionNumber: number;
+  videoAsset?: any;
+  thumbnail?: any;
+  thumbnailVersionNumber: number;
+  thumbnailAsset?: any;
+  pinnedCommentPackage?: any;
+  pinnedCommentVersionNumber: number;
+  metadata: SocialMetadataPayload | Record<string, any>;
+  platformAdaptations?: MultiPlatformAdaptationPayload;
+  versionLock: any;
+}
+
+export interface SocialQualityGateReport {
+  isValid: boolean;
+  contentId: string;
+  issues: string[];
+  warnings: string[];
+  checksPassed: string[];
+  invarianceValid: boolean;
+  brandQualityValid: boolean;
+  assetsValid: boolean;
+  metadataValid: boolean;
+  versionLockValid: boolean;
+}

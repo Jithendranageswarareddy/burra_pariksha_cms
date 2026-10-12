@@ -24,8 +24,7 @@ import { AIProviderError } from '../errors';
 import { GenAiQuestionCandidateResponseSchema } from '../schemas/question-candidate.schema';
 import { buildGenerationPrompt, BURRA_PARIKSHA_SYSTEM_INSTRUCTION } from '../prompts/generation.prompt';
 import { QuestionCreationValidator } from '../validators/question-creation.validator';
-import { AiContentPlanRecommendation, Question, QuestionLanguage, ScriptContentPayload } from '../../../shared';
-import { AiThumbnailConcept, HookStyle } from '../../../src/types';
+import { AiContentPlanRecommendation, Question, QuestionLanguage, ScriptContentPayload, AiThumbnailConcept, HookStyle } from '../../../shared';
 
 export interface OrchestratorTaskOptions {
   preferredProviderId?: AIProviderId;

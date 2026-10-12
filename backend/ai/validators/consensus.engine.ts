@@ -8,8 +8,7 @@
  * 3. CRITICAL OVERRIDE: Deterministic contradictions ALWAYS override any model consensus. An LLM can NEVER override deterministic truth.
  */
 
-import { Question, ValidationEvidence, ValidationCheckItem, QuestionValidationStatus } from '../../../shared';
-import { QuestionValidatorProvider } from '../../../src/types';
+import { Question, ValidationEvidence, ValidationCheckItem, QuestionValidationStatus, QuestionValidatorProvider } from '../../../shared';
 
 export interface ConsensusEvaluationResult {
   hasConflict: boolean;

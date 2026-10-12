@@ -7,8 +7,12 @@
  * logical meaning of a validated source question.
  */
 
-import { QuestionValidationStatus } from '../../../shared';
-import { SocialInvarianceReport, SocialInvarianceViolation, SocialInvarianceAnchor } from '../../../src/types';
+import {
+  QuestionValidationStatus,
+  SocialInvarianceReport,
+  SocialInvarianceViolation,
+  SocialInvarianceAnchor,
+} from '../../../shared';
 
 export interface SourceQuestionContext {
   id: string;

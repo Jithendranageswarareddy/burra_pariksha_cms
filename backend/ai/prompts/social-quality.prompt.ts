@@ -3,8 +3,12 @@
  * Phase 8G: Quality & Engagement Intelligence Engine
  */
 
-import { Question, QuestionLanguage } from '../../../shared';
-import { MultiPlatformAdaptationPayload, SocialEnhancementPayload } from '../../../src/types';
+import {
+  Question,
+  QuestionLanguage,
+  MultiPlatformAdaptationPayload,
+  SocialEnhancementPayload,
+} from '../../../shared';
 
 export function buildSocialQualitySystemPrompt(language: QuestionLanguage): string {
   const isTelugu = language === QuestionLanguage.TELUGU;
@@ -54,8 +58,9 @@ export function buildSocialQualityUserPrompt(
         .join('\n')
     : 'N/A';
 
-  const metadataText = enhancementPackage.metadata
-    ? `Title: ${enhancementPackage.metadata.shortTitle}\nCaption: ${enhancementPackage.metadata.socialCaption}\nHashtags: ${enhancementPackage.metadata.hashtags?.join(', ')}\nCTA: ${enhancementPackage.metadata.cta?.primaryText}`
+  const metadataObj = (enhancementPackage as any).socialMetadata || (enhancementPackage as any).metadata;
+  const metadataText = metadataObj
+    ? `Title: ${metadataObj.shortTitle || ''}\nCaption: ${metadataObj.socialCaption || ''}\nHashtags: ${metadataObj.hashtags?.join(', ') || ''}\nCTA: ${metadataObj.cta?.primaryText || ''}`
     : 'N/A';
 
   const adaptationsText = platformAdaptations

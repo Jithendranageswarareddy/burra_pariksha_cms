@@ -1,5 +1,4 @@
-import { Question, ValidationEvidence } from '../../../shared';
-import { QuestionValidatorProvider } from '../../../src/types';
+import { Question, ValidationEvidence, QuestionValidatorProvider } from '../../../shared';
 import { geminiClient } from '../providers/gemini.client';
 import { DEFAULT_AI_CONFIG } from '../orchestrator/config';
 

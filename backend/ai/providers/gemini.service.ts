@@ -55,8 +55,22 @@ import {
   buildSocialQualitySystemPrompt,
   buildSocialQualityUserPrompt,
 } from '../prompts/social-quality.prompt';
-import { AiContentPlanRecommendation, AiPlanBatchSuggestion, AiPlanRecommendationSubtopic, DifficultyLevel, PriorityLevel, Question, QuestionLanguage, Script, Video, ScriptContentPayload } from '../../../shared';
-import { AiThumbnailConcept, HookStyle, TeleprompterSegment, TeleprompterSegmentSection } from '../../../src/types';
+import {
+  AiContentPlanRecommendation,
+  AiPlanBatchSuggestion,
+  AiPlanRecommendationSubtopic,
+  DifficultyLevel,
+  PriorityLevel,
+  Question,
+  QuestionLanguage,
+  Script,
+  Video,
+  ScriptContentPayload,
+  AiThumbnailConcept,
+  HookStyle,
+  TeleprompterSegment,
+  TeleprompterSegmentSection,
+} from '../../../shared';
 import {
   AIProvider,
   AIProviderOptions,

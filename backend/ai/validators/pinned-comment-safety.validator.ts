@@ -10,8 +10,7 @@
  * - Protection against spam and deceptive engagement bait
  */
 
-import { Question, PinnedCommentPackage } from '../../../shared';
-import { EngagementQualityReport } from '../../../src/types';
+import { Question, PinnedCommentPackage, EngagementQualityReport } from '../../../shared';
 
 export class PinnedCommentSafetyValidator {
   /**

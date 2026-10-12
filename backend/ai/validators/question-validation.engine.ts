@@ -7,8 +7,7 @@
  * and semantically valid.
  */
 
-import { Question, ValidationResult, ValidationCheckItem, QuestionValidationStatus, ValidationSource } from '../../../shared';
-import { QuestionValidatorProvider } from '../../../src/types';
+import { Question, ValidationResult, ValidationCheckItem, QuestionValidationStatus, ValidationSource, QuestionValidatorProvider } from '../../../shared';
 import { QuestionCreationValidator } from './question-creation.validator';
 import { taxonomyService } from '../../domain/taxonomy/services/taxonomy.service';
 import { OptionsValidator } from './options.validator';

@@ -3,7 +3,7 @@
  * Phase 5: Question Validation Engine
  */
 
-export { QuestionValidationStatus } from '../../../src/types';
+export { QuestionValidationStatus } from '../../../shared';
 export type {
   ValidationSource,
   ValidationCheckItem,
@@ -14,4 +14,4 @@ export type {
   ValidationEvidence,
   ValidationResult,
   QuestionValidatorProvider,
-} from '../../../src/types';
+} from '../../../shared';

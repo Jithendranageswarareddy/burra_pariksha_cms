@@ -6,7 +6,7 @@
  */
 
 import { z } from 'zod';
-import { HookStyle } from '../../../src/types';
+import { HookStyle } from '../../../shared';
 import { SchemaType } from './question-candidate.schema';
 
 export const SocialHookVariantZodSchema = z.object({

@@ -3,14 +3,15 @@
  * Phase 4: Structural creation validation for Manual & AI workflows.
  */
 
-import { ValidationError } from '../../../src/lib/errors';
+import { AIValidationError as ValidationError } from '../errors';
 import {
   DIFFICULTY_LEVELS,
   CHALLENGE_TYPES,
   PRESENTATION_TYPES,
   LANGUAGES,
-} from '../../../src/config/question-creation.config';
-import { QuestionLanguage, QuestionStyle } from '../../../shared';
+  QuestionLanguage,
+  QuestionStyle,
+} from '../../../shared';
 
 export interface QuestionCreationRequestPayload {
   creationMode: 'manual' | 'ai';

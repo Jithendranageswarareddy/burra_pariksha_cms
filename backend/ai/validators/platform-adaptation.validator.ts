@@ -10,9 +10,14 @@
  * - Non-empty titles and captions
  */
 
-import { PlatformType } from '../../../shared';
-import { CreatePlatformAdaptationInput, UpdatePlatformAdaptationInput, PlatformSpecificWording, PlatformThumbnailConsideration } from '../../../src/types';
-import { ValidationError } from '../../../src/lib/errors';
+import {
+  PlatformType,
+  CreatePlatformAdaptationInput,
+  UpdatePlatformAdaptationInput,
+  PlatformSpecificWording,
+  PlatformThumbnailConsideration,
+} from '../../../shared';
+import { AIValidationError as ValidationError } from '../errors';
 
 export interface PlatformValidationResult {
   isValid: boolean;

@@ -300,3 +300,9 @@ export interface CandidateValidationReport {
   };
   mathematicalVerification?: MathVerificationResult;
 }
+
+export interface QuestionValidatorProvider {
+  readonly providerId: string;
+  readonly modelId: string;
+  validate(question: any): Promise<ValidationEvidence>;
+}

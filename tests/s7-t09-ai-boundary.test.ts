@@ -233,6 +233,40 @@ async function runTests() {
     failed++;
   }
 
+  // 10. Zero src/ imports in backend/ai (Strict Subsystem Independence)
+  try {
+    const scanDirForPattern = (dir: string, pattern: RegExp): string[] => {
+      let results: string[] = [];
+      const list = fs.readdirSync(dir);
+      for (const file of list) {
+        const fullPath = path.join(dir, file);
+        const stat = fs.statSync(fullPath);
+        if (stat.isDirectory()) {
+          results = results.concat(scanDirForPattern(fullPath, pattern));
+        } else if (file.endsWith('.ts') || file.endsWith('.tsx')) {
+          const content = fs.readFileSync(fullPath, 'utf-8');
+          if (pattern.test(content)) {
+            results.push(fullPath);
+          }
+        }
+      }
+      return results;
+    };
+
+    const srcLeaks = scanDirForPattern('backend/ai', /from\s+['"][^'"]*src\//);
+    assert.strictEqual(
+      srcLeaks.length,
+      0,
+      `backend/ai must have ZERO imports from src/. Found leaks in: ${srcLeaks.join(', ')}`
+    );
+
+    console.log('✓ TC-AI-10 PASSED: backend/ai has zero dependencies on src/ (types, config, or lib).');
+    passed++;
+  } catch (err: any) {
+    console.error('✗ TC-AI-10 FAILED:', err.message);
+    failed++;
+  }
+
   // 9. Zero backend/ai imports in Frontend and Shared
   try {
     const scanDirForPattern = (dir: string, pattern: RegExp): string[] => {
