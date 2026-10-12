@@ -113,7 +113,7 @@ export class QuestionDraftService {
       realWorldContext: input.realLifeContext || input.realWorldContext,
       realLifeContext: input.realLifeContext || input.realWorldContext,
       challengeType: input.challengeType || 'ABCD',
-      presentationType: input.presentationType || 'Text',
+      presentationType: input.presentationType ? (input.presentationType === 'Text' ? 'TEXT_ONLY' : input.presentationType) : 'TEXT_ONLY',
       questionStyle: input.questionStyle || 'STORY_BASED',
       generationMode: input.generationMode || 'SUBTOPIC',
       tags: input.tags || ['Aptitude', 'Draft'],

@@ -96,6 +96,18 @@ export class QuestionCreationValidator {
   }
 
   /**
+   * Normalizes presentation type string to canonical PRESENTATION_TYPES id.
+   */
+  public static normalizePresentationType(type?: string): string {
+    if (!type || !type.trim()) return 'TEXT_ONLY';
+    const trimmed = type.trim();
+    const u = trimmed.toUpperCase();
+    if (u === 'TEXT' || u === 'TEXT ONLY' || u === 'TEXT_ONLY') return 'TEXT_ONLY';
+    const match = PRESENTATION_TYPES.find((p) => p.id.toLowerCase() === trimmed.toLowerCase() || p.name.toLowerCase() === trimmed.toLowerCase());
+    return match ? match.id : trimmed;
+  }
+
+  /**
    * Normalizes an idempotency key:
    * - Trims leading/trailing whitespace
    * - Validates string type and length <= 255
@@ -191,6 +203,7 @@ export class QuestionCreationValidator {
 
     // 7. Presentation Type Validation
     if (payload.presentationType) {
+      payload.presentationType = this.normalizePresentationType(payload.presentationType);
       const allowedPresTypes = PRESENTATION_TYPES.map((p) => p.id.toLowerCase());
       if (!allowedPresTypes.includes(payload.presentationType.toLowerCase())) {
         throw new ValidationError(

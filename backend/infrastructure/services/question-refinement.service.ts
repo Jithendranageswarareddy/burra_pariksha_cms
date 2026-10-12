@@ -15,8 +15,8 @@ import {
 } from '../../../database/firestore/repositories';
 import { ValidationError } from '../../../src/lib/errors';
 import { MathematicalValidator, MathVerificationResult } from '../../ai/validators';
-import { geminiClient } from '../../ai/providers';
 import { aiOrchestrator } from '../../ai/orchestrator';
+import { geminiClient } from '../../ai/providers';
 import { AIProviderError } from '../../ai/errors';
 import { ContentMasterStatus, DifficultyLevel, QuestionLanguage, QuestionStatus, Question, UserRole } from '../../../shared';
 
