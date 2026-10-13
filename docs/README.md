@@ -78,6 +78,12 @@ When observed runtime behavior or codebase patterns conflict with intended archi
 
 ## 3. Current Authoritative Specifications
 
+### 3.0 Feature Page Contracts
+
+The implementation-grounded contracts for all 15 workflow pages are indexed in
+[docs/page-contracts/README.md](page-contracts/README.md). The reusable section
+order is defined by [FEATURE-PAGE-CONTRACT-TEMPLATE.md](page-contracts/FEATURE-PAGE-CONTRACT-TEMPLATE.md).
+
 ### 3.1 Core Architecture & System Contracts (`docs/architecture/`)
 - [04-ARCHITECTURE-PRINCIPLES.md](architecture/04-ARCHITECTURE-PRINCIPLES.md) — 14 Core Architectural Principles (AP-001 through AP-014).
 - [05-TARGET-SYSTEM-BOUNDARY.md](architecture/05-TARGET-SYSTEM-BOUNDARY.md) — System boundaries, external interfaces, and security perimeter.
