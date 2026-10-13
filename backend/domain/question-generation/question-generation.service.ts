@@ -141,11 +141,6 @@ export class QuestionGenerationService {
     const fallback = (PRODUCTION_TOPICS as any[]).find((t) => t.id === topicId);
     if (fallback) return { id: fallback.id, name: fallback.name };
 
-    // Support canonical BP-TOP-* pattern if present in seed/docs
-    if (topicId.startsWith('BP-TOP-')) {
-      return { id: topicId, name: `Topic ${topicId}` };
-    }
-
     return null;
   }
 
@@ -164,11 +159,6 @@ export class QuestionGenerationService {
     const { PRODUCTION_SUBTOPICS } = await import('../../../src/lib/data/production-taxonomy');
     const fallback = (PRODUCTION_SUBTOPICS as any[]).find((s) => s.id === subtopicId);
     if (fallback) return { id: fallback.id, name: fallback.name, topicId: fallback.topicId };
-
-    // Support canonical BP-SUB-* pattern if present in seed/docs
-    if (subtopicId.startsWith('BP-SUB-')) {
-      return { id: subtopicId, name: `Subtopic ${subtopicId}`, topicId: 'BP-TOP-001' };
-    }
 
     return null;
   }
@@ -294,7 +284,10 @@ export class QuestionGenerationService {
       input.subtopicId === 'SUB-GEN' ||
       input.generationMode === 'RANDOM';
 
-    if (input.subtopicId && !isRandomSubtopic) {
+    if (!isRandomSubtopic) {
+      if (!input.subtopicId || typeof input.subtopicId !== 'string') {
+        throw new QuestionGenerationDomainError('A valid subtopicId is required when saving draft.', 400);
+      }
       const subtopic = await this.resolveTaxonomySubtopic(input.subtopicId);
       if (!subtopic) {
         throw new QuestionGenerationDomainError(`Subtopic with ID "${input.subtopicId}" does not exist in authoritative taxonomy.`, 400);

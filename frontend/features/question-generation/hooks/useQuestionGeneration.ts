@@ -46,8 +46,8 @@ export function useQuestionGeneration() {
   const [configError, setConfigError] = useState<string | null>(null);
 
   // Configuration options selection
-  const [selectedTopic, setSelectedTopic] = useState<string>(queryTopic || 'BP-TOP-001');
-  const [selectedSubtopic, setSelectedSubtopic] = useState<string>(querySubtopic || 'BP-SUB-0001');
+  const [selectedTopic, setSelectedTopic] = useState<string>(queryTopic || 'TOP-QA-01');
+  const [selectedSubtopic, setSelectedSubtopic] = useState<string>(querySubtopic || 'SUB-01');
   const [difficulty, setDifficulty] = useState<string>(queryDifficulty || 'Intermediate');
   const [challengeType, setChallengeType] = useState<string>('ABCD');
   const [presentationType, setPresentationType] = useState<string>('Text');

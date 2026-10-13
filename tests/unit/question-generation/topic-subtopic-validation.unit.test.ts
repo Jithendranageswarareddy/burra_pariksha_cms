@@ -106,7 +106,7 @@ async function runTopicSubtopicValidationTests() {
   console.log('[Test 6] Domain generation request validation: missing topic...');
   const invalidReq = await questionGenerationService.validateGenerationRequest({
     topicId: '',
-    subtopicId: 'BP-SUB-0001',
+    subtopicId: 'SUB-01',
     difficulty: DifficultyLevel.MEDIUM,
     language: QuestionLanguage.TELUGU,
   });
@@ -181,6 +181,148 @@ async function runTopicSubtopicValidationTests() {
   });
   assert.strictEqual(randomModeReq.isValid, true, 'Random mode must succeed without explicit subtopic');
   console.log('  PASS: Documented RANDOM mode exception preserved.');
+
+  // Test 12: Regression — Nonexistent ID beginning with BP-TOP- is rejected
+  console.log('[Test 12] Regression: Nonexistent ID beginning with BP-TOP- is rejected...');
+  const bpTopGenReq = await questionGenerationService.validateGenerationRequest({
+    topicId: 'BP-TOP-999',
+    subtopicId: 'SUB-01',
+    difficulty: DifficultyLevel.MEDIUM,
+    language: QuestionLanguage.TELUGU,
+  });
+  assert.strictEqual(bpTopGenReq.isValid, false, 'Generation request with nonexistent BP-TOP- must be rejected');
+  assert(bpTopGenReq.error?.includes('does not exist in authoritative taxonomy'), 'Must flag non-existence');
+
+  let bpTopDraftError = false;
+  try {
+    await questionGenerationService.saveDraft({
+      topicId: 'BP-TOP-999',
+      subtopicId: 'SUB-01',
+      difficulty: 'Intermediate',
+      language: 'TELUGU',
+      questionText: 'ప్రశ్న వివరాలు...',
+      options: { a: 'A', b: 'B', c: 'C', d: 'D' },
+      correctAnswer: 'A',
+    });
+  } catch (err: any) {
+    bpTopDraftError = true;
+    assert.strictEqual(err?.statusCode, 400, 'Must throw 400 on nonexistent BP-TOP- draft save');
+    assert(err.message.includes('does not exist in authoritative taxonomy'), 'Must report taxonomy error');
+  }
+  assert(bpTopDraftError, 'Expected saveDraft to throw 400 for nonexistent BP-TOP- ID');
+  console.log('  PASS: Nonexistent BP-TOP-* rejected in both generation validation and draft saving.');
+
+  // Test 13: Regression — Nonexistent ID beginning with BP-SUB- is rejected
+  console.log('[Test 13] Regression: Nonexistent ID beginning with BP-SUB- is rejected...');
+  const bpSubGenReq = await questionGenerationService.validateGenerationRequest({
+    topicId: 'TOP-QA-01',
+    subtopicId: 'BP-SUB-999',
+    difficulty: DifficultyLevel.MEDIUM,
+    language: QuestionLanguage.TELUGU,
+  });
+  assert.strictEqual(bpSubGenReq.isValid, false, 'Generation request with nonexistent BP-SUB- must be rejected');
+  assert(bpSubGenReq.error?.includes('does not exist in authoritative taxonomy'), 'Must flag non-existence');
+
+  let bpSubDraftError = false;
+  try {
+    await questionGenerationService.saveDraft({
+      topicId: 'TOP-QA-01',
+      subtopicId: 'BP-SUB-999',
+      difficulty: 'Intermediate',
+      language: 'TELUGU',
+      questionText: 'ప్రశ్న వివరాలు...',
+      options: { a: 'A', b: 'B', c: 'C', d: 'D' },
+      correctAnswer: 'A',
+    });
+  } catch (err: any) {
+    bpSubDraftError = true;
+    assert.strictEqual(err?.statusCode, 400, 'Must throw 400 on nonexistent BP-SUB- draft save');
+    assert(err.message.includes('does not exist in authoritative taxonomy'), 'Must report taxonomy error');
+  }
+  assert(bpSubDraftError, 'Expected saveDraft to throw 400 for nonexistent BP-SUB- ID');
+  console.log('  PASS: Nonexistent BP-SUB-* rejected in both generation validation and draft saving.');
+
+  // Test 14: Regression — Valid canonical Topic/Subtopic pair succeeds
+  console.log('[Test 14] Regression: Valid canonical Topic/Subtopic pair succeeds...');
+  const canonicalGenReq = await questionGenerationService.validateGenerationRequest({
+    topicId: 'TOP-QA-01',
+    subtopicId: 'SUB-01',
+    difficulty: DifficultyLevel.MEDIUM,
+    language: QuestionLanguage.TELUGU,
+  });
+  assert.strictEqual(canonicalGenReq.isValid, true, 'Valid canonical pair must pass validation');
+
+  const canonicalDraft = await questionGenerationService.saveDraft({
+    topicId: 'TOP-QA-01',
+    subtopicId: 'SUB-01',
+    difficulty: 'Intermediate',
+    language: 'TELUGU',
+    questionText: 'రైలు మరియు ప్లాట్‌ఫామ్ సమస్య...',
+    options: { a: '10 మీ/సె', b: '15 మీ/సె', c: '20 మీ/సె', d: '25 మీ/సె' },
+    correctAnswer: 'B',
+  });
+  assert(canonicalDraft.id.startsWith('BP-DFT-'), 'Draft must be saved with canonical ID');
+  assert.strictEqual(canonicalDraft.topicId, 'TOP-QA-01');
+  assert.strictEqual(canonicalDraft.subtopicId, 'SUB-01');
+  await questionGenerationService.deleteDraft(canonicalDraft.id);
+  console.log('  PASS: Valid canonical Topic/Subtopic pair succeeds for generation and draft saving.');
+
+  // Test 15: Regression — Real Subtopic assigned to wrong Topic is rejected
+  console.log('[Test 15] Regression: Real Subtopic assigned to wrong Topic is rejected...');
+  // SUB-01 belongs to TOP-QA-01, but we pass TOP-QA-02
+  const mismatchedPairGenReq = await questionGenerationService.validateGenerationRequest({
+    topicId: 'TOP-QA-02',
+    subtopicId: 'SUB-01',
+    difficulty: DifficultyLevel.MEDIUM,
+    language: QuestionLanguage.TELUGU,
+  });
+  assert.strictEqual(mismatchedPairGenReq.isValid, false, 'Mismatched pair must be rejected');
+  assert(mismatchedPairGenReq.error?.includes('does not belong to Topic'), 'Must specify mismatch error');
+
+  let mismatchedDraftError = false;
+  try {
+    await questionGenerationService.saveDraft({
+      topicId: 'TOP-QA-02',
+      subtopicId: 'SUB-01',
+      difficulty: 'Intermediate',
+      language: 'TELUGU',
+      questionText: 'తప్పు సంబంధిత టాపిక్ డ్రాఫ్ట్...',
+      options: { a: 'A', b: 'B', c: 'C', d: 'D' },
+      correctAnswer: 'A',
+    });
+  } catch (err: any) {
+    mismatchedDraftError = true;
+    assert.strictEqual(err?.statusCode, 400, 'Must throw 400 on mismatched topic/subtopic');
+    assert(err.message.includes('does not belong to Topic'), 'Must specify mismatch error');
+  }
+  assert(mismatchedDraftError, 'Expected saveDraft to throw 400 on mismatched topic/subtopic');
+  console.log('  PASS: Mismatched Topic/Subtopic rejected for generation and draft saving.');
+
+  // Test 16: Regression — RANDOM mode continues to work according to existing contract
+  console.log('[Test 16] Regression: RANDOM mode continues to work according to contract...');
+  const randomGenReq = await questionGenerationService.validateGenerationRequest({
+    topicId: 'TOP-QA-01',
+    subtopicId: 'RANDOM',
+    generationMode: 'RANDOM',
+    difficulty: DifficultyLevel.MEDIUM,
+    language: QuestionLanguage.TELUGU,
+  });
+  assert.strictEqual(randomGenReq.isValid, true, 'Random mode generation request must be valid');
+
+  const randomDraft = await questionGenerationService.saveDraft({
+    topicId: 'TOP-QA-01',
+    subtopicId: 'RANDOM',
+    generationMode: 'RANDOM',
+    difficulty: 'Intermediate',
+    language: 'TELUGU',
+    questionText: 'యాదృచ్ఛిక ఉప-టాపిక్ ప్రశ్న...',
+    options: { a: 'A', b: 'B', c: 'C', d: 'D' },
+    correctAnswer: 'A',
+  });
+  assert(randomDraft.id.startsWith('BP-DFT-'), 'Draft must be saved in RANDOM mode');
+  assert.strictEqual(randomDraft.subtopicId, 'RANDOM');
+  await questionGenerationService.deleteDraft(randomDraft.id);
+  console.log('  PASS: RANDOM mode persists drafts and validates without requiring specific subtopic.');
 
   console.log('\n============================================================');
   console.log('ALL TOPIC/SUBTOPIC & CANDIDATE VALIDATION TESTS PASSED');
