@@ -28,8 +28,7 @@ import {
 } from 'lucide-react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { PageHeader } from '../components/layout/PageHeader';
-import { Button } from '../components/common/Button';
-import { Modal } from '../components/common/Modal';
+import { Button, Modal } from '../design-system';
 import { PackageCopierModal } from '../components/publishing/PackageCopierModal';
 import { PublishScheduleModal } from '../components/publishing/PublishScheduleModal';
 import { RecordPublicationModal } from '../components/publishing/RecordPublicationModal';

@@ -26,10 +26,9 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
-import { Button } from '../components/common/Button';
+import { Button } from '../design-system';
 import { QuestionWorkflowHeader } from '../components/questions/QuestionWorkflowHeader';
-import { QuestionStatusBadge, VideoStatusBadge } from '../components/common/StatusBadge';
-import { DifficultyBadge } from '../components/common/DifficultyBadge';
+import { QuestionStatusBadge, VideoStatusBadge, DifficultyBadge } from '../components/badges';
 import { EntityAssignmentsSection } from '../components/assignments/EntityAssignmentsSection';
 import { ProductionJourneyBar } from '../components/production/ProductionJourneyBar';
 import { useProductionJourney } from '../contexts/ProductionJourneyContext';

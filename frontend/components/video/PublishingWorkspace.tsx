@@ -34,7 +34,7 @@ import {
   VideoProductionStatus,
 } from '../../../shared';
 import { apiClient } from '../../api/api-client';
-import { Button } from '../common/Button';
+import { Button } from '../../design-system';
 
 interface PublishingWorkspaceProps {
   video: Video;

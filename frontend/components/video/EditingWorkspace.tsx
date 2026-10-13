@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { Video, Script, VideoProductionStatus, MediaAsset } from '../../../shared';
 import { apiClient } from '../../api/api-client';
-import { Button } from '../common/Button';
+import { Button } from '../../design-system';
 
 interface EditingWorkspaceProps {
   videoId: string;

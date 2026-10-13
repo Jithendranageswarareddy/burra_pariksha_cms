@@ -31,7 +31,7 @@ import {
   CanonicalProductionReadiness,
   VideoProductionStatus,
 } from '../../../shared';
-import { SocialStatusBadge, VideoStatusBadge } from '../common/StatusBadge';
+import { SocialStatusBadge, VideoStatusBadge } from '../badges/StatusBadge';
 
 export interface PublishingTableProps {
   records: Publishing[];

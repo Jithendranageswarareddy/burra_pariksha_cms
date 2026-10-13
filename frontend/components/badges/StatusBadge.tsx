@@ -1,8 +1,9 @@
 import React from 'react';
 import { QUESTION_STATUS_CONFIG, SOCIAL_STATUS_CONFIG, VIDEO_STATUS_CONFIG } from '../../../src/config/constants';
 import { QuestionStatus, SocialPublishStatus, VideoProductionStatus } from '../../../shared';
+import { Badge } from '../../design-system';
 
-interface QuestionStatusBadgeProps {
+export interface QuestionStatusBadgeProps {
   status: QuestionStatus;
   size?: 'sm' | 'md';
 }
@@ -16,20 +17,19 @@ export const QuestionStatusBadge: React.FC<QuestionStatusBadgeProps> = ({ status
     border: 'border-slate-300',
   };
 
-  const sizeClasses = size === 'sm' ? 'px-2 py-0.5 text-xs' : 'px-2.5 py-1 text-xs font-medium';
-
   return (
-    <span
+    <Badge
       id={`badge-qstatus-${safeStatus.toString().toLowerCase()}`}
-      className={`inline-flex items-center rounded-md border ${config.bg} ${config.text} ${config.border} ${sizeClasses} transition-colors select-none`}
+      size={size}
+      dot
+      className={`${config.bg} ${config.text} ${config.border}`}
     >
-      <span className="w-1.5 h-1.5 rounded-full bg-current mr-1.5 opacity-70" />
       {config.label}
-    </span>
+    </Badge>
   );
 };
 
-interface VideoStatusBadgeProps {
+export interface VideoStatusBadgeProps {
   status: VideoProductionStatus;
   size?: 'sm' | 'md';
 }
@@ -43,20 +43,19 @@ export const VideoStatusBadge: React.FC<VideoStatusBadgeProps> = ({ status, size
     border: 'border-slate-300',
   };
 
-  const sizeClasses = size === 'sm' ? 'px-2 py-0.5 text-xs' : 'px-2.5 py-1 text-xs font-medium';
-
   return (
-    <span
+    <Badge
       id={`badge-vstatus-${safeStatus.toString().toLowerCase()}`}
-      className={`inline-flex items-center rounded-md border ${config.bg} ${config.text} ${config.border} ${sizeClasses} select-none`}
+      size={size}
+      dot
+      className={`${config.bg} ${config.text} ${config.border}`}
     >
-      <span className="w-1.5 h-1.5 rounded-full bg-current mr-1.5 opacity-75" />
       {config.label}
-    </span>
+    </Badge>
   );
 };
 
-interface SocialStatusBadgeProps {
+export interface SocialStatusBadgeProps {
   status: SocialPublishStatus;
 }
 
@@ -68,10 +67,12 @@ export const SocialStatusBadge: React.FC<SocialStatusBadgeProps> = ({ status }) 
   };
 
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs border ${config.bg} ${config.text} border-transparent`}>
+    <Badge
+      size="sm"
+      dot={false}
+      className={`${config.bg} ${config.text} border-transparent`}
+    >
       {config.label}
-    </span>
+    </Badge>
   );
 };
-
-export { Badge, BADGE_CONFIG } from '../../design-system/components/Badge';

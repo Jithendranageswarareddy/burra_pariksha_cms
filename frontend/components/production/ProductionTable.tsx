@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Video, PriorityLevel } from '../../../shared';
-import { VideoStatusBadge } from '../common/StatusBadge';
+import { VideoStatusBadge } from '../badges/StatusBadge';
 import { PRIORITY_CONFIG } from '../../../src/config/constants';
 import { PipelineProgress } from './PipelineProgress';
 import { ArrowRight, ExternalLink } from 'lucide-react';

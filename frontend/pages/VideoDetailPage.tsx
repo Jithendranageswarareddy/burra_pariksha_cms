@@ -30,9 +30,8 @@ import {
   FolderGit2,
 } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
-import { Button } from '../components/common/Button';
-import { VideoStatusBadge, QuestionStatusBadge } from '../components/common/StatusBadge';
-import { DifficultyBadge } from '../components/common/DifficultyBadge';
+import { Button } from '../design-system';
+import { VideoStatusBadge, QuestionStatusBadge, DifficultyBadge } from '../components/badges';
 import { EntityAssignmentsSection } from '../components/assignments/EntityAssignmentsSection';
 import { apiClient } from '../api/api-client';
 import {

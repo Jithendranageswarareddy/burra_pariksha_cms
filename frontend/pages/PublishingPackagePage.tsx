@@ -25,7 +25,7 @@ import {
   FileCheck,
 } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
-import { Button } from '../components/common/Button';
+import { Button } from '../design-system';
 import { PublishingWorkflowHeader } from '../components/publishing/PublishingWorkflowHeader';
 import { apiClient } from '../api/api-client';
 import {

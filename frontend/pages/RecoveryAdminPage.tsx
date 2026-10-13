@@ -29,7 +29,7 @@ import {
   HardDrive,
 } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
-import { Button } from '../components/common/Button';
+import { Button } from '../design-system';
 import { useAuth } from '../contexts/AuthContext';
 import { apiClient, RecoveryStatusResponse, SnapshotHistoryItem } from '../api/api-client';
 import { UserRole } from '../../shared';

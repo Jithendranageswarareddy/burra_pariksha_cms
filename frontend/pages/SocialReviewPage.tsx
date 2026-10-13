@@ -32,7 +32,7 @@ import { apiClient } from '../api/api-client';
 import { SocialReviewWorkspace } from '../components/social/SocialReviewWorkspace';
 import { AssetWorkflowHeader } from '../components/social/AssetWorkflowHeader';
 import { SocialReviewRecord, SocialReviewStatus, UserRole } from '../../shared';
-import { Button } from '../components/common/Button';
+import { Button } from '../design-system';
 
 export const SocialReviewPage: React.FC = () => {
   const { reviewId: routeParamId, videoId: routeVideoId } = useParams<{ reviewId?: string; videoId?: string }>();

@@ -34,8 +34,8 @@ import {
 } from 'lucide-react';
 import { Video, Script, VideoProductionStatus, AssignmentTaskType, MediaAsset } from '../../../shared';
 import { apiClient } from '../../api/api-client';
-import { Button } from '../common/Button';
-import { VideoStatusBadge } from '../common/StatusBadge';
+import { Button } from '../../design-system';
+import { VideoStatusBadge } from '../badges/StatusBadge';
 import { PRIORITY_CONFIG } from '../../../src/config/constants';
 
 export interface RecordingWorkspaceProps {

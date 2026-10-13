@@ -14,8 +14,7 @@ import {
   CheckSquare,
 } from 'lucide-react';
 import { DifficultyLevel, Question, QuestionLanguage, QuestionStatus } from '../../../shared';
-import { QuestionStatusBadge, VideoStatusBadge } from '../common/StatusBadge';
-import { DifficultyBadge } from '../common/DifficultyBadge';
+import { QuestionStatusBadge, VideoStatusBadge, DifficultyBadge } from '../badges';
 import { formatDisplayId } from '../../shared/formatters';
 
 interface QuestionTableProps {

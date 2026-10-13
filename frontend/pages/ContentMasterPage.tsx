@@ -35,9 +35,8 @@ import {
   Lock,
 } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
-import { Button } from '../components/common/Button';
-import { QuestionStatusBadge, VideoStatusBadge } from '../components/common/StatusBadge';
-import { DifficultyBadge } from '../components/common/DifficultyBadge';
+import { Button } from '../design-system';
+import { QuestionStatusBadge, VideoStatusBadge, DifficultyBadge } from '../components/badges';
 import { apiClient } from '../api/api-client';
 import { ContentMaster, ContentMasterCanonicalState, ContentMasterStatus, DifficultyLevel, UserRole } from '../../shared';
 import { ContentMasterDetails } from '../api/contracts';

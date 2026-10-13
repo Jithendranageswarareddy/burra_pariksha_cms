@@ -17,10 +17,8 @@ import {
   FileText,
 } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
-import { Button } from '../components/common/Button';
-import { StatCard } from '../components/common/StatCard';
+import { Button, StatCard, EmptyState } from '../design-system';
 import { QueueTable } from '../components/queue/QueueTable';
-import { EmptyState } from '../components/common/EmptyState';
 import { apiClient } from '../api/api-client';
 import { useAuth } from '../contexts/AuthContext';
 import {

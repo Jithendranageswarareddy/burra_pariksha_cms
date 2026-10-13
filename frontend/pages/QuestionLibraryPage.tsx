@@ -16,10 +16,8 @@ import {
   X,
 } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
-import { Button } from '../components/common/Button';
-import { SearchInput } from '../components/common/SearchInput';
+import { Button, SearchInput, EmptyState } from '../design-system';
 import { QuestionTable } from '../components/questions/QuestionTable';
-import { EmptyState } from '../components/common/EmptyState';
 import { QuestionWorkflowHeader } from '../components/questions/QuestionWorkflowHeader';
 import { DifficultyLevel, Question, QuestionStatus, VideoProductionStatus } from '../../shared';
 import { apiClient } from '../api/api-client';

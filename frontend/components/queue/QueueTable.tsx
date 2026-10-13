@@ -1,8 +1,7 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { PlayCircle, FileText, ArrowRight, ExternalLink, Video as VideoIcon } from 'lucide-react';
-import { DifficultyBadge } from '../common/DifficultyBadge';
-import { VideoStatusBadge } from '../common/StatusBadge';
+import { DifficultyBadge, VideoStatusBadge } from '../badges';
 import { PRIORITY_CONFIG } from '../../../src/config/constants';
 import { DifficultyLevel, PriorityLevel, Video, VideoProductionStatus } from '../../../shared';
 

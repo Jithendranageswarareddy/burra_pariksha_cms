@@ -18,11 +18,9 @@ import {
   UserCheck,
 } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
-import { Button } from '../components/common/Button';
-import { StatCard } from '../components/common/StatCard';
+import { Button, StatCard, EmptyState } from '../design-system';
 import { ProductionKanban } from '../components/production/ProductionKanban';
 import { ProductionTable } from '../components/production/ProductionTable';
-import { EmptyState } from '../components/common/EmptyState';
 import { apiClient } from '../api/api-client';
 import { useAuth } from '../contexts/AuthContext';
 import { PriorityLevel, ProductionStats, Video, VideoProductionStatus } from '../../shared';

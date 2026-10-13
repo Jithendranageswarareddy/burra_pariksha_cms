@@ -35,7 +35,7 @@ import {
   Check,
 } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
-import { Button } from '../components/common/Button';
+import { Button } from '../design-system';
 import { APP_CONFIG } from '../../src/config/constants';
 import { apiClient } from '../api/api-client';
 import { SpreadsheetHealthReport, SystemHealthReport, IntegrityIssue, IntegritySeverity, IntegrityCategory, UserRole } from '../../shared';

@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { PinnedComment } from '../../../shared';
 import { apiClient } from '../../api/api-client';
-import { Button } from '../common/Button';
+import { Button } from '../../design-system';
 
 interface PinnedCommentWorkspaceProps {
   videoId: string;

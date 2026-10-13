@@ -22,8 +22,7 @@ import {
   Info,
 } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
-import { Button } from '../components/common/Button';
-import { EmptyState } from '../components/common/EmptyState';
+import { Button, EmptyState } from '../design-system';
 import { apiClient } from '../api/api-client';
 import { ProductionBoardItem, VideoProductionStatus, DifficultyLevel } from '../../shared';
 import { VIDEO_STATUS_CONFIG } from '../../src/config/constants';

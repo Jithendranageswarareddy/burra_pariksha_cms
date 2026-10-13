@@ -43,8 +43,7 @@ import {
   Send,
 } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
-import { Button } from '../components/common/Button';
-import { StatCard } from '../components/common/StatCard';
+import { Button, StatCard } from '../design-system';
 import { apiClient } from '../api/api-client';
 import {
   ContentMaster,

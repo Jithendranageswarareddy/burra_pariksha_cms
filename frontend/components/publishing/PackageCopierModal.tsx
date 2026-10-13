@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Copy, Check, ShieldCheck, AlertCircle, RefreshCw, FileText, ExternalLink } from 'lucide-react';
-import { Modal } from '../common/Modal';
-import { Button } from '../common/Button';
+import { Modal, Button } from '../../design-system';
 import { apiClient } from '../../api/api-client';
 import { PlatformPackageProjection, PlatformType } from '../../../shared';
 

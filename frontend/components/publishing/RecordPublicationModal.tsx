@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Share2, Youtube, Instagram, Facebook, AlertCircle, Link as LinkIcon, ExternalLink, Info, CheckCircle2 } from 'lucide-react';
-import { Modal } from '../common/Modal';
-import { Button } from '../common/Button';
+import { Modal, Button } from '../../design-system';
 import { apiClient } from '../../api/api-client';
 import { Publishing, PlatformType } from '../../../shared';
 

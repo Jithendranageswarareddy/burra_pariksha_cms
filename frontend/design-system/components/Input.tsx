@@ -1,5 +1,5 @@
 import React, { forwardRef } from 'react';
-import { LucideIcon } from 'lucide-react';
+import { LucideIcon, Search, X } from 'lucide-react';
 import { COLOR_TOKENS, RADIUS_TOKENS, ICON_TOKENS, TYPOGRAPHY_TOKENS } from '../tokens';
 import { InputSize } from '../types';
 
@@ -146,3 +146,34 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
 );
 
 Textarea.displayName = 'Textarea';
+
+export interface SearchInputProps {
+  id?: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  className?: string;
+}
+
+export const SearchInput: React.FC<SearchInputProps> = ({
+  id = 'search-input',
+  value,
+  onChange,
+  placeholder = 'Search by keyword, topic, ID...',
+  className = '',
+}) => {
+  return (
+    <div className={`relative flex items-center ${className}`}>
+      <Input
+        id={id}
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        leftIcon={Search}
+        rightIcon={value ? X : undefined}
+        onRightIconClick={value ? () => onChange('') : undefined}
+      />
+    </div>
+  );
+};

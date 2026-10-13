@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { UserCheck, Users, AlertCircle, Calendar, ShieldCheck, Flag, FileText } from 'lucide-react';
-import { Modal } from '../common/Modal';
-import { Button } from '../common/Button';
+import { Modal, Button } from '../../design-system';
 import { apiClient } from '../../api/api-client';
 import { Publishing, Assignment, User, PlatformType, PriorityLevel, UserRole } from '../../../shared';
 

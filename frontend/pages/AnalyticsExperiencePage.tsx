@@ -48,12 +48,8 @@ import {
   Zap,
 } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
-import { StatCard } from '../components/common/StatCard';
 import { apiClient } from '../api/api-client';
-import { EmptyState } from '../design-system/components/EmptyState';
-import { Badge } from '../design-system/components/Badge';
-import { Button } from '../design-system/components/Button';
-import { Card } from '../design-system/components/Card';
+import { EmptyState, Badge, Button, Card, StatCard } from '../design-system';
 import {
   ContentStrategyRecommendation,
   SocialAnalyticsRecord,

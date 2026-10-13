@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { RotateCcw, Clock, AlertTriangle, AlertCircle, Calendar, CheckCircle2 } from 'lucide-react';
-import { Modal } from '../common/Modal';
-import { Button } from '../common/Button';
+import { Modal, Button } from '../../design-system';
 import { apiClient } from '../../api/api-client';
 import { Publishing, PlatformType, SocialPublishStatus } from '../../../shared';
 
