@@ -3,6 +3,11 @@
 ## 3.1 Page Identity
 - Shared route `/videos/:videoId?tab=final-review`; `FinalReviewWorkspace`;
   **Reviewed**. Related FC-012.
+- Evidence: [`frontend/app/App.tsx`](../../frontend/app/App.tsx),
+  [`frontend/components/video/FinalReviewWorkspace.tsx`](../../frontend/components/video/FinalReviewWorkspace.tsx),
+  [`backend/features/production/services/video-production.service.ts`](../../backend/features/production/services/video-production.service.ts),
+  [`docs/features/FC-012-FINAL-QC-REVIEW-GATE.md`](../features/FC-012-FINAL-QC-REVIEW-GATE.md),
+  [`docs/architecture/07-CANONICAL-15-STEP-WORKFLOW.md`](../architecture/07-CANONICAL-15-STEP-WORKFLOW.md).
 
 ## 3.2 Purpose
 - Certify the master cut against the six-point QC gate.

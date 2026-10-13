@@ -2,6 +2,11 @@
 
 ## 3.1 Page Identity
 - Publishing/platform packages workspace; sync service; **Reviewed**. Related FC-016.
+- Evidence: [`frontend/app/App.tsx`](../../frontend/app/App.tsx),
+  [`frontend/pages/PlatformPackagesPage.tsx`](../../frontend/pages/PlatformPackagesPage.tsx),
+  [`backend/features/publishing/services/platform-adaptation.service.ts`](../../backend/features/publishing/services/platform-adaptation.service.ts),
+  [`docs/features/FC-016-PLATFORM-RELEASE-SYNC.md`](../features/FC-016-PLATFORM-RELEASE-SYNC.md),
+  [`docs/architecture/07-CANONICAL-15-STEP-WORKFLOW.md`](../architecture/07-CANONICAL-15-STEP-WORKFLOW.md).
 
 ## 3.2 Purpose
 - Reconcile platform metadata, URLs, and statuses after publication.

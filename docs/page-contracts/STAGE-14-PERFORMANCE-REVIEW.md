@@ -3,6 +3,13 @@
 ## 3.1 Page Identity
 - Analytics/social analytics workspaces (`/analytics` and `/social-analytics`);
   service ownership is shared; **Reviewed**. Related FC-020/FC-021.
+- Evidence: [`frontend/app/App.tsx`](../../frontend/app/App.tsx),
+  [`frontend/pages/AnalyticsExperiencePage.tsx`](../../frontend/pages/AnalyticsExperiencePage.tsx),
+  [`frontend/pages/SocialAnalyticsPage.tsx`](../../frontend/pages/SocialAnalyticsPage.tsx),
+  [`backend/features/analytics/services/social-performance-intelligence.service.ts`](../../backend/features/analytics/services/social-performance-intelligence.service.ts),
+  [`docs/features/FC-020-TELEMETRY-PERFORMANCE-DECILES.md`](../features/FC-020-TELEMETRY-PERFORMANCE-DECILES.md),
+  [`docs/features/FC-021-CONTENT-INTELLIGENCE-STRATEGY.md`](../features/FC-021-CONTENT-INTELLIGENCE-STRATEGY.md),
+  [`docs/architecture/07-CANONICAL-15-STEP-WORKFLOW.md`](../architecture/07-CANONICAL-15-STEP-WORKFLOW.md).
 
 ## 3.2 Purpose
 - Interpret retention and engagement, identify confusion/drop-off patterns, and

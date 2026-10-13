@@ -3,6 +3,12 @@
 ## 3.1 Page Identity
 - Routes `/social-review` and `/social-review/:reviewId`; `SocialReviewPage` and
   `SocialReviewWorkspace`; **Reviewed**. Related FC-014.
+- Evidence: [`frontend/app/App.tsx`](../../frontend/app/App.tsx),
+  [`frontend/pages/SocialReviewPage.tsx`](../../frontend/pages/SocialReviewPage.tsx),
+  [`frontend/components/social/SocialReviewWorkspace.tsx`](../../frontend/components/social/SocialReviewWorkspace.tsx),
+  [`backend/features/analytics/services/social-review.service.ts`](../../backend/features/analytics/services/social-review.service.ts),
+  [`docs/features/FC-014-SOCIAL-REVIEW-COMPLIANCE.md`](../features/FC-014-SOCIAL-REVIEW-COMPLIANCE.md),
+  [`docs/architecture/07-CANONICAL-15-STEP-WORKFLOW.md`](../architecture/07-CANONICAL-15-STEP-WORKFLOW.md).
 
 ## 3.2 Purpose
 - Review mobile presentation, copy, hashtags, and pinned comment before scheduling.

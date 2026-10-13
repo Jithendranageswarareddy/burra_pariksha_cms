@@ -3,6 +3,11 @@
 ## 3.1 Page Identity
 - Shared production/video detail workspace; canonical route is represented by
   `/videos/:videoId` with recording/raw context; **Reviewed**. Related FC-010.
+- Evidence: [`frontend/app/App.tsx`](../../frontend/app/App.tsx),
+  [`frontend/pages/VideoDetailPage.tsx`](../../frontend/pages/VideoDetailPage.tsx),
+  [`backend/features/production/services/video.service.ts`](../../backend/features/production/services/video.service.ts),
+  [`docs/features/FC-010-MEDIA-STORAGE-RAW-VIDEO.md`](../features/FC-010-MEDIA-STORAGE-RAW-VIDEO.md),
+  [`docs/architecture/07-CANONICAL-15-STEP-WORKFLOW.md`](../architecture/07-CANONICAL-15-STEP-WORKFLOW.md).
 
 ## 3.2 Purpose
 - Register and hand off raw footage and external media metadata to editing.

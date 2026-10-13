@@ -4,6 +4,11 @@
 - Shared route `/videos/:videoId?tab=script` redirects to `/videos/:videoId`;
   implementation is `ScriptWorkspace`/`VideoCreateScriptPage`; **Reviewed**.
 - Related: FC-008, FC-005.
+- Evidence: [`frontend/app/App.tsx`](../../frontend/app/App.tsx),
+  [`frontend/components/video/ScriptWorkspace.tsx`](../../frontend/components/video/ScriptWorkspace.tsx),
+  [`backend/features/production/services/script.service.ts`](../../backend/features/production/services/script.service.ts),
+  [`docs/features/FC-008-AUDIENCE-SCRIPTING-VERSIONING.md`](../features/FC-008-AUDIENCE-SCRIPTING-VERSIONING.md),
+  [`docs/architecture/07-CANONICAL-15-STEP-WORKFLOW.md`](../architecture/07-CANONICAL-15-STEP-WORKFLOW.md).
 
 ## 3.2 Purpose
 - Turn a verified question into a timed presenter script. Verification and filming

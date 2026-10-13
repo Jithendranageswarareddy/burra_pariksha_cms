@@ -3,6 +3,11 @@
 ## 3.1 Page Identity
 - Route: `/questions/:id/verify`; owner: question-verification feature; **Reviewed**.
 - Related: FC-007, FC-005, page-route contract.
+- Evidence: [`frontend/app/App.tsx`](../../frontend/app/App.tsx),
+  [`frontend/api/questions.api.ts`](../../frontend/api/questions.api.ts),
+  [`backend/features/question-generation/services/question-draft.service.ts`](../../backend/features/question-generation/services/question-draft.service.ts),
+  [`docs/features/FC-007-QUESTION-VERIFICATION-REVIEWS.md`](../features/FC-007-QUESTION-VERIFICATION-REVIEWS.md),
+  [`docs/architecture/07-CANONICAL-15-STEP-WORKFLOW.md`](../architecture/07-CANONICAL-15-STEP-WORKFLOW.md).
 
 ## 3.2 Purpose
 - Review a submitted question, complete pedagogical/proof checks, and approve,

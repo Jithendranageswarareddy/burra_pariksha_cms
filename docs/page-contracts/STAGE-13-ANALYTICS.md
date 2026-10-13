@@ -3,6 +3,11 @@
 ## 3.1 Page Identity
 - `/analytics` and `AnalyticsExperiencePage`; analytics services; **Reviewed**.
   Related FC-020.
+- Evidence: [`frontend/app/App.tsx`](../../frontend/app/App.tsx),
+  [`frontend/pages/AnalyticsExperiencePage.tsx`](../../frontend/pages/AnalyticsExperiencePage.tsx),
+  [`backend/features/analytics/services/analytics.service.ts`](../../backend/features/analytics/services/analytics.service.ts),
+  [`docs/features/FC-020-TELEMETRY-PERFORMANCE-DECILES.md`](../features/FC-020-TELEMETRY-PERFORMANCE-DECILES.md),
+  [`docs/architecture/07-CANONICAL-15-STEP-WORKFLOW.md`](../architecture/07-CANONICAL-15-STEP-WORKFLOW.md).
 
 ## 3.2 Purpose
 - Ingest and display audience telemetry for published content.

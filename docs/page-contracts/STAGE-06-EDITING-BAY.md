@@ -3,6 +3,11 @@
 ## 3.1 Page Identity
 - Shared route `/videos/:videoId?tab=editing`; `EditingWorkspace`; **Reviewed**.
   Related FC-011.
+- Evidence: [`frontend/app/App.tsx`](../../frontend/app/App.tsx),
+  [`frontend/components/video/EditingWorkspace.tsx`](../../frontend/components/video/EditingWorkspace.tsx),
+  [`backend/features/production/services/video-production.service.ts`](../../backend/features/production/services/video-production.service.ts),
+  [`docs/features/FC-011-EDITING-BAY-TIMELINE.md`](../features/FC-011-EDITING-BAY-TIMELINE.md),
+  [`docs/architecture/07-CANONICAL-15-STEP-WORKFLOW.md`](../architecture/07-CANONICAL-15-STEP-WORKFLOW.md).
 
 ## 3.2 Purpose
 - Assemble the master cut and production overlays from raw media.

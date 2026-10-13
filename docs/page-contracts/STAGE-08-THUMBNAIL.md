@@ -3,6 +3,11 @@
 ## 3.1 Page Identity
 - Shared route `/videos/:videoId?tab=thumbnail`; `ThumbnailWorkspace`; **Reviewed**.
   Related FC-013.
+- Evidence: [`frontend/app/App.tsx`](../../frontend/app/App.tsx),
+  [`frontend/components/video/ThumbnailWorkspace.tsx`](../../frontend/components/video/ThumbnailWorkspace.tsx),
+  [`backend/features/production/services/thumbnail.service.ts`](../../backend/features/production/services/thumbnail.service.ts),
+  [`docs/features/FC-013-THUMBNAIL-CREATIVE-CDN.md`](../features/FC-013-THUMBNAIL-CREATIVE-CDN.md),
+  [`docs/architecture/07-CANONICAL-15-STEP-WORKFLOW.md`](../architecture/07-CANONICAL-15-STEP-WORKFLOW.md).
 
 ## 3.2 Purpose
 - Create, preview, version, and approve thumbnail packaging.

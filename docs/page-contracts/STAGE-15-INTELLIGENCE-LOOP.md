@@ -3,6 +3,13 @@
 ## 3.1 Page Identity
 - Analytics intelligence route `/analytics/intelligence/:id` and related analytics
   workspaces; **Reviewed**. Related FC-019/FC-021.
+- Evidence: [`frontend/app/App.tsx`](../../frontend/app/App.tsx),
+  [`frontend/pages/AnalyticsExperiencePage.tsx`](../../frontend/pages/AnalyticsExperiencePage.tsx),
+  [`backend/features/analytics/services/social-performance-intelligence.service.ts`](../../backend/features/analytics/services/social-performance-intelligence.service.ts),
+  [`backend/features/analytics/services/comment-intelligence.service.ts`](../../backend/features/analytics/services/comment-intelligence.service.ts),
+  [`docs/features/FC-019-ASSISTIVE-AI-PIPELINE.md`](../features/FC-019-ASSISTIVE-AI-PIPELINE.md),
+  [`docs/features/FC-021-CONTENT-INTELLIGENCE-STRATEGY.md`](../features/FC-021-CONTENT-INTELLIGENCE-STRATEGY.md),
+  [`docs/architecture/07-CANONICAL-15-STEP-WORKFLOW.md`](../architecture/07-CANONICAL-15-STEP-WORKFLOW.md).
 
 ## 3.2 Purpose
 - Synthesize performance evidence into approved pedagogical insights and future

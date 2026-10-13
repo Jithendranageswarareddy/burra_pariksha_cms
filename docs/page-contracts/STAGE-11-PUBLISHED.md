@@ -3,6 +3,11 @@
 ## 3.1 Page Identity
 - `/publishing` and publishing workspace; publication recording is a shared
   publishing flow; **Reviewed**. Related FC-015.
+- Evidence: [`frontend/app/App.tsx`](../../frontend/app/App.tsx),
+  [`frontend/pages/PublishingPage.tsx`](../../frontend/pages/PublishingPage.tsx),
+  [`backend/features/publishing/services/publishing.service.ts`](../../backend/features/publishing/services/publishing.service.ts),
+  [`docs/features/FC-015-PUBLISHING-PACKAGE-SCHEDULING.md`](../features/FC-015-PUBLISHING-PACKAGE-SCHEDULING.md),
+  [`docs/architecture/07-CANONICAL-15-STEP-WORKFLOW.md`](../architecture/07-CANONICAL-15-STEP-WORKFLOW.md).
 
 ## 3.2 Purpose
 - Execute/record live publication and verify returned platform URLs.

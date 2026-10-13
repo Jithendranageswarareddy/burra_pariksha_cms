@@ -3,6 +3,11 @@
 ## 3.1 Page Identity
 - Shared route `/videos/:videoId?tab=recording`; `RecordingWorkspace`/video
   production services; **Reviewed**. Related FC-009.
+- Evidence: [`frontend/app/App.tsx`](../../frontend/app/App.tsx),
+  [`frontend/components/video/RecordingWorkspace.tsx`](../../frontend/components/video/RecordingWorkspace.tsx),
+  [`backend/features/production/services/video-production.service.ts`](../../backend/features/production/services/video-production.service.ts),
+  [`docs/features/FC-009-TELEPROMPTER-FILMING-STUDIO.md`](../features/FC-009-TELEPROMPTER-FILMING-STUDIO.md),
+  [`docs/architecture/07-CANONICAL-15-STEP-WORKFLOW.md`](../architecture/07-CANONICAL-15-STEP-WORKFLOW.md).
 
 ## 3.2 Purpose
 - Present the locked script and record/log multiple takes. Editing is out of scope.
