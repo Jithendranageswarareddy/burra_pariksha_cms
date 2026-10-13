@@ -10,7 +10,7 @@
 
 import crypto from 'node:crypto';
 import { GoogleSheetsSnapshot, WorksheetSnapshot } from './snapshot-exporter.service';
-import { ALL_SHEET_TABS } from '../../../../src/lib/schemas/google-sheets-schema';
+import { ALL_SHEET_TABS } from '../../../../src/lib/schemas/secondary-sheet-schema';
 import { 
   questionsRepository, 
   videosRepository, 

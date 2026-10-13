@@ -32,7 +32,7 @@ import {
   workflowRepository,
 } from '../../../../database/firestore/repositories';
 
-import { ALL_SHEET_TABS, SHEET_TABS } from '../../../../src/lib/schemas/google-sheets-schema';
+import { ALL_SHEET_TABS, SHEET_TABS } from '../../../../src/lib/schemas/secondary-sheet-schema';
 
 export class DataIntegrityService {
   private static instance: DataIntegrityService | null = null;

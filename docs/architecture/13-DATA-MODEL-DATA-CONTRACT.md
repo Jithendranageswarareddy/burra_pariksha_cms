@@ -918,7 +918,7 @@ To prepare for Stage 16 implementation, existing repository types and Google She
 │ `BaseRepository` (In-memory locks)│ DEPRECATE    │ Replace with Firestore transactions │
 │                                   │              │ (`runTransaction`) and OCC tokens.  │
 ├───────────────────────────────────┼──────────────┼─────────────────────────────────────┤
-│ `google-sheets-schema.ts`         │ TRANSFORM    │ Re-target as secondary export schema│
+│ `secondary-sheet-schema.ts`       │ TRANSFORM    │ Secondary export/archive tab schema│
 │                                   │              │ instead of transactional storage.   │
 ├───────────────────────────────────┼──────────────┼─────────────────────────────────────┤
 │ `src/types/data-contracts.ts`     │ KEEP         │ Canonical TypeScript interfaces and │

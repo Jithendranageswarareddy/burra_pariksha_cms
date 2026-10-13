@@ -195,7 +195,7 @@ Under the **₹0–₹100 Initial Infrastructure Investment Constraint**, hostin
 
 ## 7. Forensic Analysis of Google Sheets (Current Baseline)
 
-Inspection of `src/lib/repositories/base.repository.ts` and `src/lib/schemas/google-sheets-schema.ts` reveals how the brownfield system has operated:
+Inspection of `src/lib/repositories/base.repository.ts` and `src/lib/schemas/secondary-sheet-schema.ts` reveals how the brownfield system has operated:
 1. **Header-Based A1 Range Lookup:** Every read fetches entire worksheet row sets into memory; every update converts objects back into arrays and executes `spreadsheets.values.update`.
 2. **In-Process Concurrency Lock Hack:**
    ```typescript
@@ -501,7 +501,7 @@ The database architecture strictly enforces these **18 Invariants**:
 ## 25. Stage 12 Completion Checklist & Sign-off
 
 - [x] Read all eleven prior canonical artifacts (`01` through `11`).
-- [x] Inspected actual current persistence source code (`base.repository.ts`, `google-sheets-schema.ts`, `package.json`, `.env.example`).
+- [x] Inspected actual current persistence source code (`base.repository.ts`, `secondary-sheet-schema.ts`, `package.json`, `.env.example`).
 - [x] Evaluated Candidate A (Google Sheets), Candidate B (Firestore), Candidate C (PostgreSQL), and Candidate D (Hybrid).
 - [x] Evaluated all candidates across all 30 required technical dimensions.
 - [x] Enforced the hard initial investment constraint: **₹0 to ₹100**.

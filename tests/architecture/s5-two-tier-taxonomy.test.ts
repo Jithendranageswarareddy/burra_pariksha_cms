@@ -220,10 +220,10 @@ async function runSprint5RegressionTests() {
   // Assertion 11: Google Sheets schema & Restore Validator have zero legacy Category
   // --------------------------------------------------------------------------
   try {
-    console.log('\nAssertion 11: Verifying google-sheets-schema and restore-validator.service...');
-    const sheetsSchemaModule = await import('../../src/lib/schemas/google-sheets-schema');
-    assert.strictEqual((sheetsSchemaModule as any).SEQUENCE_ENTITIES, undefined, 'google-sheets-schema SEQUENCE_ENTITIES must not exist in Sprint 6');
-    assert.strictEqual((sheetsSchemaModule as any).ID_PREFIX_MAP, undefined, 'google-sheets-schema ID_PREFIX_MAP must not exist in Sprint 6');
+    console.log('\nAssertion 11: Verifying secondary-sheet-schema and restore-validator.service...');
+    const sheetsSchemaModule = await import('../../src/lib/schemas/secondary-sheet-schema');
+    assert.strictEqual((sheetsSchemaModule as any).SEQUENCE_ENTITIES, undefined, 'secondary-sheet-schema SEQUENCE_ENTITIES must not exist in Sprint 6');
+    assert.strictEqual((sheetsSchemaModule as any).ID_PREFIX_MAP, undefined, 'secondary-sheet-schema ID_PREFIX_MAP must not exist in Sprint 6');
 
     const fs = await import('node:fs');
     const path = await import('node:path');

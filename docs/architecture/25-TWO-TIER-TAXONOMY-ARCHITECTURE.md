@@ -14,7 +14,7 @@ $$\text{Topic} \longrightarrow \text{Subtopic}$$
    - Backend Services (`TaxonomyService`, `PlanningService`, `QuestionService`, `DashboardService`, `SimilarityService`, `VideoService`, etc.)
    - Repositories (deletion of `CategoriesRepository`, removal of `findByCategoryId`)
    - Domain Models & Types (`src/types/index.ts`, `src/types/route-contracts.ts`)
-   - Validation & Schemas (`google-sheets-schema.ts`, `domain-schemas.ts`)
+   - Validation & Schemas (`secondary-sheet-schema.ts`, `domain-schemas.ts`)
    - Firestore Persistence Model (`categories` collection removed from active registry)
    - ID Sequence Allocation (removal of `allocateCategoryId` and `SEQUENCE_ENTITIES.CATEGORY`)
    - Production Seed Data (`production-taxonomy.ts`, `firestore-production-initializer.service.ts`)

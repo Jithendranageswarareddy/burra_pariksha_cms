@@ -147,15 +147,15 @@ async function runDecouplingSuite() {
 
   // 8. Legacy Schema Decoupling: Ensure SHEET_SCHEMAS runtime persistence table dictionary is eliminated
   console.log('\n[Check 8] Verifying SHEET_SCHEMAS runtime persistence table dictionary is eliminated...');
-  const sheetsSchemaPath = path.resolve(rootSrcDir, 'lib/schemas/google-sheets-schema.ts');
+  const sheetsSchemaPath = path.resolve(rootSrcDir, 'lib/schemas/secondary-sheet-schema.ts');
   const sheetsSchemaContent = fs.readFileSync(sheetsSchemaPath, 'utf-8');
   assert.ok(
     !sheetsSchemaContent.includes('export const SHEET_SCHEMAS'),
-    'google-sheets-schema.ts must NOT contain runtime persistence SHEET_SCHEMAS table definitions'
+    'secondary-sheet-schema.ts must NOT contain runtime persistence SHEET_SCHEMAS table definitions'
   );
   assert.ok(
     sheetsSchemaContent.includes('export const SHEET_TABS'),
-    'google-sheets-schema.ts must preserve SHEET_TABS for recovery/archive tools'
+    'secondary-sheet-schema.ts must preserve SHEET_TABS for recovery/archive tools'
   );
   console.log('  -> PASS: Obsolete SHEET_SCHEMAS database schema removed; recovery archive tabs preserved.');
 

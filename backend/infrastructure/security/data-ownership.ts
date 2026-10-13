@@ -3,7 +3,7 @@
  * Phase 7: Data Ownership Architecture & Single Source of Truth
  */
 
-import { SHEET_TABS, SheetTabName } from '../../../src/lib/schemas/google-sheets-schema';
+import { SHEET_TABS, SheetTabName } from '../../../src/lib/schemas/secondary-sheet-schema';
 
 // ============================================================================
 // 1. SEMANTIC FIELD ROLE CLASSIFICATION

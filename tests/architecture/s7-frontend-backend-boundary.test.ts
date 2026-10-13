@@ -290,7 +290,7 @@ async function runBoundarySuite() {
       }
 
       // No request validation schemas / API contracts in database layer
-      if (/from\s+['"][^'"]*google-sheets-schema['"]/.test(line)) {
+      if (/from\s+['"][^'"]*secondary-sheet-schema['"]/.test(line)) {
         databaseViolations.push({
           file: relPath,
           rule: 'Import of API request validation schema in database layer',
