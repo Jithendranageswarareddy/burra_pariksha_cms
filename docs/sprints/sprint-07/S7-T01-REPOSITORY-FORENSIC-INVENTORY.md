@@ -16,7 +16,7 @@ later additions, while preserving the original baseline distinction.
 
 ### 1.1 Git Working Tree Baseline
 - **Original S7-T01 Baseline**: **690 files**
-- **Current Tracked Files Reconciled**: **709 files** (Verified against git ls-files)
+- **Current Tracked Files Reconciled**: **710 files** (Verified against git ls-files)
 - **Branch**: main
 - **Authoritative Datastore**: Cloud Firestore (Zero Google Sheets runtime persistence)
 - **Architecture Model**: Vertical Feature Slices with Unidirectional Dependency Flow
@@ -27,20 +27,20 @@ later additions, while preserving the original baseline distinction.
 | backend/ | 171 | Backend domain services, routes, middleware, validation |
 | frontend/ | 177 | React presentation components, pages, design system tokens |
 | features/ | 75 | Vertical feature scaffolding (.gitkeep targets) |
-| docs/ | 94 | Authoritative architecture specs, contracts, ADRs, sprint reports |
+| docs/ | 95 | Authoritative architecture specs, contracts, ADRs, sprint reports |
 | database/ | 48 | Cloud Firestore adapter, repositories, security rules |
 | src/ | 47 | Internal shims, legacy types, static configs, audit dispatchers |
 | tests/ | 44 | Automated regression test suites and quality gates |
 | shared/ | 29 | Isomorphic contracts, types, enums, canonical ID service |
 | Root (/) | 17 | Project configuration and build tooling |
 | scripts/ | 7 | Developer CLI and diagnostic tools |
-| **Total** | **709** | **Complete reconciled repository inventory** |
+| **Total** | **710** | **Complete reconciled repository inventory** |
 
 ### 1.3 Primary Architectural Classification Breakdown
 `
   FRONTEND        : 176 files  (24.8%)
   BACKEND         : 102 files  (14.4%)
-  DOCUMENTATION   :  96 files  (13.5%)
+  DOCUMENTATION   :  97 files  (13.7%)
   FEATURE_SCAFFOLD:  75 files  (10.6%)
   AI              :  74 files  (10.4%)
   DATABASE        :  51 files  ( 7.2%)
@@ -51,12 +51,12 @@ later additions, while preserving the original baseline distinction.
   SCRIPT          :   7 files  ( 1.0%)
   AUDIT           :   4 files  ( 0.6%)
   -----------------------------------------
-  TOTAL           : 709 files  (100.0%)
+  TOTAL           : 710 files  (100.0%)
 `
 
 ---
 
-## 2. Complete File Ownership Manifest (All 709 Files)
+## 2. Complete File Ownership Manifest (All 710 Files)
 
 The following manifest records all 690 tracked files in Burra Pariksha CMS, accounting for each file exactly once with path, responsibility, layer, domain owner, dependencies, consumers, target location, and risk:
 
@@ -771,6 +771,7 @@ The following manifest records all 690 tracked files in Burra Pariksha CMS, acco
 | docs/sprints/sprint-07/S7-T20-FINAL-ARCHITECTURE-GATE.md | Final architecture gate audit, 20-item acceptance matrix, and Sprint 7 closure evidence | Architecture Documentation | S7-T20 Final Architecture Gate | Sprint 7 quality gates, boundary scans, and test reports | Senior software architect, release auditors | docs/sprints/sprint-07/S7-T20-FINAL-ARCHITECTURE-GATE.md | **DOCUMENTATION** | HIGH | Added after original S7-T01 baseline |
 | tests/regression/s7-t19-runtime-regression.test.ts | Automated end-to-end runtime regression test suite covering 10 operational areas | Testing | S7-T19 Runtime Regression | Express app, Firebase Admin Firestore, Google Gemini provider, node:assert | CI runner, regression verification, test:s7-t19 | tests/regression/s7-t19-runtime-regression.test.ts | **TEST** | HIGH | Added after original S7-T01 baseline |
 | tests/unit/ai/client-options-sanitization.unit.test.ts | Unit test verifying AI client options allowlisting, clamping bounds, and internal override prevention | Testing | AI Options Sanitization | routes.ts, node:assert, tsx | CI runner, unit tests | tests/unit/ai/client-options-sanitization.unit.test.ts | **TEST** | HIGH | Added after original S7-T01 baseline |
+| docs/sprints/sprint-08/S8-T01-QUESTION-GENERATION-AUDIT.md | Comprehensive S8-T01 Question Generation entry point forensic audit report | Architecture Documentation | S8-T01 Entry Point Audit | routes.ts, QuestionStudioPage, useQuestionGeneration | Developers, QA, release auditors | docs/sprints/sprint-08/S8-T01-QUESTION-GENERATION-AUDIT.md | **DOCUMENTATION** | HIGH | Added for Sprint 8 S8-T01 |
 
 
 ---
@@ -795,4 +796,4 @@ Every tracked file under `src/` has a verified, evidence-backed disposition:
 - `src/lib/data/production-taxonomy.ts`: **Historical / migration-only artifact** — Initial taxonomy seed fixture for database initializers.
 
 ### 3.3 Zero Unresolved Dependencies
-All 709 current files have clearly identified responsibilities, layers, dependencies, and owners with 0 circular imports and 0 unresolved architectural leaks. The original S7-T01 baseline remains 690 files; 20 legitimate files were added by S7-T15 and S7-T16, five redundant server-root re-export wrappers were removed by S7-T18, three verification and regression artifacts were added by S7-T19 and S7-T20, and one unit test was added for AI client options sanitization.
+All 710 current files have clearly identified responsibilities, layers, dependencies, and owners with 0 circular imports and 0 unresolved architectural leaks. The original S7-T01 baseline remains 690 files; 20 legitimate files were added by S7-T15 and S7-T16, five redundant server-root re-export wrappers were removed by S7-T18, three verification and regression artifacts were added by S7-T19 and S7-T20, one unit test was added for AI client options sanitization, and one audit report was added for Sprint 8 S8-T01.
