@@ -11,7 +11,7 @@
 ## 1. Executive Summary & Repository Baseline
 
 ### 1.1 Git Working Tree Baseline
-- **Total Tracked Files Reconciled**: **674 files** (Verified against git ls-files)
+- **Total Tracked Files Reconciled**: **670 files** (Verified against git ls-files)
 - **Branch**: main
 - **Authoritative Datastore**: Cloud Firestore (Zero Google Sheets runtime persistence)
 - **Architecture Model**: Vertical Feature Slices with Unidirectional Dependency Flow
@@ -29,31 +29,31 @@
 | shared/ | 27 | Isomorphic contracts, types, enums, canonical ID service |
 | Root (/) | 17 | Project configuration and build tooling |
 | scripts/ | 7 | Developer CLI and diagnostic tools |
-| **Total** | **674** | **Complete repository inventory** |
+| **Total** | **670** | **Complete repository inventory** |
 
 ### 1.3 Primary Architectural Classification Breakdown
 `
-  FRONTEND        : 170 files  (25.2%)
+  FRONTEND        : 170 files  (25.4%)
   BACKEND         : 105 files  (15.6%)
   FEATURE_SCAFFOLD:  75 files  (11.1%)
   AI              :  74 files  (11.0%)
   DOCUMENTATION   :  71 files  (10.5%)
   DATABASE        :  51 files  ( 7.6%)
-  TEST            :  35 files  ( 5.8%)
+  TEST            :  35 files  ( 5.2%)
   SHARED          :  28 files  ( 4.2%)
   CONFIGURATION   :  25 files  ( 3.7%)
   SHARED_TYPES    :  25 files  ( 3.7%)
   SCRIPT          :   7 files  ( 1.0%)
   AUDIT           :   4 files  ( 0.6%)
   -----------------------------------------
-  TOTAL           : 674 files  (100.0%)
+  TOTAL           : 670 files  (100.0%)
 `
 
 ---
 
-## 2. Complete File Ownership Manifest (All 674 Files)
+## 2. Complete File Ownership Manifest (All 670 Files)
 
-The following manifest records all 674 tracked files in Burra Pariksha CMS, accounting for each file exactly once with path, responsibility, layer, domain owner, dependencies, consumers, target location, and risk:
+The following manifest records all 670 tracked files in Burra Pariksha CMS, accounting for each file exactly once with path, responsibility, layer, domain owner, dependencies, consumers, target location, and risk:
 
 | Current Path | Responsibility | Layer | Feature/Domain | Depends On | Consumed By | Target Location | Classification | Priority | Notes |
 |:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|
@@ -436,21 +436,21 @@ The following manifest records all 674 tracked files in Burra Pariksha CMS, acco
 | firebase.json | Root build tool config, package manager lock, container definition | Project Configuration / Environment | Build & Runtime Tooling | None (Self-contained) | Build system, runtime container | firebase.json | **CONFIGURATION** | MEDIUM | Root build / configuration file |
 | frontend/api/api-client.ts | Client entry points and styling | Frontend Entry | Application Shell | React, Vite | Browser bundle | frontend/api/api-client.ts | **FRONTEND** | HIGH | Vite frontend shell |
 | frontend/api/contracts.ts | Client entry points and styling | Frontend Entry | Application Shell | React, Vite | Browser bundle | frontend/api/contracts.ts | **FRONTEND** | HIGH | Vite frontend shell |
+| frontend/api/index.ts | Feature API barrel exports and gateway | Frontend API Client | Frontend API Layer | apiClient, feature APIs | Frontend pages and components | frontend/api/index.ts | **FRONTEND** | HIGH | Canonical feature API gateway |
+| frontend/api/planning.api.ts | Planning stage API client functions | Frontend API Client | Planning | apiClient, shared planning contracts | PlanningWorkspace, UI components | frontend/api/planning.api.ts | **FRONTEND** | HIGH | Typed frontend API module |
+| frontend/api/publishing.api.ts | Publishing stage API client functions | Frontend API Client | Publishing | apiClient, shared publishing contracts | PublishingWorkspace, UI components | frontend/api/publishing.api.ts | **FRONTEND** | HIGH | Typed frontend API module |
+| frontend/api/questions.api.ts | Questions stage API client functions | Frontend API Client | Questions | apiClient, shared question contracts | QuestionWorkspace, ReviewWorkspace | frontend/api/questions.api.ts | **FRONTEND** | HIGH | Typed frontend API module |
+| frontend/api/taxonomy.api.ts | Taxonomy stage API client functions | Frontend API Client | Taxonomy | apiClient, shared taxonomy contracts | TaxonomyWorkspace, UI filters | frontend/api/taxonomy.api.ts | **FRONTEND** | HIGH | Typed frontend API module |
+| frontend/api/videos.api.ts | Video generation stage API client functions | Frontend API Client | Video Generation | apiClient, shared video contracts | VideoWorkspace, EditingWorkspace | frontend/api/videos.api.ts | **FRONTEND** | HIGH | Typed frontend API module |
 | frontend/app/App.tsx | Client entry points and styling | Frontend Entry | Application Shell | React, Vite | Browser bundle | frontend/app/App.tsx | **FRONTEND** | HIGH | Vite frontend shell |
 | frontend/app/index.css | Client entry points and styling | Frontend Entry | Application Shell | React, Vite | Browser bundle | frontend/app/index.css | **FRONTEND** | HIGH | Vite frontend shell |
 | frontend/app/main.tsx | Client entry points and styling | Frontend Entry | Application Shell | React, Vite | Browser bundle | frontend/app/main.tsx | **FRONTEND** | HIGH | Vite frontend shell |
 | frontend/components/assignments/AssignmentBadge.tsx | React presentation components, UI controls, modals, tables | Frontend Presentation | User Interface Primitives & Composite Controls | React, Lucide icons, shared contracts | Pages, Dashboards, Workspaces | frontend/components/assignments/AssignmentBadge.tsx | **FRONTEND** | MEDIUM | Isolated presentation component |
 | frontend/components/assignments/AssignmentModal.tsx | React presentation components, UI controls, modals, tables | Frontend Presentation | User Interface Primitives & Composite Controls | React, Lucide icons, shared contracts | Pages, Dashboards, Workspaces | frontend/components/assignments/AssignmentModal.tsx | **FRONTEND** | MEDIUM | Isolated presentation component |
 | frontend/components/assignments/EntityAssignmentsSection.tsx | React presentation components, UI controls, modals, tables | Frontend Presentation | User Interface Primitives & Composite Controls | React, Lucide icons, shared contracts | Pages, Dashboards, Workspaces | frontend/components/assignments/EntityAssignmentsSection.tsx | **FRONTEND** | MEDIUM | Isolated presentation component |
-| frontend/components/common/Button.tsx | React presentation components, UI controls, modals, tables | Frontend Presentation | User Interface Primitives & Composite Controls | React, Lucide icons, shared contracts | Pages, Dashboards, Workspaces | frontend/components/common/Button.tsx | **FRONTEND** | MEDIUM | Isolated presentation component |
-| frontend/components/common/DifficultyBadge.tsx | React presentation components, UI controls, modals, tables | Frontend Presentation | User Interface Primitives & Composite Controls | React, Lucide icons, shared contracts | Pages, Dashboards, Workspaces | frontend/components/common/DifficultyBadge.tsx | **FRONTEND** | MEDIUM | Isolated presentation component |
-| frontend/components/common/EmptyState.tsx | React presentation components, UI controls, modals, tables | Frontend Presentation | User Interface Primitives & Composite Controls | React, Lucide icons, shared contracts | Pages, Dashboards, Workspaces | frontend/components/common/EmptyState.tsx | **FRONTEND** | MEDIUM | Isolated presentation component |
-| frontend/components/common/LoadingState.tsx | React presentation components, UI controls, modals, tables | Frontend Presentation | User Interface Primitives & Composite Controls | React, Lucide icons, shared contracts | Pages, Dashboards, Workspaces | frontend/components/common/LoadingState.tsx | **FRONTEND** | MEDIUM | Isolated presentation component |
-| frontend/components/common/Modal.tsx | React presentation components, UI controls, modals, tables | Frontend Presentation | User Interface Primitives & Composite Controls | React, Lucide icons, shared contracts | Pages, Dashboards, Workspaces | frontend/components/common/Modal.tsx | **FRONTEND** | MEDIUM | Isolated presentation component |
-| frontend/components/common/SearchInput.tsx | React presentation components, UI controls, modals, tables | Frontend Presentation | User Interface Primitives & Composite Controls | React, Lucide icons, shared contracts | Pages, Dashboards, Workspaces | frontend/components/common/SearchInput.tsx | **FRONTEND** | MEDIUM | Isolated presentation component |
-| frontend/components/common/StatCard.tsx | React presentation components, UI controls, modals, tables | Frontend Presentation | User Interface Primitives & Composite Controls | React, Lucide icons, shared contracts | Pages, Dashboards, Workspaces | frontend/components/common/StatCard.tsx | **FRONTEND** | MEDIUM | Isolated presentation component |
-| frontend/components/common/StatusBadge.tsx | React presentation components, UI controls, modals, tables | Frontend Presentation | User Interface Primitives & Composite Controls | React, Lucide icons, shared contracts | Pages, Dashboards, Workspaces | frontend/components/common/StatusBadge.tsx | **FRONTEND** | MEDIUM | Isolated presentation component |
-| frontend/components/common/TechnicalDetails.tsx | React presentation components, UI controls, modals, tables | Frontend Presentation | User Interface Primitives & Composite Controls | React, Lucide icons, shared contracts | Pages, Dashboards, Workspaces | frontend/components/common/TechnicalDetails.tsx | **FRONTEND** | MEDIUM | Isolated presentation component |
+| frontend/components/badges/DifficultyBadge.tsx | React presentation badge for question difficulty | Frontend Presentation | User Interface Primitives & Badges | React, design system tokens | Question cards, tables, dashboards | frontend/components/badges/DifficultyBadge.tsx | **FRONTEND** | MEDIUM | Isolated presentation component |
+| frontend/components/badges/StatusBadge.tsx | React presentation badge for workflow and publication status | Frontend Presentation | User Interface Primitives & Badges | React, design system tokens | Question cards, workflow monitors, tables | frontend/components/badges/StatusBadge.tsx | **FRONTEND** | MEDIUM | Isolated presentation component |
+| frontend/components/badges/index.ts | Barrel export aggregating UI badge primitives | Frontend Presentation | User Interface Primitives & Badges | Badge components | UI components, pages | frontend/components/badges/index.ts | **FRONTEND** | MEDIUM | Barrel export for badge components |
 | frontend/components/dashboard/ChannelPerformanceSection.tsx | React presentation components, UI controls, modals, tables | Frontend Presentation | User Interface Primitives & Composite Controls | React, Lucide icons, shared contracts | Pages, Dashboards, Workspaces | frontend/components/dashboard/ChannelPerformanceSection.tsx | **FRONTEND** | MEDIUM | Isolated presentation component |
 | frontend/components/dashboard/ContinueProductionCard.tsx | React presentation components, UI controls, modals, tables | Frontend Presentation | User Interface Primitives & Composite Controls | React, Lucide icons, shared contracts | Pages, Dashboards, Workspaces | frontend/components/dashboard/ContinueProductionCard.tsx | **FRONTEND** | MEDIUM | Isolated presentation component |
 | frontend/components/dashboard/ConveyorBeltVisualizer.tsx | React presentation components, UI controls, modals, tables | Frontend Presentation | User Interface Primitives & Composite Controls | React, Lucide icons, shared contracts | Pages, Dashboards, Workspaces | frontend/components/dashboard/ConveyorBeltVisualizer.tsx | **FRONTEND** | MEDIUM | Isolated presentation component |
@@ -751,4 +751,4 @@ Every tracked file under `src/` has a verified, evidence-backed disposition:
 - `src/lib/data/production-taxonomy.ts`: **Historical / migration-only artifact** — Initial taxonomy seed fixture for database initializers.
 
 ### 3.3 Zero Unresolved Dependencies
-All 674 files have clearly identified responsibilities, layers, dependencies, and owners with 0 circular imports and 0 unresolved architectural leaks.
+All 670 files have clearly identified responsibilities, layers, dependencies, and owners with 0 circular imports and 0 unresolved architectural leaks.
