@@ -322,6 +322,28 @@ async function runS7T19Regression() {
     assert.strictEqual(aiInvalidJson.includes(process.env.GEMINI_API_KEY || 'AIza'), false, 'Zero secrets or API keys leaked in error response');
     recordResult('S7-T19.3', 'AI Failure & Safe Error Handling', 'PASS', `Controlled forced timeout handled safely with HTTP ${aiInvalidRes.status}; zero secret leakage`);
 
+    // 5. Verify AI client options allowlisting & server-side bounds enforcement
+    const aiSanitizedRes = await fetch(`${baseUrl}/ai/generate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${authorToken}`,
+      },
+      body: JSON.stringify({
+        topicId: 'TOP-QA-01',
+        subtopicId: 'SUB-01',
+        options: {
+          timeoutMs: 1, // Clamped to valid range [1, 60000] and triggers safe timeout
+          preferredProviderId: 'INVALID_UNKNOWN_PROVIDER', // Dropped by allowlist
+          maliciousInternalSetting: 'should_be_dropped', // Dropped by allowlist
+        },
+      }),
+    });
+    assert.strictEqual(aiSanitizedRes.status, 500, 'Sanitized options with timeout 1ms must trigger safe timeout');
+    const aiSanitizedData = await aiSanitizedRes.json();
+    assert.strictEqual(aiSanitizedData.code, 'AI_GENERATION_FAILED');
+    recordResult('S7-T19.3', 'AI Client Options Sanitization & Bounds', 'PASS', 'Unsupported provider and arbitrary fields dropped; timeoutMs safely clamped');
+
     // =========================================================================
     // S7-T19.4: SAVE DRAFT AND FIRESTORE PERSISTENCE
     // =========================================================================

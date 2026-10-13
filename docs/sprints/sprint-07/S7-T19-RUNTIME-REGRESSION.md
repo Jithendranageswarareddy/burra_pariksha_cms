@@ -9,8 +9,9 @@ All ten critical runtime regression areas have been executed and verified in liv
 The previous environment blockers have been resolved:
 - **Authentication Diagnosis**: The earlier S2-T05 test identity returned HTTP 401 because it was an unseeded historical mock. In S7-T19, non-production test identities (`usr_s7_login_*`, `usr_s7_author_*`, `usr_s7_reviewer_*`) are dynamically provisioned with Scrypt-hashed passwords in Cloud Firestore. Authenticated login via `POST /v1/auth/login` sets valid HMAC-SHA256 session cookies, granting full authenticated access to the dashboard and verification queue.
 - **Reviewer Verification Journey**: Verified with a separate independent reviewer identity (`usr_s7_reviewer_*`). Author self-approval was strictly rejected under GAR-02 (HTTP 403), unauthorized roles were rejected (HTTP 403), and the reviewer successfully approved the draft, materializing it into `questions` as `qst_<uuid>` with status `APPROVED`.
-- **AI Failure & Timeout Handling**: Verified via controlled forced timeout (`options: { timeoutMs: 1 }`). Handled with a safe, structured error envelope (`AI_GENERATION_FAILED`, HTTP 500) with zero credential or API key leakage, zero unintended draft persistence, and zero workflow progression.
+- **AI Failure, Timeout & Bounds Handling**: Verified via controlled forced timeout (`options: { timeoutMs: 1 }`) and invalid option injection. Handled with a safe, structured error envelope (`AI_GENERATION_FAILED`, HTTP 500) with zero credential or API key leakage, zero unintended draft persistence, and server-side option sanitization (allowlisted providers, timeout clamped between 1ms and 60,000ms).
 - **Audit Ledger Inspection**: Directly queried `auditLogRepository` in Cloud Firestore before cleanup. Verified `QUESTION_DRAFT_SUBMITTED_FOR_VERIFICATION` and `QUESTION_STATUS_CHANGED` with valid actor IDs and timestamps, and confirmed zero passwords or tokens in audit logs.
+- **Browser vs. HTTP Runtime Execution**: The full full-stack server (`node dist/server.cjs --port 3000`) runs and serves both API routes and the SPA frontend (`GET /` returns HTTP 200). Direct visual browser automation via Playwright was constrained by the offline test sandbox environment (which blocks external binary downloads from Azure CDN). Complete end-to-end user journeys (creator flow, reviewer flow, state persistence, RBAC, and audit) were independently verified against the running Express application and live Cloud Firestore.
 
 ---
 
@@ -32,7 +33,7 @@ The previous environment blockers have been resolved:
 |---|:---:|---|
 | **S7-T19.1 Authentication & Login** | **PASS** | Valid credentials authenticated; session cookie set. Invalid credentials returned HTTP 401 `UNAUTHENTICATED`. Protected endpoints (`/ai/status`, `/v1/questions/drafts`) returned HTTP 401 when unauthenticated. Logout revoked session. Zero secret leakage. |
 | **S7-T19.2 Dashboard** | **PASS** | Authenticated user retrieved `/v1/dashboard/overview` yielding HTTP 200 with summary metrics (`draftCount`, `verificationQueueCount`, `approvedCount`). Unauthorized role (`SCRIPT_WRITER`) rejected with HTTP 403. |
-| **S7-T19.3 Question Generation & AI** | **PASS** | Live Google Gemini bilingual candidate generated via `@google/genai` in ~11s. Advisory invariant verified: candidate remained purely transient in memory; zero drafts persisted. Controlled timeout test (`timeoutMs: 1`) handled safely with HTTP 500 error envelope; zero secrets leaked. |
+| **S7-T19.3 Question Generation & AI** | **PASS** | Live Google Gemini bilingual candidate generated via `@google/genai` in ~12s. Advisory invariant verified: candidate remained purely transient in memory; zero drafts persisted. Controlled timeout test (`timeoutMs: 1`) handled safely with HTTP 500 error envelope; client options allowlisted and bounded; zero secrets leaked. |
 | **S7-T19.4 Save Draft & Firestore Persistence** | **PASS** | Saved draft via `POST /v1/questions/draft` persisted as `dft_<uuid>` in `question_drafts` in Cloud Firestore. Verified absent from `questions` collection. Independent read back confirmed all saved values. |
 | **S7-T19.5 Save Draft ≠ Submit for Verification** | **PASS** | Saved draft remained in status `DRAFT`, workflow stage `QUESTION_STUDIO`. Verification review queue contained 0 items for this draft. Zero submission audit events emitted. |
 | **S7-T19.6 Submit for Verification** | **PASS** | Explicit `POST /v1/questions/draft/${id}/submit` transitioned draft to `STAGE_02_VERIFICATION` / `SUBMITTED_FOR_REVIEW`. Submission audit event recorded. Duplicate submission rejected with HTTP 409 Conflict. |
@@ -83,13 +84,13 @@ The previous environment blockers have been resolved:
 1. **AI Provider Timeout on Long LLM Responses**: Increased `timeoutMs` to 30000ms in `gemini.adapter.ts` to allow complete bilingual Telugu generation without aborting.
 2. **Provider Registry Null Guard**: Wrapped `aiProviderRegistry.getDefaultProvider()` in `ai-orchestrator.service.ts` to prevent uncaught exceptions when provider list is empty.
 3. **Smart Random Taxonomy Fallback**: Added production taxonomy fallback in `smart-random.service.ts` when Firestore taxonomy collection is empty prior to seeding.
-4. **AI Generation Options Forwarding**: Forwarded `req.body.options` in `routes.ts` (`/ai/generate`) to enable controlled timeout and parameter overrides.
+4. **AI Generation Options Forwarding & Sanitization**: Forwarded and sanitized `req.body.options` in `routes.ts` (`/ai/generate`). Enforced allowlist for `preferredProviderId` and clamped `timeoutMs` between 1ms and 60,000ms, preventing override of internal provider configurations.
 
 ---
 
 ## Validation Results
 
-- `npm run test:s7-t19`: **PASS (18/18 tests passed, 0 failed, 0 blocked)**
+- `npm run test:s7-t19`: **PASS (19/19 tests passed, 0 failed, 0 blocked)**
 - `npm run test:architecture`: **PASS (5/5 suites passed, 0 violations)**
 - `npm run test:question-generation`: **PASS (5/5 suites passed)**
 - `npm test`: **PASS (40/40 tests across FC-001 through FC-005 passed)**

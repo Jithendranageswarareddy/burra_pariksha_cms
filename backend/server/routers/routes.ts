@@ -3453,9 +3453,40 @@ apiRouter.get('/ai/status', (req: Request, res: Response) => {
   });
 });
 
+function sanitizeClientOrchestratorOptions(rawOptions: any): { preferredProviderId?: any; timeoutMs?: number } | undefined {
+  if (!rawOptions || typeof rawOptions !== 'object' || Array.isArray(rawOptions)) {
+    return undefined;
+  }
+  const sanitized: { preferredProviderId?: any; timeoutMs?: number } = {};
+
+  if (typeof rawOptions.timeoutMs === 'number' && Number.isFinite(rawOptions.timeoutMs)) {
+    sanitized.timeoutMs = Math.max(1, Math.min(60000, Math.floor(rawOptions.timeoutMs)));
+  }
+
+  const validProviders = new Set([
+    'GEMINI',
+    'OPENROUTER',
+    'MISTRAL',
+    'GROQ',
+    'COHERE',
+    'CEREBRAS',
+    'HUGGING_FACE',
+    'EXPERIMENTAL_LABS',
+  ]);
+  if (typeof rawOptions.preferredProviderId === 'string') {
+    const normalized = rawOptions.preferredProviderId.toUpperCase().trim();
+    if (validProviders.has(normalized)) {
+      sanitized.preferredProviderId = normalized as any;
+    }
+  }
+
+  return Object.keys(sanitized).length > 0 ? sanitized : undefined;
+}
+
 apiRouter.post('/ai/generate', async (req: Request, res: Response) => {
   try {
-    const result = await aiOrchestrator.generateQuestionCandidate(req.body, req.body.options);
+    const sanitizedOptions = sanitizeClientOrchestratorOptions(req.body?.options);
+    const result = await aiOrchestrator.generateQuestionCandidate(req.body, sanitizedOptions);
     res.json(result);
   } catch (err: any) {
     const statusCode = err.statusCode || (err.code === 'QUOTA_EXHAUSTED' ? 429 : 500);

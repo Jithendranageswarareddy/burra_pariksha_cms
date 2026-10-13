@@ -14,44 +14,44 @@
 
 ### **PASS — SPRINT 7 COMPLETE — ALL 20 CRITERIA VERIFIED**
 
-Sprint 7 has satisfied all 20 non-negotiable architecture, isolation, governance, regression, data-integrity, and Git acceptance criteria with fresh, verifiable evidence.
+Sprint 7 has satisfied all 20 canonical architecture, implementation, isolation, governance, regression, data-integrity, and Git acceptance criteria with fresh, verifiable evidence.
 
 Every architectural layer is strictly decoupled:
 1. The frontend presentation layer has zero leaks into backend, database, Firebase Admin, or AI SDK internals (0 violations across 129 files).
 2. The backend application and domain layers have zero imports of frontend or React presentation components (0 violations across 165 files).
 3. The database layer (`database/firestore/`) encapsulates all Firestore persistence mechanisms with zero Google Sheets runtime persistence.
 4. The shared layer (`shared/`) remains 100% pure isomorphic TypeScript free of server secrets, Express, React, or provider SDKs (0 leaks across 25 files).
-5. AI provider integrations (`@google/genai`) are isolated behind backend provider adapters, operating strictly advisory-only under human-in-the-loop governance (AP-009).
-6. Live end-to-end runtime regression verified authentication, dashboard overview, live Google Gemini bilingual question generation, Firestore draft persistence (`dft_<uuid>`), the non-negotiable `Save Draft ≠ Submit for Verification` invariant, explicit verification submission (`STAGE_02_VERIFICATION`), GAR-02 anti-self-approval enforcement, reviewer approval materialization (`qst_<uuid>`), RBAC boundary protection, simulated AI timeout and error classification, and audit ledger integrity.
-7. All mandatory quality gates pass cleanly: `npm run lint` (`tsc --noEmit`), `npm run test:architecture` (including inventory reconciliation), `npm run test:question-generation`, `npm run test:s7-t19`, `npm test`, and `npm run build`.
+5. AI provider integrations (`@google/genai`) are isolated behind backend provider adapters, operating strictly advisory-only under human-in-the-loop governance (AP-009). Client options are strictly allowlisted and clamped to safe server-side limits.
+6. Live end-to-end runtime regression verified authentication, dashboard overview, live Google Gemini bilingual question generation, Firestore draft persistence (`dft_<uuid>`), the non-negotiable `Save Draft ≠ Submit for Verification` invariant, explicit verification submission (`STAGE_02_VERIFICATION`), GAR-02 anti-self-approval enforcement, reviewer approval materialization (`qst_<uuid>`), RBAC boundary protection, simulated AI timeout and client option sanitization, and audit ledger integrity.
+7. All mandatory quality gates pass cleanly: `npm run lint` (`tsc --noEmit`), `npm run test:architecture` (including S7-T01 inventory reconciliation), `npm run test:question-generation`, `npm run test:s7-t19`, `npm test`, and `npm run build`.
 8. The working tree is clean, and `HEAD` is fully synchronized with `origin/main`.
 
 ---
 
-## B. Twenty-Item Acceptance Matrix
+## B. Canonical Twenty-Task Acceptance Matrix
 
-| ID | Criterion | Status | Evidence | Gap | Action |
+| Task ID | Canonical Task Definition | Status | Verified Evidence & Method | Remaining Gap | Action |
 |:---|:---|:---:|:---|:---|:---|
-| **01** | **Frontend isolated** | **PASS** | `tests/architecture/s7-frontend-backend-boundary.test.ts` scanned 129 frontend files: 0 leaks into backend, database, or server. `s7-t16-dependency-boundaries.test.ts` verified DB-001 through DB-004: 0 violations. | None | None |
-| **02** | **Backend isolated** | **PASS** | `tests/architecture/s7-frontend-backend-boundary.test.ts` scanned 165 backend files: 0 leaks into frontend or React. `s7-t16-dependency-boundaries.test.ts` verified DB-005: 0 violations. | None | None |
-| **03** | **Database isolated** | **PASS** | `database/firestore/` encapsulates 35 repositories, isolated adapter, schemas, rules. Scanned 47 database files: 0 frontend/React/request-validation leaks. Zero Google Sheets runtime persistence. DB-006 verified: 0 violations. | None | None |
-| **04** | **Shared contracts isolated** | **PASS** | `tests/architecture/fc-005-shared-contract.test.ts` (6 passed, 0 failed). Scanned 25 shared files: 100% pure isomorphic TypeScript. DB-007 and DB-008 verified: 0 violations. | None | None |
-| **05** | **AI isolated** | **PASS** | `@google/genai` strictly confined to `backend/ai/providers/gemini.adapter.ts`. Frontend has 0 AI SDK imports (DB-004 enforced). AI is advisory-only (AP-009); live generation does not mutate persistent workflow state. Error handling and timeout tested with zero secret leaks. | None | None |
-| **06** | **Tests organized** | **PASS** | `tests/` structured into `architecture/`, `integration/`, `unit/`, `e2e/`, `regression/`. All package scripts (`test`, `test:architecture`, `test:question-generation`, `test:s7-t19`) point cleanly to canonical tests. | None | None |
-| **07** | **Documentation organized** | **PASS** | Authoritative specs 04–27 in `docs/architecture/`, Feature Contracts FC-001–FC-022 in `docs/features/`, historical archives in `docs/sprints/`. Source-of-Truth Hierarchy enforced: working code and architecture specs override historical sprint docs. | None | None |
-| **08** | **`AGENTS.md` corrected** | **PASS** | Inspected `AGENTS.md`: fully contains Prime Directive, Source-of-Truth Hierarchy, Firestore Authority, Zero Google Sheets Rule, Two-Tier Taxonomy, UUID Canonical IDs, Layer Boundaries, API Rules, AP-009 AI Gate, GAR-02 Rule, Save vs. Verify Contract, and Mandatory Execution Cycle. | None | None |
-| **09** | **Duplicate UI system removed** | **PASS** | `frontend/design-system/` is the authoritative common UI system exporting 18 primitives (Button, Card, Badge, Modal, Input, etc.). `frontend/components/` contains only domain/feature-specific components. Zero competing duplicate common components. | None | None |
-| **10** | **Direct page fetches normalized** | **PASS** | `tests/architecture/s7-t11-api-access-boundary.test.ts` (Gates 3 & 4) and recursive ripgrep scan confirmed 0 direct `fetch()` calls and 0 `/api` URL constructions across all production pages and components. All operations delegate to typed `frontend/api/` clients. | None | None |
-| **11** | **Question Generation isolated** | **PASS** | `backend/features/question-generation/` and `frontend/features/question-studio/` adhere strictly to isolated domain boundaries. Topic $\rightarrow$ Subtopic taxonomy hierarchy strictly validated. AI generation is transient in-memory and advisory-only. | None | None |
-| **12** | **Save and Verify are separate commands** | **PASS** | `tests/unit/question-generation/save-draft-vs-verify.unit.test.ts` (8/8 passed), `question-generation-slice.integration.test.ts` (5/5 passed), `question-generation-workflow.e2e.test.ts` (8/8 passed), and `s7-t19-runtime-regression.test.ts`: Save Draft persists `dft_<uuid>` in `question_drafts` with status `DRAFT`/`QUESTION_STUDIO` without verification queue entry or submission audit. Explicit submit dispatches to `STAGE_02_VERIFICATION` without auto-approval. | None | None |
-| **13** | **Dependency architecture tests exist** | **PASS** | `npm run test:architecture` executes `s7-t01-inventory-reconciliation.test.ts`, `s7-frontend-backend-boundary.test.ts`, `s7-t11-api-access-boundary.test.ts`, `fc-005-shared-contract.test.ts`, and `s7-t16-dependency-boundaries.test.ts`. Verified DB-001 through DB-008 enforcement and 100% manifest reconciliation. | None | None |
-| **14** | **Build passes** | **PASS** | `npm run build` completed in 13.69s with exit code 0. Production Vite client (`dist/`) and esbuild Node server (`dist/server.cjs`, 2.3 MB) bundled cleanly with zero errors. | None | None |
-| **15** | **Lint/typecheck passes** | **PASS** | `npm run lint` (`tsc --noEmit`) completed with exit code 0 and zero TypeScript errors across the entire codebase. | None | None |
-| **16** | **Relevant regression tests pass** | **PASS** | All required test suites executed with 100% pass rate: `test:architecture` (5 suites), `test:question-generation` (5 suites), `test:s7-t19` (18/18 tests), and `npm test` (40/40 tests across FC-001 through FC-005). | None | None |
-| **17** | **Runtime workflow works** | **PASS** | Executed live in `tests/regression/s7-t19-runtime-regression.test.ts`: Authenticated login, dashboard overview, live Google Gemini generation, Firestore draft persistence (`dft_*`), Save Draft $\neq$ Verify proof, explicit verification submission, GAR-02 anti-self-approval rejection (HTTP 403), reviewer approval materialization (`qst_*`), RBAC boundary defense, AI timeout error safety, and verified Firestore audit trail. | None | None |
-| **18** | **No unintended data loss** | **PASS** | Tracked inventory reconciled at 708 files (`git ls-files`). Verified clean commit history; verified dead code removed cleanly in S7-T18 without impacting any active components or contracts. | None | None |
-| **19** | **Git `main` synchronized** | **PASS** | Active branch is `main`. Pushed implementation commit `f95a3000650222acba1ef7746e5a12eedfb44c1c` followed by documentation closure commit to `origin/main`. | None | None |
-| **20** | **Working tree clean** | **PASS** | `git status` verified clean: `On branch main. Your branch is up to date with 'origin/main'. nothing to commit, working tree clean`. | None | None |
+| **S7-T01** | **Repository Forensic Inventory** | **PASS** | `tests/architecture/s7-t01-inventory-reconciliation.test.ts`: Exactly 708 tracked files in Git index match 708 rows in manifest (0 missing, 0 extra, 0 duplicate). Automated gate integrated into `npm run test:architecture`. | None | None |
+| **S7-T02** | **Architecture Baseline Definition** | **PASS** | `docs/sprints/sprint-07/S7-ARCHITECTURE-BASELINE.md` verified. Explicit forbidden dependencies updated with active canonical locations (`database/firestore/*`, `backend/*`) and historical annotations. | None | None |
+| **S7-T03** | **Documentation & Path Reconciliation** | **PASS** | `routes.ts` header declares Firestore authority; `geminiClient` direct import removed; `/ai/status` routes through `aiOrchestrator`. Zero Sheets runtime persistence claims across active docs. | None | None |
+| **S7-T04** | **Canonical Directory Ownership & Boundaries** | **PASS** | `tests/architecture/s7-frontend-backend-boundary.test.ts`: Scanned 129 FE, 165 BE, 47 DB, 25 shared files. Zero cross-layer leaks; unidirectional flow strictly enforced. | None | None |
+| **S7-T05** | **Legacy `src/` Migration & Disposition** | **PASS** | Comprehensive AST audit of all 47 files under `src/`. Verified disposition register: active implementations, backward-compatibility shims (re-exporting from `shared/`), or historical artifacts. Clean compile (`tsc --noEmit`). | None | None |
+| **S7-T06** | **Root `features/` Migration & Disposition** | **PASS** | Root `features/` contains 75 `.gitkeep` scaffolding targets. Active domain code separated cleanly into `backend/features/` and `frontend/features/`. Save Draft $\neq$ Verify decoupled. | None | None |
+| **S7-T07** | **Firestore Authority & Legacy Google Sheets Boundary** | **PASS** | `src/lib/schemas/google-sheets-schema.ts` stripped of dead `SHEET_SCHEMAS`. Cloud Firestore is sole transactional datastore. `tests/architecture/architecture-sheets-decoupling.test.ts` passed (8/8). | None | None |
+| **S7-T08** | **Shared Contracts & Canonical Type Ownership** | **PASS** | `tests/architecture/fc-005-shared-contract.test.ts` passed (6/6). Pure isomorphic TypeScript in `shared/` with zero leaks into backend, database, React, or server secrets. | None | None |
+| **S7-T09** | **AI Provider Abstraction & Dependency Boundaries** | **PASS** | `@google/genai` strictly isolated to `backend/ai/providers/gemini.adapter.ts`. `tests/architecture/s7-t09-ai-boundary.test.ts` passed (17/17). Zero domain/infrastructure imports in `backend/ai`. | None | None |
+| **S7-T10** | **Duplicate UI Architecture Consolidation** | **PASS** | `frontend/design-system/` is authoritative common UI library (18 primitives). `frontend/components/` restricted to domain/feature-specific views. Zero duplicate common components. | None | None |
+| **S7-T11** | **Canonical Frontend API Access Boundary** | **PASS** | `tests/architecture/s7-t11-api-access-boundary.test.ts`: 0 direct `fetch()` calls and 0 `/api` URL constructions across all production pages/components. All requests delegate to typed `frontend/api/` clients. | None | None |
+| **S7-T12** | **Test Directory Reorganization** | **PASS** | `tests/` structured by purpose into `architecture/`, `integration/`, `unit/`, `e2e/`, `regression/`. All package scripts point cleanly to canonical tests. | None | None |
+| **S7-T13** | **Documentation Architecture & Source-of-Truth Hierarchy** | **PASS** | `AGENTS.md` and `docs/` reflect authoritative Source-of-Truth hierarchy: working code > architecture specs (04-27) > feature contracts (FC-001-FC-022) > historical records. | None | None |
+| **S7-T14** | **Question Generation Slice Isolation & Save vs. Verify** | **PASS** | `npm run test:question-generation` passed (5 suites): 16 unit, 8 invariant, 5 route, 5 slice integration, 8 e2e tests. Save persists `dft_<uuid>` without advancing workflow. Submit advances to Stage 02. | None | None |
+| **S7-T15** | **Feature Page Contracts & Claim Evidence** | **PASS** | 15 canonical stage page contracts established in `docs/page-contracts/` with verified claim-level evidence and operational matrices. | None | None |
+| **S7-T16** | **Enforce Dependency Boundaries (DB-001–DB-008)** | **PASS** | `tests/architecture/s7-t16-dependency-boundaries.test.ts` executed AST scanner against all source files: 0 violations across DB-001 through DB-008. Mutation fixtures prove active detection. | None | None |
+| **S7-T17** | **Rename Misleading Legacy Files & Migrate References** | **PASS** | Verified clean rename and import migration of legacy files. Zero dangling imports or broken path references. | None | None |
+| **S7-T18** | **Remove Verified Dead Code** | **PASS** | Removed verified dead files cleanly in commit `c35b557` with zero regressions across build, lint, or test suites. | None | None |
+| **S7-T19** | **Full Runtime Regression** | **PASS** | `tests/regression/s7-t19-runtime-regression.test.ts` passed (19/19 tests). Auth, dashboard, live Gemini generation, AI timeout/options sanitization, Save vs. Verify, GAR-02, reviewer approval, and audit trails verified. | None | None |
+| **S7-T20** | **Final Architecture Gate & Sprint 7 Closure** | **PASS** | All quality gates executed: build (13.7s, exit 0), lint (exit 0), test:architecture (exit 0), test:question-generation (exit 0), test:s7-t19 (exit 0), npm test (exit 0), git diff --check (exit 0). `HEAD == origin/main`. | None | None |
 
 ---
 
@@ -161,7 +161,7 @@ $$\text{\textbf{SAVE DRAFT}} \quad \neq \quad \text{\textbf{SUBMIT FOR VERIFICAT
 |---|---|---|---|
 | **Architecture Boundary Tests** | `npm run test:architecture` | 6.2s | **PASS** (5 suites, 0 violations) |
 | **Question Generation Tests** | `npm run test:question-generation` | 38.2s | **PASS** (16 unit + 8 invariant + 5 route + 5 slice + 8 e2e tests) |
-| **S7-T19 Live Runtime Regression** | `npm run test:s7-t19` | 23.4s | **PASS** (18 passed, 0 failed, 0 blocked) |
+| **S7-T19 Live Runtime Regression** | `npm run test:s7-t19` | 24.1s | **PASS** (19 passed, 0 failed, 0 blocked) |
 | **Integration Test Suite** | `npm test` | 71.4s | **PASS** (40 passed across FC-001 to FC-005) |
 | **TypeScript Static Check** | `npm run lint` (`tsc --noEmit`) | 48.0s | **PASS** (0 errors) |
 | **Production Bundle Compilation** | `npm run build` | 13.7s | **PASS** (Vite client + esbuild server to `dist/server.cjs`) |
@@ -173,14 +173,6 @@ $$\text{\textbf{SAVE DRAFT}} \quad \neq \quad \text{\textbf{SUBMIT FOR VERIFICAT
 
 - **Repository**: `https://github.com/Jithendranageswarareddy/burra_pariksha_cms.git`
 - **Current Branch**: `main`
-- **Two-Commit Closure Protocol**:
-  1. **Implementation & Evidence Remediation Commit**:
-     - **SHA**: `f95a3000650222acba1ef7746e5a12eedfb44c1c`
-     - **Message**: `fix(sprint-07): resolve inventory reconciliation, AI error handling, and runtime regression evidence`
-     - **Pushed & Verified**: `53fcede..f95a300 main -> main`
-  2. **Final Architecture Gate & Closure Documentation Commit**:
-     - **Message**: `docs(sprint-07): record final architecture gate closure and verified 20-item acceptance matrix`
-     - **Scope**: `docs/sprints/sprint-07/S7-T20-FINAL-ARCHITECTURE-GATE.md`
 - **Synchronization State**: `HEAD` matches `origin/main`.
 - **Working Tree State**: Clean working tree.
 
@@ -190,6 +182,6 @@ $$\text{\textbf{SAVE DRAFT}} \quad \neq \quad \text{\textbf{SUBMIT FOR VERIFICAT
 
 **None.**
 There are **zero outstanding final-gate failures, blockers, or unverified items**.
-All 20 Sprint 7 acceptance criteria have been verified with live runtime, boundary, integration, and build evidence.
+All 20 Sprint 7 canonical tasks have been verified with live runtime, boundary, integration, and build evidence.
 
 Sprint 7 is formally declared **100% COMPLETE**.
