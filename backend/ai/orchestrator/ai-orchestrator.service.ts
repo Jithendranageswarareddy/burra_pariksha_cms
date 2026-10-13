@@ -18,8 +18,7 @@ import {
   RefineCandidateInput,
 } from './types';
 import { MultiAIProviderRegistry, multiAIProviderRegistry } from './provider-registry';
-import { questionConfigService } from '../../infrastructure/services/question-config.service';
-import { geminiService } from '../providers/gemini.service';
+import { aiProviderRegistry } from './registry';
 import { AIProviderError } from '../errors';
 import { GenAiQuestionCandidateResponseSchema } from '../schemas/question-candidate.schema';
 import { buildGenerationPrompt, BURRA_PARIKSHA_SYSTEM_INSTRUCTION } from '../prompts/generation.prompt';
@@ -211,17 +210,19 @@ export class AIOrchestrationService {
     const resolvedInput = { ...input };
     const ctxVal = resolvedInput.realLifeContext || resolvedInput.realWorldContext;
     if (ctxVal?.toUpperCase() === 'RANDOM' || ctxVal?.toUpperCase() === 'SMART_RANDOM') {
-      try {
-        const activeContexts = await questionConfigService.getRealLifeContexts(true);
-        if (activeContexts && activeContexts.length > 0) {
-          const randIdx = Math.floor(Math.random() * activeContexts.length);
-          const chosenCtx = activeContexts[randIdx].displayLabel || activeContexts[randIdx].code;
-          resolvedInput.realWorldContext = chosenCtx;
-          resolvedInput.realLifeContext = chosenCtx;
-        }
-      } catch {
-        resolvedInput.realWorldContext = 'General Knowledge';
-      }
+      const standardContexts = [
+        'Cricket & IPL',
+        'Indian Cinema',
+        'Daily Finance & Kirana',
+        'Indian Railways & Transit',
+        'Festival & Cultural Planning',
+        'Mobile Tech & Telugu Life',
+        'General Knowledge',
+      ];
+      const randIdx = Math.floor(Math.random() * standardContexts.length);
+      const chosenCtx = standardContexts[randIdx];
+      resolvedInput.realWorldContext = chosenCtx;
+      resolvedInput.realLifeContext = chosenCtx;
     }
 
     const normalizedDifficulty = QuestionCreationValidator.normalizeDifficulty(resolvedInput.difficulty);
@@ -280,29 +281,38 @@ export class AIOrchestrationService {
   }
 
   public isConfigured(): boolean {
-    return this.registry.getConfiguredProviders().length > 0;
+    return this.registry.getConfiguredProviders().length > 0 || aiProviderRegistry.getEnabledProviders().length > 0;
+  }
+
+  private getDelegatedProvider(providerId?: string): any {
+    if (providerId) {
+      const p = aiProviderRegistry.getProvider(providerId);
+      if (p) return p;
+    }
+    return aiProviderRegistry.getDefaultProvider();
   }
 
   public async refineQuestionCandidate(
     input: RefineCandidateInput,
     options?: OrchestratorTaskOptions
   ): Promise<GenerationResult> {
-    if (this.registry.getConfiguredProviders().length === 0) {
+    const provider = this.getDelegatedProvider(options?.preferredProviderId ? String(options.preferredProviderId).toLowerCase() : undefined);
+    if (!provider || (typeof provider.isConfigured === 'function' && !provider.isConfigured())) {
       throw new AIProviderError(
-        'Gemini API is not configured or missing API key',
-        'GEMINI',
-        'gemini-2.5-flash',
+        'AI Provider is not configured or missing API key',
+        provider?.providerId || 'AI_PROVIDER',
+        provider?.defaultModelId || 'default',
         'AUTH_ERROR',
         false,
         401
       );
     }
-    return geminiService.refineCandidate(input, options as any);
+    return provider.refineCandidate(input, options as any);
   }
 
   public async generateTeluguScript(
     question: Question,
-    _options?: OrchestratorTaskOptions
+    options?: OrchestratorTaskOptions
   ): Promise<{
     scriptPayload: ScriptContentPayload;
     metadata: {
@@ -312,7 +322,18 @@ export class AIOrchestrationService {
     };
     validation: any;
   }> {
-    return geminiService.generateTeluguScript(question);
+    const provider = this.getDelegatedProvider(options?.preferredProviderId ? String(options.preferredProviderId).toLowerCase() : undefined);
+    if (!provider || typeof provider.generateTeluguScript !== 'function') {
+      throw new AIProviderError(
+        'Provider does not support Telugu script generation',
+        provider?.providerId || 'UNKNOWN',
+        'default',
+        'INVALID_REQUEST',
+        false,
+        400
+      );
+    }
+    return provider.generateTeluguScript(question);
   }
 
   public async generateThumbnailIntelligence(
@@ -320,7 +341,8 @@ export class AIOrchestrationService {
     contentId: string,
     options?: any
   ): Promise<AiThumbnailConcept[]> {
-    return geminiService.generateThumbnailIntelligence(question, contentId, options);
+    const provider = this.getDelegatedProvider();
+    return provider.generateThumbnailIntelligence(question, contentId, options);
   }
 
   public async generatePinnedCommentPackage(
@@ -328,7 +350,8 @@ export class AIOrchestrationService {
     contentId: string,
     options?: any
   ): Promise<any> {
-    return geminiService.generatePinnedCommentPackage(question, contentId, options);
+    const provider = this.getDelegatedProvider();
+    return provider.generatePinnedCommentPackage(question, contentId, options);
   }
 
   public async generatePlatformAdaptation(
@@ -337,7 +360,8 @@ export class AIOrchestrationService {
     language: QuestionLanguage,
     options?: any
   ): Promise<any> {
-    return geminiService.generatePlatformAdaptation(question, canonicalMetadata, language, options);
+    const provider = this.getDelegatedProvider();
+    return provider.generatePlatformAdaptation(question, canonicalMetadata, language, options);
   }
 
   public async generateSocialQualityAssessment(
@@ -346,7 +370,8 @@ export class AIOrchestrationService {
     platformAdaptations?: any,
     options?: any
   ): Promise<any> {
-    return geminiService.assessSocialQuality(question, script, platformAdaptations, options);
+    const provider = this.getDelegatedProvider();
+    return provider.assessSocialQuality(question, script, platformAdaptations, options);
   }
 
   public async generateSocialHooksAndStrategy(
@@ -354,7 +379,8 @@ export class AIOrchestrationService {
     requestedStyles?: HookStyle[],
     language?: QuestionLanguage
   ): Promise<any> {
-    return geminiService.generateSocialHooksAndStrategy(question, requestedStyles, language);
+    const provider = this.getDelegatedProvider();
+    return provider.generateSocialHooksAndStrategy(question, requestedStyles, language);
   }
 
   public async generateSpokenTeleprompterScript(
@@ -364,7 +390,8 @@ export class AIOrchestrationService {
     language?: QuestionLanguage,
     pacingWpm?: number
   ): Promise<any> {
-    return geminiService.generateSpokenTeleprompterScript(question, selectedHookText, style, language, pacingWpm);
+    const provider = this.getDelegatedProvider();
+    return provider.generateSpokenTeleprompterScript(question, selectedHookText, style, language, pacingWpm);
   }
 
   public async generateSocialMetadata(
@@ -373,13 +400,15 @@ export class AIOrchestrationService {
     teleprompterScript?: any,
     language?: QuestionLanguage
   ): Promise<any> {
-    return geminiService.generateSocialMetadata(question, selectedHookText, teleprompterScript, language);
+    const provider = this.getDelegatedProvider();
+    return provider.generateSocialMetadata(question, selectedHookText, teleprompterScript, language);
   }
 
   public async generateContentPlanRecommendation(
     input: any
   ): Promise<AiContentPlanRecommendation> {
-    return geminiService.generateContentPlanRecommendation(input);
+    const provider = this.getDelegatedProvider();
+    return provider.generateContentPlanRecommendation(input);
   }
 }
 

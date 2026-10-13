@@ -115,9 +115,12 @@ The automated architectural verification test validates 9 distinct quality crite
 8. **TC-AI-08**: `backend/ai` has **ZERO** dependencies on `src/types/ai`.
 9. **TC-AI-10**: `backend/ai` has **ZERO** dependencies on `src/` (types, config, or lib).
 10. **TC-AI-09**: Frontend and shared layers have **ZERO** imports from `backend/ai`.
+11. **TC-AI-11**: AI Orchestrator has **ZERO** direct dependencies on concrete providers or questionConfigService (routes through `aiProviderRegistry`).
+12. **TC-AI-12**: AI Providers have **ZERO** imports of taxonomy or domain services (accept typed domain data in inputs).
+13. **TC-AI-13**: Refinement & Verification services have **ZERO** direct dependencies on provider SDKs or concrete clients.
 
 **Test Execution**:
 ```bash
 npx tsx tests/s7-t09-ai-boundary.test.ts
-# Result: 10 PASSED, 0 FAILED
+# Result: 13 PASSED, 0 FAILED
 ```

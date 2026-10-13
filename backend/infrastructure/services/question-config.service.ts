@@ -3,12 +3,12 @@
  * Question Studio Production Configuration Infrastructure
  * 
  * Provides validated, cached, real-time access to creator-managed configuration
- * (Real-Life Contexts and Question Styles) backed by the QUESTION_CONFIG Google Sheet.
+ * (Real-Life Contexts and Question Styles) backed by Cloud Firestore.
  */
 
 import { questionConfigRepository, QuestionConfigRepository } from '../../../database/firestore/repositories/question-config.repository';
 import { GroupedQuestionConfig, QuestionConfigDimension, QuestionConfigEntry } from '../../../shared';
-import { QuestionConfigEntryZodSchema } from '../../../src/lib/schemas/google-sheets-schema';
+import { QuestionConfigEntryZodSchema } from '../../server/validation/request-schemas';
 
 export class QuestionConfigError extends Error {
   public readonly code: string;

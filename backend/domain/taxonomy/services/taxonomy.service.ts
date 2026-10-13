@@ -23,7 +23,7 @@ import {
   CreateSubtopicInput,
   UpdateTopicInput,
   UpdateSubtopicInput,
-} from '../../../../src/lib/schemas/google-sheets-schema';
+} from '../../../server/validation/request-schemas';
 
 export interface TaxonomyTreeItem extends Topic {
   subtopics: Subtopic[];

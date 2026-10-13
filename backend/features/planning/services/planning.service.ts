@@ -19,7 +19,7 @@ import {
   CreateContentPlanInput,
   UpdateContentBatchInput,
   UpdateContentPlanInput,
-} from '../../../../src/lib/schemas/google-sheets-schema';
+} from '../../../server/validation/request-schemas';
 
 export class PlanningService {
   private static instance: PlanningService | null = null;

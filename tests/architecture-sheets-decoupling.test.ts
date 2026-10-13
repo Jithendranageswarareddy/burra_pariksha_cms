@@ -111,9 +111,16 @@ async function runDecouplingSuite() {
 
   // 6. UI Regression Check: Verify key UI components do not display "Google Sheets DB"
   console.log('\n[Check 6] Verifying user-facing UI components do not report Google Sheets DB...');
-  const vitalsBentoPath = path.resolve(rootSrcDir, 'components/dashboard/ExecutiveVitalsBento.tsx');
-  const healthIndicatorPath = path.resolve(rootSrcDir, 'components/layout/SystemHealthIndicator.tsx');
-  const dashboardPath = path.resolve(rootSrcDir, 'pages/DashboardPage.tsx');
+  const rootFrontendDir = path.resolve(__dirname, '../frontend');
+  const vitalsBentoPath = fs.existsSync(path.resolve(rootFrontendDir, 'components/dashboard/ExecutiveVitalsBento.tsx'))
+    ? path.resolve(rootFrontendDir, 'components/dashboard/ExecutiveVitalsBento.tsx')
+    : path.resolve(rootSrcDir, 'components/dashboard/ExecutiveVitalsBento.tsx');
+  const healthIndicatorPath = fs.existsSync(path.resolve(rootFrontendDir, 'components/layout/SystemHealthIndicator.tsx'))
+    ? path.resolve(rootFrontendDir, 'components/layout/SystemHealthIndicator.tsx')
+    : path.resolve(rootSrcDir, 'components/layout/SystemHealthIndicator.tsx');
+  const dashboardPath = fs.existsSync(path.resolve(rootFrontendDir, 'pages/DashboardPage.tsx'))
+    ? path.resolve(rootFrontendDir, 'pages/DashboardPage.tsx')
+    : path.resolve(rootSrcDir, 'pages/DashboardPage.tsx');
 
   const vitalsContent = fs.readFileSync(vitalsBentoPath, 'utf-8');
   assert.ok(!vitalsContent.includes('title="Google Sheets DB"'), 'ExecutiveVitalsBento must not say Google Sheets DB');

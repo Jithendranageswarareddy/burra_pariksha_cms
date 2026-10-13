@@ -74,11 +74,16 @@ async function runTests() {
       'aud_',
     ];
 
-    assert.strictEqual(
-      CANONICAL_PREFIXES.length,
-      8,
-      'Must define all 8 canonical prefixes'
+    assert(
+      CANONICAL_PREFIXES.length >= 8,
+      'Must define all canonical prefixes'
     );
+    for (const prefix of requiredPrefixes) {
+      assert(
+        CANONICAL_PREFIXES.includes(prefix),
+        `CANONICAL_PREFIXES must include required prefix ${prefix}`
+      );
+    }
 
     for (const prefix of requiredPrefixes) {
       const generatedId = canonicalIdService.generateCanonicalId(prefix);

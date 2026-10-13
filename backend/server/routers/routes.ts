@@ -75,7 +75,7 @@ import {
   CreateSocialCommentInputSchema,
   ImportSocialCommentsInputSchema,
   GenerateCommentIntelligenceInputSchema,
-} from '../../../src/lib/schemas/google-sheets-schema';
+} from '../validation/request-schemas';
 import { socialCommentsService } from '../../features/analytics/services/social-comments.service';
 import { commentIntelligenceService } from '../../features/analytics/services/comment-intelligence.service';
 import helmet from 'helmet';
@@ -93,7 +93,7 @@ import {
 } from '../middleware/auth.middleware';
 import { CanonicalRbacRole, CANONICAL_RBAC_ROLES, AuthorizationResource } from '../../../shared';
 import { getRoleCapabilities, resolveBrownfieldRole, roleHasCapability } from '../../../src/types/rbac-models';
-import { createSuccessResponse, createErrorResponse, ApiErrorCode } from '../../../src/types/api-contracts';
+import { createSuccessResponse, createErrorResponse, ApiErrorCode } from '../../../shared';
 import { requestIdMiddleware } from '../middleware/request-id.middleware';
 import { globalErrorHandler } from '../middleware/error.middleware';
 import { healthRouter } from '../health.routes';
@@ -4281,9 +4281,21 @@ apiRouter.post('/planning/ai-recommendation', async (req: Request, res: Response
   try {
     const validated = AiContentPlanRequestSchema.parse(req.body);
     const allQuestions = await questionsRepository.findAll();
+    const rawTopics = await taxonomyService.getTopics();
+    const topicsWithSubs = await Promise.all(
+      rawTopics.map(async (t) => {
+        const subs = await taxonomyService.getSubtopics(t.id);
+        return {
+          id: t.id,
+          name: t.name,
+          subtopics: subs.map((s) => ({ id: s.id, name: s.name })),
+        };
+      })
+    );
     const recommendation = await aiOrchestrator.generateContentPlanRecommendation({
       ...validated,
       allQuestions,
+      topics: topicsWithSubs,
     });
     res.json(recommendation);
   } catch (err: any) {

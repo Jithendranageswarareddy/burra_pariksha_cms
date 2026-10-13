@@ -29,7 +29,7 @@ import {
   BURRA_PARIKSHA_COMMENT_INTELLIGENCE_SYSTEM_INSTRUCTION,
   buildCommentIntelligencePrompt,
 } from '../../../ai/prompts';
-import { GenerateCommentIntelligenceInputSchema } from '../../../../src/lib/schemas/google-sheets-schema';
+import { GenerateCommentIntelligenceInputSchema } from '../../../server/validation/request-schemas';
 import { CommentIntelligenceRecord, GenerateCommentIntelligenceInput, SocialCommentRecord } from '../../../../shared';
 
 export class CommentIntelligenceService {

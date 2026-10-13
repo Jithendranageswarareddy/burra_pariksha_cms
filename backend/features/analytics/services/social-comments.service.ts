@@ -17,12 +17,12 @@
 
 import { socialCommentsRepository, SocialCommentsRepository } from '../../../../database/firestore/repositories/social-comments.repository';
 import { contentMastersRepository } from '../../../../database/firestore/repositories/content-masters.repository';
-import { canonicalIdService } from '../../../../src/lib/id.service';
+import { canonicalIdService } from '../../../../shared';
 import { AuditLogRepository } from '../../../../database/firestore/repositories/audit-log.repository';
 import {
   CreateSocialCommentInputSchema,
   ImportSocialCommentsInputSchema,
-} from '../../../../src/lib/schemas/google-sheets-schema';
+} from '../../../server/validation/request-schemas';
 import { CreateSocialCommentInput, ImportSocialCommentsInput, SocialCommentRecord, SocialCommentQueryFilters, SocialCommentStatus } from '../../../../shared';
 
 export interface CommentIngestionResult {

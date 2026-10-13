@@ -9,9 +9,8 @@
 import { questionsRepository } from '../../../../database/firestore/repositories/questions.repository';
 import { contentMastersRepository } from '../../../../database/firestore/repositories/content-masters.repository';
 import { validationsRepository } from '../../../../database/firestore/repositories/validations.repository';
-import { CreateQuestionInput, CreateQuestionInputSchema, QuestionFilterInput, UpdateQuestionInputSchema } from '../../../../src/lib/schemas/google-sheets-schema';
-import { Question, QuestionStatus, VideoProductionStatus, QuestionValidationStatus, UserRole } from '../../../../shared';
-import { canonicalIdService } from '../../../../src/lib/id.service';
+import { CreateQuestionInput, CreateQuestionInputSchema, QuestionFilterInput, UpdateQuestionInputSchema } from '../../../server/validation/request-schemas';
+import { Question, QuestionStatus, VideoProductionStatus, QuestionValidationStatus, UserRole, canonicalIdService } from '../../../../shared';
 import { taxonomyService } from '../../../domain/taxonomy/services/taxonomy.service';
 import { workflowService } from '../../../infrastructure/services/workflow.service';
 import { auditService } from '../../../infrastructure/audit/services/audit.service';

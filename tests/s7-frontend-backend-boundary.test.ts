@@ -344,8 +344,8 @@ async function runBoundarySuite() {
   const firebaseJson = JSON.parse(fs.readFileSync(firebaseJsonPath, 'utf-8'));
   assert.strictEqual(firebaseJson.firestore.rules, 'database/firestore/rules/firestore.rules', 'firebase.json must point firestore.rules to database/firestore/rules/firestore.rules');
 
-  // Verify request validation schemas remain OUTSIDE database/firestore
-  assert(fs.existsSync(path.resolve(__dirname, '../src/lib/schemas/google-sheets-schema.ts')), 'Request validation schemas must remain in src/lib/schemas/');
+  // Verify request validation schemas remain OUTSIDE database/firestore and in canonical validation layer
+  assert(fs.existsSync(path.resolve(__dirname, '../backend/server/validation/request-schemas.ts')), 'Request validation schemas must exist in backend/server/validation/');
   assert(!fs.existsSync(path.resolve(__dirname, '../database/firestore/schemas/google-sheets-schema.ts')), 'Request validation schemas must NOT exist in database/firestore/schemas/');
 
   console.log(`    PASS: All database physical ownership gates passed (35 repositories, isolated adapter, schemas, rules, initialization, migrations, utilities).\n`);

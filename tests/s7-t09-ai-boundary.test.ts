@@ -308,6 +308,92 @@ async function runTests() {
     failed++;
   }
 
+  // 11. Zero Concrete Provider Coupling in AI Orchestrator
+  try {
+    const orchestratorFile = path.resolve('backend/ai/orchestrator/ai-orchestrator.service.ts');
+    assert(fs.existsSync(orchestratorFile), 'ai-orchestrator.service.ts must exist');
+    const content = fs.readFileSync(orchestratorFile, 'utf-8');
+
+    const hasGeminiService = /import\s+.*(?:geminiService|gemini\.service).*\s+from/i.test(content);
+    assert(!hasGeminiService, 'AI Orchestrator must NOT directly import geminiService or concrete provider implementations');
+
+    const hasQuestionConfig = /import\s+.*questionConfigService.*\s+from/i.test(content);
+    assert(!hasQuestionConfig, 'AI Orchestrator must NOT directly import questionConfigService');
+
+    console.log('✓ TC-AI-11 PASSED: AI Orchestrator has ZERO direct dependencies on concrete providers or questionConfigService.');
+    passed++;
+  } catch (err: any) {
+    console.error('✗ TC-AI-11 FAILED:', err.message);
+    failed++;
+  }
+
+  // 12. Zero Domain Service Coupling in Providers
+  try {
+    const providersDir = path.resolve('backend/ai/providers');
+    const providerFiles = fs.readdirSync(providersDir).filter((f) => f.endsWith('.ts'));
+
+    const domainViolations: string[] = [];
+    for (const f of providerFiles) {
+      const fullPath = path.join(providersDir, f);
+      const content = fs.readFileSync(fullPath, 'utf-8');
+      if (/(?:taxonomyService|from\s+['"][^'"]*domain\/taxonomy)/i.test(content)) {
+        domainViolations.push(f);
+      }
+    }
+
+    assert.strictEqual(
+      domainViolations.length,
+      0,
+      `Providers must NOT import taxonomy or domain services directly. Violations: ${domainViolations.join(', ')}`
+    );
+
+    console.log('✓ TC-AI-12 PASSED: AI Providers have ZERO imports of taxonomy or domain services.');
+    passed++;
+  } catch (err: any) {
+    console.error('✗ TC-AI-12 FAILED:', err.message);
+    failed++;
+  }
+
+  // 13. Zero Provider SDK / Client Coupling in Refinement & Verification
+  try {
+    const refinementFile = path.resolve('backend/infrastructure/services/question-refinement.service.ts');
+    assert(fs.existsSync(refinementFile), 'question-refinement.service.ts must exist');
+    const content = fs.readFileSync(refinementFile, 'utf-8');
+
+    const hasGeminiClient = /import\s+.*(?:geminiClient|@google\/genai).*\s+from/i.test(content);
+    assert(!hasGeminiClient, 'Question Refinement service must NOT import geminiClient or provider SDKs directly');
+
+    const verificationDir = path.resolve('backend/features/question-verification');
+    const checkDir = (dir: string): string[] => {
+      let leaks: string[] = [];
+      const entries = fs.readdirSync(dir);
+      for (const entry of entries) {
+        const full = path.join(dir, entry);
+        if (fs.statSync(full).isDirectory()) {
+          leaks = leaks.concat(checkDir(full));
+        } else if (entry.endsWith('.ts')) {
+          const txt = fs.readFileSync(full, 'utf-8');
+          if (/(?:geminiClient|@google\/genai)/i.test(txt)) {
+            leaks.push(entry);
+          }
+        }
+      }
+      return leaks;
+    };
+    const verificationLeaks = checkDir(verificationDir);
+    assert.strictEqual(
+      verificationLeaks.length,
+      0,
+      `Question Verification must NOT import geminiClient or provider SDKs. Found in: ${verificationLeaks.join(', ')}`
+    );
+
+    console.log('✓ TC-AI-13 PASSED: Refinement & Verification services have ZERO direct dependencies on provider SDKs or concrete clients.');
+    passed++;
+  } catch (err: any) {
+    console.error('✗ TC-AI-13 FAILED:', err.message);
+    failed++;
+  }
+
   console.log('\n============================================================');
   console.log(`S7-T09 TEST RESULTS: ${passed} PASSED, ${failed} FAILED`);
   console.log('============================================================\n');

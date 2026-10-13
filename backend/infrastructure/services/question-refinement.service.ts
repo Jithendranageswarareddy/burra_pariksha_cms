@@ -16,7 +16,6 @@ import {
 import { ValidationError } from '../../../src/lib/errors';
 import { MathematicalValidator, MathVerificationResult } from '../../ai/validators';
 import { aiOrchestrator } from '../../ai/orchestrator';
-import { geminiClient } from '../../ai/providers';
 import { AIProviderError } from '../../ai/errors';
 import { ContentMasterStatus, DifficultyLevel, QuestionLanguage, QuestionStatus, Question, UserRole } from '../../../shared';
 
@@ -136,11 +135,11 @@ export class QuestionRefinementService {
     let rawCandidate: any = null;
 
     // 6. Request refinement from AI Orchestrator
-    if (!geminiClient.isConfigured()) {
+    if (!aiOrchestrator.isConfigured()) {
       throw new AIProviderError(
-        'Gemini API is not configured or missing API key',
-        'gemini',
-        geminiClient.getModelName(),
+        'AI Provider is not configured or missing API key',
+        'AI_ORCHESTRATOR',
+        'default',
         'AUTH_ERROR',
         false,
         401

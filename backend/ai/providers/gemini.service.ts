@@ -80,7 +80,6 @@ import {
   QuestionCandidate,
   RefineCandidateInput,
 } from '../orchestrator/types';
-import { taxonomyService } from '../../domain/taxonomy/services/taxonomy.service';
 
 async function withTimeout<T>(promise: Promise<T>, ms: number = 30000, errorMsg: string = 'Gemini API call timed out'): Promise<T> {
   const effectiveMs = process.env.GEMINI_API_KEY ? ms : 200;
@@ -461,11 +460,12 @@ export class GeminiService implements AIProvider {
     preferredDifficulties?: DifficultyLevel[];
     focusContext?: string;
     allQuestions?: Question[];
+    topics?: Array<{ id: string; name: string; subtopics?: Array<{ id: string; name: string }> }>;
   }): Promise<AiContentPlanRecommendation> {
     const targetTotal = input.targetTotalCount || 20;
 
-    let topics = await taxonomyService.getTopics();
-    if (input.topicId) {
+    let topics = input.topics || [];
+    if (input.topicId && topics.length > 0) {
       topics = topics.filter((t) => t.id === input.topicId);
     }
 
@@ -479,7 +479,7 @@ export class GeminiService implements AIProvider {
     const allEligibleSubtopics: { id: string; name: string; topicId: string; topicName: string; existingCount: number }[] = [];
 
     for (const t of topics) {
-      const subs = await taxonomyService.getSubtopics(t.id);
+      const subs = t.subtopics || [];
       for (const s of subs) {
         const existingCount = allQuestions.filter((q) => q.subtopicId === s.id).length;
         allEligibleSubtopics.push({

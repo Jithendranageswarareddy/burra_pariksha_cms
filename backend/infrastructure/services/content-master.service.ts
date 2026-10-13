@@ -16,12 +16,12 @@ import {
   socialReviewsRepository,
   workflowRepository,
 } from '../../../database/firestore/repositories';
-import { CanonicalIdService } from '../../../src/lib/id.service';
+import { CanonicalIdService } from '../../../shared';
 import { ContentMaster, ContentMasterStatus, Question, Video, Script, Thumbnail, PinnedComment, Publishing, Assignment, AuditLog, SocialReviewRecord, ContentMasterCanonicalState, ContentMasterReadinessResult, QuestionValidationStatus, QuestionStatus, VideoProductionStatus, SocialReviewStatus, SocialPublishStatus, Workflow } from '../../../shared';
 import {
   CreateContentMasterInput,
   UpdateContentMasterInput,
-} from '../../../src/lib/schemas/google-sheets-schema';
+} from '../../server/validation/request-schemas';
 import { auditService } from '../audit/services/audit.service';
 import { workflowService } from './workflow.service';
 import { objectAuthService, ActorContext } from '../auth/services/object-auth.service';

@@ -1580,3 +1580,189 @@ export interface SocialQualityGateReport {
   metadataValid: boolean;
   versionLockValid: boolean;
 }
+
+export enum PlatformAdaptationStatus {
+  DRAFT = 'DRAFT',
+  IN_REVIEW = 'IN_REVIEW',
+  APPROVED = 'APPROVED',
+  READY_TO_PUBLISH = 'READY_TO_PUBLISH',
+  CHANGES_REQUIRED = 'CHANGES_REQUIRED',
+  REJECTED = 'REJECTED',
+}
+
+export type AdaptationGenerationSource = 'MANUAL' | 'AI_GENERATED' | 'AI_ASSISTED';
+
+export interface PlatformThumbnailConsideration {
+  aspectRatioRecommendation?: string;
+  safeZoneNotes?: string;
+  cropNotes?: string;
+  reelCoverNotes?: string;
+  hookTextRecommendation?: string;
+  approvedThumbnailRef?: {
+    thumbnailId: string;
+    version: number;
+    driveFileId?: string;
+  };
+}
+
+export interface PlatformSpecificWording {
+  shortsOrReelsNote?: string;
+  toneStyle?: string;
+  audienceHookStyle?: string;
+  platformSpecificKeywords?: string[];
+  additionalPlatformNotes?: string;
+}
+
+export interface PlatformAdaptationVersion {
+  versionNumber: number;
+  adaptationId: string;
+  contentId: string;
+  platform: PlatformType;
+  title: string;
+  description: string;
+  caption: string;
+  hashtags: string[];
+  callToAction: string;
+  platformSpecificWording: PlatformSpecificWording;
+  thumbnailConsiderations: PlatformThumbnailConsideration;
+  status: PlatformAdaptationStatus;
+  canonicalSourceVersionLock: {
+    contentId: string;
+    questionId: string;
+    questionVersion: number;
+    scriptId: string;
+    scriptVersion: number;
+    videoId: string;
+    videoVersion: number;
+    thumbnailId: string;
+    thumbnailVersion: number;
+    pinnedCommentPackageId: string;
+    pinnedCommentVersion: number;
+    packageOverallHash: string;
+  };
+  generationSource: AdaptationGenerationSource;
+  aiProvenance?: {
+    modelUsed?: string;
+    isAiGenerated: boolean;
+    confidence?: number;
+    generatedAt: string;
+    recommendationSnapshot?: Record<string, any>;
+  };
+  createdBy: string;
+  createdByName?: string;
+  createdByRole?: string;
+  createdAt: string;
+  approvalRecord?: {
+    approvedBy: string;
+    approvedByName: string;
+    approvedByRole: string;
+    approvedAt: string;
+    reason?: string;
+  };
+  rejectionRecord?: {
+    rejectedBy: string;
+    rejectedByName: string;
+    rejectedByRole: string;
+    rejectedAt: string;
+    reason: string;
+  };
+  changesRequiredRecord?: {
+    requestedBy: string;
+    requestedByName: string;
+    requestedByRole: string;
+    requestedAt: string;
+    reason: string;
+  };
+}
+
+export interface PlatformAdaptationRecord {
+  id: string;
+  contentId: string;
+  platform: PlatformType;
+  title: string;
+  description: string;
+  caption: string;
+  hashtags: string[];
+  callToAction: string;
+  platformSpecificWording: PlatformSpecificWording;
+  thumbnailConsiderations: PlatformThumbnailConsideration;
+  status: PlatformAdaptationStatus;
+  currentVersion: number;
+  canonicalSourceVersionLock: {
+    contentId: string;
+    questionId: string;
+    questionVersion: number;
+    scriptId: string;
+    scriptVersion: number;
+    videoId: string;
+    videoVersion: number;
+    thumbnailId: string;
+    thumbnailVersion: number;
+    pinnedCommentPackageId: string;
+    pinnedCommentVersion: number;
+    packageOverallHash: string;
+  };
+  generationSource: AdaptationGenerationSource;
+  aiProvenance?: {
+    modelUsed?: string;
+    isAiGenerated: boolean;
+    confidence?: number;
+    generatedAt: string;
+    recommendationSnapshot?: Record<string, any>;
+  };
+  createdBy: string;
+  createdByName?: string;
+  createdByRole?: string;
+  createdAt: string;
+  updatedAt: string;
+  approvalRecord?: {
+    approvedBy: string;
+    approvedByName: string;
+    approvedByRole: string;
+    approvedAt: string;
+    reason?: string;
+  };
+  rejectionRecord?: {
+    rejectedBy: string;
+    rejectedByName: string;
+    rejectedByRole: string;
+    rejectedAt: string;
+    reason: string;
+  };
+  changesRequiredRecord?: {
+    requestedBy: string;
+    requestedByName: string;
+    requestedByRole: string;
+    requestedAt: string;
+    reason: string;
+  };
+  isStaleSource?: boolean;
+  staleReason?: string;
+}
+
+export interface PlatformAdaptationAuditEntry {
+  id: string;
+  adaptationId: string;
+  contentId: string;
+  platform: PlatformType;
+  action: 'CREATE' | 'UPDATE' | 'SUBMIT_REVIEW' | 'APPROVE' | 'REJECT' | 'REQUEST_CHANGES' | 'STALE_DETECTED' | 'INVALIDATE_APPROVAL';
+  actorId: string;
+  actorName: string;
+  actorRole: string;
+  fromVersion?: number;
+  toVersion?: number;
+  fromStatus?: PlatformAdaptationStatus;
+  toStatus?: PlatformAdaptationStatus;
+  reason?: string;
+  timestamp: string;
+}
+
+export interface PlatformAdaptationSearchFilters {
+  contentId?: string;
+  platform?: PlatformType | string;
+  status?: PlatformAdaptationStatus | string;
+  version?: number;
+  createdBy?: string;
+  updatedAfter?: string;
+  updatedBefore?: string;
+}

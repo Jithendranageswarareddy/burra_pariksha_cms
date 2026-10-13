@@ -35,7 +35,7 @@ import {
   UpdateVideoMetadataInput,
   UpdateVideoMetadataInputSchema,
   VideoFilterInput,
-} from '../../../../src/lib/schemas/google-sheets-schema';
+} from '../../../server/validation/request-schemas';
 import { ReferenceIntegrityError, ValidationError } from '../../../../src/lib/errors';
 
 /**

@@ -1,10 +1,10 @@
 /**
- * BURRA PARIKSHA CMS - Google Sheets Database Schema Contract
- * Phase 2: Google Sheets Database Architecture & Persistence
+ * BURRA PARIKSHA CMS - Legacy Sheet Export & Recovery Schema Contract
+ * DEPRECATED PERSISTENCE CONTRACT - Cloud Firestore is the sole authoritative transactional datastore.
  * 
- * Google Sheets is the authoritative persistent data store.
- * Each worksheet/tab corresponds to an entity or workflow domain.
- * Column mapping uses header-based lookups rather than fixed column indices.
+ * Google Sheets is NOT the transactional database and is decommissioned for runtime application state.
+ * Retained exclusively for secondary CSV/Sheets export, disaster recovery archive definitions,
+ * and backward-compatible mapping.
  */
 
 import { z } from 'zod';
@@ -22,8 +22,12 @@ import {
   VideoProductionStatus,
 } from '../../types';
 
+// Re-export canonical HTTP request validation schemas
+export * from '../../../backend/server/validation/request-schemas';
+
 // ============================================================================
-// 1. AUTHORITATIVE WORKSHEET NAMES (18 Authoritative Tabs)
+// 1. LEGACY WORKSHEET NAMES (Retained for CSV Export & Disaster Recovery Archives)
+// Authoritative runtime datastore is Cloud Firestore.
 // ============================================================================
 
 export const SHEET_TABS = {

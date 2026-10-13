@@ -39,131 +39,42 @@ import { MediaType } from './media-architecture';
 // 1. UNIVERSAL RESPONSE & ERROR ENVELOPES (FC-003 CANONICAL CONTRACT)
 // ============================================================================
 
-export interface ResponsePaginationMeta {
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-}
+import {
+  type ResponsePaginationMeta,
+  type ApiResponseMeta,
+  type ApiSuccessMeta,
+  type ApiErrorPayload,
+  type ApiErrorDetails,
+  type ApiResponseEnvelope,
+  type ApiSuccessResponse,
+  type ApiErrorResponse,
+  type ApiResponse,
+  ApiErrorCode,
+  API_ERROR_HTTP_STATUS,
+  createSuccessResponse,
+  createErrorResponse,
+} from '../../shared';
 
-export interface ApiResponseMeta {
-  requestId: string;
-  timestamp: string;
-  pagination?: ResponsePaginationMeta;
-  executionDurationMs?: number;
-  version?: number;
-  [key: string]: unknown;
-}
-
-export type ApiSuccessMeta = ApiResponseMeta;
-
-export interface ApiErrorPayload {
-  code: string;
-  message: string;
-  details?: Array<{ field: string; issue: string }> | Record<string, unknown> | null;
-  timestamp?: string;
-  requestId?: string;
-}
-
-export type ApiErrorDetails = ApiErrorPayload;
-
-/**
- * Authoritative FC-003 Universal REST API Response Envelope
- */
-export interface ApiResponseEnvelope<T = unknown> {
-  success: boolean;
-  data?: T;
-  error?: ApiErrorPayload;
-  meta?: ApiResponseMeta;
-}
-
-export interface ApiSuccessResponse<T> {
-  readonly success: true;
-  readonly data: T;
-  readonly meta: ApiResponseMeta;
-}
-
-export interface ApiErrorResponse {
-  readonly success: false;
-  readonly error: ApiErrorPayload;
-  readonly meta?: ApiResponseMeta;
-}
-
-export type ApiResponse<T> = ApiSuccessResponse<T> | ApiErrorResponse;
-
-export function createSuccessResponse<T>(
-  data: T,
-  requestId: string,
-  extraMeta?: Partial<ApiResponseMeta>
-): ApiSuccessResponse<T> {
-  const timestamp = new Date().toISOString();
-  return {
-    success: true,
-    data,
-    meta: {
-      timestamp,
-      requestId,
-      ...extraMeta,
-    },
-  };
-}
-
-export function createErrorResponse(
-  code: ApiErrorCode | string,
-  message: string,
-  requestId: string,
-  details?: Array<{ field: string; issue: string }> | Record<string, unknown> | null
-): ApiErrorResponse {
-  const timestamp = new Date().toISOString();
-  return {
-    success: false,
-    error: {
-      code,
-      message,
-      details: details ?? null,
-      timestamp,
-      requestId,
-    },
-    meta: {
-      requestId,
-      timestamp,
-    },
-  };
-}
-
-// ============================================================================
-// 2. STANDARDIZED ERROR CODES & HTTP STATUS MAPPING
-// ============================================================================
-
-export enum ApiErrorCode {
-  UNAUTHENTICATED = 'UNAUTHENTICATED',
-  FORBIDDEN_LACKS_CAPABILITY = 'FORBIDDEN_LACKS_CAPABILITY',
-  FORBIDDEN_BY_SEGREGATION_OF_DUTIES = 'FORBIDDEN_BY_SEGREGATION_OF_DUTIES',
-  FORBIDDEN_BY_AI_GATING = 'FORBIDDEN_BY_AI_GATING',
-  FORBIDDEN_BY_BUSINESS_RULE = 'FORBIDDEN_BY_BUSINESS_RULE',
-  VALIDATION_ERROR = 'VALIDATION_ERROR',
-  RESOURCE_NOT_FOUND = 'RESOURCE_NOT_FOUND',
-  CONFLICT_OPTIMISTIC_LOCK = 'CONFLICT_OPTIMISTIC_LOCK',
-  CONCURRENCY_CONFLICT = 'CONCURRENCY_CONFLICT',
-  INVALID_WORKFLOW_TRANSITION = 'INVALID_WORKFLOW_TRANSITION',
-  RATE_LIMIT_EXCEEDED = 'RATE_LIMIT_EXCEEDED',
-  INTERNAL_SERVER_ERROR = 'INTERNAL_SERVER_ERROR',
-}
-
-export const API_ERROR_HTTP_STATUS: Record<ApiErrorCode, number> = {
-  [ApiErrorCode.UNAUTHENTICATED]: 401,
-  [ApiErrorCode.FORBIDDEN_LACKS_CAPABILITY]: 403,
-  [ApiErrorCode.FORBIDDEN_BY_SEGREGATION_OF_DUTIES]: 403,
-  [ApiErrorCode.FORBIDDEN_BY_AI_GATING]: 403,
-  [ApiErrorCode.FORBIDDEN_BY_BUSINESS_RULE]: 400,
-  [ApiErrorCode.VALIDATION_ERROR]: 400, // FC-003 standardizes Zod validation error to 400 BAD_REQUEST
-  [ApiErrorCode.RESOURCE_NOT_FOUND]: 404,
-  [ApiErrorCode.CONFLICT_OPTIMISTIC_LOCK]: 409,
-  [ApiErrorCode.CONCURRENCY_CONFLICT]: 409,
-  [ApiErrorCode.INVALID_WORKFLOW_TRANSITION]: 422,
-  [ApiErrorCode.RATE_LIMIT_EXCEEDED]: 429,
-  [ApiErrorCode.INTERNAL_SERVER_ERROR]: 500,
+export type {
+  ResponsePaginationMeta,
+  ApiResponseMeta,
+  ApiSuccessMeta,
+  ApiErrorPayload,
+  ApiErrorDetails,
+  ApiResponseEnvelope,
+  ApiSuccessResponse,
+  ApiErrorResponse,
+  ApiResponse,
 };
+
+export {
+  ApiErrorCode,
+  API_ERROR_HTTP_STATUS,
+  createSuccessResponse,
+  createErrorResponse,
+};
+
+
 
 // ============================================================================
 // 3. REQUEST CONTEXT & SECURITY HEADERS

@@ -20,7 +20,7 @@
 import { Request, Response, NextFunction, ErrorRequestHandler } from 'express';
 import { ZodError } from 'zod';
 import { AppError } from '../../../src/lib/errors';
-import { createErrorResponse, ApiErrorCode } from '../../../src/types/api-contracts';
+import { createErrorResponse, ApiErrorCode } from '../../../shared';
 
 export const globalErrorHandler: ErrorRequestHandler = (
   err: any,

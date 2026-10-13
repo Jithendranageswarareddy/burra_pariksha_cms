@@ -29,7 +29,7 @@ These variables are required for core application startup and authenticated user
 
 | Variable Name | Secret? | Required/Optional | Purpose | Runtime Scope | AI Studio Request |
 | :--- | :---: | :---: | :--- | :--- | :---: |
-| `SESSION_SECRET` | **YES** | **REQUIRED** *(in production)* | Signs and validates HMAC-SHA256 user authentication tokens in `bp_session` cookies. | Server-side (`src/lib/services/auth.service.ts`) | **YES** |
+| `SESSION_SECRET` | **YES** | **REQUIRED** *(in production)* | Signs and validates HMAC-SHA256 user authentication tokens in `bp_session` cookies. | Server-side (`backend/infrastructure/auth/services/auth.service.ts`) | **YES** |
 | `NODE_ENV` | **NO** | **OPTIONAL** | Declares execution environment mode (`production` or `development`). Defaults to `production` in container. | Server & Vite (`server.ts`) | **NO** *(built-in)* |
 | `PORT` | **NO** | **OPTIONAL** | Port on which the Express HTTP server listens. Defaults to `3000`. | Server (`server.ts`) | **NO** *(built-in)* |
 | `HOST` | **NO** | **OPTIONAL** | Network interface binding. Defaults to `0.0.0.0`. | Server (`server.ts`) | **NO** *(built-in)* |
@@ -42,11 +42,11 @@ The backend communicates with Cloud Firestore via the **server-privileged Fireba
 
 | Variable Name | Secret? | Required/Optional | Purpose | Runtime Scope | AI Studio Request |
 | :--- | :---: | :---: | :--- | :--- | :---: |
-| `GOOGLE_SERVICE_ACCOUNT_EMAIL` | **NO** | **REQUIRED** *(local/non-ADC)* | Email address of the GCP IAM Service Account used by Firebase Admin SDK `cert()`. | Server (`src/lib/firebase/admin.ts`) | **YES** |
-| `GOOGLE_PRIVATE_KEY` | **YES** | **REQUIRED** *(local/non-ADC)* | RSA Private Key (PEM format) of the Service Account for Firebase Admin SDK `cert()`. | Server (`src/lib/firebase/admin.ts`) | **YES** |
-| `GCP_PROJECT_ID` | **NO** | **OPTIONAL** | GCP project ID override. Defaults to committed `firebase-applet-config.json` (`burra-pariksha-cms`). | Server (`src/lib/firebase/admin.ts`) | **NO** *(has default)* |
-| `GOOGLE_CLOUD_PROJECT` | **NO** | **OPTIONAL** | Alternative standard GCP project variable name. | Server (`src/lib/firebase/admin.ts`) | **NO** *(has default)* |
-| `FIRESTORE_DATABASE_ID` | **NO** | **OPTIONAL** | Target named Firestore database ID. Defaults to committed configuration (`ai-studio-burraparikshacon-f592ca42-39af-4d83-aff2-6870ba939b0e`). | Server (`src/lib/firebase/admin.ts`) | **NO** *(has default)* |
+| `GOOGLE_SERVICE_ACCOUNT_EMAIL` | **NO** | **REQUIRED** *(local/non-ADC)* | Email address of the GCP IAM Service Account used by Firebase Admin SDK `cert()`. | Server (`database/firestore/adapter/firestore.adapter.ts`) | **YES** |
+| `GOOGLE_PRIVATE_KEY` | **YES** | **REQUIRED** *(local/non-ADC)* | RSA Private Key (PEM format) of the Service Account for Firebase Admin SDK `cert()`. | Server (`database/firestore/adapter/firestore.adapter.ts`) | **YES** |
+| `GCP_PROJECT_ID` | **NO** | **OPTIONAL** | GCP project ID override. Defaults to committed `firebase-applet-config.json` (`burra-pariksha-cms`). | Server (`database/firestore/adapter/firestore.adapter.ts`) | **NO** *(has default)* |
+| `GOOGLE_CLOUD_PROJECT` | **NO** | **OPTIONAL** | Alternative standard GCP project variable name. | Server (`database/firestore/adapter/firestore.adapter.ts`) | **NO** *(has default)* |
+| `FIRESTORE_DATABASE_ID` | **NO** | **OPTIONAL** | Target named Firestore database ID. Defaults to committed configuration (`ai-studio-burraparikshacon-f592ca42-39af-4d83-aff2-6870ba939b0e`). | Server (`database/firestore/adapter/firestore.adapter.ts`) | **NO** *(has default)* |
 
 > **Note on Firebase Web API Keys**: The client Web API key (`AIzaSy...`) in `firebase-applet-config.json` is legacy client metadata. The server-side Firebase Admin SDK uses service account credentials / ADC and does not require a Web API key.
 
@@ -56,10 +56,10 @@ The backend communicates with Cloud Firestore via the **server-privileged Fireba
 
 | Variable Name | Secret? | Required/Optional | Purpose | Runtime Scope | AI Studio Request |
 | :--- | :---: | :---: | :--- | :--- | :---: |
-| `GEMINI_API_KEY` | **YES** | **REQUIRED** *(for AI)* | Authorizes `@google/genai` calls for Question Studio ideation, Telugu scripting, teleprompter generation, and multi-layer verification. | Server (`src/lib/ai/gemini.client.ts`) | **YES** |
-| `GEMINI_MODEL` | **NO** | **OPTIONAL** | Model identifier. Defaults to `gemini-3.1-flash-lite`. | Server (`src/lib/ai/config.ts`) | **NO** *(has default)* |
-| `AI_DEFAULT_PROVIDER` | **NO** | **OPTIONAL** | Selects primary AI provider. Defaults to `gemini`. | Server (`src/lib/ai/config.ts`) | **NO** *(has default)* |
-| `AI_FALLBACK_PROVIDERS`| **NO** | **OPTIONAL** | Comma-delimited list of fallback AI providers. Defaults to empty. | Server (`src/lib/ai/config.ts`) | **NO** *(has default)* |
+| `GEMINI_API_KEY` | **YES** | **REQUIRED** *(for AI)* | Authorizes `@google/genai` calls for Question Studio ideation, Telugu scripting, teleprompter generation, and multi-layer verification. | Server (`backend/ai/providers/gemini.service.ts`) | **YES** |
+| `GEMINI_MODEL` | **NO** | **OPTIONAL** | Model identifier. Defaults to `gemini-3.1-flash-lite`. | Server (`backend/ai/orchestrator/types.ts`) | **NO** *(has default)* |
+| `AI_DEFAULT_PROVIDER` | **NO** | **OPTIONAL** | Selects primary AI provider. Defaults to `gemini`. | Server (`backend/ai/orchestrator/types.ts`) | **NO** *(has default)* |
+| `AI_FALLBACK_PROVIDERS`| **NO** | **OPTIONAL** | Comma-delimited list of fallback AI providers. Defaults to empty. | Server (`backend/ai/orchestrator/types.ts`) | **NO** *(has default)* |
 
 ---
 
@@ -69,13 +69,13 @@ Google Drive stores video takes, master cuts, teleprompter scripts, and thumbnai
 
 | Variable Name | Secret? | Required/Optional | Purpose | Runtime Scope | AI Studio Request |
 | :--- | :---: | :---: | :--- | :--- | :---: |
-| `GOOGLE_DRIVE_ROOT_FOLDER_ID` | **NO** | **REQUIRED** | Google Drive folder ID where media assets and video files are created and stored. | Server (`src/lib/services/google-drive.service.ts`) | **YES** |
-| `GOOGLE_CLIENT_ID` | **NO** | **REQUIRED** *(OAuth)* | Google OAuth 2.0 Client ID for Drive user delegation mode. | Server (`src/lib/services/google-drive.service.ts`) | **YES** |
-| `GOOGLE_CLIENT_SECRET` | **YES** | **REQUIRED** *(OAuth)* | Google OAuth 2.0 Client Secret for Drive delegation mode. | Server (`src/lib/services/google-drive.service.ts`) | **YES** |
-| `GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN` | **YES** | **REQUIRED** *(OAuth)* | Long-lived Google OAuth 2.0 refresh token for headless Drive operations. | Server (`src/lib/services/google-drive.service.ts`) | **YES** |
-| `GOOGLE_REDIRECT_URI` | **NO** | **OPTIONAL** | Registered OAuth redirect URL. Defaults to `http://localhost:3000/api/auth/google/callback`. | Server (`src/server/routes.ts`) | **NO** *(has default)* |
-| `MAX_THUMBNAIL_SIZE_BYTES` | **NO** | **OPTIONAL** | Maximum thumbnail file upload size. Defaults to 5 MB (`5242880`). | Server (`src/lib/services/drive-sync.service.ts`) | **NO** *(has default)* |
-| `MAX_VIDEO_SIZE_BYTES` | **NO** | **OPTIONAL** | Maximum video file upload size. Defaults to 100 MB (`104857600`). | Server (`src/lib/services/drive-sync.service.ts`) | **NO** *(has default)* |
+| `GOOGLE_DRIVE_ROOT_FOLDER_ID` | **NO** | **REQUIRED** | Google Drive folder ID where media assets and video files are created and stored. | Server (`backend/infrastructure/services/google-drive.service.ts`) | **YES** |
+| `GOOGLE_CLIENT_ID` | **NO** | **REQUIRED** *(OAuth)* | Google OAuth 2.0 Client ID for Drive user delegation mode. | Server (`backend/infrastructure/services/google-drive.service.ts`) | **YES** |
+| `GOOGLE_CLIENT_SECRET` | **YES** | **REQUIRED** *(OAuth)* | Google OAuth 2.0 Client Secret for Drive delegation mode. | Server (`backend/infrastructure/services/google-drive.service.ts`) | **YES** |
+| `GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN` | **YES** | **REQUIRED** *(OAuth)* | Long-lived Google OAuth 2.0 refresh token for headless Drive operations. | Server (`backend/infrastructure/services/google-drive.service.ts`) | **YES** |
+| `GOOGLE_REDIRECT_URI` | **NO** | **OPTIONAL** | Registered OAuth redirect URL. Defaults to `http://localhost:3000/api/auth/google/callback`. | Server (`backend/server/routers/routes.ts`) | **NO** *(has default)* |
+| `MAX_THUMBNAIL_SIZE_BYTES` | **NO** | **OPTIONAL** | Maximum thumbnail file upload size. Defaults to 5 MB (`5242880`). | Server (`backend/infrastructure/services/drive-sync.service.ts`) | **NO** *(has default)* |
+| `MAX_VIDEO_SIZE_BYTES` | **NO** | **OPTIONAL** | Maximum video file upload size. Defaults to 100 MB (`104857600`). | Server (`backend/infrastructure/services/drive-sync.service.ts`) | **NO** *(has default)* |
 
 ---
 
@@ -88,8 +88,7 @@ These variables have sensible defaults and should NOT be prompted for during nor
 | `LOG_LEVEL` | **NO** | `INFO` | Structured logging verbosity (`DEBUG`, `INFO`, `WARN`, `ERROR`). | **NO** |
 | `DISABLE_HMR` | **NO** | `false` | Vite Hot Module Replacement toggle for local UI development. | **NO** |
 | `SKIP_DRIVE_SYNC` | **NO** | `false` | Offline developer toggle to mock Google Drive calls. | **NO** |
-| `SKIP_SHEETS_SYNC` | **NO** | `false` | Offline developer toggle to bypass Google Sheets sync. | **NO** |
-| `ANALYTICS_SPREADSHEET_ID` | **NO** | `undefined` | Optional isolated Google Sheet for audience retention telemetry. | **NO** |
+| `ANALYTICS_SPREADSHEET_ID` | **NO** | `undefined` | Optional isolated Google Sheet for secondary audience telemetry export (read-only destination, never transactional). | **NO** |
 | `GCS_SNAPSHOT_BUCKET` | **NO** | `""` | Optional Google Cloud Storage bucket for snapshot backup archives. | **NO** |
 | `GCS_SNAPSHOT_ENABLED` | **NO** | `false` | Toggle for GCS snapshot archiving. | **NO** |
 | `GCS_SNAPSHOT_RETENTION_DAYS` | **NO** | `365` | Retention duration for snapshot archives. | **NO** |
@@ -114,13 +113,14 @@ These variables are isolated strictly to automated test suites (`tests/`) and ve
 
 ---
 
-## SECTION 7 — LEGACY / UNUSED VARIABLES
+## SECTION 7 — LEGACY / DECOMMISSIONED VARIABLES
 
-These variables belonged to previous architectures or tooling and are NOT required by the current live runtime:
+These variables belonged to previous architectures or tooling and are NOT used by the current live runtime:
 
 | Variable Name | Historical Context | Current Status |
 | :--- | :--- | :--- |
-| `GOOGLE_SHEETS_ID` | Primary database during Phase 2 (replaced by Cloud Firestore in Sprint 4). | Retained only for optional legacy double-write sync; not required for CMS. |
+| `GOOGLE_SHEETS_ID` | Primary database during Phase 2 (replaced by Cloud Firestore in Sprint 4). | **PERMANENTLY DECOMMISSIONED** as transactional database. Firestore is sole authoritative datastore. |
+| `SKIP_SHEETS_SYNC` | Legacy offline developer toggle to bypass Google Sheets sync. | **PERMANENTLY DECOMMISSIONED**. Zero Sheets runtime sync exists. |
 | `BOOTSTRAP_SECRET` | Token for legacy `/api/sheets/initialize` endpoint. | Not used for Firestore or standard CMS operations. |
 | `INITIAL_ADMIN_PASSWORD` | Seed password for initial user creation during manual reset. | Built-in fallback `password123` is used if omitted. |
 | `FIREBASE_TOKEN` | Firebase CLI deployment token. | CI/CD deploy token only; never used in application runtime code. |

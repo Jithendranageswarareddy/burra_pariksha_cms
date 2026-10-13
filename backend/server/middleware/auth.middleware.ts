@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { authService } from '../../infrastructure/auth/services/auth.service';
 import { usersRepository, UserSessionState } from '../../../database/firestore/repositories/users.repository';
 import { UserRole } from '../../../shared';
-import { createErrorResponse, ApiErrorCode } from '../../../src/types/api-contracts';
+import { createErrorResponse, ApiErrorCode } from '../../../shared';
 import {
   evaluateAuthorization,
   AuthorizationActor,

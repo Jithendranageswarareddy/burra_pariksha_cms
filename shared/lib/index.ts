@@ -3,3 +3,4 @@
  */
 
 export * from './similarity';
+export * from './id.service';

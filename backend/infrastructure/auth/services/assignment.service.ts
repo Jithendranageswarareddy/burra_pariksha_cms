@@ -28,7 +28,7 @@ import {
   ReassignAssignmentInput,
   CompleteAssignmentInput,
   CancelAssignmentInput,
-} from '../../../../src/lib/schemas/google-sheets-schema';
+} from '../../../server/validation/request-schemas';
 
 export class AssignmentService {
   private static instance: AssignmentService | null = null;
