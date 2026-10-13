@@ -63,6 +63,12 @@ async function runQuestionGenerationWorkflowE2ETest() {
 
   const candidate = {
     questionText: '120 మీటర్ల పొడవున్న రైలు ఒక స్తంభాన్ని 6 సెకన్లలో దాటితే దాని వేగం ఎంత?',
+    options: {
+      a: '60 కి.మీ/గం',
+      b: '72 కి.మీ/గం',
+      c: '80 కి.మీ/గం',
+      d: '90 కి.మీ/గం',
+    },
     optionA: '60 కి.మీ/గం',
     optionB: '72 కి.మీ/గం',
     optionC: '80 కి.మీ/గం',
