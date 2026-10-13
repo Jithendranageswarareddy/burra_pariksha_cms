@@ -13,7 +13,7 @@ import assert from 'node:assert';
 import { questionGenerationService } from '../../../backend/domain/question-generation';
 import { questionDraftsRepository } from '../../../database/firestore/repositories/question-drafts.repository';
 import { questionsRepository } from '../../../database/firestore/repositories/questions.repository';
-import { QuestionStatus, DifficultyLevel, QuestionLanguage } from '../../../shared';
+import { QuestionStatus, DifficultyLevel, QuestionLanguage, canonicalIdService } from '../../../shared';
 
 async function runQuestionGenerationIntegrationTests() {
   console.log('============================================================');
@@ -80,6 +80,7 @@ async function runQuestionGenerationIntegrationTests() {
   });
 
   // Verify in Firestore repository
+  assert(canonicalIdService.validateCanonicalId(createdDraft.id, 'dft_'), 'Draft must be saved with canonical dft_<uuid> identifier');
   const repoDoc = await questionDraftsRepository.findById(createdDraft.id);
   assert(repoDoc, 'Draft document must exist in questionDraftsRepository');
   assert.strictEqual(repoDoc.id, createdDraft.id);

@@ -18,6 +18,7 @@ import {
   QuestionDraft,
   QuestionStatus,
   UserRole,
+  canonicalIdService,
 } from '../../../shared';
 import {
   GenerateCandidateInput,
@@ -305,9 +306,9 @@ export class QuestionGenerationService {
     const optC = (input.options?.c || input.optionC || '').trim();
     const optD = (input.options?.d || input.optionD || '').trim();
 
-    const draftId = input.id && input.id.startsWith('BP-DFT-')
-      ? input.id
-      : `BP-DFT-${Date.now().toString().slice(-6)}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+    const draftId = input.id && typeof input.id === 'string' && input.id.trim()
+      ? input.id.trim()
+      : canonicalIdService.generateDraftId();
 
     const now = new Date().toISOString();
 

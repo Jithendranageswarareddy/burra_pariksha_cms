@@ -19,7 +19,7 @@ import { apiRouter } from '../../../backend/server/routers/routes';
 import { authService } from '../../../backend/infrastructure/auth/services/auth.service';
 import { usersRepository } from '../../../database/firestore/repositories/users.repository';
 import { questionDraftsRepository } from '../../../database/firestore/repositories/question-drafts.repository';
-import { QuestionStatus, UserRole } from '../../../shared';
+import { QuestionStatus, UserRole, canonicalIdService } from '../../../shared';
 
 async function runSubmissionRouteRegistrationTest() {
   console.log('============================================================');
@@ -65,7 +65,7 @@ async function runSubmissionRouteRegistrationTest() {
     };
 
     // 3. Create a persisted test draft in Firestore question_drafts repository
-    const testDraftId = `BP-DFT-ROUTE-${Date.now()}`;
+    const testDraftId = canonicalIdService.generateDraftId();
     const testDraft = {
       id: testDraftId,
       topicId: 'TOP-QA-01',
@@ -143,7 +143,7 @@ async function runSubmissionRouteRegistrationTest() {
 
     // [Test 5] Verify v1 prefixed route is also registered
     console.log('[Test 5] Verifying /v1/questions/draft/:id/submit route prefix...');
-    const testDraftIdV1 = `BP-DFT-V1-${Date.now()}`;
+    const testDraftIdV1 = canonicalIdService.generateDraftId();
     await questionDraftsRepository.create({
       ...testDraft,
       id: testDraftIdV1,

@@ -15,7 +15,7 @@
 
 import assert from 'node:assert';
 import { questionGenerationService } from '../../../backend/domain/question-generation';
-import { QuestionStatus } from '../../../shared';
+import { QuestionStatus, canonicalIdService } from '../../../shared';
 
 async function runSaveDraftVsVerifyUnitTests() {
   console.log('============================================================');
@@ -45,10 +45,31 @@ async function runSaveDraftVsVerifyUnitTests() {
     name: 'Author Alice',
   });
 
-  assert(draft.id.startsWith('BP-DFT-'), 'Draft must receive a draft ID (BP-DFT-*)');
+  assert(canonicalIdService.validateCanonicalId(draft.id, 'dft_'), 'Draft must receive a canonical UUID ID (dft_<uuid>)');
+  assert(draft.id.startsWith('dft_'), 'Draft must receive a draft ID starting with dft_');
   assert.strictEqual(draft.status, QuestionStatus.DRAFT, 'Draft status must strictly be DRAFT');
   assert.strictEqual(draft.workflowStage, 'QUESTION_STUDIO', 'Draft stage must strictly be QUESTION_STUDIO');
-  console.log(`  PASS: Draft persisted with ID ${draft.id} in status ${draft.status}.`);
+
+  // Verify uniqueness: saving another draft allocates a different UUID
+  const draft2 = await questionGenerationService.saveDraft(testDraftPayload, {
+    id: 'USR-TEST-AUTHOR',
+    name: 'Author Alice',
+  });
+  assert(canonicalIdService.validateCanonicalId(draft2.id, 'dft_'), 'Second draft must also be valid canonical UUID');
+  assert.notStrictEqual(draft.id, draft2.id, 'Subsequent draft saves must generate unique collision-resistant IDs');
+  await questionGenerationService.deleteDraft(draft2.id);
+
+  // Verify ID preservation: updating existing draft retains the same ID
+  const updatedExistingDraft = await questionGenerationService.saveDraft({
+    ...testDraftPayload,
+    id: draft.id,
+    questionText: 'రైలు వేగం లెక్కించే సవరించిన సూత్రం ఏమిటి?',
+  }, {
+    id: 'USR-TEST-AUTHOR',
+    name: 'Author Alice',
+  });
+  assert.strictEqual(updatedExistingDraft.id, draft.id, 'Updating an existing draft must preserve its draft ID');
+  console.log(`  PASS: Canonical draft ID ${draft.id} validated for format, uniqueness, and ID preservation.`);
 
   // Test 2: NEGATIVE ASSERTIONS on Save Draft
   console.log('[Test 2] NEGATIVE ASSERTIONS: Saving draft does NOT verify or approve...');

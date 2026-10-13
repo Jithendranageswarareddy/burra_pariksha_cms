@@ -100,7 +100,7 @@ export const QuestionVerifyApprovePage: React.FC = () => {
     }
     setSavingExplanation(true);
     try {
-      if (activeQuestionId.startsWith('BP-DFT-')) {
+      if (activeQuestionId.startsWith('dft_') || activeQuestionId.startsWith('BP-DFT-')) {
         await apiClient.saveQuestionDraft({
           ...question,
           id: activeQuestionId,
@@ -281,7 +281,7 @@ export const QuestionVerifyApprovePage: React.FC = () => {
       let finalQuestionId = activeQuestionId;
       let updatedQuestion: Question;
 
-      if (activeQuestionId.startsWith('BP-DFT-')) {
+      if (activeQuestionId.startsWith('dft_') || activeQuestionId.startsWith('BP-DFT-')) {
         updatedQuestion = await apiClient.approveQuestionDraft(
           activeQuestionId,
           `Approved by ${user?.name || 'Reviewer'} in Step 02 verification audit.`,
@@ -336,7 +336,7 @@ export const QuestionVerifyApprovePage: React.FC = () => {
     setActionInProgress(true);
     setNotification(null);
     try {
-      if (activeQuestionId.startsWith('BP-DFT-')) {
+      if (activeQuestionId.startsWith('dft_') || activeQuestionId.startsWith('BP-DFT-')) {
         setShowRejectModal(false);
         setRejectReason('');
         setNotification({

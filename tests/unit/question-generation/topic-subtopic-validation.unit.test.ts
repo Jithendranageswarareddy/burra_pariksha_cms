@@ -15,7 +15,7 @@ import {
   GenerateCandidateInput,
 } from '../../../shared/contracts/question-generation';
 import { questionGenerationService } from '../../../backend/domain/question-generation';
-import { DifficultyLevel, QuestionLanguage } from '../../../shared';
+import { DifficultyLevel, QuestionLanguage, canonicalIdService } from '../../../shared';
 
 async function runTopicSubtopicValidationTests() {
   console.log('============================================================');
@@ -261,7 +261,8 @@ async function runTopicSubtopicValidationTests() {
     options: { a: '10 మీ/సె', b: '15 మీ/సె', c: '20 మీ/సె', d: '25 మీ/సె' },
     correctAnswer: 'B',
   });
-  assert(canonicalDraft.id.startsWith('BP-DFT-'), 'Draft must be saved with canonical ID');
+  assert(canonicalIdService.validateCanonicalId(canonicalDraft.id, 'dft_'), 'Draft must be saved with canonical UUID ID (dft_<uuid>)');
+  assert(canonicalDraft.id.startsWith('dft_'), 'Draft must receive a canonical draft ID starting with dft_');
   assert.strictEqual(canonicalDraft.topicId, 'TOP-QA-01');
   assert.strictEqual(canonicalDraft.subtopicId, 'SUB-01');
   await questionGenerationService.deleteDraft(canonicalDraft.id);
@@ -319,7 +320,8 @@ async function runTopicSubtopicValidationTests() {
     options: { a: 'A', b: 'B', c: 'C', d: 'D' },
     correctAnswer: 'A',
   });
-  assert(randomDraft.id.startsWith('BP-DFT-'), 'Draft must be saved in RANDOM mode');
+  assert(canonicalIdService.validateCanonicalId(randomDraft.id, 'dft_'), 'Draft must be saved in RANDOM mode with canonical UUID ID (dft_<uuid>)');
+  assert(randomDraft.id.startsWith('dft_'), 'Draft in RANDOM mode must receive a canonical draft ID starting with dft_');
   assert.strictEqual(randomDraft.subtopicId, 'RANDOM');
   await questionGenerationService.deleteDraft(randomDraft.id);
   console.log('  PASS: RANDOM mode persists drafts and validates without requiring specific subtopic.');

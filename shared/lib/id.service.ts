@@ -48,6 +48,7 @@ export type CanonicalPrefix =
   | 'rev_' // Review
   | 'cfg_' // Question Config
   | 'val_' // Validation
+  | 'dft_' // Question Draft
   | (string & {});
 
 export const CANONICAL_PREFIXES: readonly CanonicalPrefix[] = [
@@ -77,6 +78,7 @@ export const CANONICAL_PREFIXES: readonly CanonicalPrefix[] = [
   'rev_',
   'cfg_',
   'val_',
+  'dft_',
 ] as const;
 
 export const PREFIX_ENTITY_MAP: Record<string, string> = {
@@ -106,6 +108,7 @@ export const PREFIX_ENTITY_MAP: Record<string, string> = {
   'rev_': 'Review',
   'cfg_': 'QuestionConfig',
   'val_': 'Validation',
+  'dft_': 'QuestionDraft',
 };
 
 export const UUID_V4_PATTERN = '^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$';
@@ -130,6 +133,10 @@ export class CanonicalIdService {
 
   public generateQuestionId(): string {
     return this.generateId('qst_');
+  }
+
+  public generateDraftId(): string {
+    return this.generateId('dft_');
   }
 
   public generateScriptId(): string {

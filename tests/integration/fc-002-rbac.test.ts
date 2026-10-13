@@ -234,7 +234,7 @@ async function runTests() {
 
       assert.strictEqual(res.status, 201, 'Authorized user with QUESTION:CREATE must receive HTTP 201');
       const draft = await res.json();
-      assert(draft.id.startsWith('BP-DFT-'), 'Draft ID must be generated');
+      assert(draft.id.startsWith('dft_') || draft.id.startsWith('BP-DFT-'), 'Draft ID must be generated');
       assert.strictEqual(draft.authorId, creatorUserId, 'Author must be the authenticated creator');
       createdDraftId = draft.id;
 

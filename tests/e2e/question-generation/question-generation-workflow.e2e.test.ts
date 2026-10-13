@@ -18,7 +18,7 @@ import { questionGenerationService } from '../../../backend/domain/question-gene
 import { questionDraftsRepository } from '../../../database/firestore/repositories/question-drafts.repository';
 import { questionsRepository } from '../../../database/firestore/repositories/questions.repository';
 import { evaluateStep01CandidateState } from '../../../shared/contracts/question-generation';
-import { QuestionStatus, DifficultyLevel, QuestionLanguage } from '../../../shared';
+import { QuestionStatus, DifficultyLevel, QuestionLanguage, canonicalIdService } from '../../../shared';
 
 async function runQuestionGenerationWorkflowE2ETest() {
   console.log('============================================================');
@@ -103,7 +103,8 @@ async function runQuestionGenerationWorkflowE2ETest() {
     name: 'E2E Question Author',
   });
 
-  assert(savedDraft.id.startsWith('BP-DFT-'), 'Draft receives BP-DFT-* identifier');
+  assert(canonicalIdService.validateCanonicalId(savedDraft.id, 'dft_'), 'Draft receives canonical dft_<uuid> identifier');
+  assert(savedDraft.id.startsWith('dft_'), 'Draft ID starts with dft_');
   assert.strictEqual(savedDraft.status, QuestionStatus.DRAFT, 'Draft remains in DRAFT status');
   assert.strictEqual(savedDraft.workflowStage, 'QUESTION_STUDIO', 'Draft remains in QUESTION_STUDIO stage');
 
