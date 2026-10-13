@@ -67,83 +67,29 @@ export class QuestionDraftService {
   }
 
   /**
-   * Persists a question draft without executing multi-layer verification
-   * or permanent sequence ID allocation.
+   * Delegates to authoritative QuestionGenerationService for draft persistence.
    */
   public async saveDraft(
     input: SaveDraftInput,
     actor: { id: string; name: string } = { id: 'USR-001', name: 'Admin / Content Lead' }
   ): Promise<QuestionDraft> {
-    const rawText = (input.questionText || input.question || '').trim();
-    if (!rawText) {
-      throw new Error('Question statement cannot be empty in draft.');
-    }
-
-    const optA = (input.options?.a || input.optionA || '').trim();
-    const optB = (input.options?.b || input.optionB || '').trim();
-    const optC = (input.options?.c || input.optionC || '').trim();
-    const optD = (input.options?.d || input.optionD || '').trim();
-
-    const draftId = input.id && input.id.startsWith('BP-DFT-')
-      ? input.id
-      : `BP-DFT-${Date.now().toString().slice(-6)}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
-
-    const now = new Date().toISOString();
-
-    const draft: QuestionDraft = {
-      id: draftId,
-      topicId: input.topicId,
-      subtopicId: input.subtopicId,
-      difficulty: input.difficulty || 'Intermediate',
-      language: input.language || 'TELUGU',
-      questionText: rawText,
-      question: rawText,
-      options: {
-        a: optA,
-        b: optB,
-        c: optC,
-        d: optD,
-      },
-      optionA: optA,
-      optionB: optB,
-      optionC: optC,
-      optionD: optD,
-      correctAnswer: input.correctAnswer || 'A',
-      explanation: (input.explanation || '').trim(),
-      realWorldContext: input.realLifeContext || input.realWorldContext,
-      realLifeContext: input.realLifeContext || input.realWorldContext,
-      challengeType: input.challengeType || 'ABCD',
-      presentationType: input.presentationType ? (input.presentationType === 'Text' ? 'TEXT_ONLY' : input.presentationType) : 'TEXT_ONLY',
-      questionStyle: input.questionStyle || 'STORY_BASED',
-      generationMode: input.generationMode || 'SUBTOPIC',
-      tags: input.tags || ['Aptitude', 'Draft'],
-      source: input.source || 'AI Question Studio',
-      sourceModel: input.sourceModel,
-      generationLatencyMs: input.generationLatencyMs,
-      isFallback: input.isFallback,
-      mathematicalVerification: input.mathematicalVerification,
-      authorId: actor.id,
-      authorName: actor.name,
-      author: actor.name,
-      workflowStage: 'QUESTION_STUDIO',
-      status: QuestionStatus.DRAFT,
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    return questionDraftsRepository.create(draft);
+    const { questionGenerationService } = await import('../../../domain/question-generation/question-generation.service');
+    return questionGenerationService.saveDraft(input, actor);
   }
 
   public async getDraftById(id: string): Promise<QuestionDraft | null> {
-    return questionDraftsRepository.findById(id);
+    const { questionGenerationService } = await import('../../../domain/question-generation/question-generation.service');
+    return questionGenerationService.getDraftById(id);
   }
 
   public async getAllDrafts(): Promise<QuestionDraft[]> {
-    return questionDraftsRepository.findAll();
+    const { questionGenerationService } = await import('../../../domain/question-generation/question-generation.service');
+    return questionGenerationService.getAllDrafts();
   }
 
   public async deleteDraft(id: string): Promise<boolean> {
-    return questionDraftsRepository.delete(id);
+    const { questionGenerationService } = await import('../../../domain/question-generation/question-generation.service');
+    return questionGenerationService.deleteDraft(id);
   }
 
   /**

@@ -134,6 +134,54 @@ async function runTopicSubtopicValidationTests() {
   assert.strictEqual(domainValInvalid.isValid, false, 'Incomplete candidate fails domain validation');
   console.log('  PASS: Domain candidate validation operational.');
 
+  // Test 8: Reject a supplied Subtopic that cannot be resolved from authoritative taxonomy
+  console.log('[Test 8] Rejecting supplied unresolvable Subtopic...');
+  const unresolvableSubReq = await questionGenerationService.validateGenerationRequest({
+    topicId: 'TOP-QA-01',
+    subtopicId: 'SUB-NON-EXISTENT-999',
+    difficulty: DifficultyLevel.MEDIUM,
+    language: QuestionLanguage.TELUGU,
+  });
+  assert.strictEqual(unresolvableSubReq.isValid, false, 'Unresolvable subtopic must fail validation');
+  assert(unresolvableSubReq.error?.includes('does not exist in authoritative taxonomy'), 'Must explain subtopic non-existence');
+  console.log('  PASS: Unresolvable Subtopic rejected with clear error.');
+
+  // Test 9: Reject a Subtopic that does not belong to the selected Topic
+  console.log('[Test 9] Rejecting Subtopic that does not belong to selected Topic...');
+  const mismatchedSubReq = await questionGenerationService.validateGenerationRequest({
+    topicId: 'TOP-QA-02', // Time & Work
+    subtopicId: 'SUB-01',   // Belongs to TOP-QA-01 (Trains)
+    difficulty: DifficultyLevel.MEDIUM,
+    language: QuestionLanguage.TELUGU,
+  });
+  assert.strictEqual(mismatchedSubReq.isValid, false, 'Mismatched subtopic must fail validation');
+  assert(mismatchedSubReq.error?.includes('does not belong to Topic'), 'Must identify relationship mismatch');
+  console.log('  PASS: Mismatched Subtopic rejected with clear error.');
+
+  // Test 10: Reject an unresolvable Topic
+  console.log('[Test 10] Rejecting unresolvable Topic...');
+  const unresolvableTopReq = await questionGenerationService.validateGenerationRequest({
+    topicId: 'TOP-INVALID-999',
+    subtopicId: 'SUB-01',
+    difficulty: DifficultyLevel.MEDIUM,
+    language: QuestionLanguage.TELUGU,
+  });
+  assert.strictEqual(unresolvableTopReq.isValid, false, 'Unresolvable topic must fail validation');
+  assert(unresolvableTopReq.error?.includes('does not exist in authoritative taxonomy'), 'Must report topic non-existence');
+  console.log('  PASS: Unresolvable Topic rejected with clear error.');
+
+  // Test 11: Preserve documented RANDOM mode exception without requiring explicit subtopic
+  console.log('[Test 11] Preserving RANDOM mode generation without specific subtopic...');
+  const randomModeReq = await questionGenerationService.validateGenerationRequest({
+    topicId: 'TOP-QA-01',
+    subtopicId: 'RANDOM',
+    generationMode: 'RANDOM',
+    difficulty: DifficultyLevel.MEDIUM,
+    language: QuestionLanguage.TELUGU,
+  });
+  assert.strictEqual(randomModeReq.isValid, true, 'Random mode must succeed without explicit subtopic');
+  console.log('  PASS: Documented RANDOM mode exception preserved.');
+
   console.log('\n============================================================');
   console.log('ALL TOPIC/SUBTOPIC & CANDIDATE VALIDATION TESTS PASSED');
   console.log('============================================================');

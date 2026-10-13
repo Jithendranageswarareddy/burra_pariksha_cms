@@ -104,12 +104,23 @@ export const ActionBar: React.FC<ActionBarProps> = ({
         </button>
 
         {/* 2. SUBMIT FOR VERIFICATION (Explicit Separate Command) */}
+        {/* Strictly disabled unless a persisted draft exists, candidate is valid, no unsaved changes remain, and not busy */}
         <button
           type="button"
           onClick={onSubmitForVerification}
-          disabled={!workflowState.canContinue || isBusy}
+          disabled={!savedDraftId || isDirty || !workflowState.canContinue || isBusy}
           className="px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-bold text-xs shadow-xs flex items-center gap-1.5 cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-          title="Explicitly submit this draft for Stage 02 Verification"
+          title={
+            !savedDraftId
+              ? 'Save draft first before submitting for verification'
+              : isDirty
+              ? 'Unsaved changes exist. Save draft before submitting'
+              : !workflowState.canContinue
+              ? (workflowState.reason || 'Candidate has validation issues')
+              : isBusy
+              ? 'Operation in progress...'
+              : 'Explicitly submit this saved draft for Stage 02 Verification'
+          }
         >
           {isSubmitting ? (
             <>

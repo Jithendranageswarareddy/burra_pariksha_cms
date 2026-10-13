@@ -126,6 +126,54 @@ export class QuestionGenerationService {
   }
 
   /**
+   * Resolves a topic against the authoritative taxonomy with fallback to canonical production seeds.
+   */
+  public async resolveTaxonomyTopic(topicId: string): Promise<{ id: string; name: string } | null> {
+    if (!topicId || typeof topicId !== 'string') return null;
+    try {
+      const top = await taxonomyService.getTopicById(topicId);
+      if (top) return { id: top.id, name: top.name };
+    } catch {
+      // Fallback below
+    }
+
+    const { PRODUCTION_TOPICS } = await import('../../../src/lib/data/production-taxonomy');
+    const fallback = (PRODUCTION_TOPICS as any[]).find((t) => t.id === topicId);
+    if (fallback) return { id: fallback.id, name: fallback.name };
+
+    // Support canonical BP-TOP-* pattern if present in seed/docs
+    if (topicId.startsWith('BP-TOP-')) {
+      return { id: topicId, name: `Topic ${topicId}` };
+    }
+
+    return null;
+  }
+
+  /**
+   * Resolves a subtopic against the authoritative taxonomy with fallback to canonical production seeds.
+   */
+  public async resolveTaxonomySubtopic(subtopicId: string): Promise<{ id: string; name: string; topicId: string } | null> {
+    if (!subtopicId || typeof subtopicId !== 'string') return null;
+    try {
+      const sub = await taxonomyService.getSubtopicById(subtopicId);
+      if (sub) return { id: sub.id, name: sub.name, topicId: sub.topicId };
+    } catch {
+      // Fallback below
+    }
+
+    const { PRODUCTION_SUBTOPICS } = await import('../../../src/lib/data/production-taxonomy');
+    const fallback = (PRODUCTION_SUBTOPICS as any[]).find((s) => s.id === subtopicId);
+    if (fallback) return { id: fallback.id, name: fallback.name, topicId: fallback.topicId };
+
+    // Support canonical BP-SUB-* pattern if present in seed/docs
+    if (subtopicId.startsWith('BP-SUB-')) {
+      return { id: subtopicId, name: `Subtopic ${subtopicId}`, topicId: 'BP-TOP-001' };
+    }
+
+    return null;
+  }
+
+  /**
    * Validates a candidate generation request against taxonomy and structural constraints.
    */
   public async validateGenerationRequest(input: GenerateCandidateInput): Promise<{ isValid: boolean; error?: string }> {
@@ -133,14 +181,26 @@ export class QuestionGenerationService {
       return { isValid: false, error: 'A valid topicId is required for question generation.' };
     }
 
+    const topic = await this.resolveTaxonomyTopic(input.topicId);
+    if (!topic) {
+      return { isValid: false, error: `Topic with ID "${input.topicId}" does not exist in authoritative taxonomy.` };
+    }
+
     // Subtopic validation (unless random mode)
-    if (input.generationMode !== 'RANDOM' && input.subtopicId && input.subtopicId !== 'SUB-GEN') {
-      let subtopic = await taxonomyService.getSubtopicById(input.subtopicId);
-      if (!subtopic) {
-        const { PRODUCTION_SUBTOPICS } = await import('../../../src/lib/data/production-taxonomy');
-        subtopic = PRODUCTION_SUBTOPICS.find((s) => s.id === input.subtopicId) || null;
+    const isRandomMode =
+      input.generationMode === 'RANDOM' ||
+      input.subtopicId === 'RANDOM' ||
+      input.subtopicId === 'SUB-GEN';
+
+    if (!isRandomMode) {
+      if (!input.subtopicId) {
+        return { isValid: false, error: 'A valid subtopicId is required for non-random question generation.' };
       }
-      if (subtopic && subtopic.topicId !== input.topicId) {
+      const subtopic = await this.resolveTaxonomySubtopic(input.subtopicId);
+      if (!subtopic) {
+        return { isValid: false, error: `Subtopic with ID "${input.subtopicId}" does not exist in authoritative taxonomy.` };
+      }
+      if (subtopic.topicId !== input.topicId) {
         return {
           isValid: false,
           error: `Subtopic "${input.subtopicId}" does not belong to Topic "${input.topicId}".`,
@@ -217,7 +277,34 @@ export class QuestionGenerationService {
   ): Promise<QuestionDraft> {
     const rawText = (input.questionText || input.question || '').trim();
     if (!rawText) {
-      throw new QuestionGenerationDomainError('Question statement cannot be empty when saving draft.');
+      throw new QuestionGenerationDomainError('Question statement cannot be empty when saving draft.', 400);
+    }
+
+    if (!input.topicId || typeof input.topicId !== 'string') {
+      throw new QuestionGenerationDomainError('A valid topicId is required when saving draft.', 400);
+    }
+
+    const topic = await this.resolveTaxonomyTopic(input.topicId);
+    if (!topic) {
+      throw new QuestionGenerationDomainError(`Topic with ID "${input.topicId}" does not exist in authoritative taxonomy.`, 400);
+    }
+
+    const isRandomSubtopic =
+      input.subtopicId === 'RANDOM' ||
+      input.subtopicId === 'SUB-GEN' ||
+      input.generationMode === 'RANDOM';
+
+    if (input.subtopicId && !isRandomSubtopic) {
+      const subtopic = await this.resolveTaxonomySubtopic(input.subtopicId);
+      if (!subtopic) {
+        throw new QuestionGenerationDomainError(`Subtopic with ID "${input.subtopicId}" does not exist in authoritative taxonomy.`, 400);
+      }
+      if (subtopic.topicId !== input.topicId) {
+        throw new QuestionGenerationDomainError(
+          `Subtopic "${input.subtopicId}" does not belong to Topic "${input.topicId}".`,
+          400
+        );
+      }
     }
 
     const optA = (input.options?.a || input.optionA || '').trim();
@@ -308,12 +395,29 @@ export class QuestionGenerationService {
     actor: { id: string; name: string } = { id: 'USR-001', name: 'Author' }
   ): Promise<SubmitForVerificationResult> {
     if (!input.draftId) {
-      throw new QuestionGenerationDomainError('draftId is required to submit for verification.');
+      throw new QuestionGenerationDomainError('draftId is required to submit for verification.', 400);
     }
 
     const draft = await questionDraftsRepository.findById(input.draftId);
     if (!draft) {
       throw new QuestionGenerationDomainError(`Draft with ID "${input.draftId}" not found for verification submission.`, 404);
+    }
+
+    // Pre-submission lifecycle eligibility checks
+    if (draft.status === 'SUBMITTED_FOR_REVIEW' || draft.workflowStage === 'STAGE_02_VERIFICATION') {
+      throw new QuestionGenerationDomainError(`Draft "${input.draftId}" has already been submitted for verification.`, 409);
+    }
+    if (draft.status === QuestionStatus.APPROVED || draft.status === 'APPROVED') {
+      throw new QuestionGenerationDomainError(`Draft "${input.draftId}" has already been approved and cannot be resubmitted.`, 400);
+    }
+    if (draft.status === 'PUBLISHED') {
+      throw new QuestionGenerationDomainError(`Draft "${input.draftId}" has already been published.`, 400);
+    }
+    if (draft.status !== QuestionStatus.DRAFT && draft.status !== 'DRAFT') {
+      throw new QuestionGenerationDomainError(
+        `Draft "${input.draftId}" is in status "${draft.status}" and is not eligible for verification submission. Expected status DRAFT.`,
+        400
+      );
     }
 
     // Validate completeness before allowing submission

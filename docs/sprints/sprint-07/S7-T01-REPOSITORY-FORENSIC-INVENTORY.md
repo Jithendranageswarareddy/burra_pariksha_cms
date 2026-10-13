@@ -11,7 +11,7 @@
 ## 1. Executive Summary & Repository Baseline
 
 ### 1.1 Git Working Tree Baseline
-- **Total Tracked Files Reconciled**: **689 files** (Verified against git ls-files)
+- **Total Tracked Files Reconciled**: **690 files** (Verified against git ls-files)
 - **Branch**: main
 - **Authoritative Datastore**: Cloud Firestore (Zero Google Sheets runtime persistence)
 - **Architecture Model**: Vertical Feature Slices with Unidirectional Dependency Flow
@@ -25,11 +25,11 @@
 | docs/ | 74 | Authoritative architecture specs, contracts, ADRs, sprint reports |
 | database/ | 48 | Cloud Firestore adapter, repositories, security rules |
 | src/ | 47 | Internal shims, legacy types, static configs, audit dispatchers |
-| tests/ | 39 | Automated regression test suites and quality gates |
+| tests/ | 40 | Automated regression test suites and quality gates |
 | shared/ | 29 | Isomorphic contracts, types, enums, canonical ID service |
 | Root (/) | 17 | Project configuration and build tooling |
 | scripts/ | 7 | Developer CLI and diagnostic tools |
-| **Total** | **689** | **Complete repository inventory** |
+| **Total** | **690** | **Complete repository inventory** |
 
 ### 1.3 Primary Architectural Classification Breakdown
 `
@@ -39,21 +39,21 @@
   AI              :  74 files  (11.0%)
   DOCUMENTATION   :  76 files  (11.0%)
   DATABASE        :  51 files  ( 7.6%)
-  TEST            :  39 files  ( 5.7%)
+  TEST            :  40 files  ( 5.8%)
   SHARED          :  30 files  ( 4.4%)
   CONFIGURATION   :  25 files  ( 3.7%)
   SHARED_TYPES    :  25 files  ( 3.7%)
   SCRIPT          :   7 files  ( 1.0%)
   AUDIT           :   4 files  ( 0.6%)
   -----------------------------------------
-  TOTAL           : 689 files  (100.0%)
+  TOTAL           : 690 files  (100.0%)
 `
 
 ---
 
-## 2. Complete File Ownership Manifest (All 689 Files)
+## 2. Complete File Ownership Manifest (All 690 Files)
 
-The following manifest records all 689 tracked files in Burra Pariksha CMS, accounting for each file exactly once with path, responsibility, layer, domain owner, dependencies, consumers, target location, and risk:
+The following manifest records all 690 tracked files in Burra Pariksha CMS, accounting for each file exactly once with path, responsibility, layer, domain owner, dependencies, consumers, target location, and risk:
 
 | Current Path | Responsibility | Layer | Feature/Domain | Depends On | Consumed By | Target Location | Classification | Priority | Notes |
 |:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|
@@ -731,6 +731,7 @@ The following manifest records all 689 tracked files in Burra Pariksha CMS, acco
 | tests/integration/fc-005-workflow.test.ts | Automated boundary tests, regression suites, quality gate checks | Testing | Verification & Quality Gates | Production code, node:assert, tsx | CI runner & pre-commit validation | tests/integration/fc-005-workflow.test.ts | **TEST** | HIGH | Authoritative automated test |
 | tests/integration/firestore-rules.test.ts | Automated boundary tests, regression suites, quality gate checks | Testing | Verification & Quality Gates | Production code, node:assert, tsx | CI runner & pre-commit validation | tests/integration/firestore-rules.test.ts | **TEST** | HIGH | Authoritative automated test |
 | tests/integration/question-generation/question-generation-slice.integration.test.ts | Integration test for question generation domain, Firestore persistence, and verification boundaries | Testing | Verification & Quality Gates | Production code, node:assert, tsx | CI runner & pre-commit validation | tests/integration/question-generation/question-generation-slice.integration.test.ts | **TEST** | HIGH | Authoritative automated test |
+| tests/integration/question-generation/submission-route-registration.integration.test.ts | Route-level integration test proving submission route registration at module initialization | Testing | Verification & Quality Gates | Production code, node:assert, tsx | CI runner & pre-commit validation | tests/integration/question-generation/submission-route-registration.integration.test.ts | **TEST** | HIGH | Authoritative automated test |
 | tests/integration/real-application-path.test.ts | Automated boundary tests, regression suites, quality gate checks | Testing | Verification & Quality Gates | Production code, node:assert, tsx | CI runner & pre-commit validation | tests/integration/real-application-path.test.ts | **TEST** | HIGH | Authoritative automated test |
 | tests/integration/s4-15-step-persistence.test.ts | Automated boundary tests, regression suites, quality gate checks | Testing | Verification & Quality Gates | Production code, node:assert, tsx | CI runner & pre-commit validation | tests/integration/s4-15-step-persistence.test.ts | **TEST** | HIGH | Authoritative automated test |
 | tests/integration/s4-gate1-production-routing.test.ts | Automated boundary tests, regression suites, quality gate checks | Testing | Verification & Quality Gates | Production code, node:assert, tsx | CI runner & pre-commit validation | tests/integration/s4-gate1-production-routing.test.ts | **TEST** | HIGH | Authoritative automated test |
@@ -770,4 +771,4 @@ Every tracked file under `src/` has a verified, evidence-backed disposition:
 - `src/lib/data/production-taxonomy.ts`: **Historical / migration-only artifact** — Initial taxonomy seed fixture for database initializers.
 
 ### 3.3 Zero Unresolved Dependencies
-All 689 files have clearly identified responsibilities, layers, dependencies, and owners with 0 circular imports and 0 unresolved architectural leaks.
+All 690 files have clearly identified responsibilities, layers, dependencies, and owners with 0 circular imports and 0 unresolved architectural leaks.

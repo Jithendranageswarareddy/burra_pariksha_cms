@@ -1456,6 +1456,10 @@ apiRouter.delete('/questions/draft/:id', requireRole([UserRole.ADMIN, UserRole.C
     const { id } = req.params;
     const deleted = await questionDraftService.deleteDraft(id);
     res.json({ success: deleted });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || 'Failed to delete draft' });
+  }
+});
 
 apiRouter.post(
   ['/questions/draft/:id/submit', '/v1/questions/draft/:id/submit'],
@@ -1476,11 +1480,6 @@ apiRouter.post(
     }
   }
 );
-
-  } catch (err: any) {
-    res.status(500).json({ error: err?.message || 'Failed to delete draft' });
-  }
-});
 
 apiRouter.post(['/questions/create', '/v1/questions/create'], requireCapability('QUESTION:CREATE'), async (req: Request, res: Response) => {
   try {

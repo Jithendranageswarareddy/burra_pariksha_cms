@@ -124,9 +124,70 @@ async function runSaveDraftVsVerifyUnitTests() {
   assert.strictEqual(postSubmitCanonicalId, undefined, 'Submission must NOT allocate canonical question ID');
   console.log('  PASS: Explicit submission advanced draft to Stage 02 without approving.');
 
-  // Clean up test draft
+  // Test 6: Repeated submission of already-submitted draft throws 409
+  console.log('[Test 6] Repeated submission of already submitted draft throws 409 Conflict...');
+  let didThrowConflict = false;
+  try {
+    await questionGenerationService.submitForVerification(
+      { draftId: draft.id, remarks: 'Second submission attempt' },
+      { id: 'USR-TEST-AUTHOR', name: 'Author Alice' }
+    );
+  } catch (err: any) {
+    didThrowConflict = true;
+    assert.strictEqual(err?.statusCode, 409, 'Must throw 409 on duplicate submission');
+  }
+  assert(didThrowConflict, 'Expected 409 Conflict on repeated submission');
+  console.log('  PASS: Repeated submission rejected with HTTP 409.');
+
+  // Test 7: Submitting an already approved/published draft throws 400
+  console.log('[Test 7] Submitting an already approved draft throws 400...');
+  const approvedDraft = await questionGenerationService.saveDraft({
+    topicId: 'BP-TOP-001',
+    subtopicId: 'BP-SUB-0001',
+    difficulty: 'Intermediate',
+    language: 'TELUGU',
+    questionText: 'ఆమోదించబడిన ప్రశ్న పత్రం...',
+    options: { a: 'A', b: 'B', c: 'C', d: 'D' },
+    correctAnswer: 'A' as const,
+  }, { id: 'USR-TEST-AUTHOR', name: 'Author Alice' });
+
+  // Simulate draft having progressed to approved status
+  (approvedDraft as any).status = QuestionStatus.APPROVED;
+  const { questionDraftsRepository } = await import('../../../database/firestore/repositories/question-drafts.repository');
+  await questionDraftsRepository.update(approvedDraft.id, approvedDraft);
+
+  let didThrowApprovedError = false;
+  try {
+    await questionGenerationService.submitForVerification(
+      { draftId: approvedDraft.id },
+      { id: 'USR-TEST-AUTHOR', name: 'Author Alice' }
+    );
+  } catch (err: any) {
+    didThrowApprovedError = true;
+    assert.strictEqual(err?.statusCode, 400, 'Must throw 400 when draft is already approved');
+  }
+  assert(didThrowApprovedError, 'Expected 400 error when submitting already approved draft');
+  console.log('  PASS: Approved draft submission rejected with HTTP 400.');
+
+  // Test 8: Submitting with empty/unsaved candidate does NOT invoke save or create draft
+  console.log('[Test 8] Attempting submission without persisted draftId does NOT create draft...');
+  const initialDrafts = await questionGenerationService.getAllDrafts();
+  let didThrowEmptyDraftId = false;
+  try {
+    await questionGenerationService.submitForVerification({ draftId: '' });
+  } catch (err: any) {
+    didThrowEmptyDraftId = true;
+    assert.strictEqual(err?.statusCode, 400);
+  }
+  assert(didThrowEmptyDraftId, 'Expected validation error on empty draftId');
+  const postDrafts = await questionGenerationService.getAllDrafts();
+  assert.strictEqual(postDrafts.length, initialDrafts.length, 'Submission attempt must NEVER create a draft document');
+  console.log('  PASS: Attempting submission without persisted draft does not create a draft.');
+
+  // Clean up test drafts
   await questionGenerationService.deleteDraft(draft.id);
   await questionGenerationService.deleteDraft(incompleteDraft.id);
+  await questionGenerationService.deleteDraft(approvedDraft.id);
 
   console.log('\n============================================================');
   console.log('ALL SAVE DRAFT VS. VERIFY UNIT TESTS PASSED');

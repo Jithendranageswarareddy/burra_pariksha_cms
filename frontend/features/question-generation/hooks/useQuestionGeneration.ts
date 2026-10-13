@@ -423,23 +423,38 @@ export function useQuestionGeneration() {
 
   // 7. SUBMIT FOR VERIFICATION ACTION (Explicit User Command)
   // Submits an eligible saved draft for Stage 02 Verification.
+  // Crucial: Truly separate command - NEVER implicitly calls handleSaveDraft().
   const handleSubmitForVerification = async (remarks?: string): Promise<SubmitForVerificationResult | null> => {
     setErrorMessage(null);
     setSubmitSuccessResult(null);
 
-    // If there are unsaved changes, auto-persist the draft first
-    let targetDraftId = savedDraftId;
-    if (!targetDraftId || isDirty) {
-      targetDraftId = await handleSaveDraft();
-      if (!targetDraftId) {
-        return null; // save failed, error already set
-      }
+    // 1. Must have an existing, persisted draft ID
+    if (!savedDraftId) {
+      setErrorMessage('No saved draft found. Please save your draft before submitting for verification.');
+      return null;
+    }
+
+    // 2. Reject if there are unsaved changes (do not submit stale saved version)
+    if (isDirty) {
+      setErrorMessage('The candidate has unsaved changes. Please save your draft before submitting for verification.');
+      return null;
+    }
+
+    // 3. Reject if candidate is structurally incomplete or invalid
+    if (!workflowState.canContinue) {
+      setErrorMessage(workflowState.reason || 'Candidate has validation issues. Please resolve them and save draft before submitting.');
+      return null;
+    }
+
+    // Explicit submission confirmation dialog
+    if (!window.confirm(`Submit saved draft "${savedDraftId}" for Stage 02 Verification?`)) {
+      return null;
     }
 
     setIsSubmitting(true);
     try {
       const result = await questionsApi.submitForVerification({
-        draftId: targetDraftId,
+        draftId: savedDraftId,
         remarks: remarks || 'Submitted from Question Studio for Stage 02 Verification',
       });
 
