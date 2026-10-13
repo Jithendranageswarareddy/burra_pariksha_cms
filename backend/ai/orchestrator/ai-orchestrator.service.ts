@@ -304,7 +304,11 @@ export class AIOrchestrationService {
       const p = aiProviderRegistry.getProvider(providerId);
       if (p) return p;
     }
-    return aiProviderRegistry.getDefaultProvider();
+    try {
+      return aiProviderRegistry.getDefaultProvider();
+    } catch {
+      return null;
+    }
   }
 
   public async refineQuestionCandidate(

@@ -17,6 +17,7 @@ export class GeminiProviderAdapter extends BaseAIProviderAdapter {
   ];
   protected defaultModelId = 'gemini-3.1-flash-lite';
   protected priority = 1;
+  protected timeoutMs = 30000;
 
   public isConfigured(): boolean {
     const key = process.env.GEMINI_API_KEY;

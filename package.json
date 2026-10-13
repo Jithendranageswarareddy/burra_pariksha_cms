@@ -28,7 +28,8 @@
     "test:15-step-persistence": "tsx tests/integration/s4-15-step-persistence.test.ts",
     "test:unit": "tsx tests/unit/s3-t01-rbac-override.test.ts && tsx tests/unit/s3-t14-routing-state-gate.test.ts && tsx tests/unit/question-generation/topic-subtopic-validation.unit.test.ts && tsx tests/unit/question-generation/save-draft-vs-verify.unit.test.ts",
     "test:question-generation": "tsx tests/unit/question-generation/topic-subtopic-validation.unit.test.ts && tsx tests/unit/question-generation/save-draft-vs-verify.unit.test.ts && tsx tests/integration/question-generation/submission-route-registration.integration.test.ts && tsx tests/integration/question-generation/question-generation-slice.integration.test.ts && tsx tests/e2e/question-generation/question-generation-workflow.e2e.test.ts",
-    "test:architecture": "tsx tests/architecture/s7-frontend-backend-boundary.test.ts && tsx tests/architecture/s7-t11-api-access-boundary.test.ts && tsx tests/architecture/fc-005-shared-contract.test.ts && tsx tests/architecture/s7-t16-dependency-boundaries.test.ts"
+    "test:architecture": "tsx tests/architecture/s7-frontend-backend-boundary.test.ts && tsx tests/architecture/s7-t11-api-access-boundary.test.ts && tsx tests/architecture/fc-005-shared-contract.test.ts && tsx tests/architecture/s7-t16-dependency-boundaries.test.ts",
+    "test:s7-t19": "tsx tests/regression/s7-t19-runtime-regression.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
