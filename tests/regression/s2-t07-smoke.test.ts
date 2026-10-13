@@ -86,7 +86,7 @@ async function runSmokeGate() {
       cwd: process.cwd(),
       env: mergedEnv,
       stdio: 'inherit',
-      shell: false,
+      shell: process.platform === 'win32',
     });
 
     const durationMs = Date.now() - startTime;
