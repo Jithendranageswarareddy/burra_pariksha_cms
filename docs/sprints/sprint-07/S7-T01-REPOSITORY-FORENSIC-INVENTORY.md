@@ -3,15 +3,20 @@
 **Sprint**: SPRINT 7 — ARCHITECTURE REORGANIZATION & FEATURE ISOLATION  
 **Task**: S7-T01 Repository Forensic Inventory  
 **Target Milestone**: Make every feature independently understandable, independently changeable, and independently testable.  
-**Execution Mode**: AUTHORITATIVE COMPLETE FORENSIC AUDIT (All tracked files inventoried exactly once).
+**Execution Mode**: AUTHORITATIVE COMPLETE FORENSIC AUDIT, reconciled against subsequent Sprint 7 additions.
 **Effective Date**: October 13, 2026
+
+**Reconciliation note**: The original S7-T01 snapshot contained 690 tracked files.
+This manifest was reconciled after S7-T15 and S7-T16 to include 20 legitimate
+later additions, while preserving the original baseline distinction.
 
 ---
 
 ## 1. Executive Summary & Repository Baseline
 
 ### 1.1 Git Working Tree Baseline
-- **Total Tracked Files Reconciled**: **690 files** (Verified against git ls-files)
+- **Original S7-T01 Baseline**: **690 files**
+- **Current Tracked Files Reconciled**: **710 files** (Verified against git ls-files)
 - **Branch**: main
 - **Authoritative Datastore**: Cloud Firestore (Zero Google Sheets runtime persistence)
 - **Architecture Model**: Vertical Feature Slices with Unidirectional Dependency Flow
@@ -22,14 +27,14 @@
 | backend/ | 176 | Backend domain services, routes, middleware, validation |
 | frontend/ | 177 | React presentation components, pages, design system tokens |
 | features/ | 75 | Vertical feature scaffolding (.gitkeep targets) |
-| docs/ | 74 | Authoritative architecture specs, contracts, ADRs, sprint reports |
+| docs/ | 92 | Authoritative architecture specs, contracts, ADRs, sprint reports |
 | database/ | 48 | Cloud Firestore adapter, repositories, security rules |
 | src/ | 47 | Internal shims, legacy types, static configs, audit dispatchers |
-| tests/ | 40 | Automated regression test suites and quality gates |
+| tests/ | 42 | Automated regression test suites and quality gates |
 | shared/ | 29 | Isomorphic contracts, types, enums, canonical ID service |
 | Root (/) | 17 | Project configuration and build tooling |
 | scripts/ | 7 | Developer CLI and diagnostic tools |
-| **Total** | **690** | **Complete repository inventory** |
+| **Total** | **710** | **Complete reconciled repository inventory** |
 
 ### 1.3 Primary Architectural Classification Breakdown
 `
@@ -37,21 +42,21 @@
   BACKEND         : 107 files  (15.5%)
   FEATURE_SCAFFOLD:  75 files  (11.1%)
   AI              :  74 files  (11.0%)
-  DOCUMENTATION   :  76 files  (11.0%)
+  DOCUMENTATION   :  94 files  (13.2%)
   DATABASE        :  51 files  ( 7.6%)
-  TEST            :  40 files  ( 5.8%)
+  TEST            :  42 files  ( 5.9%)
   SHARED          :  30 files  ( 4.4%)
   CONFIGURATION   :  25 files  ( 3.7%)
   SHARED_TYPES    :  25 files  ( 3.7%)
   SCRIPT          :   7 files  ( 1.0%)
   AUDIT           :   4 files  ( 0.6%)
   -----------------------------------------
-  TOTAL           : 690 files  (100.0%)
+  TOTAL           : 710 files  (100.0%)
 `
 
 ---
 
-## 2. Complete File Ownership Manifest (All 690 Files)
+## 2. Complete File Ownership Manifest (All 710 Files)
 
 The following manifest records all 690 tracked files in Burra Pariksha CMS, accounting for each file exactly once with path, responsibility, layer, domain owner, dependencies, consumers, target location, and risk:
 
@@ -745,6 +750,26 @@ The following manifest records all 690 tracked files in Burra Pariksha CMS, acco
 | tests/unit/question-generation/topic-subtopic-validation.unit.test.ts | Unit tests verifying two-tier taxonomy validation and candidate evaluation | Testing | Verification & Quality Gates | Production code, node:assert, tsx | CI runner & pre-commit validation | tests/unit/question-generation/topic-subtopic-validation.unit.test.ts | **TEST** | HIGH | Authoritative automated test |
 | tests/unit/s3-t01-rbac-override.test.ts | Automated boundary tests, regression suites, quality gate checks | Testing | Verification & Quality Gates | Production code, node:assert, tsx | CI runner & pre-commit validation | tests/unit/s3-t01-rbac-override.test.ts | **TEST** | HIGH | Authoritative automated test |
 | tests/unit/s3-t14-routing-state-gate.test.ts | Automated boundary tests, regression suites, quality gate checks | Testing | Verification & Quality Gates | Production code, node:assert, tsx | CI runner & pre-commit validation | tests/unit/s3-t14-routing-state-gate.test.ts | **TEST** | HIGH | Authoritative automated test |
+| tests/architecture/dependency-boundary-scanner.ts | AST import-boundary scanner and diagnostic types | Testing | S7-T16 Dependency Boundaries | TypeScript compiler API, tsconfig paths | S7-T16 architecture test | tests/architecture/dependency-boundary-scanner.ts | **TEST** | HIGH | Added after original S7-T01 baseline; executable boundary enforcement |
+| tests/architecture/s7-t16-dependency-boundaries.test.ts | Production boundary and mutation regression tests | Testing | S7-T16 Dependency Boundaries | Boundary scanner, node:assert, tsx | Architecture test command | tests/architecture/s7-t16-dependency-boundaries.test.ts | **TEST** | HIGH | Added after original S7-T01 baseline; DB-001 through DB-008 coverage |
+| docs/architecture/27-DEPENDENCY-BOUNDARIES.md | Dependency-boundary rules and test operating guidance | Architecture Documentation | S7-T16 Dependency Boundaries | S7-T16 scanner and architecture rules | Developers and architecture tests | docs/architecture/27-DEPENDENCY-BOUNDARIES.md | **DOCUMENTATION** | HIGH | Added after original S7-T01 baseline |
+| docs/page-contracts/FEATURE-PAGE-CONTRACT-TEMPLATE.md | Canonical feature page-contract structure and evidence rules | Contract Documentation | S7-T15 Page Contracts | Page-route and feature architecture | Stage page contracts | docs/page-contracts/FEATURE-PAGE-CONTRACT-TEMPLATE.md | **DOCUMENTATION** | HIGH | Added after original S7-T01 baseline |
+| docs/page-contracts/README.md | Page-contract index, status governance, and evidence policy | Contract Documentation | S7-T15 Page Contracts | Page-contract template and stage contracts | Developers and contract reviewers | docs/page-contracts/README.md | **DOCUMENTATION** | HIGH | Added after original S7-T01 baseline |
+| docs/page-contracts/STAGE-01-QUESTION-GENERATION.md | Stage 01 page contract and claim-level evidence | Contract Documentation | S7-T15 Page Contracts | Question Generation implementation and architecture | Stage 01 implementation and review | docs/page-contracts/STAGE-01-QUESTION-GENERATION.md | **DOCUMENTATION** | HIGH | Added after original S7-T01 baseline |
+| docs/page-contracts/STAGE-02-QUESTION-VERIFICATION.md | Stage 02 page contract and claim-level evidence | Contract Documentation | S7-T15 Page Contracts | Question Verification implementation and architecture | Stage 02 implementation and review | docs/page-contracts/STAGE-02-QUESTION-VERIFICATION.md | **DOCUMENTATION** | HIGH | Added after original S7-T01 baseline |
+| docs/page-contracts/STAGE-03-AUDIENCE-SCRIPT.md | Stage 03 page contract and claim-level evidence | Contract Documentation | S7-T15 Page Contracts | Audience Script implementation and architecture | Stage 03 implementation and review | docs/page-contracts/STAGE-03-AUDIENCE-SCRIPT.md | **DOCUMENTATION** | HIGH | Added after original S7-T01 baseline |
+| docs/page-contracts/STAGE-04-TELEPROMPTER-FILMING.md | Stage 04 page contract and claim-level evidence | Contract Documentation | S7-T15 Page Contracts | Teleprompter Filming implementation and architecture | Stage 04 implementation and review | docs/page-contracts/STAGE-04-TELEPROMPTER-FILMING.md | **DOCUMENTATION** | HIGH | Added after original S7-T01 baseline |
+| docs/page-contracts/STAGE-05-RAW-VIDEO.md | Stage 05 page contract and claim-level evidence | Contract Documentation | S7-T15 Page Contracts | Raw Video implementation and architecture | Stage 05 implementation and review | docs/page-contracts/STAGE-05-RAW-VIDEO.md | **DOCUMENTATION** | HIGH | Added after original S7-T01 baseline |
+| docs/page-contracts/STAGE-06-EDITING-BAY.md | Stage 06 page contract and claim-level evidence | Contract Documentation | S7-T15 Page Contracts | Editing Bay implementation and architecture | Stage 06 implementation and review | docs/page-contracts/STAGE-06-EDITING-BAY.md | **DOCUMENTATION** | HIGH | Added after original S7-T01 baseline |
+| docs/page-contracts/STAGE-07-FINAL-QC.md | Stage 07 page contract and claim-level evidence | Contract Documentation | S7-T15 Page Contracts | Final QC implementation and architecture | Stage 07 implementation and review | docs/page-contracts/STAGE-07-FINAL-QC.md | **DOCUMENTATION** | HIGH | Added after original S7-T01 baseline |
+| docs/page-contracts/STAGE-08-THUMBNAIL.md | Stage 08 page contract and claim-level evidence | Contract Documentation | S7-T15 Page Contracts | Thumbnail implementation and architecture | Stage 08 implementation and review | docs/page-contracts/STAGE-08-THUMBNAIL.md | **DOCUMENTATION** | HIGH | Added after original S7-T01 baseline |
+| docs/page-contracts/STAGE-09-SOCIAL-REVIEW.md | Stage 09 page contract and claim-level evidence | Contract Documentation | S7-T15 Page Contracts | Social Review implementation and architecture | Stage 09 implementation and review | docs/page-contracts/STAGE-09-SOCIAL-REVIEW.md | **DOCUMENTATION** | HIGH | Added after original S7-T01 baseline |
+| docs/page-contracts/STAGE-10-PUBLISHING-SETUP.md | Stage 10 page contract and claim-level evidence | Contract Documentation | S7-T15 Page Contracts | Publishing Setup implementation and architecture | Stage 10 implementation and review | docs/page-contracts/STAGE-10-PUBLISHING-SETUP.md | **DOCUMENTATION** | HIGH | Added after original S7-T01 baseline |
+| docs/page-contracts/STAGE-11-PUBLISHED.md | Stage 11 page contract and claim-level evidence | Contract Documentation | S7-T15 Page Contracts | Published implementation and architecture | Stage 11 implementation and review | docs/page-contracts/STAGE-11-PUBLISHED.md | **DOCUMENTATION** | HIGH | Added after original S7-T01 baseline |
+| docs/page-contracts/STAGE-12-PLATFORM-SYNC.md | Stage 12 page contract and claim-level evidence | Contract Documentation | S7-T15 Page Contracts | Platform Sync implementation and architecture | Stage 12 implementation and review | docs/page-contracts/STAGE-12-PLATFORM-SYNC.md | **DOCUMENTATION** | HIGH | Added after original S7-T01 baseline |
+| docs/page-contracts/STAGE-13-ANALYTICS.md | Stage 13 page contract and claim-level evidence | Contract Documentation | S7-T15 Page Contracts | Analytics implementation and architecture | Stage 13 implementation and review | docs/page-contracts/STAGE-13-ANALYTICS.md | **DOCUMENTATION** | HIGH | Added after original S7-T01 baseline |
+| docs/page-contracts/STAGE-14-PERFORMANCE-REVIEW.md | Stage 14 page contract and claim-level evidence | Contract Documentation | S7-T15 Page Contracts | Performance Review implementation and architecture | Stage 14 implementation and review | docs/page-contracts/STAGE-14-PERFORMANCE-REVIEW.md | **DOCUMENTATION** | HIGH | Added after original S7-T01 baseline |
+| docs/page-contracts/STAGE-15-INTELLIGENCE-LOOP.md | Stage 15 page contract and claim-level evidence | Contract Documentation | S7-T15 Page Contracts | Intelligence Loop implementation and architecture | Stage 15 implementation and review | docs/page-contracts/STAGE-15-INTELLIGENCE-LOOP.md | **DOCUMENTATION** | HIGH | Added after original S7-T01 baseline |
 | tsconfig.json | Root build tool config, package manager lock, container definition | Project Configuration / Environment | Build & Runtime Tooling | None (Self-contained) | Build system, runtime container | tsconfig.json | **CONFIGURATION** | MEDIUM | Root build / configuration file |
 | vite.config.ts | Root build tool config, package manager lock, container definition | Project Configuration / Environment | Build & Runtime Tooling | None (Self-contained) | Build system, runtime container | vite.config.ts | **CONFIGURATION** | MEDIUM | Root build / configuration file |
 
@@ -771,4 +796,4 @@ Every tracked file under `src/` has a verified, evidence-backed disposition:
 - `src/lib/data/production-taxonomy.ts`: **Historical / migration-only artifact** — Initial taxonomy seed fixture for database initializers.
 
 ### 3.3 Zero Unresolved Dependencies
-All 690 files have clearly identified responsibilities, layers, dependencies, and owners with 0 circular imports and 0 unresolved architectural leaks.
+All 710 current files have clearly identified responsibilities, layers, dependencies, and owners with 0 circular imports and 0 unresolved architectural leaks. The original S7-T01 baseline remains 690 files; the 20 additional rows above were added by the S7-T15 and S7-T16 reconciliation.
