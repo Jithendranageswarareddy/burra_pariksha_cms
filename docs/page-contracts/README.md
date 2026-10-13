@@ -4,6 +4,9 @@ These contracts document the 15 canonical workflow stages using the repository's
 current code and authoritative architecture as evidence. Contract status has a
 governance meaning:
 
+The shared contract structure is defined in the
+[feature page contract template](FEATURE-PAGE-CONTRACT-TEMPLATE.md).
+
 - **Draft** — initial contract or material claims remain unverified.
 - **Reviewed** — checked against current implementation and authoritative
   architecture, with unresolved gaps explicitly identified.
