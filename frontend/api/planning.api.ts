@@ -13,6 +13,11 @@ import {
   ContentGapAnalysis,
   ContentPlan,
   CoverageOverviewData,
+  CreateContentPlanInput,
+  UpdateContentPlanInput,
+  CreateContentBatchInput,
+  UpdateContentBatchInput,
+  GenerateContentPlanRecommendationInput,
 } from '../../shared';
 import { DiversityRadarReport, QuestionSimilarityMatch } from './contracts';
 import { apiClient } from './api-client';
@@ -35,14 +40,14 @@ export const planningApi = {
   /**
    * Creates a new strategic content plan.
    */
-  async createPlan(input: any): Promise<ContentPlan> {
+  async createPlan(input: CreateContentPlanInput): Promise<ContentPlan> {
     return apiClient.createContentPlan(input);
   },
 
   /**
    * Updates an existing content plan.
    */
-  async updatePlan(id: string, input: any): Promise<ContentPlan> {
+  async updatePlan(id: string, input: UpdateContentPlanInput): Promise<ContentPlan> {
     return apiClient.updateContentPlan(id, input);
   },
 
@@ -85,7 +90,7 @@ export const planningApi = {
    * Creates a new production batch.
    */
   async createBatch(
-    input: any
+    input: CreateContentBatchInput
   ): Promise<{ batch: ContentBatch; metrics: BatchProgressMetrics }> {
     return apiClient.createContentBatch(input);
   },
@@ -95,7 +100,7 @@ export const planningApi = {
    */
   async updateBatch(
     id: string,
-    input: any
+    input: UpdateContentBatchInput
   ): Promise<{ batch: ContentBatch; metrics: BatchProgressMetrics }> {
     return apiClient.updateContentBatch(id, input);
   },
@@ -153,7 +158,9 @@ export const planningApi = {
   /**
    * Generates AI-assisted content plan recommendation.
    */
-  async generateAiRecommendation(input: any): Promise<AiContentPlanRecommendation> {
+  async generateAiRecommendation(
+    input: GenerateContentPlanRecommendationInput
+  ): Promise<AiContentPlanRecommendation> {
     return apiClient.generateAiContentPlanRecommendation(input);
   },
 };

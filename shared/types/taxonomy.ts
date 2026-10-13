@@ -27,3 +27,25 @@ export interface Subtopic {
   createdAt: string;
   updatedAt?: string;
 }
+
+export interface PureTaxonomyTreeItem extends Topic {
+  subtopics: Subtopic[];
+}
+
+export interface TaxonomyMetrics {
+  totalTopics: number;
+  totalSubtopics: number;
+  activeTopics: number;
+  activeSubtopics: number;
+  targetTopics?: number;
+  targetSubtopicsPerTopic?: number;
+  targetTotalSubtopics?: number;
+  missingSubtopics?: number;
+  completeTopicsCount?: number;
+  incompleteTopicsCount?: number;
+  completeTopicIds?: string[];
+  incompleteTopicIds?: string[];
+  subtopicsByTopic?: Record<string, number>;
+  hasDataGap?: boolean;
+  dataGapMessage?: string;
+}

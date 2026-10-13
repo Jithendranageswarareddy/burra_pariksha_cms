@@ -16,6 +16,69 @@ import {
 import { Question } from '../types/question';
 import { Assignment } from '../types/user';
 import { AuditLog, Workflow } from '../types/audit';
+import {
+  DifficultyLevel,
+  PriorityLevel,
+  QuestionLanguage,
+  QuestionStyle,
+  ContentPlanStatus,
+  ContentBatchStatus,
+} from '../constants/enums';
+
+export interface CreateContentPlanInput {
+  topicId: string;
+  topicName?: string;
+  subtopicId: string;
+  subtopicName?: string;
+  difficulty: DifficultyLevel;
+  language?: QuestionLanguage;
+  targetQuestionCount: number;
+  realWorldContext?: string;
+  questionStyle?: QuestionStyle;
+  priority?: PriorityLevel;
+  plannedDate: string;
+  notes?: string;
+}
+
+export interface UpdateContentPlanInput {
+  targetQuestionCount?: number;
+  difficulty?: DifficultyLevel;
+  language?: QuestionLanguage;
+  realWorldContext?: string;
+  questionStyle?: QuestionStyle;
+  priority?: PriorityLevel;
+  plannedDate?: string;
+  status?: ContentPlanStatus;
+  notes?: string;
+}
+
+export interface CreateContentBatchInput {
+  name: string;
+  description?: string;
+  planId: string;
+  targetCount: number;
+  priority?: PriorityLevel;
+  plannedDate: string;
+  questionIds?: string[];
+}
+
+export interface UpdateContentBatchInput {
+  name?: string;
+  description?: string;
+  targetCount?: number;
+  priority?: PriorityLevel;
+  plannedDate?: string;
+  status?: ContentBatchStatus;
+  questionIds?: string[];
+}
+
+export interface GenerateContentPlanRecommendationInput {
+  topicId?: string;
+  targetTotalCount?: number;
+  language?: QuestionLanguage;
+  preferredDifficulties?: DifficultyLevel[];
+  focusContext?: string;
+}
 
 export interface ContentMasterDetails {
   contentMaster: ContentMaster;

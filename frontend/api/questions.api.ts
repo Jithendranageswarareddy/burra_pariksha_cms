@@ -11,9 +11,10 @@ import {
   QuestionDraft,
   QuestionStatus,
   QuestionStudioConfigResponse,
+  SaveQuestionDraftInput,
   ValidationResult,
 } from '../../shared';
-import { CreateQuestionInput, QuestionFilterInput } from './contracts';
+import { CreateQuestionInput, QuestionFilterInput, QuestionSimilarityMatch } from './contracts';
 import { apiClient } from './api-client';
 
 export const questionsApi = {
@@ -66,7 +67,7 @@ export const questionsApi = {
   /**
    * Saves a question draft (Stage 01 authoring).
    */
-  async saveDraft(payload: any): Promise<QuestionDraft> {
+  async saveDraft(payload: SaveQuestionDraftInput | Partial<QuestionDraft>): Promise<QuestionDraft> {
     return apiClient.saveQuestionDraft(payload);
   },
 
@@ -87,7 +88,10 @@ export const questionsApi = {
   /**
    * Approves a question draft (Stage 02 verification gate).
    */
-  async approveDraft(id: string, overrideReason?: string): Promise<any> {
+  async approveDraft(
+    id: string,
+    overrideReason?: string
+  ): Promise<Question> {
     return apiClient.approveQuestionDraft(id, overrideReason);
   },
 
@@ -98,7 +102,7 @@ export const questionsApi = {
     text: string,
     excludeId?: string,
     options?: { signal?: AbortSignal }
-  ): Promise<{ isDuplicate: boolean; matches: any[] }> {
+  ): Promise<{ isDuplicate: boolean; matches: QuestionSimilarityMatch[] }> {
     return apiClient.checkDuplicate(text, excludeId, options);
   },
 

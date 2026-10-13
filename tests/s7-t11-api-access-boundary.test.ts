@@ -209,8 +209,8 @@ async function runApiAccessBoundaryTests() {
 
   const videoThumbContent = fs.readFileSync(path.resolve(frontendDir, 'pages/VideoThumbnailPage.tsx'), 'utf-8');
   assert(
-    videoThumbContent.includes('apiClient.getThumbnailDownloadUrl'),
-    'VideoThumbnailPage.tsx must use canonical apiClient.getThumbnailDownloadUrl'
+    videoThumbContent.includes('videosApi.getThumbnailDownloadUrl'),
+    'VideoThumbnailPage.tsx must use canonical videosApi.getThumbnailDownloadUrl'
   );
 
   const editingWorkspaceContent = fs.readFileSync(
@@ -218,8 +218,8 @@ async function runApiAccessBoundaryTests() {
     'utf-8'
   );
   assert(
-    editingWorkspaceContent.includes('apiClient.getVideoDownloadUrl'),
-    'EditingWorkspace.tsx must use canonical apiClient.getVideoDownloadUrl'
+    editingWorkspaceContent.includes('videosApi.getVideoDownloadUrl'),
+    'EditingWorkspace.tsx must use canonical videosApi.getVideoDownloadUrl'
   );
 
   const thumbWorkspaceContent = fs.readFileSync(
@@ -227,17 +227,17 @@ async function runApiAccessBoundaryTests() {
     'utf-8'
   );
   assert(
-    thumbWorkspaceContent.includes('apiClient.getThumbnailDownloadUrl'),
-    'ThumbnailWorkspace.tsx must use canonical apiClient.getThumbnailDownloadUrl'
+    thumbWorkspaceContent.includes('videosApi.getThumbnailDownloadUrl'),
+    'ThumbnailWorkspace.tsx must use canonical videosApi.getThumbnailDownloadUrl'
   );
 
   console.log('  ✓ All migrated pages and components verified to use canonical API functions and URL helpers.');
   passedGates++;
 
   // --------------------------------------------------------------------------
-  // GATE 6: Delegation to Authoritative Transport (Zero Independent Transports)
+  // GATE 6: Delegation to Authoritative Transport & Pure Typed Contracts (Zero 'any')
   // --------------------------------------------------------------------------
-  console.log('\n[Gate 6] Verifying feature modules delegate to canonical apiClient transport...');
+  console.log('\n[Gate 6] Verifying feature modules delegate to canonical apiClient transport & contain zero any...');
   const featureFiles = [
     'frontend/api/planning.api.ts',
     'frontend/api/taxonomy.api.ts',
@@ -256,8 +256,19 @@ async function runApiAccessBoundaryTests() {
       !code.includes('new ApiClient') && !code.includes('new HttpClient') && !code.includes('fetch('),
       `${ff} must delegate to apiClient rather than creating independent HTTP transport`
     );
+
+    // Verify zero 'any' types in feature API module files
+    const lines = code.split('\n');
+    lines.forEach((line, idx) => {
+      const trimmed = line.trim();
+      if (trimmed.startsWith('*') || trimmed.startsWith('//') || trimmed.startsWith('/*')) return;
+      assert(
+        !/\bany\b/.test(line),
+        `Feature API module ${ff} line ${idx + 1} must not use 'any': ${trimmed}`
+      );
+    });
   }
-  console.log('  ✓ All feature API modules strictly delegate to authoritative apiClient singleton.');
+  console.log('  ✓ All feature API modules strictly delegate to authoritative apiClient and use pure types (0 any).');
   passedGates++;
 
   // --------------------------------------------------------------------------

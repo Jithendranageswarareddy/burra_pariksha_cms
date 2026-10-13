@@ -25,7 +25,7 @@ import {
   FileCheck,
 } from 'lucide-react';
 import { Video, Thumbnail, ThumbnailVersion, Question } from '../../shared';
-import { apiClient } from '../api/api-client';
+import { apiClient, videosApi } from '../api';
 import { AssetWorkflowHeader } from '../components/social/AssetWorkflowHeader';
 import { PageHeader } from '../design-system/components/PageHeader';
 import { Card } from '../design-system/components/Card';
@@ -383,7 +383,7 @@ export const VideoThumbnailPage: React.FC = () => {
     );
   }
 
-  const activeImageSrc = localPreviewUrl || previewUrl || (hasDriveAsset && thumbnail?.id ? apiClient.getThumbnailDownloadUrl(thumbnail.id) : null);
+  const activeImageSrc = localPreviewUrl || previewUrl || (hasDriveAsset && thumbnail?.id ? videosApi.getThumbnailDownloadUrl(thumbnail.id) : null);
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-16">
@@ -803,7 +803,7 @@ export const VideoThumbnailPage: React.FC = () => {
                             <div className="flex items-center gap-2">
                               {thumbnail?.id && (
                                 <a
-                                  href={apiClient.getThumbnailDownloadUrl(thumbnail.id)}
+                                  href={videosApi.getThumbnailDownloadUrl(thumbnail.id)}
                                   download={`thumbnail-v${ver.versionNumber}.png`}
                                   className="text-[11px] text-indigo-600 hover:underline font-medium flex items-center gap-1"
                                 >

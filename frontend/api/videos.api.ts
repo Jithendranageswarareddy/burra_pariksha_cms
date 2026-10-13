@@ -5,7 +5,7 @@
  * Exposes feature-oriented API functions for Video Lifecycle Stages (03-10).
  */
 
-import { Video } from '../../shared';
+import { Assignment, Video, VideoProductionStatus } from '../../shared';
 import { apiClient } from './api-client';
 
 export const videosApi = {
@@ -44,8 +44,12 @@ export const videosApi = {
   /**
    * Updates video workflow lifecycle status.
    */
-  async updateVideoStatus(id: string, status: string, remarks?: string): Promise<Video> {
-    return apiClient.updateVideoStatus(id, status as any, remarks);
+  async updateVideoStatus(
+    id: string,
+    status: VideoProductionStatus | string,
+    remarks?: string
+  ): Promise<Video> {
+    return apiClient.updateVideoStatus(id, status, remarks);
   },
 
   /**
@@ -60,7 +64,7 @@ export const videosApi = {
       dueDate?: string;
       notes?: string;
     }
-  ): Promise<any> {
+  ): Promise<Assignment | { assignment: Assignment; video: Video }> {
     return apiClient.assignVideo(id, assignment);
   },
 

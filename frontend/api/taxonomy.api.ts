@@ -5,7 +5,7 @@
  * Exposes feature-oriented API functions for the 2-tier taxonomy (Topic -> Subtopic).
  */
 
-import { Subtopic, Topic } from '../../shared';
+import { PureTaxonomyTreeItem, Subtopic, TaxonomyMetrics, Topic } from '../../shared';
 import { apiClient } from './api-client';
 
 export const taxonomyApi = {
@@ -92,14 +92,14 @@ export const taxonomyApi = {
   /**
    * Retrieves hierarchical 2-tier pure taxonomy tree.
    */
-  async getTree(options?: { includeInactive?: boolean }): Promise<Array<Topic & { subtopics: Subtopic[] }>> {
+  async getTree(options?: { includeInactive?: boolean }): Promise<PureTaxonomyTreeItem[]> {
     return apiClient.getPureTaxonomyTree(options);
   },
 
   /**
    * Retrieves taxonomy metrics and health diagnostics.
    */
-  async getMetrics(): Promise<any> {
+  async getMetrics(): Promise<TaxonomyMetrics> {
     return apiClient.getTaxonomyMetrics();
   },
 };

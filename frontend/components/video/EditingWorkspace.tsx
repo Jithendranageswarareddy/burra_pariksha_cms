@@ -18,7 +18,7 @@ import {
   FileText,
 } from 'lucide-react';
 import { Video, Script, VideoProductionStatus, MediaAsset } from '../../../shared';
-import { apiClient } from '../../api/api-client';
+import { apiClient, videosApi } from '../../api';
 import { Button } from '../../design-system';
 
 interface EditingWorkspaceProps {
@@ -363,7 +363,7 @@ export const EditingWorkspace: React.FC<EditingWorkspaceProps> = ({
                         {asset.driveFileId && (
                           <>
                             <a
-                              href={apiClient.getVideoDownloadUrl(videoId, asset.id || asset.driveFileId)}
+                              href={videosApi.getVideoDownloadUrl(videoId, asset.id || asset.driveFileId)}
                               target="_blank"
                               rel="noreferrer"
                               download={asset.fileName || `raw-video-take-${asset.version || idx + 1}.mp4`}
@@ -393,7 +393,7 @@ export const EditingWorkspace: React.FC<EditingWorkspaceProps> = ({
               <a
                 href={
                   video.driveFileId
-                    ? apiClient.getVideoDownloadUrl(videoId)
+                    ? videosApi.getVideoDownloadUrl(videoId)
                     : video.driveFolderUrl
                 }
                 target="_blank"
