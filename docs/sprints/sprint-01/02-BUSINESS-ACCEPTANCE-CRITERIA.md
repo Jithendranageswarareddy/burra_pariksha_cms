@@ -8,7 +8,7 @@
 
 | Attribute | Definition |
 | :--- | :--- |
-| **Document Path** | `docs/requirements/02-BUSINESS-ACCEPTANCE-CRITERIA.md` |
+| **Document Path** | `docs/sprints/sprint-01/02-BUSINESS-ACCEPTANCE-CRITERIA.md` |
 | **SDLC Stage** | Stage 02 — Business Acceptance Criteria |
 | **Document Version** | 1.0.0-SDLC-RESTART |
 | **Status** | ACTIVE ACCEPTANCE BASELINE |

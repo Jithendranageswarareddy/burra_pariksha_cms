@@ -234,7 +234,7 @@ tests/
    - \`docs/architecture/26-COLLISION-RESISTANT-UUID-CANONICAL-ID-ARCHITECTURE.md\` (Sprint 6 baseline)
    - \`docs/architecture/25-TWO-TIER-TAXONOMY-ARCHITECTURE.md\` (Sprint 5 baseline)
 3. **Feature & Domain Contracts**: \`docs/features/*\`.
-4. **Sprint Execution Reports**: \`docs/execution/*\` (Historical records).
+4. **Sprint Execution Reports**: \`docs/sprints/*\` (Historical records).
 5. **Historical Spikes**: Clearly tagged as non-authoritative historical exploration.
 
 ---
@@ -524,7 +524,7 @@ When resolving ambiguities or contradictions during Sprint 7 migration:
 2. **Sprint 7 Architecture Baseline (`S7-ARCHITECTURE-BASELINE.md`)**: The authoritative structural design.
 3. **Active Architecture ADRs (`docs/architecture/25-*`, `docs/architecture/26-*`)**: Specific domain decisions.
 4. **Feature Domain Contracts (`docs/features/*`)**: Acceptance criteria and data structures.
-5. **Historical Sprint Execution Documents (`docs/execution/*`)**: Non-authoritative historical logs.
+5. **Historical Sprint Execution Documents (`docs/sprints/*`)**: Non-authoritative historical logs.
 
 ---
 

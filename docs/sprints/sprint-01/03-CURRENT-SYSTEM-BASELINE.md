@@ -8,7 +8,7 @@
 
 | Attribute | Baseline Observation |
 | :--- | :--- |
-| **Document Path** | `docs/baseline/03-CURRENT-SYSTEM-BASELINE.md` |
+| **Document Path** | `docs/sprints/sprint-01/03-CURRENT-SYSTEM-BASELINE.md` |
 | **SDLC Stage** | Stage 03 — Current System Baseline |
 | **Document Version** | 1.0.0-SDLC-RESTART |
 | **Baseline Snapshot Timestamp** | 2026-10-04T00:25:00+05:30 |

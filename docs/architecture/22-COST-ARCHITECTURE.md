@@ -127,7 +127,7 @@ To maintain the ₹0–₹100 budget ceiling, the following infrastructure parad
 
 ## 4. Current Architecture Cost Baseline
 
-The empirical baseline audit conducted in Stage 03 (`docs/baseline/03-CURRENT-SYSTEM-BASELINE.md`) established that the legacy brownfield system incurs zero recurring cloud infrastructure expenses.
+The empirical baseline audit conducted in Stage 03 (`docs/sprints/sprint-01/03-CURRENT-SYSTEM-BASELINE.md`) established that the legacy brownfield system incurs zero recurring cloud infrastructure expenses.
 
 ```text
 ┌──────────────────────────────────────────────────────────────────────────┐

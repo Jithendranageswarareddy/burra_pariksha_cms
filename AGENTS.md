@@ -24,7 +24,7 @@ When specifications, codebase patterns, or documentation conflict, Antigravity M
    - `docs/architecture/25-TWO-TIER-TAXONOMY-ARCHITECTURE.md` (2-Tier Taxonomy)
    - `docs/architecture/26-COLLISION-RESISTANT-UUID-CANONICAL-ID-ARCHITECTURE.md` (UUID Entity IDs)
 4. **Feature & Domain Contracts** under `docs/features/`.
-5. **Historical Sprint Documentation** (`docs/execution/`, past sprint reports, historical spikes).
+5. **Historical Sprint Documentation** (`docs/sprints/`, past sprint reports, historical spikes).
 
 > [!CRITICAL]
 > **Historical documents must NEVER override the current architecture.** Never revive an obsolete design merely because an older document, comment, test, or filename still contains it.

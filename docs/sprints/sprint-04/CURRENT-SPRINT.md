@@ -20,4 +20,4 @@
 4. **Real Firestore Integration & 15-Step Persistence Proven**:
    - `tests/s4-t10-firestore-persistence.test.ts` verified against live Cloud Firestore with atomic OCC versioning (4/4 tests passed).
    - `tests/s4-15-step-persistence.test.ts` verified complete lifecycle progression (Stages 01 through 15) with write, read-back, and restart persistence (100% passed).
-   - Domain entity to collection registry explicitly documented in `docs/architecture/S4-T03-FIRESTORE-COLLECTION-REGISTRY.md`.
+   - Domain entity to collection registry explicitly documented in `docs/sprints/sprint-04/S4-T03-FIRESTORE-COLLECTION-REGISTRY.md`.

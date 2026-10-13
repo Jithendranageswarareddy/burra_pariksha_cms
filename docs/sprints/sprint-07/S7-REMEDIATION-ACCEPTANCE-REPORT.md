@@ -334,7 +334,7 @@ Specifically, this remediation has closed:
 | `src/lib/id.service.ts` | `canonicalIdService` | Backward-compatibility shim re-exporting canonical isomorphic implementation from `shared/lib/id.service.ts`. |
 | `src/types/*` | `Question`, `Video`, etc. | Backward-compatibility type shims re-exporting canonical domain types from `shared/types/*`. |
 | `database/firestore/rules/firestore.rules` | `match /sequences/{id}` | Defensive security rule denying all read/write access to legacy sequences collection. |
-| `docs/ENVIRONMENT-CONTRACT.md` | `ANALYTICS_SPREADSHEET_ID` | Optional isolated Google Sheet for secondary read-only telemetry export (never transactional). |
+| `docs/operations/ENVIRONMENT-CONTRACT.md` | `ANALYTICS_SPREADSHEET_ID` | Optional isolated Google Sheet for secondary read-only telemetry export (never transactional). |
 
 ---
 

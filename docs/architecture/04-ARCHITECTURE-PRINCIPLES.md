@@ -16,7 +16,7 @@
 
 ### Strict Anti-Overclaim Invariants
 1. **Governance vs. Implementation:** This document establishes **ARCHITECTURAL RULES** and constraints for future engineering stages. It does **NOT** claim that the current brownfield codebase already complies with these principles.
-2. **Current System Preserved:** The current system remains exactly as frozen and documented in Stage 03 (`docs/baseline/03-CURRENT-SYSTEM-BASELINE.md`). Existing code paths, competing mechanisms, and discovered defects are **NOT** altered in Stage 04.
+2. **Current System Preserved:** The current system remains exactly as frozen and documented in Stage 03 (`docs/sprints/sprint-01/03-CURRENT-SYSTEM-BASELINE.md`). Existing code paths, competing mechanisms, and discovered defects are **NOT** altered in Stage 04.
 3. **No Phantom Progress:** Words such as *"Compliant"*, *"Implemented"*, or *"Refactored"* must never be applied to application code in Stage 04. Principles state what future implementations **MUST** satisfy.
 4. **Zero Production Code Changes:** No production application files, routes, services, schemas, or database tables are modified in Stage 04.
 
