@@ -16,7 +16,7 @@ later additions, while preserving the original baseline distinction.
 
 ### 1.1 Git Working Tree Baseline
 - **Original S7-T01 Baseline**: **690 files**
-- **Current Tracked Files Reconciled**: **710 files** (Verified against git ls-files)
+- **Current Tracked Files Reconciled**: **705 files** (Verified against git ls-files)
 - **Branch**: main
 - **Authoritative Datastore**: Cloud Firestore (Zero Google Sheets runtime persistence)
 - **Architecture Model**: Vertical Feature Slices with Unidirectional Dependency Flow
@@ -24,7 +24,7 @@ later additions, while preserving the original baseline distinction.
 ### 1.2 Repository Physical Distribution
 | Top-Level Directory | File Count | Dominant Layer / Responsibility |
 |:---|:---|:---|
-| backend/ | 176 | Backend domain services, routes, middleware, validation |
+| backend/ | 171 | Backend domain services, routes, middleware, validation |
 | frontend/ | 177 | React presentation components, pages, design system tokens |
 | features/ | 75 | Vertical feature scaffolding (.gitkeep targets) |
 | docs/ | 92 | Authoritative architecture specs, contracts, ADRs, sprint reports |
@@ -34,15 +34,15 @@ later additions, while preserving the original baseline distinction.
 | shared/ | 29 | Isomorphic contracts, types, enums, canonical ID service |
 | Root (/) | 17 | Project configuration and build tooling |
 | scripts/ | 7 | Developer CLI and diagnostic tools |
-| **Total** | **710** | **Complete reconciled repository inventory** |
+| **Total** | **705** | **Complete reconciled repository inventory** |
 
 ### 1.3 Primary Architectural Classification Breakdown
 `
   FRONTEND        : 176 files  (25.5%)
-  BACKEND         : 107 files  (15.5%)
+  BACKEND         : 102 files  (14.5%)
   FEATURE_SCAFFOLD:  75 files  (11.1%)
   AI              :  74 files  (11.0%)
-  DOCUMENTATION   :  94 files  (13.2%)
+  DOCUMENTATION   :  94 files  (13.3%)
   DATABASE        :  51 files  ( 7.6%)
   TEST            :  42 files  ( 5.9%)
   SHARED          :  30 files  ( 4.4%)
@@ -51,12 +51,12 @@ later additions, while preserving the original baseline distinction.
   SCRIPT          :   7 files  ( 1.0%)
   AUDIT           :   4 files  ( 0.6%)
   -----------------------------------------
-  TOTAL           : 710 files  (100.0%)
+  TOTAL           : 705 files  (100.0%)
 `
 
 ---
 
-## 2. Complete File Ownership Manifest (All 710 Files)
+## 2. Complete File Ownership Manifest (All 705 Files)
 
 The following manifest records all 690 tracked files in Burra Pariksha CMS, accounting for each file exactly once with path, responsibility, layer, domain owner, dependencies, consumers, target location, and risk:
 
@@ -228,19 +228,14 @@ The following manifest records all 690 tracked files in Burra Pariksha CMS, acco
 | backend/infrastructure/services/smart-random.service.ts | Cross-cutting backend services (Health, Drive Sync, Refinement) | Backend Infrastructure | System Infrastructure Services | Database repositories, external SDKs, shared contracts | Express server, backend use cases | backend/infrastructure/services/smart-random.service.ts | **BACKEND** | HIGH | Infrastructure capability |
 | backend/infrastructure/services/workflow-orchestration.service.ts | Cross-cutting backend services (Health, Drive Sync, Refinement) | Backend Infrastructure | System Infrastructure Services | Database repositories, external SDKs, shared contracts | Express server, backend use cases | backend/infrastructure/services/workflow-orchestration.service.ts | **BACKEND** | HIGH | Infrastructure capability |
 | backend/infrastructure/services/workflow.service.ts | Cross-cutting backend services (Health, Drive Sync, Refinement) | Backend Infrastructure | System Infrastructure Services | Database repositories, external SDKs, shared contracts | Express server, backend use cases | backend/infrastructure/services/workflow.service.ts | **BACKEND** | HIGH | Infrastructure capability |
-| backend/server/auth.middleware.ts | Express server initialization, graceful shutdown, health endpoints | Backend Server Shell | Node.js Runtime Server | Express, routers, middleware | Container runtime / CLI | backend/server/auth.middleware.ts | **BACKEND** | HIGH | Server entry point |
-| backend/server/error.middleware.ts | Express server initialization, graceful shutdown, health endpoints | Backend Server Shell | Node.js Runtime Server | Express, routers, middleware | Container runtime / CLI | backend/server/error.middleware.ts | **BACKEND** | HIGH | Server entry point |
 | backend/server/health.routes.ts | Express server initialization, graceful shutdown, health endpoints | Backend Server Shell | Node.js Runtime Server | Express, routers, middleware | Container runtime / CLI | backend/server/health.routes.ts | **BACKEND** | HIGH | Server entry point |
 | backend/server/middleware/auth.middleware.ts | Express middleware (Authentication, Authorization, Validation, Error, Request-ID) | Backend Middleware | HTTP Pipeline Interceptors | shared contracts, auth service | Express application server | backend/server/middleware/auth.middleware.ts | **BACKEND** | HIGH | HTTP middleware interceptors |
 | backend/server/middleware/error.middleware.ts | Express middleware (Authentication, Authorization, Validation, Error, Request-ID) | Backend Middleware | HTTP Pipeline Interceptors | shared contracts, auth service | Express application server | backend/server/middleware/error.middleware.ts | **BACKEND** | HIGH | HTTP middleware interceptors |
 | backend/server/middleware/request-id.middleware.ts | Express middleware (Authentication, Authorization, Validation, Error, Request-ID) | Backend Middleware | HTTP Pipeline Interceptors | shared contracts, auth service | Express application server | backend/server/middleware/request-id.middleware.ts | **BACKEND** | HIGH | HTTP middleware interceptors |
 | backend/server/middleware/validation.middleware.ts | Express middleware (Authentication, Authorization, Validation, Error, Request-ID) | Backend Middleware | HTTP Pipeline Interceptors | shared contracts, auth service | Express application server | backend/server/middleware/validation.middleware.ts | **BACKEND** | HIGH | HTTP middleware interceptors |
-| backend/server/request-id.middleware.ts | Express server initialization, graceful shutdown, health endpoints | Backend Server Shell | Node.js Runtime Server | Express, routers, middleware | Container runtime / CLI | backend/server/request-id.middleware.ts | **BACKEND** | HIGH | Server entry point |
 | backend/server/routers/.gitkeep | HTTP route handlers, endpoint definitions, input parsing | Backend API Gateway | REST Endpoints | Backend domain services, request schemas, shared contracts | Express server app | backend/server/routers/.gitkeep | **BACKEND** | HIGH | Express route handlers |
 | backend/server/routers/routes.ts | HTTP route handlers, endpoint definitions, input parsing | Backend API Gateway | REST Endpoints | Backend domain services, request schemas, shared contracts | Express server app | backend/server/routers/routes.ts | **BACKEND** | HIGH | Express route handlers |
-| backend/server/routes.ts | Express server initialization, graceful shutdown, health endpoints | Backend Server Shell | Node.js Runtime Server | Express, routers, middleware | Container runtime / CLI | backend/server/routes.ts | **BACKEND** | HIGH | Server entry point |
 | backend/server/server.ts | Express server initialization, graceful shutdown, health endpoints | Backend Server Shell | Node.js Runtime Server | Express, routers, middleware | Container runtime / CLI | backend/server/server.ts | **BACKEND** | HIGH | Server entry point |
-| backend/server/validation.middleware.ts | Express server initialization, graceful shutdown, health endpoints | Backend Server Shell | Node.js Runtime Server | Express, routers, middleware | Container runtime / CLI | backend/server/validation.middleware.ts | **BACKEND** | HIGH | Server entry point |
 | backend/server/validation/index.ts | Authoritative Zod HTTP request validation schemas | Backend Request Validation | Universal API Input Validation | zod, shared contracts | Validation middleware, routers, backend services | backend/server/validation/index.ts | **BACKEND** | HIGH | Canonical HTTP request validation |
 | backend/server/validation/request-schemas.ts | Authoritative Zod HTTP request validation schemas | Backend Request Validation | Universal API Input Validation | zod, shared contracts | Validation middleware, routers, backend services | backend/server/validation/request-schemas.ts | **BACKEND** | HIGH | Canonical HTTP request validation |
 | bun.lock | Root build tool config, package manager lock, container definition | Project Configuration / Environment | Build & Runtime Tooling | None (Self-contained) | Build system, runtime container | bun.lock | **CONFIGURATION** | MEDIUM | Root build / configuration file |
@@ -796,4 +791,4 @@ Every tracked file under `src/` has a verified, evidence-backed disposition:
 - `src/lib/data/production-taxonomy.ts`: **Historical / migration-only artifact** — Initial taxonomy seed fixture for database initializers.
 
 ### 3.3 Zero Unresolved Dependencies
-All 710 current files have clearly identified responsibilities, layers, dependencies, and owners with 0 circular imports and 0 unresolved architectural leaks. The original S7-T01 baseline remains 690 files; the 20 additional rows above were added by the S7-T15 and S7-T16 reconciliation.
+All 705 current files have clearly identified responsibilities, layers, dependencies, and owners with 0 circular imports and 0 unresolved architectural leaks. The original S7-T01 baseline remains 690 files; 20 legitimate files were added by S7-T15 and S7-T16, while five redundant server-root re-export wrappers were removed by S7-T18.
