@@ -147,6 +147,17 @@ export class QuestionDraftService {
   }
 
   /**
+   * Explicitly submits an eligible saved draft for Stage 02 Verification.
+   */
+  public async submitForVerification(
+    input: { draftId: string; remarks?: string },
+    actor: { id: string; name: string } = { id: 'USR-001', name: 'Author' }
+  ) {
+    const { questionGenerationService } = await import('../../../domain/question-generation/question-generation.service');
+    return questionGenerationService.submitForVerification(input, actor);
+  }
+
+  /**
    * Materializes a verified Draft into a permanent production Question.
    * Invoked ONLY at Stage 02 approval gate.
    * Enforces NEG-01 Anti-Self-Approval constraint (Author cannot verify own draft).

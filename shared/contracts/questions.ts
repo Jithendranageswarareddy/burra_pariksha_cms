@@ -91,79 +91,14 @@ export interface UpdateQuestionInput {
   updatedAt?: string;
 }
 
-export interface SaveQuestionDraftInput {
-  id?: string;
-  topicId: string;
-  subtopicId: string;
-  difficulty: DifficultyLevel | string;
-  questionText: string;
-  options: {
-    a: string;
-    b: string;
-    c: string;
-    d: string;
-  };
-  correctAnswer: 'A' | 'B' | 'C' | 'D';
-  explanation: string;
-  realWorldContext?: string;
-  questionStyle?: QuestionStyle | string;
-  tags?: string[];
-}
-
-export interface SubmitForVerificationInput {
-  draftId?: string;
-  questionId?: string;
-  actorId?: string;
-  remarks?: string;
-}
-
-export interface GenerateCandidateInput {
-  topicId: string;
-  topicName?: string;
-  subtopicId: string;
-  subtopicName?: string;
-  difficulty: DifficultyLevel;
-  language: QuestionLanguage;
-  questionStyle?: QuestionStyle | string;
-  realWorldContext?: string;
-  realLifeContext?: string;
-  challengeType?: string;
-  presentationType?: string;
-  customInstructions?: string;
-  generationMode?: 'SUBTOPIC' | 'RANDOM';
-}
-
-export interface RefineCandidateInput {
-  action: AiRefinementAction | string;
-  currentCandidate: QuestionCandidate;
-  promptModifier?: string;
-  targetDifficulty?: DifficultyLevel;
-  targetLanguage?: QuestionLanguage;
-  targetContext?: string;
-}
-
-export interface GenerationMetadata {
-  modelUsed: string;
-  generationDurationMs: number;
-  providerId?: string;
-  modelId?: string;
-  requestId?: string;
-  latencyMs?: number;
-  retryCount?: number;
-  promptTokens?: number;
-  outputTokens?: number;
-  generatorType?: string;
-  fallbackReason?: string;
-  errorClassification?: any;
-  fallbackUsed?: boolean;
-  attemptedProviders?: string[];
-}
-
-export interface GenerationResult {
-  candidate: QuestionCandidate;
-  metadata: GenerationMetadata;
-  validation?: any;
-}
+export type {
+  SaveQuestionDraftInput,
+  SubmitForVerificationInput,
+  GenerateCandidateInput,
+  RefineCandidateInput,
+  GenerationMetadata,
+  GenerationResult,
+} from './question-generation';
 
 export type ValidationSource =
   | 'DETERMINISTIC'

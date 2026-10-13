@@ -1456,6 +1456,27 @@ apiRouter.delete('/questions/draft/:id', requireRole([UserRole.ADMIN, UserRole.C
     const { id } = req.params;
     const deleted = await questionDraftService.deleteDraft(id);
     res.json({ success: deleted });
+
+apiRouter.post(
+  ['/questions/draft/:id/submit', '/v1/questions/draft/:id/submit'],
+  requireCapability('QUESTION:CREATE'),
+  async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const actor = getRequestActor(req);
+      const remarks = req.body?.remarks;
+      const result = await questionDraftService.submitForVerification({ draftId: id, remarks }, { id: actor.id, name: actor.name || 'Author' });
+      res.status(200).json(result);
+    } catch (err: any) {
+      const statusCode = err?.statusCode || 400;
+      res.status(statusCode).json({
+        error: err?.name || 'Submission Failed',
+        message: err?.message || 'Failed to submit draft for verification',
+      });
+    }
+  }
+);
+
   } catch (err: any) {
     res.status(500).json({ error: err?.message || 'Failed to delete draft' });
   }

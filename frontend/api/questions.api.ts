@@ -132,4 +132,31 @@ export const questionsApi = {
   async getStudioConfig(forceRefresh?: boolean): Promise<QuestionStudioConfigResponse> {
     return apiClient.getQuestionStudioConfig(forceRefresh);
   },
+  /**
+   * Explicitly submits an eligible saved draft for Stage 02 Verification.
+   */
+  async submitForVerification(input: { draftId: string; remarks?: string }): Promise<import('../../shared/contracts/question-generation').SubmitForVerificationResult> {
+    return apiClient.submitQuestionDraftForVerification(input.draftId, input.remarks);
+  },
+
+  /**
+   * Generates candidate question using advisory AI service.
+   */
+  async generateAiQuestion(input: import('../../shared/contracts/question-generation').GenerateCandidateInput): Promise<import('../../shared/contracts/question-generation').GenerationResult> {
+    return apiClient.generateAiQuestion(input);
+  },
+
+  /**
+   * Refines candidate question with advisory AI modifications.
+   */
+  async refineAiQuestion(input: import('../../shared/contracts/question-generation').RefineCandidateInput): Promise<import('../../shared/contracts/question-generation').GenerationResult> {
+    return apiClient.refineAiQuestion(input);
+  },
+
+  /**
+   * Retrieves current AI service configuration status.
+   */
+  async getAiStatus(): Promise<{ isConfigured: boolean; model: string }> {
+    return apiClient.getAiStatus();
+  },
 };

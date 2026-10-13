@@ -11,7 +11,7 @@
 ## 1. Executive Summary & Repository Baseline
 
 ### 1.1 Git Working Tree Baseline
-- **Total Tracked Files Reconciled**: **673 files** (Verified against git ls-files)
+- **Total Tracked Files Reconciled**: **689 files** (Verified against git ls-files)
 - **Branch**: main
 - **Authoritative Datastore**: Cloud Firestore (Zero Google Sheets runtime persistence)
 - **Architecture Model**: Vertical Feature Slices with Unidirectional Dependency Flow
@@ -19,41 +19,41 @@
 ### 1.2 Repository Physical Distribution
 | Top-Level Directory | File Count | Dominant Layer / Responsibility |
 |:---|:---|:---|
-| backend/ | 173 | Backend domain services, routes, middleware, validation |
-| frontend/ | 170 | React presentation components, pages, design system tokens |
+| backend/ | 176 | Backend domain services, routes, middleware, validation |
+| frontend/ | 177 | React presentation components, pages, design system tokens |
 | features/ | 75 | Vertical feature scaffolding (.gitkeep targets) |
 | docs/ | 74 | Authoritative architecture specs, contracts, ADRs, sprint reports |
 | database/ | 48 | Cloud Firestore adapter, repositories, security rules |
 | src/ | 47 | Internal shims, legacy types, static configs, audit dispatchers |
-| tests/ | 35 | Automated regression test suites and quality gates |
-| shared/ | 27 | Isomorphic contracts, types, enums, canonical ID service |
+| tests/ | 39 | Automated regression test suites and quality gates |
+| shared/ | 29 | Isomorphic contracts, types, enums, canonical ID service |
 | Root (/) | 17 | Project configuration and build tooling |
 | scripts/ | 7 | Developer CLI and diagnostic tools |
-| **Total** | **673** | **Complete repository inventory** |
+| **Total** | **689** | **Complete repository inventory** |
 
 ### 1.3 Primary Architectural Classification Breakdown
 `
-  FRONTEND        : 170 files  (25.4%)
-  BACKEND         : 105 files  (15.6%)
+  FRONTEND        : 176 files  (25.5%)
+  BACKEND         : 107 files  (15.5%)
   FEATURE_SCAFFOLD:  75 files  (11.1%)
   AI              :  74 files  (11.0%)
-  DOCUMENTATION   :  74 files  (11.0%)
+  DOCUMENTATION   :  76 files  (11.0%)
   DATABASE        :  51 files  ( 7.6%)
-  TEST            :  35 files  ( 5.2%)
-  SHARED          :  28 files  ( 4.2%)
+  TEST            :  39 files  ( 5.7%)
+  SHARED          :  30 files  ( 4.4%)
   CONFIGURATION   :  25 files  ( 3.7%)
   SHARED_TYPES    :  25 files  ( 3.7%)
   SCRIPT          :   7 files  ( 1.0%)
   AUDIT           :   4 files  ( 0.6%)
   -----------------------------------------
-  TOTAL           : 673 files  (100.0%)
+  TOTAL           : 689 files  (100.0%)
 `
 
 ---
 
-## 2. Complete File Ownership Manifest (All 673 Files)
+## 2. Complete File Ownership Manifest (All 689 Files)
 
-The following manifest records all 673 tracked files in Burra Pariksha CMS, accounting for each file exactly once with path, responsibility, layer, domain owner, dependencies, consumers, target location, and risk:
+The following manifest records all 689 tracked files in Burra Pariksha CMS, accounting for each file exactly once with path, responsibility, layer, domain owner, dependencies, consumers, target location, and risk:
 
 | Current Path | Responsibility | Layer | Feature/Domain | Depends On | Consumed By | Target Location | Classification | Priority | Notes |
 |:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|
@@ -136,6 +136,9 @@ The following manifest records all 673 tracked files in Burra Pariksha CMS, acco
 | backend/ai/validators/social-invariance.validator.ts | AI output schema enforcement and algorithmic verification | AI Validation | AI Safety & Output Verification | zod, shared contracts | AI Orchestrator | backend/ai/validators/social-invariance.validator.ts | **AI** | HIGH | Server-side validation engine |
 | backend/ai/validators/social-quality-gate.validator.ts | AI output schema enforcement and algorithmic verification | AI Validation | AI Safety & Output Verification | zod, shared contracts | AI Orchestrator | backend/ai/validators/social-quality-gate.validator.ts | **AI** | HIGH | Server-side validation engine |
 | backend/ai/validators/thumbnail-safety.validator.ts | AI output schema enforcement and algorithmic verification | AI Validation | AI Safety & Output Verification | zod, shared contracts | AI Orchestrator | backend/ai/validators/thumbnail-safety.validator.ts | **AI** | HIGH | Server-side validation engine |
+| backend/domain/question-generation/index.ts | Barrel export for Question Generation domain service and domain errors | Backend Core Domain | Question Generation Feature Domain | QuestionGenerationService | Controllers, routes, tests | backend/domain/question-generation/index.ts | **BACKEND** | HIGH | Authoritative domain invariants |
+| backend/domain/question-generation/question-generation.service.ts | Question Generation domain service: candidate validation, generation, and draft persistence | Backend Core Domain | Question Generation Feature Domain | Database repositories, shared contracts | Backend feature services, router | backend/domain/question-generation/question-generation.service.ts | **BACKEND** | HIGH | Authoritative domain invariants |
+| backend/domain/question-generation/README.md | Question Generation domain slice architecture & contracts documentation | Documentation | Architecture & Specifications | None (Markdown) | Engineering team & AI agents | backend/domain/question-generation/README.md | **DOCUMENTATION** | HIGH | Canonical feature domain documentation |
 | backend/domain/taxonomy/services/taxonomy.service.ts | Authoritative core domain logic (Taxonomy, Workflow State Machine) | Backend Core Domain | Core Domain Foundations | Database repositories, shared contracts | Backend feature services, router | backend/domain/taxonomy/services/taxonomy.service.ts | **BACKEND** | HIGH | Authoritative domain invariants |
 | backend/domain/workflow/canonical-workflow.ts | Authoritative core domain logic (Taxonomy, Workflow State Machine) | Backend Core Domain | Core Domain Foundations | Database repositories, shared contracts | Backend feature services, router | backend/domain/workflow/canonical-workflow.ts | **BACKEND** | HIGH | Authoritative domain invariants |
 | backend/domain/workflow/index.ts | Authoritative core domain logic (Taxonomy, Workflow State Machine) | Backend Core Domain | Core Domain Foundations | Database repositories, shared contracts | Backend feature services, router | backend/domain/workflow/index.ts | **BACKEND** | HIGH | Authoritative domain invariants |
@@ -550,8 +553,15 @@ The following manifest records all 673 tracked files in Burra Pariksha CMS, acco
 | frontend/features/publishing/hooks/.gitkeep | Client entry points and styling | Frontend Entry | Application Shell | React, Vite | Browser bundle | frontend/features/publishing/hooks/.gitkeep | **FRONTEND** | HIGH | Vite frontend shell |
 | frontend/features/publishing/pages/.gitkeep | Client entry points and styling | Frontend Entry | Application Shell | React, Vite | Browser bundle | frontend/features/publishing/pages/.gitkeep | **FRONTEND** | HIGH | Vite frontend shell |
 | frontend/features/question-generation/components/.gitkeep | Client entry points and styling | Frontend Entry | Application Shell | React, Vite | Browser bundle | frontend/features/question-generation/components/.gitkeep | **FRONTEND** | HIGH | Vite frontend shell |
+| frontend/features/question-generation/components/ActionBar.tsx | Action bar with strictly decoupled Save Draft and Submit for Verification controls | Frontend Presentation | Question Generation Feature Slice | React, Lucide icons, shared contracts | QuestionStudioPage | frontend/features/question-generation/components/ActionBar.tsx | **FRONTEND** | MEDIUM | Isolated presentation component |
+| frontend/features/question-generation/components/CandidateCanvas.tsx | Candidate review canvas with bilingual problem, options, and math verification badge | Frontend Presentation | Question Generation Feature Slice | React, Lucide icons, shared contracts | QuestionStudioPage | frontend/features/question-generation/components/CandidateCanvas.tsx | **FRONTEND** | MEDIUM | Isolated presentation component |
+| frontend/features/question-generation/components/GenerationConfigPanel.tsx | Generation config panel with syllabus cascading topic and subtopic controls | Frontend Presentation | Question Generation Feature Slice | React, Lucide icons, shared contracts | QuestionStudioPage | frontend/features/question-generation/components/GenerationConfigPanel.tsx | **FRONTEND** | MEDIUM | Isolated presentation component |
 | frontend/features/question-generation/hooks/.gitkeep | Client entry points and styling | Frontend Entry | Application Shell | React, Vite | Browser bundle | frontend/features/question-generation/hooks/.gitkeep | **FRONTEND** | HIGH | Vite frontend shell |
+| frontend/features/question-generation/hooks/useQuestionGeneration.ts | Feature state hook encapsulating taxonomy cascading, candidate generation, and draft lifecycle | Frontend Presentation | Question Generation Feature Slice | React, frontend API client, shared contracts | QuestionStudioPage | frontend/features/question-generation/hooks/useQuestionGeneration.ts | **FRONTEND** | MEDIUM | Isolated feature hook |
+| frontend/features/question-generation/index.ts | Public barrel exports for Question Generation frontend feature slice | Frontend Presentation | Question Generation Feature Slice | Feature components, hooks, pages | Application routes | frontend/features/question-generation/index.ts | **FRONTEND** | MEDIUM | Feature slice public interface |
 | frontend/features/question-generation/pages/.gitkeep | Client entry points and styling | Frontend Entry | Application Shell | React, Vite | Browser bundle | frontend/features/question-generation/pages/.gitkeep | **FRONTEND** | HIGH | Vite frontend shell |
+| frontend/features/question-generation/pages/QuestionStudioPage.tsx | Question Studio workspace page assembling syllabus controls, candidate review, and action bar | Frontend Presentation | Question Generation Feature Slice | Feature components, hooks, shared contracts | Application router | frontend/features/question-generation/pages/QuestionStudioPage.tsx | **FRONTEND** | HIGH | Canonical feature workspace page |
+| frontend/features/question-generation/README.md | Question Generation frontend feature slice architecture & workflow documentation | Documentation | Architecture & Specifications | None (Markdown) | Engineering team & AI agents | frontend/features/question-generation/README.md | **DOCUMENTATION** | HIGH | Canonical frontend feature documentation |
 | frontend/features/question-verification/components/.gitkeep | Client entry points and styling | Frontend Entry | Application Shell | React, Vite | Browser bundle | frontend/features/question-verification/components/.gitkeep | **FRONTEND** | HIGH | Vite frontend shell |
 | frontend/features/question-verification/hooks/.gitkeep | Client entry points and styling | Frontend Entry | Application Shell | React, Vite | Browser bundle | frontend/features/question-verification/hooks/.gitkeep | **FRONTEND** | HIGH | Vite frontend shell |
 | frontend/features/question-verification/pages/.gitkeep | Client entry points and styling | Frontend Entry | Application Shell | React, Vite | Browser bundle | frontend/features/question-verification/pages/.gitkeep | **FRONTEND** | HIGH | Vite frontend shell |
@@ -629,6 +639,8 @@ The following manifest records all 673 tracked files in Burra Pariksha CMS, acco
 | shared/contracts/assignments.ts | Isomorphic universal API envelopes, workflow, RBAC, domain contracts | Shared Contracts | Universal API & Domain Contracts | None (Pure TypeScript) | Frontend, Backend, Database | shared/contracts/assignments.ts | **SHARED** | HIGH | Pure TypeScript contract |
 | shared/contracts/index.ts | Isomorphic universal API envelopes, workflow, RBAC, domain contracts | Shared Contracts | Universal API & Domain Contracts | None (Pure TypeScript) | Frontend, Backend, Database | shared/contracts/index.ts | **SHARED** | HIGH | Pure TypeScript contract |
 | shared/contracts/planning.ts | Isomorphic universal API envelopes, workflow, RBAC, domain contracts | Shared Contracts | Universal API & Domain Contracts | None (Pure TypeScript) | Frontend, Backend, Database | shared/contracts/planning.ts | **SHARED** | HIGH | Pure TypeScript contract |
+| shared/contracts/question-generation/index.ts | Barrel export for Question Generation shared contracts | Shared Contracts | Question Generation Feature Contracts | Feature DTOs, interfaces, validators | Frontend, Backend, Tests | shared/contracts/question-generation/index.ts | **SHARED** | HIGH | Pure TypeScript contract |
+| shared/contracts/question-generation/question-generation.contract.ts | Question Generation shared contracts, candidate models, state evaluator, and submission DTOs | Shared Contracts | Question Generation Feature Contracts | None (Pure TypeScript) | Frontend, Backend, Database | shared/contracts/question-generation/question-generation.contract.ts | **SHARED** | HIGH | Pure TypeScript contract |
 | shared/contracts/questions.ts | Isomorphic universal API envelopes, workflow, RBAC, domain contracts | Shared Contracts | Universal API & Domain Contracts | None (Pure TypeScript) | Frontend, Backend, Database | shared/contracts/questions.ts | **SHARED** | HIGH | Pure TypeScript contract |
 | shared/contracts/rbac.ts | Isomorphic universal API envelopes, workflow, RBAC, domain contracts | Shared Contracts | Universal API & Domain Contracts | None (Pure TypeScript) | Frontend, Backend, Database | shared/contracts/rbac.ts | **SHARED** | HIGH | Pure TypeScript contract |
 | shared/contracts/system.ts | Isomorphic universal API envelopes, workflow, RBAC, domain contracts | Shared Contracts | Universal API & Domain Contracts | None (Pure TypeScript) | Frontend, Backend, Database | shared/contracts/system.ts | **SHARED** | HIGH | Pure TypeScript contract |
@@ -703,6 +715,7 @@ The following manifest records all 673 tracked files in Burra Pariksha CMS, acco
 | tests/architecture/s7-t09-ai-boundary.test.ts | Automated boundary tests, regression suites, quality gate checks | Testing | Verification & Quality Gates | Production code, node:assert, tsx | CI runner & pre-commit validation | tests/architecture/s7-t09-ai-boundary.test.ts | **TEST** | HIGH | Authoritative automated test |
 | tests/architecture/s7-t10-design-system-consolidation.test.ts | Automated boundary tests, regression suites, quality gate checks | Testing | Verification & Quality Gates | Production code, node:assert, tsx | CI runner & pre-commit validation | tests/architecture/s7-t10-design-system-consolidation.test.ts | **TEST** | HIGH | Authoritative automated test |
 | tests/architecture/s7-t11-api-access-boundary.test.ts | Automated boundary tests, regression suites, quality gate checks | Testing | Verification & Quality Gates | Production code, node:assert, tsx | CI runner & pre-commit validation | tests/architecture/s7-t11-api-access-boundary.test.ts | **TEST** | HIGH | Authoritative automated test |
+| tests/e2e/question-generation/question-generation-workflow.e2e.test.ts | End-to-end test for canonical 8-step question generation and submission workflow | Testing | Verification & Quality Gates | Production code, node:assert, tsx | CI runner & pre-commit validation | tests/e2e/question-generation/question-generation-workflow.e2e.test.ts | **TEST** | HIGH | Authoritative automated test |
 | tests/e2e/s2-t05-browser.test.ts | Automated boundary tests, regression suites, quality gate checks | Testing | Verification & Quality Gates | Production code, node:assert, tsx | CI runner & pre-commit validation | tests/e2e/s2-t05-browser.test.ts | **TEST** | HIGH | Authoritative automated test |
 | tests/e2e/s2-t05-golden-path.test.ts | Automated boundary tests, regression suites, quality gate checks | Testing | Verification & Quality Gates | Production code, node:assert, tsx | CI runner & pre-commit validation | tests/e2e/s2-t05-golden-path.test.ts | **TEST** | HIGH | Authoritative automated test |
 | tests/e2e/s2-t06-persistence.test.ts | Automated boundary tests, regression suites, quality gate checks | Testing | Verification & Quality Gates | Production code, node:assert, tsx | CI runner & pre-commit validation | tests/e2e/s2-t06-persistence.test.ts | **TEST** | HIGH | Authoritative automated test |
@@ -717,6 +730,7 @@ The following manifest records all 673 tracked files in Burra Pariksha CMS, acco
 | tests/integration/fc-004-audit.test.ts | Automated boundary tests, regression suites, quality gate checks | Testing | Verification & Quality Gates | Production code, node:assert, tsx | CI runner & pre-commit validation | tests/integration/fc-004-audit.test.ts | **TEST** | HIGH | Authoritative automated test |
 | tests/integration/fc-005-workflow.test.ts | Automated boundary tests, regression suites, quality gate checks | Testing | Verification & Quality Gates | Production code, node:assert, tsx | CI runner & pre-commit validation | tests/integration/fc-005-workflow.test.ts | **TEST** | HIGH | Authoritative automated test |
 | tests/integration/firestore-rules.test.ts | Automated boundary tests, regression suites, quality gate checks | Testing | Verification & Quality Gates | Production code, node:assert, tsx | CI runner & pre-commit validation | tests/integration/firestore-rules.test.ts | **TEST** | HIGH | Authoritative automated test |
+| tests/integration/question-generation/question-generation-slice.integration.test.ts | Integration test for question generation domain, Firestore persistence, and verification boundaries | Testing | Verification & Quality Gates | Production code, node:assert, tsx | CI runner & pre-commit validation | tests/integration/question-generation/question-generation-slice.integration.test.ts | **TEST** | HIGH | Authoritative automated test |
 | tests/integration/real-application-path.test.ts | Automated boundary tests, regression suites, quality gate checks | Testing | Verification & Quality Gates | Production code, node:assert, tsx | CI runner & pre-commit validation | tests/integration/real-application-path.test.ts | **TEST** | HIGH | Authoritative automated test |
 | tests/integration/s4-15-step-persistence.test.ts | Automated boundary tests, regression suites, quality gate checks | Testing | Verification & Quality Gates | Production code, node:assert, tsx | CI runner & pre-commit validation | tests/integration/s4-15-step-persistence.test.ts | **TEST** | HIGH | Authoritative automated test |
 | tests/integration/s4-gate1-production-routing.test.ts | Automated boundary tests, regression suites, quality gate checks | Testing | Verification & Quality Gates | Production code, node:assert, tsx | CI runner & pre-commit validation | tests/integration/s4-gate1-production-routing.test.ts | **TEST** | HIGH | Authoritative automated test |
@@ -726,6 +740,8 @@ The following manifest records all 673 tracked files in Burra Pariksha CMS, acco
 | tests/regression/s3-t05-live-override.test.ts | Automated boundary tests, regression suites, quality gate checks | Testing | Verification & Quality Gates | Production code, node:assert, tsx | CI runner & pre-commit validation | tests/regression/s3-t05-live-override.test.ts | **TEST** | HIGH | Authoritative automated test |
 | tests/regression/s3-t11-regression-suite.test.ts | Automated boundary tests, regression suites, quality gate checks | Testing | Verification & Quality Gates | Production code, node:assert, tsx | CI runner & pre-commit validation | tests/regression/s3-t11-regression-suite.test.ts | **TEST** | HIGH | Authoritative automated test |
 | tests/regression/uat-remediation.test.ts | Automated boundary tests, regression suites, quality gate checks | Testing | Verification & Quality Gates | Production code, node:assert, tsx | CI runner & pre-commit validation | tests/regression/uat-remediation.test.ts | **TEST** | HIGH | Authoritative automated test |
+| tests/unit/question-generation/save-draft-vs-verify.unit.test.ts | Unit tests with negative assertions proving Save Draft is strictly decoupled from Verify | Testing | Verification & Quality Gates | Production code, node:assert, tsx | CI runner & pre-commit validation | tests/unit/question-generation/save-draft-vs-verify.unit.test.ts | **TEST** | HIGH | Authoritative automated test |
+| tests/unit/question-generation/topic-subtopic-validation.unit.test.ts | Unit tests verifying two-tier taxonomy validation and candidate evaluation | Testing | Verification & Quality Gates | Production code, node:assert, tsx | CI runner & pre-commit validation | tests/unit/question-generation/topic-subtopic-validation.unit.test.ts | **TEST** | HIGH | Authoritative automated test |
 | tests/unit/s3-t01-rbac-override.test.ts | Automated boundary tests, regression suites, quality gate checks | Testing | Verification & Quality Gates | Production code, node:assert, tsx | CI runner & pre-commit validation | tests/unit/s3-t01-rbac-override.test.ts | **TEST** | HIGH | Authoritative automated test |
 | tests/unit/s3-t14-routing-state-gate.test.ts | Automated boundary tests, regression suites, quality gate checks | Testing | Verification & Quality Gates | Production code, node:assert, tsx | CI runner & pre-commit validation | tests/unit/s3-t14-routing-state-gate.test.ts | **TEST** | HIGH | Authoritative automated test |
 | tsconfig.json | Root build tool config, package manager lock, container definition | Project Configuration / Environment | Build & Runtime Tooling | None (Self-contained) | Build system, runtime container | tsconfig.json | **CONFIGURATION** | MEDIUM | Root build / configuration file |
@@ -754,4 +770,4 @@ Every tracked file under `src/` has a verified, evidence-backed disposition:
 - `src/lib/data/production-taxonomy.ts`: **Historical / migration-only artifact** — Initial taxonomy seed fixture for database initializers.
 
 ### 3.3 Zero Unresolved Dependencies
-All 673 files have clearly identified responsibilities, layers, dependencies, and owners with 0 circular imports and 0 unresolved architectural leaks.
+All 689 files have clearly identified responsibilities, layers, dependencies, and owners with 0 circular imports and 0 unresolved architectural leaks.
