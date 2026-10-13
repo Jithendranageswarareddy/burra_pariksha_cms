@@ -9,9 +9,9 @@ export interface DifficultyBadgeProps {
 }
 
 export const DifficultyBadge: React.FC<DifficultyBadgeProps> = ({ difficulty, size = 'md' }) => {
-  const safeDifficulty = difficulty || 'MEDIUM';
-  const config = DIFFICULTY_CONFIG[difficulty] || {
-    label: difficulty || 'MEDIUM',
+  const safeDifficulty = difficulty || DifficultyLevel.MEDIUM;
+  const config = DIFFICULTY_CONFIG[safeDifficulty] || {
+    label: difficulty || 'Medium',
     bg: 'bg-slate-100 text-slate-700 border-slate-200',
     dot: 'bg-slate-500',
   };

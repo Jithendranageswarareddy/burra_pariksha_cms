@@ -7,6 +7,7 @@ export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
   variant?: BadgeVariant;
   size?: BadgeSize;
   dot?: boolean;
+  dotClassName?: string;
   icon?: LucideIcon;
 }
 
@@ -78,15 +79,19 @@ export const BADGE_CONFIG: Record<
 
 export const Badge: React.FC<BadgeProps> = ({
   children,
-  variant = 'neutral',
+  variant,
   size = 'md',
   dot = true,
+  dotClassName = '',
   icon: Icon,
   className = '',
   id,
   ...props
 }) => {
-  const config = BADGE_CONFIG[variant] || BADGE_CONFIG.neutral;
+  const activeVariant = variant || (className ? undefined : 'neutral');
+  const config = activeVariant ? (BADGE_CONFIG[activeVariant] || BADGE_CONFIG.neutral) : null;
+  const variantClasses = config ? `${config.bg} ${config.text} ${config.border}` : '';
+  const dotColorClass = dotClassName || (config ? config.dot : 'bg-current opacity-70');
 
   const sizeClasses = {
     sm: 'px-2 py-0.5 text-[11px] font-medium tracking-tight',
@@ -98,11 +103,11 @@ export const Badge: React.FC<BadgeProps> = ({
   return (
     <span
       id={id}
-      className={`inline-flex items-center gap-1.5 ${RADIUS_TOKENS.md} border ${config.bg} ${config.text} ${config.border} ${sizeClasses} select-none transition-colors ${className}`}
+      className={`inline-flex items-center gap-1.5 ${RADIUS_TOKENS.md} border ${variantClasses} ${sizeClasses} select-none transition-colors ${className}`}
       {...props}
     >
       {dot && !Icon && (
-        <span className={`w-1.5 h-1.5 rounded-full ${config.dot} shrink-0`} aria-hidden="true" />
+        <span className={`w-1.5 h-1.5 rounded-full ${dotColorClass} shrink-0`} aria-hidden="true" />
       )}
       {Icon && <Icon className={`${iconSizeClass} shrink-0`} aria-hidden="true" />}
       <span className="whitespace-nowrap">{children}</span>
