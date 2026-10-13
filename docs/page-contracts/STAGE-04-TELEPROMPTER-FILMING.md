@@ -74,3 +74,8 @@
 ## 3.20 Acceptance Criteria
 - Recording route/workspace exists. Multi-take, media failure, audit, and E2E
   assertions are **UNVERIFIED**.
+
+### Claim-level evidence register
+- Route/workspace: [`frontend/app/App.tsx`](../../frontend/app/App.tsx) and [`frontend/components/video/RecordingWorkspace.tsx`](../../frontend/components/video/RecordingWorkspace.tsx) (**IMPLEMENTED**).
+- Backend/service: [`backend/features/production/services/video-production.service.ts`](../../backend/features/production/services/video-production.service.ts) (**IMPLEMENTED**); exact GET, response, take persistence, and audit behavior are **UNVERIFIED**.
+- Stage and role requirements: [`shared/constants/workflow.ts`](../../shared/constants/workflow.ts) and [`docs/features/FC-009-TELEPROMPTER-FILMING-STUDIO.md`](../features/FC-009-TELEPROMPTER-FILMING-STUDIO.md) (**architecture/feature requirements**), not proof of complete runtime enforcement.

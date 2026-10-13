@@ -74,3 +74,8 @@
 ## 3.20 Acceptance Criteria
 - Editing workspace/status route exists. Render, persistence, audit, and E2E
   coverage are **UNVERIFIED**.
+
+### Claim-level evidence register
+- Route/workspace: [`frontend/app/App.tsx`](../../frontend/app/App.tsx) and [`frontend/components/video/EditingWorkspace.tsx`](../../frontend/components/video/EditingWorkspace.tsx) (**IMPLEMENTED**).
+- Backend/API, response, persistence, and transaction details: [`backend/features/production/services/video-production.service.ts`](../../backend/features/production/services/video-production.service.ts) (**UNVERIFIED** beyond the cited service surface).
+- Workflow, roles, and audit are requirements in [`shared/constants/workflow.ts`](../../shared/constants/workflow.ts) and [`docs/features/FC-011-EDITING-BAY-TIMELINE.md`](../features/FC-011-EDITING-BAY-TIMELINE.md); complete runtime enforcement is **UNVERIFIED**.

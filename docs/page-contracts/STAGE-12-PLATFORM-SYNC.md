@@ -72,3 +72,8 @@
 ## 3.20 Acceptance Criteria
 - Publishing service contains sync-related operations. Provider reconciliation,
   audit, and E2E coverage are **UNVERIFIED**.
+
+### Claim-level evidence register
+- Route/page: [`frontend/app/App.tsx`](../../frontend/app/App.tsx) and [`frontend/pages/PlatformPackagesPage.tsx`](../../frontend/pages/PlatformPackagesPage.tsx) (**IMPLEMENTED**).
+- Sync service: [`backend/features/publishing/services/platform-adaptation.service.ts`](../../backend/features/publishing/services/platform-adaptation.service.ts) (**IMPLEMENTED**); exact GET/response, reconciliation, persistence, and audit are **UNVERIFIED**.
+- Platform/workflow requirements: [`shared/constants/workflow.ts`](../../shared/constants/workflow.ts) and [`docs/features/FC-016-PLATFORM-RELEASE-SYNC.md`](../features/FC-016-PLATFORM-RELEASE-SYNC.md); complete role enforcement is **UNVERIFIED**.

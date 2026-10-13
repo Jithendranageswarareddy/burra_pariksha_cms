@@ -75,3 +75,8 @@
 ## 3.20 Acceptance Criteria
 - Publishing components/services exist. External publication, idempotency, audit,
   and integration coverage are **UNVERIFIED**.
+
+### Claim-level evidence register
+- Route/pages: [`frontend/app/App.tsx`](../../frontend/app/App.tsx), [`frontend/pages/PublishingPage.tsx`](../../frontend/pages/PublishingPage.tsx), and [`frontend/pages/PublishingPackagePage.tsx`](../../frontend/pages/PublishingPackagePage.tsx) (**IMPLEMENTED**).
+- Publishing service: [`backend/features/publishing/services/publishing.service.ts`](../../backend/features/publishing/services/publishing.service.ts) (**IMPLEMENTED**); external response, idempotency, persistence, and audit are **UNVERIFIED**.
+- Publication and role requirements: [`shared/constants/workflow.ts`](../../shared/constants/workflow.ts) and [`docs/features/FC-015-PUBLISHING-PACKAGE-SCHEDULING.md`](../features/FC-015-PUBLISHING-PACKAGE-SCHEDULING.md); complete runtime enforcement is **UNVERIFIED**.

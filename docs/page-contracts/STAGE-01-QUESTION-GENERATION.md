@@ -71,9 +71,11 @@
 - Frontend → API client → backend/domain service → repository is preserved.
 
 ## 3.11 Response
-- Save returns the draft and ID; success stays on the page.
-- Submit returns the transition result and resulting Stage 02 state. Failures
-  remain visible without converting a successful save into a failed submission.
+- The API client exposes draft/transition result types and the draft service
+  returns the saved draft/transition result
+  ([`frontend/api/questions.api.ts`](../../frontend/api/questions.api.ts),
+  [`backend/features/question-generation/services/question-draft.service.ts`](../../backend/features/question-generation/services/question-draft.service.ts)).
+  The exact HTTP envelope and page navigation behavior are **UNVERIFIED**.
 
 ## 3.12 Persistence
 - Collection: `question_drafts` and canonical ID generation are evidenced by
@@ -111,9 +113,11 @@
   Stage 01.
 
 ## 3.18 Role Visibility
-- Question authors can create/edit drafts; SMEs and authorized managers may
-  supervise according to the canonical capability matrix. Verification actions
-  are not exposed as Stage 01 controls.
+- The capability matrix assigns authoring/review responsibilities
+  ([`shared/constants/workflow.ts`](../../shared/constants/workflow.ts),
+  [`docs/architecture/09-RBAC-CAPABILITY-MODEL.md`](../architecture/09-RBAC-CAPABILITY-MODEL.md)).
+  Page-level visibility and enforcement are **UNVERIFIED** beyond the route
+  middleware evidence in [`backend/server/routers/routes.ts`](../../backend/server/routers/routes.ts).
 
 ## 3.19 Performance
 - Prevent duplicate generation/save requests, show loading indicators, and
@@ -125,3 +129,16 @@
   save-vs-submit, route registration, and workflow behavior.
 - Missing coverage: audit event assertions, duplicate submit semantics, and
   measured performance are **UNVERIFIED**.
+
+### Claim-level evidence register
+- Route and redirect: [`frontend/app/App.tsx`](../../frontend/app/App.tsx) (**IMPLEMENTED**).
+- API functions: [`frontend/api/questions.api.ts`](../../frontend/api/questions.api.ts)
+  (**IMPLEMENTED**); response envelope behavior beyond the API client types is
+  **UNVERIFIED**.
+- Draft save/submit backend: [`backend/features/question-generation/services/question-draft.service.ts`](../../backend/features/question-generation/services/question-draft.service.ts)
+  (**IMPLEMENTED**); exact route wiring and all response envelopes are **UNVERIFIED**.
+- Persistence and IDs: [`database/firestore/repositories/question-drafts.repository.ts`](../../database/firestore/repositories/question-drafts.repository.ts)
+  and [`shared/lib/id.service.ts`](../../shared/lib/id.service.ts) (**IMPLEMENTED**).
+- Workflow and roles: [`shared/constants/workflow.ts`](../../shared/constants/workflow.ts)
+  and [`docs/architecture/09-RBAC-CAPABILITY-MODEL.md`](../architecture/09-RBAC-CAPABILITY-MODEL.md)
+  define requirements; complete runtime enforcement is **UNVERIFIED**.

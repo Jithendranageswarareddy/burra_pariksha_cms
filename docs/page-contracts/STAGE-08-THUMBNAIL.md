@@ -70,3 +70,8 @@
 ## 3.20 Acceptance Criteria
 - Thumbnail workspace/service exists. Version, approval, audit, and E2E coverage
   are **UNVERIFIED**.
+
+### Claim-level evidence register
+- Route/workspace: [`frontend/app/App.tsx`](../../frontend/app/App.tsx) and [`frontend/components/video/ThumbnailWorkspace.tsx`](../../frontend/components/video/ThumbnailWorkspace.tsx) (**IMPLEMENTED**).
+- Thumbnail API/service and response/persistence semantics: [`backend/features/production/services/thumbnail.service.ts`](../../backend/features/production/services/thumbnail.service.ts) (**UNVERIFIED** where not covered by tests).
+- Version, approval, workflow, roles, and audit requirements: [`shared/constants/workflow.ts`](../../shared/constants/workflow.ts) and [`docs/features/FC-013-THUMBNAIL-CREATIVE-CDN.md`](../features/FC-013-THUMBNAIL-CREATIVE-CDN.md); runtime enforcement is **UNVERIFIED**.

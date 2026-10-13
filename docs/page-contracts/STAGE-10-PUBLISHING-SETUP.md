@@ -74,3 +74,8 @@
 ## 3.20 Acceptance Criteria
 - Publishing/package routes and services exist. Schedule idempotency, audit, and
   platform integration tests are **UNVERIFIED**.
+
+### Claim-level evidence register
+- Route/pages: [`frontend/app/App.tsx`](../../frontend/app/App.tsx) and [`frontend/pages/PublishingPackagePage.tsx`](../../frontend/pages/PublishingPackagePage.tsx) (**IMPLEMENTED**).
+- Publishing service/API: [`backend/features/publishing/services/publishing.service.ts`](../../backend/features/publishing/services/publishing.service.ts) (**IMPLEMENTED**); exact GET/response, schedule persistence, and idempotency are **UNVERIFIED**.
+- Scheduling, roles, workflow, audit, and platform requirements: [`shared/constants/workflow.ts`](../../shared/constants/workflow.ts) and [`docs/features/FC-015-PUBLISHING-PACKAGE-SCHEDULING.md`](../features/FC-015-PUBLISHING-PACKAGE-SCHEDULING.md); runtime enforcement is **UNVERIFIED**.

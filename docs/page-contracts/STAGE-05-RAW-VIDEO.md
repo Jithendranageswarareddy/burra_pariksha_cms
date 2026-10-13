@@ -78,3 +78,8 @@
 ## 3.20 Acceptance Criteria
 - Drive/media service and video routes are present. Handoff, checksum, audit, and
   integration tests are **UNVERIFIED**.
+
+### Claim-level evidence register
+- Route/workspace: [`frontend/app/App.tsx`](../../frontend/app/App.tsx) and [`frontend/pages/VideoDetailPage.tsx`](../../frontend/pages/VideoDetailPage.tsx) (**IMPLEMENTED**).
+- Backend/media service: [`backend/features/production/services/video.service.ts`](../../backend/features/production/services/video.service.ts) (**IMPLEMENTED**); exact GET/response/handoff semantics are **UNVERIFIED**.
+- External media and workflow requirements: [`docs/features/FC-010-MEDIA-STORAGE-RAW-VIDEO.md`](../features/FC-010-MEDIA-STORAGE-RAW-VIDEO.md) and [`shared/constants/workflow.ts`](../../shared/constants/workflow.ts) (**architecture/feature evidence**); checksum, persistence transaction, audit, and role enforcement are **UNVERIFIED**.

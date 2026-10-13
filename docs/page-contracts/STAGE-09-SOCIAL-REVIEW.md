@@ -70,3 +70,8 @@
 ## 3.20 Acceptance Criteria
 - Routes and workspace exist. Checklist persistence, audit, permissions, and E2E
   coverage are **UNVERIFIED**.
+
+### Claim-level evidence register
+- Route/workspace: [`frontend/app/App.tsx`](../../frontend/app/App.tsx) and [`frontend/components/social/SocialReviewWorkspace.tsx`](../../frontend/components/social/SocialReviewWorkspace.tsx) (**IMPLEMENTED**).
+- API/service surface: [`backend/features/analytics/services/social-review.service.ts`](../../backend/features/analytics/services/social-review.service.ts) (**IMPLEMENTED**); exact GET/response and decision persistence are **UNVERIFIED**.
+- Decision, workflow, roles, audit, and performance requirements: [`shared/constants/workflow.ts`](../../shared/constants/workflow.ts) and [`docs/features/FC-014-SOCIAL-REVIEW-COMPLIANCE.md`](../features/FC-014-SOCIAL-REVIEW-COMPLIANCE.md); complete runtime enforcement is **UNVERIFIED**.

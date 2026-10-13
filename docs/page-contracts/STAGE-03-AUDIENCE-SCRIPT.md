@@ -83,3 +83,8 @@
 ## 3.20 Acceptance Criteria
 - Route and script service tests exist; timing, lock, audit, and E2E coverage are
   **UNVERIFIED**.
+
+### Claim-level evidence register
+- Route/workspace: [`frontend/app/App.tsx`](../../frontend/app/App.tsx) and [`frontend/components/video/ScriptWorkspace.tsx`](../../frontend/components/video/ScriptWorkspace.tsx) (**IMPLEMENTED**).
+- API/backend: [`frontend/api/videos.api.ts`](../../frontend/api/videos.api.ts) and [`backend/features/production/services/script.service.ts`](../../backend/features/production/services/script.service.ts) (**IMPLEMENTED**); exact GET/response and transaction behavior are **UNVERIFIED**.
+- Stage, lock, roles, persistence, and audit requirements: [`shared/constants/workflow.ts`](../../shared/constants/workflow.ts) and [`docs/features/FC-008-AUDIENCE-SCRIPTING-VERSIONING.md`](../features/FC-008-AUDIENCE-SCRIPTING-VERSIONING.md) (**architecture/feature requirements**); complete runtime enforcement is **UNVERIFIED**.

@@ -33,28 +33,33 @@
 - Latest finalized performance record is the candidate; no insight is auto-approved.
 
 ## 3.8 Primary Action
-- Human approves/rejects an insight. Approval seeds future Stage 01 context only;
-  it must not create or publish content automatically.
+- The architecture requires a human approval/rejection action and prohibits
+  automatic content creation or publication
+  ([`docs/features/FC-019-ASSISTIVE-AI-PIPELINE.md`](../features/FC-019-ASSISTIVE-AI-PIPELINE.md)).
+  Runtime approval and context seeding are **UNVERIFIED**.
 
 ## 3.9 API Request
-- Analytics/intelligence service submits evidence-linked decision and directive;
-  backend validates authorization and human-in-loop requirements.
+- Analytics/intelligence service integration is present in the cited services;
+  authorization and human-in-loop enforcement are architecture requirements and
+  runtime behavior is **UNVERIFIED**.
 
 ## 3.10 Backend Use Case
 - Social-performance intelligence/comment intelligence services, workflow, audit,
   repository, and advisory AI provider.
 
 ## 3.11 Response
-- Returns insight status and directive; approved directives are available to the
-  next generation cycle, with provenance preserved.
+- Insight/directive response shape, availability to the next generation cycle,
+  and provenance preservation are **UNVERIFIED**; the intended behavior is
+  defined by [`docs/features/FC-021-CONTENT-INTELLIGENCE-STRATEGY.md`](../features/FC-021-CONTENT-INTELLIGENCE-STRATEGY.md).
 
 ## 3.12 Persistence
-- `IntelligenceInsight` and directives persist in Firestore; AI provider output is
-  not authoritative until human action.
+- Firestore persistence and the non-authoritative status of AI output are
+  architecture requirements; exact collection/schema and runtime persistence are
+  **UNVERIFIED**.
 
 ## 3.13 Workflow State
-- Stage 15 in progress → approved insight; approved output loops to a future Stage
-  01 context and does not bypass Stage 01.
+- The canonical workflow requires a future Stage 01 context loop without bypassing
+  Stage 01. Runtime transition and loop behavior are **UNVERIFIED**.
 
 ## 3.14 Audit
 - Proposal, human decision, actor, evidence, and directive linkage require an
@@ -69,12 +74,12 @@
   analysis or generation action; no data is not an approval.
 
 ## 3.17 Next Action
-- Approved directive becomes optional context for new Stage 01 generation; rejected
-  or incomplete insight remains in review.
+- The intended next action is optional Stage 01 context; the runtime behavior for
+  approved, rejected, and incomplete insights is **UNVERIFIED**.
 
 ## 3.18 Role Visibility
-- Intelligence/performance reviewers approve; AI cannot approve; authors consume
-  approved directives. Backend enforces human-in-loop.
+- The architecture requires human approval and prohibits AI approval; page-level
+  runtime enforcement is **UNVERIFIED**. See [`docs/architecture/09-RBAC-CAPABILITY-MODEL.md`](../architecture/09-RBAC-CAPABILITY-MODEL.md).
 
 ## 3.19 Performance
 - Defer AI generation, cache evidence, show provenance/loading, and prevent
@@ -83,3 +88,8 @@
 ## 3.20 Acceptance Criteria
 - Intelligence services/routes exist. Human approval, directive loop, audit,
   provenance, and E2E assertions are **UNVERIFIED**.
+
+### Claim-level evidence register
+- Route/page: [`frontend/app/App.tsx`](../../frontend/app/App.tsx) and [`frontend/pages/AnalyticsExperiencePage.tsx`](../../frontend/pages/AnalyticsExperiencePage.tsx) (**IMPLEMENTED**).
+- Intelligence services: [`backend/features/analytics/services/social-performance-intelligence.service.ts`](../../backend/features/analytics/services/social-performance-intelligence.service.ts), [`backend/features/analytics/services/comment-intelligence.service.ts`](../../backend/features/analytics/services/comment-intelligence.service.ts), and [`backend/features/analytics/services/pinned-comment-intelligence.service.ts`](../../backend/features/analytics/services/pinned-comment-intelligence.service.ts) (**IMPLEMENTED**); exact GET/response, directive persistence, provenance, and audit are **UNVERIFIED**.
+- Human approval, Stage 01 context loop, workflow transition, and role visibility are requirements in [`docs/features/FC-019-ASSISTIVE-AI-PIPELINE.md`](../features/FC-019-ASSISTIVE-AI-PIPELINE.md), [`docs/features/FC-021-CONTENT-INTELLIGENCE-STRATEGY.md`](../features/FC-021-CONTENT-INTELLIGENCE-STRATEGY.md), and [`docs/architecture/07-CANONICAL-15-STEP-WORKFLOW.md`](../architecture/07-CANONICAL-15-STEP-WORKFLOW.md); runtime proof is **UNVERIFIED**.

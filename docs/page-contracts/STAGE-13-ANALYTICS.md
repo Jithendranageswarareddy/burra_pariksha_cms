@@ -73,3 +73,8 @@
 ## 3.20 Acceptance Criteria
 - Analytics page/services exist. Snapshot freshness, provider integration, audit,
   and performance assertions are **UNVERIFIED**.
+
+### Claim-level evidence register
+- Route/pages: [`frontend/app/App.tsx`](../../frontend/app/App.tsx), [`frontend/pages/AnalyticsExperiencePage.tsx`](../../frontend/pages/AnalyticsExperiencePage.tsx), and [`frontend/pages/SocialAnalyticsPage.tsx`](../../frontend/pages/SocialAnalyticsPage.tsx) (**IMPLEMENTED**).
+- Analytics service: [`backend/features/analytics/services/analytics.service.ts`](../../backend/features/analytics/services/analytics.service.ts) (**IMPLEMENTED**); exact GET/response, snapshot persistence, freshness, provider integration, and audit are **UNVERIFIED**.
+- Analytics requirements: [`docs/features/FC-020-TELEMETRY-PERFORMANCE-DECILES.md`](../features/FC-020-TELEMETRY-PERFORMANCE-DECILES.md) and [`shared/constants/workflow.ts`](../../shared/constants/workflow.ts) are architecture/feature evidence, not proof of complete runtime behavior.

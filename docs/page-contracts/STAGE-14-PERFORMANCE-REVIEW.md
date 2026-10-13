@@ -78,3 +78,8 @@
 ## 3.20 Acceptance Criteria
 - Analytics/social services provide related operations. Review persistence, audit,
   and end-to-end coverage are **UNVERIFIED**.
+
+### Claim-level evidence register
+- Route/pages: [`frontend/app/App.tsx`](../../frontend/app/App.tsx), [`frontend/pages/AnalyticsExperiencePage.tsx`](../../frontend/pages/AnalyticsExperiencePage.tsx), and [`frontend/pages/SocialAnalyticsPage.tsx`](../../frontend/pages/SocialAnalyticsPage.tsx) (**IMPLEMENTED**).
+- Intelligence services: [`backend/features/analytics/services/social-performance-intelligence.service.ts`](../../backend/features/analytics/services/social-performance-intelligence.service.ts) and [`backend/features/analytics/services/comment-intelligence.service.ts`](../../backend/features/analytics/services/comment-intelligence.service.ts) (**IMPLEMENTED**); review response, finalization, persistence, transition, and audit are **UNVERIFIED**.
+- Review requirements: [`docs/features/FC-021-CONTENT-INTELLIGENCE-STRATEGY.md`](../features/FC-021-CONTENT-INTELLIGENCE-STRATEGY.md) and [`shared/constants/workflow.ts`](../../shared/constants/workflow.ts) are architecture/feature evidence; role enforcement is **UNVERIFIED**.

@@ -74,3 +74,8 @@
 ## 3.20 Acceptance Criteria
 - Final review workspace and statuses exist. Six-point persistence, GAR-02 E2E,
   audit, and measured performance are **UNVERIFIED**.
+
+### Claim-level evidence register
+- Route/workspace: [`frontend/app/App.tsx`](../../frontend/app/App.tsx) and [`frontend/components/video/FinalReviewWorkspace.tsx`](../../frontend/components/video/FinalReviewWorkspace.tsx) (**IMPLEMENTED**).
+- Backend/API and response/persistence details: [`backend/features/production/services/video-production.service.ts`](../../backend/features/production/services/video-production.service.ts); exact QC checklist runtime behavior is **UNVERIFIED**.
+- QC, GAR-02, workflow, roles, audit, and performance are requirements in [`shared/constants/workflow.ts`](../../shared/constants/workflow.ts) and [`docs/features/FC-012-FINAL-QC-REVIEW-GATE.md`](../features/FC-012-FINAL-QC-REVIEW-GATE.md), not proof of runtime behavior.

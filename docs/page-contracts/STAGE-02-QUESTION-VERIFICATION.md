@@ -87,3 +87,14 @@
 - Existing FC-002/FC-005 tests cover authorization, GAR-02, and transitions.
 - Checklist persistence, exact audit events, and reviewer-page E2E coverage are
   **UNVERIFIED**.
+
+### Claim-level evidence register
+- Route: [`frontend/app/App.tsx`](../../frontend/app/App.tsx) (**IMPLEMENTED**).
+- API and backend approval path: [`frontend/api/questions.api.ts`](../../frontend/api/questions.api.ts)
+  and [`backend/features/question-generation/services/question-draft.service.ts`](../../backend/features/question-generation/services/question-draft.service.ts)
+  (**IMPLEMENTED**); exact verification-page GET behavior is **UNVERIFIED**.
+- GAR-02 and transition requirements: [`docs/architecture/07-CANONICAL-15-STEP-WORKFLOW.md`](../architecture/07-CANONICAL-15-STEP-WORKFLOW.md)
+  and [`docs/architecture/09-RBAC-CAPABILITY-MODEL.md`](../architecture/09-RBAC-CAPABILITY-MODEL.md)
+  (**architecture requirement**); runtime checklist enforcement is **UNVERIFIED**.
+- Persistence/audit/roles: [`backend/features/question-generation/services/question-draft.service.ts`](../../backend/features/question-generation/services/question-draft.service.ts)
+  provides approval/audit code; complete review persistence and role matrix coverage are **UNVERIFIED**.
