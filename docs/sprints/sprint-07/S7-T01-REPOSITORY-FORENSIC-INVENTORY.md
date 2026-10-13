@@ -11,7 +11,7 @@
 ## 1. Executive Summary & Repository Baseline
 
 ### 1.1 Git Working Tree Baseline
-- **Total Tracked Files Reconciled**: **672 files** (Verified against git ls-files)
+- **Total Tracked Files Reconciled**: **674 files** (Verified against git ls-files)
 - **Branch**: main
 - **Authoritative Datastore**: Cloud Firestore (Zero Google Sheets runtime persistence)
 - **Architecture Model**: Vertical Feature Slices with Unidirectional Dependency Flow
@@ -25,35 +25,35 @@
 | docs/ | 71 | Authoritative architecture specs, contracts, ADRs, sprint reports |
 | database/ | 48 | Cloud Firestore adapter, repositories, security rules |
 | src/ | 47 | Internal shims, legacy types, static configs, audit dispatchers |
-| tests/ | 37 | Automated regression test suites and quality gates |
+| tests/ | 39 | Automated regression test suites and quality gates |
 | shared/ | 27 | Isomorphic contracts, types, enums, canonical ID service |
 | Root (/) | 17 | Project configuration and build tooling |
 | scripts/ | 7 | Developer CLI and diagnostic tools |
-| **Total** | **672** | **Complete repository inventory** |
+| **Total** | **674** | **Complete repository inventory** |
 
 ### 1.3 Primary Architectural Classification Breakdown
 `
-  FRONTEND        : 170 files  (25.3%)
+  FRONTEND        : 170 files  (25.2%)
   BACKEND         : 105 files  (15.6%)
-  FEATURE_SCAFFOLD:  75 files  (11.2%)
+  FEATURE_SCAFFOLD:  75 files  (11.1%)
   AI              :  74 files  (11.0%)
-  DOCUMENTATION   :  71 files  (10.6%)
+  DOCUMENTATION   :  71 files  (10.5%)
   DATABASE        :  51 files  ( 7.6%)
-  TEST            :  37 files  ( 5.5%)
+  TEST            :  39 files  ( 5.8%)
   SHARED          :  28 files  ( 4.2%)
   CONFIGURATION   :  25 files  ( 3.7%)
   SHARED_TYPES    :  25 files  ( 3.7%)
   SCRIPT          :   7 files  ( 1.0%)
   AUDIT           :   4 files  ( 0.6%)
   -----------------------------------------
-  TOTAL           : 672 files  (100.0%)
+  TOTAL           : 674 files  (100.0%)
 `
 
 ---
 
-## 2. Complete File Ownership Manifest (All 671 Files)
+## 2. Complete File Ownership Manifest (All 674 Files)
 
-The following manifest records all 671 tracked files in Burra Pariksha CMS, accounting for each file exactly once with path, responsibility, layer, domain owner, dependencies, consumers, target location, and risk:
+The following manifest records all 674 tracked files in Burra Pariksha CMS, accounting for each file exactly once with path, responsibility, layer, domain owner, dependencies, consumers, target location, and risk:
 
 | Current Path | Responsibility | Layer | Feature/Domain | Depends On | Consumed By | Target Location | Classification | Priority | Notes |
 |:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|
@@ -698,6 +698,7 @@ The following manifest records all 671 tracked files in Burra Pariksha CMS, acco
 | tests/fc-002-rbac.test.ts | Automated boundary tests, regression suites, quality gate checks | Testing | Verification & Quality Gates | Production code, node:assert, tsx | CI runner & pre-commit validation | tests/fc-002-rbac.test.ts | **TEST** | HIGH | Authoritative automated test |
 | tests/fc-003-db-api.test.ts | Automated boundary tests, regression suites, quality gate checks | Testing | Verification & Quality Gates | Production code, node:assert, tsx | CI runner & pre-commit validation | tests/fc-003-db-api.test.ts | **TEST** | HIGH | Authoritative automated test |
 | tests/fc-004-audit.test.ts | Automated boundary tests, regression suites, quality gate checks | Testing | Verification & Quality Gates | Production code, node:assert, tsx | CI runner & pre-commit validation | tests/fc-004-audit.test.ts | **TEST** | HIGH | Authoritative automated test |
+| tests/fc-005-shared-contract.test.ts | Automated boundary tests, regression suites, quality gate checks | Testing | Verification & Quality Gates | Production code, node:assert, tsx | CI runner & pre-commit validation | tests/fc-005-shared-contract.test.ts | **TEST** | HIGH | Authoritative automated test |
 | tests/fc-005-workflow.test.ts | Automated boundary tests, regression suites, quality gate checks | Testing | Verification & Quality Gates | Production code, node:assert, tsx | CI runner & pre-commit validation | tests/fc-005-workflow.test.ts | **TEST** | HIGH | Authoritative automated test |
 | tests/firestore-rules.test.ts | Automated boundary tests, regression suites, quality gate checks | Testing | Verification & Quality Gates | Production code, node:assert, tsx | CI runner & pre-commit validation | tests/firestore-rules.test.ts | **TEST** | HIGH | Authoritative automated test |
 | tests/fixtures/synthetic-test-fixtures.ts | Automated boundary tests, regression suites, quality gate checks | Testing | Verification & Quality Gates | Production code, node:assert, tsx | CI runner & pre-commit validation | tests/fixtures/synthetic-test-fixtures.ts | **TEST** | HIGH | Authoritative automated test |
@@ -723,6 +724,7 @@ The following manifest records all 671 tracked files in Burra Pariksha CMS, acco
 | tests/s6-real-runtime-e2e.test.ts | Automated boundary tests, regression suites, quality gate checks | Testing | Verification & Quality Gates | Production code, node:assert, tsx | CI runner & pre-commit validation | tests/s6-real-runtime-e2e.test.ts | **TEST** | HIGH | Authoritative automated test |
 | tests/s7-frontend-backend-boundary.test.ts | Automated boundary tests, regression suites, quality gate checks | Testing | Verification & Quality Gates | Production code, node:assert, tsx | CI runner & pre-commit validation | tests/s7-frontend-backend-boundary.test.ts | **TEST** | HIGH | Authoritative automated test |
 | tests/s7-runtime-smoke.test.ts | Automated boundary tests, regression suites, quality gate checks | Testing | Verification & Quality Gates | Production code, node:assert, tsx | CI runner & pre-commit validation | tests/s7-runtime-smoke.test.ts | **TEST** | HIGH | Authoritative automated test |
+| tests/s7-t01-inventory-reconciliation.test.ts | Automated boundary tests, regression suites, quality gate checks | Testing | Verification & Quality Gates | Production code, node:assert, tsx | CI runner & pre-commit validation | tests/s7-t01-inventory-reconciliation.test.ts | **TEST** | HIGH | Authoritative automated test |
 | tests/s7-t09-ai-boundary.test.ts | Automated boundary tests, regression suites, quality gate checks | Testing | Verification & Quality Gates | Production code, node:assert, tsx | CI runner & pre-commit validation | tests/s7-t09-ai-boundary.test.ts | **TEST** | HIGH | Authoritative automated test |
 | tests/security/.gitkeep | Automated boundary tests, regression suites, quality gate checks | Testing | Verification & Quality Gates | Production code, node:assert, tsx | CI runner & pre-commit validation | tests/security/.gitkeep | **TEST** | HIGH | Authoritative automated test |
 | tests/uat-remediation.test.ts | Automated boundary tests, regression suites, quality gate checks | Testing | Verification & Quality Gates | Production code, node:assert, tsx | CI runner & pre-commit validation | tests/uat-remediation.test.ts | **TEST** | HIGH | Authoritative automated test |
@@ -735,17 +737,22 @@ The following manifest records all 671 tracked files in Burra Pariksha CMS, acco
 
 ## 3. Dispositions and Architecture Reconciliation
 
-### 3.1 Scaffolding (eatures/)
-The 75 files under eatures/ are .gitkeep placeholders marking the vertical slice targets for the 15 workflow stages. They have zero runtime code, zero imports, and zero dependencies.
+### 3.1 Scaffolding (features/)
+The 75 files under features/ are .gitkeep placeholders marking the vertical slice targets for the 15 workflow stages. They have zero runtime code, zero imports, and zero dependencies.
 
-### 3.2 Internal Shims (src/)
-The 47 files under src/ have explicit dispositions:
-- src/lib/id.service.ts: Retained as backward-compatibility shim re-exporting shared/lib/id.service.ts.
-- src/lib/schemas/google-sheets-schema.ts: Decommissioned as database; re-exports canonical request schemas from ackend/server/validation/request-schemas.ts.
-- src/types/*.ts: Retained as internal shims re-exporting pure shared types from shared/.
-- src/config/*.ts: Retained as static application configurations (roles, navigation, creation config).
-- src/lib/audit/*.ts: Retained as backend audit logging infrastructure.
-- src/lib/errors.ts, src/lib/logger.ts, src/lib/realtime/event-bus.ts: Retained as backend infrastructure foundations.
+### 3.2 Internal Shims (src/ — 47 Files)
+Every tracked file under `src/` has a verified, evidence-backed disposition:
+- `src/lib/id.service.ts`: **Backward-compatibility shim** — Re-exports canonical UUID generator from `shared/lib/id.service.ts`.
+- `src/lib/schemas/google-sheets-schema.ts`: **Historical / migration-only artifact & backward-compatibility shim** — Retains spreadsheet disaster recovery tab constants for recovery services; re-exports canonical request validation schemas from `backend/server/validation/request-schemas.ts`. Zero runtime database persistence.
+- `src/types/*.ts` (25 files): **Backward-compatibility shims & historical contracts** — `api-contracts.ts` re-exports canonical response envelopes from `shared/contracts/api.ts`; other domain type files provide stable import shims for legacy callers.
+- `src/config/*.ts` (8 files): **Active implementation** — Static application constants, role definitions, sidebar navigation items, and environment configuration contracts.
+- `src/lib/db/*.ts` (3 files): **Active implementation / test infrastructure** — `BaseEntity` & `Repository<T>` interfaces, plus `InMemoryRepository` used in test fixtures.
+- `src/lib/audit/*.ts` (4 files): **Historical / migration-only artifacts** — Legacy in-memory and firestore dispatchers (superseded by `database/firestore/repositories/audit-log.repository.ts`).
+- `src/lib/errors.ts`: **Active implementation** — Domain error classes (`AppError`, `NotFoundError`, `ValidationError`, etc.) consumed across backend services.
+- `src/lib/logger.ts`: **Backward-compatibility shim / test utility** — Standardized logger referenced by audit tests.
+- `src/lib/realtime/event-bus.ts`: **Active implementation** — Domain event emitter for workflow event dispatch.
+- `src/lib/routing/workflow-routes.ts`: **Active implementation** — Step-to-route lookup for workflow journey navigation.
+- `src/lib/data/production-taxonomy.ts`: **Historical / migration-only artifact** — Initial taxonomy seed fixture for database initializers.
 
 ### 3.3 Zero Unresolved Dependencies
-All 671 files have clearly identified responsibilities, layers, dependencies, and owners with 0 circular imports and 0 unresolved architectural leaks.
+All 674 files have clearly identified responsibilities, layers, dependencies, and owners with 0 circular imports and 0 unresolved architectural leaks.

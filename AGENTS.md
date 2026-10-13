@@ -111,15 +111,16 @@ The codebase enforces strict unidirectional dependency flow:
 $$\text{\textbf{Frontend}} \longrightarrow \text{\textbf{API Client}} \longrightarrow \text{\textbf{API Gateway / Backend}} \longrightarrow \text{\textbf{Database / AI / Workflow / Integrations}}$$
 
 ### Frontend MUST NOT Directly Import or Access:
-- ❌ Cloud Firestore repositories (`src/lib/repositories/*`)
-- ❌ Firestore adapters or Firestore SDK instances (`src/lib/firebase/*`)
-- ❌ Firebase Admin SDK (`firebase-admin`)
-- ❌ Backend application/domain services (`src/lib/services/*`)
-- ❌ Backend algorithmic validation engines (`src/lib/validation/*`, `CandidateValidator`)
-- ❌ Gemini provider SDKs (`@google/genai`) or AI provider implementations
-- ❌ Server-side AI validators (`src/lib/ai/validators/*`)
+- ❌ Cloud Firestore repositories (`database/firestore/repositories/*`; historical `src/lib/repositories/*` decommissioned)
+- ❌ Firestore adapters or Firestore SDK instances (`database/firestore/adapter/*`; historical `src/lib/firebase/*` decommissioned)
+- ❌ Firebase Admin SDK (`firebase-admin` - server-side only)
+- ❌ Backend application/domain services (`backend/features/*/services/*`, `backend/infrastructure/services/*`; historical `src/lib/services/*` decommissioned)
+- ❌ Backend algorithmic validation engines (`backend/ai/validators/*`; historical `src/lib/validation/*` decommissioned, `CandidateValidator`)
+- ❌ Server HTTP routes or Express dispatchers (`backend/server/*`; historical `src/server/*` decommissioned)
+- ❌ Gemini provider SDKs (`@google/genai`) or AI provider implementations (`backend/ai/providers/*`)
+- ❌ Server-side AI validators (`backend/ai/validators/*`)
 - ❌ Database initialization, migration, seed, recovery, or backup infrastructure
-- ❌ Server secrets or `process.env`
+- ❌ Server secrets or `process.env` in client-side code
 
 ### Backend MUST NOT Import:
 - ❌ React presentation code (components, pages, JSX, hooks, client contexts)

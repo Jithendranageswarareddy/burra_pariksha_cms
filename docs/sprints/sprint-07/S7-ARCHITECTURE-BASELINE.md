@@ -66,14 +66,15 @@ The Frontend **MAY** import:
 
 ### 3.3 Explicit Forbidden Dependencies
 The Frontend **MUST NOT** directly import:
-- ❌ Repositories (\`src/lib/repositories/*\`)
-- ❌ Cloud Firestore adapters or Firestore SDK instances (\`src/lib/firebase/*\`)
-- ❌ Firebase Admin SDK (\`firebase-admin\`)
-- ❌ Backend application services (\`src/lib/services/*\`)
-- ❌ Backend algorithmic validation engines (\`src/lib/validation/*\`, \`CandidateValidator\`)
-- ❌ External AI provider implementations or SDKs (\`@google/genai\`, \`gemini.service.ts\`)
-- ❌ Database initialization or migration machinery (\`firestore-production-initializer.service.ts\`)
-- ❌ Secret-bearing infrastructure or server environment access (\`process.env\`)
+- ❌ Cloud Firestore repositories (`database/firestore/repositories/*`; historical `src/lib/repositories/*` decommissioned)
+- ❌ Cloud Firestore adapters or Firestore SDK instances (`database/firestore/adapter/*`; historical `src/lib/firebase/*` decommissioned)
+- ❌ Firebase Admin SDK (`firebase-admin` - server-side only)
+- ❌ Backend application/domain services (`backend/features/*/services/*`, `backend/infrastructure/services/*`; historical `src/lib/services/*` decommissioned)
+- ❌ Backend algorithmic validation engines (`backend/ai/validators/*`; historical `src/lib/validation/*` decommissioned, `CandidateValidator`)
+- ❌ Server HTTP routes or Express dispatchers (`backend/server/*`; historical `src/server/*` decommissioned)
+- ❌ External AI provider implementations or SDKs (`backend/ai/providers/*`, `@google/genai`; historical `src/lib/ai/gemini.service.ts` decommissioned)
+- ❌ Database initialization, migration, seed, recovery, or backup machinery (`database/firestore/initialization/*`, `database/firestore/migrations/*`; historical `src/lib/db/firestore-production-initializer.service.ts` decommissioned)
+- ❌ Secret-bearing infrastructure or server environment access (`process.env`) in client-side code
 
 > [!IMPORTANT]
 > All frontend communication with backend services, databases, or AI capabilities **MUST** pass strictly through the HTTP API client.
@@ -84,7 +85,7 @@ The Frontend **MUST NOT** directly import:
 
 ### 4.1 Scope & Responsibilities
 The **BACKEND** layer is the authoritative server-side application layer running in Node.js:
-- Express HTTP server and route dispatchers (\`server.ts\`, \`src/server/*\`)
+- Express HTTP server and route dispatchers (`backend/server/server.ts`, `backend/server/routers/routes.ts`; historical `src/server/*` decommissioned)
 - Application use-case handlers and orchestration services
 - Domain services enforcing business invariants
 - Role-based authorization and object-level security (\`role-capability-matrix.ts\`, \`object-auth.service.ts\`)
@@ -481,8 +482,8 @@ Based on S7-T01 forensic evidence, the repository will evolve toward the followi
 | \`src/lib/services/question-validation.service.ts\` | \`backend/features/question-verification/services/question-validation.service.ts\` | Authoritative validation co-located with verification. |
 | \`src/lib/ai/prompts/generation.prompt.ts\` | \`backend/features/question-generation/ai/generation.prompt.ts\` | Feature prompt co-located with feature service. |
 | \`src/lib/ai/validators/candidate.validator.ts\` | \`backend/features/question-verification/ai/candidate.validator.ts\` | Server-side validation co-located with verification. |
-| \`src/lib/repositories/questions.repository.ts\` | \`backend/infrastructure/repositories/questions.repository.ts\` | Pure database access in centralized infrastructure. |
-| \`src/lib/firebase/admin.ts\` | \`backend/infrastructure/database/firebase/admin.ts\` | Database connection adapter in centralized infrastructure. |
+| `src/lib/repositories/questions.repository.ts` | `database/firestore/repositories/questions.repository.ts` | Pure database access in centralized database layer (migrated in S7-T07). |
+| `src/lib/firebase/admin.ts` | `database/firestore/adapter/admin.ts` | Database connection adapter in centralized database layer (migrated in S7-T07). |
 | \`src/types/index.ts\` | \`shared/types/domain/*.types.ts\` | Monolithic types split into domain contracts. |
 
 ---
@@ -510,7 +511,7 @@ All remaining tasks in Sprint 7 must obey these **TEN COMMANDMENTS OF MIGRATION*
 To prevent boundary degradation, Sprint 7 enforces automated architecture quality gates:
 - **Rule A (No Frontend Backend Imports)**: Lint/test check fails if any file in \`frontend/pages/\` or \`frontend/components/\` imports from \`backend/infrastructure/services/\`, \`database/firestore/repositories/\`, or \`firebase-admin\`. Verified by \`tests/s7-frontend-backend-boundary.test.ts\`.
 - **Rule B (No Frontend AI Validator Imports)**: Lint/test check fails if client code imports from \`backend/ai/validators/\` or provider SDKs (\`@google/genai\`). Verified by \`tests/s7-t09-ai-boundary.test.ts\`.
-- **Rule C (No Shared Infrastructure Imports)**: Lint/test check fails if any contract in \`shared/\` imports \`express\`, \`react\`, or \`firebase-admin\`. Verified by \`tests/fc-005-shared-contract.test.ts\`.
+- **Rule C (No Shared Infrastructure Imports)**: Lint/test check fails if any contract in `shared/` imports `express`, `react`, or `firebase-admin`. Verified by `tests/fc-005-shared-contract.test.ts` and `tests/s7-frontend-backend-boundary.test.ts`.
 - **Rule D (No Test Production Imports)**: Lint check fails if production source imports from \`tests/\`. Verified by \`tests/s7-frontend-backend-boundary.test.ts\`.
 
 ---
