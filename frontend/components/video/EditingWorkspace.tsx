@@ -363,7 +363,7 @@ export const EditingWorkspace: React.FC<EditingWorkspaceProps> = ({
                         {asset.driveFileId && (
                           <>
                             <a
-                              href={`/api/videos/${encodeURIComponent(videoId)}/download?assetId=${encodeURIComponent(asset.id || asset.driveFileId)}`}
+                              href={apiClient.getVideoDownloadUrl(videoId, asset.id || asset.driveFileId)}
                               target="_blank"
                               rel="noreferrer"
                               download={asset.fileName || `raw-video-take-${asset.version || idx + 1}.mp4`}
@@ -393,7 +393,7 @@ export const EditingWorkspace: React.FC<EditingWorkspaceProps> = ({
               <a
                 href={
                   video.driveFileId
-                    ? `/api/videos/${encodeURIComponent(videoId)}/download`
+                    ? apiClient.getVideoDownloadUrl(videoId)
                     : video.driveFolderUrl
                 }
                 target="_blank"

@@ -64,7 +64,7 @@ import {
   QuestionStyle,
   TopicCoverage,
 } from '../../shared';
-import { DiversityRadarReport, QuestionSimilarityMatch } from '../api/contracts';
+import { planningApi, taxonomyApi, questionsApi, DiversityRadarReport, QuestionSimilarityMatch } from '../api';
 
 type ActiveTab = 'plans' | 'batches' | 'coverage' | 'gaps' | 'radar' | 'ai-assistant';
 
@@ -158,8 +158,8 @@ export const PlanningPage: React.FC = () => {
     try {
       // 1. Fetch Taxonomy & Questions for Modals
       const [taxRes, qRes] = await Promise.all([
-        fetch('/api/taxonomy/summary').then((r) => r.json()),
-        fetch('/api/questions').then((r) => r.json()),
+        taxonomyApi.getSummary(),
+        questionsApi.getQuestions(),
       ]);
 
       if (taxRes.topics) setTopics(taxRes.topics);
@@ -168,11 +168,11 @@ export const PlanningPage: React.FC = () => {
 
       // 2. Fetch Phase 9 Planning Datasets
       const [plansRes, batchesRes, covRes, gapsRes, radarRes] = await Promise.all([
-        fetch('/api/planning/plans').then((r) => r.json()),
-        fetch('/api/planning/batches').then((r) => r.json()),
-        fetch('/api/planning/coverage').then((r) => r.json()),
-        fetch('/api/planning/gaps').then((r) => r.json()),
-        fetch('/api/planning/similarity-radar').then((r) => r.json()),
+        planningApi.getPlans(),
+        planningApi.getBatches(),
+        planningApi.getCoverage(),
+        planningApi.getGaps(),
+        planningApi.getSimilarityRadar(),
       ]);
 
       if (Array.isArray(plansRes)) {
@@ -184,9 +184,9 @@ export const PlanningPage: React.FC = () => {
         }
       }
       if (Array.isArray(batchesRes)) setBatches(batchesRes);
-      if (covRes && !covRes.error) setCoverage(covRes);
-      if (gapsRes && !gapsRes.error) setGaps(gapsRes);
-      if (radarRes && !radarRes.error) setRadar(radarRes);
+      if (covRes && !(covRes as any).error) setCoverage(covRes);
+      if (gapsRes && !(gapsRes as any).error) setGaps(gapsRes);
+      if (radarRes && !(radarRes as any).error) setRadar(radarRes);
     } catch (err: any) {
       console.error('Failed to load planning data:', err);
       setActionMessage({ type: 'error', text: 'Failed to load planning datasets. Please check network connection.' });
@@ -210,13 +210,7 @@ export const PlanningPage: React.FC = () => {
   const handleCreatePlan = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch('/api/planning/plans', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(planForm),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || data.error || 'Failed to create plan');
+      const data = await planningApi.createPlan(planForm);
 
       setActionMessage({ type: 'success', text: `Content Plan ${data.id} created successfully in DRAFT.` });
       setIsCreatePlanOpen(false);
@@ -228,13 +222,7 @@ export const PlanningPage: React.FC = () => {
 
   const handleApprovePlan = async (planId: string) => {
     try {
-      const res = await fetch(`/api/planning/plans/${planId}/approve`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ actor: { id: 'USR-001', name: 'Admin / Content Lead' } }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || data.error || 'Failed to approve plan');
+      await planningApi.approvePlan(planId, { actor: { id: 'USR-001', name: 'Admin / Content Lead' } });
 
       setActionMessage({ type: 'success', text: `Content Plan ${planId} approved for production batching.` });
       fetchAllData();
@@ -245,13 +233,7 @@ export const PlanningPage: React.FC = () => {
 
   const handleTransitionPlanStatus = async (planId: string, newStatus: ContentPlanStatus) => {
     try {
-      const res = await fetch(`/api/planning/plans/${planId}/status`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || data.error || `Failed to transition plan to ${newStatus}`);
+      await planningApi.transitionPlanStatus(planId, newStatus);
 
       setActionMessage({ type: 'success', text: `Content Plan ${planId} transitioned to ${newStatus}.` });
       fetchAllData();
@@ -263,9 +245,7 @@ export const PlanningPage: React.FC = () => {
   const handleDeletePlan = async (planId: string) => {
     if (!window.confirm(`Are you sure you want to delete Content Plan ${planId}?`)) return;
     try {
-      const res = await fetch(`/api/planning/plans/${planId}`, { method: 'DELETE' });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || data.error || 'Failed to delete plan');
+      await planningApi.deletePlan(planId);
 
       setActionMessage({ type: 'success', text: `Content Plan ${planId} deleted.` });
       if (selectedPlanForDetails?.id === planId) {
@@ -280,13 +260,7 @@ export const PlanningPage: React.FC = () => {
   const handleCreateBatch = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch('/api/planning/batches', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(batchForm),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || data.error || 'Failed to create batch');
+      const data = await planningApi.createBatch(batchForm);
 
       setActionMessage({ type: 'success', text: `Production Batch ${data.batch.id} created successfully.` });
       setIsCreateBatchOpen(false);
@@ -299,9 +273,7 @@ export const PlanningPage: React.FC = () => {
   const handleDeleteBatch = async (batchId: string) => {
     if (!window.confirm(`Are you sure you want to delete Production Batch ${batchId}? Linked questions will be unlinked.`)) return;
     try {
-      const res = await fetch(`/api/planning/batches/${batchId}`, { method: 'DELETE' });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || data.error || 'Failed to delete batch');
+      await planningApi.deleteBatch(batchId);
 
       setActionMessage({ type: 'success', text: `Production Batch ${batchId} deleted.` });
       fetchAllData();
@@ -332,16 +304,11 @@ export const PlanningPage: React.FC = () => {
   const handleSaveBatchQuestions = async () => {
     if (!selectedBatchForLinking) return;
     try {
-      const res = await fetch(`/api/planning/batches/${selectedBatchForLinking.id}/questions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          questionIds: selectedQuestionIdsToLink,
-          action: 'SET',
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || data.error || 'Failed to update linked questions');
+      await planningApi.linkBatchQuestions(
+        selectedBatchForLinking.id,
+        selectedQuestionIdsToLink,
+        'SET'
+      );
 
       setActionMessage({
         type: 'success',
@@ -358,13 +325,7 @@ export const PlanningPage: React.FC = () => {
     e.preventDefault();
     setIsGeneratingAiPlan(true);
     try {
-      const res = await fetch('/api/planning/ai-recommendation', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(aiForm),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || data.error || 'Failed to generate AI plan');
+      const data = await planningApi.generateAiRecommendation(aiForm);
       setAiRecommendation(data);
       setActionMessage({ type: 'success', text: 'AI Content Planning recommendation generated successfully.' });
     } catch (err: any) {
@@ -383,24 +344,17 @@ export const PlanningPage: React.FC = () => {
         throw new Error('Taxonomy mapping missing for recommended subtopic.');
       }
 
-      const res = await fetch('/api/planning/plans', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          topicId: targetTop.id,
-          subtopicId: targetSub.id,
-          difficulty: DifficultyLevel.MEDIUM,
-          targetQuestionCount: sub.recommendedCount || 10,
-          realWorldContext: sub.suggestedContexts?.[0] || '',
-          questionStyle: QuestionStyle.REAL_WORLD_SCENARIO,
-          priority: PriorityLevel.HIGH,
-          plannedDate: new Date().toISOString().split('T')[0],
-          notes: `[AI Advisory Recommendation] ${sub.rationale}`,
-        }),
+      const data = await planningApi.createPlan({
+        topicId: targetTop.id,
+        subtopicId: targetSub.id,
+        difficulty: DifficultyLevel.MEDIUM,
+        targetQuestionCount: sub.recommendedCount || 10,
+        realWorldContext: sub.suggestedContexts?.[0] || '',
+        questionStyle: QuestionStyle.REAL_WORLD_SCENARIO,
+        priority: PriorityLevel.HIGH,
+        plannedDate: new Date().toISOString().split('T')[0],
+        notes: `[AI Advisory Recommendation] ${sub.rationale}`,
       });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || data.error || 'Failed to create plan from recommendation');
 
       setActionMessage({
         type: 'success',
@@ -417,12 +371,7 @@ export const PlanningPage: React.FC = () => {
     if (!scratchpadText.trim()) return;
     setIsCheckingScratchpad(true);
     try {
-      const res = await fetch('/api/planning/similarity-check', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: scratchpadText, threshold: 0.65 }),
-      });
-      const data = await res.json();
+      const data = await planningApi.checkSimilarity(scratchpadText, undefined, 0.65);
       setScratchpadMatches(data.matches || []);
     } catch (err: any) {
       console.error(err);

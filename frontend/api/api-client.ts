@@ -122,7 +122,7 @@ export interface SnapshotHistoryItem {
   storageUri?: string;
 }
 
-class ApiClient {
+export class ApiClient {
   private sessionToken: string | null = null;
 
   constructor() {
@@ -258,6 +258,18 @@ class ApiClient {
   }
 
   // Taxonomy
+  public async getTaxonomySummary(): Promise<{ topics: Topic[]; subtopics: Subtopic[] }> {
+    try {
+      return await this.request<{ topics: Topic[]; subtopics: Subtopic[] }>('/taxonomy/summary');
+    } catch {
+      const [topics, subtopics] = await Promise.all([
+        this.getTopics(),
+        this.getSubtopics(),
+      ]);
+      return { topics, subtopics };
+    }
+  }
+
   public async getTaxonomyTree(): Promise<any[]> {
     return this.request('/taxonomy/tree');
   }
@@ -709,6 +721,10 @@ class ApiClient {
     return this.request(`/videos/${encodeURIComponent(videoId)}/publishing`);
   }
 
+  public async getPublishingById(id: string): Promise<Publishing> {
+    return this.request(`/publishing/${encodeURIComponent(id)}`);
+  }
+
   public async updatePublishing(id: string, updates: Partial<Publishing>): Promise<Publishing> {
     return this.request(`/publishing/${encodeURIComponent(id)}`, {
       method: 'PUT',
@@ -1075,9 +1091,13 @@ class ApiClient {
     });
   }
 
-  public async approveContentPlan(id: string): Promise<import('../../shared').ContentPlan> {
+  public async approveContentPlan(
+    id: string,
+    actor?: { id: string; name: string }
+  ): Promise<import('../../shared').ContentPlan> {
     return this.request(`/planning/plans/${encodeURIComponent(id)}/approve`, {
       method: 'POST',
+      body: actor ? JSON.stringify({ actor }) : undefined,
     });
   }
 
@@ -1705,6 +1725,18 @@ class ApiClient {
     id: string
   ): Promise<{ success: boolean; record?: import('../../shared').CommentIntelligenceRecord; error?: string }> {
     return this.request(`/comment-intelligence/${encodeURIComponent(id)}`);
+  }
+
+  public getVideoDownloadUrl(videoId: string, assetId?: string): string {
+    const encodedId = encodeURIComponent(videoId);
+    if (assetId) {
+      return `/api/videos/${encodedId}/download?assetId=${encodeURIComponent(assetId)}`;
+    }
+    return `/api/videos/${encodedId}/download`;
+  }
+
+  public getThumbnailDownloadUrl(thumbnailId: string): string {
+    return `/api/thumbnails/${encodeURIComponent(thumbnailId)}/download`;
   }
 }
 

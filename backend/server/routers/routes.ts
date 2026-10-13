@@ -1153,6 +1153,16 @@ apiRouter.get('/taxonomy/metrics', async (req: Request, res: Response) => {
   }
 });
 
+apiRouter.get('/taxonomy/summary', async (req: Request, res: Response) => {
+  try {
+    const topics = await taxonomyService.getTopics();
+    const subtopics = await taxonomyService.getSubtopics();
+    res.json({ topics, subtopics });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || 'Failed to fetch taxonomy summary' });
+  }
+});
+
 // TOPICS ENDPOINTS
 apiRouter.get('/topics', async (req: Request, res: Response) => {
   try {

@@ -383,7 +383,7 @@ export const VideoThumbnailPage: React.FC = () => {
     );
   }
 
-  const activeImageSrc = localPreviewUrl || previewUrl || (hasDriveAsset ? `/api/thumbnails/${encodeURIComponent(thumbnail!.id)}/download` : null);
+  const activeImageSrc = localPreviewUrl || previewUrl || (hasDriveAsset && thumbnail?.id ? apiClient.getThumbnailDownloadUrl(thumbnail.id) : null);
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-16">
@@ -803,7 +803,7 @@ export const VideoThumbnailPage: React.FC = () => {
                             <div className="flex items-center gap-2">
                               {thumbnail?.id && (
                                 <a
-                                  href={`/api/thumbnails/${encodeURIComponent(thumbnail.id)}/download`}
+                                  href={apiClient.getThumbnailDownloadUrl(thumbnail.id)}
                                   download={`thumbnail-v${ver.versionNumber}.png`}
                                   className="text-[11px] text-indigo-600 hover:underline font-medium flex items-center gap-1"
                                 >

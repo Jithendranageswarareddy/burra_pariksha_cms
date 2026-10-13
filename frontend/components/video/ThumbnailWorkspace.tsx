@@ -306,7 +306,7 @@ export const ThumbnailWorkspace: React.FC<ThumbnailWorkspaceProps> = ({
 
   const effectivePreviewSrc =
     localPreviewUrl ||
-    (hasDriveAsset && thumbnail?.id ? `/api/thumbnails/${encodeURIComponent(thumbnail.id)}/download` : (previewUrl || null));
+    (hasDriveAsset && thumbnail?.id ? apiClient.getThumbnailDownloadUrl(thumbnail.id) : (previewUrl || null));
 
   if (isLoading) {
     return (
@@ -440,7 +440,7 @@ export const ThumbnailWorkspace: React.FC<ThumbnailWorkspaceProps> = ({
 
                 <div className="flex flex-wrap items-center gap-2.5 pt-1">
                   <a
-                    href={`/api/thumbnails/${encodeURIComponent(thumbnail.id)}/download`}
+                    href={apiClient.getThumbnailDownloadUrl(thumbnail.id)}
                     download={thumbnail.fileName || `thumbnail-${thumbnail.id}.png`}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold text-xs transition-colors shadow-xs"
                   >
@@ -872,7 +872,7 @@ export const ThumbnailWorkspace: React.FC<ThumbnailWorkspaceProps> = ({
                         <div className="flex items-center gap-2">
                           {thumbnail?.id && (
                             <a
-                              href={`/api/thumbnails/${encodeURIComponent(thumbnail.id)}/download`}
+                              href={apiClient.getThumbnailDownloadUrl(thumbnail.id)}
                               download={`thumbnail-v${ver.versionNumber}.png`}
                               className="text-[11px] text-indigo-600 hover:underline font-medium flex items-center gap-1"
                             >
