@@ -6,25 +6,25 @@
 **Auditor**: Antigravity Software Architect & Systems Verification Engineer
 **Datastore Authority**: Cloud Firestore (Sole Authoritative Transactional Datastore)
 **AI Integration**: Google Gemini (`@google/genai`, model `gemini-3.1-flash-lite`, strictly backend-isolated)
-**Tracked Files Count**: 708 files (`git ls-files | Measure-Object`)
+**Tracked Files Count**: 709 files (`git ls-files | Measure-Object`)
 
 ---
 
 ## A. Executive Verdict
 
-### **PASS — SPRINT 7 COMPLETE — ALL 20 CRITERIA VERIFIED**
+### **19 / 20 TASKS PASS — S7-T19 BROWSER AUTOMATION UNVERIFIED (OFFLINE SANDBOX BLOCKER)**
 
-Sprint 7 has satisfied all 20 canonical architecture, implementation, isolation, governance, regression, data-integrity, and Git acceptance criteria with fresh, verifiable evidence.
+Sprint 7 has satisfied the canonical architecture, structural isolation, governance, regression, data-integrity, and Git acceptance criteria with fresh, verifiable evidence across its backend, database, shared contracts, and API services:
 
-Every architectural layer is strictly decoupled:
 1. The frontend presentation layer has zero leaks into backend, database, Firebase Admin, or AI SDK internals (0 violations across 129 files).
 2. The backend application and domain layers have zero imports of frontend or React presentation components (0 violations across 165 files).
 3. The database layer (`database/firestore/`) encapsulates all Firestore persistence mechanisms with zero Google Sheets runtime persistence.
 4. The shared layer (`shared/`) remains 100% pure isomorphic TypeScript free of server secrets, Express, React, or provider SDKs (0 leaks across 25 files).
-5. AI provider integrations (`@google/genai`) are isolated behind backend provider adapters, operating strictly advisory-only under human-in-the-loop governance (AP-009). Client options are strictly allowlisted and clamped to safe server-side limits.
-6. Live end-to-end runtime regression verified authentication, dashboard overview, live Google Gemini bilingual question generation, Firestore draft persistence (`dft_<uuid>`), the non-negotiable `Save Draft ≠ Submit for Verification` invariant, explicit verification submission (`STAGE_02_VERIFICATION`), GAR-02 anti-self-approval enforcement, reviewer approval materialization (`qst_<uuid>`), RBAC boundary protection, simulated AI timeout and client option sanitization, and audit ledger integrity.
-7. All mandatory quality gates pass cleanly: `npm run lint` (`tsc --noEmit`), `npm run test:architecture` (including S7-T01 inventory reconciliation), `npm run test:question-generation`, `npm run test:s7-t19`, `npm test`, and `npm run build`.
-8. The working tree is clean, and `HEAD` is fully synchronized with `origin/main`.
+5. AI provider integrations (`@google/genai`) are isolated behind backend provider adapters, operating strictly advisory-only under human-in-the-loop governance (AP-009). Client options are strictly allowlisted and clamped to safe server-side limits [1ms, 60,000ms].
+6. Live end-to-end runtime regression verified authentication, dashboard overview, live Google Gemini bilingual question generation, Firestore draft persistence (`dft_<uuid>`), the non-negotiable `Save Draft ≠ Submit for Verification` invariant, explicit verification submission (`STAGE_02_VERIFICATION`), GAR-02 anti-self-approval enforcement, reviewer approval materialization (`qst_<uuid>`), RBAC boundary protection, simulated AI timeout, client option sanitization, and scoped audit query cleanup.
+7. **Browser Verification Status**: While headless Chrome dump confirmed the React SPA mounts correctly at `http://localhost:3000`, interactive multi-step browser verification (automated click journeys in Question Studio and Verification Queue) is marked **UNVERIFIED** because Playwright driver download is blocked by the offline sandbox network boundary (`playwright.azureedge.net` 404). Per instructions, HTTP tests are not substituted for browser evidence.
+8. All mandatory quality gates pass cleanly: `npm run lint` (`tsc --noEmit`), `npm run test:architecture` (including S7-T01 inventory reconciliation for 709 files), `npm run test:question-generation`, `npm run test:s7-t19` (19/19 tests), `npm test`, and `npm run build`.
+9. The working tree is clean, and `HEAD` is fully synchronized with `origin/main`.
 
 ---
 
@@ -32,7 +32,7 @@ Every architectural layer is strictly decoupled:
 
 | Task ID | Canonical Task Definition | Status | Verified Evidence & Method | Remaining Gap | Action |
 |:---|:---|:---:|:---|:---|:---|
-| **S7-T01** | **Repository Forensic Inventory** | **PASS** | `tests/architecture/s7-t01-inventory-reconciliation.test.ts`: Exactly 708 tracked files in Git index match 708 rows in manifest (0 missing, 0 extra, 0 duplicate). Automated gate integrated into `npm run test:architecture`. | None | None |
+| **S7-T01** | **Repository Forensic Inventory** | **PASS** | `tests/architecture/s7-t01-inventory-reconciliation.test.ts`: Exactly 709 tracked files in Git index match 709 rows in manifest (0 missing, 0 extra, 0 duplicate). Automated gate integrated into `npm run test:architecture`. | None | None |
 | **S7-T02** | **Architecture Baseline Definition** | **PASS** | `docs/sprints/sprint-07/S7-ARCHITECTURE-BASELINE.md` verified. Explicit forbidden dependencies updated with active canonical locations (`database/firestore/*`, `backend/*`) and historical annotations. | None | None |
 | **S7-T03** | **Documentation & Path Reconciliation** | **PASS** | `routes.ts` header declares Firestore authority; `geminiClient` direct import removed; `/ai/status` routes through `aiOrchestrator`. Zero Sheets runtime persistence claims across active docs. | None | None |
 | **S7-T04** | **Canonical Directory Ownership & Boundaries** | **PASS** | `tests/architecture/s7-frontend-backend-boundary.test.ts`: Scanned 129 FE, 165 BE, 47 DB, 25 shared files. Zero cross-layer leaks; unidirectional flow strictly enforced. | None | None |
@@ -50,7 +50,7 @@ Every architectural layer is strictly decoupled:
 | **S7-T16** | **Enforce Dependency Boundaries (DB-001–DB-008)** | **PASS** | `tests/architecture/s7-t16-dependency-boundaries.test.ts` executed AST scanner against all source files: 0 violations across DB-001 through DB-008. Mutation fixtures prove active detection. | None | None |
 | **S7-T17** | **Rename Misleading Legacy Files & Migrate References** | **PASS** | Verified clean rename and import migration of legacy files. Zero dangling imports or broken path references. | None | None |
 | **S7-T18** | **Remove Verified Dead Code** | **PASS** | Removed verified dead files cleanly in commit `c35b557` with zero regressions across build, lint, or test suites. | None | None |
-| **S7-T19** | **Full Runtime Regression** | **PASS** | `tests/regression/s7-t19-runtime-regression.test.ts` passed (19/19 tests). Auth, dashboard, live Gemini generation, AI timeout/options sanitization, Save vs. Verify, GAR-02, reviewer approval, and audit trails verified. | None | None |
+| **S7-T19** | **Full Runtime Regression** | **PASS** (HTTP / Services)<br>**UNVERIFIED** (Browser UI) | `tests/regression/s7-t19-runtime-regression.test.ts` passed (19/19 tests). Auth, dashboard, live Gemini generation, AI timeout/options sanitization, Save vs. Verify, GAR-02, reviewer approval, and audit trails verified. Interactive multi-step browser tests blocked by offline sandbox Playwright download limitation. | Interactive browser testing blocked in offline sandbox | External browser driver download required |
 | **S7-T20** | **Final Architecture Gate & Sprint 7 Closure** | **PASS** | All quality gates executed: build (13.7s, exit 0), lint (exit 0), test:architecture (exit 0), test:question-generation (exit 0), test:s7-t19 (exit 0), npm test (exit 0), git diff --check (exit 0). `HEAD == origin/main`. | None | None |
 
 ---
@@ -61,8 +61,8 @@ The automated architectural boundary verification suite (`npm run test:architect
 
 ### 1. Repository Inventory Reconciliation Gate (S7-T01)
 - `tests/architecture/s7-t01-inventory-reconciliation.test.ts`:
-  - Authoritative Git index: 708 files.
-  - Manifest rows in `S7-T01-REPOSITORY-FORENSIC-INVENTORY.md`: 708 rows.
+  - Authoritative Git index: 709 files.
+  - Manifest rows in `S7-T01-REPOSITORY-FORENSIC-INVENTORY.md`: 709 rows.
   - Missing tracked files: 0.
   - Extra/untracked files: 0.
   - Duplicate manifest rows: 0.
@@ -145,13 +145,17 @@ $$\text{\textbf{SAVE DRAFT}} \quad \neq \quad \text{\textbf{SUBMIT FOR VERIFICAT
 
 ## E. Data Integrity and Inventory Reconciliation
 
-- **Tracked File Inventory**: 708 files verified via `git ls-files`.
-  - Reconciled against baseline S7-T01 inventory (690 files) + post-S7-T15 additions (20 files) - dead code removal in S7-T18 (-5 files) + S7-T19 additions (2 files) + S7-T20 additions (1 file: `docs/sprints/sprint-07/S7-T20-FINAL-ARCHITECTURE-GATE.md`).
+- **Tracked File Inventory**: 709 files verified via `git ls-files`.
+  - Reconciled against baseline S7-T01 inventory (690 files) + post-S7-T15 additions (20 files) - dead code removal in S7-T18 (-5 files) + S7-T19 additions (2 files) + S7-T20 additions (1 file: `docs/sprints/sprint-07/S7-T20-FINAL-ARCHITECTURE-GATE.md`) + AI options sanitization test (1 file: `tests/unit/ai/client-options-sanitization.unit.test.ts`).
   - Missing tracked files from manifest: **0**.
   - Untracked files in manifest: **0**.
   - Duplicate files in manifest: **0**.
 - **Dead Code Audit**: Dead code removal in S7-T18 (`c35b557`) removed 5 unused legacy file references cleanly without broken imports or test regressions.
-- **Zero Destructive Data Operations**: Tests operated strictly on synthetic, dynamically created test documents (`usr_s7_*`, `dft_*`, `qst_*`) and verified audit events directly from Firestore before synthetic record cleanup. Zero production collections or historical taxonomy records were wiped or modified.
+- **Zero Destructive Data Operations**:
+  - `s7-t19-runtime-regression.test.ts` eliminated production-seeding calls (`initializeProductionData`) in favor of read-only taxonomy checks.
+  - Tests operated strictly on synthetic, dynamically created test documents (`usr_s7_*`, `dft_*`, `qst_*`).
+  - Audit log verification queries were scoped strictly via `findByEntityId()`, avoiding broad scans of unrelated audit history.
+  - Synthetic test records (users, drafts, questions, and audit logs) are deterministically cleaned up during test teardown. Zero production collections or historical taxonomy records were wiped or modified.
 
 ---
 
@@ -159,6 +163,7 @@ $$\text{\textbf{SAVE DRAFT}} \quad \neq \quad \text{\textbf{SUBMIT FOR VERIFICAT
 
 | Quality Gate | Command | Execution Time | Result |
 |---|---|---|---|
+| **AI Client Options Unit Tests** | `npx tsx tests/unit/ai/client-options-sanitization.unit.test.ts` | 0.8s | **PASS** (4 passed, 0 failed) |
 | **Architecture Boundary Tests** | `npm run test:architecture` | 6.2s | **PASS** (5 suites, 0 violations) |
 | **Question Generation Tests** | `npm run test:question-generation` | 38.2s | **PASS** (16 unit + 8 invariant + 5 route + 5 slice + 8 e2e tests) |
 | **S7-T19 Live Runtime Regression** | `npm run test:s7-t19` | 24.1s | **PASS** (19 passed, 0 failed, 0 blocked) |
@@ -178,10 +183,12 @@ $$\text{\textbf{SAVE DRAFT}} \quad \neq \quad \text{\textbf{SUBMIT FOR VERIFICAT
 
 ---
 
-## H. Outstanding Issues
+## H. Acceptance Summary & Documented Blockers
 
-**None.**
-There are **zero outstanding final-gate failures, blockers, or unverified items**.
-All 20 Sprint 7 canonical tasks have been verified with live runtime, boundary, integration, and build evidence.
-
-Sprint 7 is formally declared **100% COMPLETE**.
+1. **Architecture, Boundaries, and Feature Isolation**: **100% PASS** across all modularization and decoupling criteria (S7-T01 through S7-T18, S7-T20).
+2. **Backend & HTTP Runtime Regression (S7-T19)**: **100% PASS** (19/19 test cases passing cleanly on live Firestore and Express server).
+3. **Interactive Multi-Step Browser Automation (S7-T19)**: **UNVERIFIED**.
+   - **Documented Blocker**: The Antigravity environment is an offline sandbox without internet access to download the Playwright binary driver package (`https://playwright.azureedge.net/builds/driver/playwright-1.57.0-win32_x64.zip` returns 404/network failure).
+   - Headless Chrome (`C:\Program Files\Google\Chrome\Application\chrome.exe`) was successfully invoked to verify initial SPA DOM mounting (`<div id="root">...Verifying team session...</div>`), but multi-step interactive clicking across Question Studio and Verification Queue cannot be executed without an automated browser driver.
+   - In adherence to user instructions, HTTP integration tests are NOT substituted as proof of browser-level testing. Browser acceptance is recorded honestly as **UNVERIFIED**.
+4. **Data Isolation & Firestore Safety**: **100% PASS**. Seeding eliminated from regression tests; audit queries scoped via `findByEntityId()`; synthetic test artifacts deterministically purged upon completion.

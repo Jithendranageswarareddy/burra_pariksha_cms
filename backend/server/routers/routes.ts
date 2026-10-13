@@ -3453,7 +3453,7 @@ apiRouter.get('/ai/status', (req: Request, res: Response) => {
   });
 });
 
-function sanitizeClientOrchestratorOptions(rawOptions: any): { preferredProviderId?: any; timeoutMs?: number } | undefined {
+export function sanitizeClientOrchestratorOptions(rawOptions: any): { preferredProviderId?: any; timeoutMs?: number } | undefined {
   if (!rawOptions || typeof rawOptions !== 'object' || Array.isArray(rawOptions)) {
     return undefined;
   }

@@ -25,7 +25,6 @@ import { questionDraftsRepository } from '../../database/firestore/repositories/
 import { questionsRepository } from '../../database/firestore/repositories/questions.repository';
 import { auditLogRepository } from '../../database/firestore/repositories/audit-log.repository';
 import { UserRole, QuestionStatus } from '../../shared';
-import { firestoreProductionInitializer } from '../../backend/features/recovery/services/firestore-production-initializer.service';
 import { taxonomyService } from '../../backend/domain/taxonomy/services/taxonomy.service';
 
 const UUID_V4_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -82,9 +81,10 @@ async function runS7T19Regression() {
   let approvedQuestionId = '';
 
   try {
-    // 0. Ensure canonical Firestore production data initialized
-    console.log('Ensuring canonical Firestore production data initialized...');
-    await firestoreProductionInitializer.initializeProductionData({ seedTaxonomy: true, seedQuestionConfigs: true });
+    // 0. Verify canonical Firestore production taxonomy is accessible without running mutating seed scripts
+    console.log('Verifying canonical Firestore operational taxonomy accessibility...');
+    const existingTopics = await taxonomyService.getTopics();
+    assert.ok(existingTopics.length > 0, 'Firestore must contain operational topics');
     taxonomyService.invalidateCache();
 
     // =========================================================================
@@ -661,24 +661,25 @@ async function runS7T19Regression() {
     // =========================================================================
     console.log('\n--- Testing S7-T19.10: Audit Ledger Integrity ---');
 
-    // Verify submission audit record exists and has expected fields
-    const allAuditRecords = await auditLogRepository.findAll();
-    const submissionAudit = allAuditRecords.find(
-      (r) => r.entityId === savedDraftId && r.eventType === 'QUESTION_DRAFT_SUBMITTED_FOR_VERIFICATION'
+    // Verify submission audit record exists and has expected fields using entity-scoped query
+    const draftAuditRecords = await auditLogRepository.findByEntityId(savedDraftId);
+    const submissionAudit = draftAuditRecords.find(
+      (r) => r.eventType === 'QUESTION_DRAFT_SUBMITTED_FOR_VERIFICATION'
     );
-    assert.ok(submissionAudit, 'Submission audit event must exist in audit log');
+    assert.ok(submissionAudit, 'Submission audit event must exist in draft audit log');
     assert.strictEqual(submissionAudit.actorId, authorUserId);
     assert.ok(submissionAudit.timestamp);
 
-    // Verify materialization/approval audit record exists for approved question
-    const approvalAudit = allAuditRecords.find(
-      (r) => r.entityId === approvedQuestionId && r.eventType === 'QUESTION_STATUS_CHANGED'
+    // Verify materialization/approval audit record exists for approved question using entity-scoped query
+    const questionAuditRecords = await auditLogRepository.findByEntityId(approvedQuestionId);
+    const approvalAudit = questionAuditRecords.find(
+      (r) => r.eventType === 'QUESTION_STATUS_CHANGED'
     );
-    assert.ok(approvalAudit, 'Approval audit event must exist in audit log');
+    assert.ok(approvalAudit, 'Approval audit event must exist in question audit log');
     assert.strictEqual(approvalAudit.actorId, reviewerUserId);
 
-    // Verify zero secrets/credentials in audit records
-    const auditJson = JSON.stringify(allAuditRecords.filter((r) => r.entityId === savedDraftId || r.entityId === approvedQuestionId));
+    // Verify zero secrets/credentials in synthetic audit records
+    const auditJson = JSON.stringify([...draftAuditRecords, ...questionAuditRecords]);
     assert.strictEqual(auditJson.includes(testPassword), false, 'Audit records must not contain passwords');
     assert.strictEqual(auditJson.includes(authorToken), false, 'Audit records must not contain session tokens');
 
@@ -686,27 +687,51 @@ async function runS7T19Regression() {
       'S7-T19.10',
       'Audit Ledger Integrity & Redaction',
       'PASS',
-      `Audit records verified for submission on ${savedDraftId} and approval on ${approvedQuestionId}; zero secrets logged`
+      `Audit records verified via entity-scoped queries on ${savedDraftId} and ${approvedQuestionId}; zero secrets logged`
     );
 
   } finally {
-    // Clean up test records in Cloud Firestore
+    // Clean up test records and synthetic audit logs in Cloud Firestore
     console.log('\n--- Cleaning up synthetic regression test data ---');
+    const cleanupErrors: string[] = [];
     try {
       if (savedDraftId) {
+        try {
+          const draftAudits = await auditLogRepository.findByEntityId(savedDraftId);
+          for (const a of draftAudits) {
+            await auditLogRepository.delete(a.id);
+          }
+        } catch (e: any) {
+          cleanupErrors.push(`Failed to clean draft audit records: ${e?.message}`);
+        }
         await questionDraftsRepository.delete(savedDraftId);
-        console.log(`Cleaned up draft: ${savedDraftId}`);
+        console.log(`Cleaned up draft: ${savedDraftId} and associated synthetic audit logs`);
       }
       if (approvedQuestionId) {
+        try {
+          const questionAudits = await auditLogRepository.findByEntityId(approvedQuestionId);
+          for (const a of questionAudits) {
+            await auditLogRepository.delete(a.id);
+          }
+        } catch (e: any) {
+          cleanupErrors.push(`Failed to clean question audit records: ${e?.message}`);
+        }
         await questionsRepository.delete(approvedQuestionId);
-        console.log(`Cleaned up question: ${approvedQuestionId}`);
+        console.log(`Cleaned up question: ${approvedQuestionId} and associated synthetic audit logs`);
       }
       if (loginTestUserId) {
         await usersRepository.delete(loginTestUserId);
         console.log(`Cleaned up test user: ${loginTestUserId}`);
       }
-    } catch (cleanupErr) {
-      console.warn('Warning: Non-critical cleanup error:', cleanupErr);
+    } catch (cleanupErr: any) {
+      cleanupErrors.push(`Cleanup error: ${cleanupErr?.message}`);
+    }
+
+    if (cleanupErrors.length > 0) {
+      console.error('Synthetic regression data cleanup encountered errors:', cleanupErrors);
+      throw new Error(`Synthetic regression data cleanup failed: ${cleanupErrors.join('; ')}`);
+    } else {
+      console.log('All synthetic regression test data cleanly removed from Firestore.');
     }
 
     await new Promise<void>((resolve) => server.close(() => resolve()));

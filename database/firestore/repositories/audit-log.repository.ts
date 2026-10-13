@@ -21,11 +21,14 @@ export class AuditLogRepository extends BaseRepository<AuditLog> {
   }
 
   public async findByEntity(entityTypeOrId: string, entityId?: string): Promise<AuditLog[]> {
-    const all = await this.findAll();
-    if (entityId) {
-      return all.filter((l) => (l.entityType === entityTypeOrId && l.entityId === entityId) || l.entityId === entityId);
-    }
-    return all.filter((l) => l.entityId === entityTypeOrId || l.entityType === entityTypeOrId);
+    const targetEntityId = entityId || entityTypeOrId;
+    return this.findByEntityId(targetEntityId);
+  }
+
+  public async findByEntityId(entityId: string): Promise<AuditLog[]> {
+    const r = await this.getRepo();
+    const list = await r.findMany({ where: { entityId } as any });
+    return list as unknown as AuditLog[];
   }
 
   public async logEvent(
