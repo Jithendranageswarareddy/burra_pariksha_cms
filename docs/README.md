@@ -39,17 +39,30 @@ docs/
 
 ## 2. Source-of-Truth Hierarchy & Governance Rules
 
-When technical specifications or descriptions appear in tension across documents, Antigravity and all contributors MUST follow the strict **Source-of-Truth Hierarchy** established in `AGENTS.md`:
+When technical specifications, codebase patterns, or documentation conflict, Antigravity and all contributors MUST follow the strict **Source-of-Truth Hierarchy** established in `AGENTS.md`:
 
-1. **Working Production Code and Automated Tests** — Operational reality and verified runtime behavior.
-2. **Sprint 7 Architecture Baseline** ([docs/sprints/sprint-07/S7-ARCHITECTURE-BASELINE.md](sprints/sprint-07/S7-ARCHITECTURE-BASELINE.md)) — Authoritative structural and modular baseline.
-3. **Active Architecture ADRs & Contracts** — Authoritative domain decisions:
-   - Two-Tier Taxonomy Architecture: [docs/architecture/25-TWO-TIER-TAXONOMY-ARCHITECTURE.md](architecture/25-TWO-TIER-TAXONOMY-ARCHITECTURE.md)
-   - Collision-Resistant UUID Canonical IDs: [docs/architecture/26-COLLISION-RESISTANT-UUID-CANONICAL-ID-ARCHITECTURE.md](architecture/26-COLLISION-RESISTANT-UUID-CANONICAL-ID-ARCHITECTURE.md)
-   - Canonical 15-Step Workflow: [docs/architecture/07-CANONICAL-15-STEP-WORKFLOW.md](architecture/07-CANONICAL-15-STEP-WORKFLOW.md)
-   - Database Architecture: [docs/architecture/12-DATABASE-ARCHITECTURE.md](architecture/12-DATABASE-ARCHITECTURE.md)
-4. **Current Feature Contracts** under `docs/features/`.
-5. **Historical Sprint Documentation** under `docs/sprints/` (Sprint 1 through Sprint 6 logs, past spikes, historical baselines).
+1. **Verified Working Production Code and Automated Tests**: Establish actual runtime behavior and current operational reality.
+2. **Current Authoritative Architecture Documents and Active Architecture Decisions**: Define intended system architecture, structural rules, domain models, and invariants:
+   - Canonical 15-Step Workflow: [07-CANONICAL-15-STEP-WORKFLOW.md](architecture/07-CANONICAL-15-STEP-WORKFLOW.md)
+   - Cloud Firestore Datastore Architecture: [12-DATABASE-ARCHITECTURE.md](architecture/12-DATABASE-ARCHITECTURE.md)
+   - Two-Tier Taxonomy Architecture: [25-TWO-TIER-TAXONOMY-ARCHITECTURE.md](architecture/25-TWO-TIER-TAXONOMY-ARCHITECTURE.md)
+   - Collision-Resistant UUID Canonical IDs: [26-COLLISION-RESISTANT-UUID-CANONICAL-ID-ARCHITECTURE.md](architecture/26-COLLISION-RESISTANT-UUID-CANONICAL-ID-ARCHITECTURE.md)
+   - Active Architecture Decision Log: [DECISION-LOG.md](architecture/DECISION-LOG.md)
+   - Core Architecture Specifications: [04-ARCHITECTURE-PRINCIPLES.md](architecture/04-ARCHITECTURE-PRINCIPLES.md) through [26-COLLISION-RESISTANT-UUID-CANONICAL-ID-ARCHITECTURE.md](architecture/26-COLLISION-RESISTANT-UUID-CANONICAL-ID-ARCHITECTURE.md)
+3. **Current Feature, API, Page, and Operational Contracts**: Define behavior within their respective scopes and must remain strictly consistent with the architecture:
+   - Feature Contracts: [FEATURE-CONTRACT-INDEX.md](features/FEATURE-CONTRACT-INDEX.md) (`FC-001` through `FC-022`)
+   - API Contracts: [15-API-CONTRACT.md](architecture/15-API-CONTRACT.md) and `docs/api/`
+   - Page & Route Contracts: [11-PAGE-ROUTE-CONTRACT.md](architecture/11-PAGE-ROUTE-CONTRACT.md) and `docs/pages/`
+   - Operational Runbooks: [ENVIRONMENT-CONTRACT.md](operations/ENVIRONMENT-CONTRACT.md), [GIT-SYNC-PROTOCOL.md](operations/GIT-SYNC-PROTOCOL.md), [LOCAL-ENVIRONMENT-SETUP.md](operations/LOCAL-ENVIRONMENT-SETUP.md)
+4. **Historical Sprint Records**: Provide provenance, implementation evidence, and audit logs; they must not override current authoritative documents:
+   - Sprint 7 Architecture Baseline ([S7-ARCHITECTURE-BASELINE.md](sprints/sprint-07/S7-ARCHITECTURE-BASELINE.md)): Preserved as an immutable historical structural audit and implementation baseline; it does not outrank current architecture contracts.
+   - Historical Sprint Archives: `docs/sprints/sprint-01/` through `docs/sprints/sprint-07/` (past sprint plans, task reports, forensic inventories, historical spikes).
+
+### Conflict Resolution Axiom: Observed Runtime Behavior vs. Intended Architecture
+When observed runtime behavior or codebase patterns conflict with intended architecture:
+1. **Document the Discrepancy**: Explicitly identify and record the conflict and its scope.
+2. **Preserve Verified Facts**: Do not invent false claims about runtime behavior.
+3. **Follow the Approved Current Architecture**: Implement fixes and align code with the authoritative architecture and contracts rather than silently treating an implementation defect, legacy relic, or unintentional bug as the desired design.
 
 ### Precedence Axiom
 > **Current Architecture ALWAYS Overrides Historical Records.**

@@ -18,16 +18,31 @@
 
 When specifications, codebase patterns, or documentation conflict, Antigravity MUST resolve conflicts using the following strict hierarchy:
 
-1. **Working Production Code and Tests** — Current operational reality and verified runtime behavior.
-2. **Sprint 7 Architecture Baseline** (`docs/sprints/sprint-07/S7-ARCHITECTURE-BASELINE.md`) — Authoritative structural and modular design baseline.
-3. **Active Architecture ADRs** — Authoritative domain-specific decisions:
-   - `docs/architecture/25-TWO-TIER-TAXONOMY-ARCHITECTURE.md` (2-Tier Taxonomy)
-   - `docs/architecture/26-COLLISION-RESISTANT-UUID-CANONICAL-ID-ARCHITECTURE.md` (UUID Entity IDs)
-4. **Feature & Domain Contracts** under `docs/features/`.
-5. **Historical Sprint Documentation** (`docs/sprints/`, past sprint reports, historical spikes).
+1. **Verified Working Production Code and Automated Tests** — Establish actual runtime behavior and current operational reality.
+2. **Current Authoritative Architecture Documents and Active Architecture Decisions** — Define intended system architecture, structural rules, domain models, and invariants:
+   - Architecture Specifications (`docs/architecture/04-*` through `26-*`)
+   - Canonical 15-Step Workflow (`docs/architecture/07-CANONICAL-15-STEP-WORKFLOW.md`)
+   - Cloud Firestore Datastore Architecture (`docs/architecture/12-DATABASE-ARCHITECTURE.md`)
+   - Two-Tier Taxonomy Architecture (`docs/architecture/25-TWO-TIER-TAXONOMY-ARCHITECTURE.md`)
+   - Collision-Resistant UUID Canonical IDs (`docs/architecture/26-COLLISION-RESISTANT-UUID-CANONICAL-ID-ARCHITECTURE.md`)
+   - Active Architecture Decision Log (`docs/architecture/DECISION-LOG.md`)
+3. **Current Feature, API, Page, and Operational Contracts** — Define behavior within their respective scopes and must remain strictly consistent with the architecture:
+   - Feature Contracts (`docs/features/FC-*`, `docs/features/FEATURE-CONTRACT-INDEX.md`)
+   - API Contracts (`docs/architecture/15-API-CONTRACT.md`, `docs/api/`)
+   - Page & Route Contracts (`docs/architecture/11-PAGE-ROUTE-CONTRACT.md`, `docs/pages/`)
+   - Operational Runbooks & Environment Contracts (`docs/operations/ENVIRONMENT-CONTRACT.md`, `docs/operations/GIT-SYNC-PROTOCOL.md`, `docs/operations/LOCAL-ENVIRONMENT-SETUP.md`)
+4. **Historical Sprint Records** — Provide provenance, implementation evidence, and audit logs; they must not override current authoritative documents:
+   - Sprint 7 Architecture Baseline (`docs/sprints/sprint-07/S7-ARCHITECTURE-BASELINE.md`): Preserved as an immutable historical structural audit and implementation baseline, but does not outrank current architecture contracts.
+   - Historical Sprint Archives (`docs/sprints/sprint-01/` through `docs/sprints/sprint-07/`, past sprint reports, historical spikes).
+
+### Conflict Resolution Axiom: Observed Runtime Behavior vs. Intended Architecture
+When observed runtime behavior or codebase patterns conflict with intended architecture:
+1. **Document the Discrepancy**: Explicitly identify and record the conflict and its scope.
+2. **Preserve Verified Facts**: Do not invent false claims about runtime behavior.
+3. **Follow the Approved Current Architecture**: Implement fixes and align code with the authoritative architecture and contracts rather than silently treating an implementation defect, legacy relic, or unintentional bug as the desired design.
 
 > [!CRITICAL]
-> **Historical documents must NEVER override the current architecture.** Never revive an obsolete design merely because an older document, comment, test, or filename still contains it.
+> **Historical documents must NEVER override current architecture.** Never revive an obsolete design (e.g., Google Sheets persistence, Category taxonomy, numeric sequence allocation counters) merely because an older sprint document, comment, test fixture, or filename still mentions it.
 
 ---
 
