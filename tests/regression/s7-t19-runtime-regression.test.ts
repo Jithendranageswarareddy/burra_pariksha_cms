@@ -300,6 +300,28 @@ async function runS7T19Regression() {
     assert.strictEqual(candTextMatches.length, 0, 'AI generation must NOT persist candidate into Firestore');
     recordResult('S7-T19.3', 'Advisory-Only Generation Invariant', 'PASS', 'Candidate remains purely in-memory/transient');
 
+    // 4. Exercise AI failure handling and safe error classification
+    const aiInvalidRes = await fetch(`${baseUrl}/ai/generate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${authorToken}`,
+      },
+      body: JSON.stringify({
+        topicId: 'TOP-QA-01',
+        subtopicId: 'SUB-01',
+        options: {
+          timeoutMs: 1, // Controlled forced timeout
+        },
+      }),
+    });
+    assert.strictEqual(aiInvalidRes.status, 500, 'Forced timeout must return HTTP 500 error');
+    const aiInvalidData = await aiInvalidRes.json();
+    assert.strictEqual(aiInvalidData.code, 'AI_GENERATION_FAILED', 'Error code must be AI_GENERATION_FAILED');
+    const aiInvalidJson = JSON.stringify(aiInvalidData);
+    assert.strictEqual(aiInvalidJson.includes(process.env.GEMINI_API_KEY || 'AIza'), false, 'Zero secrets or API keys leaked in error response');
+    recordResult('S7-T19.3', 'AI Failure & Safe Error Handling', 'PASS', `Controlled forced timeout handled safely with HTTP ${aiInvalidRes.status}; zero secret leakage`);
+
     // =========================================================================
     // S7-T19.4: SAVE DRAFT AND FIRESTORE PERSISTENCE
     // =========================================================================
@@ -626,8 +648,15 @@ async function runS7T19Regression() {
     assert.strictEqual(submissionAudit.actorId, authorUserId);
     assert.ok(submissionAudit.timestamp);
 
+    // Verify materialization/approval audit record exists for approved question
+    const approvalAudit = allAuditRecords.find(
+      (r) => r.entityId === approvedQuestionId && r.eventType === 'QUESTION_STATUS_CHANGED'
+    );
+    assert.ok(approvalAudit, 'Approval audit event must exist in audit log');
+    assert.strictEqual(approvalAudit.actorId, reviewerUserId);
+
     // Verify zero secrets/credentials in audit records
-    const auditJson = JSON.stringify(submissionAudit);
+    const auditJson = JSON.stringify(allAuditRecords.filter((r) => r.entityId === savedDraftId || r.entityId === approvedQuestionId));
     assert.strictEqual(auditJson.includes(testPassword), false, 'Audit records must not contain passwords');
     assert.strictEqual(auditJson.includes(authorToken), false, 'Audit records must not contain session tokens');
 
@@ -635,7 +664,7 @@ async function runS7T19Regression() {
       'S7-T19.10',
       'Audit Ledger Integrity & Redaction',
       'PASS',
-      `Audit record verified for ${savedDraftId}; zero secrets or credentials logged`
+      `Audit records verified for submission on ${savedDraftId} and approval on ${approvedQuestionId}; zero secrets logged`
     );
 
   } finally {

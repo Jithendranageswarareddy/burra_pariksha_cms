@@ -3455,7 +3455,7 @@ apiRouter.get('/ai/status', (req: Request, res: Response) => {
 
 apiRouter.post('/ai/generate', async (req: Request, res: Response) => {
   try {
-    const result = await aiOrchestrator.generateQuestionCandidate(req.body);
+    const result = await aiOrchestrator.generateQuestionCandidate(req.body, req.body.options);
     res.json(result);
   } catch (err: any) {
     const statusCode = err.statusCode || (err.code === 'QUOTA_EXHAUSTED' ? 429 : 500);
