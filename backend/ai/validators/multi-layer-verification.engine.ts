@@ -23,8 +23,6 @@
 
 import { Question, QuestionValidationStatus, QuestionLanguage, normalizeText, calculateJaccardSimilarity } from '../../../shared';
 import { QuestionCreationValidator } from './question-creation.validator';
-import { taxonomyService } from '../../domain/taxonomy/services/taxonomy.service';
-import { questionConfigService } from '../../infrastructure/services/question-config.service';
 import { MathematicalLogicalEngine } from './mathematical-logical.engine';
 import { OptionsValidator } from './options.validator';
 import { ExplanationValidator } from './explanation.validator';
@@ -73,6 +71,13 @@ export interface MultiLayerVerificationOptions {
   };
   generatorModel?: string;
   verifierModel?: string;
+  taxonomyProvider?: {
+    getTopicById(topicId: string): Promise<any>;
+    getSubtopicById(subtopicId: string): Promise<any>;
+  };
+  configProvider?: {
+    getRealLifeContexts(includeInactive?: boolean, forceRefresh?: boolean): Promise<any[]>;
+  };
 }
 
 export interface MultiLayerVerificationReport {
@@ -201,15 +206,15 @@ export class MultiLayerVerificationEngine {
     const l2Warnings: string[] = [];
     let l2Status: VerificationLayerStatus = 'VERIFIED';
 
-    // 2A. Taxonomy lookup (subtopic belongs to topic)
-    if (!options.skipTaxonomyLookup && questionInput.topicId && questionInput.subtopicId) {
+    // 2A. Taxonomy lookup (subtopic belongs to topic via injected taxonomyProvider)
+    if (!options.skipTaxonomyLookup && questionInput.topicId && questionInput.subtopicId && options.taxonomyProvider) {
       try {
-        const topic = await taxonomyService.getTopicById(questionInput.topicId);
+        const topic = await options.taxonomyProvider.getTopicById(questionInput.topicId);
         if (!topic) {
           l2Status = 'FAILED';
           l2Errors.push(`Topic '${questionInput.topicId}' not found in canonical taxonomy.`);
         } else {
-          const subtopic = await taxonomyService.getSubtopicById(questionInput.subtopicId);
+          const subtopic = await options.taxonomyProvider.getSubtopicById(questionInput.subtopicId);
           if (!subtopic) {
             l2Status = 'FAILED';
             l2Errors.push(`Subtopic '${questionInput.subtopicId}' not found in canonical taxonomy.`);
@@ -225,10 +230,10 @@ export class MultiLayerVerificationEngine {
       }
     }
 
-    // 2B. Config Items Validation (inactive context/style)
-    if (questionInput.realLifeContext && questionInput.realLifeContext.toUpperCase() !== 'RANDOM') {
+    // 2B. Config Items Validation (inactive context/style via injected configProvider)
+    if (questionInput.realLifeContext && questionInput.realLifeContext.toUpperCase() !== 'RANDOM' && options.configProvider) {
       try {
-        const contexts = await questionConfigService.getRealLifeContexts(false, true);
+        const contexts = await options.configProvider.getRealLifeContexts(false, true);
         const match = contexts.find(c => c.code.toUpperCase() === (questionInput.realLifeContext || '').toUpperCase() || c.displayLabel.toLowerCase() === (questionInput.realLifeContext || '').toLowerCase());
         if (match && !match.isActive) {
           l2Status = 'FAILED';

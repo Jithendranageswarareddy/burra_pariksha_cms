@@ -9,7 +9,6 @@
 
 import { Question, ValidationResult, ValidationCheckItem, QuestionValidationStatus, ValidationSource, QuestionValidatorProvider } from '../../../shared';
 import { QuestionCreationValidator } from './question-creation.validator';
-import { taxonomyService } from '../../domain/taxonomy/services/taxonomy.service';
 import { OptionsValidator } from './options.validator';
 import { MathematicalLogicalEngine } from './mathematical-logical.engine';
 import { ExplanationValidator } from './explanation.validator';
@@ -20,6 +19,15 @@ import { ConsensusEngine } from './consensus.engine';
 import { SemanticReasoningProvider } from './semantic-reasoning.provider';
 import { MultiLayerVerificationEngine } from './multi-layer-verification.engine';
 
+export interface TaxonomyValidationProvider {
+  getTopicById(topicId: string): Promise<any>;
+  getSubtopicById(subtopicId: string): Promise<any>;
+}
+
+export interface QuestionConfigValidationProvider {
+  getRealLifeContexts(includeInactive?: boolean, forceRefresh?: boolean): Promise<any[]>;
+}
+
 export interface ValidationPipelineOptions {
   providers?: QuestionValidatorProvider[];
   source?: ValidationSource;
@@ -27,6 +35,8 @@ export interface ValidationPipelineOptions {
   skipTaxonomyLookup?: boolean;
   skipDuplicateCheck?: boolean;
   existingQuestions?: Question[];
+  taxonomyProvider?: TaxonomyValidationProvider;
+  configProvider?: QuestionConfigValidationProvider;
 }
 
 export class QuestionValidationEngine {
@@ -105,12 +115,12 @@ export class QuestionValidationEngine {
     }
 
     // =========================================================================
-    // STAGE 2: Taxonomy Validation (reusing Phase 3 taxonomyService)
+    // STAGE 2: Taxonomy Validation (via injected taxonomyProvider)
     // =========================================================================
     let hasTaxonomyError = false;
-    if (!options.skipTaxonomyLookup && question.topicId && question.subtopicId) {
+    if (!options.skipTaxonomyLookup && question.topicId && question.subtopicId && options.taxonomyProvider) {
       try {
-        const topic = await taxonomyService.getTopicById(question.topicId);
+        const topic = await options.taxonomyProvider.getTopicById(question.topicId);
         if (!topic) {
           hasTaxonomyError = true;
           errors.push(`Taxonomy Error: Topic '${question.topicId}' not found in canonical taxonomy.`);
@@ -122,7 +132,7 @@ export class QuestionValidationEngine {
             message: `Topic ID '${question.topicId}' does not exist.`,
           });
         } else {
-          const subtopic = await taxonomyService.getSubtopicById(question.subtopicId);
+          const subtopic = await options.taxonomyProvider.getSubtopicById(question.subtopicId);
           if (!subtopic) {
             hasTaxonomyError = true;
             errors.push(`Taxonomy Error: Subtopic '${question.subtopicId}' not found in canonical taxonomy.`);
@@ -374,6 +384,8 @@ export class QuestionValidationEngine {
       skipTaxonomyLookup: options.skipTaxonomyLookup,
       skipDuplicateCheck: options.skipDuplicateCheck,
       existingQuestions: options.existingQuestions,
+      taxonomyProvider: options.taxonomyProvider,
+      configProvider: options.configProvider,
     });
 
     const realAuthoritativeMath = multiLayerReport.layers['LAYER_4_INDEPENDENT_AI'];

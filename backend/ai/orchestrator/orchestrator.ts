@@ -7,12 +7,12 @@ import { AIProviderRegistry, aiProviderRegistry as defaultRegistry } from './reg
 import { GenerateCandidateInput, GenerationResult, AIProviderOptions } from './types';
 import { DEFAULT_AI_CONFIG } from './config';
 import { classifyAIError, AIProviderError, AIErrorClassification } from '../errors';
-import { questionConfigService, QuestionConfigError } from '../../infrastructure/services/question-config.service';
 import { REAL_LIFE_CONTEXTS } from '../../../shared';
 
 export interface OrchestratorOptions extends AIProviderOptions {
   primaryProviderId?: string;
   fallbackProviderIds?: string[];
+  availableRealLifeContexts?: Array<{ code: string; displayLabel?: string } | string>;
 }
 
 export class AIOrchestrator {
@@ -41,16 +41,17 @@ export class AIOrchestrator {
     const attemptedProviders: string[] = [];
     const errorsEncountered: Array<{ providerId: string; classification: AIErrorClassification; message: string }> = [];
 
-    // Resolve RANDOM / SMART_RANDOM realWorldContext using configured QUESTION_CONFIG catalogue
+    // Resolve RANDOM / SMART_RANDOM realWorldContext using options catalogue or shared REAL_LIFE_CONTEXTS
     const resolvedInput: GenerateCandidateInput = { ...input };
     const ctxVal = resolvedInput.realLifeContext || resolvedInput.realWorldContext;
     if (ctxVal?.toUpperCase() === 'RANDOM' || ctxVal?.toUpperCase() === 'SMART_RANDOM') {
-      const activeContexts = await questionConfigService.getRealLifeContexts(true);
+      const activeContexts = options?.availableRealLifeContexts || REAL_LIFE_CONTEXTS;
       if (!activeContexts || activeContexts.length === 0) {
-        throw new QuestionConfigError('QUESTION_CONFIG contains no active Real-Life Contexts for RANDOM resolution.');
+        throw new AIProviderError('No active Real-Life Contexts available for RANDOM resolution.', 'orchestrator', 'default', 'INVALID_REQUEST', false, 400);
       }
       const randIdx = Math.floor(Math.random() * activeContexts.length);
-      const chosenCtx = activeContexts[randIdx].displayLabel || activeContexts[randIdx].code;
+      const chosenItem = activeContexts[randIdx];
+      const chosenCtx = typeof chosenItem === 'string' ? chosenItem : (chosenItem.displayLabel || chosenItem.code);
       resolvedInput.realWorldContext = chosenCtx;
       resolvedInput.realLifeContext = chosenCtx;
     }

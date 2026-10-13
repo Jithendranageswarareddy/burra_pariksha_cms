@@ -50,17 +50,17 @@ BP-CMS establishes 10 canonical architectural layers. These represent permanent 
 
 ### 3.1 Scope & Responsibilities
 The **FRONTEND** layer encompasses all client-side code executed in the browser:
-- React pages (\`src/pages/\`) and feature modules (\`frontend/features/*\`)
-- Reusable UI components (\`src/components/\`, \`src/design-system/\`)
-- Client React contexts and state providers (\`AuthContext\`, \`NavigationContext\`)
+- React pages (\`frontend/pages/\`, migrated from historical \`src/pages/\`)
+- Reusable UI components (\`frontend/components/\`, \`frontend/design-system/\`, migrated from historical \`src/components/\`)
+- Client React contexts and state providers (\`frontend/contexts/\`: \`AuthContext\`, \`NavigationContext\`)
 - Client-side routing (\`App.tsx\`, React Router v7)
 - Presentation-only formatting and UX validation (e.g., instant field presence, character counters)
-- Strongly typed HTTP API client adapters (\`apiClient\`)
+- Strongly typed HTTP API client adapters (\`frontend/lib/api-client.ts\`, migrated from historical \`src/lib/api-client.ts\`)
 
 ### 3.2 Allowed Dependencies
 The Frontend **MAY** import:
-- The centralized API client (\`src/lib/api-client.ts\` or feature-scoped API clients)
-- Shared contracts, types, and DTOs (\`src/types/*\`, \`shared/types/*\`)
+- The centralized API client (\`frontend/lib/api-client.ts\` or feature-scoped API clients)
+- Shared contracts, types, and DTOs (\`shared/\`, \`shared/types/*\`, and isomorphic \`src/types/*\` shims)
 - Shared constants and domain enums (\`QuestionStatus\`, \`VideoProductionStatus\`, \`DifficultyLevel\`)
 - Frontend utilities and design system primitives (\`lucide-react\`, \`motion\`, Tailwind utilities)
 
@@ -118,7 +118,7 @@ The Backend is **AUTHORITATIVE** for:
 ### 5.2 Architectural Rules
 1. **No Direct Bypass**: The browser must never bypass the API gateway. Direct client database access or client-side LLM API access is prohibited.
 2. **Feature-Oriented API Client Functions**: Frontend components must call clean, named functions on the API client (e.g., \`apiClient.saveQuestionDraft(payload)\`) rather than making ad-hoc \`fetch()\` calls with raw URLs.
-3. **Decomposition Mandate**: The existing 7,329-line monolithic router (\`src/server/routes.ts\`) will be decomposed into feature-scoped routers (\`questions.router.ts\`, \`production.router.ts\`, \`recovery.router.ts\`) mounted by a central Express app.
+3. **Decomposition & Organization**: The historical monolithic router (\`src/server/routes.ts\`, now canonically located at \`backend/server/routers/routes.ts\`) is bounded to HTTP dispatch, delegating domain logic to backend services and repositories. All requests are validated using canonical schemas in \`backend/server/validation/request-schemas.ts\`.
 
 ---
 
@@ -126,9 +126,9 @@ The Backend is **AUTHORITATIVE** for:
 
 ### 6.1 Scope & Responsibilities
 The **DATABASE** layer is pure persistence infrastructure:
-- Cloud Firestore Admin SDK connection and configuration (\`src/lib/firebase/admin.ts\`)
-- Entity repositories (\`src/lib/repositories/*\`) performing CRUD, filtering, pagination, and atomic batch writes
-- Canonical collection constants and schema contracts (\`domain-schemas.ts\`)
+- Cloud Firestore Admin SDK connection and configuration (\`database/firestore/adapter/admin.ts\`, with historical \`src/lib/firebase/admin.ts\` re-export)
+- Entity repositories (\`database/firestore/repositories/*\`) performing CRUD, filtering, pagination, and atomic batch writes
+- Canonical collection constants and schema contracts
 - Cloud Firestore security rules (\`firestore.rules\`)
 - Persistence utilities, seed scripts, and disaster recovery backup exporters
 
@@ -149,10 +149,11 @@ The **DATABASE** layer is pure persistence infrastructure:
 
 ### 7.1 Scope & Privileges
 The **AI** layer is a specialized server-side capability:
-- Gemini LLM provider adapters (\`src/lib/ai/gemini.service.ts\`, \`@google/genai\`)
-- Domain-specific prompt templates (\`generation.prompt.ts\`, \`explanation.prompt.ts\`, \`thumbnail.prompt.ts\`)
-- AI structured response schemas and repair parsers
-- Algorithmic output validators and pedagogical scoring engines
+- Gemini LLM provider adapters (\`backend/ai/providers/gemini.service.ts\`, \`@google/genai\`)
+- Domain-specific prompt templates (\`backend/ai/prompts/*\`)
+- AI structured response schemas and repair parsers (\`backend/ai/schemas/*\`)
+- Algorithmic output validators and pedagogical scoring engines (\`backend/ai/validators/*\`)
+- Provider-neutral AI orchestrator (\`backend/ai/orchestrator/ai-orchestrator.service.ts\`)
 
 ### 7.2 Human-in-the-Loop Principle (AP-009)
 AI is strictly **ADVISORY**:
@@ -172,7 +173,7 @@ The **WORKFLOW** layer governs the immutable lifecycle of all educational assets
 $$\text{Stage 01: Ideation} \longrightarrow \text{Stage 02: Verification} \longrightarrow \dots \longrightarrow \text{Stage 15: Social Intelligence}$$
 
 ### 8.2 Operational Rules
-1. **Centralized Authority**: All state transitions are validated by \`src/lib/workflow/workflow-engine.service.ts\`.
+1. **Centralized Authority**: All state transitions are validated by the backend workflow engine (\`backend/infrastructure/workflow/services/workflow-engine.service.ts\`).
 2. **Anti-Self Approval (GAR-02)**: Authors cannot approve their own work (\`authorId !== reviewerId\`).
 3. **Role Enforcement**: Every stage requires specific role capabilities (e.g., \`QUESTION:APPROVE\`, \`VIDEO:PUBLISH\`).
 4. **Audit Trail**: Every workflow progression or rejection produces an immutable audit record in \`audit_logs\`.
@@ -506,11 +507,11 @@ All remaining tasks in Sprint 7 must obey these **TEN COMMANDMENTS OF MIGRATION*
 
 ## 25. Architectural Enforcement & Automated Quality Gates
 
-To prevent future boundary degradation, Sprint 7 will establish automated architecture lint rules:
-- **Rule A (No Frontend Backend Imports)**: Lint check fails if any file in \`src/pages/\` or \`src/components/\` imports from \`src/lib/services/\`, \`src/lib/repositories/\`, or \`firebase-admin\`.
-- **Rule B (No Frontend AI Validator Imports)**: Lint check fails if client code imports from \`src/lib/ai/validators/\`.
-- **Rule C (No Shared Infrastructure Imports)**: Lint check fails if any file in \`src/types/\` imports \`express\`, \`react\`, or \`firebase-admin\`.
-- **Rule D (No Test Production Imports)**: Lint check fails if production source imports from \`tests/\`.
+To prevent boundary degradation, Sprint 7 enforces automated architecture quality gates:
+- **Rule A (No Frontend Backend Imports)**: Lint/test check fails if any file in \`frontend/pages/\` or \`frontend/components/\` imports from \`backend/infrastructure/services/\`, \`database/firestore/repositories/\`, or \`firebase-admin\`. Verified by \`tests/s7-frontend-backend-boundary.test.ts\`.
+- **Rule B (No Frontend AI Validator Imports)**: Lint/test check fails if client code imports from \`backend/ai/validators/\` or provider SDKs (\`@google/genai\`). Verified by \`tests/s7-t09-ai-boundary.test.ts\`.
+- **Rule C (No Shared Infrastructure Imports)**: Lint/test check fails if any contract in \`shared/\` imports \`express\`, \`react\`, or \`firebase-admin\`. Verified by \`tests/fc-005-shared-contract.test.ts\`.
+- **Rule D (No Test Production Imports)**: Lint check fails if production source imports from \`tests/\`. Verified by \`tests/s7-frontend-backend-boundary.test.ts\`.
 
 ---
 
@@ -526,20 +527,20 @@ When resolving ambiguities or contradictions during Sprint 7 migration:
 
 ---
 
-## 27. Acknowledged Current Legacy Violations (Technical Debt Ledger)
+## 27. Sprint 7 Initial Technical Debt Ledger & Verified Resolution Status
 
-The following violations documented in S7-T01 are formally acknowledged as technical debt to be resolved systematically in Sprint 7 tasks:
+The following violations documented at the start of Sprint 7 (in S7-T01 inventory) have been systematically tracked and resolved across S7-T01 through S7-T09:
 
-| Known Legacy Violation | Location | Scheduled Resolution Task |
-|:---|:---|:---|
-| **Direct AI Validator Import in Client** | \`src/pages/QuestionStudioPage.tsx:52-53\` | **S7-T03** (Question Generation Slice) |
-| **Direct AI Validator Import in Detail** | \`src/pages/QuestionDetailPage.tsx:37\`, \`QuestionImprovePage.tsx:29\` | **S7-T03** (Question Generation Slice) |
-| **Save / Verify Forced Navigation Coupling** | \`src/pages/QuestionStudioPage.tsx:886-945\` | **S7-T03** (Question Generation Slice) |
-| **Backend Service Import in Publishing UI** | \`src/components/publishing/PublishingTable.tsx:35\` | **S7-T04** (Production & Publishing Slice) |
-| **Backend Service Type Imports in UI** | \`PlanningPage.tsx\`, \`SettingsPage.tsx\`, \`ContentMasterPage.tsx\` | **S7-T05** (Planning & Operations Slice) |
-| **Monolithic 7,329-Line Router** | \`src/server/routes.ts\` | **S7-T06** (API Router Modularization) |
-| **Monolithic 3,237-Line Type File** | \`src/types/index.ts\` | **S7-T07** (Shared Contracts Modularization) |
-| **Monolithic 1,708-Line API Client** | \`src/lib/api-client.ts\` | **S7-T08** (API Client Modularization) |
+| Known Legacy Violation | Historical Location | Resolution Status | Verified Implementation |
+|:---|:---|:---|:---|
+| **Direct AI Validator Import in Client** | \`src/pages/QuestionStudioPage.tsx:52-53\` | **RESOLVED (S7-T03)** | Migrated to API client calls; zero AI imports in \`frontend/pages/QuestionStudioPage.tsx\` |
+| **Direct AI Validator Import in Detail** | \`src/pages/QuestionDetailPage.tsx:37\`, \`QuestionImprovePage.tsx:29\` | **RESOLVED (S7-T03)** | Validation routed through API endpoint \`/api/questions/:id/validate\` |
+| **Save / Verify Forced Navigation Coupling** | \`src/pages/QuestionStudioPage.tsx:886-945\` | **RESOLVED (S7-T03)** | "Save Draft" persists to \`question_drafts\` with in-place toast; verification is a distinct user action |
+| **Backend Service Import in Publishing UI** | \`src/components/publishing/PublishingTable.tsx:35\` | **RESOLVED (S7-T04)** | Migrated to \`frontend/components/publishing/PublishingTable.tsx\` calling \`apiClient\` |
+| **Backend Service Type Imports in UI** | \`PlanningPage.tsx\`, \`SettingsPage.tsx\`, \`ContentMasterPage.tsx\` | **RESOLVED (S7-T04/T05)** | Migrated to canonical types in \`shared/types/\` |
+| **Monolithic Router Architecture** | \`src/server/routes.ts\` | **RESOLVED (S7-T06/T07)** | Bounded to \`backend/server/routers/routes.ts\` with Firestore authority and neutral AI orchestrator |
+| **Monolithic Type Definitions** | \`src/types/index.ts\` | **RESOLVED (S7-T08)** | Canonical types extracted to isomorphic \`shared/\` with backwards-compatible shims |
+| **Monolithic API Client** | \`src/lib/api-client.ts\` | **RESOLVED (S7-T05/T08)** | Canonically located at \`frontend/lib/api-client.ts\` with typed feature methods |
 
 ---
 

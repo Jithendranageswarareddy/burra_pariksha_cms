@@ -12,9 +12,9 @@
 import { questionsRepository } from '../../../../database/firestore/repositories/questions.repository';
 import { questionDraftsRepository } from '../../../../database/firestore/repositories/question-drafts.repository';
 import { validationsRepository } from '../../../../database/firestore/repositories/validations.repository';
-import { auditService } from '../../../infrastructure/audit/services/audit.service';
+import { auditService, taxonomyService, questionConfigService } from '../../../infrastructure/services';
 import { questionDraftService } from '../../question-generation/services/question-draft.service';
-import { QuestionValidationEngine, ValidationPipelineOptions } from '../../../ai/validators';
+import { QuestionValidationEngine, ValidationPipelineOptions } from '../../../ai';
 import { Question, QuestionStatus, ValidationResult, QuestionValidationStatus } from '../../../../shared';
 
 export interface ValidationActor {
@@ -82,8 +82,10 @@ export class QuestionValidationService {
 
     const existingQuestions = pipelineOptions.existingQuestions || (pipelineOptions.skipDuplicateCheck ? [] : await questionsRepository.findAll());
 
-    // Run the full validation engine
+    // Run the full validation engine with injected domain and config providers
     const result = await QuestionValidationEngine.validate(question, {
+      taxonomyProvider: taxonomyService,
+      configProvider: questionConfigService,
       ...pipelineOptions,
       existingQuestions,
       actor: actorName,

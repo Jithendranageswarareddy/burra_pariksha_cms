@@ -11,7 +11,7 @@
 ## 1. Executive Summary & Repository Baseline
 
 ### 1.1 Git Working Tree Baseline
-- **Total Tracked Files Reconciled**: **671 files** (Verified against git ls-files)
+- **Total Tracked Files Reconciled**: **672 files** (Verified against git ls-files)
 - **Branch**: main
 - **Authoritative Datastore**: Cloud Firestore (Zero Google Sheets runtime persistence)
 - **Architecture Model**: Vertical Feature Slices with Unidirectional Dependency Flow
@@ -22,14 +22,14 @@
 | backend/ | 173 | Backend domain services, routes, middleware, validation |
 | frontend/ | 170 | React presentation components, pages, design system tokens |
 | features/ | 75 | Vertical feature scaffolding (.gitkeep targets) |
-| docs/ | 70 | Authoritative architecture specs, contracts, ADRs, sprint reports |
+| docs/ | 71 | Authoritative architecture specs, contracts, ADRs, sprint reports |
 | database/ | 48 | Cloud Firestore adapter, repositories, security rules |
 | src/ | 47 | Internal shims, legacy types, static configs, audit dispatchers |
 | tests/ | 37 | Automated regression test suites and quality gates |
 | shared/ | 27 | Isomorphic contracts, types, enums, canonical ID service |
 | Root (/) | 17 | Project configuration and build tooling |
 | scripts/ | 7 | Developer CLI and diagnostic tools |
-| **Total** | **671** | **Complete repository inventory** |
+| **Total** | **672** | **Complete repository inventory** |
 
 ### 1.3 Primary Architectural Classification Breakdown
 `
@@ -37,7 +37,7 @@
   BACKEND         : 105 files  (15.6%)
   FEATURE_SCAFFOLD:  75 files  (11.2%)
   AI              :  74 files  (11.0%)
-  DOCUMENTATION   :  70 files  (10.4%)
+  DOCUMENTATION   :  71 files  (10.6%)
   DATABASE        :  51 files  ( 7.6%)
   TEST            :  37 files  ( 5.5%)
   SHARED          :  28 files  ( 4.2%)
@@ -46,7 +46,7 @@
   SCRIPT          :   7 files  ( 1.0%)
   AUDIT           :   4 files  ( 0.6%)
   -----------------------------------------
-  TOTAL           : 671 files  (100.0%)
+  TOTAL           : 672 files  (100.0%)
 `
 
 ---
@@ -238,13 +238,13 @@ The following manifest records all 671 tracked files in Burra Pariksha CMS, acco
 | backend/server/validation/request-schemas.ts | Authoritative Zod HTTP request validation schemas | Backend Request Validation | Universal API Input Validation | zod, shared contracts | Validation middleware, routers, backend services | backend/server/validation/request-schemas.ts | **BACKEND** | HIGH | Canonical HTTP request validation |
 | bun.lock | Root build tool config, package manager lock, container definition | Project Configuration / Environment | Build & Runtime Tooling | None (Self-contained) | Build system, runtime container | bun.lock | **CONFIGURATION** | MEDIUM | Root build / configuration file |
 | database/firestore/adapter/admin.ts | Firebase Admin SDK initialization, connection pooling, ADC credentials | Database Driver Adapter | Firestore Low-Level Driver | firebase-admin | Firestore repositories | database/firestore/adapter/admin.ts | **DATABASE** | CRITICAL | Sole datastore connection adapter |
-| database/firestore/adapter/errors.ts | Firebase Admin SDK initialization, connection pooling, ADC credentials | Database Driver Adapter | Firestore Low-Level Driver | firebase-admin | Firestore repositories | database/firestore/adapter/errors.ts | **DATABASE** | CRITICAL | Sole datastore connection adapter |
-| database/firestore/adapter/firestore.repository.ts | Firebase Admin SDK initialization, connection pooling, ADC credentials | Database Driver Adapter | Firestore Low-Level Driver | firebase-admin | Firestore repositories | database/firestore/adapter/firestore.repository.ts | **DATABASE** | CRITICAL | Sole datastore connection adapter |
-| database/firestore/adapter/index.ts | Firebase Admin SDK initialization, connection pooling, ADC credentials | Database Driver Adapter | Firestore Low-Level Driver | firebase-admin | Firestore repositories | database/firestore/adapter/index.ts | **DATABASE** | CRITICAL | Sole datastore connection adapter |
-| database/firestore/initialization/firestore-production-initializer.ts | Database module exports and utility helpers | Database Layer | Persistence Abstraction | Firestore adapter | Backend services | database/firestore/initialization/firestore-production-initializer.ts | **DATABASE** | HIGH | Database subsystem barrel |
-| database/firestore/initialization/index.ts | Database module exports and utility helpers | Database Layer | Persistence Abstraction | Firestore adapter | Backend services | database/firestore/initialization/index.ts | **DATABASE** | HIGH | Database subsystem barrel |
-| database/firestore/migrations/firestore-migration.ts | Database module exports and utility helpers | Database Layer | Persistence Abstraction | Firestore adapter | Backend services | database/firestore/migrations/firestore-migration.ts | **DATABASE** | HIGH | Database subsystem barrel |
-| database/firestore/migrations/index.ts | Database module exports and utility helpers | Database Layer | Persistence Abstraction | Firestore adapter | Backend services | database/firestore/migrations/index.ts | **DATABASE** | HIGH | Database subsystem barrel |
+| database/firestore/adapter/errors.ts | Standardized Firestore error handling, diagnostic serialization, and FirestoreErrorInfo contract | Database Error Handling | Firestore Diagnostic Infrastructure | None | Firestore repositories | database/firestore/adapter/errors.ts | **DATABASE** | HIGH | Standardized error serialization |
+| database/firestore/adapter/firestore.repository.ts | Base Firestore repository implementation with CRUD, querying, batch writing, and error serialization | Database Persistence Base | Persistence Abstraction | firebase-admin, Firestore adapter | Entity repositories | database/firestore/adapter/firestore.repository.ts | **DATABASE** | HIGH | Reusable persistence base |
+| database/firestore/adapter/index.ts | Firestore adapter barrel export aggregating admin connection, errors, and base repository | Database Adapter Barrel | Adapter Entry Point | Adapter internals | Domain repositories | database/firestore/adapter/index.ts | **DATABASE** | HIGH | Canonical adapter entry point |
+| database/firestore/initialization/firestore-production-initializer.ts | Production Firestore collection initializer and idempotent collection validator | Database Initialization | System Bootstrapping | Firestore adapter, schemas | Server boot, seed scripts | database/firestore/initialization/firestore-production-initializer.ts | **DATABASE** | HIGH | Idempotent datastore bootstrap |
+| database/firestore/initialization/index.ts | Initialization barrel export for collection bootstrapping | Database Initialization Barrel | Bootstrapping Entry Point | Initializer service | Server boot, seed scripts | database/firestore/initialization/index.ts | **DATABASE** | HIGH | Initialization entry point |
+| database/firestore/migrations/firestore-migration.ts | Database migration runner executing collection upgrades and schema backfills | Database Migration | Schema Evolution | Firestore adapter | Admin tools, deployment CLI | database/firestore/migrations/firestore-migration.ts | **DATABASE** | HIGH | Production schema migrations |
+| database/firestore/migrations/index.ts | Migration barrel export aggregating schema migration runners | Database Migration Barrel | Migration Entry Point | Migration runners | Admin tools | database/firestore/migrations/index.ts | **DATABASE** | HIGH | Migration entry point |
 | database/firestore/repositories/analytics.repository.ts | Firestore collections CRUD operations, OCC transactions, atomic batches | Database Persistence | Authoritative Datastore Repositories | Firestore adapter, shared contracts | Backend domain and feature services | database/firestore/repositories/analytics.repository.ts | **DATABASE** | HIGH | Transactional Firestore repository |
 | database/firestore/repositories/assignments.repository.ts | Firestore collections CRUD operations, OCC transactions, atomic batches | Database Persistence | Authoritative Datastore Repositories | Firestore adapter, shared contracts | Backend domain and feature services | database/firestore/repositories/assignments.repository.ts | **DATABASE** | HIGH | Transactional Firestore repository |
 | database/firestore/repositories/audit-log.repository.ts | Firestore collections CRUD operations, OCC transactions, atomic batches | Database Persistence | Authoritative Datastore Repositories | Firestore adapter, shared contracts | Backend domain and feature services | database/firestore/repositories/audit-log.repository.ts | **DATABASE** | HIGH | Transactional Firestore repository |
@@ -281,10 +281,10 @@ The following manifest records all 671 tracked files in Burra Pariksha CMS, acco
 | database/firestore/repositories/videos.repository.ts | Firestore collections CRUD operations, OCC transactions, atomic batches | Database Persistence | Authoritative Datastore Repositories | Firestore adapter, shared contracts | Backend domain and feature services | database/firestore/repositories/videos.repository.ts | **DATABASE** | HIGH | Transactional Firestore repository |
 | database/firestore/repositories/workflow.repository.ts | Firestore collections CRUD operations, OCC transactions, atomic batches | Database Persistence | Authoritative Datastore Repositories | Firestore adapter, shared contracts | Backend domain and feature services | database/firestore/repositories/workflow.repository.ts | **DATABASE** | HIGH | Transactional Firestore repository |
 | database/firestore/rules/firestore.rules | Firestore security rules & defensive client denial | Database Security | Datastore Security Rules | None (Declarative) | Firestore security engine | database/firestore/rules/firestore.rules | **DATABASE** | HIGH | Defensive security rules |
-| database/firestore/schemas/domain-schemas.ts | Database module exports and utility helpers | Database Layer | Persistence Abstraction | Firestore adapter | Backend services | database/firestore/schemas/domain-schemas.ts | **DATABASE** | HIGH | Database subsystem barrel |
-| database/firestore/schemas/index.ts | Database module exports and utility helpers | Database Layer | Persistence Abstraction | Firestore adapter | Backend services | database/firestore/schemas/index.ts | **DATABASE** | HIGH | Database subsystem barrel |
-| database/firestore/utilities/firestore-converters.ts | Database module exports and utility helpers | Database Layer | Persistence Abstraction | Firestore adapter | Backend services | database/firestore/utilities/firestore-converters.ts | **DATABASE** | HIGH | Database subsystem barrel |
-| database/firestore/utilities/index.ts | Database module exports and utility helpers | Database Layer | Persistence Abstraction | Firestore adapter | Backend services | database/firestore/utilities/index.ts | **DATABASE** | HIGH | Database subsystem barrel |
+| database/firestore/schemas/domain-schemas.ts | Authoritative Firestore collection schemas, document field constraints, and persistence types | Database Schemas | Data Contract Enforcement | shared contracts | Repositories, migration tools | database/firestore/schemas/domain-schemas.ts | **DATABASE** | HIGH | Authoritative collection schemas |
+| database/firestore/schemas/index.ts | Database schemas barrel export | Database Schema Barrel | Schema Entry Point | Domain schemas | Repositories | database/firestore/schemas/index.ts | **DATABASE** | HIGH | Schema barrel entry point |
+| database/firestore/utilities/firestore-converters.ts | FirestoreDataConverter implementations for DocumentData to domain entity serialization | Database Utilities | Data Type Conversion | firebase-admin, shared contracts | Repositories | database/firestore/utilities/firestore-converters.ts | **DATABASE** | HIGH | Typed document converters |
+| database/firestore/utilities/index.ts | Database utilities barrel export | Database Utility Barrel | Utility Entry Point | Converter functions | Repositories | database/firestore/utilities/index.ts | **DATABASE** | HIGH | Utilities barrel entry point |
 | docs/ENVIRONMENT-CONTRACT.md | Architecture specs, ADRs, feature contracts, sprint reports | Documentation | Architecture & Specifications | None (Markdown) | Engineering team & AI agents | docs/ENVIRONMENT-CONTRACT.md | **DOCUMENTATION** | LOW | Authoritative engineering doc |
 | docs/api/.gitkeep | Architecture specs, ADRs, feature contracts, sprint reports | Documentation | Architecture & Specifications | None (Markdown) | Engineering team & AI agents | docs/api/.gitkeep | **DOCUMENTATION** | LOW | Authoritative engineering doc |
 | docs/architecture/04-ARCHITECTURE-PRINCIPLES.md | Architecture specs, ADRs, feature contracts, sprint reports | Documentation | Architecture & Specifications | None (Markdown) | Engineering team & AI agents | docs/architecture/04-ARCHITECTURE-PRINCIPLES.md | **DOCUMENTATION** | LOW | Authoritative engineering doc |
@@ -351,6 +351,7 @@ The following manifest records all 671 tracked files in Burra Pariksha CMS, acco
 | docs/pages/.gitkeep | Architecture specs, ADRs, feature contracts, sprint reports | Documentation | Architecture & Specifications | None (Markdown) | Engineering team & AI agents | docs/pages/.gitkeep | **DOCUMENTATION** | LOW | Authoritative engineering doc |
 | docs/requirements/02-BUSINESS-ACCEPTANCE-CRITERIA.md | Architecture specs, ADRs, feature contracts, sprint reports | Documentation | Architecture & Specifications | None (Markdown) | Engineering team & AI agents | docs/requirements/02-BUSINESS-ACCEPTANCE-CRITERIA.md | **DOCUMENTATION** | LOW | Authoritative engineering doc |
 | docs/sprints/sprint-07/S7-ARCHITECTURE-BASELINE.md | Architecture specs, ADRs, feature contracts, sprint reports | Documentation | Architecture & Specifications | None (Markdown) | Engineering team & AI agents | docs/sprints/sprint-07/S7-ARCHITECTURE-BASELINE.md | **DOCUMENTATION** | LOW | Authoritative engineering doc |
+| docs/sprints/sprint-07/S7-REMEDIATION-ACCEPTANCE-REPORT.md | Sprint 7 findings remediation and acceptance evidence report | Documentation | Architecture & Acceptance Audit | None (Markdown) | Engineering team & AI agents | docs/sprints/sprint-07/S7-REMEDIATION-ACCEPTANCE-REPORT.md | **DOCUMENTATION** | LOW | Authoritative engineering doc |
 | docs/sprints/sprint-07/S7-T01-REPOSITORY-FORENSIC-INVENTORY.md | Architecture specs, ADRs, feature contracts, sprint reports | Documentation | Architecture & Specifications | None (Markdown) | Engineering team & AI agents | docs/sprints/sprint-07/S7-T01-REPOSITORY-FORENSIC-INVENTORY.md | **DOCUMENTATION** | LOW | Authoritative engineering doc |
 | docs/sprints/sprint-07/S7-T07-DATABASE-SEPARATION.md | Architecture specs, ADRs, feature contracts, sprint reports | Documentation | Architecture & Specifications | None (Markdown) | Engineering team & AI agents | docs/sprints/sprint-07/S7-T07-DATABASE-SEPARATION.md | **DOCUMENTATION** | LOW | Authoritative engineering doc |
 | docs/sprints/sprint-07/S7-T08-SHARED-CONTRACTS.md | Architecture specs, ADRs, feature contracts, sprint reports | Documentation | Architecture & Specifications | None (Markdown) | Engineering team & AI agents | docs/sprints/sprint-07/S7-T08-SHARED-CONTRACTS.md | **DOCUMENTATION** | LOW | Authoritative engineering doc |

@@ -394,6 +394,109 @@ async function runTests() {
     failed++;
   }
 
+  // 14. Zero Domain Dependencies in backend/ai (Strict Subsystem Independence)
+  try {
+    const scanDirForPattern = (dir: string, pattern: RegExp): string[] => {
+      let results: string[] = [];
+      const list = fs.readdirSync(dir);
+      for (const file of list) {
+        const fullPath = path.join(dir, file);
+        const stat = fs.statSync(fullPath);
+        if (stat.isDirectory()) {
+          results = results.concat(scanDirForPattern(fullPath, pattern));
+        } else if (file.endsWith('.ts') || file.endsWith('.tsx')) {
+          const content = fs.readFileSync(fullPath, 'utf-8');
+          if (pattern.test(content)) {
+            results.push(fullPath);
+          }
+        }
+      }
+      return results;
+    };
+
+    const domainLeaks = scanDirForPattern('backend/ai', /from\s+['"][^'"]*(?:domain\/|\/domain)/);
+    assert.strictEqual(
+      domainLeaks.length,
+      0,
+      `backend/ai must have ZERO imports from backend/domain. Leaks: ${domainLeaks.join(', ')}`
+    );
+
+    console.log('✓ TC-AI-14 PASSED: Entire backend/ai has ZERO dependencies on backend/domain.');
+    passed++;
+  } catch (err: any) {
+    console.error('✗ TC-AI-14 FAILED:', err.message);
+    failed++;
+  }
+
+  // 15. Zero Infrastructure Dependencies in backend/ai (Strict Subsystem Independence)
+  try {
+    const scanDirForPattern = (dir: string, pattern: RegExp): string[] => {
+      let results: string[] = [];
+      const list = fs.readdirSync(dir);
+      for (const file of list) {
+        const fullPath = path.join(dir, file);
+        const stat = fs.statSync(fullPath);
+        if (stat.isDirectory()) {
+          results = results.concat(scanDirForPattern(fullPath, pattern));
+        } else if (file.endsWith('.ts') || file.endsWith('.tsx')) {
+          const content = fs.readFileSync(fullPath, 'utf-8');
+          if (pattern.test(content)) {
+            results.push(fullPath);
+          }
+        }
+      }
+      return results;
+    };
+
+    const infraLeaks = scanDirForPattern('backend/ai', /from\s+['"][^'"]*(?:infrastructure\/|\/infrastructure)/);
+    assert.strictEqual(
+      infraLeaks.length,
+      0,
+      `backend/ai must have ZERO imports from backend/infrastructure. Leaks: ${infraLeaks.join(', ')}`
+    );
+
+    console.log('✓ TC-AI-15 PASSED: Entire backend/ai has ZERO dependencies on backend/infrastructure.');
+    passed++;
+  } catch (err: any) {
+    console.error('✗ TC-AI-15 FAILED:', err.message);
+    failed++;
+  }
+
+  // 16. Zero Concrete AI Provider Imports in Express Routers
+  try {
+    const routesFile = path.resolve('backend/server/routers/routes.ts');
+    assert(fs.existsSync(routesFile), 'routes.ts must exist');
+    const content = fs.readFileSync(routesFile, 'utf-8');
+
+    const hasConcreteClient = /import\s+.*(?:geminiClient|geminiService).*\s+from/i.test(content);
+    assert(!hasConcreteClient, 'routes.ts must NOT directly import geminiClient or concrete provider services');
+
+    console.log('✓ TC-AI-16 PASSED: Express routes depend strictly on neutral aiOrchestrator abstraction.');
+    passed++;
+  } catch (err: any) {
+    console.error('✗ TC-AI-16 FAILED:', err.message);
+    failed++;
+  }
+
+  // 17. Question Verification Imports from Authoritative AI Boundary
+  try {
+    const qvFile = path.resolve('backend/features/question-verification/services/question-validation.service.ts');
+    assert(fs.existsSync(qvFile), 'question-validation.service.ts must exist');
+    const content = fs.readFileSync(qvFile, 'utf-8');
+
+    const reachesIntoSubfolder = /from\s+['"][^'"]*ai\/validators['"]/i.test(content);
+    assert(!reachesIntoSubfolder, 'question-validation.service.ts must NOT reach into internal ai/validators subfolder');
+
+    const usesCanonicalBoundary = /from\s+['"][^'"]*\/ai['"]/i.test(content);
+    assert(usesCanonicalBoundary, 'question-validation.service.ts must import from canonical backend/ai boundary');
+
+    console.log('✓ TC-AI-17 PASSED: Question verification service imports cleanly from canonical backend/ai entry point.');
+    passed++;
+  } catch (err: any) {
+    console.error('✗ TC-AI-17 FAILED:', err.message);
+    failed++;
+  }
+
   console.log('\n============================================================');
   console.log(`S7-T09 TEST RESULTS: ${passed} PASSED, ${failed} FAILED`);
   console.log('============================================================\n');

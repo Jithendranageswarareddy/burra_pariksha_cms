@@ -284,6 +284,21 @@ export class AIOrchestrationService {
     return this.registry.getConfiguredProviders().length > 0 || aiProviderRegistry.getEnabledProviders().length > 0;
   }
 
+  public getModelName(): string {
+    const provider = this.getDelegatedProvider();
+    if (provider && typeof provider.getModelName === 'function') {
+      return provider.getModelName();
+    }
+    if (provider && provider.defaultModelId) {
+      return provider.defaultModelId;
+    }
+    const configured = this.registry.getConfiguredProviders();
+    if (configured.length > 0) {
+      return configured[0].getMetadata().defaultModelId;
+    }
+    return process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite';
+  }
+
   private getDelegatedProvider(providerId?: string): any {
     if (providerId) {
       const p = aiProviderRegistry.getProvider(providerId);

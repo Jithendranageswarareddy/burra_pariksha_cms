@@ -1,9 +1,9 @@
 /**
  * BURRA PARIKSHA CMS - Express Server API Routes
- * Phase 2: Google Sheets Database Architecture & Persistence
+ * Cloud Firestore Database Architecture & Persistence
  * 
  * Provides server-side API endpoints wrapping the service and repository layers.
- * Google service account credentials and Sheets API calls remain strictly server-side.
+ * Firebase Admin credentials and Firestore operations remain strictly server-side.
  */
 
 import express, { Request, Response, NextFunction } from 'express';
@@ -41,7 +41,6 @@ import { questionDraftService } from '../../features/question-generation/service
 import { questionDraftsRepository } from '../../../database/firestore/repositories/question-drafts.repository';
 import { thumbnailCandidatesRepository } from '../../../database/firestore/repositories/thumbnail-candidates.repository';
 import { ThumbnailSafetyValidator } from '../../ai/validators';
-import { geminiClient } from '../../ai/providers';
 import { aiOrchestrator } from '../../ai/orchestrator';
 import { QuestionStatus, UserRole, SocialReviewStatus, RenderValidationStatus, VideoProductionStatus } from '../../../shared';
 import { WorkflowActor } from '../../../src/types';
@@ -3419,8 +3418,8 @@ apiRouter.get('/workflow/:entityType/:entityId', async (req: Request, res: Respo
 
 apiRouter.get('/ai/status', (req: Request, res: Response) => {
   res.json({
-    isConfigured: geminiClient.isConfigured(),
-    model: geminiClient.getModelName(),
+    isConfigured: aiOrchestrator.isConfigured(),
+    model: aiOrchestrator.getModelName(),
   });
 });
 
