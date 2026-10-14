@@ -267,21 +267,41 @@ Before running tests that mutate state:
 
 ---
 
-## 15. Mandatory Engineering Execution Cycle
+## 15. Risk-Based Engineering Execution Cycle & Verification Policy
 
-Every implementation task must follow this verified workflow:
+Every task must follow a credit-efficient, risk-proportional engineering workflow:
 
-$$\text{Inspect} \longrightarrow \text{Plan narrowly} \longrightarrow \text{Implement} \longrightarrow \text{Test} \longrightarrow \text{Lint/typecheck} \longrightarrow \text{Build} \longrightarrow \text{Runtime verification} \longrightarrow \text{Commit} \longrightarrow \text{Push} \longrightarrow \text{Verify}$$
+$$\text{Inspect} \longrightarrow \text{Plan narrowly} \longrightarrow \text{Implement} \longrightarrow \text{Pre-Test Decision} \longrightarrow \text{Targeted Verification} \longrightarrow \text{Commit} \longrightarrow \text{Push} \longrightarrow \text{Confirm}$$
 
-1. **Mandatory Quality Gates**:
-   - `npm run lint` (static typecheck & linting must pass cleanly)
-   - `npm run build` (production bundle compilation must succeed with zero errors)
-   - Targeted automated tests for the changed scope
-2. **Git Commit & Push**:
-   - Stage only files within the task scope (`git add <files>`).
-   - Commit with descriptive conventional message.
-   - Push directly to `origin/main`.
-3. **Verification**:
+### 15.1 Mandatory Pre-Test Decision Rule
+Before executing any verification commands, Antigravity MUST formulate a brief, explicit **Pre-Test Decision** recorded in the response:
+1. **Changed Scope Classification**: Identify which risk tier applies (Documentation-only, Isolated code, Shared contracts/dependencies, Runtime/workflow/RBAC/persistence, or Full suite).
+2. **Selected Verification Commands**: List the specific command(s) selected.
+3. **Selection Rationale**: State why each command is necessary and why omitted commands are safely bypassed.
+4. **No Redundant Execution**: Do NOT execute unrelated checks or repeatedly rerun commands that have already passed on the same unchanged commit and environment.
+
+### 15.2 Risk-Based Verification Tiers (Default Policy)
+Antigravity must select verification actions strictly proportional to the changed files, dependencies, and regression risk:
+
+| Verification Tier | Scope & Trigger Criteria | Mandatory Verification Actions | Safely Bypassed Actions |
+| :--- | :--- | :--- | :--- |
+| **Tier 1: Documentation-Only** | Markdown (`.md`), documentation specs, ADRs, comments, sprint logs, diagrams. (No executable code, config, or generated artifacts changed). | 1. Review diff (`git diff`)<br>2. Run `git diff --check`<br>*(Exception: Run `npm run test:architecture` only if tracked file counts or inventory manifests in `docs/` are modified)* | **SKIP**: `npm run build`, `npm run lint` (`tsc --noEmit`), and all runtime/integration test suites. |
+| **Tier 2: Isolated Code Changes** | Individual UI presentation component, styling, local hook, or leaf utility without shared signature alterations. | 1. Targeted unit/slice test for the changed module<br>2. Targeted static check if types were touched | **SKIP**: Full application production build, full regression suites, unrelated feature tests. |
+| **Tier 3: Shared Contracts, Types & APIs** | `shared/` contracts, `src/types/`, `frontend/api/`, package dependencies (`package.json`), or bundler configuration. | 1. `npm run lint` (static typecheck across all consumers)<br>2. Relevant contract tests (e.g., `fc-005-shared-contract.test.ts` or `test:architecture`)<br>3. `npm run build` (when compilation, packaging, or bundling could be affected) | **SKIP**: Unrelated feature regression suites or live browser automation. |
+| **Tier 4: Runtime, Workflow, RBAC & Persistence** | Backend route dispatchers, domain services, workflow engine, Firestore repositories, auth/session middleware, security evaluators, or business invariants. | 1. Relevant integration/regression tests (e.g., `test:workflow`, `test:rbac`, `test:auth`, `test:db-api`, `test:question-generation`, or `test:s7-t19`)<br>2. `npm run lint` (typecheck)<br>3. `npm run build`<br>4. Add new targeted integration/E2E test if behavior is newly introduced | **SKIP**: Unrelated feature tests. |
+| **Tier 5: Full Suite / Release Gates** | Sprint release gates, broad cross-cutting refactoring, explicit user instruction, or ambiguous systemic test failures. | Full suite: `npm run test:architecture`, `npm run lint`, `npm run build`, and comprehensive regression test suites. | None. |
+
+### 15.3 Single Execution & Result Reuse Invariant
+- Execute each selected check **exactly once**.
+- Valid check results from the current unchanged commit and environment are reusable across subsequent reasoning steps in the same task.
+- Never rerun identical long-running commands (e.g., `npm run build`, `npm run lint`) unless relevant files have changed or a specific failure requires diagnostic re-execution.
+
+### 15.4 Preserved Git Commit, Push & Verification Protocol
+Every task modifying tracked files must conclude with strict source-control hygiene:
+1. **Targeted Stage**: Stage only files within the task scope (`git add <files>`). Never use `git add .` indiscriminately.
+2. **Conventional Commit**: Commit with a concise, descriptive conventional message (e.g., `docs(...)`, `feat(...)`, `fix(...)`).
+3. **Direct Push**: Push directly to `origin/main` (`git push origin main`).
+4. **Final Verification**:
    - Confirm `HEAD == origin/main`.
-   - Confirm clean working tree (`git status`).
+   - Confirm clean working tree (`git status` shows nothing to commit).
    - Report the actual commit SHA to the user.
