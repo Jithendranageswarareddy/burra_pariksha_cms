@@ -23,7 +23,7 @@ export interface SaveDraftInput {
   language?: string;
   questionText: string;
   question?: string;
-  options: {
+  options?: {
     a: string;
     b: string;
     c?: string;
@@ -33,7 +33,7 @@ export interface SaveDraftInput {
   optionB?: string;
   optionC?: string;
   optionD?: string;
-  correctAnswer: 'A' | 'B' | 'C' | 'D';
+  correctAnswer?: 'A' | 'B' | 'C' | 'D' | string;
   explanation?: string;
   realWorldContext?: string;
   realLifeContext?: string;
@@ -44,6 +44,10 @@ export interface SaveDraftInput {
   productionMode?: string;
   targetQuestionCount?: number;
   aspectRatio?: string;
+  introductoryConcept?: string;
+  conceptTitle?: string;
+  syllabusScopeNotes?: string;
+  questions?: any[];
   tags?: string[];
   source?: string;
   sourceModel?: string;

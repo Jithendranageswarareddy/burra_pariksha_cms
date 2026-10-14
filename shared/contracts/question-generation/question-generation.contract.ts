@@ -17,7 +17,7 @@ import {
   QuestionStatus,
   QuestionStyle,
 } from '../../constants/enums';
-import { QuestionCandidate } from '../../types/question';
+import { ExplainedQuestionItem, QuestionCandidate } from '../../types/question';
 
 /**
  * Valid options for generating a question.
@@ -122,6 +122,13 @@ export interface StudioCandidate {
   realLifeContext: string;
   questionStyle?: string;
   generationMode?: string;
+  productionMode?: string;
+  targetQuestionCount?: number;
+  aspectRatio?: string;
+  introductoryConcept?: string;
+  conceptTitle?: string;
+  syllabusScopeNotes?: string;
+  questions?: ExplainedQuestionItem[];
   tags: string[];
   // AI Provenance & Verification
   sourceModel?: string;
@@ -148,6 +155,7 @@ export interface Step01StateEvaluation {
 
 /**
  * Pure evaluation function for Step 01 candidate completeness.
+ * Polymorphic across Mode 1 (QUESTION_CHALLENGE_SHORT), Mode 2 (TOPIC_INTRODUCTION), and Mode 3 (EXPLAINED_QUESTIONS_VIDEO).
  */
 export function evaluateStep01CandidateState({
   hasCandidate,
@@ -168,6 +176,115 @@ export function evaluateStep01CandidateState({
     };
   }
 
+  // --- MODE 2: TOPIC_INTRODUCTION ---
+  if (candidate.productionMode === 'TOPIC_INTRODUCTION') {
+    const conceptText = (candidate.introductoryConcept || candidate.questionText || '').trim();
+    if (!hasCandidate || !conceptText) {
+      return {
+        state: 'EMPTY',
+        canContinue: false,
+        reason: 'Topic Introduction concept workspace is empty. Provide an introductory concept statement.',
+        errors: [],
+        warnings: [],
+      };
+    }
+
+    const errors: string[] = [];
+    if (conceptText.length < 15) {
+      errors.push('Introductory concept text must be at least 15 characters.');
+    }
+    if (candidate.aspectRatio && candidate.aspectRatio !== '9:16' && candidate.aspectRatio !== '16:9') {
+      errors.push('Topic Introduction aspect ratio must be either 9:16 or 16:9.');
+    }
+
+    if (errors.length > 0) {
+      return {
+        state: 'INCOMPLETE',
+        canContinue: false,
+        reason: errors[0],
+        errors,
+        warnings: [],
+      };
+    }
+
+    return {
+      state: 'VALID',
+      canContinue: true,
+      errors: [],
+      warnings: [],
+    };
+  }
+
+  // --- MODE 3: EXPLAINED_QUESTIONS_VIDEO ---
+  if (candidate.productionMode === 'EXPLAINED_QUESTIONS_VIDEO') {
+    const introText = (candidate.introductoryConcept || candidate.questionText || '').trim();
+    if (!hasCandidate && !introText && (!candidate.questions || candidate.questions.length === 0)) {
+      return {
+        state: 'EMPTY',
+        canContinue: false,
+        reason: 'Explained questions workspace is empty.',
+        errors: [],
+        warnings: [],
+      };
+    }
+
+    const targetCount = candidate.targetQuestionCount || 5;
+    const errors: string[] = [];
+
+    if (!introText || introText.length < 15) {
+      errors.push('Introductory concept/overview must be at least 15 characters.');
+    }
+
+    if (candidate.aspectRatio && candidate.aspectRatio !== '16:9') {
+      errors.push('Explained Questions Video must use 16:9 aspect ratio.');
+    }
+
+    const questions = candidate.questions || [];
+    if (questions.length < targetCount) {
+      errors.push(`Requires ${targetCount} explained questions (currently has ${questions.length}).`);
+    }
+
+    for (let i = 0; i < Math.min(questions.length, targetCount); i++) {
+      const q = questions[i];
+      const qIdx = q.questionNumber || i + 1;
+      const qText = (q.questionText || '').trim();
+      const a = (q.optionA || q.options?.a || '').trim();
+      const b = (q.optionB || q.options?.b || '').trim();
+      const c = (q.optionC || q.options?.c || '').trim();
+      const d = (q.optionD || q.options?.d || '').trim();
+      const ans = (q.correctAnswer || '').trim().toUpperCase();
+
+      if (!qText || qText.length < 5) {
+        errors.push(`Question #${qIdx}: Question statement must be at least 5 characters.`);
+      }
+      if (!a) errors.push(`Question #${qIdx}: Option A is required.`);
+      if (!b) errors.push(`Question #${qIdx}: Option B is required.`);
+      if (!c) errors.push(`Question #${qIdx}: Option C is required.`);
+      if (!d) errors.push(`Question #${qIdx}: Option D is required.`);
+      if (!['A', 'B', 'C', 'D'].includes(ans)) {
+        errors.push(`Question #${qIdx}: Correct answer must be A, B, C, or D.`);
+      }
+    }
+
+    if (errors.length > 0) {
+      return {
+        state: 'INCOMPLETE',
+        canContinue: false,
+        reason: errors[0],
+        errors,
+        warnings: [],
+      };
+    }
+
+    return {
+      state: 'VALID',
+      canContinue: true,
+      errors: [],
+      warnings: [],
+    };
+  }
+
+  // --- MODE 1: QUESTION_CHALLENGE_SHORT (Default) ---
   const qText = (candidate.questionText || '').trim();
   if (!hasCandidate || !qText) {
     return {
@@ -275,7 +392,7 @@ export interface SaveQuestionDraftInput {
   optionB?: string;
   optionC?: string;
   optionD?: string;
-  correctAnswer: 'A' | 'B' | 'C' | 'D';
+  correctAnswer?: 'A' | 'B' | 'C' | 'D' | string;
   explanation?: string;
   realWorldContext?: string;
   realLifeContext?: string;
@@ -286,6 +403,10 @@ export interface SaveQuestionDraftInput {
   productionMode?: string;
   targetQuestionCount?: number;
   aspectRatio?: string;
+  introductoryConcept?: string;
+  conceptTitle?: string;
+  syllabusScopeNotes?: string;
+  questions?: ExplainedQuestionItem[];
   tags?: string[];
   source?: string;
   sourceModel?: string;

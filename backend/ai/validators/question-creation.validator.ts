@@ -26,15 +26,22 @@ export interface QuestionCreationRequestPayload {
   questionText: string;
   question?: string;
   content?: string;
-  options: {
-    a: string;
-    b: string;
+  options?: {
+    a?: string;
+    b?: string;
     c?: string;
     d?: string;
   };
-  correctAnswer: 'A' | 'B' | 'C' | 'D';
-  explanation: string;
+  correctAnswer?: 'A' | 'B' | 'C' | 'D' | string;
+  explanation?: string;
   contentMasterId?: string;
+  productionMode?: string;
+  targetQuestionCount?: number;
+  aspectRatio?: string;
+  introductoryConcept?: string;
+  conceptTitle?: string;
+  syllabusScopeNotes?: string;
+  questions?: any[];
   tags?: string[];
   source?: string;
   aiPromptUsed?: string;
@@ -153,10 +160,11 @@ export class QuestionCreationValidator {
       throw new ValidationError(`Invalid creationMode "${payload.creationMode}". Must be "manual" or "ai".`);
     }
 
-    // 2. Question Text
+    // 2. Question Text / Concept Text
     const rawQuestionText = (
       payload.questionText ||
       payload.question ||
+      payload.introductoryConcept ||
       (payload as any).content ||
       ''
     ).trim();
@@ -169,7 +177,10 @@ export class QuestionCreationValidator {
       throw new ValidationError('Question text is required and must be at least 5 characters long.');
     }
 
-    // 3. Explanation
+    // 3. Explanation / Concept Content
+    if (!payload.explanation && payload.productionMode === 'TOPIC_INTRODUCTION') {
+      payload.explanation = (payload.introductoryConcept || payload.questionText || '').trim();
+    }
     if (!payload.explanation || payload.explanation.trim().length < 5) {
       throw new ValidationError('Explanation is required and must be at least 5 characters long.');
     }
@@ -224,47 +235,51 @@ export class QuestionCreationValidator {
     }
 
     const challengeType = (payload.challengeType || 'ABCD').trim().toUpperCase().replace(/\s*\/\s*/g, '_');
-    const options = payload.options;
+    const options = payload.options || { a: '', b: '', c: '', d: '' };
 
-    if (!options || typeof options !== 'object') {
-      throw new ValidationError('Question options object is required.');
-    }
-
-    const optA = (options.a || '').trim();
-    const optB = (options.b || '').trim();
-    const optC = (options.c || '').trim();
-    const optD = (options.d || '').trim();
-
-    // Challenge-type specific answer structure rules
-    if (challengeType === 'TRUE_FALSE' || challengeType === 'TRUE / FALSE' || challengeType === 'YES_NO' || challengeType === 'YES / NO') {
-      if (!optA || !optB) {
-        throw new ValidationError('At least Option A and Option B must be provided.');
-      }
-      if (optA.toLowerCase() === optB.toLowerCase()) {
-        throw new ValidationError('Question options must contain distinct choices.');
-      }
-      if (payload.correctAnswer !== 'A' && payload.correctAnswer !== 'B') {
-        throw new ValidationError(`For challenge type "${payload.challengeType}", correctAnswer must be "A" or "B".`);
-      }
+    if (payload.productionMode === 'TOPIC_INTRODUCTION') {
+      // Mode 2 (TOPIC_INTRODUCTION) has zero questions; options and correctAnswer are not required
     } else {
-      // ABCD / Multiple Choice / Arrange / Incorrect - strictly enforces exactly 4 distinct non-empty options
-      if (!optA || !optB || !optC || !optD) {
-        throw new ValidationError('Exactly four distinct options (A, B, C, D) are required and none may be empty.');
+      if (!payload.options || typeof payload.options !== 'object') {
+        throw new ValidationError('Question options object is required.');
       }
 
-      const optValues = [optA.toLowerCase(), optB.toLowerCase(), optC.toLowerCase(), optD.toLowerCase()];
-      if (new Set(optValues).size < 4) {
-        throw new ValidationError('Question options must contain 4 distinct choices.');
-      }
+      const optA = (options.a || '').trim();
+      const optB = (options.b || '').trim();
+      const optC = (options.c || '').trim();
+      const optD = (options.d || '').trim();
 
-      if (!['A', 'B', 'C', 'D'].includes(payload.correctAnswer)) {
-        throw new ValidationError('correctAnswer must be one of "A", "B", "C", or "D".');
-      }
+      // Challenge-type specific answer structure rules
+      if (challengeType === 'TRUE_FALSE' || challengeType === 'TRUE / FALSE' || challengeType === 'YES_NO' || challengeType === 'YES / NO') {
+        if (!optA || !optB) {
+          throw new ValidationError('At least Option A and Option B must be provided.');
+        }
+        if (optA.toLowerCase() === optB.toLowerCase()) {
+          throw new ValidationError('Question options must contain distinct choices.');
+        }
+        if (payload.correctAnswer !== 'A' && payload.correctAnswer !== 'B') {
+          throw new ValidationError(`For challenge type "${payload.challengeType}", correctAnswer must be "A" or "B".`);
+        }
+      } else {
+        // ABCD / Multiple Choice / Arrange / Incorrect - strictly enforces exactly 4 distinct non-empty options
+        if (!optA || !optB || !optC || !optD) {
+          throw new ValidationError('Exactly four distinct options (A, B, C, D) are required and none may be empty.');
+        }
 
-      // Check if selected correct option actually has text
-      const selectedOptionText = options[payload.correctAnswer.toLowerCase() as keyof typeof options];
-      if (!selectedOptionText || selectedOptionText.trim().length === 0) {
-        throw new ValidationError(`Option ${payload.correctAnswer} is designated as the correct answer but is empty.`);
+        const optValues = [optA.toLowerCase(), optB.toLowerCase(), optC.toLowerCase(), optD.toLowerCase()];
+        if (new Set(optValues).size < 4) {
+          throw new ValidationError('Question options must contain 4 distinct choices.');
+        }
+
+        if (!['A', 'B', 'C', 'D'].includes(payload.correctAnswer)) {
+          throw new ValidationError('correctAnswer must be one of "A", "B", "C", or "D".');
+        }
+
+        // Check if selected correct option actually has text
+        const selectedOptionText = options[payload.correctAnswer.toLowerCase() as keyof typeof options];
+        if (!selectedOptionText || selectedOptionText.trim().length === 0) {
+          throw new ValidationError(`Option ${payload.correctAnswer} is designated as the correct answer but is empty.`);
+        }
       }
     }
 

@@ -138,15 +138,16 @@ export class MultiLayerVerificationEngine {
     const overallErrors: string[] = [];
     const overallWarnings: string[] = [];
 
-    const questionText = (questionInput.questionText || questionInput.question || '').trim();
-    const opts = questionInput.options || {
-      a: questionInput.optionA || '',
-      b: questionInput.optionB || '',
-      c: questionInput.optionC || '',
-      d: questionInput.optionD || '',
+    const firstQ = questionInput.questions && questionInput.questions.length > 0 ? questionInput.questions[0] : null;
+    const questionText = (questionInput.questionText || questionInput.question || questionInput.introductoryConcept || firstQ?.questionText || '').trim();
+    const opts = questionInput.options || firstQ?.options || {
+      a: questionInput.optionA || firstQ?.optionA || '',
+      b: questionInput.optionB || firstQ?.optionB || '',
+      c: questionInput.optionC || firstQ?.optionC || '',
+      d: questionInput.optionD || firstQ?.optionD || '',
     };
-    const declaredAnswer = (questionInput.correctAnswer || '').trim().toUpperCase();
-    const explanation = (questionInput.explanation || '').trim();
+    const declaredAnswer = (questionInput.correctAnswer || firstQ?.correctAnswer || '').trim().toUpperCase();
+    const explanation = (questionInput.explanation || questionInput.introductoryConcept || firstQ?.explanation || '').trim();
     const challengeType = questionInput.challengeType || 'ABCD';
 
     // =========================================================================
@@ -171,6 +172,13 @@ export class MultiLayerVerificationEngine {
         correctAnswer: declaredAnswer as any,
         explanation,
         questionStyle: questionInput.questionStyle,
+        productionMode: questionInput.productionMode,
+        targetQuestionCount: questionInput.targetQuestionCount,
+        aspectRatio: questionInput.aspectRatio,
+        introductoryConcept: questionInput.introductoryConcept,
+        conceptTitle: questionInput.conceptTitle,
+        syllabusScopeNotes: questionInput.syllabusScopeNotes,
+        questions: questionInput.questions,
       });
     } catch (err: any) {
       l1Status = 'FAILED';
@@ -283,7 +291,11 @@ export class MultiLayerVerificationEngine {
     let l3Status: VerificationLayerStatus = 'N/A';
     let mathDetails: any = null;
 
-    const mathEngineResult = MathematicalLogicalEngine.verify(questionText, opts, declaredAnswer);
+    if (questionInput.productionMode === 'TOPIC_INTRODUCTION') {
+      l3Status = 'N/A';
+      mathDetails = { details: 'Concept video: mathematical layer N/A' };
+    } else {
+      const mathEngineResult = MathematicalLogicalEngine.verify(questionText, opts, declaredAnswer);
 
     if (mathEngineResult.status === 'PROVABLY_VALID') {
       l3Status = 'VERIFIED';
@@ -327,6 +339,7 @@ export class MultiLayerVerificationEngine {
       } else if (pmStatus === 'VERIFIED' && l3Status !== 'FAILED') {
         l3Status = 'VERIFIED';
       }
+    }
     }
 
     const layer3: VerificationLayerResult = {
@@ -521,55 +534,59 @@ export class MultiLayerVerificationEngine {
     const l6Warnings: string[] = [];
     let l6Status: VerificationLayerStatus = 'VERIFIED';
 
-    const rawOptions = [
-      { key: 'A', text: (opts.a || '').trim(), norm: (opts.a || '').trim().toLowerCase(), num: normalizeNumericOption(opts.a || '') },
-      { key: 'B', text: (opts.b || '').trim(), norm: (opts.b || '').trim().toLowerCase(), num: normalizeNumericOption(opts.b || '') },
-      { key: 'C', text: (opts.c || '').trim(), norm: (opts.c || '').trim().toLowerCase(), num: normalizeNumericOption(opts.c || '') },
-      { key: 'D', text: (opts.d || '').trim(), norm: (opts.d || '').trim().toLowerCase(), num: normalizeNumericOption(opts.d || '') },
-    ];
+    if (questionInput.productionMode === 'TOPIC_INTRODUCTION') {
+      l6Status = 'N/A';
+    } else {
+      const rawOptions = [
+        { key: 'A', text: (opts.a || '').trim(), norm: (opts.a || '').trim().toLowerCase(), num: normalizeNumericOption(opts.a || '') },
+        { key: 'B', text: (opts.b || '').trim(), norm: (opts.b || '').trim().toLowerCase(), num: normalizeNumericOption(opts.b || '') },
+        { key: 'C', text: (opts.c || '').trim(), norm: (opts.c || '').trim().toLowerCase(), num: normalizeNumericOption(opts.c || '') },
+        { key: 'D', text: (opts.d || '').trim(), norm: (opts.d || '').trim().toLowerCase(), num: normalizeNumericOption(opts.d || '') },
+      ];
 
-    // Check empty options
-    rawOptions.forEach(opt => {
-      if (!opt.text) {
-        l6Status = 'FAILED';
-        l6Errors.push(`Option ${opt.key} is blank.`);
-      }
-    });
+      // Check empty options
+      rawOptions.forEach(opt => {
+        if (!opt.text) {
+          l6Status = 'FAILED';
+          l6Errors.push(`Option ${opt.key} is blank.`);
+        }
+      });
 
-    // Check duplicate or equivalent options
-    for (let i = 0; i < rawOptions.length; i++) {
-      for (let j = i + 1; j < rawOptions.length; j++) {
-        const optA = rawOptions[i];
-        const optB = rawOptions[j];
-        if (optA.text && optB.text) {
-          if (optA.norm === optB.norm) {
-            l6Status = 'FAILED';
-            l6Errors.push(`Duplicate options detected: Option ${optA.key} and Option ${optB.key} have identical values ("${optA.text}").`);
-          } else if (optA.num && optB.num && optA.num === optB.num && !isNaN(Number(optA.num))) {
-            l6Status = 'FAILED';
-            l6Errors.push(`Equivalent numerical options detected: Option ${optA.key} ("${optA.text}") and Option ${optB.key} ("${optB.text}") represent the same value.`);
+      // Check duplicate or equivalent options
+      for (let i = 0; i < rawOptions.length; i++) {
+        for (let j = i + 1; j < rawOptions.length; j++) {
+          const optA = rawOptions[i];
+          const optB = rawOptions[j];
+          if (optA.text && optB.text) {
+            if (optA.norm === optB.norm) {
+              l6Status = 'FAILED';
+              l6Errors.push(`Duplicate options detected: Option ${optA.key} and Option ${optB.key} have identical values ("${optA.text}").`);
+            } else if (optA.num && optB.num && optA.num === optB.num && !isNaN(Number(optA.num))) {
+              l6Status = 'FAILED';
+              l6Errors.push(`Equivalent numerical options detected: Option ${optA.key} ("${optA.text}") and Option ${optB.key} ("${optB.text}") represent the same value.`);
+            }
           }
         }
       }
-    }
 
-    // Declared answer validity
-    if (!['A', 'B', 'C', 'D'].includes(declaredAnswer)) {
-      l6Status = 'FAILED';
-      l6Errors.push(`Invalid declared correctAnswer choice '${declaredAnswer}'. Must be A, B, C, or D.`);
-    } else {
-      const selected = rawOptions.find(o => o.key === declaredAnswer);
-      if (!selected || !selected.text) {
+      // Declared answer validity
+      if (!['A', 'B', 'C', 'D'].includes(declaredAnswer)) {
         l6Status = 'FAILED';
-        l6Errors.push(`Declared correct answer Option ${declaredAnswer} is blank or missing.`);
+        l6Errors.push(`Invalid declared correctAnswer choice '${declaredAnswer}'. Must be A, B, C, or D.`);
+      } else {
+        const selected = rawOptions.find(o => o.key === declaredAnswer);
+        if (!selected || !selected.text) {
+          l6Status = 'FAILED';
+          l6Errors.push(`Declared correct answer Option ${declaredAnswer} is blank or missing.`);
+        }
       }
-    }
 
-    // Answer leakage in question text
-    if (declaredAnswer && opts) {
-      const selectedText = opts[declaredAnswer.toLowerCase() as keyof typeof opts];
-      if (selectedText && selectedText.length > 5 && questionText.toLowerCase().includes(`the answer is ${selectedText.toLowerCase()}`)) {
-        l6Warnings.push(`Answer leakage warning: Question text appears to reveal option '${selectedText}'.`);
+      // Answer leakage in question text
+      if (declaredAnswer && opts) {
+        const selectedText = opts[declaredAnswer.toLowerCase() as keyof typeof opts];
+        if (selectedText && selectedText.length > 5 && questionText.toLowerCase().includes(`the answer is ${selectedText.toLowerCase()}`)) {
+          l6Warnings.push(`Answer leakage warning: Question text appears to reveal option '${selectedText}'.`);
+        }
       }
     }
 

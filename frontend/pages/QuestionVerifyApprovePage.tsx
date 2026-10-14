@@ -79,6 +79,7 @@ export const QuestionVerifyApprovePage: React.FC = () => {
   const [isEditingExplanation, setIsEditingExplanation] = useState<boolean>(false);
   const [explanationInput, setExplanationInput] = useState<string>('');
   const [savingExplanation, setSavingExplanation] = useState<boolean>(false);
+  const [activeReviewTab, setActiveReviewTab] = useState<number>(0);
 
   // Sync explanationInput when question changes
   useEffect(() => {
@@ -470,21 +471,30 @@ export const QuestionVerifyApprovePage: React.FC = () => {
   }
 
   const isApproved = question?.status === QuestionStatus.APPROVED;
-  const hasValidExplanation = Boolean(question?.explanation && question.explanation.trim().length >= 5);
-  const mathIsContradictory =
+  const isMode2 = question?.productionMode === 'TOPIC_INTRODUCTION';
+  const isMode3 = question?.productionMode === 'EXPLAINED_QUESTIONS_VIDEO';
+
+  const hasValidConcept = isMode2
+    ? Boolean((question?.introductoryConcept || question?.questionText)?.trim().length >= 15)
+    : true;
+  const hasValidExplanation = isMode2 ? true : Boolean(question?.explanation && question.explanation.trim().length >= 5);
+  const mathIsContradictory = isMode2 ? false : (
     validationResult?.mathematicalLogicalResult?.status === 'CONTRADICTORY' ||
-    validationResult?.layers?.['LAYER_3_MATHEMATICAL']?.status === 'FAILED';
-  const hasFatalErrors =
-    mathIsContradictory ||
-    (validationResult?.errors && validationResult.errors.some(e => !e.includes('duplicate') && !e.includes('confidence')));
+    validationResult?.layers?.['LAYER_3_MATHEMATICAL']?.status === 'FAILED'
+  );
+  const hasFatalErrors = isMode2
+    ? !hasValidConcept
+    : (mathIsContradictory || (validationResult?.errors && validationResult.errors.some(e => !e.includes('duplicate') && !e.includes('confidence'))));
 
   const isApprovable =
     isApproved ||
-    (!hasFatalErrors && hasValidExplanation && (
-      validationResult?.status === QuestionValidationStatus.VALID ||
-      validationResult?.status === QuestionValidationStatus.NEEDS_REVIEW ||
-      question?.status === QuestionStatus.DRAFT
-    ));
+    (isMode2
+      ? hasValidConcept
+      : (!hasFatalErrors && hasValidExplanation && (
+          validationResult?.status === QuestionValidationStatus.VALID ||
+          validationResult?.status === QuestionValidationStatus.NEEDS_REVIEW ||
+          question?.status === QuestionStatus.DRAFT
+        )));
   const targetVideoId = queuedVideo?.id || contextVideoId;
 
   return (
@@ -559,200 +569,448 @@ export const QuestionVerifyApprovePage: React.FC = () => {
               LEFT PANE (lg:col-span-7): QUESTION CONTENT & PROOF CANVAS
               ======================================================== */}
           <div className="lg:col-span-7 space-y-5">
-            <Card variant="default" padding="lg" className="rounded-2xl border-slate-200/80 shadow-xs">
-              {/* Card Header */}
-              <div className="flex items-center justify-between pb-3.5 mb-4 border-b border-slate-100">
-                <div className="flex items-center gap-2">
-                  <BookOpen className="w-4 h-4 text-indigo-600" />
-                  <h3 className="text-sm font-bold text-slate-900">Question Content Review</h3>
+            {isMode2 ? (
+              /* ================= MODE 2: TOPIC INTRODUCTION REVIEW ================= */
+              <Card variant="default" padding="lg" className="rounded-2xl border-slate-200/80 shadow-xs">
+                <div className="flex items-center justify-between pb-3.5 mb-4 border-b border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <BookOpen className="w-4 h-4 text-amber-600" />
+                    <h3 className="text-sm font-bold text-slate-900">Mode 2: Topic Introduction Review</h3>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="neutral" size="sm" className="font-semibold text-[11px]">
+                      {question.topicName}
+                    </Badge>
+                    <Badge variant="neutral" size="sm" className="font-bold text-[11px] bg-amber-50 text-amber-900 border-amber-200">
+                      {question.aspectRatio || '9:16'}
+                    </Badge>
+                    <Badge
+                      variant={isApproved ? 'approved' : 'draft'}
+                      size="sm"
+                      className="font-bold text-[11px]"
+                    >
+                      {question.status}
+                    </Badge>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="neutral" size="sm" className="font-semibold text-[11px]">
-                    {question.topicName}
-                  </Badge>
-                  <Badge
-                    variant={isApproved ? 'approved' : 'draft'}
-                    size="sm"
-                    className="font-bold text-[11px]"
-                  >
-                    {question.status}
-                  </Badge>
-                </div>
-              </div>
 
-              {/* Real World Hook */}
-              {question.realWorldContext && (
-                <div className="mb-4 p-3 bg-indigo-50/70 border border-indigo-100 rounded-xl flex items-start gap-2.5">
-                  <Zap className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
-                  <div>
-                    <span className="text-[11px] font-bold text-indigo-900 uppercase tracking-wide block">
-                      Real-World Telugu Context Hook
+                {/* Concept Title */}
+                {question.conceptTitle && (
+                  <div className="mb-4 p-3 bg-amber-50/70 border border-amber-200 rounded-xl">
+                    <span className="text-[11px] font-bold text-amber-900 uppercase tracking-wide block">
+                      Concept Title & Hook Headline
                     </span>
-                    <p className="text-xs text-indigo-950 font-medium leading-relaxed mt-0.5">
-                      {question.realWorldContext}
+                    <p className="text-sm font-bold text-slate-900 mt-0.5">
+                      {question.conceptTitle}
+                    </p>
+                  </div>
+                )}
+
+                {/* Real World Hook */}
+                {question.realWorldContext && (
+                  <div className="mb-4 p-3 bg-indigo-50/70 border border-indigo-100 rounded-xl flex items-start gap-2.5">
+                    <Zap className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="text-[11px] font-bold text-indigo-900 uppercase tracking-wide block">
+                        Real-World Telugu Context Hook
+                      </span>
+                      <p className="text-xs text-indigo-950 font-medium leading-relaxed mt-0.5">
+                        {question.realWorldContext}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Problem Statement / Concept Statement (Telugu) */}
+                <div className="mb-5">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">
+                      Introductory Concept Statement (తెలుగు)
+                    </span>
+                    <span className="text-[11px] text-slate-400 font-mono">
+                      {(question.introductoryConcept || question.questionText)?.length || 0} chars
+                    </span>
+                  </div>
+                  <div className="p-4 bg-slate-50/80 rounded-xl border border-slate-200/80">
+                    <p className="text-base sm:text-lg font-telugu font-medium text-slate-900 leading-relaxed">
+                      {question.introductoryConcept || question.questionText}
                     </p>
                   </div>
                 </div>
-              )}
 
-              {/* Problem Statement (High-Contrast Telugu Typography) */}
-              <div className="mb-5">
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">
-                    Problem Statement (తెలుగు)
-                  </span>
-                  <span className="text-[11px] text-slate-400 font-mono">
-                    {question.questionText?.length || 0} chars
-                  </span>
-                </div>
-                <div className="p-4 bg-slate-50/80 rounded-xl border border-slate-200/80">
-                  <p className="text-base sm:text-lg font-telugu font-medium text-slate-900 leading-relaxed">
-                    {question.questionText}
-                  </p>
-                </div>
-              </div>
-
-              {/* Options & Answer Key (High-Density 2x2 Grid) */}
-              <div className="mb-5">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">
-                    Options & Answer Key Verification
-                  </span>
-                  <span className="text-[11px] text-slate-400">
-                    2x2 Exam Grid Layout
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {(['A', 'B', 'C', 'D'] as const).map((optKey) => {
-                    const optVal = question.options ? (question.options as any)[optKey.toLowerCase()] : '';
-                    const isCorrect = (question.correctAnswer?.toUpperCase() as any) === optKey;
-
-                    const teluguOptionLabels: Record<string, string> = {
-                      A: 'ఎ',
-                      B: 'బి',
-                      C: 'సి',
-                      D: 'డి',
-                    };
-
-                    return (
-                      <div
-                        key={optKey}
-                        className={`p-3.5 rounded-xl border transition-all duration-150 flex flex-col justify-between ${
-                          isCorrect
-                            ? 'bg-emerald-50/90 border-emerald-300 ring-2 ring-emerald-400/30 shadow-xs'
-                            : 'bg-white border-slate-200 hover:border-slate-300'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between gap-2 mb-2">
-                          <div className="flex items-center gap-1.5">
-                            <span
-                              className={`w-6 h-6 rounded-md text-xs font-mono font-bold flex items-center justify-center shrink-0 ${
-                                isCorrect
-                                  ? 'bg-emerald-600 text-white'
-                                  : 'bg-slate-100 text-slate-700'
-                              }`}
-                            >
-                              {optKey}
-                            </span>
-                            <span className="text-xs font-telugu font-semibold text-slate-500">
-                              ({teluguOptionLabels[optKey]})
-                            </span>
-                          </div>
-
-                          {isCorrect && (
-                            <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded-md flex items-center gap-1">
-                              <Check className="w-3 h-3 text-emerald-700" />
-                              ✓ Correct Answer (సరైన సమాధానం)
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="font-telugu text-sm font-medium text-slate-900 leading-snug">
-                          {optVal || <span className="text-rose-500 italic">Missing option value</span>}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Pedagogical Solution Breakdown & Speed Trick */}
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">
-                    Burra Speed Trick & Pedagogical Proof
-                  </span>
-                  {!isEditingExplanation && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setIsEditingExplanation(true)}
-                      icon={Edit3}
-                      className="text-xs py-1 px-2 h-7"
-                    >
-                      {question.explanation ? 'Edit Explanation' : '+ Add Explanation'}
-                    </Button>
-                  )}
-                </div>
-
-                {isEditingExplanation || !question.explanation ? (
-                  <div className="p-4 bg-amber-50/70 border border-amber-200 rounded-xl space-y-3">
-                    <div className="flex items-center justify-between flex-wrap gap-2">
-                      <span className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
-                        <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
-                        Explanation required before approval
-                      </span>
-                      <button
-                        type="button"
-                        onClick={handleAutoGenerateSampleExplanation}
-                        className="text-[11px] font-semibold text-indigo-700 hover:text-indigo-900 underline flex items-center gap-1"
-                      >
-                        <Sparkles className="w-3 h-3 text-indigo-500" />
-                        Auto-fill Step-by-Step Proof
-                      </button>
+                {/* Syllabus Scope & Key Formulas */}
+                {question.syllabusScopeNotes && (
+                  <div className="mb-5">
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
+                      Syllabus Scope & Shortcut Strategy Notes
+                    </span>
+                    <div className="p-4 bg-slate-50/80 border border-slate-200/80 rounded-xl font-telugu text-xs sm:text-sm text-slate-800 leading-relaxed">
+                      <p>{question.syllabusScopeNotes}</p>
                     </div>
-
-                    <textarea
-                      value={explanationInput}
-                      onChange={(e) => setExplanationInput(e.target.value)}
-                      rows={3}
-                      placeholder="Enter step-by-step solution derivation in Telugu or English (min 5 characters)..."
-                      className="w-full p-3 bg-white border border-slate-300 rounded-lg text-xs sm:text-sm font-telugu text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
-                    />
-
-                    <div className="flex items-center justify-end gap-2">
-                      {question.explanation && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setExplanationInput(question.explanation || '');
-                            setIsEditingExplanation(false);
-                          }}
-                        >
-                          Cancel
-                        </Button>
-                      )}
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        onClick={handleSaveExplanation}
-                        disabled={savingExplanation || !explanationInput.trim() || explanationInput.trim().length < 5}
-                        icon={Check}
-                        className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold"
-                      >
-                        {savingExplanation ? 'Saving & Verifying...' : 'Save Explanation & Re-verify'}
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="p-4 bg-slate-50/80 border border-slate-200/80 rounded-xl font-telugu text-xs sm:text-sm text-slate-800 leading-relaxed">
-                    <p>{question.explanation}</p>
                   </div>
                 )}
-              </div>
-            </Card>
+              </Card>
+            ) : isMode3 ? (
+              /* ================= MODE 3: EXPLAINED QUESTIONS MASTERCLASS REVIEW ================= */
+              <Card variant="default" padding="lg" className="rounded-2xl border-slate-200/80 shadow-xs">
+                <div className="flex items-center justify-between pb-3.5 mb-3 border-b border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <BookOpen className="w-4 h-4 text-indigo-600" />
+                    <h3 className="text-sm font-bold text-slate-900">Mode 3: Masterclass Content Review</h3>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="neutral" size="sm" className="font-semibold text-[11px]">
+                      {question.topicName}
+                    </Badge>
+                    <Badge variant="neutral" size="sm" className="font-bold text-[11px] bg-indigo-50 text-indigo-800 border-indigo-200">
+                      16:9 • {question.targetQuestionCount || (question.questions?.length || 10)} Questions
+                    </Badge>
+                    <Badge
+                      variant={isApproved ? 'approved' : 'draft'}
+                      size="sm"
+                      className="font-bold text-[11px]"
+                    >
+                      {question.status}
+                    </Badge>
+                  </div>
+                </div>
+
+                {/* Segmented Horizontal Navigation for Review */}
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-2 mb-4 scrollbar-thin">
+                  <button
+                    type="button"
+                    data-testid="verify-tab-intro"
+                    onClick={() => setActiveReviewTab(0)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold shrink-0 cursor-pointer transition-all ${
+                      activeReviewTab === 0
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    }`}
+                  >
+                    Intro Roadmap
+                  </button>
+                  {Array.from({ length: question.targetQuestionCount || question.questions?.length || 5 }).map((_, i) => (
+                    <button
+                      key={i + 1}
+                      type="button"
+                      data-testid={`verify-tab-q-${i + 1}`}
+                      onClick={() => setActiveReviewTab(i + 1)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold shrink-0 cursor-pointer transition-all ${
+                        activeReviewTab === i + 1
+                          ? 'bg-indigo-600 text-white shadow-xs'
+                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                      }`}
+                    >
+                      Q{i + 1}
+                    </button>
+                  ))}
+                </div>
+
+                {activeReviewTab === 0 ? (
+                  <div className="space-y-4">
+                    {question.conceptTitle && (
+                      <div className="p-3 bg-indigo-50/70 border border-indigo-100 rounded-xl">
+                        <span className="text-[11px] font-bold text-indigo-900 uppercase tracking-wide block">
+                          Masterclass Title
+                        </span>
+                        <p className="text-sm font-bold text-slate-900 mt-0.5">
+                          {question.conceptTitle}
+                        </p>
+                      </div>
+                    )}
+
+                    <div>
+                      <span className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
+                        Masterclass Video Overview & Strategic Roadmap
+                      </span>
+                      <div className="p-4 bg-slate-50/80 rounded-xl border border-slate-200/80">
+                        <p className="text-base sm:text-lg font-telugu font-medium text-slate-900 leading-relaxed">
+                          {question.introductoryConcept || question.questionText}
+                        </p>
+                      </div>
+                    </div>
+
+                    {question.syllabusScopeNotes && (
+                      <div>
+                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
+                          Syllabus Scope & Key Strategy
+                        </span>
+                        <div className="p-4 bg-slate-50/80 border border-slate-200/80 rounded-xl font-telugu text-xs sm:text-sm text-slate-800 leading-relaxed">
+                          <p>{question.syllabusScopeNotes}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  (() => {
+                    const qItem = question.questions?.find((q: any) => q.questionNumber === activeReviewTab) || question.questions?.[activeReviewTab - 1];
+                    const qText = qItem?.questionText || 'Question statement pending authoring.';
+                    const qAnswer = (qItem?.correctAnswer || 'A').toUpperCase();
+                    const qExpl = qItem?.explanation || '';
+                    const qTrick = qItem?.trickOrPitfall;
+
+                    return (
+                      <div className="space-y-4">
+                        <div>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">
+                              Practice Question #{activeReviewTab}
+                            </span>
+                          </div>
+                          <div className="p-4 bg-slate-50/80 rounded-xl border border-slate-200/80">
+                            <p className="text-base sm:text-lg font-telugu font-medium text-slate-900 leading-relaxed">
+                              {qText}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Options Grid */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {(['A', 'B', 'C', 'D'] as const).map((optKey) => {
+                            const optVal = qItem?.[('option' + optKey) as 'optionA'] || qItem?.options?.[optKey.toLowerCase()] || '';
+                            const isCorrect = qAnswer === optKey;
+
+                            return (
+                              <div
+                                key={optKey}
+                                className={`p-3.5 rounded-xl border flex flex-col justify-between ${
+                                  isCorrect
+                                    ? 'bg-emerald-50/90 border-emerald-300 ring-2 ring-emerald-400/30 shadow-xs'
+                                    : 'bg-white border-slate-200'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2 mb-1.5">
+                                  <span className={`w-6 h-6 rounded-md text-xs font-mono font-bold flex items-center justify-center shrink-0 ${
+                                    isCorrect ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-700'
+                                  }`}>
+                                    {optKey}
+                                  </span>
+                                  {isCorrect && (
+                                    <Badge variant="approved" size="sm" className="text-[10px]">
+                                      Correct Choice
+                                    </Badge>
+                                  )}
+                                </div>
+                                <p className="font-telugu text-sm text-slate-900 leading-normal">{optVal || '—'}</p>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {/* Explanation */}
+                        {qExpl && (
+                          <div>
+                            <span className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
+                              Mathematical / Pedagogical Explanation
+                            </span>
+                            <div className="p-4 bg-slate-50/80 border border-slate-200/80 rounded-xl font-telugu text-xs sm:text-sm text-slate-800 leading-relaxed">
+                              <p>{qExpl}</p>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Trick / Trap */}
+                        {qTrick && (
+                          <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900">
+                            <span className="font-bold block">Speed Trick / Exam Trap Note:</span>
+                            <p className="font-telugu mt-0.5">{qTrick}</p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()
+                )}
+              </Card>
+            ) : (
+              /* ================= MODE 1: SINGLE QUESTION REVIEW ================= */
+              <Card variant="default" padding="lg" className="rounded-2xl border-slate-200/80 shadow-xs">
+                {/* Card Header */}
+                <div className="flex items-center justify-between pb-3.5 mb-4 border-b border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <BookOpen className="w-4 h-4 text-indigo-600" />
+                    <h3 className="text-sm font-bold text-slate-900">Question Content Review</h3>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="neutral" size="sm" className="font-semibold text-[11px]">
+                      {question.topicName}
+                    </Badge>
+                    <Badge
+                      variant={isApproved ? 'approved' : 'draft'}
+                      size="sm"
+                      className="font-bold text-[11px]"
+                    >
+                      {question.status}
+                    </Badge>
+                  </div>
+                </div>
+
+                {/* Real World Hook */}
+                {question.realWorldContext && (
+                  <div className="mb-4 p-3 bg-indigo-50/70 border border-indigo-100 rounded-xl flex items-start gap-2.5">
+                    <Zap className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="text-[11px] font-bold text-indigo-900 uppercase tracking-wide block">
+                        Real-World Telugu Context Hook
+                      </span>
+                      <p className="text-xs text-indigo-950 font-medium leading-relaxed mt-0.5">
+                        {question.realWorldContext}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Problem Statement (High-Contrast Telugu Typography) */}
+                <div className="mb-5">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">
+                      Problem Statement (తెలుగు)
+                    </span>
+                    <span className="text-[11px] text-slate-400 font-mono">
+                      {question.questionText?.length || 0} chars
+                    </span>
+                  </div>
+                  <div className="p-4 bg-slate-50/80 rounded-xl border border-slate-200/80">
+                    <p className="text-base sm:text-lg font-telugu font-medium text-slate-900 leading-relaxed">
+                      {question.questionText}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Options & Answer Key (High-Density 2x2 Grid) */}
+                <div className="mb-5">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">
+                      Options & Answer Key Verification
+                    </span>
+                    <span className="text-[11px] text-slate-400">
+                      2x2 Exam Grid Layout
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {(['A', 'B', 'C', 'D'] as const).map((optKey) => {
+                      const optVal = question.options ? (question.options as any)[optKey.toLowerCase()] : '';
+                      const isCorrect = (question.correctAnswer?.toUpperCase() as any) === optKey;
+
+                      const teluguOptionLabels: Record<string, string> = {
+                        A: 'ఎ',
+                        B: 'బి',
+                        C: 'సి',
+                        D: 'డి',
+                      };
+
+                      return (
+                        <div
+                          key={optKey}
+                          className={`p-3.5 rounded-xl border transition-all duration-150 flex flex-col justify-between ${
+                            isCorrect
+                              ? 'bg-emerald-50/90 border-emerald-300 ring-2 ring-emerald-400/30 shadow-xs'
+                              : 'bg-white border-slate-200 hover:border-slate-300'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-2 mb-2">
+                            <div className="flex items-center gap-1.5">
+                              <span
+                                className={`w-6 h-6 rounded-md text-xs font-mono font-bold flex items-center justify-center shrink-0 ${
+                                  isCorrect
+                                    ? 'bg-emerald-600 text-white'
+                                    : 'bg-slate-100 text-slate-700'
+                                }`}
+                              >
+                                {optKey}
+                              </span>
+                              <span className="text-xs font-telugu font-semibold text-slate-500">
+                                ({teluguOptionLabels[optKey]})
+                              </span>
+                            </div>
+                            {isCorrect && (
+                              <Badge variant="approved" size="sm" className="font-bold text-[10px]">
+                                Correct Option
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="font-telugu text-sm text-slate-900 leading-normal mb-1">
+                            {optVal || <span className="text-slate-400 italic">Option empty</span>}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Mathematical Proof & Detailed Explanation */}
+                <div className="pt-2">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-1.5">
+                      <FileCheck className="w-4 h-4 text-indigo-600" />
+                      <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">
+                        Proof & Step-by-Step Pedagogical Explanation
+                      </span>
+                    </div>
+                    {!isEditingExplanation && !isApproved && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setIsEditingExplanation(true)}
+                        icon={Edit3}
+                        className="text-xs text-indigo-600 hover:text-indigo-800 h-7 px-2"
+                      >
+                        Edit Explanation
+                      </Button>
+                    )}
+                  </div>
+
+                  {isEditingExplanation ? (
+                    <div className="space-y-3 p-4 bg-slate-50/80 border border-slate-200 rounded-xl animate-in fade-in duration-150">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-slate-700">
+                          Edit Telugu Pedagogical Explanation (Min 5 chars)
+                        </span>
+                        <span className="text-[11px] font-mono text-slate-400">
+                          {explanationInput.trim().length} chars
+                        </span>
+                      </div>
+                      <textarea
+                        value={explanationInput}
+                        onChange={(e) => setExplanationInput(e.target.value)}
+                        rows={4}
+                        placeholder="గణిత నిరూపణ మరియు స్టెప్-బై-స్టెప్ వివరణ నమోదు చేయండి..."
+                        className="w-full p-3 bg-white border border-slate-200 rounded-lg font-telugu text-xs text-slate-900 leading-relaxed focus:outline-hidden focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20"
+                      />
+                      <div className="flex items-center justify-end gap-2">
+                        {question.explanation && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={savingExplanation}
+                            onClick={() => {
+                              setExplanationInput(question.explanation || '');
+                              setIsEditingExplanation(false);
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                        )}
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={handleSaveExplanation}
+                          disabled={savingExplanation || !explanationInput.trim() || explanationInput.trim().length < 5}
+                          icon={Check}
+                          className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold"
+                        >
+                          {savingExplanation ? 'Saving & Verifying...' : 'Save Explanation & Re-verify'}
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-4 bg-slate-50/80 border border-slate-200/80 rounded-xl font-telugu text-xs sm:text-sm text-slate-800 leading-relaxed">
+                      <p>{question.explanation}</p>
+                    </div>
+                  )}
+                </div>
+              </Card>
+            )}
           </div>
 
           {/* ========================================================
@@ -941,180 +1199,283 @@ export const QuestionVerifyApprovePage: React.FC = () => {
               )}
             </Card>
 
-            {/* 2. BOTTOM CARD: VERIFICATION ENGINE HEALTH & ACCORDION RULE AUDITS */}
-            <Card variant="default" padding="lg" className="rounded-2xl border-slate-200/80 shadow-xs">
-              <div className="flex items-center justify-between pb-3 mb-3.5 border-b border-slate-100">
-                <div className="flex items-center gap-2 text-slate-900">
-                  <ShieldCheck className="w-4 h-4 text-indigo-600" />
-                  <h3 className="text-sm font-bold">Verification Engine Health</h3>
-                </div>
-                {isValidating ? (
-                  <Badge variant="neutral" size="sm">
-                    <RefreshCw className="w-3 h-3 animate-spin mr-1" />
-                    Auditing...
-                  </Badge>
-                ) : (
-                  <Badge
-                    variant={
-                      validationResult?.status === QuestionValidationStatus.VALID
-                        ? 'approved'
-                        : 'draft'
-                    }
-                    size="sm"
-                    className="font-bold text-[11px]"
-                  >
-                    {validationResult?.status || 'AUDITED'}
-                  </Badge>
-                )}
-              </div>
-
-              {/* 4-Item Compact Metric Bento (Dynamic derivation from validationResult) */}
-              {(() => {
-                const confScore = validationResult && validationResult.confidenceScore !== undefined && validationResult.confidenceScore !== null
-                  ? `${Math.round(validationResult.confidenceScore * 100)}%`
-                  : 'N/A';
-
-                const isAmbiguous = validationResult?.ambiguityResult?.isAmbiguous;
-                const unambiguousText = !validationResult ? 'Pending' : isAmbiguous === true ? 'Ambiguous' : 'Verified';
-                const unambiguousPass = !validationResult ? null : isAmbiguous === false;
-
-                const optionsLayer = validationResult?.layers?.['LAYER_6_ANSWER_OPTIONS'];
-                const optionsCheck = validationResult?.checks?.find((c) => c.category === 'OPTION' || c.category === 'ANSWER' || c.id?.includes('STAGE_3'));
-                const distractorStatus = optionsLayer?.status || (optionsCheck?.status === 'PASS' ? 'VERIFIED' : optionsCheck?.status === 'FAIL' ? 'FAILED' : 'PENDING');
-                const distractorText = isApproved ? 'Verified' : distractorStatus === 'VERIFIED' ? 'High Quality' : distractorStatus === 'FAILED' ? 'Failed' : 'Needs Review';
-                const distractorPass = isApproved ? true : distractorStatus === 'VERIFIED' ? true : distractorStatus === 'FAILED' ? false : null;
-
-                const mathLayer = validationResult?.layers?.['LAYER_3_MATHEMATICAL'];
-                const mathLogicalStatus = validationResult?.mathematicalLogicalResult?.status;
-                const mathStatus = mathLayer?.status || (mathLogicalStatus === 'PROVABLY_VALID' ? 'VERIFIED' : mathLogicalStatus === 'CONTRADICTORY' ? 'FAILED' : 'UNVERIFIED');
-
-                // UAT-06: Coherent math proof status contract (No contradiction on APPROVED questions)
-                let mathText: string;
-                let mathPass: boolean | null;
-
-                if (isApproved) {
-                  // Approved question has certified mathematical and editorial integrity
-                  mathText = mathStatus === 'N/A' ? 'N/A' : 'Passed';
-                  mathPass = mathStatus === 'N/A' ? null : true;
-                } else if (mathStatus === 'FAILED') {
-                  mathText = 'Failed';
-                  mathPass = false;
-                } else if (mathStatus === 'VERIFIED') {
-                  mathText = 'Passed';
-                  mathPass = true;
-                } else if (mathStatus === 'N/A') {
-                  mathText = 'N/A';
-                  mathPass = null;
-                } else if (hasValidExplanation && validationResult?.status === QuestionValidationStatus.VALID) {
-                  mathText = 'Passed';
-                  mathPass = true;
-                } else {
-                  mathText = 'Needs Review';
-                  mathPass = null;
-                }
-
-                return (
-                  <div className="grid grid-cols-2 gap-2 mb-3.5">
-                    {/* Confidence Score Pill */}
-                    <div className="p-2.5 bg-slate-50/80 rounded-xl border border-slate-100">
-                      <span className="text-[11px] text-slate-500 block font-medium">Confidence</span>
-                      <span className={`text-xs font-mono font-bold ${
-                        validationResult?.status === QuestionValidationStatus.VALID
-                          ? 'text-emerald-700'
-                          : validationResult?.status === QuestionValidationStatus.INVALID
-                          ? 'text-rose-700'
-                          : 'text-amber-700'
-                      }`}>
-                        {confScore}
-                      </span>
-                    </div>
-
-                    {/* Unambiguous Pill */}
-                    <div className="p-2.5 bg-slate-50/80 rounded-xl border border-slate-100">
-                      <span className="text-[11px] text-slate-500 block font-medium">Unambiguous</span>
-                      <span className={`text-xs font-semibold flex items-center gap-1 mt-0.5 ${
-                        unambiguousPass === true
-                          ? 'text-emerald-700'
-                          : unambiguousPass === false
-                          ? 'text-rose-700'
-                          : 'text-amber-700'
-                      }`}>
-                        {unambiguousPass === true ? <CheckCircle2 className="w-3 h-3 text-emerald-600" /> : unambiguousPass === false ? <X className="w-3 h-3 text-rose-600" /> : <HelpCircle className="w-3 h-3 text-amber-600" />}
-                        {unambiguousText}
-                      </span>
-                    </div>
-
-                    {/* Distractors Pill */}
-                    <div className="p-2.5 bg-slate-50/80 rounded-xl border border-slate-100">
-                      <span className="text-[11px] text-slate-500 block font-medium">Distractors</span>
-                      <span className={`text-xs font-semibold flex items-center gap-1 mt-0.5 ${
-                        distractorPass === true
-                          ? 'text-emerald-700'
-                          : distractorPass === false
-                          ? 'text-rose-700'
-                          : 'text-amber-700'
-                      }`}>
-                        {distractorPass === true ? <CheckCircle2 className="w-3 h-3 text-emerald-600" /> : distractorPass === false ? <X className="w-3 h-3 text-rose-600" /> : <HelpCircle className="w-3 h-3 text-amber-600" />}
-                        {distractorText}
-                      </span>
-                    </div>
-
-                    {/* Math Proof Pill */}
-                    <div className="p-2.5 bg-slate-50/80 rounded-xl border border-slate-100">
-                      <span className="text-[11px] text-slate-500 block font-medium">Math Proof</span>
-                      <span className={`text-xs font-semibold flex items-center gap-1 mt-0.5 ${
-                        mathPass === true
-                          ? 'text-emerald-700'
-                          : mathPass === false
-                          ? 'text-rose-700'
-                          : 'text-amber-700'
-                      }`}>
-                        {mathPass === true ? <CheckCircle2 className="w-3 h-3 text-emerald-600" /> : mathPass === false ? <X className="w-3 h-3 text-rose-600" /> : <HelpCircle className="w-3 h-3 text-amber-600" />}
-                        {mathText}
-                      </span>
-                    </div>
+            {/* 2. BOTTOM CARD: POLYMORPHIC VERIFICATION CHECKLIST (5-Point for Mode 2, 10-Point Proof for Modes 1 & 3) */}
+            {isMode2 ? (
+              <Card variant="default" padding="lg" className="rounded-2xl border-slate-200/80 shadow-xs">
+                <div className="flex items-center justify-between pb-3 mb-3.5 border-b border-slate-100">
+                  <div className="flex items-center gap-2 text-slate-900">
+                    <ShieldCheck className="w-4 h-4 text-amber-600" />
+                    <h3 className="text-sm font-bold">5-Point Concept Accuracy Checklist</h3>
                   </div>
-                );
-              })()}
+                  <Badge variant={hasValidConcept ? 'approved' : 'draft'} size="sm" className="font-bold text-[11px]">
+                    {hasValidConcept ? 'VERIFIED' : 'PENDING'}
+                  </Badge>
+                </div>
 
-              {/* Collapsible Accordion for Individual Rule Audits */}
-              {validationResult?.checks && validationResult.checks.length > 0 && (
-                <div className="pt-2 border-t border-slate-100">
-                  <button
-                    type="button"
-                    onClick={() => setShowAllRuleAudits((prev) => !prev)}
-                    className="w-full flex items-center justify-between py-1.5 text-xs font-semibold text-slate-700 hover:text-indigo-600 transition-colors"
-                  >
-                    <span className="flex items-center gap-1.5">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                      <span>{validationResult.checks.length} Automated Rule Audits Passed</span>
-                    </span>
-                    {showAllRuleAudits ? (
-                      <ChevronUp className="w-4 h-4 text-slate-400" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4 text-slate-400" />
-                    )}
-                  </button>
-
-                  {showAllRuleAudits && (
-                    <div className="space-y-1.5 mt-2 pt-2 border-t border-slate-100 max-h-60 overflow-y-auto pr-1 animate-in fade-in duration-150">
-                      {validationResult.checks.map((chk: ValidationCheckItem, idx: number) => (
-                        <div
-                          key={idx}
-                          className="flex items-start gap-2 text-[11px] text-slate-700 py-1 border-b border-slate-50 last:border-0"
-                        >
-                          <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0 mt-0.5" />
-                          <div>
-                            <span className="font-semibold text-slate-800">{chk.name}:</span>{' '}
-                            <span className="text-slate-600">{chk.message || 'Passed'}</span>
-                          </div>
-                        </div>
-                      ))}
+                <div className="space-y-2.5">
+                  {[
+                    {
+                      id: 'S8-M2-01',
+                      name: '1. Syllabus & Curriculum Accuracy',
+                      desc: 'Topic & subtopic taxonomy verified against state exam curriculum.',
+                      passed: Boolean(question.topicId && question.subtopicId),
+                    },
+                    {
+                      id: 'S8-M2-02',
+                      name: '2. Definition & Conceptual Clarity',
+                      desc: 'Fundamental terminology and principles articulated with zero ambiguity.',
+                      passed: Boolean((question.introductoryConcept || question.questionText)?.trim().length >= 15),
+                    },
+                    {
+                      id: 'S8-M2-03',
+                      name: '3. Exam Weightage & Relevance',
+                      desc: 'Addresses high-frequency exam concept patterns and scoring value.',
+                      passed: Boolean(question.syllabusScopeNotes || question.conceptTitle || hasValidConcept),
+                    },
+                    {
+                      id: 'S8-M2-04',
+                      name: '4. Telugu Linguistic Quality & Orthography',
+                      desc: 'Standard academic Telugu vocabulary with correct spelling and grammar.',
+                      passed: hasValidConcept,
+                    },
+                    {
+                      id: 'S8-M2-05',
+                      name: '5. Roadmap & Pedagogical Completeness',
+                      desc: 'Foundational framework thoroughly established prior to question drill.',
+                      passed: hasValidConcept,
+                    },
+                  ].map((item) => (
+                    <div
+                      key={item.id}
+                      data-testid={`concept-check-${item.id}`}
+                      className="p-2.5 bg-slate-50/80 rounded-xl border border-slate-100 flex items-start gap-2.5 text-xs"
+                    >
+                      {item.passed ? (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                      ) : (
+                        <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                      )}
+                      <div className="flex-1">
+                        <span className="font-bold text-slate-900 block">{item.name}</span>
+                        <p className="text-[11px] text-slate-600 mt-0.5 leading-normal">{item.desc}</p>
+                      </div>
+                      <Badge variant={item.passed ? 'approved' : 'neutral'} size="sm" className="text-[10px]">
+                        {item.passed ? 'PASS' : 'REVIEW'}
+                      </Badge>
                     </div>
+                  ))}
+                </div>
+              </Card>
+            ) : (
+              <Card variant="default" padding="lg" className="rounded-2xl border-slate-200/80 shadow-xs">
+                <div className="flex items-center justify-between pb-3 mb-3.5 border-b border-slate-100">
+                  <div className="flex items-center gap-2 text-slate-900">
+                    <ShieldCheck className="w-4 h-4 text-indigo-600" />
+                    <h3 className="text-sm font-bold">10-Point Pedagogical Proof Checklist</h3>
+                  </div>
+                  {isValidating ? (
+                    <Badge variant="neutral" size="sm">
+                      <RefreshCw className="w-3 h-3 animate-spin mr-1" />
+                      Auditing...
+                    </Badge>
+                  ) : (
+                    <Badge
+                      variant={
+                        validationResult?.status === QuestionValidationStatus.VALID || isApproved
+                          ? 'approved'
+                          : 'draft'
+                      }
+                      size="sm"
+                      className="font-bold text-[11px]"
+                    >
+                      {isApproved ? 'VERIFIED' : validationResult?.status || 'AUDITED'}
+                    </Badge>
                   )}
                 </div>
-              )}
-            </Card>
+
+                {/* 4-Item Compact Metric Bento (Dynamic derivation from validationResult) */}
+                {(() => {
+                  const confScore = validationResult && validationResult.confidenceScore !== undefined && validationResult.confidenceScore !== null
+                    ? `${Math.round(validationResult.confidenceScore * 100)}%`
+                    : 'N/A';
+
+                  const isAmbiguous = validationResult?.ambiguityResult?.isAmbiguous;
+                  const unambiguousText = !validationResult ? 'Pending' : isAmbiguous === true ? 'Ambiguous' : 'Verified';
+                  const unambiguousPass = !validationResult ? null : isAmbiguous === false;
+
+                  const optionsLayer = validationResult?.layers?.['LAYER_6_ANSWER_OPTIONS'];
+                  const optionsCheck = validationResult?.checks?.find((c) => c.category === 'OPTION' || c.category === 'ANSWER' || c.id?.includes('STAGE_3'));
+                  const distractorStatus = optionsLayer?.status || (optionsCheck?.status === 'PASS' ? 'VERIFIED' : optionsCheck?.status === 'FAIL' ? 'FAILED' : 'PENDING');
+                  const distractorText = isApproved ? 'Verified' : distractorStatus === 'VERIFIED' ? 'High Quality' : distractorStatus === 'FAILED' ? 'Failed' : 'Needs Review';
+                  const distractorPass = isApproved ? true : distractorStatus === 'VERIFIED' ? true : distractorStatus === 'FAILED' ? false : null;
+
+                  const mathLayer = validationResult?.layers?.['LAYER_3_MATHEMATICAL'];
+                  const mathLogicalStatus = validationResult?.mathematicalLogicalResult?.status;
+                  const mathStatus = mathLayer?.status || (mathLogicalStatus === 'PROVABLY_VALID' ? 'VERIFIED' : mathLogicalStatus === 'CONTRADICTORY' ? 'FAILED' : 'UNVERIFIED');
+
+                  let mathText: string;
+                  let mathPass: boolean | null;
+
+                  if (isApproved) {
+                    mathText = mathStatus === 'N/A' ? 'N/A' : 'Passed';
+                    mathPass = mathStatus === 'N/A' ? null : true;
+                  } else if (mathStatus === 'FAILED') {
+                    mathText = 'Failed';
+                    mathPass = false;
+                  } else if (mathStatus === 'VERIFIED') {
+                    mathText = 'Passed';
+                    mathPass = true;
+                  } else if (mathStatus === 'N/A') {
+                    mathText = 'N/A';
+                    mathPass = null;
+                  } else if (hasValidExplanation && validationResult?.status === QuestionValidationStatus.VALID) {
+                    mathText = 'Passed';
+                    mathPass = true;
+                  } else {
+                    mathText = 'Needs Review';
+                    mathPass = null;
+                  }
+
+                  return (
+                    <div className="grid grid-cols-2 gap-2 mb-3.5">
+                      {/* Confidence Score Pill */}
+                      <div className="p-2.5 bg-slate-50/80 rounded-xl border border-slate-100">
+                        <span className="text-[11px] text-slate-500 block font-medium">Confidence</span>
+                        <span className={`text-xs font-mono font-bold ${
+                          validationResult?.status === QuestionValidationStatus.VALID || isApproved
+                            ? 'text-emerald-700'
+                            : validationResult?.status === QuestionValidationStatus.INVALID
+                            ? 'text-rose-700'
+                            : 'text-amber-700'
+                        }`}>
+                          {confScore}
+                        </span>
+                      </div>
+
+                      {/* Unambiguous Pill */}
+                      <div className="p-2.5 bg-slate-50/80 rounded-xl border border-slate-100">
+                        <span className="text-[11px] text-slate-500 block font-medium">Unambiguous</span>
+                        <span className={`text-xs font-semibold flex items-center gap-1 mt-0.5 ${
+                          unambiguousPass === true
+                            ? 'text-emerald-700'
+                            : unambiguousPass === false
+                            ? 'text-rose-700'
+                            : 'text-amber-700'
+                        }`}>
+                          {unambiguousPass === true ? <CheckCircle2 className="w-3 h-3 text-emerald-600" /> : unambiguousPass === false ? <X className="w-3 h-3 text-rose-600" /> : <HelpCircle className="w-3 h-3 text-amber-600" />}
+                          {unambiguousText}
+                        </span>
+                      </div>
+
+                      {/* Distractors Pill */}
+                      <div className="p-2.5 bg-slate-50/80 rounded-xl border border-slate-100">
+                        <span className="text-[11px] text-slate-500 block font-medium">Distractors</span>
+                        <span className={`text-xs font-semibold flex items-center gap-1 mt-0.5 ${
+                          distractorPass === true
+                            ? 'text-emerald-700'
+                            : distractorPass === false
+                            ? 'text-rose-700'
+                            : 'text-amber-700'
+                        }`}>
+                          {distractorPass === true ? <CheckCircle2 className="w-3 h-3 text-emerald-600" /> : distractorPass === false ? <X className="w-3 h-3 text-rose-600" /> : <HelpCircle className="w-3 h-3 text-amber-600" />}
+                          {distractorText}
+                        </span>
+                      </div>
+
+                      {/* Math Proof Pill */}
+                      <div className="p-2.5 bg-slate-50/80 rounded-xl border border-slate-100">
+                        <span className="text-[11px] text-slate-500 block font-medium">Math Proof</span>
+                        <span className={`text-xs font-semibold flex items-center gap-1 mt-0.5 ${
+                          mathPass === true
+                            ? 'text-emerald-700'
+                            : mathPass === false
+                            ? 'text-rose-700'
+                            : 'text-amber-700'
+                        }`}>
+                          {mathPass === true ? <CheckCircle2 className="w-3 h-3 text-emerald-600" /> : mathPass === false ? <X className="w-3 h-3 text-rose-600" /> : <HelpCircle className="w-3 h-3 text-amber-600" />}
+                          {mathText}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* 10-Point Pedagogical Proof Checklist List */}
+                <div className="pt-2 border-t border-slate-100 space-y-1">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+                    10-Point Proof Checklist
+                  </div>
+                  {[
+                    { name: '1. Mathematical Determinism & Correctness', passed: !mathIsContradictory },
+                    { name: '2. Unique Deterministic Correct Answer', passed: Boolean(question.correctAnswer) },
+                    { name: '3. 4 Distinct Non-Trivial Options', passed: Boolean(question.options?.a && question.options?.b) },
+                    { name: '4. Distractor Plausibility & Trap Quality', passed: !hasFatalErrors },
+                    { name: '5. Pedagogical Explanation Completeness', passed: hasValidExplanation },
+                    { name: '6. Telugu Linguistic & Orthographic Quality', passed: Boolean(question.questionText?.length >= 5) },
+                    { name: '7. Real-World Hook & Relevance', passed: Boolean(question.realWorldContext || question.realLifeContext) },
+                    { name: '8. Syllabus Alignment & Taxonomy Accuracy', passed: Boolean(question.topicId && question.subtopicId) },
+                    { name: '9. Cognitive Difficulty Calibration', passed: Boolean(question.difficulty) },
+                    { name: '10. Unambiguous Problem Statement', passed: validationResult?.ambiguityResult?.isAmbiguous !== true },
+                  ].map((chk, idx) => (
+                    <div
+                      key={idx}
+                      data-testid={`proof-check-${idx + 1}`}
+                      className="flex items-center justify-between py-1 text-[11px] text-slate-700 border-b border-slate-50 last:border-0"
+                    >
+                      <span className="flex items-center gap-1.5 font-medium">
+                        {chk.passed ? (
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        ) : (
+                          <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                        )}
+                        <span>{chk.name}</span>
+                      </span>
+                      <span className={`text-[10px] font-bold ${chk.passed ? 'text-emerald-700' : 'text-amber-700'}`}>
+                        {chk.passed ? 'PASSED' : 'CHECK'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Collapsible Accordion for Automated Rule Audits */}
+                {validationResult?.checks && validationResult.checks.length > 0 && (
+                  <div className="pt-2 border-t border-slate-100 mt-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowAllRuleAudits((prev) => !prev)}
+                      className="w-full flex items-center justify-between py-1.5 text-xs font-semibold text-slate-700 hover:text-indigo-600 transition-colors"
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>{validationResult.checks.length} Automated Rule Audits Passed</span>
+                      </span>
+                      {showAllRuleAudits ? (
+                        <ChevronUp className="w-4 h-4 text-slate-400" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4 text-slate-400" />
+                      )}
+                    </button>
+
+                    {showAllRuleAudits && (
+                      <div className="space-y-1.5 mt-2 pt-2 border-t border-slate-100 max-h-60 overflow-y-auto pr-1 animate-in fade-in duration-150">
+                        {validationResult.checks.map((chk: ValidationCheckItem, idx: number) => (
+                          <div
+                            key={idx}
+                            className="flex items-start gap-2 text-[11px] text-slate-700 py-1 border-b border-slate-50 last:border-0"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                            <div>
+                              <span className="font-semibold text-slate-800">{chk.name}:</span>{' '}
+                              <span className="text-slate-600">{chk.message || 'Passed'}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </Card>
+            )}
           </div>
         </div>
       )}

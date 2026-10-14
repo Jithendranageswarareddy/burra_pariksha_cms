@@ -12,6 +12,25 @@ import {
   VideoProductionStatus,
 } from '../constants/enums';
 
+export interface ExplainedQuestionItem {
+  questionNumber: number;
+  questionText: string;
+  options: {
+    a: string;
+    b: string;
+    c: string;
+    d: string;
+  };
+  optionA?: string;
+  optionB?: string;
+  optionC?: string;
+  optionD?: string;
+  correctAnswer: 'A' | 'B' | 'C' | 'D';
+  explanation: string;
+  trickOrPitfall?: string;
+  difficulty?: DifficultyLevel | string;
+}
+
 export interface Question {
   id: string; // e.g. qst_uuid or BP-Q-1042
   contentId?: string; // Canonical correlation identity BP-CNT-######
@@ -55,6 +74,13 @@ export interface Question {
   authorId?: string;
   author?: string; // Production question contract alias
   generationMode?: 'SUBTOPIC' | 'RANDOM' | string;
+  productionMode?: string;
+  targetQuestionCount?: number;
+  aspectRatio?: string;
+  introductoryConcept?: string;
+  conceptTitle?: string;
+  syllabusScopeNotes?: string;
+  questions?: ExplainedQuestionItem[];
   createdAt: string;
   updatedAt: string;
 }
@@ -90,6 +116,10 @@ export interface QuestionDraft {
   productionMode?: string;
   targetQuestionCount?: number;
   aspectRatio?: string;
+  introductoryConcept?: string;
+  conceptTitle?: string;
+  syllabusScopeNotes?: string;
+  questions?: ExplainedQuestionItem[];
   tags?: string[];
   source?: string;
   sourceModel?: string;

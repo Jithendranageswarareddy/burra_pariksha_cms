@@ -19,6 +19,8 @@ import {
   QuestionStatus,
   UserRole,
   canonicalIdService,
+  ContentProductionMode,
+  validateProductionModeConfig,
 } from '../../../shared';
 import {
   GenerateCandidateInput,
@@ -233,6 +235,47 @@ export class QuestionGenerationService {
    */
   public validateCandidate(candidate: Partial<StudioCandidate>): { isValid: boolean; errors: string[] } {
     const errors: string[] = [];
+    const mode = (candidate.productionMode as ContentProductionMode) || 'QUESTION_CHALLENGE_SHORT';
+
+    if (mode === 'TOPIC_INTRODUCTION') {
+      const conceptText = (candidate.introductoryConcept || candidate.questionText || '').trim();
+      if (!conceptText || conceptText.length < 15) {
+        errors.push('Introductory concept statement must be at least 15 characters.');
+      }
+      return { isValid: errors.length === 0, errors };
+    }
+
+    if (mode === 'EXPLAINED_QUESTIONS_VIDEO') {
+      const introText = (candidate.introductoryConcept || candidate.questionText || '').trim();
+      if (!introText || introText.length < 15) {
+        errors.push('Introductory concept overview must be at least 15 characters.');
+      }
+      const targetCount = candidate.targetQuestionCount || 5;
+      const questions = candidate.questions || [];
+      if (questions.length < targetCount) {
+        errors.push(`Requires ${targetCount} explained questions (currently has ${questions.length}).`);
+      }
+      for (let i = 0; i < Math.min(questions.length, targetCount); i++) {
+        const q = questions[i];
+        const qIdx = q.questionNumber || i + 1;
+        const qText = (q.questionText || '').trim();
+        const a = (q.optionA || q.options?.a || '').trim();
+        const b = (q.optionB || q.options?.b || '').trim();
+        const c = (q.optionC || q.options?.c || '').trim();
+        const d = (q.optionD || q.options?.d || '').trim();
+        const ans = (q.correctAnswer || '').trim().toUpperCase();
+
+        if (!qText || qText.length < 5) errors.push(`Question #${qIdx}: Statement must be at least 5 characters.`);
+        if (!a) errors.push(`Question #${qIdx}: Option A is required.`);
+        if (!b) errors.push(`Question #${qIdx}: Option B is required.`);
+        if (!c) errors.push(`Question #${qIdx}: Option C is required.`);
+        if (!d) errors.push(`Question #${qIdx}: Option D is required.`);
+        if (!['A', 'B', 'C', 'D'].includes(ans)) errors.push(`Question #${qIdx}: Correct answer must be A, B, C, or D.`);
+      }
+      return { isValid: errors.length === 0, errors };
+    }
+
+    // Default Mode 1: QUESTION_CHALLENGE_SHORT
     const text = (candidate.questionText || '').trim();
     if (!text || text.length < 5) {
       errors.push('Question problem statement must be at least 5 characters.');
@@ -266,9 +309,26 @@ export class QuestionGenerationService {
     input: SaveQuestionDraftInput,
     actor: { id: string; name: string } = { id: 'USR-001', name: 'Author' }
   ): Promise<QuestionDraft> {
-    const rawText = (input.questionText || input.question || '').trim();
+    const mode = input.productionMode as ContentProductionMode | undefined;
+    if (mode) {
+      const count = input.targetQuestionCount !== undefined
+        ? input.targetQuestionCount
+        : (mode === 'TOPIC_INTRODUCTION' ? 0 : (mode === 'EXPLAINED_QUESTIONS_VIDEO' ? 5 : 1));
+      const aspect = (input.aspectRatio as '9:16' | '16:9') || (mode === 'EXPLAINED_QUESTIONS_VIDEO' ? '16:9' : '9:16');
+      const modeValidation = validateProductionModeConfig(mode, count, aspect);
+      if (!modeValidation.isValid) {
+        throw new QuestionGenerationDomainError(modeValidation.error || 'Invalid production mode configuration.', 400);
+      }
+    }
+
+    const rawText = (input.questionText || input.question || input.introductoryConcept || '').trim();
     if (!rawText) {
-      throw new QuestionGenerationDomainError('Question statement cannot be empty when saving draft.', 400);
+      throw new QuestionGenerationDomainError(
+        mode === 'TOPIC_INTRODUCTION'
+          ? 'Introductory concept statement cannot be empty when saving draft.'
+          : 'Question statement cannot be empty when saving draft.',
+        400
+      );
     }
 
     if (!input.topicId || typeof input.topicId !== 'string') {
@@ -301,16 +361,21 @@ export class QuestionGenerationService {
       }
     }
 
-    const optA = (input.options?.a || input.optionA || '').trim();
-    const optB = (input.options?.b || input.optionB || '').trim();
-    const optC = (input.options?.c || input.optionC || '').trim();
-    const optD = (input.options?.d || input.optionD || '').trim();
+    const firstInputQ = input.questions && input.questions.length > 0 ? input.questions[0] : null;
+    const optA = (input.options?.a || input.optionA || firstInputQ?.options?.a || firstInputQ?.optionA || '').trim();
+    const optB = (input.options?.b || input.optionB || firstInputQ?.options?.b || firstInputQ?.optionB || '').trim();
+    const optC = (input.options?.c || input.optionC || firstInputQ?.options?.c || firstInputQ?.optionC || '').trim();
+    const optD = (input.options?.d || input.optionD || firstInputQ?.options?.d || firstInputQ?.optionD || '').trim();
 
     const draftId = input.id && typeof input.id === 'string' && input.id.trim()
       ? input.id.trim()
       : canonicalIdService.generateDraftId();
 
     const now = new Date().toISOString();
+
+    const resolvedExplanation = (input.explanation || '').trim() ||
+      (firstInputQ?.explanation || '').trim() ||
+      (input.introductoryConcept || '').trim();
 
     const draft: QuestionDraft = {
       id: draftId,
@@ -330,8 +395,8 @@ export class QuestionGenerationService {
       optionB: optB,
       optionC: optC,
       optionD: optD,
-      correctAnswer: input.correctAnswer || 'A',
-      explanation: (input.explanation || '').trim(),
+      correctAnswer: (input.correctAnswer as any) || (firstInputQ?.correctAnswer) || (mode === 'TOPIC_INTRODUCTION' ? '' : 'A'),
+      explanation: resolvedExplanation,
       realWorldContext: input.realLifeContext || input.realWorldContext,
       realLifeContext: input.realLifeContext || input.realWorldContext,
       challengeType: input.challengeType || 'ABCD',
@@ -342,6 +407,10 @@ export class QuestionGenerationService {
       productionMode: input.productionMode,
       targetQuestionCount: input.targetQuestionCount,
       aspectRatio: input.aspectRatio,
+      introductoryConcept: input.introductoryConcept || (mode === 'TOPIC_INTRODUCTION' ? rawText : undefined),
+      conceptTitle: input.conceptTitle,
+      syllabusScopeNotes: input.syllabusScopeNotes,
+      questions: input.questions || [],
       source: input.source || 'AI Question Studio',
       sourceModel: input.sourceModel,
       generationLatencyMs: input.generationLatencyMs,
@@ -420,6 +489,13 @@ export class QuestionGenerationService {
     // Validate completeness before allowing submission
     const validation = this.validateCandidate({
       questionText: draft.questionText || draft.question,
+      introductoryConcept: draft.introductoryConcept,
+      conceptTitle: draft.conceptTitle,
+      syllabusScopeNotes: draft.syllabusScopeNotes,
+      questions: draft.questions,
+      productionMode: draft.productionMode,
+      targetQuestionCount: draft.targetQuestionCount,
+      aspectRatio: draft.aspectRatio,
       optionA: draft.options?.a || draft.optionA,
       optionB: draft.options?.b || draft.optionB,
       optionC: draft.options?.c || draft.optionC,
@@ -568,6 +644,15 @@ export class QuestionGenerationService {
       }
     }
 
+    const firstQuestion = draft.questions && draft.questions.length > 0 ? draft.questions[0] : null;
+    const resolvedQuestionText = draft.questionText || draft.introductoryConcept || firstQuestion?.questionText || '';
+    const resolvedExplanation = draft.explanation || firstQuestion?.explanation || draft.introductoryConcept || '';
+    const hasDraftOptions = draft.options && (draft.options.a || draft.options.b || draft.options.c || draft.options.d);
+    const resolvedOptions = hasDraftOptions ? draft.options : (firstQuestion?.options || { a: '', b: '', c: '', d: '' });
+    const resolvedCorrectAnswer = (draft.productionMode === 'TOPIC_INTRODUCTION')
+      ? ''
+      : (draft.correctAnswer || firstQuestion?.correctAnswer || 'A');
+
     // Materialize into canonical Question
     const createdQuestion = await questionService.createQuestionFromRequest(
       {
@@ -576,15 +661,22 @@ export class QuestionGenerationService {
         subtopicId: draft.subtopicId,
         difficulty: draft.difficulty as any,
         language: draft.language as any,
-        questionText: draft.questionText,
-        question: draft.questionText,
-        options: draft.options,
-        correctAnswer: draft.correctAnswer,
-        explanation: draft.explanation,
+        questionText: resolvedQuestionText,
+        question: resolvedQuestionText,
+        options: resolvedOptions,
+        correctAnswer: resolvedCorrectAnswer,
+        explanation: resolvedExplanation,
         realLifeContext: draft.realLifeContext,
         challengeType: draft.challengeType,
         presentationType: draft.presentationType,
         questionStyle: draft.questionStyle as any,
+        productionMode: draft.productionMode,
+        targetQuestionCount: draft.targetQuestionCount,
+        aspectRatio: draft.aspectRatio,
+        introductoryConcept: draft.introductoryConcept,
+        conceptTitle: draft.conceptTitle,
+        syllabusScopeNotes: draft.syllabusScopeNotes,
+        questions: draft.questions,
         tags: draft.tags,
         source: draft.source || 'AI Question Studio',
         mathematicalVerification: draft.mathematicalVerification,

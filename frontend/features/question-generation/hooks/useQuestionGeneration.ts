@@ -23,6 +23,7 @@ import {
   evaluateStep01CandidateState,
   SubmitForVerificationResult,
 } from '../../../../shared/contracts/question-generation';
+import { ExplainedQuestionItem } from '../../../../shared/types/question';
 import { questionsApi } from '../../../api/questions.api';
 import { taxonomyApi } from '../../../api/taxonomy.api';
 import { ProductionJourneyContext } from '../../../contexts/ProductionJourneyContext';
@@ -68,6 +69,7 @@ export function useQuestionGeneration() {
   const [isModeModalOpen, setIsModeModalOpen] = useState<boolean>(
     !isValidQueryMode && !queryDraftId
   );
+  const [activeQuestionIndex, setActiveQuestionIndex] = useState<number>(0);
 
   // Draft loading state & deduplication ref
   const [isLoadingDraft, setIsLoadingDraft] = useState<boolean>(Boolean(queryDraftId));
@@ -258,7 +260,7 @@ export function useQuestionGeneration() {
         };
 
         const loadedCandidate: StudioCandidate = {
-          questionText: draft.questionText || draft.question || '',
+          questionText: draft.questionText || draft.question || draft.introductoryConcept || '',
           optionA: optionsObj.a || draft.optionA || '',
           optionB: optionsObj.b || draft.optionB || '',
           optionC: optionsObj.c || draft.optionC || '',
@@ -274,6 +276,13 @@ export function useQuestionGeneration() {
           realLifeContext: draft.realLifeContext || draft.realWorldContext || realLifeContext,
           questionStyle: (draft.questionStyle as string) || questionStyle,
           generationMode: (draft.generationMode as any) || 'SUBTOPIC',
+          productionMode: draft.productionMode,
+          targetQuestionCount: draft.targetQuestionCount,
+          aspectRatio: draft.aspectRatio,
+          introductoryConcept: draft.introductoryConcept || (draft.productionMode === 'TOPIC_INTRODUCTION' ? draft.questionText : ''),
+          conceptTitle: draft.conceptTitle || '',
+          syllabusScopeNotes: draft.syllabusScopeNotes || '',
+          questions: draft.questions || [],
           tags: draft.tags || ['Aptitude', 'Telugu'],
           sourceModel: draft.sourceModel,
           generationLatencyMs: draft.generationLatencyMs,
@@ -488,14 +497,62 @@ export function useQuestionGeneration() {
     setHasCandidate(true);
   }, [serverValidationResult, triggerDuplicateCheck]);
 
+  // Update an individual question in Mode 3 (EXPLAINED_QUESTIONS_VIDEO)
+  const updateExplainedQuestion = useCallback(
+    (index: number, updatedFields: Partial<ExplainedQuestionItem>) => {
+      setIsDirty(true);
+      setSaveSuccessMessage(null);
+      setSubmitSuccessResult(null);
+
+      setCandidate((prev) => {
+        const currentList = [...(prev.questions || [])];
+        const existingIdx = currentList.findIndex((q) => q.questionNumber === index);
+
+        if (existingIdx >= 0) {
+          currentList[existingIdx] = {
+            ...currentList[existingIdx],
+            ...updatedFields,
+            questionNumber: index,
+          };
+        } else {
+          currentList.push({
+            questionNumber: index,
+            questionText: '',
+            options: { a: '', b: '', c: '', d: '' },
+            optionA: '',
+            optionB: '',
+            optionC: '',
+            optionD: '',
+            correctAnswer: 'A',
+            explanation: '',
+            ...updatedFields,
+          });
+        }
+
+        return {
+          ...prev,
+          questions: currentList,
+        };
+      });
+
+      setHasCandidate(true);
+    },
+    []
+  );
+
   // Evaluated workflow state
   const workflowState: Step01StateEvaluation = useMemo(() => {
     return evaluateStep01CandidateState({
       hasCandidate,
-      candidate,
+      candidate: {
+        ...candidate,
+        productionMode: productionMode || undefined,
+        targetQuestionCount,
+        aspectRatio,
+      },
       configError,
     });
-  }, [hasCandidate, candidate, configError]);
+  }, [hasCandidate, candidate, productionMode, targetQuestionCount, aspectRatio, configError]);
 
   // Clean up timers on unmount
   useEffect(() => {
@@ -632,6 +689,13 @@ export function useQuestionGeneration() {
     setIsSaving(true);
 
     try {
+      const isMode2 = productionMode === 'TOPIC_INTRODUCTION';
+      const isMode3 = productionMode === 'EXPLAINED_QUESTIONS_VIDEO';
+
+      const qText = isMode2
+        ? (candidate.introductoryConcept || candidate.questionText || '').trim()
+        : (candidate.questionText || candidate.introductoryConcept || '').trim();
+
       const savedDraft = await questionsApi.saveDraft({
         id: savedDraftId || undefined,
         topicId: selectedTopic,
@@ -643,19 +707,29 @@ export function useQuestionGeneration() {
         realLifeContext: candidate.realLifeContext,
         generationMode: candidate.generationMode,
         questionStyle: candidate.questionStyle,
-        questionText: candidate.questionText.trim(),
-        options: {
-          a: candidate.optionA.trim(),
-          b: candidate.optionB.trim(),
-          c: candidate.optionC.trim(),
-          d: candidate.optionD.trim(),
-        },
-        correctAnswer: candidate.correctAnswer,
-        explanation: candidate.explanation.trim(),
+        questionText: qText,
+        options: isMode2
+          ? undefined
+          : {
+              a: (candidate.optionA || '').trim(),
+              b: (candidate.optionB || '').trim(),
+              c: (candidate.optionC || '').trim(),
+              d: (candidate.optionD || '').trim(),
+            },
+        optionA: isMode2 ? undefined : (candidate.optionA || '').trim(),
+        optionB: isMode2 ? undefined : (candidate.optionB || '').trim(),
+        optionC: isMode2 ? undefined : (candidate.optionC || '').trim(),
+        optionD: isMode2 ? undefined : (candidate.optionD || '').trim(),
+        correctAnswer: isMode2 ? undefined : candidate.correctAnswer,
+        explanation: (candidate.explanation || '').trim(),
         tags: candidate.tags,
         productionMode: productionMode || undefined,
         targetQuestionCount,
         aspectRatio,
+        introductoryConcept: candidate.introductoryConcept || (isMode2 ? qText : undefined),
+        conceptTitle: candidate.conceptTitle,
+        syllabusScopeNotes: candidate.syllabusScopeNotes,
+        questions: isMode3 ? (candidate.questions || []) : [],
         source: 'AI Question Studio',
         sourceModel: candidate.sourceModel,
         generationLatencyMs: candidate.generationLatencyMs,
@@ -816,6 +890,8 @@ export function useQuestionGeneration() {
     setIsModeModalOpen,
     setProductionModeConfig,
     isLoadingDraft,
+    activeQuestionIndex,
+    setActiveQuestionIndex,
 
     // Candidate
     candidate,
@@ -824,6 +900,7 @@ export function useQuestionGeneration() {
     savedDraftId,
     workflowState,
     updateCandidateField,
+    updateExplainedQuestion,
     setHasCandidate,
     setIsDirty,
 

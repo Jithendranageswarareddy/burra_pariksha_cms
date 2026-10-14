@@ -30,7 +30,8 @@
     "test:question-generation": "tsx tests/unit/question-generation/topic-subtopic-validation.unit.test.ts && tsx tests/unit/question-generation/save-draft-vs-verify.unit.test.ts && tsx tests/integration/question-generation/submission-route-registration.integration.test.ts && tsx tests/integration/question-generation/question-generation-slice.integration.test.ts && tsx tests/e2e/question-generation/question-generation-workflow.e2e.test.ts",
     "test:architecture": "tsx tests/architecture/s7-frontend-backend-boundary.test.ts && tsx tests/architecture/s7-t11-api-access-boundary.test.ts && tsx tests/architecture/fc-005-shared-contract.test.ts && tsx tests/architecture/s7-t16-dependency-boundaries.test.ts && tsx tests/architecture/s7-t01-inventory-reconciliation.test.ts",
     "test:s7-t19": "tsx tests/regression/s7-t19-runtime-regression.test.ts",
-    "test:s8-t07": "tsx tests/unit/s8-t07-draft-reopening.unit.test.ts"
+    "test:s8-t07": "tsx tests/unit/s8-t07-draft-reopening.unit.test.ts",
+    "test:s8-t08": "tsx tests/unit/s8-t08-mode-workspaces.unit.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

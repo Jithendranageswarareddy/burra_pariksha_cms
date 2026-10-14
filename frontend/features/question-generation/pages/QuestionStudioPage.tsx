@@ -21,6 +21,8 @@ import { ProductionJourneyBar } from '../../../components/production/ProductionJ
 import { useQuestionGeneration } from '../hooks/useQuestionGeneration';
 import { GenerationConfigPanel } from '../components/GenerationConfigPanel';
 import { CandidateCanvas } from '../components/CandidateCanvas';
+import { TopicIntroWorkspace } from '../components/TopicIntroWorkspace';
+import { ExplainedQuestionsWorkspace } from '../components/ExplainedQuestionsWorkspace';
 import { ActionBar } from '../components/ActionBar';
 import { ProductionModeModal } from '../components/ProductionModeModal';
 
@@ -53,12 +55,15 @@ export const QuestionStudioPage: React.FC = () => {
     setIsModeModalOpen,
     setProductionModeConfig,
     isLoadingDraft,
+    activeQuestionIndex,
+    setActiveQuestionIndex,
     candidate,
     hasCandidate,
     isDirty,
     savedDraftId,
     workflowState,
     updateCandidateField,
+    updateExplainedQuestion,
     setHasCandidate,
     setIsDirty,
     isGenerating,
@@ -241,20 +246,50 @@ export const QuestionStudioPage: React.FC = () => {
 
         {/* RIGHT COLUMN: FOCUSED QUESTION CANVAS & ACTION BAR (col-span-7) */}
         <div className="lg:col-span-7 space-y-3 bg-white/95 backdrop-blur-xs border border-slate-200/80 rounded-xl p-3.5 shadow-xs flex flex-col min-h-[480px]">
-          <CandidateCanvas
-            candidate={candidate}
-            hasCandidate={hasCandidate}
-            isDirty={isDirty}
-            isGenerating={isGenerating}
-            isRefining={isRefining}
-            onUpdateField={updateCandidateField}
-            onRefine={handleRefine}
-            onGenerate={handleGenerate}
-            onManualDraft={() => {
-              setHasCandidate(true);
-              setIsDirty(true);
-            }}
-          />
+          {productionMode === 'TOPIC_INTRODUCTION' ? (
+            <TopicIntroWorkspace
+              candidate={candidate}
+              aspectRatio={aspectRatio}
+              isDirty={isDirty}
+              isSaving={isSaving}
+              onUpdateField={updateCandidateField}
+              onChangeAspectRatio={(aspect) => setProductionModeConfig('TOPIC_INTRODUCTION', 0, aspect)}
+              onManualDraft={() => {
+                setHasCandidate(true);
+                setIsDirty(true);
+              }}
+            />
+          ) : productionMode === 'EXPLAINED_QUESTIONS_VIDEO' ? (
+            <ExplainedQuestionsWorkspace
+              candidate={candidate}
+              targetQuestionCount={targetQuestionCount}
+              activeQuestionIndex={activeQuestionIndex}
+              isDirty={isDirty}
+              isSaving={isSaving}
+              onSelectTab={setActiveQuestionIndex}
+              onUpdateField={updateCandidateField}
+              onUpdateQuestion={updateExplainedQuestion}
+              onManualDraft={() => {
+                setHasCandidate(true);
+                setIsDirty(true);
+              }}
+            />
+          ) : (
+            <CandidateCanvas
+              candidate={candidate}
+              hasCandidate={hasCandidate}
+              isDirty={isDirty}
+              isGenerating={isGenerating}
+              isRefining={isRefining}
+              onUpdateField={updateCandidateField}
+              onRefine={handleRefine}
+              onGenerate={handleGenerate}
+              onManualDraft={() => {
+                setHasCandidate(true);
+                setIsDirty(true);
+              }}
+            />
+          )}
 
           {/* DUPLICATE DETECTION WARNINGS */}
           {duplicateMatches.length > 0 && (
