@@ -5,11 +5,11 @@
 ```text
 ================================================================================
 Document ID:       BP-S8-T04-DYNAMIC-PAGE-ROLE-REQUIREMENTS
-Version:           1.1.0-RECONCILED
+Version:           1.2.0-GAR02-RECONCILED
 Date:              2026-10-14
 Status:            DRAFT — PENDING GATE A APPROVAL
 Gate A Status:     BLOCKED (Pending Formal Stakeholder Sign-Off)
-Inspected Commit:  6196cc7 (main)
+Inspected Commit:  9fecde5 (main)
 Scope:             Shared Production Context, Direct-Link & Draft Resumption,
                    15-Stage Page-State Matrix, Role-to-Action Matrix,
                    GAR-02 Anti-Self-Approval, and Gate A Approval Definition
@@ -63,7 +63,7 @@ Every requirement defined herein adheres strictly to the authoritative BP-CMS ar
   - Subtopic: `sub_<uuid>` (legacy `SUB-###`)
   - Workflow Instance: `wfl_<uuid>`
 - **Save Draft $\neq$ Submit for Verification**: Saving a draft persists minimal valid fields to `question_drafts` without leaving the page or triggering verification. Submitting for verification is an explicit, deliberate user action that executes authoritative validation gates and advances the workflow from Stage 01 to Stage 02.
-- **Anti-Self-Approval (`GAR-02`)**: No author may approve their own submission across review gates (Stage 02 Question Verification, Stage 07 Final QC, Stage 09 Social Review). This rule is enforced server-side with zero role-based bypass except audited emergency overrides.
+- **Anti-Self-Approval (`GAR-02`)**: No author may approve their own submission across review gates (Stage 02 Question Verification, Stage 07 Final QC, Stage 09 Social Review). This rule is an absolute mathematical and architectural invariant enforced server-side with zero role-based bypass, zero administrative exceptions, and zero emergency overrides across all roles, including `ADMIN`.
 - **Documentation & Specification Only**: In strict compliance with Sprint 8 rules, this document provides architecture contracts and specifications. Zero application code, routes, or schema migrations may be executed prior to formal Gate A approval.
 
 ---
@@ -554,7 +554,7 @@ export enum CanonicalRbacRole {
  │ ANALYST           │ Stage 14             │ PERFORMANCE_RECORD:VIEW     │ DOMAIN            │ Visible      │ Enforced   │
  │ CONTENT_LEAD      │ Stage 14             │ PERFORMANCE_RECORD:REVIEW   │ DOMAIN            │ Visible      │ Enforced   │
  │ CONTENT_LEAD      │ Stage 15             │ INTELLIGENCE_INSIGHT:APPROVE│ GLOBAL            │ Visible      │ Enforced   │
- │ ADMIN             │ Governance / Override│ CONFIGURATION:ADMINISTER    │ GLOBAL            │ Visible      │ Enforced   │
+ │ ADMIN             │ System Administration│ CONFIGURATION:ADMINISTER    │ GLOBAL            │ Visible      │ Enforced   │
  └───────────────────┴──────────────────────┴─────────────────────────────┴───────────────────┴──────────────┴────────────┘
 ```
 
@@ -576,14 +576,14 @@ $$\mathbf{GAR\text{-}02}: \quad \text{Reviewer Actor ID} \neq \text{Author Actor
 ```
 
 #### Server-Side Enforcement Rules:
-1. When any approval endpoint is invoked (`/api/questions/:id/verify`, `/api/videos/:id/status`, `/api/social-reviews/:id/approve`), the Express middleware extracts `actor.id` from the authenticated session token and compares it with the target entity's author/creator ID.
-2. If `actor.id === entity.authorUserId`, the request is **instantly rejected** with `HTTP 403 Forbidden` and error code `FORBIDDEN_BY_SEGREGATION_OF_DUTIES`.
-3. **Zero Role Bypass**: The rule applies equally to all roles, including `CONTENT_LEAD` and `ADMIN`. Holding the Administrator role does not permit routine self-approval.
-4. **Administrative Override Protocol**:
-   - An administrator may only bypass GAR-02 during emergency disaster recovery by supplying an explicit override payload:
-     $$\{ \text{isOverride: true}, \text{confirmedByAdmin: true}, \text{reason: "[min 10 chars explanation]"} \}$$
-   - The server verifies that the actor holds `CanonicalRbacRole.ADMIN`, validates that `reason.length >= 10`, and emits an immutable, high-priority `AuditEvent` logging the override.
-   - Any attempt by non-admins to pass an override flag is rejected with `HTTP 403 Forbidden`.
+1. When any approval endpoint is invoked (`/api/questions/:id/verify`, `/api/videos/:id/status`, `/api/social-reviews/:id/approve`), the Express authorization middleware extracts `actor.id` from the authenticated session token and compares it with the target entity's author/creator ID (`entity.authorUserId`).
+2. If `actor.id === entity.authorUserId`, the request is **instantly rejected** on the server with `HTTP 403 Forbidden` and error code `FORBIDDEN_BY_SEGREGATION_OF_DUTIES` (or `SELF_APPROVAL_FORBIDDEN` per 09-RBAC Section 9.1).
+3. **Universal Zero-Bypass Principle**: The anti-self-approval rule applies unconditionally and equally to all 11 canonical roles, including `CONTENT_LEAD` and `ADMIN`. Administrative status provides zero authority to approve one's own authored artifact.
+4. **Absolute Prohibition of Administrative & Emergency Overrides**:
+   - There are **zero exceptions, emergency bypasses, break-glass mechanisms, or administrative override protocols** for GAR-02 in BP-CMS.
+   - Server-side middleware and domain services unconditionally reject any approval request where `actor.id === entity.authorUserId` with `HTTP 403 Forbidden`, regardless of request flags, claims, or administrative roles.
+   - Any client payload attempting to bypass segregation of duties via override fields (e.g., `isOverride`, `bypassGar02`, `confirmedByAdmin`) must be rejected server-side as invalid/forbidden.
+   - Operational deadlocks, sick leave, or emergency content progression must be resolved exclusively via legitimate separation of duties: assigning or delegating the review gate to an independent, qualified reviewer or lead.
 
 #### Frontend Presentation Rules:
 1. When an author inspects their own submitted artifact at a review gate, the approval button is replaced by an informational badge:
@@ -604,7 +604,7 @@ Every protected API request executes the 12-step server evaluation pipeline defi
    4. Evaluate Capability Possession: Check if actor holds the required token (multi-role union).
    5. Resolve Target Entity Instance: Query Firestore for target document (Question, Video, etc.).
    6. Evaluate Object-Level Access: Check resource ownership / data scope.
-   7. Evaluate Segregation-of-Duties (GAR-02): Check reviewerId !== authorId for APPROVE/VERIFY.
+   7. Evaluate Segregation-of-Duties (GAR-02): Inviolable check reviewerId !== authorId for APPROVE/VERIFY across all roles (zero bypass).
    8. Evaluate Business & State Preconditions: Check if prerequisites are satisfied.
    9. Evaluate Workflow Transition Rules: Verify WorkflowInstance.currentStage matches operation.
   10. Evaluate AI Human-Gating Constraints (AP-009): Prevent AI from executing gated transitions.
@@ -623,8 +623,8 @@ Every protected API request executes the 12-step server evaluation pipeline defi
 - **AC-T04-04 (Save Draft vs. Submit Separation)**: The `Save Draft` action must persist minimal valid fields to `question_drafts` and remain on the current page. The `Submit for Verification` action must execute comprehensive schema validation, require a saved draft, and advance the workflow to Stage 02.
 - **AC-T04-05 (15-Stage Page-State Completeness)**: The specification must account for all 15 canonical workflow stages, defining all six essential states (`loading`, `empty`, `error`, `read-only`, `incomplete`, and `completed`) along with draft resumption and recovery behavior for each stage.
 - **AC-T04-06 (Zero-Trust Server Authority)**: Frontend button states and page visibility must be treated strictly as presentation. Every backend API endpoint must independently execute authentication, capability checks, and stage precondition validation.
-- **AC-T04-07 (GAR-02 Server Enforcement)**: The backend authorization pipeline must reject self-approval requests with `HTTP 403 Forbidden` (`FORBIDDEN_BY_SEGREGATION_OF_DUTIES`) whenever `actor.id === authorUserId` across Stages 02, 07, and 09.
-- **AC-T04-08 (Audited Administrative Overrides)**: Administrative overrides of GAR-02 must be strictly restricted to `ADMIN`, require an explicit reason ($\ge 10$ characters), and generate an immutable `AuditEvent`.
+- **AC-T04-07 (GAR-02 Server Enforcement)**: The backend authorization pipeline must reject self-approval requests with `HTTP 403 Forbidden` (`FORBIDDEN_BY_SEGREGATION_OF_DUTIES` / `SELF_APPROVAL_FORBIDDEN`) whenever `actor.id === authorUserId` across Stages 02, 07, and 09.
+- **AC-T04-08 (Universal Zero-Bypass GAR-02 Enforcement)**: Server-side GAR-02 anti-self-approval enforcement is absolute across all roles, including `ADMIN`. There are zero emergency, administrative, or audited bypass mechanisms. Any self-approval attempt by an author or administrator must be rejected server-side with `HTTP 403 Forbidden`.
 - **AC-T04-09 (Multi-Role Capability Union)**: A user holding multiple canonical roles must possess the union of all capabilities granted by those roles, evaluated atomically without inheritance assumptions.
 - **AC-T04-10 (Two-Tier Taxonomy Alignment)**: All workbench contexts and persistence rules must enforce the strictly two-tier taxonomy `Topic` $\to$ `Subtopic`. Any reference to the legacy `Category` concept is prohibited.
 - **AC-T04-11 (Traceability & Reconciliation)**: The requirements must explicitly trace to and reconcile with S8-T01 (Question Generation Audit, `dft_<uuid>` prefix), S8-T02 (Workflow Inventory), and S8-T03 (Content Mode Requirements).
@@ -649,8 +649,9 @@ Every protected API request executes the 12-step server evaluation pipeline defi
  │ Sec 4.1: Role Matrix  │ shared/constants/roles.ts        │ Maps 11 canonical roles to  │
  │                       │ src/types/rbac-models.ts         │ atomic capability tokens    │
  ├───────────────────────┼──────────────────────────────────┼─────────────────────────────┤
- │ Sec 4.2: GAR-02 Invar │ docs/architecture/09-RBAC (Sec 9)│ Enforces author !== reviewer│
- │                       │ backend/.../rbac-evaluator.ts    │ at Stages 02, 07, and 09    │
+ │ Sec 4.2: GAR-02 Invar │ docs/architecture/09-RBAC (Sec 9)│ Universal zero-bypass:      │
+ │                       │ AGENTS.md (Rule 10)              │ author !== reviewer across  │
+ │                       │                                  │ all roles (incl. ADMIN)     │
  ├───────────────────────┼──────────────────────────────────┼─────────────────────────────┤
  │ Sec 7: Gate A Record  │ AGENTS.md (Prime Directive)      │ Blocks implementation until │
  │                       │ S8-T01 through S8-T04 approved   │ formal approval recorded    │
