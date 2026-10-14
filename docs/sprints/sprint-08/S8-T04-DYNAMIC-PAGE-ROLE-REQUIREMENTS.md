@@ -5,11 +5,11 @@
 ```text
 ================================================================================
 Document ID:       BP-S8-T04-DYNAMIC-PAGE-ROLE-REQUIREMENTS
-Version:           1.2.0-GAR02-RECONCILED
+Version:           1.3.0-GATE-A-AUDIT
 Date:              2026-10-14
 Status:            DRAFT — PENDING GATE A APPROVAL
 Gate A Status:     BLOCKED (Pending Formal Stakeholder Sign-Off)
-Inspected Commit:  9fecde5 (main)
+Inspected Commit:  e5dcccd (main)
 Scope:             Shared Production Context, Direct-Link & Draft Resumption,
                    15-Stage Page-State Matrix, Role-to-Action Matrix,
                    GAR-02 Anti-Self-Approval, and Gate A Approval Definition
@@ -714,11 +714,74 @@ Gate A is the mandatory architectural checkpoint that formally certifies the **D
 1. **S8-T01 Accepted**: Forensic audit of Question Generation completed, separating Save Draft from Verification, and verifying Firestore persistence.
 2. **S8-T02 Accepted**: Production page and 15-stage workflow inventory completed, identifying unmounted pages and the QC duality.
 3. **S8-T03 Accepted**: Content Mode requirements finalized across Mode 1 (Question Challenge Short), Mode 2 (Topic Introduction), and Mode 3 (Explained Questions Video).
-4. **S8-T04 Accepted**: Dynamic-page and role requirements completed, establishing the shared production context, 15-stage page-state matrix, role-to-action matrix, and GAR-02 enforcement.
+4. **S8-T04 Accepted**: Dynamic-page and role requirements completed, establishing the shared production context, 15-stage page-state matrix, role-to-action matrix, and zero-bypass GAR-02 enforcement.
 5. **Full Workflow Coverage**: 100% of all 15 canonical lifecycle stages accounted for without omissions.
 6. **Zero Implementation Prematurity**: Verified that zero application code has been implemented prior to sign-off.
 
-### 7.2 Gate A Status & Sign-off Register
+### 7.2 Gate A Prerequisites & Acceptance Traceability Matrix
+
+```text
+ ┌────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+ │                                      GATE A PREREQUISITE TRACEABILITY MATRIX                                           │
+ ├───────┬──────────────────────────┬─────────────────────────────────┬─────────────────────────────────┬─────────────────┤
+ │ ID    │ Prerequisite Scope       │ Authoritative Artifact File     │ Verified Code / Arch Evidence   │ Gate A Status   │
+ ├───────┼──────────────────────────┼─────────────────────────────────┼─────────────────────────────────┼─────────────────┤
+ │ PR-01 │ S8-T01 Accepted: Stage 01│ docs/sprints/sprint-08/         │ Save Draft != Verify decoupled; │ SATISFIED       │
+ │       │ Question Generation Audit│ S8-T01-QUESTION-GENERATION-AUDIT│ dft_<uuid> draft persistence in │ (Audit Complete)│
+ │       │                          │ .md                             │ Firestore; zero Category leaks. │                 │
+ ├───────┼──────────────────────────┼─────────────────────────────────┼─────────────────────────────────┼─────────────────┤
+ │ PR-02 │ S8-T02 Accepted: 15-Stage│ docs/sprints/sprint-08/         │ 15 stages mapped; 8 unmounted   │ SATISFIED       │
+ │       │ Workflow & Page Inventory│ S8-T02-PRODUCTION-PAGE-WORKFLOW │ pages cataloged; QC gate duality│ (Inventory Done)│
+ │       │                          │ -INVENTORY.md                   │ (FC-012 vs Tab 4) forensic audit│                 │
+ ├───────┼──────────────────────────┼─────────────────────────────────┼─────────────────────────────────┼─────────────────┤
+ │ PR-03 │ S8-T03 Accepted: Three   │ docs/sprints/sprint-08/         │ Modes 1, 2, 3 specified; matrix │ PENDING         │
+ │       │ Content Mode Requirements│ S8-T03-CONTENT-MODE-REQUIREMENTS│ separated required vs proposed; │ STAKEHOLDER     │
+ │       │                          │ .md                             │ OD-01 to OD-07 pending decision.│ DECISION        │
+ ├───────┼──────────────────────────┼─────────────────────────────────┼─────────────────────────────────┼─────────────────┤
+ │ PR-04 │ S8-T04 Accepted: Dynamic │ docs/sprints/sprint-08/         │ ProductionContext, 15-stage page│ PENDING         │
+ │       │ Pages, Roles & GAR-02    │ S8-T04-DYNAMIC-PAGE-ROLE-       │ states, 11 roles, zero-bypass   │ STAKEHOLDER     │
+ │       │                          │ REQUIREMENTS.md                 │ GAR-02; DD-01 to DD-08 pending. │ SIGN-OFF        │
+ ├───────┼──────────────────────────┼─────────────────────────────────┼─────────────────────────────────┼─────────────────┤
+ │ PR-05 │ Full Workflow Lifecycle  │ docs/architecture/              │ 100% of all 15 canonical stages │ SATISFIED       │
+ │       │ Coverage (Stages 01–15)  │ 07-CANONICAL-15-STEP-WORKFLOW.md│ mapped with all 6 UI states     │ (Specification  │
+ │       │                          │ S8-T04 Section 3                │ (loading, empty, error, etc.)   │ Complete)       │
+ ├───────┼──────────────────────────┼─────────────────────────────────┼─────────────────────────────────┼─────────────────┤
+ │ PR-06 │ Zero Implementation      │ Codebase root, git status,      │ Zero runtime code, routes, or   │ SATISFIED       │
+ │       │ Prematurity Prior to Gate│ package.json, App.tsx           │ schemas implemented before Gate │ (Verified Clean)│
+ │       │                          │                                 │ A formal approval.              │                 │
+ └───────┴──────────────────────────┴─────────────────────────────────┴─────────────────────────────────┴─────────────────┘
+```
+
+### 7.3 Unresolved Decision Register (Gate A Blockers)
+
+The following decisions remain unapproved and must be formally resolved by authorized stakeholders before Gate A can close:
+
+```text
+ ┌────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+ │                                    UNRESOLVED DECISION REGISTER (GATE A BLOCKERS)                                      │
+ ├───────┬───────────────────────────────┬────────────────────────────────────────────────┬───────────────────────────────┤
+ │ ID    │ Decision Scope & Title        │ Current Architectural Reality                  │ Required Authority & Status   │
+ ├───────┼───────────────────────────────┼────────────────────────────────────────────────┼───────────────────────────────┤
+ │ OD-01 │ Intro in Mode 3 Question Count│ 1 intro + N questions vs N total questions     │ ARB / Content Lead (PENDING)  │
+ │ OD-02 │ Mode 1 Question Count & Batch │ Single short N=1 vs batch series {5,10,15,20}  │ ARB / Product Lead (PENDING)  │
+ │ OD-03 │ Mode 2 Step 02 Concept Review │ 10-point proof vs 5-point concept verification │ ARB / QA Lead (PENDING)       │
+ │ OD-04 │ Aspect Ratio (9:16 vs 16:9)   │ 9:16 vertical mandate vs 16:9 landscape expan. │ ARB / Media Lead (PENDING)    │
+ │ OD-05 │ Datastore Entity Architecture │ Scalar questionId vs ContentMaster aggregate   │ Lead Architect (PENDING)      │
+ │ OD-06 │ Challenge Formats & MCQ Rules │ Strict 4-option ABCD vs non-MCQ relaxations    │ Pedagogical Lead (PENDING)    │
+ │ OD-07 │ Mode 3 Duration & Timeouts    │ Short format <= 58s vs masterclass 12-55 mins  │ Engineering Lead (PENDING)    │
+ ├───────┼───────────────────────────────┼────────────────────────────────────────────────┼───────────────────────────────┤
+ │ DD-01 │ Final QC Route Unification    │ Tab 4 inside VideoDetailPage vs /qc/:videoId   │ Lead Arch / Product (PENDING) │
+ │ DD-02 │ Production Mode Selection UX  │ Entry modal vs Planning batch vs /content/new  │ UX Lead / Product (PENDING)   │
+ │ DD-03 │ Multi-Question Studio Layout  │ Horizontal tabs vs Accordion vs Stepper wizard │ UX Lead / Eng Lead (PENDING)  │
+ │ DD-04 │ Deep-Link Param Standardiz.   │ cnt_<uuid> vs entity-specific parameter schema │ Lead Arch / FE Lead (PENDING) │
+ │ DD-05 │ Multi-Question Draft Storage  │ Single aggregate draft vs array of dft_<uuid>  │ Lead Arch / DB Lead (PENDING) │
+ │ DD-06 │ Teleprompter Multi-Q Nav      │ Continuous vertical script vs per-Q segments   │ Studio / Video Lead (PENDING) │
+ │ DD-07 │ Unmounted Page Disposition    │ Retire 8 orphaned files vs migrate/refactor    │ Eng Lead / Lead Arch (PENDING)│
+ │ DD-08 │ Canonical Role Governance     │ Formalize SOCIAL_LEAD enum vs PUBLISHING_LEAD  │ Lead Arch / Security (PENDING)│
+ └───────┴───────────────────────────────┴────────────────────────────────────────────────┴───────────────────────────────┘
+```
+
+### 7.4 Gate A Formal Approval Record & Blocked Status
 
 $$\mathbf{GATE\ A\ CURRENT\ STATUS}: \quad \mathbf{BLOCKED}$$
 
@@ -741,6 +804,15 @@ Implementation of Sprint 09 features is strictly prohibited until the following 
  └────────────────────────────┴─────────────────────────────┴──────────────┴──────────────┘
 ```
 
+### Actionable Criteria for Gate A Closure:
+To transition Gate A from **BLOCKED** to **APPROVED**, authorized stakeholders must provide explicit decisions on the record:
+1. **Resolve Open Decisions OD-01 through OD-07**: Record formal decisions in `docs/architecture/DECISION-LOG.md` and reconcile requirements in `S8-T03`.
+2. **Resolve Open Decisions DD-01 through DD-08**: Record formal decisions in `docs/architecture/DECISION-LOG.md` and reconcile requirements in `S8-T04`.
+3. **Execute Stakeholder Sign-Off**:
+   - **Lead System Architect**: Review & approve Architectural Invariants, Firestore persistence, RBAC integrity, and UUID entity IDs.
+   - **Content / Production Lead**: Review & approve 15-Step Workflow, Mode 1/2/3 Contracts, and Editorial Controls.
+   - **Engineering Lead**: Review & approve Deep Linking, Direct Hydration, Draft Resumption, OCC, and API Contracts.
+
 > [!CRITICAL]
 > **GATE A REMAINS BLOCKED.**
-> All four foundational requirement documents (S8-T01 through S8-T04) are now authored, verified, and reconciled. No developer or AI agent may begin application code modifications, route additions, schema migrations, or component updates until an authorized stakeholder updates this register with an explicit approval.
+> All four foundational requirement documents (S8-T01 through S8-T04) are authored, verified, and reconciled. No developer or AI agent may begin application code modifications, route additions, schema migrations, or component updates until authorized stakeholders record their approval above.
