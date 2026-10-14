@@ -7,9 +7,9 @@
 Document ID:       BP-S8-T05-PRODUCTION-CONTEXT-CONTRACT
 Version:           1.1.0-RECONCILED
 Date:              2026-10-15
-Status:            READY FOR PROJECT OWNER APPROVAL
+Status:            APPROVED BY PROJECT OWNER (ACCEPTED / CLOSED)
 Gate Status:       GATE A SATISFIED / PHASE B CONTRACT SPECIFICATION
-Inspected Commit:  1f05157 (origin/main)
+Inspected Commit:  a749d84 (origin/main)
 Scope:             Shared Production Context Interface, URL Grounding Contract,
                    Lifecycle Hydration (New Content, Existing Draft, Reopened Item),
                    Persistence Boundaries, GAR-02 Rule, and Multi-Mode Alignment
@@ -35,7 +35,7 @@ Upstream Inputs:   docs/sprints/sprint-08/S8-T01-QUESTION-GENERATION-AUDIT.md
                    frontend/features/question-generation/hooks/useQuestionGeneration.ts
 Downstream Impact: S8-T06 (Context Provider Implementation), S8-T07 (Studio Reopening),
                    S8-T08 (Workspaces & Polymorphic Verification), Downstream Stages
-Approval State:    RECONCILED BASELINE — READY FOR PROJECT OWNER APPROVAL
+Approval State:    ACCEPTED / CLOSED — FORMALLY APPROVED BY PROJECT OWNER (2026-10-15)
 ================================================================================
 ```
 
@@ -593,12 +593,33 @@ To ensure system integrity and eliminate architectural ambiguity, the following 
 
 ```text
 ================================================================================
-FINAL DELIVERABLE STATUS:  READY FOR PROJECT OWNER APPROVAL
+FINAL DELIVERABLE STATUS:  ACCEPTED / CLOSED
 Document Version:          1.1.0-RECONCILED
-Reconciliation Date:       2026-10-15
-Governance Record:         Gate A was formally closed and satisfied on 2026-10-15.
-                           This deliverable (S8-T05) establishes the reconciled
-                           Shared Production Context Contract. Final acceptance is
-                           pending attributable Project Owner executive sign-off.
+Approval Authority:        Project Owner Executive Sign-Off
+Approval Date:             2026-10-15
+Approval Status:           APPROVED BY PROJECT OWNER
+
+Decision & Scope Accepted:
+- The reconciled Production Context Contract, version 1.1.0-RECONCILED, is accepted.
+- Accepted scope encompasses:
+  1. Collision-Resistant UUID Canonical Identifiers (RFC 4122 v4; UUID_V4_PATTERN).
+  2. Canonical Two-Tier Taxonomy (Topic -> Subtopic, zero Category).
+  3. Three Approved Production Modes:
+     - Mode 1: QUESTION_CHALLENGE_SHORT (N=1 default; batch runner unapproved).
+     - Mode 2: TOPIC_INTRODUCTION (N=0; no question count required).
+     - Mode 3: EXPLAINED_QUESTIONS_VIDEO (N in {5, 10, 15, 20}, 16:9).
+  4. 15-Stage Workflow Continuity (monotonically progressive, zero skips).
+  5. Uncompromised Anti-Self-Approval Rule (GAR-02: authorId !== approverId).
+  6. Strict Save Draft != Submit for Verification separation.
+  7. Deterministic Context Lifecycles:
+     - Flow A: New Content Lifecycle (Stage 01 Creation).
+     - Flow B: Existing Draft Lifecycle (Stage 01 Resumption & Stage 02 Submit).
+     - Flow C: Reopened Production Item Lifecycle (Stages 03-15 Mid-Journey).
+  8. Source-of-Truth Boundaries (Firestore sole transactional datastore;
+     client context and URL params are navigation/presentation only).
+
+Approval Basis:
+- Explicit approval provided by Project Owner on 2026-10-15.
+- S8-T05 is formally CLOSED.
 ================================================================================
 ```
