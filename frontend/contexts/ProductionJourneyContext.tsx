@@ -164,7 +164,7 @@ export const getNextStage = (stageNum: number) => {
   return getJourneyStageById(stageNum + 1);
 };
 
-const ProductionJourneyContext = createContext<ProductionJourneyContextType | undefined>(undefined);
+export const ProductionJourneyContext = createContext<ProductionJourneyContextType | undefined>(undefined);
 
 export interface ProductionJourneyProviderProps {
   children?: React.ReactNode;

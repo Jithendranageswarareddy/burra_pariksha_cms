@@ -7,12 +7,13 @@
  * and the strict separation between Save Draft and Submit for Verification.
  */
 
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo, useContext } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   AiRefinementAction,
   DifficultyLevel,
   QuestionLanguage,
+  ContentProductionMode,
 } from '../../../../shared';
 import {
   GenerateCandidateInput,
@@ -24,17 +25,53 @@ import {
 } from '../../../../shared/contracts/question-generation';
 import { questionsApi } from '../../../api/questions.api';
 import { taxonomyApi } from '../../../api/taxonomy.api';
+import { ProductionJourneyContext } from '../../../contexts/ProductionJourneyContext';
+
+const VALID_MODES: ContentProductionMode[] = [
+  'QUESTION_CHALLENGE_SHORT',
+  'TOPIC_INTRODUCTION',
+  'EXPLAINED_QUESTIONS_VIDEO',
+];
 
 export function useQuestionGeneration() {
   const [searchParams] = useSearchParams();
 
   // Deep-linking query params
+  const queryDraftId = searchParams.get('draftId') || searchParams.get('id');
   const queryTopic = searchParams.get('topicId') || searchParams.get('topic');
   const querySubtopic = searchParams.get('subtopicId') || searchParams.get('subtopic');
   const queryDifficulty = searchParams.get('difficulty');
   const queryLanguage = searchParams.get('language') || searchParams.get('lang');
   const queryQuestionStyle = searchParams.get('questionStyle') || searchParams.get('style');
   const queryContext = searchParams.get('realWorldContext') || searchParams.get('context');
+  const queryMode = searchParams.get('mode') as ContentProductionMode | null;
+  const queryCount = searchParams.get('count') ? Number(searchParams.get('count')) : undefined;
+  const queryAspect = searchParams.get('aspect') as '9:16' | '16:9' | null;
+
+  const isValidQueryMode = Boolean(queryMode && VALID_MODES.includes(queryMode));
+
+  // Shared Production Journey Context
+  const prodContext = useContext(ProductionJourneyContext);
+
+  // Production Mode Configuration State
+  const [productionMode, setProductionMode] = useState<ContentProductionMode | null>(
+    isValidQueryMode ? queryMode : null
+  );
+  const [targetQuestionCount, setTargetQuestionCount] = useState<number>(
+    queryCount !== undefined
+      ? queryCount
+      : (queryMode === 'EXPLAINED_QUESTIONS_VIDEO' ? 10 : (queryMode === 'TOPIC_INTRODUCTION' ? 0 : 1))
+  );
+  const [aspectRatio, setAspectRatio] = useState<'9:16' | '16:9'>(
+    queryAspect || (queryMode === 'EXPLAINED_QUESTIONS_VIDEO' ? '16:9' : '9:16')
+  );
+  const [isModeModalOpen, setIsModeModalOpen] = useState<boolean>(
+    !isValidQueryMode && !queryDraftId
+  );
+
+  // Draft loading state & deduplication ref
+  const [isLoadingDraft, setIsLoadingDraft] = useState<boolean>(Boolean(queryDraftId));
+  const draftLoadedRef = useRef<string | null>(null);
 
   // 1. Taxonomy & Options State
   const [taxonomyTree, setTaxonomyTree] = useState<any[]>([]);
@@ -109,6 +146,46 @@ export function useQuestionGeneration() {
   const duplicateAbortControllerRef = useRef<AbortController | null>(null);
   const validationTimerRef = useRef<any>(null);
 
+  // Set production mode configuration with authoritative count/aspect ratio constraints
+  const setProductionModeConfig = useCallback(
+    (mode: ContentProductionMode, count?: number, aspect?: '9:16' | '16:9') => {
+      let finalCount = count;
+      let finalAspect = aspect;
+
+      if (mode === 'QUESTION_CHALLENGE_SHORT') {
+        if (finalCount === undefined || ![1, 5, 10, 15, 20].includes(finalCount)) finalCount = 1;
+        finalAspect = '9:16';
+      } else if (mode === 'TOPIC_INTRODUCTION') {
+        finalCount = 0;
+        if (!finalAspect || !['9:16', '16:9'].includes(finalAspect)) finalAspect = '9:16';
+      } else if (mode === 'EXPLAINED_QUESTIONS_VIDEO') {
+        if (finalCount === undefined || ![5, 10, 15, 20].includes(finalCount)) finalCount = 10;
+        finalAspect = '16:9';
+      }
+
+      setProductionMode(mode);
+      setTargetQuestionCount(finalCount!);
+      setAspectRatio(finalAspect!);
+      setIsModeModalOpen(false);
+
+      // Persist in URL query parameters without reloading
+      const currentParams = new URLSearchParams(window.location.search);
+      currentParams.set('mode', mode);
+      currentParams.set('count', String(finalCount));
+      currentParams.set('aspect', finalAspect!);
+      const newRelativePathQuery = window.location.pathname + '?' + currentParams.toString();
+      window.history.replaceState(null, '', newRelativePathQuery);
+
+      // Synchronize with shared production context
+      prodContext?.setModeConfig({
+        productionMode: mode,
+        questionCount: finalCount,
+        aspectRatio: finalAspect,
+      });
+    },
+    [prodContext]
+  );
+
   // Load generation options on mount
   useEffect(() => {
     let isMounted = true;
@@ -125,14 +202,17 @@ export function useQuestionGeneration() {
         setTaxonomyTree(topicsList);
         setAiStatus(aiInfo);
 
-        if (queryTopic) {
-          setSelectedTopic(queryTopic);
-          if (querySubtopic) setSelectedSubtopic(querySubtopic);
-        } else if (topicsList.length > 0) {
-          const firstTopic = topicsList[0];
-          setSelectedTopic(firstTopic.id);
-          const firstSub = (firstTopic.subtopics || [])[0];
-          if (firstSub) setSelectedSubtopic(firstSub.id);
+        // If not reopening a draft, initialize from deep-link or first available topic
+        if (!queryDraftId) {
+          if (queryTopic) {
+            setSelectedTopic(queryTopic);
+            if (querySubtopic) setSelectedSubtopic(querySubtopic);
+          } else if (topicsList.length > 0) {
+            const firstTopic = topicsList[0];
+            setSelectedTopic(firstTopic.id);
+            const firstSub = (firstTopic.subtopics || [])[0];
+            if (firstSub) setSelectedSubtopic(firstSub.id);
+          }
         }
       } catch (err: any) {
         console.error('Failed to load Question Generation options:', err);
@@ -145,7 +225,178 @@ export function useQuestionGeneration() {
     return () => {
       isMounted = false;
     };
-  }, [queryTopic, querySubtopic]);
+  }, [queryDraftId, queryTopic, querySubtopic]);
+
+  // Reopen saved draft from deep link parameter
+  useEffect(() => {
+    if (!queryDraftId) {
+      setIsLoadingDraft(false);
+      return;
+    }
+
+    if (draftLoadedRef.current === queryDraftId) {
+      return;
+    }
+
+    let isMounted = true;
+    setIsLoadingDraft(true);
+    setErrorMessage(null);
+
+    async function loadExistingDraft() {
+      try {
+        const draft = await questionsApi.getDraft(queryDraftId!);
+        if (!isMounted) return;
+
+        draftLoadedRef.current = queryDraftId!;
+
+        // 1. Candidate Fields Restoration
+        const optionsObj = draft.options || {
+          a: draft.optionA || '',
+          b: draft.optionB || '',
+          c: draft.optionC || '',
+          d: draft.optionD || '',
+        };
+
+        const loadedCandidate: StudioCandidate = {
+          questionText: draft.questionText || draft.question || '',
+          optionA: optionsObj.a || draft.optionA || '',
+          optionB: optionsObj.b || draft.optionB || '',
+          optionC: optionsObj.c || draft.optionC || '',
+          optionD: optionsObj.d || draft.optionD || '',
+          correctAnswer: draft.correctAnswer || 'A',
+          explanation: draft.explanation || '',
+          topicId: draft.topicId,
+          subtopicId: draft.subtopicId,
+          difficulty: draft.difficulty || difficulty,
+          challengeType: draft.challengeType || challengeType,
+          presentationType: draft.presentationType || presentationType,
+          language: (draft.language as QuestionLanguage) || language,
+          realLifeContext: draft.realLifeContext || draft.realWorldContext || realLifeContext,
+          questionStyle: (draft.questionStyle as string) || questionStyle,
+          generationMode: (draft.generationMode as any) || 'SUBTOPIC',
+          tags: draft.tags || ['Aptitude', 'Telugu'],
+          sourceModel: draft.sourceModel,
+          generationLatencyMs: draft.generationLatencyMs,
+          isFallback: draft.isFallback,
+          mathematicalVerification: draft.mathematicalVerification,
+        };
+
+        setCandidate(loadedCandidate);
+        setHasCandidate(true);
+        setIsDirty(false); // Clean saved state!
+        setSavedDraftId(draft.id);
+
+        // 2. Options and Taxonomy Restoration (persisted draft strictly takes precedence over URL defaults)
+        if (draft.topicId) setSelectedTopic(draft.topicId);
+        if (draft.subtopicId) setSelectedSubtopic(draft.subtopicId);
+        if (draft.difficulty) setDifficulty(draft.difficulty);
+        if (draft.language) setLanguage(draft.language as QuestionLanguage);
+        if (draft.questionStyle) setQuestionStyle(draft.questionStyle as string);
+        if (draft.realLifeContext || draft.realWorldContext) {
+          setRealLifeContext(draft.realLifeContext || draft.realWorldContext || '');
+        }
+        if (draft.challengeType) setChallengeType(draft.challengeType);
+        if (draft.presentationType) setPresentationType(draft.presentationType);
+
+        // 3. Mode Configuration Restoration
+        if (draft.productionMode && VALID_MODES.includes(draft.productionMode as ContentProductionMode)) {
+          const loadedMode = draft.productionMode as ContentProductionMode;
+          setProductionMode(loadedMode);
+          if (draft.targetQuestionCount !== undefined) {
+            setTargetQuestionCount(draft.targetQuestionCount);
+          }
+          if (draft.aspectRatio) {
+            setAspectRatio(draft.aspectRatio as '9:16' | '16:9');
+          }
+          setIsModeModalOpen(false);
+
+          prodContext?.setModeConfig({
+            productionMode: loadedMode,
+            questionCount: draft.targetQuestionCount,
+            aspectRatio: draft.aspectRatio as '9:16' | '16:9',
+          });
+        } else if (!isValidQueryMode) {
+          setIsModeModalOpen(true);
+        }
+
+        // 4. Shared Production Context Synchronization
+        prodContext?.setEntityIds({ draftId: draft.id });
+        if (draft.topicId || draft.subtopicId) {
+          prodContext?.setTaxonomy({
+            topicId: draft.topicId,
+            subtopicId: draft.subtopicId,
+          });
+        }
+        prodContext?.setIsDirty(false);
+      } catch (err: any) {
+        if (!isMounted) return;
+        console.error('Failed to reopen draft:', err);
+        const isNotFound = err?.status === 404 || err?.statusCode === 404 || err?.message?.toLowerCase().includes('not found');
+        setErrorMessage(
+          isNotFound
+            ? `Question draft "${queryDraftId}" could not be found or has been removed.`
+            : err?.message || `Failed to load question draft "${queryDraftId}".`
+        );
+        if (!isValidQueryMode) {
+          setIsModeModalOpen(true);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingDraft(false);
+        }
+      }
+    }
+
+    loadExistingDraft();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [queryDraftId, isValidQueryMode, prodContext]);
+
+  // Synchronize initial URL mode config with ProductionContext
+  useEffect(() => {
+    if (isValidQueryMode && queryMode) {
+      prodContext?.setModeConfig({
+        productionMode: queryMode,
+        questionCount: queryCount !== undefined
+          ? queryCount
+          : (queryMode === 'EXPLAINED_QUESTIONS_VIDEO' ? 10 : (queryMode === 'TOPIC_INTRODUCTION' ? 0 : 1)),
+        aspectRatio: queryAspect || (queryMode === 'EXPLAINED_QUESTIONS_VIDEO' ? '16:9' : '9:16'),
+      });
+    }
+  }, [isValidQueryMode, queryMode, queryCount, queryAspect, prodContext]);
+
+  // Synchronize active taxonomy selection with ProductionContext
+  useEffect(() => {
+    if (selectedTopic || selectedSubtopic) {
+      prodContext?.setTaxonomy({
+        topicId: selectedTopic,
+        subtopicId: selectedSubtopic,
+      });
+    }
+  }, [selectedTopic, selectedSubtopic, prodContext]);
+
+  // Synchronize dirty state with ProductionContext
+  useEffect(() => {
+    prodContext?.setIsDirty(isDirty);
+  }, [isDirty, prodContext]);
+
+  // Unsaved-work protection: window beforeunload warning when form is dirty
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = '';
+        return '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [isDirty]);
 
   // Derived subtopics for selected topic
   const currentTopicData = useMemo(() => {
@@ -402,6 +653,9 @@ export function useQuestionGeneration() {
         correctAnswer: candidate.correctAnswer,
         explanation: candidate.explanation.trim(),
         tags: candidate.tags,
+        productionMode: productionMode || undefined,
+        targetQuestionCount,
+        aspectRatio,
         source: 'AI Question Studio',
         sourceModel: candidate.sourceModel,
         generationLatencyMs: candidate.generationLatencyMs,
@@ -411,6 +665,18 @@ export function useQuestionGeneration() {
 
       setSavedDraftId(savedDraft.id);
       setIsDirty(false);
+      draftLoadedRef.current = savedDraft.id;
+
+      // Update URL query parameters with draftId without full navigation reload
+      const currentParams = new URLSearchParams(window.location.search);
+      currentParams.set('draftId', savedDraft.id);
+      const newRelativePathQuery = window.location.pathname + '?' + currentParams.toString();
+      window.history.replaceState(null, '', newRelativePathQuery);
+
+      // Synchronize with shared production context
+      prodContext?.setEntityIds({ draftId: savedDraft.id });
+      prodContext?.setIsDirty(false);
+
       setSaveSuccessMessage(`Draft saved successfully as ${savedDraft.id}. Ready for explicit submission.`);
       return savedDraft.id;
     } catch (err: any) {
@@ -496,13 +762,26 @@ export function useQuestionGeneration() {
     setHasCandidate(false);
     setIsDirty(false);
     setSavedDraftId(null);
+    draftLoadedRef.current = null;
     setClientReport(null);
     setServerValidationResult(null);
     setDuplicateMatches([]);
     setErrorMessage(null);
     setSaveSuccessMessage(null);
     setSubmitSuccessResult(null);
-  }, [hasCandidate, candidate.questionText, isDirty, selectedTopic, selectedSubtopic, difficulty, challengeType, presentationType, language, realLifeContext]);
+
+    // Clear draftId from deep-link parameters
+    const currentParams = new URLSearchParams(window.location.search);
+    currentParams.delete('draftId');
+    currentParams.delete('id');
+    const paramStr = currentParams.toString();
+    const newRelativePathQuery = window.location.pathname + (paramStr ? '?' + paramStr : '');
+    window.history.replaceState(null, '', newRelativePathQuery);
+
+    // Sync reset with shared production context
+    prodContext?.setEntityIds({ draftId: undefined });
+    prodContext?.setIsDirty(false);
+  }, [hasCandidate, candidate.questionText, isDirty, selectedTopic, selectedSubtopic, difficulty, challengeType, presentationType, language, realLifeContext, prodContext]);
 
   return {
     // Taxonomy & options
@@ -528,6 +807,15 @@ export function useQuestionGeneration() {
     setQuestionStyle,
     setRealLifeContext,
     setCustomInstructions,
+
+    // Production mode & deep links
+    productionMode,
+    targetQuestionCount,
+    aspectRatio,
+    isModeModalOpen,
+    setIsModeModalOpen,
+    setProductionModeConfig,
+    isLoadingDraft,
 
     // Candidate
     candidate,

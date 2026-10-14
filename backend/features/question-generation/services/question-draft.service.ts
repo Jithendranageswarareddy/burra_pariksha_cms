@@ -41,6 +41,9 @@ export interface SaveDraftInput {
   presentationType?: string;
   questionStyle?: string;
   generationMode?: 'SUBTOPIC' | 'RANDOM' | string;
+  productionMode?: string;
+  targetQuestionCount?: number;
+  aspectRatio?: string;
   tags?: string[];
   source?: string;
   sourceModel?: string;
