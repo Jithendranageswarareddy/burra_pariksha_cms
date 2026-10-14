@@ -19,10 +19,49 @@ import {
   QuestionStatus,
   VideoProductionStatus,
   SocialPublishStatus,
+  CanonicalRbacRole,
+  QuestionLanguage,
+  DifficultyLevel,
+  QuestionStyle,
+  WorkflowStepNumber,
+  ContentProductionMode,
+  WorkflowStageStatus,
+  ProductionContext,
+  ProductionContextTaxonomy,
+  ProductionContextModeConfig,
+  ProductionContextEntityIds,
+  ProductionContextWorkflow,
+  ProductionContextAssignment,
+  ProductionContextActor,
+  ProductionContextActions,
+  ProductionContextValue,
+  DEFAULT_PRODUCTION_CONTEXT,
+  validateProductionModeConfig,
+  validateTaxonomyLink,
 } from '../../shared';
 import { apiClient } from '../api/api-client';
 import { CANONICAL_15_STEPS } from '../../shared';
 import { getCanonicalStageRoute, WorkflowContext } from '../../src/lib/routing/workflow-routes';
+import { AuthContext } from './AuthContext';
+
+export type {
+  ContentProductionMode,
+  WorkflowStageStatus,
+  ProductionContextTaxonomy,
+  ProductionContextModeConfig,
+  ProductionContextEntityIds,
+  ProductionContextWorkflow,
+  ProductionContextAssignment,
+  ProductionContextActor,
+  ProductionContext,
+  ProductionContextActions,
+  ProductionContextValue,
+};
+export {
+  DEFAULT_PRODUCTION_CONTEXT,
+  validateProductionModeConfig,
+  validateTaxonomyLink,
+};
 
 export interface CanonicalIds {
   contentMasterId: string | null;
@@ -55,7 +94,7 @@ export interface JourneyNextAction {
   description?: string;
 }
 
-export interface ProductionJourneyContextType {
+export interface ProductionJourneyContextType extends ProductionContextValue {
   // Active canonical content IDs
   contentMasterId: string | null;
   questionId: string | null;
@@ -127,16 +166,111 @@ export const getNextStage = (stageNum: number) => {
 
 const ProductionJourneyContext = createContext<ProductionJourneyContextType | undefined>(undefined);
 
-export const ProductionJourneyProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export interface ProductionJourneyProviderProps {
+  children?: React.ReactNode;
+  initialContext?: Partial<ProductionContext>;
+}
+
+export const ProductionJourneyProvider: React.FC<ProductionJourneyProviderProps> = ({ children, initialContext }) => {
   const navigate = useNavigate();
 
   // Canonical IDs
-  const [contentMasterId, setContentMasterId] = useState<string | null>(null);
-  const [questionId, setQuestionId] = useState<string | null>(null);
-  const [videoId, setVideoId] = useState<string | null>(null);
-  const [scriptId, setScriptId] = useState<string | null>(null);
-  const [thumbnailId, setThumbnailId] = useState<string | null>(null);
-  const [publishingId, setPublishingId] = useState<string | null>(null);
+  const [contentMasterId, setContentMasterId] = useState<string | null>(
+    initialContext?.entityIds?.contentMasterId || null
+  );
+  const [questionId, setQuestionId] = useState<string | null>(
+    initialContext?.entityIds?.questionId || null
+  );
+  const [videoId, setVideoId] = useState<string | null>(
+    initialContext?.entityIds?.videoId || null
+  );
+  const [scriptId, setScriptId] = useState<string | null>(
+    initialContext?.entityIds?.scriptId || null
+  );
+  const [thumbnailId, setThumbnailId] = useState<string | null>(
+    initialContext?.entityIds?.thumbnailId || null
+  );
+  const [publishingId, setPublishingId] = useState<string | null>(
+    initialContext?.entityIds?.publishingId || null
+  );
+
+  // Additional ProductionContext Entity IDs
+  const [draftId, setDraftId] = useState<string | null>(
+    initialContext?.entityIds?.draftId || null
+  );
+  const [questionIds, setQuestionIds] = useState<string[]>(
+    initialContext?.entityIds?.questionIds || []
+  );
+  const [conceptBriefId, setConceptBriefId] = useState<string | null>(
+    initialContext?.entityIds?.conceptBriefId || null
+  );
+  const [reviewId, setReviewId] = useState<string | null>(
+    initialContext?.entityIds?.reviewId || null
+  );
+  const [analyticsId, setAnalyticsId] = useState<string | null>(
+    initialContext?.entityIds?.analyticsId || null
+  );
+  const [workflowInstanceId, setWorkflowInstanceId] = useState<string | null>(
+    initialContext?.entityIds?.workflowInstanceId || null
+  );
+
+  // ProductionContext Core State Dimensions
+  const [taxonomy, setTaxonomyState] = useState<ProductionContextTaxonomy>(
+    initialContext?.taxonomy || DEFAULT_PRODUCTION_CONTEXT.taxonomy
+  );
+  const [modeConfig, setModeConfigState] = useState<ProductionContextModeConfig>(
+    initialContext?.modeConfig || DEFAULT_PRODUCTION_CONTEXT.modeConfig
+  );
+  const [assignment, setAssignmentState] = useState<ProductionContextAssignment>(
+    initialContext?.assignment || DEFAULT_PRODUCTION_CONTEXT.assignment
+  );
+  const [isDirty, setIsDirty] = useState<boolean>(
+    initialContext?.isDirty ?? false
+  );
+  const [explicitCurrentStage, setExplicitCurrentStage] = useState<WorkflowStepNumber | null>(
+    initialContext?.workflow?.currentStage || null
+  );
+  const [stageStatus, setStageStatus] = useState<WorkflowStageStatus>(
+    initialContext?.workflow?.stageStatus || 'DRAFT'
+  );
+  const [lastTransitionAt, setLastTransitionAt] = useState<string>(
+    initialContext?.workflow?.lastTransitionAt || new Date(0).toISOString()
+  );
+  const [lastTransitionBy, setLastTransitionBy] = useState<string>(
+    initialContext?.workflow?.lastTransitionBy || ''
+  );
+  const [rejectionNotes, setRejectionNotes] = useState<string | undefined>(
+    initialContext?.workflow?.rejectionNotes
+  );
+  const [allowedActions, setAllowedActions] = useState<string[]>(
+    initialContext?.workflow?.allowedActions || []
+  );
+
+  // Authenticated actor resolution (advisory presentation only; backend RBAC authoritative)
+  const authContext = useContext(AuthContext);
+  const user = authContext?.user || null;
+
+  const actor: ProductionContextActor = useMemo(() => {
+    if (initialContext?.actor) {
+      return initialContext.actor;
+    }
+    if (!user) {
+      return DEFAULT_PRODUCTION_CONTEXT.actor;
+    }
+    const userRoles: CanonicalRbacRole[] = Array.isArray(user.roles) && user.roles.length > 0
+      ? (user.roles as CanonicalRbacRole[])
+      : user.role
+        ? [user.role as CanonicalRbacRole]
+        : [];
+
+    return {
+      userId: user.id,
+      name: user.name || '',
+      roles: userRoles,
+      capabilities: [],
+      isAiAgent: false,
+    };
+  }, [initialContext?.actor, user]);
 
   // Entities
   const [question, setQuestion] = useState<Question | null>(null);
@@ -148,6 +282,83 @@ export const ProductionJourneyProvider: React.FC<{ children: React.ReactNode }> 
 
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Synchronized ProductionContext entity IDs
+  const entityIds: ProductionContextEntityIds = useMemo(() => ({
+    contentMasterId: contentMasterId || undefined,
+    draftId: draftId || undefined,
+    questionId: questionId || undefined,
+    questionIds: questionIds.length > 0 ? questionIds : undefined,
+    conceptBriefId: conceptBriefId || undefined,
+    scriptId: scriptId || undefined,
+    videoId: videoId || undefined,
+    thumbnailId: thumbnailId || undefined,
+    reviewId: reviewId || undefined,
+    publishingId: publishingId || undefined,
+    analyticsId: analyticsId || undefined,
+    workflowInstanceId: workflowInstanceId || undefined,
+  }), [
+    contentMasterId,
+    draftId,
+    questionId,
+    questionIds,
+    conceptBriefId,
+    scriptId,
+    videoId,
+    thumbnailId,
+    reviewId,
+    publishingId,
+    analyticsId,
+    workflowInstanceId,
+  ]);
+
+  // Context Action Setters
+  const setTaxonomy = useCallback((tax: Partial<ProductionContextTaxonomy>) => {
+    setTaxonomyState((prev) => {
+      const next = { ...prev, ...tax };
+      if (next.topicId && next.subtopicId) {
+        const res = validateTaxonomyLink(next.topicId, next.subtopicId);
+        if (!res.isValid && res.error) {
+          console.warn(`[ProductionContext] ${res.error}`);
+        }
+      }
+      return next;
+    });
+  }, []);
+
+  const setModeConfig = useCallback((cfg: Partial<ProductionContextModeConfig>) => {
+    setModeConfigState((prev) => {
+      const next = { ...prev, ...cfg };
+      const res = validateProductionModeConfig(next.productionMode, next.questionCount, next.aspectRatio);
+      if (!res.isValid && res.error) {
+        console.warn(`[ProductionContext] ${res.error}`);
+      }
+      return next;
+    });
+  }, []);
+
+  const setEntityIds = useCallback((ids: Partial<ProductionContextEntityIds>) => {
+    if (ids.contentMasterId !== undefined) setContentMasterId(ids.contentMasterId || null);
+    if (ids.draftId !== undefined) setDraftId(ids.draftId || null);
+    if (ids.questionId !== undefined) setQuestionId(ids.questionId || null);
+    if (ids.questionIds !== undefined) setQuestionIds(ids.questionIds);
+    if (ids.conceptBriefId !== undefined) setConceptBriefId(ids.conceptBriefId || null);
+    if (ids.scriptId !== undefined) setScriptId(ids.scriptId || null);
+    if (ids.videoId !== undefined) setVideoId(ids.videoId || null);
+    if (ids.thumbnailId !== undefined) setThumbnailId(ids.thumbnailId || null);
+    if (ids.reviewId !== undefined) setReviewId(ids.reviewId || null);
+    if (ids.publishingId !== undefined) setPublishingId(ids.publishingId || null);
+    if (ids.analyticsId !== undefined) setAnalyticsId(ids.analyticsId || null);
+    if (ids.workflowInstanceId !== undefined) setWorkflowInstanceId(ids.workflowInstanceId || null);
+  }, []);
+
+  const setAssignment = useCallback((asn: Partial<ProductionContextAssignment>) => {
+    setAssignmentState((prev) => ({ ...prev, ...asn }));
+  }, []);
+
+  const setContextError = useCallback((err: string | null) => {
+    setError(err);
+  }, []);
 
   // Set canonical IDs partially
   const setCanonicalIds = useCallback((ids: Partial<CanonicalIds>) => {
@@ -190,7 +401,43 @@ export const ProductionJourneyProvider: React.FC<{ children: React.ReactNode }> 
       }
       setQuestion(q);
 
-      const cmId = q.contentMasterId || q.contentId || null;
+      if (q) {
+        if (q.topicId) {
+          setTaxonomyState((prev) => ({
+            ...prev,
+            topicId: q.topicId,
+            topicName: q.topicName || prev.topicName,
+            subtopicId: q.subtopicId || prev.subtopicId,
+            subtopicName: q.subtopicName || prev.subtopicName,
+          }));
+        }
+        if (q.difficulty || q.language || q.questionStyle) {
+          setModeConfigState((prev) => ({
+            ...prev,
+            ...(q.difficulty ? { difficulty: q.difficulty as DifficultyLevel } : {}),
+            ...(q.language ? { language: q.language as QuestionLanguage } : {}),
+            ...(q.questionStyle ? { questionStyle: q.questionStyle as QuestionStyle } : {}),
+          }));
+        }
+        if (q.authorId) {
+          setAssignmentState((prev) => ({
+            ...prev,
+            assignedAuthorId: q.authorId,
+            ownerId: prev.ownerId || q.authorId || '',
+          }));
+        }
+        if (q.status === QuestionStatus.APPROVED) {
+          setStageStatus('APPROVED');
+        } else if (q.status === QuestionStatus.DRAFT) {
+          setStageStatus('DRAFT');
+        } else if (q.status === QuestionStatus.GENERATED) {
+          setStageStatus('PENDING_REVIEW');
+        } else if (q.status === QuestionStatus.REJECTED) {
+          setStageStatus('CHANGES_REQUESTED');
+        }
+      }
+
+      const cmId = q?.contentMasterId || q?.contentId || null;
       if (cmId) setContentMasterId(cmId);
 
       // Attempt to find correlated content master details or videos
@@ -261,10 +508,26 @@ export const ProductionJourneyProvider: React.FC<{ children: React.ReactNode }> 
       }
       setVideo(v);
 
-      const qId = v.questionId || null;
+      if (v) {
+        if (v.assignedHost || v.assignedEditor) {
+          setAssignmentState((prev) => ({
+            ...prev,
+            ...(v.assignedHost ? { assignedPresenterId: v.assignedHost } : {}),
+            ...(v.assignedEditor ? { assignedEditorId: v.assignedEditor } : {}),
+          }));
+        }
+        if (v.finalRenderAspectRatio === '9:16' || v.finalRenderAspectRatio === '16:9') {
+          setModeConfigState((prev) => ({
+            ...prev,
+            aspectRatio: v.finalRenderAspectRatio as '9:16' | '16:9',
+          }));
+        }
+      }
+
+      const qId = v?.questionId || null;
       if (qId) setQuestionId(qId);
 
-      const cmId = v.contentMasterId || v.contentId || null;
+      const cmId = v?.contentMasterId || v?.contentId || null;
       if (cmId) setContentMasterId(cmId);
 
       // Load related assets in parallel
@@ -542,7 +805,7 @@ export const ProductionJourneyProvider: React.FC<{ children: React.ReactNode }> 
     } else if (question && ((question.status as string) === 'IN_REVIEW' || question.status === QuestionStatus.GENERATED || question.status === QuestionStatus.EDITING)) {
       stage = 2; // Verification
     } else {
-      stage = 1; // Question Creation
+      stage = explicitCurrentStage || 1; // Explicit initial stage or Question Creation default
     }
 
     const resolvedContentMasterId =
@@ -944,6 +1207,7 @@ export const ProductionJourneyProvider: React.FC<{ children: React.ReactNode }> 
     questionId,
     videoId,
     contentMasterId,
+    explicitCurrentStage,
   ]);
 
   // Jump to specific stage
@@ -963,6 +1227,62 @@ export const ProductionJourneyProvider: React.FC<{ children: React.ReactNode }> 
     return false;
   }, [stages, navigate]);
 
+  // ProductionContext workflow state assembly
+  const workflow: ProductionContextWorkflow = useMemo(() => ({
+    currentStage: Math.min(15, Math.max(1, currentStage)) as WorkflowStepNumber,
+    stageStatus,
+    isTerminal: currentStage === 15 || stageStatus === 'PUBLISHED' || stageStatus === 'TERMINATED',
+    lastTransitionAt,
+    lastTransitionBy,
+    rejectionNotes,
+    allowedActions,
+  }), [currentStage, stageStatus, lastTransitionAt, lastTransitionBy, rejectionNotes, allowedActions]);
+
+  const setWorkflow = useCallback((wf: Partial<ProductionContextWorkflow>) => {
+    if (wf.stageStatus !== undefined) setStageStatus(wf.stageStatus);
+    if (wf.lastTransitionAt !== undefined) setLastTransitionAt(wf.lastTransitionAt);
+    if (wf.lastTransitionBy !== undefined) setLastTransitionBy(wf.lastTransitionBy);
+    if (wf.rejectionNotes !== undefined) setRejectionNotes(wf.rejectionNotes);
+    if (wf.allowedActions !== undefined) setAllowedActions(wf.allowedActions);
+    if (wf.currentStage !== undefined) {
+      setExplicitCurrentStage(wf.currentStage);
+      jumpToStage(wf.currentStage);
+    }
+  }, [jumpToStage]);
+
+  const resetContext = useCallback(() => {
+    setContentMasterId(null);
+    setQuestionId(null);
+    setVideoId(null);
+    setScriptId(null);
+    setThumbnailId(null);
+    setPublishingId(null);
+    setDraftId(null);
+    setQuestionIds([]);
+    setConceptBriefId(null);
+    setReviewId(null);
+    setAnalyticsId(null);
+    setWorkflowInstanceId(null);
+    setQuestion(null);
+    setVideo(null);
+    setScript(null);
+    setThumbnail(null);
+    setPublishing(null);
+    setContentMaster(null);
+    setTaxonomyState(DEFAULT_PRODUCTION_CONTEXT.taxonomy);
+    setModeConfigState(DEFAULT_PRODUCTION_CONTEXT.modeConfig);
+    setAssignmentState(DEFAULT_PRODUCTION_CONTEXT.assignment);
+    setExplicitCurrentStage(null);
+    setStageStatus('DRAFT');
+    setLastTransitionAt(new Date(0).toISOString());
+    setLastTransitionBy('');
+    setRejectionNotes(undefined);
+    setAllowedActions([]);
+    setIsDirty(false);
+    setIsLoading(false);
+    setError(null);
+  }, []);
+
   // Advance to next stage using computed nextAction
   const advanceToNextStage = useCallback(() => {
     if (nextAction?.route) {
@@ -975,6 +1295,28 @@ export const ProductionJourneyProvider: React.FC<{ children: React.ReactNode }> 
   return (
     <ProductionJourneyContext.Provider
       value={{
+        // ProductionContext core dimensions
+        taxonomy,
+        modeConfig,
+        entityIds,
+        workflow,
+        assignment,
+        actor,
+        isDirty,
+        isLoading,
+        error,
+
+        // ProductionContext actions
+        setTaxonomy,
+        setModeConfig,
+        setEntityIds,
+        setWorkflow,
+        setAssignment,
+        setIsDirty,
+        setError: setContextError,
+        resetContext,
+
+        // ProductionJourney legacy & canonical aliases
         contentMasterId,
         questionId,
         videoId,
@@ -990,8 +1332,6 @@ export const ProductionJourneyProvider: React.FC<{ children: React.ReactNode }> 
         currentStage,
         stages,
         nextAction,
-        isLoading,
-        error,
         advanceToNextStage,
         jumpToStage,
         reloadJourneyData,
@@ -1014,3 +1354,13 @@ export const useProductionJourney = (): ProductionJourneyContextType => {
   }
   return context;
 };
+
+export const useProductionContext = (): ProductionContextValue => {
+  const context = useContext(ProductionJourneyContext);
+  if (!context) {
+    throw new Error('useProductionContext must be used within a ProductionJourneyProvider (or ProductionContextProvider)');
+  }
+  return context;
+};
+
+export const ProductionContextProvider = ProductionJourneyProvider;
