@@ -5,11 +5,11 @@
 ```text
 ================================================================================
 Document ID:       BP-S8-T04-DYNAMIC-PAGE-ROLE-REQUIREMENTS
-Version:           1.4.0-GATE-A-DECISIONS
+Version:           1.5.0-DECISIONS-RESOLVED
 Date:              2026-10-14
-Status:            DRAFT — PENDING GATE A APPROVAL
-Gate A Status:     BLOCKED (Pending Formal Stakeholder Sign-Off)
-Inspected Commit:  c03a9bb (main)
+Status:            ACCEPTED REQUIREMENTS BASELINE (Project Owner Approved)
+Gate A Status:     BLOCKED (Pending External Role-Specific Sign-Off)
+Inspected Commit:  cb9acb8 (main)
 Scope:             Shared Production Context, Direct-Link & Draft Resumption,
                    15-Stage Page-State Matrix, Role-to-Action Matrix,
                    GAR-02 Anti-Self-Approval, and Gate A Approval Definition
@@ -670,31 +670,33 @@ The following design decisions and architectural discrepancies are recorded and 
  ├───────┬───────────────────────────────┬──────────────────────────────────┬─────────────┤
  │ ID    │ Scope & Description           │ Architectural Options            │ Status      │
  ├───────┼───────────────────────────────┼──────────────────────────────────┼─────────────┤
- │ DD-01 │ Final QC Route Unification    │ Option A: Retain as Tab 4 inside │ PENDING     │
- │       │ (Overlapping Tab vs FC-012)   │   VideoDetailPage.tsx            │ STAKEHOLDER │
- │       │                               │ Option B: Implement standalone   │ REVIEW      │
- │       │                               │   route /qc/:videoId per FC-012  │             │
+ │ DD-01 │ Final QC Route Unification    │ Option A: Retain as Tab 4 inside │ RESOLVED    │
+ │       │ (Overlapping Tab vs FC-012)   │   VideoDetailPage.tsx (amend     │ VIA ADR-011 │
+ │       │                               │   FC-012 standalone route req.)  │ (Option A)  │
  ├───────┼───────────────────────────────┼──────────────────────────────────┼─────────────┤
- │ DD-02 │ Production Mode Selection UX  │ Option A: Modal on /studio entry │ PENDING     │
- │       │                               │ Option B: Batch config on /plan  │ STAKEHOLDER │
- │       │                               │ Option C: Dedicated /content/new │ REVIEW      │
+ │ DD-02 │ Production Mode Selection UX  │ Option A: Modal on /studio entry │ RESOLVED    │
+ │       │                               │ Option B: Batch config on /plan  │ VIA ADR-011 │
+ │       │                               │ Option C: Dedicated /content/new │ (Option A)  │
  ├───────┼───────────────────────────────┼──────────────────────────────────┼─────────────┤
- │ DD-03 │ Multi-Question Studio Layout  │ Option A: Horizontal question tab│ PENDING     │
- │       │ (Mode 1 & 3: 5/10/15/20 Qs)   │ Option B: Accordion list         │ STAKEHOLDER │
- │       │                               │ Option C: Stepper wizard         │ REVIEW      │
+ │ DD-03 │ Multi-Question Studio Layout  │ Option A: Horizontal question tab│ RESOLVED    │
+ │       │ (Mode 1 & 3: 5/10/15/20 Qs)   │ Option B: Accordion list         │ VIA ADR-011 │
+ │       │                               │ Option C: Stepper wizard         │ (Option A)  │
  ├───────┼───────────────────────────────┼──────────────────────────────────┼─────────────┤
- │ DD-04 │ Deep-Link Param Standardiz.   │ Option A: Use cnt_<uuid> as root │ PENDING     │
- │       │ (contentId vs videoId vs qst) │ Option B: Entity-specific params │ STAKEHOLDER │
- │       │                               │   (videoId, questionId)          │ REVIEW      │
+ │ DD-04 │ Deep-Link Param Standardiz.   │ Option A: Use cnt_<uuid> as root │ RESOLVED    │
+ │       │ (contentId vs videoId vs qst) │ Option B: Entity-specific params │ VIA ADR-011 │
+ │       │                               │   (videoId, questionId)          │ (Option B)  │
  ├───────┼───────────────────────────────┼──────────────────────────────────┼─────────────┤
- │ DD-05 │ Multi-Question Draft Storage  │ Option A: Single aggregate draft │ PENDING     │
- │       │                               │ Option B: Array of dft_<uuid> ids│ STAKEHOLDER │
+ │ DD-05 │ Multi-Question Draft Storage  │ Option A: Single aggregate draft │ RESOLVED    │
+ │       │                               │ Option B: Array of dft_<uuid> ids│ VIA ADR-011 │
+ │       │                               │   in question_drafts collection  │ (Option A)  │
  ├───────┼───────────────────────────────┼──────────────────────────────────┼─────────────┤
- │ DD-06 │ Teleprompter Multi-Q Nav      │ Option A: Continuous vertical run│ PENDING     │
- │       │                               │ Option B: Per-question segmenting│ STAKEHOLDER │
+ │ DD-06 │ Teleprompter Multi-Q Nav      │ Option A: Continuous vertical run│ RESOLVED    │
+ │       │                               │ Option B: Per-question segmenting│ VIA ADR-011 │
+ │       │                               │   with independent take clips    │ (Option B)  │
  ├───────┼───────────────────────────────┼──────────────────────────────────┼─────────────┤
- │ DD-07 │ Unmounted Page Disposition    │ Option A: Retire 8 orphaned files│ PENDING     │
- │       │ (8 unmounted files in pages/) │ Option B: Migrate into workbenches│ STAKEHOLDER │
+ │ DD-07 │ Unmounted Page Disposition    │ Option A: Retire 8 orphaned files│ RESOLVED    │
+ │       │ (8 unmounted files in pages/) │ Option B: Migrate into workbenches│ VIA ADR-011 │
+ │       │                               │   (Delete 297 KB dead code S09)  │ (Option A)  │
  ├───────┼───────────────────────────────┼──────────────────────────────────┼─────────────┤
  │ DD-08 │ Canonical Role Governance:    │ Option A: Formalize SOCIAL_LEAD  │ RESOLVED    │
  │       │ SOCIAL_LEAD Role Evaluation   │   as 12th CanonicalRbacRole enum │ VIA ADR-008 │
@@ -734,13 +736,13 @@ Gate A is the mandatory architectural checkpoint that formally certifies the **D
  │       │ Workflow & Page Inventory│ S8-T02-PRODUCTION-PAGE-WORKFLOW │ pages cataloged; QC gate duality│ (Inventory Done)│
  │       │                          │ -INVENTORY.md                   │ (FC-012 vs Tab 4) forensic audit│                 │
  ├───────┼──────────────────────────┼─────────────────────────────────┼─────────────────────────────────┼─────────────────┤
- │ PR-03 │ S8-T03 Accepted: Three   │ docs/sprints/sprint-08/         │ Modes 1, 2, 3 specified; matrix │ PENDING         │
- │       │ Content Mode Requirements│ S8-T03-CONTENT-MODE-REQUIREMENTS│ separated required vs proposed; │ STAKEHOLDER     │
- │       │                          │ .md                             │ OD-01, 02, 04, 05, 07 pending.  │ DECISION        │
+ │ PR-03 │ S8-T03 Accepted: Three   │ docs/sprints/sprint-08/         │ Modes 1, 2, 3 specified; matrix │ SATISFIED       │
+ │       │ Content Mode Requirements│ S8-T03-CONTENT-MODE-REQUIREMENTS│ reconciled; OD-01 through OD-07 │ (Decisions Done │
+ │       │                          │ .md                             │ resolved via ADR-009 & ADR-010. │ via ADR-009/010)│
  ├───────┼──────────────────────────┼─────────────────────────────────┼─────────────────────────────────┼─────────────────┤
- │ PR-04 │ S8-T04 Accepted: Dynamic │ docs/sprints/sprint-08/         │ ProductionContext, 15-stage page│ PENDING         │
- │       │ Pages, Roles & GAR-02    │ S8-T04-DYNAMIC-PAGE-ROLE-       │ states, 11 roles, zero-bypass   │ STAKEHOLDER     │
- │       │                          │ REQUIREMENTS.md                 │ GAR-02; DD-01 to DD-07 pending. │ SIGN-OFF        │
+ │ PR-04 │ S8-T04 Accepted: Dynamic │ docs/sprints/sprint-08/         │ ProductionContext, 15-stage page│ SATISFIED       │
+ │       │ Pages, Roles & GAR-02    │ S8-T04-DYNAMIC-PAGE-ROLE-       │ states, 11 roles, zero-bypass   │ (Decisions Done │
+ │       │                          │ REQUIREMENTS.md                 │ GAR-02; DD-01 through DD-08 res.│ via ADR-008/011)│
  ├───────┼──────────────────────────┼─────────────────────────────────┼─────────────────────────────────┼─────────────────┤
  │ PR-05 │ Full Workflow Lifecycle  │ docs/architecture/              │ 100% of all 15 canonical stages │ SATISFIED       │
  │       │ Coverage (Stages 01–15)  │ 07-CANONICAL-15-STEP-WORKFLOW.md│ mapped with all 6 UI states     │ (Specification  │
@@ -752,67 +754,71 @@ Gate A is the mandatory architectural checkpoint that formally certifies the **D
  └───────┴──────────────────────────┴─────────────────────────────────┴─────────────────────────────────┴─────────────────┘
 ```
 
-### 7.3 Decision Resolution Register (3 Contractually Resolved, 12 Pending Gate A Blockers)
+### 7.3 Decision Resolution Register (All 15 Open Decisions Formally Resolved)
 
-The following register details the decisions resolved via authoritative architecture contracts alongside the 12 pending items requiring explicit stakeholder determination:
+The following register details the formal resolution of all 15 architectural and engineering decisions across Sprint 08:
 
 ```text
  ┌────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
- │                                   DECISION REGISTER (RESOLVED & PENDING BLOCKERS)                                      │
+ │                                   DECISION REGISTER (ALL 15 SPRINT 08 DECISIONS RESOLVED)                              │
  ├───────┬───────────────────────────────┬────────────────────────────────────────────────┬───────────────────────────────┤
- │ ID    │ Decision Scope & Title        │ Current Architectural Reality                  │ Required Authority & Status   │
+ │ ID    │ Decision Scope & Title        │ Resolved Architecture / Option                 │ Authority & Decision Record   │
  ├───────┼───────────────────────────────┼────────────────────────────────────────────────┼───────────────────────────────┤
- │ OD-01 │ Intro in Mode 3 Question Count│ 1 intro + N questions vs N total questions     │ ARB / Content Lead (PENDING)  │
- │ OD-02 │ Mode 1 Question Count & Batch │ Single short N=1 vs batch series {5,10,15,20}  │ ARB / Product Lead (PENDING)  │
- │ OD-03 │ Mode 2 Step 02 Concept Review │ 10-point proof vs 5-point concept verification │ RESOLVED: ADR-009 (Option A)  │
- │ OD-04 │ Aspect Ratio (9:16 vs 16:9)   │ 9:16 vertical mandate vs 16:9 landscape expan. │ ARB / Media Lead (PENDING)    │
- │ OD-05 │ Datastore Entity Architecture │ Scalar questionId vs ContentMaster aggregate   │ Lead Architect (PENDING)      │
- │ OD-06 │ Challenge Formats & MCQ Rules │ Strict 4-option ABCD vs non-MCQ relaxations    │ RESOLVED: ADR-009 (Option A)  │
- │ OD-07 │ Mode 3 Duration & Timeouts    │ Short format <= 58s vs masterclass 12-55 mins  │ Engineering Lead (PENDING)    │
+ │ OD-01 │ Intro in Mode 3 Question Count│ Option A: Additive (1 Intro + N Questions)     │ RESOLVED: ADR-010 (Option A)  │
+ │ OD-02 │ Mode 1 Question Count & Batch │ Option A: Batch series for N > 1 (N=1 default) │ RESOLVED: ADR-010 (Option A)  │
+ │ OD-03 │ Mode 2 Step 02 Concept Review │ Option A: 5-Point Concept Accuracy Checklist   │ RESOLVED: ADR-009 (Option A)  │
+ │ OD-04 │ Aspect Ratio (9:16 vs 16:9)   │ Option A: Mode-governed (16:9 for Mode 3)      │ RESOLVED: ADR-010 (Option A)  │
+ │ OD-05 │ Datastore Entity Architecture │ Option A: ContentMaster root + nullable qstId  │ RESOLVED: ADR-010 (Option A)  │
+ │ OD-06 │ Challenge Formats & MCQ Rules │ Option A: Strict 4-Option ABCD MCQ Invariant   │ RESOLVED: ADR-009 (Option A)  │
+ │ OD-07 │ Mode 3 Duration & Timeouts    │ Option A: Tiered duration budgets & async time │ RESOLVED: ADR-010 (Option A)  │
  ├───────┼───────────────────────────────┼────────────────────────────────────────────────┼───────────────────────────────┤
- │ DD-01 │ Final QC Route Unification    │ Tab 4 inside VideoDetailPage vs /qc/:videoId   │ Lead Arch / Product (PENDING) │
- │ DD-02 │ Production Mode Selection UX  │ Entry modal vs Planning batch vs /content/new  │ UX Lead / Product (PENDING)   │
- │ DD-03 │ Multi-Question Studio Layout  │ Horizontal tabs vs Accordion vs Stepper wizard │ UX Lead / Eng Lead (PENDING)  │
- │ DD-04 │ Deep-Link Param Standardiz.   │ cnt_<uuid> vs entity-specific parameter schema │ Lead Arch / FE Lead (PENDING) │
- │ DD-05 │ Multi-Question Draft Storage  │ Single aggregate draft vs array of dft_<uuid>  │ Lead Arch / DB Lead (PENDING) │
- │ DD-06 │ Teleprompter Multi-Q Nav      │ Continuous vertical script vs per-Q segments   │ Studio / Video Lead (PENDING) │
- │ DD-07 │ Unmounted Page Disposition    │ Retire 8 orphaned files vs migrate/refactor    │ Eng Lead / Lead Arch (PENDING)│
- │ DD-08 │ Canonical Role Governance     │ Formalize SOCIAL_LEAD enum vs PUBLISHING_LEAD  │ RESOLVED: ADR-008 (Option B)  │
+ │ DD-01 │ Final QC Route Unification    │ Option A: Tab 4 in VideoDetailPage (amend FC12)│ RESOLVED: ADR-011 (Option A)  │
+ │ DD-02 │ Production Mode Selection UX  │ Option A: Modal Dialog on /studio entry        │ RESOLVED: ADR-011 (Option A)  │
+ │ DD-03 │ Multi-Question Studio Layout  │ Option A: Horizontal Segmented Tab Bar         │ RESOLVED: ADR-011 (Option A)  │
+ │ DD-04 │ Deep-Link Param Standardiz.   │ Option B: Typed entity params (?draftId, ?vid) │ RESOLVED: ADR-011 (Option B)  │
+ │ DD-05 │ Multi-Question Draft Storage  │ Option A: Single aggregate draft in drafts col │ RESOLVED: ADR-011 (Option A)  │
+ │ DD-06 │ Teleprompter Multi-Q Nav      │ Option B: Segmented takes per question in S06  │ RESOLVED: ADR-011 (Option B)  │
+ │ DD-07 │ Unmounted Page Disposition    │ Option A: Formally retire 8 orphaned files S09 │ RESOLVED: ADR-011 (Option A)  │
+ │ DD-08 │ Canonical Role Governance     │ Option B: 11 Canonical Roles (social in PubLead│ RESOLVED: ADR-008 (Option B)  │
  └───────┴───────────────────────────────┴────────────────────────────────────────────────┴───────────────────────────────┘
 ```
 
 ### 7.4 Gate A Formal Approval Record & Blocked Status
 
-$$\mathbf{GATE\ A\ CURRENT\ STATUS}: \quad \mathbf{BLOCKED}$$
+$$\mathbf{GATE\ A\ CURRENT\ STATUS}: \quad \mathbf{BLOCKED\ (Pending\ Role-Specific\ Sign-Offs)}$$
 
-Implementation of Sprint 09 features is strictly prohibited until the following sign-off table is completed by authorized stakeholders:
+Implementation of Sprint 09 features remains held until the three named role sign-offs below are formally executed:
 
 ```text
- ┌────────────────────────────────────────────────────────────────────────────────────────┐
- │                                GATE A FORMAL APPROVAL RECORD                           │
- ├────────────────────────────┬─────────────────────────────┬──────────────┬──────────────┤
- │ Stakeholder / Role         │ Review Scope                │ Decision     │ Date         │
- ├────────────────────────────┼─────────────────────────────┼──────────────┼──────────────┤
- │ Lead System Architect      │ Architectural Invariants,   │ PENDING      │ Unrecorded   │
- │                            │ Firestore & RBAC Integrity  │              │              │
- ├────────────────────────────┼─────────────────────────────┼──────────────┼──────────────┤
- │ Content / Production Lead  │ 15-Step Workflow, Modes,    │ PENDING      │ Unrecorded   │
- │                            │ and Editorial Controls      │              │              │
- ├────────────────────────────┼─────────────────────────────┼──────────────┼──────────────┤
- │ Engineering Lead           │ Deep Linking, OCC, Draft    │ PENDING      │ Unrecorded   │
- │                            │ Resumption, API Constraints │              │              │
- └────────────────────────────┴─────────────────────────────┴──────────────┴──────────────┘
+ ┌────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+ │                                              GATE A FORMAL APPROVAL RECORD                                             │
+ ├────────────────────────────┬─────────────────────────────┬──────────────┬──────────────┬───────────────────────────────┤
+ │ Stakeholder / Authority    │ Review Scope                │ Decision     │ Date         │ Attributable Evidence         │
+ ├────────────────────────────┼─────────────────────────────┼──────────────┼──────────────┼───────────────────────────────┤
+ │ Project Owner / User       │ S8-T01–T04 Final Closure &  │ APPROVED     │ 2026-10-14   │ User prompt authorization for │
+ │                            │ ADR-008–011 Requirements    │              │              │ ADR-008 through ADR-011       │
+ ├────────────────────────────┼─────────────────────────────┼──────────────┼──────────────┼───────────────────────────────┤
+ │ Lead System Architect      │ Architectural Invariants,   │ PENDING      │ Unrecorded   │ Pending formal role sign-off  │
+ │                            │ Firestore & RBAC Integrity  │              │              │                               │
+ ├────────────────────────────┼─────────────────────────────┼──────────────┼──────────────┼───────────────────────────────┤
+ │ Content / Production Lead  │ 15-Step Workflow, Modes,    │ PENDING      │ Unrecorded   │ Pending formal role sign-off  │
+ │                            │ and Editorial Controls      │              │              │                               │
+ ├────────────────────────────┼─────────────────────────────┼──────────────┼──────────────┼───────────────────────────────┤
+ │ Engineering Lead           │ Deep Linking, OCC, Draft    │ PENDING      │ Unrecorded   │ Pending formal role sign-off  │
+ │                            │ Resumption, API Constraints │              │              │                               │
+ └────────────────────────────┴─────────────────────────────┴──────────────┴──────────────┴───────────────────────────────┘
 ```
 
 ### Actionable Criteria for Gate A Closure:
-To transition Gate A from **BLOCKED** to **APPROVED**, authorized stakeholders must provide explicit decisions on the record:
-1. **Resolve 12 Open Decisions**: Formally determine and record decisions for the 12 pending items: OD-01, OD-02, OD-04, OD-05, OD-07, and DD-01 through DD-07 (with DD-08, OD-03, and OD-06 resolved via ADR-008 and ADR-009).
-2. **Reconcile Requirements Specifications**: Ensure `S8-T03` and `S8-T04` reflect the approved decisions and update `docs/architecture/DECISION-LOG.md`.
-3. **Execute Stakeholder Sign-Off**:
-   - **Lead System Architect**: Review & approve Architectural Invariants, Firestore persistence, RBAC integrity, and UUID entity IDs.
-   - **Content / Production Lead**: Review & approve 15-Step Workflow, Mode 1/2/3 Contracts, and Editorial Controls.
-   - **Engineering Lead**: Review & approve Deep Linking, Direct Hydration, Draft Resumption, OCC, and API Contracts.
+All 15 requirements and design decisions are 100% resolved on the record (ADR-008 through ADR-011), and all technical prerequisites (PR-01 through PR-06) are completely satisfied.
+
+To transition Gate A from **BLOCKED** to **CLOSED / APPROVED**, the single remaining action is formal execution of the three role-specific sign-offs above:
+1. **Lead System Architect**: Ratify architectural invariants, Firestore schema, and RBAC model.
+2. **Content / Production Lead**: Ratify 15-step workflow continuity and content mode specifications.
+3. **Engineering Lead**: Ratify direct-linking, draft resumption, and timeout feasibility.
+
+*(Note: If the Project Owner is authorized to act as the sole signatory across all three capacities, recording an explicit single-authority confirmation closes Gate A immediately).*
 
 > [!CRITICAL]
-> **GATE A REMAINS BLOCKED.**
-> All four foundational requirement documents (S8-T01 through S8-T04) are authored, verified, and reconciled. No developer or AI agent may begin application code modifications, route additions, schema migrations, or component updates until authorized stakeholders record their approval above.
+> **NO RUNTIME IMPLEMENTATION BEFORE GATE A CLOSURE.**
+> All Phase A requirements baselines (S8-T01 through S8-T04) are authored, reconciled, and accepted. No application code modifications, schema migrations, or component updates may begin until Gate A sign-offs are completed.

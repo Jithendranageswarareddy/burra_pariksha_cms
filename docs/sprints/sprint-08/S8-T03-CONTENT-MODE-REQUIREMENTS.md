@@ -5,14 +5,14 @@
 ```text
 ================================================================================
 Document ID:       BP-S8-T03-CONTENT-MODES
-Version:           1.5.0-FINAL-ACCEPTANCE
+Version:           1.6.0-ACCEPTED-BASELINE
 Date:              2026-10-14
-Status:            DRAFT — PENDING DECISIONS
+Status:            ACCEPTED REQUIREMENTS BASELINE (Project Owner Approved)
 Classification:    Content Engineering, Production Architecture & AI Contracts
-Inspected Commit:  46b803bd16c2729690134c1b878cb33ae5c802d0 (main)
+Inspected Commit:  cb9acb8 (main)
 Scope:             Three Production Modes (Question Challenge Short, Topic
                    Introduction, Explained Questions Video), Input/Output
-                   Contracts, Shared/Specific Matrix, Validation, and Open Decisions
+                   Contracts, Shared/Specific Matrix, Validation, and Resolved Decisions
 Upstream:          07-CANONICAL-15-STEP-WORKFLOW.md, 11-PAGE-ROUTE-CONTRACT.md,
                    12-DATABASE-ARCHITECTURE.md, 14-MEDIA-ARCHITECTURE.md,
                    15-API-CONTRACT.md, 24-TEST-ARCHITECTURE.md,
@@ -21,7 +21,7 @@ Upstream:          07-CANONICAL-15-STEP-WORKFLOW.md, 11-PAGE-ROUTE-CONTRACT.md,
                    S8-T02-PRODUCTION-PAGE-WORKFLOW-INVENTORY.md
 Downstream:        S8-T04 (Quality Gate Decoupling), Stage 01 Mode Selector UI,
                    AI Orchestrator Multi-Mode Prompt Engines, Media Pipeline Expansion
-Approval State:    PROPOSALS ONLY — No unapproved option encoded as mandatory
+Approval State:    APPROVED BASELINE (Decisions Resolved via ADR-009 & ADR-010)
 ================================================================================
 ```
 
@@ -280,7 +280,7 @@ The following matrix categorizes all inputs, entity fields, and validation gates
 | `subtopicId` | `string` (`sub_<uuid>` / `SUB-*`) | **Required** (single subtopic) | **Required** (single subtopic) | **Required** (single subtopic) | **ESTABLISHED** across all modes | [`shared/types/question.ts`](../../../shared/types/question.ts), `QuestionInputBaseSchema` |
 | `language` | `QuestionLanguage` enum | **Required** (`TELUGU`, `ENGLISH`, `TELUGU_ENGLISH`) | **Required** (`TELUGU`, `ENGLISH`, `TELUGU_ENGLISH`) | **Required** (`TELUGU`, `ENGLISH`, `TELUGU_ENGLISH`) | **ESTABLISHED** across all modes | [`shared/constants/enums.ts`](../../../shared/constants/enums.ts#L64), `LANGUAGES` |
 | `difficulty` | `DifficultyLevel` enum | **Required** (`EASY`, `MEDIUM`, `HARD`) | **Not Applicable** | **Required** (`EASY`, `MEDIUM`, `HARD`, or `PROGRESSIVE`) | **ESTABLISHED** across all modes | [`shared/constants/enums.ts`](../../../shared/constants/enums.ts#L6), `DIFFICULTY_LEVELS` |
-| `questionCount` | `number` (`1, 5, 10, 15, 20`) | **Required**: `1` (single short). Supported batch configs: `5, 10, 15, 20` (OD-02 pending). | **Non-Required** ($N = 0$). Proposed validation rule: ignore/reject if passed. | **Required Product Configuration**: Must select `5`, `10`, `15`, or `20`. | - **Mode 1**: Established for $N=1$; Awaiting **OD-02** for batch series.<br>- **Mode 2**: Established non-required; Proposed validation rule.<br>- **Mode 3**: Established required configuration; Awaiting **OD-01** for intro inclusion vs. exclusion. | [`shared/contracts/planning.ts`](../../../shared/contracts/planning.ts#L35), `targetQuestionCount` |
+| `questionCount` | `number` (`1, 5, 10, 15, 20`) | **Required**: `1` (single short). Supported batch configs: `5, 10, 15, 20` (ADR-010 resolved). | **Non-Required** ($N = 0$). Validation rule: ignored/rejected if passed. | **Required Product Configuration**: Must select `5`, `10`, `15`, or `20`. | - **Mode 1**: Established for $N=1$; Resolved via **ADR-010** for batch series.<br>- **Mode 2**: Established non-required ($N=0$).<br>- **Mode 3**: Established required configuration; Resolved via **ADR-010** (additive $1+N$). | [`shared/contracts/planning.ts`](../../../shared/contracts/planning.ts#L35), `targetQuestionCount` |
 | `realWorldContext` | `string` | Optional | Optional | Optional | **ESTABLISHED** across all modes | [`shared/constants/enums.ts`](../../../shared/constants/enums.ts#L253), `REAL_LIFE_CONTEXTS` |
 | `questionStyle` | `QuestionStyle` enum / `string` | Optional | **Not Applicable** | Optional | **ESTABLISHED** across all modes | [`shared/constants/enums.ts`](../../../shared/constants/enums.ts#L108), `QuestionConfigEntryZodSchema` |
 | `challengeType` | `string` (`ABCD`, `ODD_ONE_OUT`)| **Required**: 4-option MCQ format. Supported: `ABCD`. | **Not Applicable** | Optional (default: `ABCD` 4-option MCQ). | - **Mode 1 & 3**: Established for 4-option MCQ; Resolved via **ADR-009**.<br>- **Mode 2**: Not applicable. | [`backend/server/validation/request-schemas.ts`](../../../backend/server/validation/request-schemas.ts#L83) |
@@ -288,16 +288,16 @@ The following matrix categorizes all inputs, entity fields, and validation gates
 | `options` (A, B, C, D)| `Record<'a'|'b'|'c'|'d', string>` | **Required** (exactly 4 options) | **Not Applicable** | **Required** (exactly 4 options per question) | **ESTABLISHED & RESOLVED via ADR-009** (Strict 4-option schema enforced) | [`backend/server/validation/request-schemas.ts`](../../../backend/server/validation/request-schemas.ts#L69-L74) |
 | `correctAnswer` | `'A' | 'B' | 'C' | 'D'` | **Required** (single key) | **Not Applicable** | **Required** (single key per question) | **ESTABLISHED** across all modes | [`backend/server/validation/request-schemas.ts`](../../../backend/server/validation/request-schemas.ts#L79) |
 | `explanation` / Proof | `string` ($\ge 5\text{ chars}$) | **Required** (1 explanation) | **Not Applicable** | **Required** ($N$ explanations) | **ESTABLISHED** across all modes | [`backend/server/validation/request-schemas.ts`](../../../backend/server/validation/request-schemas.ts#L80) |
-| `introductoryConcept` | `string` | **Not Applicable** | **Required** | **Required** | **PROPOSED** field specification for Modes 2 & 3 | New field for Modes 2 & 3 |
-| `syllabusScopeNotes` | `string` | **Not Applicable** | **Required** | Optional | **PROPOSED** field specification for Mode 2 | New field for Mode 2 |
+| `introductoryConcept` | `string` | **Not Applicable** | **Required** | **Required** | **RESOLVED** field specification for Modes 2 & 3 | New field for Modes 2 & 3 |
+| `syllabusScopeNotes` | `string` | **Not Applicable** | **Required** | Optional | **RESOLVED** field specification for Mode 2 | New field for Mode 2 |
 | `countdownTimerMs` | `number` (`3000` or `5000`) | **Required** (default: `5000`) | **Not Applicable** | Optional | **ESTABLISHED** (aligned with `pauseDurationSeconds`) | [`shared/types/content.ts`](../../../shared/types/content.ts#L1405) |
 | `commentPromptText` | `string` | **Required** (engagement CTA) | Optional | Optional | **ESTABLISHED** (aligned with `commentChallengePrompt`) | [`shared/types/content.ts`](../../../shared/types/content.ts#L1346) |
 | `burraSpeedTrick` | `string` | Optional | **Not Applicable** | **Required** (if enabled) | **ESTABLISHED** across applicable modes | [`backend/ai/prompts/script-generation.prompt.ts`](../../../backend/ai/prompts/script-generation.prompt.ts) |
-| `chapterTimestamps` | `Array<{ time: string; title: string }>` | **Not Applicable** | **Not Applicable** | **Required** (YouTube chapters) | **PROPOSED** field specification for Mode 3 | New field for Mode 3 |
-| `aspectRatio` | `'9:16' | '16:9'` | Strictly `'9:16'` (vertical) | Proposed: `'9:16' | '16:9'` | Proposed: Strictly `'16:9'` | - **Mode 1**: Established 9:16 vertical.<br>- **Modes 2 & 3**: Awaiting **OD-04** for 16:9 landscape expansion. | [14-MEDIA-ARCHITECTURE.md](../../architecture/14-MEDIA-ARCHITECTURE.md) |
-| `targetMaxDuration` | `number` (seconds) | $\le 58\text{ seconds}$ | $60\text{ to }180\text{ seconds}$ | $12\text{ to }55\text{ minutes}$ | - **Modes 1 & 2**: Established/bounded.<br>- **Mode 3**: Awaiting **OD-07** for masterclass duration scaling & async timeouts. | Default: 45s in [`backend/server/validation/request-schemas.ts`](../../../backend/server/validation/request-schemas.ts#L183) |
+| `chapterTimestamps` | `Array<{ time: string; title: string }>` | **Not Applicable** | **Not Applicable** | **Required** (YouTube chapters) | **RESOLVED** field specification for Mode 3 | New field for Mode 3 |
+| `aspectRatio` | `'9:16' | '16:9'` | Strictly `'9:16'` (vertical) | Supported: `'9:16' | '16:9'` | Strictly `'16:9'` (horizontal) | - **Mode 1**: Established 9:16 vertical.<br>- **Modes 2 & 3**: Resolved via **ADR-010** (amending [14-MEDIA-ARCHITECTURE.md](../../architecture/14-MEDIA-ARCHITECTURE.md)). | [14-MEDIA-ARCHITECTURE.md](../../architecture/14-MEDIA-ARCHITECTURE.md) |
+| `targetMaxDuration` | `number` (seconds) | $\le 58\text{ seconds}$ | $60\text{ to }180\text{ seconds}$ | $12\text{ to }55\text{ minutes}$ | - **Modes 1 & 2**: Established/bounded.<br>- **Mode 3**: Resolved via **ADR-010** (tiered duration scaling & async timeouts; amending [17-JOB-ASYNC-ARCHITECTURE.md](../../architecture/17-JOB-ASYNC-ARCHITECTURE.md)). | Default: 45s in [`backend/server/validation/request-schemas.ts`](../../../backend/server/validation/request-schemas.ts#L183) |
 | `step02Verification` | Verification checklist | 10-point pedagogical audit & proof verification (1 question) | 5-point Concept Accuracy Verification (0 questions) | Verification of all $N$ practice questions | - **Modes 1 & 3**: Established question proof verification.<br>- **Mode 2**: Resolved via **ADR-009** (Polymorphic Step 02 Concept Audit). | [07-CANONICAL-15-STEP-WORKFLOW.md](../../architecture/07-CANONICAL-15-STEP-WORKFLOW.md#L185) |
-| `datastoreEntityLinkage`| Relational mapping | 1:1 scalar `Video.questionId` | 1 `Video` with 0 questions (`questionId: null`, `conceptBriefId`) | 1 `Video` with $N$ questions (`Video.questionIds: string[]`, `ContentMaster`) | - **Mode 1**: Established 1:1 scalar `questionId`.<br>- **Modes 2 & 3**: Awaiting **OD-05** for multi-question aggregate root schema. | [`shared/types/content.ts`](../../../shared/types/content.ts#L101), [`shared/contracts/planning.ts`](../../../shared/contracts/planning.ts#L83) |
+| `datastoreEntityLinkage`| Relational mapping | 1:1 scalar `Video.questionId` | 1 `Video` with 0 questions (`questionId: null`, `conceptBriefId`) | 1 `Video` with $N$ questions (`Video.questionIds: string[]`, `ContentMaster`) | - **Mode 1**: Established 1:1 scalar `questionId`.<br>- **Modes 2 & 3**: Resolved via **ADR-010** (`ContentMaster` aggregate root with nullable `video.questionId`). | [`shared/types/content.ts`](../../../shared/types/content.ts#L101), [`shared/contracts/planning.ts`](../../../shared/contracts/planning.ts#L83) |
 
 ---
 
@@ -342,7 +342,7 @@ The following register formally records all unresolved, ambiguous, or architectu
 ```
 
 ### OD-01: Inclusion vs. Exclusion of Intro Segment in Mode 3 Question Count
-- **Status**: `PROPOSED / PENDING ARCHITECTURE DECISION`
+- **Status**: `RESOLVED VIA AUTHORITATIVE DECISION & ADR-010 (Option A: Additive 1 Intro + N Questions)`
 - **Decision Required**: When a creator selects `5`, `10`, `15`, or `20` questions for Mode 3 (Explained Questions Video), does this count include or exclude the introductory segment?
 - **Current Repository Reality**:
   - The codebase currently has no multi-question masterclass generation engine; existing prompts and schemas assume single questions (`shared/contracts/question-generation/question-generation.contract.ts`).
@@ -356,7 +356,7 @@ The following register formally records all unresolved, ambiguous, or architectu
 ---
 
 ### OD-02: Mode 1 Question Counts: Single-Question Short vs. Batch Generation Series
-- **Status**: `PROPOSED / PENDING ARCHITECTURE DECISION`
+- **Status**: `RESOLVED VIA AUTHORITATIVE DECISION & ADR-010 (Option A: Batch Creation Series for Counts > 1; Single Short N=1 Default)`
 - **Decision Required**: How should configurable question counts of `5`, `10`, `15`, and `20` be realized for Mode 1 (Question Challenge Short) given the platform constraint of $\le 60\text{ seconds}$?
 - **Current Repository Reality**:
   - [14-MEDIA-ARCHITECTURE.md](../../architecture/14-MEDIA-ARCHITECTURE.md) (Line 134) and [15-API-CONTRACT.md](../../architecture/15-API-CONTRACT.md) (Line 398) enforce a video duration between 15 and 70 seconds.
@@ -389,7 +389,7 @@ The following register formally records all unresolved, ambiguous, or architectu
 ---
 
 ### OD-04: Aspect Ratio Governance: 9:16 Vertical Mandate vs. 16:9 Landscape Expansion
-- **Status**: `PROPOSED / PENDING ARCHITECTURE DECISION`
+- **Status**: `RESOLVED VIA AUTHORITATIVE DECISION & ADR-010 (Option A: Mode-Governed Aspect Ratio Expansion; Amending 14-MEDIA-ARCHITECTURE.md)`
 - **Decision Required**: Does BP-CMS permit 16:9 landscape video assets in production, and how are aspect ratios governed across the three production modes?
 - **Current Repository Reality**:
   - [14-MEDIA-ARCHITECTURE.md](../../architecture/14-MEDIA-ARCHITECTURE.md) (Lines 132–134) strictly mandates: *"pixel dimensions must be $1080 \times 1920$ (vertical 9:16)"*.
@@ -402,13 +402,13 @@ The following register formally records all unresolved, ambiguous, or architectu
     - Mode 3: Strictly **16:9 Landscape** ($1920 \times 1080\text{ px}$) for main masterclass.
   - *Option B*: **Strict Vertical Invariant Retention**. Enforce 9:16 across all modes without exception. For Mode 3, masterclasses are split into vertical carousel segments.
 - **Architectural & Operational Impact**:
-  - Option A requires an official Architecture Decision Record (ADR) modifying [14-MEDIA-ARCHITECTURE.md](../../architecture/14-MEDIA-ARCHITECTURE.md), [15-API-CONTRACT.md](../../architecture/15-API-CONTRACT.md), Step 07 Final QC validation rules, and Step 08 Thumbnail generator dimensions ($1280 \times 720$ for 16:9 vs $1080 \times 1920$ for 9:16).
+  - Option A amends [14-MEDIA-ARCHITECTURE.md](../../architecture/14-MEDIA-ARCHITECTURE.md), [15-API-CONTRACT.md](../../architecture/15-API-CONTRACT.md), Step 07 Final QC validation rules, and Step 08 Thumbnail generator dimensions ($1280 \times 720$ for 16:9 vs $1080 \times 1920$ for 9:16).
 - **Approval Authority**: Architecture Review Board (ARB).
 
 ---
 
 ### OD-05: Datastore Entity Architecture: Scalar `questionId` vs. Multi-Question Aggregate Root
-- **Status**: `PROPOSED / PENDING ARCHITECTURE DECISION`
+- **Status**: `RESOLVED VIA AUTHORITATIVE DECISION & ADR-010 (Option A: ContentMaster Aggregate Root & Schema Relaxation)`
 - **Decision Required**: Should Mode 2 (Topic Intro, 0 questions) and Mode 3 (Explained Questions, $N$ questions) store their payloads directly in existing collections, or introduce an aggregate root container?
 - **Current Repository Reality**:
   - In Firestore, the `videos` collection schema defines `questionId: string` as a mandatory 1:1 scalar foreign key ([`shared/types/content.ts`](../../../shared/types/content.ts#L101)).
@@ -451,7 +451,7 @@ The following register formally records all unresolved, ambiguous, or architectu
 ---
 
 ### OD-07: Mode 3 Duration Scaling & Asynchronous Processing Boundaries
-- **Status**: `PROPOSED / PENDING ARCHITECTURE DECISION`
+- **Status**: `RESOLVED VIA AUTHORITATIVE DECISION & ADR-010 (Option A: Tiered Duration Budgets & Extended Async Timeouts; Amending 17-JOB-ASYNC-ARCHITECTURE.md)`
 - **Decision Required**: What are the upper duration limits for Mode 3 (Explained Questions Video) across question counts ($5, 10, 15, 20$), and how do they impact background job execution?
 - **Current Repository Reality**:
   - [17-JOB-ASYNC-ARCHITECTURE.md](../../architecture/17-JOB-ASYNC-ARCHITECTURE.md) (Lines 143, 197) specifies video transcode and validation jobs assuming durations under 70 seconds with a transcode window of 10s–120s.
@@ -489,13 +489,13 @@ The following register formally records all unresolved, ambiguous, or architectu
 
 | Acceptance Criterion | Implementation Section | Verification Summary | Status |
 | :--- | :--- | :--- | :---: |
-| **Mode 1: Question Challenge Short** | Section 2.1, 3.1, 4, 5.1 | Single-short ($N=1$) established; batch series ($5, 10, 15, 20$) conditional on OD-02. | **COMPLIANT** |
-| **Mode 2: Topic Introduction** | Section 2.2, 3.2, 4, 5.2 | Question count non-required ($N=0$) established; polymorphic Step 02 conditional on OD-03. | **COMPLIANT** |
-| **Mode 3: Explained Questions Video** | Section 2.3, 3.3, 4, 5.3 | Masterclass structure with counts $\{5, 10, 15, 20\}$; intro inclusion (OD-01), 16:9 (OD-04), aggregate model (OD-05), duration scaling (OD-07). | **COMPLIANT** |
+| **Mode 1: Question Challenge Short** | Section 2.1, 3.1, 4, 5.1 | Single-short ($N=1$) established; batch series ($5, 10, 15, 20$) resolved via ADR-010. | **COMPLIANT** |
+| **Mode 2: Topic Introduction** | Section 2.2, 3.2, 4, 5.2 | Question count non-required ($N=0$) established; polymorphic Step 02 resolved via ADR-009. | **COMPLIANT** |
+| **Mode 3: Explained Questions Video** | Section 2.3, 3.3, 4, 5.3 | Masterclass structure with counts $\{5, 10, 15, 20\}$; intro inclusion (OD-01), 16:9 (OD-04), aggregate model (OD-05), duration scaling (OD-07) all resolved via ADR-010. | **COMPLIANT** |
 | **Explicit Input/Output Contracts** | Section 3.1, 3.2, 3.3 | Provided purpose, required/optional inputs, outputs, validation, completion, and handoffs for all 3 modes. | **COMPLIANT** |
-| **Shared vs. Mode-Specific Matrix** | Section 4 | Analyzed 22 schema fields/gates; clearly separated required behavior, supported config, and dependencies (OD-01 to OD-07). | **COMPLIANT** |
-| **Question-Count Applicability** | Section 5 | Detailed question count semantics across all 3 modes with intro segment additive analysis. | **COMPLIANT** |
-| **Open Decisions Register** | Section 6 | Numbered register (OD-01 to OD-07) detailing decision required, current reality, options, impacts, and authorities. | **COMPLIANT** |
+| **Shared vs. Mode-Specific Matrix** | Section 4 | Analyzed 22 schema fields/gates; all fields reconciled with ADR-009 & ADR-010 resolutions. | **COMPLIANT** |
+| **Question-Count Applicability** | Section 5 | Detailed question count semantics across all 3 modes with intro segment additive analysis ($1+N$). | **COMPLIANT** |
+| **Open Decisions Register** | Section 6 | Numbered register (OD-01 to OD-07) detailing decision required, current reality, options, impacts, and authorities; all 7 decisions formally resolved. | **COMPLIANT** |
 | **Preservation of Canonical 15-Stage Workflow** | Section 1.2, 3, 7 | All 15 stages preserved in sequential order; zero skipped stages; GAR-02 enforced across all modes. | **COMPLIANT** |
-| **Truthful Approval Status** | Document Header, Section 1.3 | Labeled document as `DRAFT — PENDING DECISIONS`; established reality separated from proposed extensions. | **COMPLIANT** |
-| **Contract Reconciliation** | Throughout, Section 7 | Replaced all local `file:///` URLs with repo-relative paths; verified against request schemas and media architecture. | **COMPLIANT** |
+| **Truthful Approval Status** | Document Header, Section 1.3 | Labeled document as `ACCEPTED REQUIREMENTS BASELINE (Project Owner Approved)`; decisions recorded in `DECISION-LOG.md`. | **COMPLIANT** |
+| **Contract Reconciliation** | Throughout, Section 7 | Replaced all local `file:///` URLs with repo-relative paths; verified against request schemas, media architecture, and async job contracts. | **COMPLIANT** |
