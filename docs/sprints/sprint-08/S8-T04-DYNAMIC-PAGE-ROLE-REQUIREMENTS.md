@@ -5,11 +5,11 @@
 ```text
 ================================================================================
 Document ID:       BP-S8-T04-DYNAMIC-PAGE-ROLE-REQUIREMENTS
-Version:           1.3.0-GATE-A-AUDIT
+Version:           1.4.0-GATE-A-DECISIONS
 Date:              2026-10-14
 Status:            DRAFT — PENDING GATE A APPROVAL
 Gate A Status:     BLOCKED (Pending Formal Stakeholder Sign-Off)
-Inspected Commit:  e5dcccd (main)
+Inspected Commit:  c03a9bb (main)
 Scope:             Shared Production Context, Direct-Link & Draft Resumption,
                    15-Stage Page-State Matrix, Role-to-Action Matrix,
                    GAR-02 Anti-Self-Approval, and Gate A Approval Definition
@@ -696,9 +696,9 @@ The following design decisions and architectural discrepancies are recorded and 
  │ DD-07 │ Unmounted Page Disposition    │ Option A: Retire 8 orphaned files│ PENDING     │
  │       │ (8 unmounted files in pages/) │ Option B: Migrate into workbenches│ STAKEHOLDER │
  ├───────┼───────────────────────────────┼──────────────────────────────────┼─────────────┤
- │ DD-08 │ Canonical Role Governance:    │ Option A: Formalize SOCIAL_LEAD  │ PENDING     │
- │       │ SOCIAL_LEAD Role Evaluation   │   as 12th CanonicalRbacRole enum │ STAKEHOLDER │
- │       │                               │ Option B: Keep social review &   │ REVIEW      │
+ │ DD-08 │ Canonical Role Governance:    │ Option A: Formalize SOCIAL_LEAD  │ RESOLVED    │
+ │       │ SOCIAL_LEAD Role Evaluation   │   as 12th CanonicalRbacRole enum │ VIA ADR-008 │
+ │       │                               │ Option B: Keep social review &   │ (Option B)  │
  │       │                               │   sync under PUBLISHING_LEAD     │             │
  └───────┴───────────────────────────────┴──────────────────────────────────┴─────────────┘
 ```
@@ -752,22 +752,22 @@ Gate A is the mandatory architectural checkpoint that formally certifies the **D
  └───────┴──────────────────────────┴─────────────────────────────────┴─────────────────────────────────┴─────────────────┘
 ```
 
-### 7.3 Unresolved Decision Register (Gate A Blockers)
+### 7.3 Decision Resolution Register (3 Contractually Resolved, 12 Pending Gate A Blockers)
 
-The following decisions remain unapproved and must be formally resolved by authorized stakeholders before Gate A can close:
+The following register details the decisions resolved via authoritative architecture contracts alongside the 12 pending items requiring explicit stakeholder determination:
 
 ```text
  ┌────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
- │                                    UNRESOLVED DECISION REGISTER (GATE A BLOCKERS)                                      │
+ │                                   DECISION REGISTER (RESOLVED & PENDING BLOCKERS)                                      │
  ├───────┬───────────────────────────────┬────────────────────────────────────────────────┬───────────────────────────────┤
  │ ID    │ Decision Scope & Title        │ Current Architectural Reality                  │ Required Authority & Status   │
  ├───────┼───────────────────────────────┼────────────────────────────────────────────────┼───────────────────────────────┤
  │ OD-01 │ Intro in Mode 3 Question Count│ 1 intro + N questions vs N total questions     │ ARB / Content Lead (PENDING)  │
  │ OD-02 │ Mode 1 Question Count & Batch │ Single short N=1 vs batch series {5,10,15,20}  │ ARB / Product Lead (PENDING)  │
- │ OD-03 │ Mode 2 Step 02 Concept Review │ 10-point proof vs 5-point concept verification │ ARB / QA Lead (PENDING)       │
+ │ OD-03 │ Mode 2 Step 02 Concept Review │ 10-point proof vs 5-point concept verification │ RESOLVED: ADR-009 (Option A)  │
  │ OD-04 │ Aspect Ratio (9:16 vs 16:9)   │ 9:16 vertical mandate vs 16:9 landscape expan. │ ARB / Media Lead (PENDING)    │
  │ OD-05 │ Datastore Entity Architecture │ Scalar questionId vs ContentMaster aggregate   │ Lead Architect (PENDING)      │
- │ OD-06 │ Challenge Formats & MCQ Rules │ Strict 4-option ABCD vs non-MCQ relaxations    │ Pedagogical Lead (PENDING)    │
+ │ OD-06 │ Challenge Formats & MCQ Rules │ Strict 4-option ABCD vs non-MCQ relaxations    │ RESOLVED: ADR-009 (Option A)  │
  │ OD-07 │ Mode 3 Duration & Timeouts    │ Short format <= 58s vs masterclass 12-55 mins  │ Engineering Lead (PENDING)    │
  ├───────┼───────────────────────────────┼────────────────────────────────────────────────┼───────────────────────────────┤
  │ DD-01 │ Final QC Route Unification    │ Tab 4 inside VideoDetailPage vs /qc/:videoId   │ Lead Arch / Product (PENDING) │
@@ -777,7 +777,7 @@ The following decisions remain unapproved and must be formally resolved by autho
  │ DD-05 │ Multi-Question Draft Storage  │ Single aggregate draft vs array of dft_<uuid>  │ Lead Arch / DB Lead (PENDING) │
  │ DD-06 │ Teleprompter Multi-Q Nav      │ Continuous vertical script vs per-Q segments   │ Studio / Video Lead (PENDING) │
  │ DD-07 │ Unmounted Page Disposition    │ Retire 8 orphaned files vs migrate/refactor    │ Eng Lead / Lead Arch (PENDING)│
- │ DD-08 │ Canonical Role Governance     │ Formalize SOCIAL_LEAD enum vs PUBLISHING_LEAD  │ Lead Arch / Security (PENDING)│
+ │ DD-08 │ Canonical Role Governance     │ Formalize SOCIAL_LEAD enum vs PUBLISHING_LEAD  │ RESOLVED: ADR-008 (Option B)  │
  └───────┴───────────────────────────────┴────────────────────────────────────────────────┴───────────────────────────────┘
 ```
 
