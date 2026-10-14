@@ -736,11 +736,11 @@ Gate A is the mandatory architectural checkpoint that formally certifies the **D
  ├───────┼──────────────────────────┼─────────────────────────────────┼─────────────────────────────────┼─────────────────┤
  │ PR-03 │ S8-T03 Accepted: Three   │ docs/sprints/sprint-08/         │ Modes 1, 2, 3 specified; matrix │ PENDING         │
  │       │ Content Mode Requirements│ S8-T03-CONTENT-MODE-REQUIREMENTS│ separated required vs proposed; │ STAKEHOLDER     │
- │       │                          │ .md                             │ OD-01 to OD-07 pending decision.│ DECISION        │
+ │       │                          │ .md                             │ OD-01, 02, 04, 05, 07 pending.  │ DECISION        │
  ├───────┼──────────────────────────┼─────────────────────────────────┼─────────────────────────────────┼─────────────────┤
  │ PR-04 │ S8-T04 Accepted: Dynamic │ docs/sprints/sprint-08/         │ ProductionContext, 15-stage page│ PENDING         │
  │       │ Pages, Roles & GAR-02    │ S8-T04-DYNAMIC-PAGE-ROLE-       │ states, 11 roles, zero-bypass   │ STAKEHOLDER     │
- │       │                          │ REQUIREMENTS.md                 │ GAR-02; DD-01 to DD-08 pending. │ SIGN-OFF        │
+ │       │                          │ REQUIREMENTS.md                 │ GAR-02; DD-01 to DD-07 pending. │ SIGN-OFF        │
  ├───────┼──────────────────────────┼─────────────────────────────────┼─────────────────────────────────┼─────────────────┤
  │ PR-05 │ Full Workflow Lifecycle  │ docs/architecture/              │ 100% of all 15 canonical stages │ SATISFIED       │
  │       │ Coverage (Stages 01–15)  │ 07-CANONICAL-15-STEP-WORKFLOW.md│ mapped with all 6 UI states     │ (Specification  │
@@ -806,8 +806,8 @@ Implementation of Sprint 09 features is strictly prohibited until the following 
 
 ### Actionable Criteria for Gate A Closure:
 To transition Gate A from **BLOCKED** to **APPROVED**, authorized stakeholders must provide explicit decisions on the record:
-1. **Resolve Open Decisions OD-01 through OD-07**: Record formal decisions in `docs/architecture/DECISION-LOG.md` and reconcile requirements in `S8-T03`.
-2. **Resolve Open Decisions DD-01 through DD-08**: Record formal decisions in `docs/architecture/DECISION-LOG.md` and reconcile requirements in `S8-T04`.
+1. **Resolve 12 Open Decisions**: Formally determine and record decisions for the 12 pending items: OD-01, OD-02, OD-04, OD-05, OD-07, and DD-01 through DD-07 (with DD-08, OD-03, and OD-06 resolved via ADR-008 and ADR-009).
+2. **Reconcile Requirements Specifications**: Ensure `S8-T03` and `S8-T04` reflect the approved decisions and update `docs/architecture/DECISION-LOG.md`.
 3. **Execute Stakeholder Sign-Off**:
    - **Lead System Architect**: Review & approve Architectural Invariants, Firestore persistence, RBAC integrity, and UUID entity IDs.
    - **Content / Production Lead**: Review & approve 15-Step Workflow, Mode 1/2/3 Contracts, and Editorial Controls.
