@@ -5,11 +5,11 @@
 ```text
 ================================================================================
 Document ID:       BP-S8-T03-CONTENT-MODES
-Version:           1.4.0-ACCEPTANCE-RECONCILED
+Version:           1.5.0-FINAL-ACCEPTANCE
 Date:              2026-10-14
 Status:            DRAFT — PENDING DECISIONS
 Classification:    Content Engineering, Production Architecture & AI Contracts
-Inspected Commit:  bc317f6f97a4ae518df2944d7f00c89eb4ece6c4 (main)
+Inspected Commit:  46b803bd16c2729690134c1b878cb33ae5c802d0 (main)
 Scope:             Three Production Modes (Question Challenge Short, Topic
                    Introduction, Explained Questions Video), Input/Output
                    Contracts, Shared/Specific Matrix, Validation, and Open Decisions
