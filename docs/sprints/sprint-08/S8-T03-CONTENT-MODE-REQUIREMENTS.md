@@ -9,7 +9,7 @@ Version:           1.4.0-ACCEPTANCE-RECONCILED
 Date:              2026-10-14
 Status:            DRAFT — PENDING DECISIONS
 Classification:    Content Engineering, Production Architecture & AI Contracts
-Inspected Commit:  a54fc8e (main)
+Inspected Commit:  bc317f6f97a4ae518df2944d7f00c89eb4ece6c4 (main)
 Scope:             Three Production Modes (Question Challenge Short, Topic
                    Introduction, Explained Questions Video), Input/Output
                    Contracts, Shared/Specific Matrix, Validation, and Open Decisions
