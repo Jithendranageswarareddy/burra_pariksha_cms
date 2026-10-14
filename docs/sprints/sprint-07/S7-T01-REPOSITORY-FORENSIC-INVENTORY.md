@@ -16,7 +16,7 @@ later additions, while preserving the original baseline distinction.
 
 ### 1.1 Git Working Tree Baseline
 - **Original S7-T01 Baseline**: **690 files**
-- **Current Tracked Files Reconciled**: **712 files** (Verified against git ls-files)
+- **Current Tracked Files Reconciled**: **713 files** (Verified against git ls-files)
 - **Branch**: main
 - **Authoritative Datastore**: Cloud Firestore (Zero Google Sheets runtime persistence)
 - **Architecture Model**: Vertical Feature Slices with Unidirectional Dependency Flow
@@ -27,20 +27,20 @@ later additions, while preserving the original baseline distinction.
 | backend/ | 171 | Backend domain services, routes, middleware, validation |
 | frontend/ | 177 | React presentation components, pages, design system tokens |
 | features/ | 75 | Vertical feature scaffolding (.gitkeep targets) |
-| docs/ | 97 | Authoritative architecture specs, contracts, ADRs, sprint reports |
+| docs/ | 98 | Authoritative architecture specs, contracts, ADRs, sprint reports |
 | database/ | 48 | Cloud Firestore adapter, repositories, security rules |
 | src/ | 47 | Internal shims, legacy types, static configs, audit dispatchers |
 | tests/ | 44 | Automated regression test suites and quality gates |
 | shared/ | 29 | Isomorphic contracts, types, enums, canonical ID service |
 | Root (/) | 17 | Project configuration and build tooling |
 | scripts/ | 7 | Developer CLI and diagnostic tools |
-| **Total** | **712** | **Complete reconciled repository inventory** |
+| **Total** | **713** | **Complete reconciled repository inventory** |
 
 ### 1.3 Primary Architectural Classification Breakdown
 `
   FRONTEND        : 176 files  (24.7%)
   BACKEND         : 102 files  (14.3%)
-  DOCUMENTATION   :  99 files  (13.9%)
+  DOCUMENTATION   : 100 files  (14.0%)
   FEATURE_SCAFFOLD:  75 files  (10.5%)
   AI              :  74 files  (10.4%)
   DATABASE        :  51 files  ( 7.2%)
@@ -51,12 +51,12 @@ later additions, while preserving the original baseline distinction.
   SCRIPT          :   7 files  ( 1.0%)
   AUDIT           :   4 files  ( 0.6%)
   -----------------------------------------
-  TOTAL           : 712 files  (100.0%)
+  TOTAL           : 713 files  (100.0%)
 `
 
 ---
 
-## 2. Complete File Ownership Manifest (All 712 Files)
+## 2. Complete File Ownership Manifest (All 713 Files)
 
 The following manifest records all 690 tracked files in Burra Pariksha CMS, accounting for each file exactly once with path, responsibility, layer, domain owner, dependencies, consumers, target location, and risk:
 
@@ -774,6 +774,7 @@ The following manifest records all 690 tracked files in Burra Pariksha CMS, acco
 | docs/sprints/sprint-08/S8-T01-QUESTION-GENERATION-AUDIT.md | Comprehensive S8-T01 Question Generation entry point forensic audit report | Architecture Documentation | S8-T01 Entry Point Audit | routes.ts, QuestionStudioPage, useQuestionGeneration | Developers, QA, release auditors | docs/sprints/sprint-08/S8-T01-QUESTION-GENERATION-AUDIT.md | **DOCUMENTATION** | HIGH | Added for Sprint 8 S8-T01 |
 | docs/sprints/sprint-08/S8-T02-PRODUCTION-PAGE-WORKFLOW-INVENTORY.md | Production Pages and Workflow Steps Forensic Inventory report | Architecture Documentation | S8-T02 Production Pages Inventory | routes.ts, App.tsx, ProductionJourneyBar, VideoDetailPage | Developers, QA, release auditors | docs/sprints/sprint-08/S8-T02-PRODUCTION-PAGE-WORKFLOW-INVENTORY.md | **DOCUMENTATION** | HIGH | Added for Sprint 8 S8-T02 |
 | docs/sprints/sprint-08/S8-T03-CONTENT-MODE-REQUIREMENTS.md | Content Mode Requirements and Specification Contract report | Architecture Documentation | S8-T03 Content Mode Requirements | 07-WORKFLOW, 11-ROUTES, enums.ts, request-schemas.ts | Developers, QA, release auditors | docs/sprints/sprint-08/S8-T03-CONTENT-MODE-REQUIREMENTS.md | **DOCUMENTATION** | HIGH | Added for Sprint 8 S8-T03 |
+| docs/sprints/sprint-08/S8-T04-DYNAMIC-PAGE-ROLE-REQUIREMENTS.md | Dynamic-Page and Role Requirements Specification document | Architecture Documentation | S8-T04 Dynamic-Page & Role Requirements | 07-WORKFLOW, 09-RBAC, 11-ROUTES, rbac-evaluator.ts | Developers, QA, release auditors | docs/sprints/sprint-08/S8-T04-DYNAMIC-PAGE-ROLE-REQUIREMENTS.md | **DOCUMENTATION** | HIGH | Added for Sprint 8 S8-T04 |
 
 
 ---
@@ -798,4 +799,4 @@ Every tracked file under `src/` has a verified, evidence-backed disposition:
 - `src/lib/data/production-taxonomy.ts`: **Historical / migration-only artifact** — Initial taxonomy seed fixture for database initializers.
 
 ### 3.3 Zero Unresolved Dependencies
-All 712 current files have clearly identified responsibilities, layers, dependencies, and owners with 0 circular imports and 0 unresolved architectural leaks. The original S7-T01 baseline remains 690 files; 20 legitimate files were added by S7-T15 and S7-T16, five redundant server-root re-export wrappers were removed by S7-T18, three verification and regression artifacts were added by S7-T19 and S7-T20, one unit test was added for AI client options sanitization, and three audit and specification reports were added for Sprint 8 (S8-T01, S8-T02, and S8-T03).
+All 713 current files have clearly identified responsibilities, layers, dependencies, and owners with 0 circular imports and 0 unresolved architectural leaks. The original S7-T01 baseline remains 690 files; 20 legitimate files were added by S7-T15 and S7-T16, five redundant server-root re-export wrappers were removed by S7-T18, three verification and regression artifacts were added by S7-T19 and S7-T20, one unit test was added for AI client options sanitization, and four audit and specification reports were added for Sprint 8 (S8-T01, S8-T02, S8-T03, and S8-T04).
