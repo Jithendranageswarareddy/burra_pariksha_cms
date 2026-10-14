@@ -17,6 +17,7 @@ import {
   VideoProductionStatus,
 } from '../constants/enums';
 import { Question } from './question';
+import { ContentProductionMode } from './production-context';
 
 export interface ContentMaster {
   id: string; // e.g. BP-CNT-000001
@@ -167,6 +168,14 @@ export interface QuestionVideo {
   createdAt: string;
 }
 
+export interface Mode3QuestionBlock {
+  questionNumber: number;
+  questionText: string;
+  optionsText?: string;
+  stepByStepSolution: string;
+  speedTrickOrTakeaway?: string;
+}
+
 export interface ScriptContentPayload {
   hookText: string;
   problemStatement: string;
@@ -174,6 +183,14 @@ export interface ScriptContentPayload {
   speedTrickOrTakeaway: string;
   callToAction: string;
   notes?: string;
+
+  // S8-T09 Multi-Mode Script Extensions
+  productionMode?: ContentProductionMode | string;
+  coreTheory?: string;
+  realLifeApplication?: string;
+  introOverview?: string;
+  questionBlocks?: Mode3QuestionBlock[];
+  scriptFormat?: string;
 }
 
 export interface Script {
@@ -196,6 +213,14 @@ export interface Script {
   notes?: string;
   createdAt: string;
   updatedAt: string;
+
+  // S8-T09 Multi-Mode Script Extensions
+  productionMode?: ContentProductionMode | string;
+  coreTheory?: string;
+  realLifeApplication?: string;
+  introOverview?: string;
+  questionBlocks?: Mode3QuestionBlock[];
+  scriptFormat?: string;
 }
 
 export interface ScriptVersion {

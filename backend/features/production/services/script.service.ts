@@ -130,13 +130,82 @@ export class ScriptService {
       };
     }
 
-    const generation = await aiOrchestrator.generateTeluguScript(question);
+    if (question.productionMode === 'TOPIC_INTRODUCTION') {
+      return {
+        script: null,
+        draftProposal: {
+          productionMode: 'TOPIC_INTRODUCTION',
+          hookText: question.conceptTitle ? `🔥 ${question.conceptTitle}: కాన్సెప్ట్ క్లియర్‌గా అర్థం చేసుకుందాం!` : 'ఈ కాన్సెప్ట్ పూర్తి విశ్లేషణ',
+          coreTheory: question.introductoryConcept || question.questionText || '',
+          problemStatement: question.introductoryConcept || question.questionText || '',
+          realLifeApplication: question.realLifeContext || question.syllabusScopeNotes || 'నిత్యజీవితంలో మరియు పోటీ పరీక్షల్లో ఈ కాన్సెప్ట్ ప్రాముఖ్యత...',
+          stepByStepSolution: question.realLifeContext || question.syllabusScopeNotes || '',
+          speedTrickOrTakeaway: '',
+          callToAction: 'కాన్సెప్ట్ అర్థమైతే లైక్ చేయండి! తర్వాతి వీడియోలో ఈ టాపిక్ పై మోస్ట్ ఇంపార్టెంట్ ప్రాక్టీస్ ప్రశ్నలను సాల్వ్ చేద్దాం.',
+          notes: 'Auto-draft generated for Mode 2 Topic Introduction.',
+        },
+      };
+    }
 
-    return {
-      script: null,
-      draftProposal: generation.scriptPayload,
-      validation: generation.validation,
-    };
+    if (question.productionMode === 'EXPLAINED_QUESTIONS_VIDEO') {
+      const qBlocks = (question.questions && question.questions.length > 0)
+        ? question.questions.map((q: any, idx: number) => ({
+            questionNumber: q.questionNumber || idx + 1,
+            questionText: q.questionText || '',
+            optionsText: q.options ? `Option A: ${q.options.a || q.options.A || ''}\nOption B: ${q.options.b || q.options.B || ''}\nOption C: ${q.options.c || q.options.C || ''}\nOption D: ${q.options.d || q.options.d || ''}` : '',
+            stepByStepSolution: q.explanation || '',
+            speedTrickOrTakeaway: q.trickOrPitfall || '',
+          }))
+        : [{
+            questionNumber: 1,
+            questionText: question.questionText || '',
+            optionsText: '',
+            stepByStepSolution: question.explanation || '',
+            speedTrickOrTakeaway: (question as any).speedTrick || '',
+          }];
+
+      return {
+        script: null,
+        draftProposal: {
+          productionMode: 'EXPLAINED_QUESTIONS_VIDEO',
+          introOverview: question.introductoryConcept || (question.conceptTitle ? `${question.conceptTitle} — సంపూర్ణ మాస్టర్‌క్లాస్` : 'ఈ వీడియోలో మనం ముఖ్యమైన ప్రశ్నలను స్టెప్-బై-స్టెప్ షార్ట్‌కట్లతో సాధిస్తాం.'),
+          hookText: question.introductoryConcept || question.conceptTitle || 'సంపూర్ణ మాస్టర్‌క్లాస్',
+          questionBlocks: qBlocks,
+          problemStatement: qBlocks.map((q: any) => `Q${q.questionNumber}: ${q.questionText}`).join('\n\n'),
+          stepByStepSolution: qBlocks.map((q: any) => `Q${q.questionNumber} Solution:\n${q.stepByStepSolution}`).join('\n\n'),
+          speedTrickOrTakeaway: qBlocks.map((q: any) => `Q${q.questionNumber} Trick: ${q.speedTrickOrTakeaway}`).join('\n'),
+          callToAction: 'ఈ ప్రశ్నలన్నీ పరీక్షల్లో ఎంతో ముఖ్యం! మరిన్ని మాస్టర్‌క్లాస్ వీడియోల కోసం Burra Pariksha ఛానెల్ ని Follow చేయండి!',
+          notes: 'Auto-draft generated for Mode 3 Explained Questions Video.',
+        },
+      };
+    }
+
+    try {
+      const generation = await aiOrchestrator.generateTeluguScript(question);
+      return {
+        script: null,
+        draftProposal: generation.scriptPayload,
+        validation: generation.validation,
+      };
+    } catch {
+      const opts = question.options;
+      const optionsText = opts && typeof opts === 'object'
+        ? `Option A: ${opts.a || opts.A || '...'}\nOption B: ${opts.b || opts.B || '...'}\nOption C: ${opts.c || opts.C || '...'}\nOption D: ${opts.d || opts.D || '...'}`
+        : 'Option A: ...\nOption B: ...\nOption C: ...\nOption D: ...';
+
+      return {
+        script: null,
+        draftProposal: {
+          productionMode: 'QUESTION_CHALLENGE_SHORT',
+          hookText: `🔥 ${video.title || 'ఈ ప్రశ్న'}: 10 సెకన్లలో సమాధానం చెప్పగలరా? చూద్దాం!`,
+          problemStatement: question.statementTe || question.questionText || '',
+          stepByStepSolution: question.explanationTe || question.explanation || optionsText,
+          speedTrickOrTakeaway: question.shortcutTe || (question as any).speedTrick || '💡 బుర్ర ట్రిక్: ఆప్షన్ ఎలిమినేషన్ ద్వారా వేగంగా సాల్వ్ చేయండి.',
+          callToAction: `మీ సమాధానాన్ని కామెంట్ చేయండి & @BurraPariksha ని ఫాలో అవ్వండి!`,
+          notes: 'Starter draft generated from linked question.',
+        },
+      };
+    }
   }
 
   /**
@@ -188,6 +257,12 @@ export class ScriptService {
         stepByStepSolution: payload.stepByStepSolution || '',
         speedTrickOrTakeaway: payload.speedTrickOrTakeaway || '',
         callToAction: payload.callToAction || '',
+        productionMode: payload.productionMode,
+        coreTheory: payload.coreTheory,
+        realLifeApplication: payload.realLifeApplication,
+        introOverview: payload.introOverview,
+        questionBlocks: payload.questionBlocks,
+        scriptFormat: payload.scriptFormat,
         currentVersion: 1,
         notes: payload.notes || '',
         createdAt: now,
@@ -231,6 +306,12 @@ export class ScriptService {
         stepByStepSolution: payload.stepByStepSolution,
         speedTrickOrTakeaway: payload.speedTrickOrTakeaway,
         callToAction: payload.callToAction,
+        productionMode: payload.productionMode !== undefined ? payload.productionMode : existing.productionMode,
+        coreTheory: payload.coreTheory !== undefined ? payload.coreTheory : existing.coreTheory,
+        realLifeApplication: payload.realLifeApplication !== undefined ? payload.realLifeApplication : existing.realLifeApplication,
+        introOverview: payload.introOverview !== undefined ? payload.introOverview : existing.introOverview,
+        questionBlocks: payload.questionBlocks !== undefined ? payload.questionBlocks : existing.questionBlocks,
+        scriptFormat: payload.scriptFormat !== undefined ? payload.scriptFormat : existing.scriptFormat,
         notes: payload.notes !== undefined ? payload.notes : existing.notes,
         currentVersion: nextVersionNumber,
         updatedAt: now,
@@ -272,6 +353,12 @@ export class ScriptService {
         stepByStepSolution: payload.stepByStepSolution,
         speedTrickOrTakeaway: payload.speedTrickOrTakeaway,
         callToAction: payload.callToAction,
+        productionMode: payload.productionMode !== undefined ? payload.productionMode : existing.productionMode,
+        coreTheory: payload.coreTheory !== undefined ? payload.coreTheory : existing.coreTheory,
+        realLifeApplication: payload.realLifeApplication !== undefined ? payload.realLifeApplication : existing.realLifeApplication,
+        introOverview: payload.introOverview !== undefined ? payload.introOverview : existing.introOverview,
+        questionBlocks: payload.questionBlocks !== undefined ? payload.questionBlocks : existing.questionBlocks,
+        scriptFormat: payload.scriptFormat !== undefined ? payload.scriptFormat : existing.scriptFormat,
         notes: payload.notes !== undefined ? payload.notes : existing.notes,
         updatedAt: now,
       });
