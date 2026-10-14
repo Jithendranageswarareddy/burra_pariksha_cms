@@ -5,11 +5,11 @@
 ```text
 ================================================================================
 Document ID:       BP-S8-T03-CONTENT-MODES
-Version:           1.2.0-FINAL-RECONCILED
+Version:           1.3.0-ACCEPTANCE-RECONCILED
 Date:              2026-10-14
 Status:            DRAFT — PENDING DECISIONS
 Classification:    Content Engineering, Production Architecture & AI Contracts
-Inspected Commit:  3b756e1 (main)
+Inspected Commit:  080e9ab (main)
 Scope:             Three Production Modes (Question Challenge Short, Topic
                    Introduction, Explained Questions Video), Input/Output
                    Contracts, Shared/Specific Matrix, Validation, and Open Decisions
@@ -90,7 +90,7 @@ This document strictly distinguishes **Established Contracts** (already codified
   - *Established Contract*: Currently restricted to **9:16 Vertical** ($1080 \times 1920\text{ px}$) in existing media pipelines.
   - *Proposed Extension*: Configurable support for **16:9 Landscape** ($1920 \times 1080\text{ px}$) for classroom-style YouTube overviews (*Conditional on approval of Decision OD-04*).
 - **Target Duration**: **60–180 seconds** (1 to 3 minutes).
-- **Question Requirement**: **Non-Required ($N = 0$)**. Mode 2 strictly requires 0 practice questions; does not accept or require multiple-choice options, answer keys, or distractors.
+- **Question Requirement**: **Non-Required ($N = 0$)**. Mode 2 strictly requires 0 practice questions; does not accept or require a question-count input, multiple-choice options, answer keys, or distractors.
 - **Workflow Step 02 Adaptation**:
   - *Proposed*: Step 02 executes a **Concept Accuracy Verification** (SME reviews syllabus scope and conceptual definitions) in lieu of mathematical proof verification (*Conditional on approval of Decision OD-03*).
 
@@ -197,7 +197,7 @@ Produce an educational curriculum orientation video that introduces and demystif
 
 #### Minimum Validation Rules
 - `topicId` and `subtopicId` must be valid active taxonomy records in Firestore.
-- **Question Count Non-Required ($N = 0$)**: Question count is strictly non-required and not permitted. The generation engine produces a conceptual overview without practice questions.
+- **Question Count Non-Required ($N = 0$)**: Question count is strictly non-required and not permitted. The creation form and API endpoints for Mode 2 reject question count inputs. The generation engine produces a conceptual overview without practice questions.
 - Script must contain both conceptual definition and exam weightage sections.
 - Spoken Telugu narration must maintain academic accuracy without archaic formalisms.
 
@@ -272,30 +272,32 @@ Produce an in-depth, comprehensive educational masterclass that begins with an i
 
 ## 4. Mode-to-Field / Validation Matrix
 
-The following matrix categorizes all inputs, entity fields, and validation gates across the three production modes, distinguishing universal shared taxonomy fields from mode-specific requirements and noting their current contract status:
+The following matrix categorizes all inputs, entity fields, and validation gates across the three production modes. It strictly distinguishes **Required Product Behavior**, **Supported Configuration Values**, and **Implementation Dependencies Awaiting Approval (OD-01 through OD-07)**:
 
-| Field / Attribute Name | Technical Type & Source | Mode 1: Question Challenge Short | Mode 2: Topic Introduction | Mode 3: Explained Questions Video | Contract Status | Reusable Code Artifact / Contract Reference |
-| :--- | :--- | :---: | :---: | :---: | :---: | :--- |
-| `topicId` | `string` (`top_<uuid>` / `TOP-*`) | **REQUIRED** | **REQUIRED** | **REQUIRED** | **ESTABLISHED** | [`shared/types/question.ts`](../../../shared/types/question.ts), `QuestionInputBaseSchema` |
-| `subtopicId` | `string` (`sub_<uuid>` / `SUB-*`) | **REQUIRED** | **REQUIRED** | **REQUIRED** | **ESTABLISHED** | [`shared/types/question.ts`](../../../shared/types/question.ts), `QuestionInputBaseSchema` |
-| `language` | `QuestionLanguage` enum | **REQUIRED** | **REQUIRED** | **REQUIRED** | **ESTABLISHED** | [`shared/constants/enums.ts`](../../../shared/constants/enums.ts#L64), `LANGUAGES` |
-| `difficulty` | `DifficultyLevel` enum | **REQUIRED** | **NOT APPLICABLE** | **REQUIRED** *(or Progressive)* | **ESTABLISHED** | [`shared/constants/enums.ts`](../../../shared/constants/enums.ts#L6), `DIFFICULTY_LEVELS` |
-| `questionCount` | `number` (`1, 5, 10, 15, 20`) | Default: `1` *(Batch: 5, 10, 15, 20)* | **NOT PERMITTED** *(0 required)* | **REQUIRED** (`5, 10, 15, 20`) | **PROPOSED** (OD-01, OD-02) | [`shared/contracts/planning.ts`](../../../shared/contracts/planning.ts#L35), `targetQuestionCount` |
+| Field / Attribute Name | Technical Type & Source | Mode 1: Question Challenge Short | Mode 2: Topic Introduction | Mode 3: Explained Questions Video | Architectural Contract Status & Dependency | Reusable Code Artifact / Contract Reference |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| `topicId` | `string` (`top_<uuid>` / `TOP-*`) | **Required** (single topic) | **Required** (single topic) | **Required** (single topic) | **ESTABLISHED** | [`shared/types/question.ts`](../../../shared/types/question.ts), `QuestionInputBaseSchema` |
+| `subtopicId` | `string` (`sub_<uuid>` / `SUB-*`) | **Required** (single subtopic) | **Required** (single subtopic) | **Required** (single subtopic) | **ESTABLISHED** | [`shared/types/question.ts`](../../../shared/types/question.ts), `QuestionInputBaseSchema` |
+| `language` | `QuestionLanguage` enum | **Required** (`TELUGU`, `ENGLISH`, `TELUGU_ENGLISH`) | **Required** (`TELUGU`, `ENGLISH`, `TELUGU_ENGLISH`) | **Required** (`TELUGU`, `ENGLISH`, `TELUGU_ENGLISH`) | **ESTABLISHED** | [`shared/constants/enums.ts`](../../../shared/constants/enums.ts#L64), `LANGUAGES` |
+| `difficulty` | `DifficultyLevel` enum | **Required** (`EASY`, `MEDIUM`, `HARD`) | **Not Applicable** | **Required** (`EASY`, `MEDIUM`, `HARD`, or `PROGRESSIVE`) | **ESTABLISHED** | [`shared/constants/enums.ts`](../../../shared/constants/enums.ts#L6), `DIFFICULTY_LEVELS` |
+| `questionCount` | `number` (`1, 5, 10, 15, 20`) | Default: `1` (single short). Supported configs: `5, 10, 15, 20` (batch series). | **Non-Required & Not Permitted** ($N = 0$). | **Required**: Must select `5`, `10`, `15`, or `20`. | **AWAITING APPROVAL: OD-01, OD-02** (OD-01 governs Mode 3 additive intro; OD-02 governs Mode 1 batch series). | [`shared/contracts/planning.ts`](../../../shared/contracts/planning.ts#L35), `targetQuestionCount` |
 | `realWorldContext` | `string` | Optional | Optional | Optional | **ESTABLISHED** | [`shared/constants/enums.ts`](../../../shared/constants/enums.ts#L253), `REAL_LIFE_CONTEXTS` |
-| `questionStyle` | `QuestionStyle` enum / `string` | Optional | **NOT APPLICABLE** | Optional | **ESTABLISHED** | [`shared/constants/enums.ts`](../../../shared/constants/enums.ts#L108), `QuestionConfigEntryZodSchema` |
-| `challengeType` | `string` (`ABCD`, `ODD_ONE_OUT`)| **REQUIRED** | **NOT APPLICABLE** | Optional *(default: `ABCD`)* | **PROPOSED** (OD-06) | [`backend/server/validation/request-schemas.ts`](../../../backend/server/validation/request-schemas.ts#L83) |
-| `questionText` | `string` ($\ge 5\text{ chars}$) | **REQUIRED** | **NOT APPLICABLE** | **REQUIRED** *(Array of $N$)* | **ESTABLISHED** | [`backend/server/validation/request-schemas.ts`](../../../backend/server/validation/request-schemas.ts#L67) |
-| `options` (A, B, C, D)| `Record<'a'|'b'|'c'|'d', string>` | **REQUIRED** (4 options) | **NOT APPLICABLE** | **REQUIRED** (4 options each) | **ESTABLISHED** | [`backend/server/validation/request-schemas.ts`](../../../backend/server/validation/request-schemas.ts#L69-L74) |
-| `correctAnswer` | `'A' | 'B' | 'C' | 'D'` | **REQUIRED** | **NOT APPLICABLE** | **REQUIRED** (per question) | **ESTABLISHED** | [`backend/server/validation/request-schemas.ts`](../../../backend/server/validation/request-schemas.ts#L79) |
-| `explanation` / Proof | `string` ($\ge 5\text{ chars}$) | **REQUIRED** | **NOT APPLICABLE** | **REQUIRED** (per question) | **ESTABLISHED** | [`backend/server/validation/request-schemas.ts`](../../../backend/server/validation/request-schemas.ts#L80) |
-| `introductoryConcept` | `string` | **NOT APPLICABLE** | **REQUIRED** | **REQUIRED** | **PROPOSED** | Proposal for Mode 2 & Mode 3 intro scripts |
-| `syllabusScopeNotes` | `string` | **NOT APPLICABLE** | **REQUIRED** | Optional | **PROPOSED** | Proposal for Mode 2 syllabus weightage |
-| `countdownTimerMs` | `number` (`3000` or `5000`) | **REQUIRED** *(default: 5000)*| **NOT APPLICABLE** | Optional | **ESTABLISHED** | Aligned with `pauseDurationSeconds` in [`shared/types/content.ts`](../../../shared/types/content.ts#L1405) |
-| `commentPromptText` | `string` | **REQUIRED** | Optional | Optional | **ESTABLISHED** | Aligned with `commentChallengePrompt` in [`shared/types/content.ts`](../../../shared/types/content.ts#L1346) |
-| `burraSpeedTrick` | `string` | Optional | **NOT APPLICABLE** | **REQUIRED** *(if selected)* | **ESTABLISHED** | [`backend/ai/prompts/script-generation.prompt.ts`](../../../backend/ai/prompts/script-generation.prompt.ts) |
-| `chapterTimestamps` | `Array<{ time: string; title: string }>` | **NOT APPLICABLE** | **NOT APPLICABLE** | **REQUIRED** | **PROPOSED** | Proposal for Mode 3 YouTube chapters |
-| `aspectRatio` | `'9:16' | '16:9'` | Strictly `'9:16'` | Proposed `'9:16' | '16:9'` | Proposed `'16:9'` | **PROPOSED** (OD-04) | Current contract mandates 9:16 only ([14-MEDIA-ARCHITECTURE.md](../../architecture/14-MEDIA-ARCHITECTURE.md)) |
-| `targetMaxDuration` | `number` (seconds) | $\le 58\text{ seconds}$ | $60\text{ to }180\text{ seconds}$ | $12\text{ to }55\text{ minutes}$ | **PROPOSED** (OD-07) | Current video schema default: 45s ([request-schemas.ts](../../../backend/server/validation/request-schemas.ts#L183)) |
+| `questionStyle` | `QuestionStyle` enum / `string` | Optional | **Not Applicable** | Optional | **ESTABLISHED** | [`shared/constants/enums.ts`](../../../shared/constants/enums.ts#L108), `QuestionConfigEntryZodSchema` |
+| `challengeType` | `string` (`ABCD`, `ODD_ONE_OUT`)| **Required**: 4-option MCQ format. Supported: `ABCD`. | **Not Applicable** | Optional (default: `ABCD` 4-option MCQ). | **AWAITING APPROVAL: OD-06** (OD-06 governs non-MCQ format relaxations). | [`backend/server/validation/request-schemas.ts`](../../../backend/server/validation/request-schemas.ts#L83) |
+| `questionText` | `string` ($\ge 5\text{ chars}$) | **Required** (1 question) | **Not Applicable** | **Required** ($N$ questions) | **ESTABLISHED** | [`backend/server/validation/request-schemas.ts`](../../../backend/server/validation/request-schemas.ts#L67) |
+| `options` (A, B, C, D)| `Record<'a'|'b'|'c'|'d', string>` | **Required** (exactly 4 options) | **Not Applicable** | **Required** (exactly 4 options per question) | **ESTABLISHED** (Strict 4-option schema; *see OD-06*) | [`backend/server/validation/request-schemas.ts`](../../../backend/server/validation/request-schemas.ts#L69-L74) |
+| `correctAnswer` | `'A' | 'B' | 'C' | 'D'` | **Required** (single key) | **Not Applicable** | **Required** (single key per question) | **ESTABLISHED** | [`backend/server/validation/request-schemas.ts`](../../../backend/server/validation/request-schemas.ts#L79) |
+| `explanation` / Proof | `string` ($\ge 5\text{ chars}$) | **Required** (1 explanation) | **Not Applicable** | **Required** ($N$ explanations) | **ESTABLISHED** | [`backend/server/validation/request-schemas.ts`](../../../backend/server/validation/request-schemas.ts#L80) |
+| `introductoryConcept` | `string` | **Not Applicable** | **Required** | **Required** | **PROPOSED** | Proposal for Mode 2 & Mode 3 intro script generation |
+| `syllabusScopeNotes` | `string` | **Not Applicable** | **Required** | Optional | **PROPOSED** | Proposal for Mode 2 syllabus weightage analysis |
+| `countdownTimerMs` | `number` (`3000` or `5000`) | **Required** (default: `5000`) | **Not Applicable** | Optional | **ESTABLISHED** | Aligned with `pauseDurationSeconds` in [`shared/types/content.ts`](../../../shared/types/content.ts#L1405) |
+| `commentPromptText` | `string` | **Required** (engagement CTA) | Optional | Optional | **ESTABLISHED** | Aligned with `commentChallengePrompt` in [`shared/types/content.ts`](../../../shared/types/content.ts#L1346) |
+| `burraSpeedTrick` | `string` | Optional | **Not Applicable** | **Required** (if enabled) | **ESTABLISHED** | [`backend/ai/prompts/script-generation.prompt.ts`](../../../backend/ai/prompts/script-generation.prompt.ts) |
+| `chapterTimestamps` | `Array<{ time: string; title: string }>` | **Not Applicable** | **Not Applicable** | **Required** (YouTube chapters) | **PROPOSED** | Proposal for Mode 3 YouTube chapter breakdown |
+| `aspectRatio` | `'9:16' | '16:9'` | Strictly `'9:16'` (vertical) | Proposed: `'9:16' | '16:9'` | Proposed: Strictly `'16:9'` | **AWAITING APPROVAL: OD-04** (Current spec mandates 9:16; [14-MEDIA-ARCHITECTURE.md](../../architecture/14-MEDIA-ARCHITECTURE.md)) |
+| `targetMaxDuration` | `number` (seconds) | $\le 58\text{ seconds}$ | $60\text{ to }180\text{ seconds}$ | $12\text{ to }55\text{ minutes}$ | **AWAITING APPROVAL: OD-07** (OD-07 governs masterclass duration scaling & async timeouts) | Default: 45s in [`backend/server/validation/request-schemas.ts`](../../../backend/server/validation/request-schemas.ts#L183) |
+| `step02Verification` | Verification checklist | 10-point pedagogical audit & proof verification (1 question) | 5-point Concept Accuracy Verification (0 questions) | Verification of all $N$ practice questions | **AWAITING APPROVAL: OD-03** (OD-03 governs Mode 2 polymorphic verification gate) | [07-CANONICAL-15-STEP-WORKFLOW.md](../../architecture/07-CANONICAL-15-STEP-WORKFLOW.md#L185) |
+| `datastoreEntityLinkage`| Relational mapping | 1:1 scalar `Video.questionId` | 1 `Video` with 0 questions (`questionId: null`, `conceptBriefId`) | 1 `Video` with $N$ questions (`Video.questionIds: string[]`, `ContentMaster`) | **AWAITING APPROVAL: OD-05** (OD-05 governs multi-question aggregate root schema) | [`shared/types/content.ts`](../../../shared/types/content.ts#L101), [`shared/contracts/planning.ts`](../../../shared/contracts/planning.ts#L83) |
 
 ---
 
@@ -487,12 +489,13 @@ The following register formally records all unresolved, ambiguous, or architectu
 
 | Acceptance Criterion | Implementation Section | Verification Summary | Status |
 | :--- | :--- | :--- | :---: |
-| **Mode 1: Question Challenge Short** | Section 2.1, 3.1, 5.1 | Defined purpose, narrative flow, 9:16 framing, comment engagement; batch generation explicitly conditional on OD-02. | **COMPLIANT** |
-| **Mode 2: Topic Introduction** | Section 2.2, 3.2, 5.2 | Defined concept-orientation function, 0-question non-required invariant, syllabus scope; polymorphic Step 02 conditional on OD-03. | **COMPLIANT** |
-| **Mode 3: Explained Questions Video** | Section 2.3, 3.3, 5.3 | Defined masterclass structure, counts $\{5, 10, 15, 20\}$; additive intro analysis (OD-01), 16:9 framing (OD-04), aggregate model (OD-05), duration scaling (OD-07). | **COMPLIANT** |
+| **Mode 1: Question Challenge Short** | Section 2.1, 3.1, 4, 5.1 | Defined purpose, narrative flow, 9:16 framing, comment engagement; batch generation explicitly conditional on OD-02. | **COMPLIANT** |
+| **Mode 2: Topic Introduction** | Section 2.2, 3.2, 4, 5.2 | Defined concept-orientation function, 0-question non-required invariant, syllabus scope; polymorphic Step 02 conditional on OD-03. | **COMPLIANT** |
+| **Mode 3: Explained Questions Video** | Section 2.3, 3.3, 4, 5.3 | Defined masterclass structure, counts $\{5, 10, 15, 20\}$; additive intro analysis (OD-01), 16:9 framing (OD-04), aggregate model (OD-05), duration scaling (OD-07). | **COMPLIANT** |
 | **Explicit Input/Output Contracts** | Section 3.1, 3.2, 3.3 | Provided required inputs, optional inputs, generated outputs, minimum validation, completion criteria, and canonical handoffs for all 3 modes. | **COMPLIANT** |
-| **Shared vs. Mode-Specific Matrix** | Section 4 | Analyzed 20 schema fields, distinguishing universal taxonomy from mode-specific attributes and contract statuses (Established vs Proposed). | **COMPLIANT** |
+| **Shared vs. Mode-Specific Matrix** | Section 4 | Analyzed 22 schema fields and gates, distinguishing required behavior, supported config, and implementation dependencies (OD-01 to OD-07). | **COMPLIANT** |
 | **Question-Count Applicability** | Section 5 | Detailed question count semantics for Mode 1 (batching conditional on OD-02), Mode 2 (zero count non-required), and Mode 3 ($1+N$ additive conditional on OD-01). | **COMPLIANT** |
 | **Open Decisions Register** | Section 6 | Documented OD-01 through OD-07 with decision required, current repository reality, options evaluated, impacts, and approval authorities. | **COMPLIANT** |
+| **Preservation of Canonical 15-Stage Workflow** | Section 1.2, 3, 7 | Preserved all 15 stages in order; zero skipped stages; GAR-02 anti-self-approval enforced across all modes. | **COMPLIANT** |
 | **Truthful Approval Status** | Document Header, Section 1.3 | Labeled document as `DRAFT — PENDING DECISIONS`; clearly separated established reality from proposed extensions. | **COMPLIANT** |
 | **Contract Reconciliation** | Throughout, Section 7 | Eliminated local `file:///` URLs; reconciled media aspect ratio, 4-option MCQ schema, and 15-step workflow constraints without code modifications. | **COMPLIANT** |
