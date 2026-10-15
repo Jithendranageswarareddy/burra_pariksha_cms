@@ -2,8 +2,8 @@
 
 **Repository**: `Jithendranageswarareddy/burra_pariksha_cms`
 **Date**: October 15, 2026
-**Status**: READY FOR PROJECT-OWNER REVIEW (INTEGRATION DESIGN)
-**Approval State**: PENDING PROJECT-OWNER REVIEW & FORMAL SIGN-OFF
+**Status**: APPROVED / CLOSED — PROJECT OWNER ACCEPTANCE RECORDED
+**Approval State**: FORMALLY ACCEPTED BY PROJECT OWNER (OCTOBER 15, 2026)
 **Author**: Antigravity Software Architect & Systems Verification Engineer  
 **Scope**: Stage 03–10 Production Architecture, Folder Boundaries, Router Modularization, Data Flow, API, Persistence, and Shared Contracts across Modes 1, 2, and 3  
 
@@ -21,7 +21,7 @@ In accordance with `AGENTS.md` §1 (Source-of-Truth Authority Hierarchy) and §1
 1. **Preservation of Completed Work**: The verified implementation delivered in commit `454ef09` remains complete, valid, and fully closed. Its unit test suite (`npm run test:s8-t08`) continues to serve as regression proof.
 2. **Separation of Architectural Contract**: This document formalizes the binding folder-boundary and integration-design specification required to cleanly execute downstream production tasks (`S8-T09` through `S8-T18`) without architectural drift, monolithic router bloat, or circular dependency leaks.
 3. **Zero Parallel Engine Invariant**: Neither this document nor subsequent tasks may spawn parallel workflow engines, competing script services, or duplicated Firestore repositories.
-4. **Approval Boundary**: This design specification is submitted as `READY FOR PROJECT-OWNER REVIEW`. Formal approval is not inferred from the document text and remains pending explicit project-owner sign-off.
+4. **Project Owner Acceptance & Closure**: This design specification has been formally accepted by the Project Owner on October 15, 2026. The architectural boundaries, Option B modular router extraction strategy, and integration contracts are locked and approved. S8-T08 is officially CLOSED.
 
 ---
 
@@ -412,7 +412,7 @@ Every architectural boundary established in this design is backed by existing or
 ### 11.2 Architectural Decisions Register
 - **`OD-02` (Video Review Route Consolidation)**: Deprecate orphaned standalone pages (`VideoReviewScriptPage.tsx`, `/video-review`) in favor of tabbed workbench (`/videos/:id?tab=review` and `?tab=script`). Status: **ADOPTED IN DESIGN**.
 - **`OD-09` (Mode 2 Handoff)**: Mode 2 `TOPIC_INTRODUCTION` records populate canonical Firestore `Question` documents with `questionCount: 0` and `introductoryConcept` to preserve relational FK integrity with `videos.questionId`. Status: **ADOPTED IN DESIGN**.
-- **`OD-10` (Modular Router Extraction Timing)**: The physical extraction of `script.routes.ts` from `routes.ts` is targeted for execution during S8-T09 implementation, maintaining 100% URL backwards compatibility. Status: **RECOMMENDED & PENDING S8-T09 EXECUTION**.
+- **`OD-10` (Modular Router Extraction Timing)**: The physical extraction of `script.routes.ts` from `routes.ts` is targeted for execution during S8-T09 implementation, maintaining 100% URL backwards compatibility. Status: **APPROVED & SCHEDULED FOR S8-T09 EXECUTION**.
 
 ### 11.3 Build, Lint & Automated Verification Evidence
 Execution results across current repository codebase:
@@ -432,6 +432,7 @@ Execution results across current repository codebase:
    - `fc-005-shared-contract.test.ts`: **PASS (All 6/6 suites passed)**.
    - `s7-t16-dependency-boundaries.test.ts`: **PASS**.
    - `s7-t01-inventory-reconciliation.test.ts`: Evaluates historical Sprint 7 baseline against tracked git files (Sprint 8 files intentionally excluded per `AGENTS.md` §1 hierarchy).
-5. **Project-Owner Approval Status**: **PENDING EXPLICIT PROJECT-OWNER REVIEW**.
-   - Document state: `READY FOR PROJECT-OWNER REVIEW`.
-   - Formal sign-off will be recorded only upon explicit instruction from the Project Owner.
+5. **Project-Owner Approval Status**: **APPROVED & CLOSED (2026-10-15)**.
+   - Document state: `APPROVED / CLOSED — PROJECT OWNER ACCEPTANCE RECORDED`.
+   - Formal sign-off and closure recorded on October 15, 2026 upon Project Owner authorization.
+   - Downstream dependencies for S8-T09 (Stage 03 Audience Script Multi-Mode Support) are fully satisfied.
