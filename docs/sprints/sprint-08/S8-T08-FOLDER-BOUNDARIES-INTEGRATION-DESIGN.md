@@ -1,8 +1,9 @@
 # S8-T08: Folder Boundaries & Integration Design
 
-**Repository**: `Jithendranageswarareddy/burra_pariksha_cms`  
-**Date**: October 15, 2026  
-**Status**: APPROVED ARCHITECTURAL SPECIFICATION & INTEGRATION DESIGN  
+**Repository**: `Jithendranageswarareddy/burra_pariksha_cms`
+**Date**: October 15, 2026
+**Status**: READY FOR PROJECT-OWNER REVIEW (INTEGRATION DESIGN)
+**Approval State**: PENDING PROJECT-OWNER REVIEW & FORMAL SIGN-OFF
 **Author**: Antigravity Software Architect & Systems Verification Engineer  
 **Scope**: Stage 03–10 Production Architecture, Folder Boundaries, Router Modularization, Data Flow, API, Persistence, and Shared Contracts across Modes 1, 2, and 3  
 
@@ -20,6 +21,7 @@ In accordance with `AGENTS.md` §1 (Source-of-Truth Authority Hierarchy) and §1
 1. **Preservation of Completed Work**: The verified implementation delivered in commit `454ef09` remains complete, valid, and fully closed. Its unit test suite (`npm run test:s8-t08`) continues to serve as regression proof.
 2. **Separation of Architectural Contract**: This document formalizes the binding folder-boundary and integration-design specification required to cleanly execute downstream production tasks (`S8-T09` through `S8-T18`) without architectural drift, monolithic router bloat, or circular dependency leaks.
 3. **Zero Parallel Engine Invariant**: Neither this document nor subsequent tasks may spawn parallel workflow engines, competing script services, or duplicated Firestore repositories.
+4. **Approval Boundary**: This design specification is submitted as `READY FOR PROJECT-OWNER REVIEW`. Formal approval is not inferred from the document text and remains pending explicit project-owner sign-off.
 
 ---
 
@@ -150,16 +152,19 @@ Because `apiRouter` is mounted at `/api` in `server.ts` (`app.use('/api', apiRou
 - `POST /api/scripts/generate`
 
 #### 4.2.2 Exact Handlers Moving vs. Remaining
-1. **Handlers Moving to `script.routes.ts`**:
-   - Lines 2269–2286: `GET /videos/:videoId/script`
-   - Lines 2288–2297: `GET /scripts/:scriptId/versions`
-   - Lines 2299–2315: `POST /videos/:videoId/script`
-   - Lines 2317–2333: `POST /videos/:videoId/script/generate`
-   - Lines 2335–2344: `POST /scripts/:scriptId/revert`
-   - Lines 2346–2364: `POST /videos/:videoId/script/mark-ready`
-   - Lines 2366–2376: `POST /videos/:videoId/script/return-to-editing`
-   - Lines 2382–2415: `POST /scripts/generate` & `/phase15/script/generate`
-2. **Handlers Remaining in `routes.ts`**:
+1. **Primary Stage 03 Handlers Moving to `script.routes.ts` (Phase 6 Core Lifecycle)**:
+   - Lines 2269–2286: `GET /videos/:videoId/script` (loads authored script or starter draft proposal via `scriptService.getScriptByVideoId`)
+   - Lines 2288–2297: `GET /scripts/:scriptId/versions` (retrieves version history via `scriptService.getScriptVersions`)
+   - Lines 2299–2315: `POST /videos/:videoId/script` (saves draft or creates new version via `scriptService.saveScript`)
+   - Lines 2317–2333: `POST /videos/:videoId/script/generate` (generates Telugu script for video via `scriptService.generateTeluguScriptForVideo`)
+   - Lines 2335–2344: `POST /scripts/:scriptId/revert` (reverts to historical version via `scriptService.revertToVersion`)
+   - Lines 2346–2364: `POST /videos/:videoId/script/mark-ready` (validates and marks script ready, advancing video status via `scriptService.markScriptReady`)
+   - Lines 2366–2376: `POST /videos/:videoId/script/return-to-editing` (returns script to editing status via `scriptService.returnScriptToEditing`)
+2. **AI & Candidate Production Handlers (Phase 15/16)**:
+   - Lines 2382–2394: `POST ['/scripts/generate', '/phase15/script/generate']` (delegates to `scriptProductionService.generateScriptForQuestion`)
+   - Lines 2396–2405: `POST ['/scripts/:scriptId/edit', '/phase15/script/:scriptId/edit']` (delegates to `scriptProductionService.editScriptCandidate`)
+   - Lines 2410–2465: `POST /phase16/script/:scriptId/*` review & approval routes remain with `scriptProductionService`.
+3. **Handlers Remaining in `routes.ts`**:
    - Authentication & session endpoints
    - Question generation and verification routes
    - Raw video upload, Drive ingestion, and multi-take routes
@@ -307,10 +312,9 @@ export interface ScriptVersionDocument {
 
 ### 7.3 Optimistic Concurrency Control (OCC) Semantics
 To prevent concurrent editing collisions between distributed scriptwriters:
-1. Every write request may provide `expectedVersion: number`.
-2. `ScriptService.saveScript` verifies that `incoming.expectedVersion === current.currentVersion`.
-3. If versions do not match, the request fails with HTTP 409 `CONCURRENCY_CONFLICT` and `ApiErrorCode.CONCURRENCY_CONFLICT`.
-4. The client UI notifies the user and offers a side-by-side diff reload.
+1. **Current Implementation Reality**: In `scriptService.saveScript`, saving with `createNewVersion: true` automatically increments `currentVersion` (`nextVersion = (existing.currentVersion || 1) + 1`) and appends an immutable snapshot to `script_versions`. However, strict validation of an incoming `expectedVersion` property against authoritative database state is not yet enforced at the service boundary.
+2. **Target Contract (S8-T09 Implementation)**: Every script mutation request from `apiClient` or `videosApi` must provide `expectedVersion: number`. `ScriptService.saveScript` will assert `incoming.expectedVersion === existing.currentVersion`. If a mismatch is detected, the request will immediately fail with HTTP 409 `CONCURRENCY_CONFLICT` and `ApiErrorCode.CONCURRENCY_CONFLICT`.
+3. **Client Resolution Flow**: Upon receiving HTTP 409, the client UI retains unsaved user edits in memory and presents a non-destructive conflict modal offering a side-by-side visual diff before retrying.
 
 ---
 
@@ -409,3 +413,25 @@ Every architectural boundary established in this design is backed by existing or
 - **`OD-02` (Video Review Route Consolidation)**: Deprecate orphaned standalone pages (`VideoReviewScriptPage.tsx`, `/video-review`) in favor of tabbed workbench (`/videos/:id?tab=review` and `?tab=script`). Status: **ADOPTED IN DESIGN**.
 - **`OD-09` (Mode 2 Handoff)**: Mode 2 `TOPIC_INTRODUCTION` records populate canonical Firestore `Question` documents with `questionCount: 0` and `introductoryConcept` to preserve relational FK integrity with `videos.questionId`. Status: **ADOPTED IN DESIGN**.
 - **`OD-10` (Modular Router Extraction Timing)**: The physical extraction of `script.routes.ts` from `routes.ts` is targeted for execution during S8-T09 implementation, maintaining 100% URL backwards compatibility. Status: **RECOMMENDED & PENDING S8-T09 EXECUTION**.
+
+### 11.3 Build, Lint & Automated Verification Evidence
+Execution results across current repository codebase:
+1. **Production Compilation (`npm run build`)**: **PASS (Exit Code 0)**.
+   - Vite production client bundle transformed across 1,934 modules (`dist/assets/index-6h3viyvJ.js` - 3.15 MB / gzip 496 KB).
+   - esbuild server bundle successfully generated at `dist/server.cjs` (2.3 MB) in 1.5s.
+2. **Static Typecheck (`npm run lint`)**: **FAIL (Exit Code 1 - Pre-Existing Technical Debt)**.
+   - Output confirmed 8 pre-existing TypeScript property mismatches:
+     - `script.service.ts`: Line 193 (uppercase properties `A`, `B`, `C`, `D` on lowercase `{ a, b, c, d }`), line 201 (`statementTe`), line 202 (`explanationTe`), line 203 (`shortcutTe` on `Question`).
+     - `s8-t09-script-multimode.unit.test.ts`: Line 127 (missing required property `speedTrickOrTakeaway` on `mode2Payload`).
+   - In accordance with task constraints (*"Do not modify application code or expand task scope"*), application source code was not touched during S8-T08; these type corrections are registered as mandatory prerequisites for S8-T09 implementation.
+3. **S8-T08 Unit Tests (`npm run test:s8-t08`)**: **PASS (Exit Code 0 - 7/7 Suites Passing)**.
+   - Mode 2 (`TOPIC_INTRODUCTION`) and Mode 3 (`EXPLAINED_QUESTIONS_VIDEO`) workspaces, draft persistence, backend constraint validation, and GAR-02 anti-self-approval verified.
+4. **Architecture Boundary Tests**:
+   - `s7-frontend-backend-boundary.test.ts`: **PASS (0 leaks)**.
+   - `s7-t11-api-access-boundary.test.ts`: **PASS (All 8/8 gates passed)**.
+   - `fc-005-shared-contract.test.ts`: **PASS (All 6/6 suites passed)**.
+   - `s7-t16-dependency-boundaries.test.ts`: **PASS**.
+   - `s7-t01-inventory-reconciliation.test.ts`: Evaluates historical Sprint 7 baseline against tracked git files (Sprint 8 files intentionally excluded per `AGENTS.md` §1 hierarchy).
+5. **Project-Owner Approval Status**: **PENDING EXPLICIT PROJECT-OWNER REVIEW**.
+   - Document state: `READY FOR PROJECT-OWNER REVIEW`.
+   - Formal sign-off will be recorded only upon explicit instruction from the Project Owner.
