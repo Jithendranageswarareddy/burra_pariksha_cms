@@ -7,8 +7,12 @@
  * 2. Creates a synthetic draft record in the 'question_drafts' collection.
  * 3. Retrieves the draft in a separate, freshly initialized repository instance (proving persistence across sessions).
  * 4. Atomically increments version via OCC and updates the draft.
- * 5. Rejects stale OCC concurrency updates with ConcurrencyConflictError.
- * 6. Hard-deletes the synthetic test document to guarantee clean environment teardown.
+ * 5. Rejects stale OCC concurrency updates with ConcurrencyConflictError (HTTP 409).
+ * 6. Hard-deletes the synthetic test document to guarantee zero database pollution.
+ *
+ * TRUTHFUL PERSISTENCE ENFORCEMENT:
+ * - If Firestore or Firestore emulator is unreachable, this test FAILS EXPLICITLY.
+ * - It never falsely reports a PASS or conceals offline database status.
  */
 
 import assert from 'node:assert';
@@ -24,33 +28,36 @@ async function runFirestoreDraftPersistenceTest() {
 
   // Verify repository mode without in-memory override
   const initialRepo = new QuestionDraftsRepository();
-  console.log(`[Adapter Check] Repository persistence mode: "${initialRepo.mode}"`);
-  console.log(`[Adapter Check] Collection name: "${initialRepo.collectionName}"`);
+  const persistenceMode = await initialRepo.getPersistenceMode();
+  console.log(`[Adapter Check] Repository persistence mode: "${persistenceMode}"`);
+  console.log(`[Adapter Check] Collection name: "${initialRepo.getCollectionName()}"`);
 
-  assert.strictEqual(initialRepo.collectionName, 'question_drafts', 'Target collection must be "question_drafts"');
+  assert.strictEqual(initialRepo.getCollectionName(), 'question_drafts', 'Target collection must be "question_drafts"');
+  assert.strictEqual(persistenceMode, 'FIRESTORE', 'Persistence mode must be "FIRESTORE"');
 
   const testDraftId = canonicalIdService.generateDraftId();
   const testTopicId = canonicalIdService.generateTopicId();
   const testSubtopicId = canonicalIdService.generateSubtopicId();
 
+  // Test live connectivity against Cloud Firestore
+  console.log('[Firestore Probe] Verifying connection to Cloud Firestore / Emulator...');
   let isFirestoreAvailable = false;
   try {
     const db = getAdminFirestore();
-    // Test connectivity
-    await db.listCollections();
+    await db.collection('question_drafts').limit(1).get();
     isFirestoreAvailable = true;
+    console.log('[Firestore Probe] Connection verified successfully.\n');
   } catch (err: any) {
-    console.warn(`[Firestore Status] Live Cloud Firestore / Emulator not reachable in current local runtime (${err?.message}).`);
-    console.warn('[Firestore Status] Persistent adapter contract verified via class definition and FirestoreRepository inheritance.');
+    console.error(`\n❌ [Firestore Probe Failed] Live Cloud Firestore / Emulator not reachable: ${err?.message}`);
   }
 
+  // TRUTHFULNESS GATE: Never report pass when Firestore is unavailable
   if (!isFirestoreAvailable) {
-    console.log('\n✓ Mode contract verified: QuestionDraftsRepository defaults to "FIRESTORE" mode in production.');
-    console.log('✓ Teardown complete. (Skipping live socket round-trip since emulator/live DB is offline).');
-    console.log('\n========================================================================');
-    console.log('S8-T15 PERSISTENT ADAPTER CONTRACT VERIFICATION PASSED');
-    console.log('========================================================================\n');
-    return;
+    console.error('========================================================================');
+    console.error('S8-T15 CLOUD FIRESTORE INTEGRATION TEST FAILED: FIRESTORE UNAVAILABLE');
+    console.error('Real persistence round-trip cannot execute without active Firestore/Emulator.');
+    console.error('========================================================================\n');
+    process.exit(1);
   }
 
   try {
@@ -62,15 +69,15 @@ async function runFirestoreDraftPersistenceTest() {
       subtopicId: testSubtopicId,
       difficulty: 'Intermediate',
       language: 'TELUGU',
-      questionText: 'TEST QUESTION — S8-T15 Firestore persistence round-trip',
-      question: 'TEST QUESTION — S8-T15 Firestore persistence round-trip',
+      questionText: '[SYNTHETIC TEST RECORD - S8-T15 INTEGRATION TEST - DO NOT USE]',
+      question: '[SYNTHETIC TEST RECORD - S8-T15 INTEGRATION TEST - DO NOT USE]',
       productionMode: 'QUESTION_CHALLENGE_SHORT',
       targetQuestionCount: 1,
       aspectRatio: '9:16',
       status: QuestionStatus.DRAFT,
       workflowStage: 'QUESTION_STUDIO',
-      authorId: 'usr_test_author',
-      authorName: 'Test Author',
+      authorId: 'usr_test_synthetic_author',
+      authorName: 'Synthetic Test Author',
     } as any);
 
     assert.strictEqual(created.id, testDraftId);
@@ -84,7 +91,7 @@ async function runFirestoreDraftPersistenceTest() {
 
     assert(retrieved !== null, 'Draft must be retrievable in fresh repository instance');
     assert.strictEqual(retrieved.id, testDraftId);
-    assert.strictEqual(retrieved.questionText, 'TEST QUESTION — S8-T15 Firestore persistence round-trip');
+    assert.strictEqual(retrieved.questionText, '[SYNTHETIC TEST RECORD - S8-T15 INTEGRATION TEST - DO NOT USE]');
     assert.strictEqual(retrieved.productionMode, 'QUESTION_CHALLENGE_SHORT');
     assert.strictEqual(retrieved.workflowStage, 'QUESTION_STUDIO');
     console.log('✓ Step 2 Passed: Draft successfully re-hydrated from Cloud Firestore across session boundary.');
@@ -95,7 +102,7 @@ async function runFirestoreDraftPersistenceTest() {
       testDraftId,
       {
         ...retrieved,
-        questionText: 'TEST QUESTION — S8-T15 Firestore persistence round-trip (UPDATED)',
+        questionText: '[SYNTHETIC TEST RECORD - S8-T15 INTEGRATION TEST - UPDATED]',
       },
       { expectedVersion: 1 }
     );
@@ -109,7 +116,7 @@ async function runFirestoreDraftPersistenceTest() {
       await freshSessionRepo.update(
         testDraftId,
         { ...retrieved, questionText: 'Stale attempt' },
-        { expectedVersion: 1 } // Stale version!
+        { expectedVersion: 1 } // Stale version! Current is 2
       );
     } catch (err: any) {
       occCaught = err instanceof ConcurrencyConflictError || err.statusCode === 409;
@@ -125,6 +132,7 @@ async function runFirestoreDraftPersistenceTest() {
     console.log('✓ Step 5 Passed: Synthetic test record cleaned up.');
 
     console.log('\n========================================================================');
+    console.log('[FIRESTORE ROUND-TRIP EXECUTED: SUCCESS]');
     console.log('ALL S8-T15 CLOUD FIRESTORE INTEGRATION TESTS PASSED CLEANLY');
     console.log('========================================================================\n');
   } catch (err: any) {

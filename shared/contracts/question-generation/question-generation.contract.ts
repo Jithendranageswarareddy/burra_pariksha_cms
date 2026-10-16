@@ -425,7 +425,7 @@ export interface SubmitForVerificationInput {
   actorId?: string;
   actorName?: string;
   remarks?: string;
-  expectedVersion?: number;
+  expectedVersion: number; // Required for concurrency-safe submission
 }
 
 /**

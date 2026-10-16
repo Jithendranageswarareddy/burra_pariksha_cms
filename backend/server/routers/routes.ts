@@ -1519,7 +1519,19 @@ apiRouter.post(
       }
       const actor = getRequestActor(req);
       const remarks = req.body?.remarks;
-      const expectedVersion = req.body?.expectedVersion !== undefined ? Number(req.body.expectedVersion) : undefined;
+      const rawExpectedVersion = req.body?.expectedVersion;
+      if (
+        rawExpectedVersion === undefined ||
+        rawExpectedVersion === null ||
+        isNaN(Number(rawExpectedVersion)) ||
+        Number(rawExpectedVersion) < 1
+      ) {
+        return res.status(400).json({
+          error: 'MissingExpectedVersion',
+          message: 'A valid numeric expectedVersion (>= 1) is required for concurrency-safe draft submission.',
+        });
+      }
+      const expectedVersion = Number(rawExpectedVersion);
       const result = await questionDraftService.submitForVerification(
         { draftId: id, remarks, expectedVersion },
         {

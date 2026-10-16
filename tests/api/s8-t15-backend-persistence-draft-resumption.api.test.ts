@@ -402,7 +402,10 @@ async function runS8T15PersistenceTests() {
     const resSubmit = await fetch(`${baseUrl}/questions/draft/${mode1Draft.id}/submit`, {
       method: 'POST',
       headers: authHeaders1,
-      body: JSON.stringify({ remarks: 'Ready for Stage 02 pedagogical review' }),
+      body: JSON.stringify({
+        remarks: 'Ready for Stage 02 pedagogical review',
+        expectedVersion: updatedDraft.version,
+      }),
     });
     assert.strictEqual(resSubmit.status, 200, 'Submission must return HTTP 200');
     const submitResult = await resSubmit.json();
@@ -437,7 +440,10 @@ async function runS8T15PersistenceTests() {
     const resResubmit = await fetch(`${baseUrl}/questions/draft/${mode1Draft.id}/submit`, {
       method: 'POST',
       headers: authHeaders1,
-      body: JSON.stringify({ remarks: 'Trying to submit again' }),
+      body: JSON.stringify({
+        remarks: 'Trying to submit again',
+        expectedVersion: 1,
+      }),
     });
     assert.strictEqual(resResubmit.status, 409, 'Resubmitting draft must return HTTP 409');
     pass('4.4 Duplicate submission rejected with HTTP 409 conflict');
@@ -573,7 +579,7 @@ async function runS8T15PersistenceTests() {
     const resCrossSubmit = await fetch(`${baseUrl}/questions/draft/${freshDraft.id}/submit`, {
       method: 'POST',
       headers: authHeaders2, // Author 2 attempting to submit Author 1's draft
-      body: JSON.stringify({ remarks: 'Unauthorized submit attempt' }),
+      body: JSON.stringify({ remarks: 'Unauthorized submit attempt', expectedVersion: 1 }),
     });
     assert.strictEqual(resCrossSubmit.status, 403, 'Cross-user submission must return HTTP 403');
     pass('5.12 Cross-user submission rejected with HTTP 403 Forbidden');
@@ -595,7 +601,7 @@ async function runS8T15PersistenceTests() {
     const resMalformedSubmit = await fetch(`${baseUrl}/questions/draft/${malformedId}/submit`, {
       method: 'POST',
       headers: authHeaders1,
-      body: JSON.stringify({ remarks: 'Submit malformed ID' }),
+      body: JSON.stringify({ remarks: 'Submit malformed ID', expectedVersion: 1 }),
     });
     assert.strictEqual(resMalformedSubmit.status, 400, 'Malformed dft_ ID on submit must return HTTP 400');
     pass('5.13 Strict canonical ID check rejects non-UUID dft_ prefixes with HTTP 400');
@@ -612,7 +618,32 @@ async function runS8T15PersistenceTests() {
     assert.strictEqual(resStaleSubmit.status, 409, 'Stale expectedVersion on submit must return HTTP 409');
     pass('5.14 Optimistic concurrency conflict on submission strictly rejected with HTTP 409');
 
-    // Test 5.15: Authorized submission by draft author succeeds
+    // Test 5.15: Missing or invalid expectedVersion rejected with HTTP 400
+    const resMissingVersion = await fetch(`${baseUrl}/questions/draft/${freshDraft.id}/submit`, {
+      method: 'POST',
+      headers: authHeaders1,
+      body: JSON.stringify({
+        remarks: 'Submitting without expectedVersion',
+      }),
+    });
+    assert.strictEqual(resMissingVersion.status, 400, 'Missing expectedVersion must return HTTP 400');
+    pass('5.15 Missing or invalid expectedVersion rejected with HTTP 400');
+
+    // Test 5.16: Actor ID / name heuristic bypass attempt strictly rejected with HTTP 403
+    const resHeuristicBypass = await fetch(`${baseUrl}/questions/draft/${freshDraft.id}/submit`, {
+      method: 'POST',
+      headers: authHeaders2, // Non-admin user token
+      body: JSON.stringify({
+        remarks: 'Attempting to bypass auth with spoofed admin name and id',
+        expectedVersion: 1,
+        name: 'Admin / Content Lead',
+        id: 'ADMIN_SPOOFED',
+      }),
+    });
+    assert.strictEqual(resHeuristicBypass.status, 403, 'Spoofed admin name/id must return HTTP 403 Forbidden');
+    pass('5.16 Submit authorization cannot be bypassed by actor ID/name heuristics');
+
+    // Test 5.17: Authorized submission by draft author succeeds
     const resValidSubmit = await fetch(`${baseUrl}/questions/draft/${freshDraft.id}/submit`, {
       method: 'POST',
       headers: authHeaders1,
@@ -626,7 +657,46 @@ async function runS8T15PersistenceTests() {
     assert.strictEqual(validSubmitData.success, true);
     assert.strictEqual(validSubmitData.workflowStage, 'STAGE_02_VERIFICATION');
     assert.strictEqual(validSubmitData.currentStep, 2);
-    pass('5.15 Authorized submission by author successfully advances to Stage 02');
+    pass('5.17 Authorized submission by author successfully advances to Stage 02');
+
+    // Test 5.18: Concurrent simultaneous submissions cannot advance workflow twice
+    const concurrentDraftPayload = {
+      ...mode1Payload,
+      questionText: 'Concurrent test: ' + Date.now(),
+    };
+    const resConcurrentDraft = await fetch(`${baseUrl}/questions/draft`, {
+      method: 'POST',
+      headers: authHeaders1,
+      body: JSON.stringify(concurrentDraftPayload),
+    });
+    assert.strictEqual(resConcurrentDraft.status, 201);
+    const concurrentDraft = await resConcurrentDraft.json();
+
+    // Fire two submissions simultaneously with the same expectedVersion
+    const [subResultA, subResultB] = await Promise.all([
+      fetch(`${baseUrl}/questions/draft/${concurrentDraft.id}/submit`, {
+        method: 'POST',
+        headers: authHeaders1,
+        body: JSON.stringify({ remarks: 'Submission Request A', expectedVersion: 1 }),
+      }),
+      fetch(`${baseUrl}/questions/draft/${concurrentDraft.id}/submit`, {
+        method: 'POST',
+        headers: authHeaders1,
+        body: JSON.stringify({ remarks: 'Submission Request B', expectedVersion: 1 }),
+      }),
+    ]);
+
+    const statuses = [subResultA.status, subResultB.status].sort();
+    assert.deepStrictEqual(statuses, [200, 409], 'Concurrent submissions must resolve to exactly one 200 and one 409');
+
+    // Confirm persisted draft state and single OCC version increment
+    const resFinalDraft = await fetch(`${baseUrl}/questions/draft/${concurrentDraft.id}`, {
+      headers: authHeaders1,
+    });
+    const finalDraft = await resFinalDraft.json();
+    assert.strictEqual(finalDraft.status, 'SUBMITTED_FOR_REVIEW');
+    assert.strictEqual(finalDraft.version, 2, 'Draft version must have incremented exactly once to 2');
+    pass('5.18 Concurrent submissions safely coordinated via OCC: exactly one succeeds, stale rejected with 409');
 
     console.log('\n========================================================================');
     console.log('ALL S8-T15 API TESTS PASSED: All checks verified successfully.');

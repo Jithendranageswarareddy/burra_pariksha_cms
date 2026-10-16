@@ -60,6 +60,11 @@ export abstract class BaseRepository<T extends Record<string, any>> {
     return this.getRepo();
   }
 
+  public async getPersistenceMode(): Promise<string> {
+    const r = await this.getRepo();
+    return (r as any).mode || 'FIRESTORE';
+  }
+
   public async findById(id: string): Promise<T | null> {
     const r = await this.getRepo();
     const doc = await r.findById(id);

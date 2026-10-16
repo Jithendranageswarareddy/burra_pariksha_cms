@@ -1239,7 +1239,7 @@ export function useQuestionGeneration() {
       const result = await questionsApi.submitForVerification({
         draftId: savedDraftId,
         remarks: remarks || 'Submitted from Question Studio for Stage 02 Verification',
-        expectedVersion: draftVersion,
+        expectedVersion: draftVersion || 1,
       });
 
       setSubmitSuccessResult(result);

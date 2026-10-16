@@ -545,6 +545,19 @@ export class QuestionGenerationService {
       throw new QuestionGenerationDomainError('draftId is required to submit for verification.', 400);
     }
 
+    if (
+      input.expectedVersion === undefined ||
+      input.expectedVersion === null ||
+      typeof input.expectedVersion !== 'number' ||
+      isNaN(input.expectedVersion) ||
+      input.expectedVersion < 1
+    ) {
+      throw new QuestionGenerationDomainError(
+        'A valid numeric expectedVersion (>= 1) is required for concurrency-safe draft submission.',
+        400
+      );
+    }
+
     const trimmedDraftId = input.draftId.trim();
     if (!canonicalIdService.validateCanonicalId(trimmedDraftId, 'dft_') && !isLegacyDraftId(trimmedDraftId)) {
       throw new QuestionGenerationDomainError(
@@ -560,13 +573,8 @@ export class QuestionGenerationService {
 
     // Ownership / authorization check on submission:
     // Only the draft author or an authorized role (ADMIN, CONTENT_LEAD, QA_REVIEWER, QUESTION_EDITOR) can submit.
-    if (
-      draft.authorId &&
-      actor.id &&
-      draft.authorId !== actor.id &&
-      !actor.id.startsWith('ADMIN') &&
-      actor.name !== 'Admin / Content Lead'
-    ) {
+    // Strictly evaluated without actor ID or name heuristics.
+    if (draft.authorId && actor.id && draft.authorId !== actor.id) {
       const { resolveBrownfieldRole } = await import('../../../src/types/rbac-models');
       const actorRole = (actor as any).role ? resolveBrownfieldRole((actor as any).role) : null;
       const actorRoles = (((actor as any).roles || []) as string[]).map((r) => resolveBrownfieldRole(r));
@@ -586,23 +594,12 @@ export class QuestionGenerationService {
       }
     }
 
-    // Concurrency check before transition
-    if (
-      input.expectedVersion !== undefined &&
-      draft.version !== undefined &&
-      input.expectedVersion !== draft.version
-    ) {
-      const conflictErr = new Error(
-        `Draft "${draft.id}" concurrency conflict: expected version ${input.expectedVersion}, but current version is ${draft.version}.`
-      );
+    // Pre-submission lifecycle eligibility and OCC checks
+    if (draft.status === 'SUBMITTED_FOR_REVIEW' || draft.workflowStage === 'STAGE_02_VERIFICATION') {
+      const conflictErr = new Error(`Draft "${draft.id}" has already been submitted for verification.`);
       (conflictErr as any).statusCode = 409;
       (conflictErr as any).name = 'ConcurrencyConflictError';
       throw conflictErr;
-    }
-
-    // Pre-submission lifecycle eligibility checks
-    if (draft.status === 'SUBMITTED_FOR_REVIEW' || draft.workflowStage === 'STAGE_02_VERIFICATION') {
-      throw new QuestionGenerationDomainError(`Draft "${trimmedDraftId}" has already been submitted for verification.`, 409);
     }
     if (draft.status === QuestionStatus.APPROVED || draft.status === 'APPROVED') {
       throw new QuestionGenerationDomainError(`Draft "${trimmedDraftId}" has already been approved and cannot be resubmitted.`, 400);
@@ -615,6 +612,15 @@ export class QuestionGenerationService {
         `Draft "${trimmedDraftId}" is in status "${draft.status}" and is not eligible for verification submission. Expected status DRAFT.`,
         400
       );
+    }
+
+    if (draft.version !== undefined && input.expectedVersion !== draft.version) {
+      const conflictErr = new Error(
+        `Draft "${draft.id}" concurrency conflict: expected version ${input.expectedVersion}, but current version is ${draft.version}.`
+      );
+      (conflictErr as any).statusCode = 409;
+      (conflictErr as any).name = 'ConcurrencyConflictError';
+      throw conflictErr;
     }
 
     // Validate completeness before allowing submission
@@ -643,12 +649,20 @@ export class QuestionGenerationService {
     }
 
     const now = new Date().toISOString();
-
-    // Coordinate with Workflow Service to transition or create workflow instance
-    let workflowInstanceId: string | undefined = draft.workflowInstanceId;
     const { workflowService, workflowInstancesRepository } = await import('../workflow');
 
+    // 1. Coordinate with Workflow Service to transition or create workflow instance
+    let workflowInstanceId: string | undefined = draft.workflowInstanceId;
     let existingWf: any = null;
+    let newlyCreatedWfId: string | undefined = undefined;
+    let resultingStep = 2;
+
+    const actorContext = {
+      id: actor.id,
+      name: actor.name,
+      role: (actor as any).role || UserRole.QUESTION_CREATOR,
+    };
+
     if (workflowInstanceId) {
       existingWf = await workflowInstancesRepository.findById(workflowInstanceId).catch(() => null);
     }
@@ -662,39 +676,57 @@ export class QuestionGenerationService {
       }
     }
 
-    if (existingWf) {
-      workflowInstanceId = existingWf.id;
-      if (existingWf.currentStep === 1) {
-        await workflowService.transition(existingWf.id, {
-          action: 'SUBMIT_FOR_REVIEW',
-          actor: {
-            id: actor.id,
-            name: actor.name,
-            role: (actor as any).role || UserRole.QUESTION_CREATOR,
+    try {
+      if (existingWf) {
+        workflowInstanceId = existingWf.id;
+        if (existingWf.currentStep === 1) {
+          const transitionResult = await workflowService.transition(
+            existingWf.id,
+            {
+              action: 'SUBMIT_FOR_REVIEW',
+              actor: actorContext,
+              targetStep: 2,
+              reason: input.remarks || 'Submitted for pedagogical verification',
+              expectedVersion: existingWf.version,
+            },
+            actorContext
+          );
+          resultingStep = transitionResult.resultingStep || 2;
+        } else if (existingWf.currentStep >= 2) {
+          resultingStep = existingWf.currentStep;
+        }
+      } else {
+        const wf = await workflowService.createInstance(
+          {
+            entityId: draft.id,
+            entityType: 'QUESTION',
+            currentStep: 2,
+            contentStatus: 'IN_REVIEW',
+            authorId: draft.authorId || actor.id,
+            metadata: {
+              topicId: draft.topicId,
+              subtopicId: draft.subtopicId,
+              productionMode: draft.productionMode,
+            },
           },
-          targetStep: 2,
-          reason: input.remarks || 'Submitted for pedagogical verification',
-          expectedVersion: existingWf.version,
-        });
+          actorContext
+        );
+        workflowInstanceId = wf.id;
+        newlyCreatedWfId = wf.id;
+        resultingStep = 2;
       }
-    } else {
-      const wf = await workflowService.createInstance({
-        entityId: draft.id,
-        entityType: 'QUESTION',
-        currentStep: 2,
-        contentStatus: 'IN_REVIEW',
-        authorId: draft.authorId || actor.id,
-        metadata: {
-          topicId: draft.topicId,
-          subtopicId: draft.subtopicId,
-          productionMode: draft.productionMode,
-        },
-      });
-      workflowInstanceId = wf.id;
+    } catch (wfErr: any) {
+      throw new QuestionGenerationDomainError(
+        `Workflow transition failed during submission: ${wfErr?.message || 'Workflow transition error'}`,
+        wfErr?.statusCode || 500
+      );
     }
 
-    // Transition draft into submitted state with OCC and link workflowInstanceId
-    const updatedDraft: QuestionDraft = {
+    // 2. Optimistic Concurrency Control (OCC) Lock on Draft:
+    // Atomically transition the draft to SUBMITTED_FOR_REVIEW with OCC check in a single update.
+    // Competing concurrent submissions will fail here with HTTP 409 (ConcurrencyConflictError)
+    // and will clean up any speculative workflow instance created.
+    const preSubmissionDraft: QuestionDraft = {
       ...draft,
       status: 'SUBMITTED_FOR_REVIEW' as any,
       workflowStage: 'STAGE_02_VERIFICATION',
@@ -702,9 +734,20 @@ export class QuestionGenerationService {
       updatedAt: now,
     };
 
-    await questionDraftsRepository.update(draft.id, updatedDraft, {
-      expectedVersion: input.expectedVersion ?? draft.version,
-    });
+    try {
+      await questionDraftsRepository.update(draft.id, preSubmissionDraft, {
+        expectedVersion: input.expectedVersion,
+      });
+    } catch (occErr: any) {
+      // COMPENSATION: If draft update fails (e.g. OCC conflict from concurrent submission),
+      // clean up newly created workflow instance to prevent orphaned/duplicate workflow advancement.
+      if (newlyCreatedWfId) {
+        await (workflowInstancesRepository as any).delete(newlyCreatedWfId, 1, undefined, true).catch((cleanupErr: any) => {
+          console.error(`[DraftSubmit:CleanupFailed] Failed to delete orphaned workflow instance ${newlyCreatedWfId}:`, cleanupErr);
+        });
+      }
+      throw occErr;
+    }
 
     // Record immutable audit event
     try {
@@ -731,7 +774,7 @@ export class QuestionGenerationService {
       success: true,
       draftId: draft.id,
       workflowInstanceId,
-      currentStep: 2,
+      currentStep: resultingStep,
       status: 'SUBMITTED_FOR_REVIEW',
       workflowStage: 'STAGE_02_VERIFICATION',
       message: 'Question draft submitted successfully for Stage 02 Verification.',
