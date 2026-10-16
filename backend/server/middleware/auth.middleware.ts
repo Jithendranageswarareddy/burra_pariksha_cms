@@ -11,6 +11,7 @@ import {
 } from '../../infrastructure/security/rbac-evaluator';
 import { CapabilityString, parseCapability, CanonicalRbacRole } from '../../../shared';
 import { resolveBrownfieldRole } from '../../../src/types/rbac-models';
+import type { ActorContext } from '../../infrastructure/auth/services/object-auth.service';
 
 export interface AuthUserContext {
   id: string;
@@ -511,4 +512,69 @@ export function requireNotAuthor(
   };
 }
 
+export class UnauthenticatedActorError extends Error {
+  public statusCode = 401;
+  public code = ApiErrorCode.UNAUTHENTICATED;
+  constructor(message = 'Authentication required: verified actor session context is missing.') {
+    super(message);
+    this.name = 'UnauthenticatedActorError';
+  }
+}
 
+/**
+ * Helper to derive actor identity strictly from verified session context (req.user)
+ * SEC-02: Never trusts client-supplied req.body._actor or req.body.actor
+ * CRITICAL SECURITY INVARIANT: Unauthenticated requests NEVER receive an Admin actor or fallback identity.
+ */
+export function getRequestActor(req: Request): ActorContext & { name: string; role: string } {
+  const authReq = req as AuthenticatedRequest & { _requestActor?: ActorContext & { name: string; role: string } };
+  if (authReq._requestActor) {
+    return authReq._requestActor;
+  }
+
+  // If req.user is absent, attempt inline token extraction from session cookie or Bearer header
+  if (!authReq.user?.id) {
+    const token = extractSessionToken(req);
+    if (token) {
+      const payload = authService.verifySessionToken(token);
+      if (payload) {
+        const userState = usersRepository.getUserSessionState(payload.userId);
+        if (!userState || (userState.isActive && (payload.sessionVersion ?? 1) >= userState.sessionVersion)) {
+          const rolesList: string[] = [];
+          if (Array.isArray((payload as any).roles)) {
+            (payload as any).roles.forEach((r: any) => r && rolesList.push(String(r).trim()));
+          }
+          if (rolesList.length === 0 && payload.role) {
+            String(payload.role).split(',').forEach((r) => r.trim() && rolesList.push(r.trim()));
+          }
+          const authoritativeRoles = userState?.roles && userState.roles.length > 0 ? userState.roles : rolesList;
+          const authoritativeRole = userState?.role || payload.role || authoritativeRoles[0] || 'QUESTION_AUTHOR';
+
+          authReq.user = {
+            id: payload.userId,
+            name: payload.name,
+            role: authoritativeRole,
+            roles: authoritativeRoles.length > 0 ? authoritativeRoles : [authoritativeRole],
+          };
+        }
+      }
+    }
+  }
+
+  if (!authReq.user?.id) {
+    // CRITICAL SECURITY BLOCKER RESOLVED:
+    // Unauthenticated requests NEVER receive an Admin actor or fallback identity.
+    throw new UnauthenticatedActorError('Authentication required: verified actor session context is missing.');
+  }
+
+  const fallbackRole = (authReq.user.roles && authReq.user.roles[0]) || authReq.user.role || 'QUESTION_AUTHOR';
+  const actor: ActorContext & { name: string; role: string } = {
+    id: authReq.user.id,
+    name: authReq.user.name || authReq.user.id,
+    role: authReq.user.role || fallbackRole,
+    roles: authReq.user.roles || (authReq.user.role ? [authReq.user.role] : [fallbackRole]),
+  };
+
+  authReq._requestActor = actor;
+  return actor;
+}

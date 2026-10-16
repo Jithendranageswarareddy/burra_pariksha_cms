@@ -19,9 +19,8 @@ import {
   videoService,
   objectAuthService,
 } from '../../infrastructure/services';
-import { requireAuth, requireRole } from '../middleware/auth.middleware';
+import { requireAuth, requireRole, getRequestActor } from '../middleware/auth.middleware';
 import { UserRole } from '../../../shared';
-import { getRequestActor } from './routes';
 
 export const scriptRouter = Router();
 
