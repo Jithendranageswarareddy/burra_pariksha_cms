@@ -76,53 +76,55 @@ export function useQuestionGeneration() {
   const draftLoadedRef = useRef<string | null>(null);
 
   // 1. Taxonomy & Options State
-  const [taxonomyTree, setTaxonomyTree] = useState<any[]>([]);
-  const [loadingTaxonomy, setLoadingTaxonomy] = useState(true);
-  const [aiStatus, setAiStatus] = useState<{ isConfigured: boolean; model: string }>({
-    isConfigured: false,
-    model: 'gemini-3.1-flash-lite',
-  });
-  const [configError, setConfigError] = useState<string | null>(null);
+    const [taxonomyTree, setTaxonomyTree] = useState<any[]>([]);
+    const [loadingTaxonomy, setLoadingTaxonomy] = useState(true);
+    const [taxonomyError, setTaxonomyError] = useState<string | null>(null);
+    const [aiStatus, setAiStatus] = useState<{ isConfigured: boolean; model: string }>({
+      isConfigured: false,
+      model: 'gemini-3.1-flash-lite',
+    });
+    const [configError, setConfigError] = useState<string | null>(null);
 
-  // Configuration options selection
-  const [selectedTopic, setSelectedTopic] = useState<string>(queryTopic || 'TOP-QA-01');
-  const [selectedSubtopic, setSelectedSubtopic] = useState<string>(querySubtopic || 'SUB-01');
-  const [difficulty, setDifficulty] = useState<string>(queryDifficulty || 'Intermediate');
-  const [challengeType, setChallengeType] = useState<string>('ABCD');
-  const [presentationType, setPresentationType] = useState<string>('Text');
-  const [language, setLanguage] = useState<QuestionLanguage>(
-    (queryLanguage as QuestionLanguage) || QuestionLanguage.TELUGU
-  );
-  const [questionStyle, setQuestionStyle] = useState<string>(
-    queryQuestionStyle || 'STORY_BASED'
-  );
-  const [realLifeContext, setRealLifeContext] = useState<string>(queryContext || '');
-  const [customInstructions, setCustomInstructions] = useState<string>('');
+    // Configuration options selection (no hardcoded defaults; starts empty or from deep link)
+    const [selectedTopic, setSelectedTopic] = useState<string>(queryTopic || '');
+    const [selectedSubtopic, setSelectedSubtopic] = useState<string>(querySubtopic || '');
+    const [difficulty, setDifficulty] = useState<string>(queryDifficulty || 'Intermediate');
+    const [challengeType, setChallengeType] = useState<string>('ABCD');
+    const [presentationType, setPresentationType] = useState<string>('Text');
+    const [language, setLanguage] = useState<QuestionLanguage>(
+      (queryLanguage as QuestionLanguage) || QuestionLanguage.TELUGU
+    );
+    const [questionStyle, setQuestionStyle] = useState<string>(
+      queryQuestionStyle || 'STORY_BASED'
+    );
+    const [realLifeContext, setRealLifeContext] = useState<string>(queryContext || '');
+    const [customInstructions, setCustomInstructions] = useState<string>('');
 
-  // 2. Candidate & Workspace State
-  const [candidate, setCandidate] = useState<StudioCandidate>({
-    questionText: '',
-    optionA: '',
-    optionB: '',
-    optionC: '',
-    optionD: '',
-    correctAnswer: 'A',
-    explanation: '',
-    topicId: selectedTopic,
-    subtopicId: selectedSubtopic,
-    difficulty,
-    challengeType,
-    presentationType,
-    language,
-    realLifeContext,
-    questionStyle,
-    generationMode: 'SUBTOPIC',
-    tags: ['Aptitude', 'Telugu'],
-  });
+    // 2. Candidate & Workspace State
+    const [candidate, setCandidate] = useState<StudioCandidate>({
+      questionText: '',
+      optionA: '',
+      optionB: '',
+      optionC: '',
+      optionD: '',
+      correctAnswer: 'A',
+      explanation: '',
+      topicId: queryTopic || '',
+      subtopicId: querySubtopic || '',
+      difficulty,
+      challengeType,
+      presentationType,
+      language,
+      realLifeContext,
+      questionStyle,
+      generationMode: 'SUBTOPIC',
+      tags: ['Aptitude', 'Telugu'],
+    });
 
-  const [hasCandidate, setHasCandidate] = useState(false);
-  const [isDirty, setIsDirty] = useState(false);
-  const [savedDraftId, setSavedDraftId] = useState<string | null>(null);
+    const [hasCandidate, setHasCandidate] = useState(false);
+    const [isDirty, setIsDirty] = useState(false);
+    const [savedDraftId, setSavedDraftId] = useState<string | null>(null);
+
 
   // 3. Operation Lifecycle States
   const [isGenerating, setIsGenerating] = useState(false);
@@ -188,46 +190,90 @@ export function useQuestionGeneration() {
     [prodContext]
   );
 
-  // Load generation options on mount
-  useEffect(() => {
-    let isMounted = true;
-    async function initOptions() {
+  // Load generation options from authoritative taxonomy API
+    const loadTaxonomyOptions = useCallback(async (isRetry = false) => {
       setLoadingTaxonomy(true);
+      setTaxonomyError(null);
+      setConfigError(null);
+
       try {
         const [pureTree, aiInfo] = await Promise.all([
-          taxonomyApi.getTree().catch(() => []),
+          taxonomyApi.getTree(),
           questionsApi.getAiStatus().catch(() => ({ isConfigured: false, model: 'gemini-3.1-flash-lite' })),
         ]);
 
-        if (!isMounted) return;
         const topicsList = pureTree || [];
         setTaxonomyTree(topicsList);
         setAiStatus(aiInfo);
 
+        if (topicsList.length === 0) {
+          // Empty taxonomy state: no hardcoded defaults
+          setSelectedTopic('');
+          setSelectedSubtopic('');
+          setCandidate((prev) => ({ ...prev, topicId: '', subtopicId: '' }));
+          return;
+        }
+
         // If not reopening a draft, initialize from deep-link or first available topic
         if (!queryDraftId) {
           if (queryTopic) {
-            setSelectedTopic(queryTopic);
-            if (querySubtopic) setSelectedSubtopic(querySubtopic);
-          } else if (topicsList.length > 0) {
+            const matchedTopic = topicsList.find((t) => t.id === queryTopic);
+            if (matchedTopic) {
+              setSelectedTopic(matchedTopic.id);
+              setCandidate((prev) => ({ ...prev, topicId: matchedTopic.id }));
+              const subtopics = matchedTopic.subtopics || [];
+              const matchedSub = subtopics.find((s) => s.id === querySubtopic);
+              if (matchedSub) {
+                setSelectedSubtopic(matchedSub.id);
+                setCandidate((prev) => ({ ...prev, subtopicId: matchedSub.id }));
+              } else if (subtopics.length > 0) {
+                setSelectedSubtopic(subtopics[0].id);
+                setCandidate((prev) => ({ ...prev, subtopicId: subtopics[0].id }));
+              } else {
+                setSelectedSubtopic('');
+                setCandidate((prev) => ({ ...prev, subtopicId: '' }));
+              }
+            } else {
+              // Invalid deep-link topic! Fall back to first valid persisted topic
+              const firstTopic = topicsList[0];
+              setSelectedTopic(firstTopic.id);
+              setCandidate((prev) => ({ ...prev, topicId: firstTopic.id }));
+              const firstSub = (firstTopic.subtopics || [])[0];
+              const subId = firstSub ? firstSub.id : '';
+              setSelectedSubtopic(subId);
+              setCandidate((prev) => ({ ...prev, subtopicId: subId }));
+            }
+          } else if (!selectedTopic || isRetry) {
             const firstTopic = topicsList[0];
             setSelectedTopic(firstTopic.id);
+            setCandidate((prev) => ({ ...prev, topicId: firstTopic.id }));
             const firstSub = (firstTopic.subtopics || [])[0];
-            if (firstSub) setSelectedSubtopic(firstSub.id);
+            const subId = firstSub ? firstSub.id : '';
+            setSelectedSubtopic(subId);
+            setCandidate((prev) => ({ ...prev, subtopicId: subId }));
           }
         }
-      } catch (err: any) {
+      } catch (err) {
         console.error('Failed to load Question Generation options:', err);
-        if (isMounted) setConfigError('Failed to load taxonomy tree');
+        const msg = err?.message || 'Failed to load taxonomy tree';
+        setTaxonomyError(msg);
+        setConfigError(msg);
+        setTaxonomyTree([]);
+        setSelectedTopic('');
+        setSelectedSubtopic('');
       } finally {
-        if (isMounted) setLoadingTaxonomy(false);
+        setLoadingTaxonomy(false);
       }
-    }
-    initOptions();
-    return () => {
-      isMounted = false;
-    };
-  }, [queryDraftId, queryTopic, querySubtopic]);
+    }, [queryDraftId, queryTopic, querySubtopic, selectedTopic]);
+
+    useEffect(() => {
+      loadTaxonomyOptions();
+    }, [loadTaxonomyOptions]);
+
+    const retryLoadTaxonomy = useCallback(async () => {
+      await loadTaxonomyOptions(true);
+    }, [loadTaxonomyOptions]);
+
 
   // Reopen saved draft from deep link parameter
   useEffect(() => {
@@ -417,25 +463,63 @@ export function useQuestionGeneration() {
   }, [currentTopicData]);
 
   // Topic & Subtopic Cascading Handlers
-  const handleTopicChange = useCallback((topId: string) => {
-    setSelectedTopic(topId);
-    setCandidate((prev) => ({ ...prev, topicId: topId }));
+    const handleTopicChange = useCallback((topId: string) => {
+      setSelectedTopic(topId);
 
-    const top = taxonomyTree.find((t: any) => t.id === topId);
-    if (top && top.subtopics && top.subtopics.length > 0) {
-      const newSub = top.subtopics[0].id;
-      setSelectedSubtopic(newSub);
-      setCandidate((prev) => ({ ...prev, subtopicId: newSub }));
-    } else {
-      setSelectedSubtopic('SUB-GEN');
-      setCandidate((prev) => ({ ...prev, subtopicId: 'SUB-GEN' }));
-    }
-  }, [taxonomyTree]);
+      const top = taxonomyTree.find((t) => t.id === topId);
+      const availableSubtopics = top?.subtopics || [];
 
-  const handleSubtopicChange = useCallback((subId: string) => {
-    setSelectedSubtopic(subId);
-    setCandidate((prev) => ({ ...prev, subtopicId: subId }));
-  }, []);
+      // Revalidate whether current subtopic belongs to the new topic
+      let nextSubtopicId = '';
+      const currentSubBelongs = availableSubtopics.some((s) => s.id === selectedSubtopic);
+
+      if (currentSubBelongs) {
+        nextSubtopicId = selectedSubtopic;
+      } else if (availableSubtopics.length > 0) {
+        // Replacement subtopic selected only if it belongs to the newly selected topic
+        nextSubtopicId = availableSubtopics[0].id;
+      } else {
+        nextSubtopicId = '';
+      }
+
+      setSelectedSubtopic(nextSubtopicId);
+
+      // Update candidate state and invalidate stale server validations
+      setCandidate((prev) => ({
+        ...prev,
+        topicId: topId,
+        subtopicId: nextSubtopicId,
+      }));
+
+      if (serverValidationResult) {
+        setIsValidationStale(true);
+      }
+
+      // Synchronize with shared ProductionJourneyContext consistently
+      const targetSubtopic = availableSubtopics.find((s) => s.id === nextSubtopicId);
+      prodContext?.setTaxonomy({
+        topicId: topId,
+        topicName: top?.name || '',
+        subtopicId: nextSubtopicId,
+        subtopicName: targetSubtopic?.name || '',
+      });
+    }, [taxonomyTree, selectedSubtopic, serverValidationResult, prodContext]);
+
+    const handleSubtopicChange = useCallback((subId: string) => {
+      setSelectedSubtopic(subId);
+      setCandidate((prev) => ({ ...prev, subtopicId: subId }));
+
+      if (serverValidationResult) {
+        setIsValidationStale(true);
+      }
+
+      const currentSubtopic = currentSubtopics.find((s) => s.id === subId);
+      prodContext?.setTaxonomy({
+        subtopicId: subId,
+        subtopicName: currentSubtopic?.name || '',
+      });
+    }, [currentSubtopics, serverValidationResult, prodContext]);
+
 
   // Duplicate Check Debounced
   const triggerDuplicateCheck = useCallback((text: string) => {
@@ -565,10 +649,46 @@ export function useQuestionGeneration() {
 
   // 4. GENERATE CANDIDATE ACTION
   const handleGenerate = async () => {
-    setErrorMessage(null);
-    setSaveSuccessMessage(null);
-    setSubmitSuccessResult(null);
-    setIsGenerating(true);
+        setErrorMessage(null);
+        setSaveSuccessMessage(null);
+        setSubmitSuccessResult(null);
+
+        // Guard: Prevent generation if taxonomy is not loaded, has errors, or lacks valid selection
+        if (loadingTaxonomy) {
+          setErrorMessage('Taxonomy is still loading. Please wait.');
+          return;
+        }
+        if (taxonomyError) {
+          setErrorMessage(`Cannot generate questions: ${taxonomyError}. Please retry loading taxonomy.`);
+          return;
+        }
+        if (taxonomyTree.length === 0) {
+          setErrorMessage('Cannot generate questions: No topics available in taxonomy.');
+          return;
+        }
+        if (!selectedTopic) {
+          setErrorMessage('Please select a valid Topic before generating a question.');
+          return;
+        }
+        if (!selectedSubtopic) {
+          setErrorMessage('Please select a valid Subtopic before generating a question.');
+          return;
+        }
+
+        const matchedTop = taxonomyTree.find((t) => t.id === selectedTopic);
+        if (!matchedTop) {
+          setErrorMessage(`Selected topic "${selectedTopic}" does not exist in authoritative taxonomy.`);
+          return;
+        }
+        if (selectedSubtopic !== 'RANDOM') {
+          const matchedSub = (matchedTop.subtopics || []).find((s) => s.id === selectedSubtopic);
+          if (!matchedSub) {
+            setErrorMessage(`Selected subtopic "${selectedSubtopic}" does not belong to topic "${matchedTop.name}".`);
+            return;
+          }
+        }
+
+        setIsGenerating(true);
     setServerValidationResult(null);
     setIsValidationStale(false);
 
@@ -861,6 +981,8 @@ export function useQuestionGeneration() {
     // Taxonomy & options
     taxonomyTree,
     loadingTaxonomy,
+    taxonomyError,
+    retryLoadTaxonomy,
     aiStatus,
     selectedTopic,
     selectedSubtopic,

@@ -32,6 +32,8 @@ export const QuestionStudioPage: React.FC = () => {
   const {
     taxonomyTree,
     loadingTaxonomy,
+    taxonomyError,
+    retryLoadTaxonomy,
     aiStatus,
     selectedTopic,
     selectedSubtopic,
@@ -223,6 +225,8 @@ export const QuestionStudioPage: React.FC = () => {
           <GenerationConfigPanel
             taxonomyTree={taxonomyTree}
             loadingTaxonomy={loadingTaxonomy}
+            taxonomyError={taxonomyError}
+            onRetryTaxonomy={retryLoadTaxonomy}
             selectedTopic={selectedTopic}
             selectedSubtopic={selectedSubtopic}
             currentSubtopics={currentSubtopics}
