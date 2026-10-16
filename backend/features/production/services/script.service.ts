@@ -190,7 +190,7 @@ export class ScriptService {
     } catch {
       const opts = question.options;
       const optionsText = opts && typeof opts === 'object'
-        ? `Option A: ${opts.a || opts.A || '...'}\nOption B: ${opts.b || opts.B || '...'}\nOption C: ${opts.c || opts.C || '...'}\nOption D: ${opts.d || opts.D || '...'}`
+        ? `Option A: ${opts.a || (opts as any).A || '...'}\nOption B: ${opts.b || (opts as any).B || '...'}\nOption C: ${opts.c || (opts as any).C || '...'}\nOption D: ${opts.d || (opts as any).D || '...'}`
         : 'Option A: ...\nOption B: ...\nOption C: ...\nOption D: ...';
 
       return {
@@ -198,9 +198,9 @@ export class ScriptService {
         draftProposal: {
           productionMode: 'QUESTION_CHALLENGE_SHORT',
           hookText: `🔥 ${video.title || 'ఈ ప్రశ్న'}: 10 సెకన్లలో సమాధానం చెప్పగలరా? చూద్దాం!`,
-          problemStatement: question.statementTe || question.questionText || '',
-          stepByStepSolution: question.explanationTe || question.explanation || optionsText,
-          speedTrickOrTakeaway: question.shortcutTe || (question as any).speedTrick || '💡 బుర్ర ట్రిక్: ఆప్షన్ ఎలిమినేషన్ ద్వారా వేగంగా సాల్వ్ చేయండి.',
+          problemStatement: (question as any).statementTe || question.questionText || '',
+          stepByStepSolution: (question as any).explanationTe || question.explanation || optionsText,
+          speedTrickOrTakeaway: (question as any).shortcutTe || (question as any).speedTrick || '💡 బుర్ర ట్రిక్: ఆప్షన్ ఎలిమినేషన్ ద్వారా వేగంగా సాల్వ్ చేయండి.',
           callToAction: `మీ సమాధానాన్ని కామెంట్ చేయండి & @BurraPariksha ని ఫాలో అవ్వండి!`,
           notes: 'Starter draft generated from linked question.',
         },

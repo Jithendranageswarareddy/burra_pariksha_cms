@@ -87,8 +87,8 @@ Commit `454ef098b2f7db4ca2256bb14af47557e005ddea` (*"feat(sprint-08): implement 
 | **S8-T06** | Content-Mode Registry Design & Context Provider | **IMPLEMENTED** | [S8-T06-CONTENT-MODE-REGISTRY-DESIGN.md](file:///c:/Users/jithendra/OneDrive/Desktop/burra_pariksha_cms/docs/sprints/sprint-08/S8-T06-CONTENT-MODE-REGISTRY-DESIGN.md), [ProductionJourneyContext.tsx](file:///c:/Users/jithendra/OneDrive/Desktop/burra_pariksha_cms/frontend/contexts/ProductionJourneyContext.tsx) | `5890e25` | `npm run test:s8-t06` (6/6 pass). Authoritative 3-mode registry contract designed. |
 | **S8-T07** | Workflow Resolution and Transition Design & Draft Reopening | **IMPLEMENTED** | [S8-T07-WORKFLOW-RESOLUTION-TRANSITION-DESIGN.md](file:///c:/Users/jithendra/OneDrive/Desktop/burra_pariksha_cms/docs/sprints/sprint-08/S8-T07-WORKFLOW-RESOLUTION-TRANSITION-DESIGN.md), [useQuestionGeneration.ts](file:///c:/Users/jithendra/OneDrive/Desktop/burra_pariksha_cms/frontend/features/question-generation/hooks/useQuestionGeneration.ts) | `a8fb405` | `npm run test:s8-t07` (6/6 pass). Authoritative 15-stage resolution & transition design codified. |
 | **S8-T08** | Folder Boundaries & Integration Design / Mode Workspaces | **ACCEPTED / CLOSED** | [S8-T08-FOLDER-BOUNDARIES-INTEGRATION-DESIGN.md](file:///c:/Users/jithendra/OneDrive/Desktop/burra_pariksha_cms/docs/sprints/sprint-08/S8-T08-FOLDER-BOUNDARIES-INTEGRATION-DESIGN.md), [TopicIntroWorkspace.tsx](file:///c:/Users/jithendra/OneDrive/Desktop/burra_pariksha_cms/frontend/features/question-generation/components/TopicIntroWorkspace.tsx), [ExplainedQuestionsWorkspace.tsx](file:///c:/Users/jithendra/OneDrive/Desktop/burra_pariksha_cms/frontend/features/question-generation/components/ExplainedQuestionsWorkspace.tsx) | `454ef09` | `npm run test:s8-t08` (7/7 pass). Workspace code implemented (commit `454ef09`). Design specification formally approved & closed by Project Owner on 2026-10-15 (Option B router extraction approved for S8-T09 execution; router files not extracted in S8-T08). |
-| **S8-T09** | Stage 03 Audience Script Multi-Mode Support | **NOT IMPLEMENTED** | [frontend/components/video/ScriptWorkspace.tsx](file:///c:/Users/jithendra/OneDrive/Desktop/burra_pariksha_cms/frontend/components/video/ScriptWorkspace.tsx), [VideoDetailPage.tsx](file:///c:/Users/jithendra/OneDrive/Desktop/burra_pariksha_cms/frontend/pages/VideoDetailPage.tsx) | *Pending* | **Dependencies Satisfied** (S8-T06, S8-T07, S8-T08 complete). Immediate next task. |
-| **S8-T10** | Stage 04 Teleprompter & Filming Mode Adaptations | **NOT IMPLEMENTED** | [frontend/components/video/TeleprompterWorkspace.tsx](file:///c:/Users/jithendra/OneDrive/Desktop/burra_pariksha_cms/frontend/components/video/TeleprompterWorkspace.tsx) | *Pending* | Awaits S8-T09. |
+| **S8-T09** | Stage 03 Audience Script Multi-Mode Support & Router Boundary | **IMPLEMENTED** | [backend/server/routers/script.routes.ts](file:///c:/Users/jithendra/OneDrive/Desktop/burra_pariksha_cms/backend/server/routers/script.routes.ts), [tests/integration/script-routes.integration.test.ts](file:///c:/Users/jithendra/OneDrive/Desktop/burra_pariksha_cms/tests/integration/script-routes.integration.test.ts) | *Pending Commit* | `npm run test:s8-t09` (6/6 unit & 5/5 route integration pass). Script routing modularized via Option B into `script.routes.ts` mounted on `apiRouter`. Typecheck debt resolved. |
+| **S8-T10** | Stage 04 Teleprompter & Filming Mode Adaptations | **NOT IMPLEMENTED** | [frontend/components/video/TeleprompterWorkspace.tsx](file:///c:/Users/jithendra/OneDrive/Desktop/burra_pariksha_cms/frontend/components/video/TeleprompterWorkspace.tsx) | *Pending* | **Dependencies Satisfied** (S8-T06 through S8-T09 complete). Immediate next task. |
 | **S8-T11** | Stage 05 Raw Video Ingest & Drive Asset Linking | **NOT IMPLEMENTED** | [frontend/components/video/RecordingWorkspace.tsx](file:///c:/Users/jithendra/OneDrive/Desktop/burra_pariksha_cms/frontend/components/video/RecordingWorkspace.tsx) | *Pending* | Awaits S8-T10. |
 | **S8-T12** | Stage 06 Editing Bay 16:9 & Caption Sync | **NOT IMPLEMENTED** | [frontend/components/video/EditingWorkspace.tsx](file:///c:/Users/jithendra/OneDrive/Desktop/burra_pariksha_cms/frontend/components/video/EditingWorkspace.tsx) | *Pending* | Awaits S8-T11. |
 | **S8-T13** | Stage 07 Final QC Checklist Alignment | **NOT IMPLEMENTED** | [frontend/components/video/FinalReviewWorkspace.tsx](file:///c:/Users/jithendra/OneDrive/Desktop/burra_pariksha_cms/frontend/components/video/FinalReviewWorkspace.tsx) | *Pending* | Awaits S8-T12 (Step 07 remains inside Video Detail; orphaned page deprecated). |
@@ -104,21 +104,19 @@ Commit `454ef098b2f7db4ca2256bb14af47557e005ddea` (*"feat(sprint-08): implement 
 
 ## 4. Single Next Actionable Task
 
-### **Task ID: `S8-T09`**
-### **Title: Stage 03 Audience Script Generation Multi-Mode Support**
+### **Task ID: `S8-T10`**
+### **Title: Stage 04 Teleprompter & Filming Mode Adaptations**
 
 - **Prerequisites & Dependency Analysis**:
   - `S8-T06` (`ProductionContext` provider & hook): **SATISFIED** (Commit `5890e25`).
   - `S8-T07` (Draft reopening & mode selection): **SATISFIED** (Commit `a8fb405`).
   - `S8-T08` (Mode 2 & Mode 3 workspaces & verification approval): **SATISFIED** (Commit `454ef09`).
-  - Verified canonical `Question` entities materialized at Stage 02 approval now contain all required multi-mode data (`productionMode`, `introductoryConcept`, `questions` array, `aspectRatio`).
+  - `S8-T09` (Stage 03 script multi-mode templates & modular router boundary): **SATISFIED**.
 - **Target Implementation Scope**:
-  - Physical extraction and mounting of Option B modular router (`backend/server/routers/script.routes.ts`) from monolithic `routes.ts` (lines 2269–2376), preserving 100% URL backwards compatibility.
-  - Resolve pre-existing static typecheck debt in `script.service.ts` and `s8-t09-script-multimode.unit.test.ts`.
-  - Adapt Stage 03 Audience Script workspace ([ScriptWorkspace.tsx](file:///c:/Users/jithendra/OneDrive/Desktop/burra_pariksha_cms/frontend/components/video/ScriptWorkspace.tsx) within [VideoDetailPage.tsx](file:///c:/Users/jithendra/OneDrive/Desktop/burra_pariksha_cms/frontend/pages/VideoDetailPage.tsx)) to ingest `ProductionContext` and render mode-specific scripting templates:
-    1. **Mode 1 (`QUESTION_CHALLENGE_SHORT`)**: Existing 4-part script template (Hook, Question Presentation, Countdown/Options, Engagement Call to Action).
-    2. **Mode 2 (`TOPIC_INTRODUCTION`)**: Foundational concept script template (Hook/Overview, Core Theory/Definition, Real-Life Application, Next-Steps Call to Action).
-    3. **Mode 3 (`EXPLAINED_QUESTIONS_VIDEO`)**: Masterclass script template (Introductory Roadmap followed by $N$ question-and-explanation script segments with speed-trick callouts).
+  - Adapt Stage 04 Teleprompter workspace ([TeleprompterWorkspace.tsx](file:///c:/Users/jithendra/OneDrive/Desktop/burra_pariksha_cms/frontend/components/video/TeleprompterWorkspace.tsx) within [VideoDetailPage.tsx](file:///c:/Users/jithendra/OneDrive/Desktop/burra_pariksha_cms/frontend/pages/VideoDetailPage.tsx)) to ingest `ProductionContext` and render mode-specific teleprompter scrolling scripts:
+    1. **Mode 1 (`QUESTION_CHALLENGE_SHORT`)**: Fast-scroll countdown & 58s pacing.
+    2. **Mode 2 (`TOPIC_INTRODUCTION`)**: Concept pacing with whiteboard visual cue marks.
+    3. **Mode 3 (`EXPLAINED_QUESTIONS_VIDEO`)**: Multi-question segment jumping with independent segment takes.
 - **Invariants to Preserve**:
   - Script generation remains inside `VideoDetailPage?tab=script` (do not spawn unmounted routes).
   - Script status transitions remain governed by backend workflow engine.

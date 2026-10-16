@@ -81,8 +81,8 @@ To preserve architectural cleanliness and prevent cross-cutting dependency conta
 | `frontend/pages/VideoReviewScriptPage.tsx` | Orphaned page (32 KB) | **EXPLICITLY UNNECESSARY** | Deprecated brownfield artifact. `App.tsx` already redirects `/videos/:id/review-script` to `/videos/:id?tab=script`. Do NOT build on this page. | None (Deprecate) |
 | `frontend/api/api-client.ts` | Active HTTP client (lines 828–876) | **REUSE UNCHANGED** | Holds typed transport methods: `getScript`, `saveScript`, `getScriptVersions`, `revertScript`, `markScriptReady`, `returnScriptToEditing`. | `shared` types, `fetch` transport |
 | `frontend/api/videos.api.ts` | Canonical API boundary | **MODIFY (Additive)** | Re-export typed script operations through `videosApi` (e.g. `videosApi.getScript`, `videosApi.saveScript`) to fulfill S7-T11 API boundary standards. | `apiClient` |
-| `backend/server/routers/routes.ts` | Monolithic router (7,400 lines) | **RETAIN IN S8-T08 / S8-T09 EXTRACTION PLAN** | Currently houses all 8 script route handlers inline (lines 2269–2376). Under approved Option B, these handlers are scheduled to be extracted into `script.routes.ts` in S8-T09. | Express, middlewares, domain services |
-| `backend/server/routers/script.routes.ts` | *Not yet created* | **FUTURE IMPLEMENTATION PLAN (S8-T09)** | Dedicated modular Express router for Stage 03 Script operations. Approved architectural plan to create and mount on `apiRouter.use(scriptRouter)` during S8-T09 implementation. Preserves exact URLs. | Express, `requireAuth`, `requireRole`, `scriptService` |
+| `backend/server/routers/routes.ts` | Monolithic router (7,280 lines) | **MODIFIED (Extraction Implemented in S8-T09)** | Mounts `scriptRouter` via `apiRouter.use(scriptRouter)`. Inline script route handlers moved to `script.routes.ts`. | Express, middlewares, domain services |
+| `backend/server/routers/script.routes.ts` | Dedicated modular router | **CREATED (Implemented in S8-T09)** | Dedicated modular Express router for Stage 03 Script operations. Mounted on `apiRouter.use(scriptRouter)` in S8-T09. Preserves exact URLs. | Express, `requireAuth`, `requireRole`, `scriptService` |
 | `backend/features/production/services/script.service.ts` | Active domain service (522 lines) | **REUSE & ENHANCE** | Sole authoritative business service for script CRUD, multi-mode template generation, OCC versioning, and status progression. | `scriptsRepository`, `scriptVersionsRepository`, `videosRepository` |
 | `backend/features/production/services/script-production.service.ts` | Active AI script service | **REUSE UNCHANGED** | Orchestrates Gemini AI script generation from approved questions. Advisory role only (AP-009). | `aiOrchestrator`, `ScriptValidator`, `canonicalIdService` |
 | `database/firestore/repositories/scripts.repository.ts` | Active Firestore repository | **REUSE UNCHANGED** | Owns transactional persistence for the `scripts` collection. Pure persistence mechanics; zero workflow logic. | `BaseRepository<Script>` |
@@ -90,6 +90,7 @@ To preserve architectural cleanliness and prevent cross-cutting dependency conta
 | `shared/types/content.ts` | Active shared contract | **REUSE UNCHANGED** | Fully contains `Script`, `ScriptVersion`, `ScriptContentPayload`, and `Mode3QuestionBlock`. No breaking schema alterations permitted. | Pure TypeScript |
 | `shared/contracts/workflow.ts` | Active workflow contract | **REUSE UNCHANGED** | Canonical 15-stage workflow definitions and transition matrices. | Pure TypeScript |
 | `tests/unit/s8-t09-script-multimode.unit.test.ts` | Active test suite (345 lines) | **REUSE UNCHANGED** | Verifies multi-mode script persistence, draft proposals, and versioning across Modes 1, 2, and 3. | Node test runner, assert, repositories |
+| `tests/integration/script-routes.integration.test.ts` | Active integration test | **CREATED (Implemented in S8-T09)** | Verifies modular `scriptRouter` route registration, URL compatibility, and auth/role middleware preservation. | Node test runner, assert, express |
 
 > [!CRITICAL]
 > **Prohibited File Creations**:
@@ -417,7 +418,7 @@ Every architectural boundary established in this design is backed by existing or
 ### 11.2 Architectural Decisions Register
 - **`OD-02` (Video Review Route Consolidation)**: Deprecate orphaned standalone pages (`VideoReviewScriptPage.tsx`, `/video-review`) in favor of tabbed workbench (`/videos/:id?tab=review` and `?tab=script`). Status: **ADOPTED IN DESIGN**.
 - **`OD-09` (Mode 2 Handoff)**: Mode 2 `TOPIC_INTRODUCTION` records populate canonical Firestore `Question` documents with `questionCount: 0` and `introductoryConcept` to preserve relational FK integrity with `videos.questionId`. Status: **ADOPTED IN DESIGN**.
-- **`OD-10` (Modular Router Extraction Timing)**: The physical extraction and mounting of `script.routes.ts` from `routes.ts` is an approved architectural plan targeted for execution during S8-T09 implementation, maintaining 100% URL backwards compatibility (`script.routes.ts` is NOT yet created or mounted in S8-T08). Status: **APPROVED ARCHITECTURAL PLAN (SCHEDULED FOR S8-T09 EXECUTION)**.
+- **`OD-10` (Modular Router Extraction Timing)**: The physical extraction and mounting of `script.routes.ts` from `routes.ts` is an approved architectural plan executed during S8-T09 implementation, maintaining 100% URL backwards compatibility (`script.routes.ts` mounted on `apiRouter`). Status: **IMPLEMENTED IN S8-T09**.
 
 ### 11.3 Build, Lint & Automated Verification Evidence
 Execution results across current repository codebase:
