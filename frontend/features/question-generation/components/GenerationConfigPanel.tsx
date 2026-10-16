@@ -20,6 +20,9 @@ interface GenerationConfigPanelProps {
   loadingTaxonomy: boolean;
   taxonomyError?: string | null;
   onRetryTaxonomy?: () => void;
+  loadingSubtopics?: boolean;
+  subtopicsError?: string | null;
+  onRetrySubtopics?: () => void;
   selectedTopic: string;
   selectedSubtopic: string;
   currentSubtopics: any[];
@@ -55,6 +58,9 @@ export const GenerationConfigPanel: React.FC<GenerationConfigPanelProps> = ({
   loadingTaxonomy,
   taxonomyError,
   onRetryTaxonomy,
+  loadingSubtopics = false,
+  subtopicsError = null,
+  onRetrySubtopics,
   selectedTopic,
   selectedSubtopic,
   currentSubtopics,
@@ -75,6 +81,12 @@ export const GenerationConfigPanel: React.FC<GenerationConfigPanelProps> = ({
   onGenerate,
 }) => {
   const isTaxonomyUnavailable = loadingTaxonomy || Boolean(taxonomyError) || taxonomyTree.length === 0;
+  const isSubtopicUnavailable =
+    isTaxonomyUnavailable ||
+    loadingSubtopics ||
+    Boolean(subtopicsError) ||
+    !selectedTopic ||
+    currentSubtopics.length === 0;
 
   return (
     <div className="bg-white/95 backdrop-blur-xs border border-slate-200/80 rounded-xl p-3.5 shadow-xs space-y-3.5">
@@ -175,30 +187,78 @@ export const GenerationConfigPanel: React.FC<GenerationConfigPanelProps> = ({
             <Layers className="w-3 h-3 text-slate-500" />
             <span>Subtopic</span>
             <span className="text-rose-500">*</span>
+            {(loadingTaxonomy || loadingSubtopics) && (
+              <span className="text-[10px] text-slate-400 font-normal flex items-center gap-1 ml-auto">
+                <Loader2 className="w-3 h-3 animate-spin text-indigo-500" />
+                Loading subtopics...
+              </span>
+            )}
           </label>
+
+          {/* SUBTOPICS ERROR & RETRY BANNER */}
+          {subtopicsError && (
+            <div
+              data-testid="subtopics-error-banner"
+              className="p-2 mb-2 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 flex items-center justify-between text-xs"
+            >
+              <div className="flex items-center gap-1.5 flex-1 mr-2 min-w-0">
+                <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                <span className="text-[11px] font-medium leading-tight truncate">{subtopicsError}</span>
+              </div>
+              {onRetrySubtopics && (
+                <button
+                  type="button"
+                  data-testid="retry-subtopics-btn"
+                  onClick={onRetrySubtopics}
+                  disabled={loadingSubtopics}
+                  className="px-2 py-0.5 text-[10px] font-bold text-rose-700 bg-rose-100 hover:bg-rose-200 rounded flex items-center gap-1 cursor-pointer shrink-0 transition-colors disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-3 h-3 ${loadingSubtopics ? 'animate-spin' : ''}`} />
+                  <span>Retry</span>
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* SUBTOPICS EMPTY STATE BANNER */}
+          {!loadingTaxonomy && !loadingSubtopics && !subtopicsError && selectedTopic && currentSubtopics.length === 0 && (
+            <div
+              data-testid="subtopics-empty-banner"
+              className="p-2 mb-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 flex items-center gap-1.5 text-xs"
+            >
+              <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+              <span className="text-[11px] font-medium leading-tight">
+                No subtopics available for this topic.
+              </span>
+            </div>
+          )}
+
           <select
             data-testid="subtopic-select"
             value={selectedSubtopic}
             onChange={(e) => onSubtopicChange(e.target.value)}
             disabled={
-              isTaxonomyUnavailable ||
-              !selectedTopic ||
-              currentSubtopics.length === 0 ||
+              isSubtopicUnavailable ||
               isGenerating
             }
             className="w-full text-xs font-medium text-slate-900 bg-slate-50 border border-slate-200 rounded-lg p-2 focus:border-indigo-500 focus:outline-hidden disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loadingTaxonomy && (
+            {(loadingTaxonomy || loadingSubtopics) && (
               <option value="" disabled>
-                Loading subtopics...
+                Loading subtopics from server...
               </option>
             )}
-            {!loadingTaxonomy && (!selectedTopic || currentSubtopics.length === 0) && (
+            {!loadingTaxonomy && !loadingSubtopics && subtopicsError && (
+              <option value="" disabled>
+                Failed to load subtopics
+              </option>
+            )}
+            {!loadingTaxonomy && !loadingSubtopics && !subtopicsError && (!selectedTopic || currentSubtopics.length === 0) && (
               <option value="" disabled>
                 {selectedTopic ? 'No subtopics available for this topic' : 'Select a topic first'}
               </option>
             )}
-            {!loadingTaxonomy && selectedTopic && currentSubtopics.length > 0 && !selectedSubtopic && (
+            {!loadingTaxonomy && !loadingSubtopics && !subtopicsError && selectedTopic && currentSubtopics.length > 0 && !selectedSubtopic && (
               <option value="" disabled>
                 Select a subtopic...
               </option>
@@ -282,6 +342,7 @@ export const GenerationConfigPanel: React.FC<GenerationConfigPanelProps> = ({
           disabled={
             isGenerating ||
             isTaxonomyUnavailable ||
+            isSubtopicUnavailable ||
             !selectedTopic ||
             !selectedSubtopic
           }

@@ -34,6 +34,9 @@ export const QuestionStudioPage: React.FC = () => {
     loadingTaxonomy,
     taxonomyError,
     retryLoadTaxonomy,
+    loadingSubtopics,
+    subtopicsError,
+    retryLoadSubtopics,
     aiStatus,
     selectedTopic,
     selectedSubtopic,
@@ -227,6 +230,9 @@ export const QuestionStudioPage: React.FC = () => {
             loadingTaxonomy={loadingTaxonomy}
             taxonomyError={taxonomyError}
             onRetryTaxonomy={retryLoadTaxonomy}
+            loadingSubtopics={loadingSubtopics}
+            subtopicsError={subtopicsError}
+            onRetrySubtopics={retryLoadSubtopics}
             selectedTopic={selectedTopic}
             selectedSubtopic={selectedSubtopic}
             currentSubtopics={currentSubtopics}

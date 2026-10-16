@@ -42,14 +42,17 @@ const VALID_MODES: ContentProductionMode[] = [
 export function resolveCascadingSubtopic(
   newTopicId: string,
   currentSubtopicId: string,
-  taxonomyTree: any[]
+  taxonomyTree: any[],
+  fetchedSubtopics?: any[]
 ): {
   nextSubtopicId: string;
   targetTopic: any | undefined;
   targetSubtopic: any | undefined;
 } {
   const top = taxonomyTree.find((t) => t.id === newTopicId);
-  const availableSubtopics = top?.subtopics || [];
+  const availableSubtopics = Array.isArray(fetchedSubtopics)
+    ? fetchedSubtopics
+    : (top?.subtopics || []);
 
   let nextSubtopicId = '';
   const currentSubBelongs = availableSubtopics.some((s: any) => s.id === currentSubtopicId);
@@ -74,7 +77,10 @@ export function validateGenerationTaxonomy(
   selectedSubtopic: string,
   taxonomyTree: any[],
   loadingTaxonomy: boolean,
-  taxonomyError: string | null
+  taxonomyError: string | null,
+  loadingSubtopics = false,
+  subtopicsError: string | null = null,
+  currentSubtopics?: any[]
 ): { canGenerate: boolean; error?: string } {
   if (loadingTaxonomy) {
     return { canGenerate: false, error: 'Taxonomy is still loading. Please wait.' };
@@ -88,6 +94,12 @@ export function validateGenerationTaxonomy(
   if (!selectedTopic) {
     return { canGenerate: false, error: 'Please select a valid Topic before generating a question.' };
   }
+  if (loadingSubtopics) {
+    return { canGenerate: false, error: 'Subtopics are still loading. Please wait.' };
+  }
+  if (subtopicsError) {
+    return { canGenerate: false, error: `Cannot generate questions: ${subtopicsError}. Please retry loading subtopics.` };
+  }
   if (!selectedSubtopic) {
     return { canGenerate: false, error: 'Please select a valid Subtopic before generating a question.' };
   }
@@ -97,7 +109,11 @@ export function validateGenerationTaxonomy(
     return { canGenerate: false, error: `Selected topic "${selectedTopic}" does not exist in authoritative taxonomy.` };
   }
   if (selectedSubtopic !== 'RANDOM') {
-    const matchedSub = (matchedTop.subtopics || []).find((s: any) => s.id === selectedSubtopic);
+    const subList = Array.isArray(currentSubtopics) ? currentSubtopics : (matchedTop.subtopics || []);
+    if (subList.length === 0) {
+      return { canGenerate: false, error: `No subtopics available for topic "${matchedTop.name}".` };
+    }
+    const matchedSub = subList.find((s: any) => s.id === selectedSubtopic);
     if (!matchedSub) {
       return { canGenerate: false, error: `Selected subtopic "${selectedSubtopic}" does not belong to topic "${matchedTop.name}".` };
     }
@@ -148,9 +164,15 @@ export function useQuestionGeneration() {
   const draftLoadedRef = useRef<string | null>(null);
 
   // 1. Taxonomy & Options State
-    const [taxonomyTree, setTaxonomyTree] = useState<any[]>([]);
-    const [loadingTaxonomy, setLoadingTaxonomy] = useState(true);
-    const [taxonomyError, setTaxonomyError] = useState<string | null>(null);
+  const [taxonomyTree, setTaxonomyTree] = useState<any[]>([]);
+  const [loadingTaxonomy, setLoadingTaxonomy] = useState(true);
+  const [taxonomyError, setTaxonomyError] = useState<string | null>(null);
+
+  // S8-T11: Dependent Subtopic Loading State
+  const [currentSubtopics, setCurrentSubtopics] = useState<any[]>([]);
+  const [loadingSubtopics, setLoadingSubtopics] = useState<boolean>(false);
+  const [subtopicsError, setSubtopicsError] = useState<string | null>(null);
+  const subtopicsRequestIdRef = useRef<number>(0);
     const [aiStatus, setAiStatus] = useState<{ isConfigured: boolean; model: string }>({
       isConfigured: false,
       model: 'gemini-3.1-flash-lite',
@@ -270,6 +292,104 @@ export function useQuestionGeneration() {
     selectedTopicRef.current = selectedTopic;
   }, [selectedTopic]);
 
+  // S8-T11: Load dependent subtopics only for the currently selected topic
+  const loadSubtopicsForTopic = useCallback(
+    async (topicId: string, preferredSubtopicId?: string, isRetry = false) => {
+      if (!topicId) {
+        setCurrentSubtopics([]);
+        setLoadingSubtopics(false);
+        setSubtopicsError(null);
+        return;
+      }
+
+      const currentReqId = ++subtopicsRequestIdRef.current;
+      setLoadingSubtopics(true);
+      setSubtopicsError(null);
+
+      try {
+        let fetchedSubs: any[] = [];
+        try {
+          fetchedSubs = await taxonomyApi.getSubtopics(topicId, { includeInactive: false });
+        } catch (apiErr: any) {
+          // If offline / mocked in tests where taxonomyTree already had embedded subtopics
+          const localTopic = taxonomyTree.find((t: any) => t.id === topicId);
+          if (
+            localTopic &&
+            Array.isArray(localTopic.subtopics) &&
+            localTopic.subtopics.length > 0 &&
+            !isRetry
+          ) {
+            fetchedSubs = localTopic.subtopics;
+          } else {
+            throw apiErr;
+          }
+        }
+
+        // Stale response guard: if a newer request was dispatched while this was inflight, discard!
+        if (subtopicsRequestIdRef.current !== currentReqId) {
+          return;
+        }
+
+        const activeSubs = (fetchedSubs || []).filter((s: any) => s.isActive !== false);
+        setCurrentSubtopics(activeSubs);
+
+        // Select replacement only if valid for the new topic, otherwise clear selection
+        const candidateSub = preferredSubtopicId !== undefined ? preferredSubtopicId : '';
+        const existsInNew = activeSubs.some((s) => s.id === candidateSub);
+        let nextSub = '';
+        if (candidateSub === 'RANDOM') {
+          nextSub = 'RANDOM';
+        } else if (existsInNew) {
+          nextSub = candidateSub;
+        } else if (activeSubs.length > 0) {
+          nextSub = activeSubs[0].id;
+        } else {
+          nextSub = '';
+        }
+
+        setSelectedSubtopic(nextSub);
+
+        // Update candidate with valid replacement
+        setCandidate((c) => ({
+          ...c,
+          topicId,
+          subtopicId: nextSub,
+        }));
+
+        // Synchronize with production context
+        const matchedTopic = taxonomyTree.find((t: any) => t.id === topicId);
+        const matchedSub = activeSubs.find((s) => s.id === nextSub);
+        prodContext?.setTaxonomy({
+          topicId,
+          topicName: matchedTopic?.name || '',
+          subtopicId: nextSub,
+          subtopicName: matchedSub?.name || '',
+        });
+      } catch (err: any) {
+        // Stale response guard
+        if (subtopicsRequestIdRef.current !== currentReqId) {
+          return;
+        }
+        console.error(`Failed to load subtopics for topic "${topicId}":`, err);
+        const msg = err?.message || 'Failed to load subtopics for topic';
+        setSubtopicsError(msg);
+        setCurrentSubtopics([]);
+        setSelectedSubtopic('');
+        setCandidate((c) => ({ ...c, topicId, subtopicId: '' }));
+        prodContext?.setTaxonomy({
+          topicId,
+          subtopicId: '',
+          subtopicName: '',
+        });
+      } finally {
+        if (subtopicsRequestIdRef.current === currentReqId) {
+          setLoadingSubtopics(false);
+        }
+      }
+    },
+    [taxonomyTree, prodContext]
+  );
+
   // Load generation options from authoritative taxonomy API
   const loadTaxonomyOptions = useCallback(async (isRetry = false) => {
     setLoadingTaxonomy(true);
@@ -290,6 +410,7 @@ export function useQuestionGeneration() {
         // Empty taxonomy state: no hardcoded defaults
         setSelectedTopic('');
         setSelectedSubtopic('');
+        setCurrentSubtopics([]);
         setCandidate((prev) => ({ ...prev, topicId: '', subtopicId: '' }));
         return;
       }
@@ -301,36 +422,19 @@ export function useQuestionGeneration() {
           if (matchedTopic) {
             setSelectedTopic(matchedTopic.id);
             setCandidate((prev) => ({ ...prev, topicId: matchedTopic.id }));
-            const subtopics = matchedTopic.subtopics || [];
-            const matchedSub = subtopics.find((s) => s.id === querySubtopic);
-            if (matchedSub) {
-              setSelectedSubtopic(matchedSub.id);
-              setCandidate((prev) => ({ ...prev, subtopicId: matchedSub.id }));
-            } else if (subtopics.length > 0) {
-              setSelectedSubtopic(subtopics[0].id);
-              setCandidate((prev) => ({ ...prev, subtopicId: subtopics[0].id }));
-            } else {
-              setSelectedSubtopic('');
-              setCandidate((prev) => ({ ...prev, subtopicId: '' }));
-            }
+            loadSubtopicsForTopic(matchedTopic.id, querySubtopic || undefined, isRetry);
           } else {
             // Invalid deep-link topic! Fall back to first valid persisted topic
             const firstTopic = topicsList[0];
             setSelectedTopic(firstTopic.id);
             setCandidate((prev) => ({ ...prev, topicId: firstTopic.id }));
-            const firstSub = (firstTopic.subtopics || [])[0];
-            const subId = firstSub ? firstSub.id : '';
-            setSelectedSubtopic(subId);
-            setCandidate((prev) => ({ ...prev, subtopicId: subId }));
+            loadSubtopicsForTopic(firstTopic.id, undefined, isRetry);
           }
         } else if (!selectedTopicRef.current || isRetry) {
           const firstTopic = topicsList[0];
           setSelectedTopic(firstTopic.id);
           setCandidate((prev) => ({ ...prev, topicId: firstTopic.id }));
-          const firstSub = (firstTopic.subtopics || [])[0];
-          const subId = firstSub ? firstSub.id : '';
-          setSelectedSubtopic(subId);
-          setCandidate((prev) => ({ ...prev, subtopicId: subId }));
+          loadSubtopicsForTopic(firstTopic.id, undefined, isRetry);
         }
       }
     } catch (err: any) {
@@ -341,10 +445,11 @@ export function useQuestionGeneration() {
       setTaxonomyTree([]);
       setSelectedTopic('');
       setSelectedSubtopic('');
+      setCurrentSubtopics([]);
     } finally {
       setLoadingTaxonomy(false);
     }
-  }, [queryDraftId, queryTopic, querySubtopic]);
+  }, [queryDraftId, queryTopic, querySubtopic, loadSubtopicsForTopic]);
 
   useEffect(() => {
     loadTaxonomyOptions();
@@ -353,6 +458,12 @@ export function useQuestionGeneration() {
   const retryLoadTaxonomy = useCallback(async () => {
     await loadTaxonomyOptions(true);
   }, [loadTaxonomyOptions]);
+
+  const retryLoadSubtopics = useCallback(async () => {
+    if (selectedTopic) {
+      await loadSubtopicsForTopic(selectedTopic, undefined, true);
+    }
+  }, [selectedTopic, loadSubtopicsForTopic]);
 
 
   // Reopen saved draft from deep link parameter
@@ -422,7 +533,10 @@ export function useQuestionGeneration() {
         setSavedDraftId(draft.id);
 
         // 2. Options and Taxonomy Restoration (persisted draft strictly takes precedence over URL defaults)
-        if (draft.topicId) setSelectedTopic(draft.topicId);
+        if (draft.topicId) {
+          setSelectedTopic(draft.topicId);
+          loadSubtopicsForTopic(draft.topicId, draft.subtopicId);
+        }
         if (draft.subtopicId) setSelectedSubtopic(draft.subtopicId);
         if (draft.difficulty) setDifficulty(draft.difficulty);
         if (draft.language) setLanguage(draft.language as QuestionLanguage);
@@ -500,13 +614,13 @@ export function useQuestionGeneration() {
         aspectRatio: queryAspect || (queryMode === 'EXPLAINED_QUESTIONS_VIDEO' ? '16:9' : '9:16'),
       });
     }
-  }, [isValidQueryMode, queryMode, queryCount, queryAspect, prodContext]);
-
-  // Synchronize active taxonomy selection with ProductionContext
+  }, [isValidQueryMode, queryMode, queryCount, queryAspect, prodContext]);  // Synchronize active taxonomy selection with ProductionContext
   useEffect(() => {
     if (selectedTopic || selectedSubtopic) {
       const top = taxonomyTree.find((t: any) => t.id === selectedTopic);
-      const sub = (top?.subtopics || []).find((s: any) => s.id === selectedSubtopic);
+      const sub =
+        (currentSubtopics || []).find((s: any) => s.id === selectedSubtopic) ||
+        (top?.subtopics || []).find((s: any) => s.id === selectedSubtopic);
       prodContext?.setTaxonomy({
         topicId: selectedTopic,
         topicName: top?.name || '',
@@ -514,7 +628,7 @@ export function useQuestionGeneration() {
         subtopicName: sub?.name || '',
       });
     }
-  }, [selectedTopic, selectedSubtopic, taxonomyTree, prodContext]);
+  }, [selectedTopic, selectedSubtopic, taxonomyTree, currentSubtopics, prodContext]);
 
   // Synchronize dirty state with ProductionContext
   useEffect(() => {
@@ -539,59 +653,55 @@ export function useQuestionGeneration() {
     };
   }, [isDirty]);
 
-  // Derived subtopics for selected topic
-  const currentTopicData = useMemo(() => {
-    return taxonomyTree.find((t: any) => t.id === selectedTopic);
-  }, [taxonomyTree, selectedTopic]);
+  // Topic & Subtopic Cascading Handlers (S8-T11 dependent subtopic selection)
+  const handleTopicChange = useCallback(
+    (topId: string) => {
+      setSelectedTopic(topId);
 
-  const currentSubtopics = useMemo(() => {
-    return currentTopicData?.subtopics || [];
-  }, [currentTopicData]);
+      // 1. Immediately invalidate previous subtopic and dependent candidate validation
+      setSelectedSubtopic('');
+      setCandidate((prev) => ({
+        ...prev,
+        topicId: topId,
+        subtopicId: '',
+      }));
+      setIsValidationStale(true);
+      setServerValidationResult(null);
 
-  // Topic & Subtopic Cascading Handlers
-  const handleTopicChange = useCallback((topId: string) => {
-    setSelectedTopic(topId);
+      // 2. Clear previous subtopics list while loading new topic's subtopics
+      setCurrentSubtopics([]);
 
-    const { nextSubtopicId, targetTopic, targetSubtopic } = resolveCascadingSubtopic(
-      topId,
-      selectedSubtopic,
-      taxonomyTree
-    );
+      // 3. Update context with new topic and cleared subtopic immediately
+      const targetTopic = taxonomyTree.find((t: any) => t.id === topId);
+      prodContext?.setTaxonomy({
+        topicId: topId,
+        topicName: targetTopic?.name || '',
+        subtopicId: '',
+        subtopicName: '',
+      });
 
-    setSelectedSubtopic(nextSubtopicId);
+      // 4. Fetch the new topic's subtopics (with stale request protection)
+      loadSubtopicsForTopic(topId);
+    },
+    [taxonomyTree, loadSubtopicsForTopic, prodContext]
+  );
 
-    // Update candidate state and invalidate stale validations
-    setCandidate((prev) => ({
-      ...prev,
-      topicId: topId,
-      subtopicId: nextSubtopicId,
-    }));
+  const handleSubtopicChange = useCallback(
+    (subId: string) => {
+      setSelectedSubtopic(subId);
+      setCandidate((prev) => ({ ...prev, subtopicId: subId }));
 
-    setIsValidationStale(true);
-    setServerValidationResult(null);
+      setIsValidationStale(true);
+      setServerValidationResult(null);
 
-    // Synchronize with shared ProductionJourneyContext consistently
-    prodContext?.setTaxonomy({
-      topicId: topId,
-      topicName: targetTopic?.name || '',
-      subtopicId: nextSubtopicId,
-      subtopicName: targetSubtopic?.name || '',
-    });
-  }, [taxonomyTree, selectedSubtopic, prodContext]);
-
-  const handleSubtopicChange = useCallback((subId: string) => {
-    setSelectedSubtopic(subId);
-    setCandidate((prev) => ({ ...prev, subtopicId: subId }));
-
-    setIsValidationStale(true);
-    setServerValidationResult(null);
-
-    const currentSubtopic = currentSubtopics.find((s) => s.id === subId);
-    prodContext?.setTaxonomy({
-      subtopicId: subId,
-      subtopicName: currentSubtopic?.name || '',
-    });
-  }, [currentSubtopics, prodContext]);
+      const currentSubtopic = currentSubtopics.find((s) => s.id === subId);
+      prodContext?.setTaxonomy({
+        subtopicId: subId,
+        subtopicName: currentSubtopic?.name || '',
+      });
+    },
+    [currentSubtopics, prodContext]
+  );
 
 
   // Duplicate Check Debounced
@@ -732,7 +842,10 @@ export function useQuestionGeneration() {
       selectedSubtopic,
       taxonomyTree,
       loadingTaxonomy,
-      taxonomyError
+      taxonomyError,
+      loadingSubtopics,
+      subtopicsError,
+      currentSubtopics
     );
     if (!validation.canGenerate) {
       setErrorMessage(validation.error || 'Invalid taxonomy configuration');
@@ -1034,6 +1147,10 @@ export function useQuestionGeneration() {
     loadingTaxonomy,
     taxonomyError,
     retryLoadTaxonomy,
+    loadingSubtopics,
+    subtopicsError,
+    retryLoadSubtopics,
+    loadSubtopicsForTopic,
     aiStatus,
     selectedTopic,
     selectedSubtopic,

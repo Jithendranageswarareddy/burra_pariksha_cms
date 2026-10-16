@@ -33,7 +33,8 @@
     "test:s8-t07": "tsx tests/unit/s8-t07-draft-reopening.unit.test.ts",
     "test:s8-t08": "tsx tests/unit/s8-t08-mode-workspaces.unit.test.ts",
     "test:s8-t09": "tsx tests/unit/s8-t09-script-multimode.unit.test.ts && tsx tests/integration/script-routes.integration.test.ts",
-    "test:s8-t10": "tsx tests/unit/s8-t10-dynamic-topic-selection.unit.test.ts"
+    "test:s8-t10": "tsx tests/unit/s8-t10-dynamic-topic-selection.unit.test.ts",
+    "test:s8-t11": "tsx tests/unit/s8-t11-dependent-subtopic-selection.unit.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
