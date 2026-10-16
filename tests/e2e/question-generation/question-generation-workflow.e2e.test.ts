@@ -124,6 +124,7 @@ async function runQuestionGenerationWorkflowE2ETest() {
   const submitResult = await questionGenerationService.submitForVerification({
     draftId: savedDraft.id,
     remarks: 'Candidate reviewed and approved for SME verification gate',
+    expectedVersion: savedDraft.version ?? 1,
   }, {
     id: 'USR-E2E-AUTHOR',
     name: 'E2E Question Author',

@@ -1523,15 +1523,17 @@ apiRouter.post(
       if (
         rawExpectedVersion === undefined ||
         rawExpectedVersion === null ||
-        isNaN(Number(rawExpectedVersion)) ||
-        Number(rawExpectedVersion) < 1
+        typeof rawExpectedVersion !== 'number' ||
+        isNaN(rawExpectedVersion) ||
+        !Number.isInteger(rawExpectedVersion) ||
+        rawExpectedVersion < 1
       ) {
         return res.status(400).json({
           error: 'MissingExpectedVersion',
-          message: 'A valid numeric expectedVersion (>= 1) is required for concurrency-safe draft submission.',
+          message: 'A valid positive integer expectedVersion (>= 1) is required for concurrency-safe draft submission.',
         });
       }
-      const expectedVersion = Number(rawExpectedVersion);
+      const expectedVersion = rawExpectedVersion;
       const result = await questionDraftService.submitForVerification(
         { draftId: id, remarks, expectedVersion },
         {

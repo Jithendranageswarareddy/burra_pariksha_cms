@@ -99,6 +99,7 @@ async function runQuestionGenerationIntegrationTests() {
   const submitResponse = await questionGenerationService.submitForVerification({
     draftId: createdDraft.id,
     remarks: 'Ready for Subject Matter Expert pedagogical audit',
+    expectedVersion: createdDraft.version ?? 1,
   }, {
     id: 'USR-INT-TEST',
     name: 'Integration Author',

@@ -86,7 +86,7 @@ async function runSaveDraftVsVerifyUnitTests() {
   let didThrowNotFound = false;
   try {
     await questionGenerationService.submitForVerification(
-      { draftId: 'BP-DFT-NON-EXISTENT' },
+      { draftId: 'dft_00000000-0000-4000-8000-000000000000', expectedVersion: 1 },
       { id: 'USR-TEST-AUTHOR', name: 'Author Alice' }
     );
   } catch (err: any) {
@@ -111,7 +111,7 @@ async function runSaveDraftVsVerifyUnitTests() {
   let didThrowValidationError = false;
   try {
     await questionGenerationService.submitForVerification(
-      { draftId: incompleteDraft.id },
+      { draftId: incompleteDraft.id, expectedVersion: 1 },
       { id: 'USR-TEST-AUTHOR', name: 'Author Alice' }
     );
   } catch (err: any) {
@@ -124,7 +124,7 @@ async function runSaveDraftVsVerifyUnitTests() {
   // Test 5: Explicit Submit for Verification on valid draft
   console.log('[Test 5] Explicit Submit for Verification transitions draft into Stage 02...');
   const submitResult = await questionGenerationService.submitForVerification(
-    { draftId: draft.id, remarks: 'Ready for pedagogical review' },
+    { draftId: draft.id, remarks: 'Ready for pedagogical review', expectedVersion: updatedExistingDraft.version ?? 2 },
     { id: 'USR-TEST-AUTHOR', name: 'Author Alice' }
   );
 
@@ -150,7 +150,7 @@ async function runSaveDraftVsVerifyUnitTests() {
   let didThrowConflict = false;
   try {
     await questionGenerationService.submitForVerification(
-      { draftId: draft.id, remarks: 'Second submission attempt' },
+      { draftId: draft.id, remarks: 'Second submission attempt', expectedVersion: 1 },
       { id: 'USR-TEST-AUTHOR', name: 'Author Alice' }
     );
   } catch (err: any) {
@@ -180,7 +180,7 @@ async function runSaveDraftVsVerifyUnitTests() {
   let didThrowApprovedError = false;
   try {
     await questionGenerationService.submitForVerification(
-      { draftId: approvedDraft.id },
+      { draftId: approvedDraft.id, expectedVersion: 1 },
       { id: 'USR-TEST-AUTHOR', name: 'Author Alice' }
     );
   } catch (err: any) {
@@ -195,7 +195,7 @@ async function runSaveDraftVsVerifyUnitTests() {
   const initialDrafts = await questionGenerationService.getAllDrafts();
   let didThrowEmptyDraftId = false;
   try {
-    await questionGenerationService.submitForVerification({ draftId: '' });
+    await questionGenerationService.submitForVerification({ draftId: '', expectedVersion: 1 });
   } catch (err: any) {
     didThrowEmptyDraftId = true;
     assert.strictEqual(err?.statusCode, 400);

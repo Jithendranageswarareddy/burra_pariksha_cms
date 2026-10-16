@@ -21,6 +21,7 @@ import {
   canonicalIdService,
   ContentProductionMode,
   validateProductionModeConfig,
+  WorkflowStepNumber,
 } from '../../../shared';
 import {
   GenerateCandidateInput,
@@ -543,11 +544,15 @@ export class QuestionGenerationService {
     }
 
     if (
-      input.expectedVersion !== undefined &&
-      (typeof input.expectedVersion !== 'number' || isNaN(input.expectedVersion) || input.expectedVersion < 1)
+      input.expectedVersion === undefined ||
+      input.expectedVersion === null ||
+      typeof input.expectedVersion !== 'number' ||
+      isNaN(input.expectedVersion) ||
+      !Number.isInteger(input.expectedVersion) ||
+      input.expectedVersion < 1
     ) {
       throw new QuestionGenerationDomainError(
-        'A valid numeric expectedVersion (>= 1) is required for concurrency-safe draft submission.',
+        'A valid positive integer expectedVersion (>= 1) is required for concurrency-safe draft submission.',
         400
       );
     }
@@ -608,7 +613,7 @@ export class QuestionGenerationService {
       );
     }
 
-    if (draft.version !== undefined && input.expectedVersion !== undefined && input.expectedVersion !== draft.version) {
+    if (draft.version !== undefined && input.expectedVersion !== draft.version) {
       const conflictErr = new Error(
         `Draft "${draft.id}" concurrency conflict: expected version ${input.expectedVersion}, but current version is ${draft.version}.`
       );
@@ -616,8 +621,6 @@ export class QuestionGenerationService {
       (conflictErr as any).name = 'ConcurrencyConflictError';
       throw conflictErr;
     }
-
-    const effectiveExpectedVersion = input.expectedVersion !== undefined ? input.expectedVersion : (draft.version ?? 1);
 
     // Validate completeness before allowing submission
     const validation = this.validateCandidate({
@@ -651,6 +654,10 @@ export class QuestionGenerationService {
     let workflowInstanceId: string | undefined = draft.workflowInstanceId;
     let existingWf: any = null;
     let newlyCreatedWfId: string | undefined = undefined;
+    let advancedExistingWf = false;
+    let priorWorkflowVersion = 1;
+    let priorCurrentStep: WorkflowStepNumber = 1;
+    let priorContentStatus = 'DRAFT';
     let resultingStep = 2;
 
     const actorContext = {
@@ -675,17 +682,22 @@ export class QuestionGenerationService {
     try {
       if (existingWf) {
         workflowInstanceId = existingWf.id;
+        priorWorkflowVersion = existingWf.version ?? 1;
+        priorCurrentStep = (existingWf.currentStep ?? 1) as WorkflowStepNumber;
+        priorContentStatus = existingWf.contentStatus ?? 'DRAFT';
+
         if (existingWf.currentStep === 1) {
           const transitionResult = await workflowService.transition(
             existingWf.id,
             {
-              action: 'SUBMIT_FOR_REVIEW',
+              action: 'QUESTION_SUBMIT',
               targetStep: 2,
               reason: input.remarks || 'Submitted for pedagogical verification',
               expectedVersion: existingWf.version,
             },
             actorContext
           );
+          advancedExistingWf = true;
           resultingStep = transitionResult.workflow?.currentStep || 2;
         } else if (existingWf.currentStep >= 2) {
           resultingStep = existingWf.currentStep;
@@ -699,9 +711,9 @@ export class QuestionGenerationService {
             contentStatus: 'IN_REVIEW',
             authorId: draft.authorId || actor.id,
             metadata: {
-              topicId: draft.topicId,
-              subtopicId: draft.subtopicId,
-              productionMode: draft.productionMode,
+              ...(draft.topicId ? { topicId: draft.topicId } : {}),
+              ...(draft.subtopicId ? { subtopicId: draft.subtopicId } : {}),
+              ...(draft.productionMode ? { productionMode: draft.productionMode } : {}),
             },
           },
           actorContext
@@ -720,7 +732,7 @@ export class QuestionGenerationService {
     // 2. Optimistic Concurrency Control (OCC) Lock on Draft:
     // Atomically transition the draft to SUBMITTED_FOR_REVIEW with OCC check in a single update.
     // Competing concurrent submissions will fail here with HTTP 409 (ConcurrencyConflictError)
-    // and will clean up any speculative workflow instance created.
+    // and will clean up any speculative workflow instance created or reconcile existing workflow back to prior state.
     const preSubmissionDraft: QuestionDraft = {
       ...draft,
       status: 'SUBMITTED_FOR_REVIEW' as any,
@@ -731,16 +743,56 @@ export class QuestionGenerationService {
 
     try {
       await questionDraftsRepository.update(draft.id, preSubmissionDraft, {
-        expectedVersion: effectiveExpectedVersion,
+        expectedVersion: input.expectedVersion,
       });
     } catch (occErr: any) {
-      // COMPENSATION: If draft update fails (e.g. OCC conflict from concurrent submission),
-      // clean up newly created workflow instance to prevent orphaned/duplicate workflow advancement.
+      // COMPENSATION & RECONCILIATION:
+      // If draft update fails (e.g. OCC conflict from concurrent submission or stale draft version),
+      // reconcile workflow state to ensure draft and workflow never contradict each other.
+
+      // Case A: Newly created workflow instance -> hard delete to prevent orphaned advance
       if (newlyCreatedWfId) {
-        await (workflowInstancesRepository as any).delete(newlyCreatedWfId, 1, undefined, true).catch((cleanupErr: any) => {
+        try {
+          await (workflowInstancesRepository as any).delete(newlyCreatedWfId, 1, undefined, true);
+        } catch (cleanupErr: any) {
           console.error(`[DraftSubmit:CleanupFailed] Failed to delete orphaned workflow instance ${newlyCreatedWfId}:`, cleanupErr);
-        });
+          throw new QuestionGenerationDomainError(
+            `Submission failed and cleanup of orphaned workflow instance failed: ${cleanupErr?.message}`,
+            500
+          );
+        }
       }
+
+      // Case B: Existing workflow instance that was advanced from Step 1 to Step 2 ->
+      // Revert back to prior step and content status using version-checked OCC
+      if (advancedExistingWf && existingWf) {
+        try {
+          await workflowInstancesRepository.update(
+            existingWf.id,
+            priorWorkflowVersion + 1, // OCC version check on the workflow instance
+            {
+              currentStep: priorCurrentStep,
+              contentStatus: priorContentStatus,
+              lastTransitionAt: new Date().toISOString(),
+              lastTransitionBy: actorContext.id,
+            },
+            {
+              actorId: actorContext.id,
+              timestamp: new Date().toISOString(),
+            }
+          );
+        } catch (reconcileErr: any) {
+          console.error(
+            `[DraftSubmit:ReconciliationFailed] Critical failure reconciling workflow ${existingWf.id} back to step ${priorCurrentStep}:`,
+            reconcileErr
+          );
+          throw new QuestionGenerationDomainError(
+            `Submission failed and workflow reconciliation failed: ${reconcileErr?.message || 'Reconciliation error'}`,
+            500
+          );
+        }
+      }
+
       throw occErr;
     }
 

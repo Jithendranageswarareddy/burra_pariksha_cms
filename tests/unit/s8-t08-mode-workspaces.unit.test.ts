@@ -283,6 +283,7 @@ async function runS8T08UnitTests() {
   // Submit Mode 2 draft for verification: should succeed without requiring 4 MCQ options
   const mode2SubmitRes = await questionGenerationService.submitForVerification({
     draftId: savedMode2Draft.id,
+    expectedVersion: savedMode2Draft.version ?? 1,
   }, {
     id: 'USR-WRITER-02',
     name: 'Concept Writer',
@@ -294,6 +295,7 @@ async function runS8T08UnitTests() {
   // Submit Mode 3 draft for verification: should succeed with complete question set
   const mode3SubmitRes = await questionGenerationService.submitForVerification({
     draftId: savedMode3Draft.id,
+    expectedVersion: savedMode3Draft.version ?? 1,
   }, {
     id: 'USR-WRITER-03',
     name: 'Masterclass Writer',

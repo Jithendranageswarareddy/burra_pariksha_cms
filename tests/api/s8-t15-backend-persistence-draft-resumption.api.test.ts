@@ -619,6 +619,7 @@ async function runS8T15PersistenceTests() {
     pass('5.14 Optimistic concurrency conflict on submission strictly rejected with HTTP 409');
 
     // Test 5.15: Missing or invalid expectedVersion rejected with HTTP 400
+    // 5.15a: Missing expectedVersion
     const resMissingVersion = await fetch(`${baseUrl}/questions/draft/${freshDraft.id}/submit`, {
       method: 'POST',
       headers: authHeaders1,
@@ -627,7 +628,52 @@ async function runS8T15PersistenceTests() {
       }),
     });
     assert.strictEqual(resMissingVersion.status, 400, 'Missing expectedVersion must return HTTP 400');
-    pass('5.15 Missing or invalid expectedVersion rejected with HTTP 400');
+
+    // 5.15b: Fractional expectedVersion (1.5) rejected with HTTP 400
+    const resFractionalVersion = await fetch(`${baseUrl}/questions/draft/${freshDraft.id}/submit`, {
+      method: 'POST',
+      headers: authHeaders1,
+      body: JSON.stringify({
+        remarks: 'Submitting with fractional expectedVersion',
+        expectedVersion: 1.5,
+      }),
+    });
+    assert.strictEqual(resFractionalVersion.status, 400, 'Fractional expectedVersion (1.5) must return HTTP 400');
+
+    // 5.15c: Zero expectedVersion rejected with HTTP 400
+    const resZeroVersion = await fetch(`${baseUrl}/questions/draft/${freshDraft.id}/submit`, {
+      method: 'POST',
+      headers: authHeaders1,
+      body: JSON.stringify({
+        remarks: 'Submitting with zero expectedVersion',
+        expectedVersion: 0,
+      }),
+    });
+    assert.strictEqual(resZeroVersion.status, 400, 'Zero expectedVersion must return HTTP 400');
+
+    // 5.15d: Negative expectedVersion rejected with HTTP 400
+    const resNegativeVersion = await fetch(`${baseUrl}/questions/draft/${freshDraft.id}/submit`, {
+      method: 'POST',
+      headers: authHeaders1,
+      body: JSON.stringify({
+        remarks: 'Submitting with negative expectedVersion',
+        expectedVersion: -1,
+      }),
+    });
+    assert.strictEqual(resNegativeVersion.status, 400, 'Negative expectedVersion must return HTTP 400');
+
+    // 5.15e: String / non-numeric expectedVersion rejected with HTTP 400
+    const resStringVersion = await fetch(`${baseUrl}/questions/draft/${freshDraft.id}/submit`, {
+      method: 'POST',
+      headers: authHeaders1,
+      body: JSON.stringify({
+        remarks: 'Submitting with string expectedVersion',
+        expectedVersion: '1',
+      }),
+    });
+    assert.strictEqual(resStringVersion.status, 400, 'String expectedVersion must return HTTP 400');
+
+    pass('5.15 Missing, fractional (1.5), zero, negative, and non-numeric expectedVersion rejected with HTTP 400');
 
     // Test 5.16: Actor ID / name heuristic bypass attempt strictly rejected with HTTP 403
     const resHeuristicBypass = await fetch(`${baseUrl}/questions/draft/${freshDraft.id}/submit`, {
@@ -697,6 +743,96 @@ async function runS8T15PersistenceTests() {
     assert.strictEqual(finalDraft.status, 'SUBMITTED_FOR_REVIEW');
     assert.strictEqual(finalDraft.version, 2, 'Draft version must have incremented exactly once to 2');
     pass('5.18 Concurrent submissions safely coordinated via OCC: exactly one succeeds, stale rejected with 409');
+
+    // Test 5.19: Existing workflow instance + forced draft OCC failure reconciles workflow back to Step 1
+    const { workflowService, workflowInstancesRepository } = await import('../../backend/domain/workflow');
+
+    // Create a fresh draft for compensation test
+    const compensationDraftPayload = {
+      ...mode1Payload,
+      questionText: 'Compensation test for existing workflow: ' + Date.now(),
+    };
+    const resCompDraft = await fetch(`${baseUrl}/questions/draft`, {
+      method: 'POST',
+      headers: authHeaders1,
+      body: JSON.stringify(compensationDraftPayload),
+    });
+    assert.strictEqual(resCompDraft.status, 201);
+    const compensationDraft = await resCompDraft.json();
+
+    // Create a pre-existing workflow instance at Step 1 (Stage 01 Question Studio)
+    const existingWf = await workflowService.createInstance(
+      {
+        entityId: compensationDraft.id,
+        entityType: 'QUESTION',
+        currentStep: 1,
+        contentStatus: 'DRAFT',
+        authorId: author1Id,
+        metadata: {
+          topicId,
+          subtopicId,
+          productionMode: 'QUESTION_CHALLENGE_SHORT',
+        },
+      },
+      { id: author1Id, name: 'Author One', role: UserRole.QUESTION_CREATOR }
+    );
+    assert.strictEqual(existingWf.currentStep, 1, 'Pre-existing workflow instance starts at Step 1');
+    assert.strictEqual(existingWf.contentStatus, 'DRAFT', 'Pre-existing workflow instance starts with DRAFT status');
+
+    // Link workflowInstanceId to draft
+    const updatedDraftWithWf = await questionDraftsRepository.update(compensationDraft.id, {
+      workflowInstanceId: existingWf.id,
+    });
+    const expectedCurrentVersion = updatedDraftWithWf.version ?? 2;
+
+    // Force draft OCC failure during submission:
+    // Intercept questionDraftsRepository.update once for this draft, simulate concurrent draft edit,
+    // so that expectedVersion fails with OCC ConcurrencyConflictError.
+    const originalDraftUpdate = questionDraftsRepository.update.bind(questionDraftsRepository);
+    let forcedDraftOccTriggered = false;
+    (questionDraftsRepository as any).update = async (recordOrId: any, updates?: any, options?: any) => {
+      const targetId = typeof recordOrId === 'string' ? recordOrId : recordOrId?.id;
+      if (targetId === compensationDraft.id && !forcedDraftOccTriggered) {
+        forcedDraftOccTriggered = true;
+        // Concurrently bump the version of the draft in the database
+        await originalDraftUpdate(compensationDraft.id, { notes: 'simulated concurrent update' });
+        // Now call the real repository update with options.expectedVersion, which will detect OCC conflict
+        return originalDraftUpdate(recordOrId, updates, options);
+      }
+      return originalDraftUpdate(recordOrId, updates, options);
+    };
+
+    try {
+      const resOccFail = await fetch(`${baseUrl}/questions/draft/${compensationDraft.id}/submit`, {
+        method: 'POST',
+        headers: authHeaders1,
+        body: JSON.stringify({
+          remarks: 'Submission that will hit OCC conflict during draft update',
+          expectedVersion: expectedCurrentVersion,
+        }),
+      });
+
+      assert.strictEqual(resOccFail.status, 409, 'Draft OCC failure during submission must return HTTP 409 Concurrency Conflict');
+      assert.strictEqual(forcedDraftOccTriggered, true, 'Forced draft OCC conflict must have been triggered');
+
+      // Verify that the existing workflow instance was reconciled back to Step 1 / DRAFT
+      const reconciledWf = await workflowInstancesRepository.findById(existingWf.id);
+      assert(reconciledWf, 'Workflow instance must still exist');
+      assert.strictEqual(reconciledWf.currentStep, 1, 'Reconciled workflow instance must be safely restored to Step 1');
+      assert.strictEqual(reconciledWf.contentStatus, 'DRAFT', 'Reconciled workflow instance contentStatus must be DRAFT');
+
+      // Verify that the draft was NOT advanced to Stage 02 or SUBMITTED_FOR_REVIEW
+      const resDraftAfterOcc = await fetch(`${baseUrl}/questions/draft/${compensationDraft.id}`, {
+        headers: authHeaders1,
+      });
+      const draftAfterOcc = await resDraftAfterOcc.json();
+      assert.strictEqual(draftAfterOcc.status, 'DRAFT', 'Draft must remain in DRAFT status');
+      assert.strictEqual(draftAfterOcc.workflowStage, 'QUESTION_STUDIO', 'Draft must remain in QUESTION_STUDIO stage');
+      pass('5.19 Existing workflow instance reconciled back to Step 1 upon draft OCC failure without contradictory states');
+    } finally {
+      // Restore repository method
+      questionDraftsRepository.update = originalDraftUpdate;
+    }
 
     console.log('\n========================================================================');
     console.log('ALL S8-T15 API TESTS PASSED: All checks verified successfully.');

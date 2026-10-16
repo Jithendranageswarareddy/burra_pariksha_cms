@@ -80,13 +80,13 @@ async function runS8T07UnitTests() {
 
   // Test 2: Invalid / Missing Draft ID Handling
   console.log('[Test 2] Invalid/Missing IDs: Loading non-existent draft ID returns null safely...');
-  const missingDraft = await questionGenerationService.getDraftById('dft_00000000-0000-0000-0000-000000000000');
+  const missingDraft = await questionGenerationService.getDraftById('dft_00000000-0000-4000-8000-000000000000');
   assert.strictEqual(missingDraft, null, 'Querying non-existent draft ID must return null without crashing');
 
   let submitFailed = false;
   try {
     await questionGenerationService.submitForVerification(
-      { draftId: 'dft_non_existent' },
+      { draftId: 'dft_00000000-0000-4000-8000-000000000000', expectedVersion: 1 },
       { id: 'USR-AUTHOR-01', name: 'Author S8' }
     );
   } catch (err: any) {
@@ -194,7 +194,7 @@ async function runS8T07UnitTests() {
 
   // 6b: Submit for verification requires a valid saved draft
   const submitResult = await questionGenerationService.submitForVerification(
-    { draftId: savedDraft.id, remarks: 'Verified by author' },
+    { draftId: savedDraft.id, remarks: 'Verified by author', expectedVersion: savedDraft.version ?? 1 },
     { id: 'USR-AUTHOR-01', name: 'Author S8' }
   );
   assert.strictEqual(submitResult.success, true, 'Explicit submit for verification must succeed for saved draft');

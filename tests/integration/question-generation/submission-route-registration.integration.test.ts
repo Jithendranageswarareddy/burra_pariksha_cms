@@ -99,7 +99,7 @@ async function runSubmissionRouteRegistrationTest() {
     const submitRes = await fetch(`${baseUrl}/questions/draft/${testDraftId}/submit`, {
       method: 'POST',
       headers: authHeaders,
-      body: JSON.stringify({ remarks: 'Route registration verification submission' }),
+      body: JSON.stringify({ remarks: 'Route registration verification submission', expectedVersion: 1 }),
     });
 
     assert.strictEqual(
@@ -126,17 +126,17 @@ async function runSubmissionRouteRegistrationTest() {
     const repeatRes = await fetch(`${baseUrl}/questions/draft/${testDraftId}/submit`, {
       method: 'POST',
       headers: authHeaders,
-      body: JSON.stringify({ remarks: 'Repeat submission attempt' }),
+      body: JSON.stringify({ remarks: 'Repeat submission attempt', expectedVersion: 1 }),
     });
     assert.strictEqual(repeatRes.status, 409, 'Repeated submission must return HTTP 409 (Conflict)');
     console.log('  PASS: Repeated submission rejected with HTTP 409.');
 
     // [Test 4] Reject submission on non-existent draft with HTTP 404
     console.log('[Test 4] Rejecting submission on non-existent draft ID...');
-    const notFoundRes = await fetch(`${baseUrl}/questions/draft/BP-DFT-NON-EXISTENT/submit`, {
+    const notFoundRes = await fetch(`${baseUrl}/questions/draft/dft_00000000-0000-4000-8000-000000000000/submit`, {
       method: 'POST',
       headers: authHeaders,
-      body: JSON.stringify({ remarks: 'Non-existent draft submission' }),
+      body: JSON.stringify({ remarks: 'Non-existent draft submission', expectedVersion: 1 }),
     });
     assert.strictEqual(notFoundRes.status, 404, 'Non-existent draft must return HTTP 404');
     console.log('  PASS: Non-existent draft submission rejected with HTTP 404.');
@@ -152,7 +152,7 @@ async function runSubmissionRouteRegistrationTest() {
     const v1Res = await fetch(`${baseUrl}/v1/questions/draft/${testDraftIdV1}/submit`, {
       method: 'POST',
       headers: authHeaders,
-      body: JSON.stringify({ remarks: 'V1 prefix test' }),
+      body: JSON.stringify({ remarks: 'V1 prefix test', expectedVersion: 1 }),
     });
     assert.strictEqual(v1Res.status, 200, `Expected HTTP 200 on /v1 route, received ${v1Res.status}`);
     console.log('  PASS: /v1/questions/draft/:id/submit prefix successfully operational.');

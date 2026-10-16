@@ -425,7 +425,7 @@ export interface SubmitForVerificationInput {
   actorId?: string;
   actorName?: string;
   remarks?: string;
-  expectedVersion?: number; // Required on client HTTP submissions to enforce OCC
+  expectedVersion: number; // Required positive integer for concurrency-safe draft submission
 }
 
 /**
