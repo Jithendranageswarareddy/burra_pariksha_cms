@@ -1311,6 +1311,10 @@ apiRouter.post('/questions/smart-random', async (req: Request, res: Response) =>
 // STAGE 01: QUESTION DRAFT ENDPOINTS (Decoupled from production ID allocation)
 // ============================================================================
 
+function isLegacyDraftId(id: string): boolean {
+  return /^BP-DFT-\d+$/i.test(id);
+}
+
 apiRouter.post(['/questions/draft', '/v1/questions/draft'], requireCapability('QUESTION:CREATE'), async (req: Request, res: Response) => {
   try {
     const actor = getRequestActor(req);
@@ -1333,6 +1337,12 @@ apiRouter.put(['/questions/draft/:id', '/v1/questions/draft/:id'], requireCapabi
   try {
     const actor = getRequestActor(req);
     const { id } = req.params;
+    if (!id || (!canonicalIdService.validateCanonicalId(id, 'dft_') && !isLegacyDraftId(id))) {
+      return res.status(400).json({
+        error: 'InvalidDraftId',
+        message: `Question draft ID "${id}" is not a valid canonical identifier format (dft_<uuid_v4>).`,
+      });
+    }
     const draft = await questionDraftService.saveDraft({ ...req.body, id }, {
       id: actor.id,
       name: actor.name || 'Author',
@@ -1348,39 +1358,91 @@ apiRouter.put(['/questions/draft/:id', '/v1/questions/draft/:id'], requireCapabi
   }
 });
 
-apiRouter.get(['/questions/drafts', '/v1/questions/drafts'], async (req: Request, res: Response) => {
-  try {
-    const drafts = await questionDraftService.getAllDrafts();
-    res.json(drafts);
-  } catch (err: any) {
-    res.status(err?.statusCode || 500).json({
-      error: 'Failed to fetch drafts',
-      message: err?.message || 'Unknown error',
-    });
-  }
-});
+apiRouter.get(
+  ['/questions/drafts', '/v1/questions/drafts'],
+  requireCapability('QUESTION:VIEW'),
+  async (req: Request, res: Response) => {
+    try {
+      const actor = getRequestActor(req);
+      const allDrafts = await questionDraftService.getAllDrafts();
 
-apiRouter.get(['/questions/draft/:id', '/v1/questions/draft/:id'], async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    if (!id || (!canonicalIdService.validateCanonicalId(id, 'dft_') && !/^BP-DFT-\d+$/i.test(id) && !/^dft_/i.test(id))) {
-      return res.status(400).json({
-        error: 'InvalidDraftId',
-        message: `Question draft ID "${id}" is not a valid canonical identifier format.`,
+      const actorCanonicalRole = (actor as any).role ? resolveBrownfieldRole((actor as any).role) : null;
+      const actorRoles = (((actor as any).roles || []) as string[]).map((r) => resolveBrownfieldRole(r));
+      const isPrivileged =
+        actorCanonicalRole === CanonicalRbacRole.ADMIN ||
+        actorRoles.includes(CanonicalRbacRole.ADMIN) ||
+        actorCanonicalRole === CanonicalRbacRole.CONTENT_LEAD ||
+        actorRoles.includes(CanonicalRbacRole.CONTENT_LEAD) ||
+        actorCanonicalRole === CanonicalRbacRole.QA_REVIEWER ||
+        actorRoles.includes(CanonicalRbacRole.QA_REVIEWER) ||
+        actorCanonicalRole === CanonicalRbacRole.QUESTION_EDITOR ||
+        actorRoles.includes(CanonicalRbacRole.QUESTION_EDITOR);
+
+      const drafts = isPrivileged
+        ? allDrafts
+        : allDrafts.filter((d) => d.authorId === actor.id || d.author === actor.name);
+
+      res.json(drafts);
+    } catch (err: any) {
+      res.status(err?.statusCode || 500).json({
+        error: 'Failed to fetch drafts',
+        message: err?.message || 'Unknown error',
       });
     }
-    const draft = await questionDraftService.getDraftById(id);
-    if (!draft) {
-      return res.status(404).json({ error: `Question draft with ID "${id}" not found` });
-    }
-    res.json(draft);
-  } catch (err: any) {
-    res.status(err?.statusCode || 500).json({
-      error: err?.name || 'Failed to fetch question draft',
-      message: err?.message || 'Unknown error',
-    });
   }
-});
+);
+
+apiRouter.get(
+  ['/questions/draft/:id', '/v1/questions/draft/:id'],
+  requireCapability('QUESTION:VIEW'),
+  async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      if (!id || (!canonicalIdService.validateCanonicalId(id, 'dft_') && !isLegacyDraftId(id))) {
+        return res.status(400).json({
+          error: 'InvalidDraftId',
+          message: `Question draft ID "${id}" is not a valid canonical identifier format (dft_<uuid_v4>).`,
+        });
+      }
+      const draft = await questionDraftService.getDraftById(id);
+      if (!draft) {
+        return res.status(404).json({ error: `Question draft with ID "${id}" not found` });
+      }
+
+      // Enforce ownership and access authorization
+      const actor = getRequestActor(req);
+      const isAuthor = Boolean(
+        (draft.authorId && actor.id && draft.authorId === actor.id) ||
+        (draft.author && actor.name && draft.author.trim().toLowerCase() === actor.name.trim().toLowerCase())
+      );
+      const actorCanonicalRole = (actor as any).role ? resolveBrownfieldRole((actor as any).role) : null;
+      const actorRoles = (((actor as any).roles || []) as string[]).map((r) => resolveBrownfieldRole(r));
+      const isPrivileged =
+        actorCanonicalRole === CanonicalRbacRole.ADMIN ||
+        actorRoles.includes(CanonicalRbacRole.ADMIN) ||
+        actorCanonicalRole === CanonicalRbacRole.CONTENT_LEAD ||
+        actorRoles.includes(CanonicalRbacRole.CONTENT_LEAD) ||
+        actorCanonicalRole === CanonicalRbacRole.QA_REVIEWER ||
+        actorRoles.includes(CanonicalRbacRole.QA_REVIEWER) ||
+        actorCanonicalRole === CanonicalRbacRole.QUESTION_EDITOR ||
+        actorRoles.includes(CanonicalRbacRole.QUESTION_EDITOR);
+
+      if (!isAuthor && !isPrivileged) {
+        return res.status(403).json({
+          error: 'ForbiddenError',
+          message: `Unauthorized: User "${actor.id}" cannot access draft authored by "${draft.authorId}".`,
+        });
+      }
+
+      res.json(draft);
+    } catch (err: any) {
+      res.status(err?.statusCode || 500).json({
+        error: err?.name || 'Failed to fetch question draft',
+        message: err?.message || 'Unknown error',
+      });
+    }
+  }
+);
 
 apiRouter.post(
   ['/questions/draft/:id/approve', '/v1/questions/draft/:id/approve'],
@@ -1423,28 +1485,53 @@ apiRouter.post(
   }
 );
 
-apiRouter.delete('/questions/draft/:id', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.QUESTION_EDITOR, UserRole.CONTENT_WRITER]), async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const deleted = await questionDraftService.deleteDraft(id);
-    res.json({ success: deleted });
-  } catch (err: any) {
-    res.status(500).json({ error: err?.message || 'Failed to delete draft' });
-  }
-});
-
-apiRouter.post(
-  ['/questions/draft/:id/submit', '/v1/questions/draft/:id/submit'],
-  requireCapability('QUESTION:CREATE'),
+apiRouter.delete(
+  ['/questions/draft/:id', '/v1/questions/draft/:id'],
+  requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.QUESTION_EDITOR, UserRole.CONTENT_WRITER]),
   async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
+      if (!id || (!canonicalIdService.validateCanonicalId(id, 'dft_') && !isLegacyDraftId(id))) {
+        return res.status(400).json({
+          error: 'InvalidDraftId',
+          message: `Question draft ID "${id}" is not a valid canonical identifier format (dft_<uuid_v4>).`,
+        });
+      }
+      const deleted = await questionDraftService.deleteDraft(id);
+      res.json({ success: deleted });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Failed to delete draft' });
+    }
+  }
+);
+
+apiRouter.post(
+  ['/questions/draft/:id/submit', '/v1/questions/draft/:id/submit'],
+  requireCapability('QUESTION:SUBMIT'),
+  async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      if (!id || (!canonicalIdService.validateCanonicalId(id, 'dft_') && !isLegacyDraftId(id))) {
+        return res.status(400).json({
+          error: 'InvalidDraftId',
+          message: `Question draft ID "${id}" is not a valid canonical identifier format (dft_<uuid_v4>).`,
+        });
+      }
       const actor = getRequestActor(req);
       const remarks = req.body?.remarks;
-      const result = await questionDraftService.submitForVerification({ draftId: id, remarks }, { id: actor.id, name: actor.name || 'Author' });
+      const expectedVersion = req.body?.expectedVersion !== undefined ? Number(req.body.expectedVersion) : undefined;
+      const result = await questionDraftService.submitForVerification(
+        { draftId: id, remarks, expectedVersion },
+        {
+          id: actor.id,
+          name: actor.name || 'Author',
+          role: (actor as any).role,
+          roles: (actor as any).roles,
+        } as any
+      );
       res.status(200).json(result);
     } catch (err: any) {
-      const statusCode = err?.statusCode || 400;
+      const statusCode = err?.statusCode || (err?.name === 'ConcurrencyConflictError' ? 409 : 400);
       res.status(statusCode).json({
         error: err?.name || 'Submission Failed',
         message: err?.message || 'Failed to submit draft for verification',

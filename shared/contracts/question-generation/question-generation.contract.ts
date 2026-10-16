@@ -425,6 +425,7 @@ export interface SubmitForVerificationInput {
   actorId?: string;
   actorName?: string;
   remarks?: string;
+  expectedVersion?: number;
 }
 
 /**
@@ -435,6 +436,8 @@ export interface SubmitForVerificationResult {
   draftId: string;
   status: 'SUBMITTED_FOR_REVIEW';
   workflowStage: 'STAGE_02_VERIFICATION';
+  workflowInstanceId?: string;
+  currentStep?: number;
   message: string;
   submittedAt: string;
 }

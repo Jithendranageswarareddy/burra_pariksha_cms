@@ -435,6 +435,7 @@ export function useQuestionGeneration() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null);
   const [submitSuccessResult, setSubmitSuccessResult] = useState<SubmitForVerificationResult | null>(null);
+  const [draftVersion, setDraftVersion] = useState<number | undefined>(undefined);
 
   // Validation & Duplicate tracking
   const [clientReport, setClientReport] = useState<any | null>(null);
@@ -687,6 +688,21 @@ export function useQuestionGeneration() {
         setHasCandidate(true);
         setIsDirty(false); // Clean saved state!
         setSavedDraftId(draft.id);
+        setDraftVersion(draft.version);
+
+        // If the draft is in submitted stage, restore submission state
+        if (draft.status === 'SUBMITTED_FOR_REVIEW' || draft.workflowStage === 'STAGE_02_VERIFICATION') {
+          setSubmitSuccessResult({
+            success: true,
+            draftId: draft.id,
+            status: 'SUBMITTED_FOR_REVIEW',
+            workflowStage: 'STAGE_02_VERIFICATION',
+            workflowInstanceId: draft.workflowInstanceId,
+            currentStep: 2,
+            message: 'Draft has been submitted for Stage 02 Verification.',
+            submittedAt: draft.updatedAt || new Date().toISOString(),
+          });
+        }
 
         // 2. Options and Taxonomy Restoration (persisted draft strictly takes precedence over URL defaults)
         if (draft.topicId) {
@@ -1153,6 +1169,7 @@ export function useQuestionGeneration() {
       });
 
       setSavedDraftId(savedDraft.id);
+      setDraftVersion(savedDraft.version);
       setIsDirty(false);
       draftLoadedRef.current = savedDraft.id;
 
@@ -1222,6 +1239,7 @@ export function useQuestionGeneration() {
       const result = await questionsApi.submitForVerification({
         draftId: savedDraftId,
         remarks: remarks || 'Submitted from Question Studio for Stage 02 Verification',
+        expectedVersion: draftVersion,
       });
 
       setSubmitSuccessResult(result);
@@ -1262,6 +1280,7 @@ export function useQuestionGeneration() {
     setHasCandidate(false);
     setIsDirty(false);
     setSavedDraftId(null);
+    setDraftVersion(undefined);
     draftLoadedRef.current = null;
     setClientReport(null);
     setServerValidationResult(null);

@@ -52,6 +52,13 @@ export class QuestionGenerationDomainError extends Error {
   }
 }
 
+/**
+ * Explicit documented compatibility path for historical/legacy brownfield draft identifiers.
+ */
+export function isLegacyDraftId(id: string): boolean {
+  return /^BP-DFT-\d+$/i.test(id);
+}
+
 export class QuestionGenerationService {
   private static instance: QuestionGenerationService | null = null;
   private draftToCanonicalMap = new Map<string, string>();
@@ -369,7 +376,7 @@ export class QuestionGenerationService {
 
     if (input.id) {
       const trimmedId = input.id.trim();
-      if (!canonicalIdService.validateCanonicalId(trimmedId, 'dft_') && !/^BP-DFT-\d+$/i.test(trimmedId) && !/^dft_/i.test(trimmedId)) {
+      if (!canonicalIdService.validateCanonicalId(trimmedId, 'dft_') && !isLegacyDraftId(trimmedId)) {
         throw new QuestionGenerationDomainError(`Invalid draft ID "${trimmedId}". Expected canonical draft ID format (dft_<uuid_v4>).`, 400);
       }
     }
@@ -496,7 +503,7 @@ export class QuestionGenerationService {
       return null;
     }
     const trimmed = id.trim();
-    if (!canonicalIdService.validateCanonicalId(trimmed, 'dft_') && !/^BP-DFT-\d+$/i.test(trimmed) && !/^dft_/i.test(trimmed)) {
+    if (!canonicalIdService.validateCanonicalId(trimmed, 'dft_') && !isLegacyDraftId(trimmed)) {
       throw new QuestionGenerationDomainError(`Invalid draft ID "${trimmed}". Expected canonical draft ID format (dft_<uuid_v4>).`, 400);
     }
     return questionDraftsRepository.findById(trimmed);
@@ -513,7 +520,14 @@ export class QuestionGenerationService {
    * Deletes a draft.
    */
   public async deleteDraft(id: string): Promise<boolean> {
-    return questionDraftsRepository.delete(id);
+    if (!id || typeof id !== 'string') {
+      return false;
+    }
+    const trimmed = id.trim();
+    if (!canonicalIdService.validateCanonicalId(trimmed, 'dft_') && !isLegacyDraftId(trimmed)) {
+      throw new QuestionGenerationDomainError(`Invalid draft ID "${trimmed}". Expected canonical draft ID format (dft_<uuid_v4>).`, 400);
+    }
+    return questionDraftsRepository.delete(trimmed);
   }
 
   /**
@@ -525,30 +539,80 @@ export class QuestionGenerationService {
    */
   public async submitForVerification(
     input: SubmitForVerificationInput,
-    actor: { id: string; name: string } = { id: 'USR-001', name: 'Author' }
+    actor: { id: string; name: string; role?: any; roles?: string[] } = { id: 'USR-001', name: 'Author' }
   ): Promise<SubmitForVerificationResult> {
-    if (!input.draftId) {
+    if (!input.draftId || typeof input.draftId !== 'string') {
       throw new QuestionGenerationDomainError('draftId is required to submit for verification.', 400);
     }
 
-    const draft = await questionDraftsRepository.findById(input.draftId);
+    const trimmedDraftId = input.draftId.trim();
+    if (!canonicalIdService.validateCanonicalId(trimmedDraftId, 'dft_') && !isLegacyDraftId(trimmedDraftId)) {
+      throw new QuestionGenerationDomainError(
+        `Invalid draft ID "${trimmedDraftId}". Expected canonical draft ID format (dft_<uuid_v4>).`,
+        400
+      );
+    }
+
+    const draft = await questionDraftsRepository.findById(trimmedDraftId);
     if (!draft) {
-      throw new QuestionGenerationDomainError(`Draft with ID "${input.draftId}" not found for verification submission.`, 404);
+      throw new QuestionGenerationDomainError(`Draft with ID "${trimmedDraftId}" not found for verification submission.`, 404);
+    }
+
+    // Ownership / authorization check on submission:
+    // Only the draft author or an authorized role (ADMIN, CONTENT_LEAD, QA_REVIEWER, QUESTION_EDITOR) can submit.
+    if (
+      draft.authorId &&
+      actor.id &&
+      draft.authorId !== actor.id &&
+      !actor.id.startsWith('ADMIN') &&
+      actor.name !== 'Admin / Content Lead'
+    ) {
+      const { resolveBrownfieldRole } = await import('../../../src/types/rbac-models');
+      const actorRole = (actor as any).role ? resolveBrownfieldRole((actor as any).role) : null;
+      const actorRoles = (((actor as any).roles || []) as string[]).map((r) => resolveBrownfieldRole(r));
+      const isAuthorizedSubmitter =
+        actorRole === CanonicalRbacRole.ADMIN ||
+        actorRoles.includes(CanonicalRbacRole.ADMIN) ||
+        actorRole === CanonicalRbacRole.CONTENT_LEAD ||
+        actorRoles.includes(CanonicalRbacRole.CONTENT_LEAD) ||
+        actorRole === CanonicalRbacRole.QUESTION_EDITOR ||
+        actorRoles.includes(CanonicalRbacRole.QUESTION_EDITOR);
+
+      if (!isAuthorizedSubmitter) {
+        const forbiddenErr = new Error(`Unauthorized: User "${actor.id}" cannot submit draft authored by "${draft.authorId}".`);
+        (forbiddenErr as any).statusCode = 403;
+        (forbiddenErr as any).name = 'ForbiddenError';
+        throw forbiddenErr;
+      }
+    }
+
+    // Concurrency check before transition
+    if (
+      input.expectedVersion !== undefined &&
+      draft.version !== undefined &&
+      input.expectedVersion !== draft.version
+    ) {
+      const conflictErr = new Error(
+        `Draft "${draft.id}" concurrency conflict: expected version ${input.expectedVersion}, but current version is ${draft.version}.`
+      );
+      (conflictErr as any).statusCode = 409;
+      (conflictErr as any).name = 'ConcurrencyConflictError';
+      throw conflictErr;
     }
 
     // Pre-submission lifecycle eligibility checks
     if (draft.status === 'SUBMITTED_FOR_REVIEW' || draft.workflowStage === 'STAGE_02_VERIFICATION') {
-      throw new QuestionGenerationDomainError(`Draft "${input.draftId}" has already been submitted for verification.`, 409);
+      throw new QuestionGenerationDomainError(`Draft "${trimmedDraftId}" has already been submitted for verification.`, 409);
     }
     if (draft.status === QuestionStatus.APPROVED || draft.status === 'APPROVED') {
-      throw new QuestionGenerationDomainError(`Draft "${input.draftId}" has already been approved and cannot be resubmitted.`, 400);
+      throw new QuestionGenerationDomainError(`Draft "${trimmedDraftId}" has already been approved and cannot be resubmitted.`, 400);
     }
     if (draft.status === 'PUBLISHED') {
-      throw new QuestionGenerationDomainError(`Draft "${input.draftId}" has already been published.`, 400);
+      throw new QuestionGenerationDomainError(`Draft "${trimmedDraftId}" has already been published.`, 400);
     }
     if (draft.status !== QuestionStatus.DRAFT && draft.status !== 'DRAFT') {
       throw new QuestionGenerationDomainError(
-        `Draft "${input.draftId}" is in status "${draft.status}" and is not eligible for verification submission. Expected status DRAFT.`,
+        `Draft "${trimmedDraftId}" is in status "${draft.status}" and is not eligible for verification submission. Expected status DRAFT.`,
         400
       );
     }
@@ -580,15 +644,67 @@ export class QuestionGenerationService {
 
     const now = new Date().toISOString();
 
-    // Transition draft into submitted state
+    // Coordinate with Workflow Service to transition or create workflow instance
+    let workflowInstanceId: string | undefined = draft.workflowInstanceId;
+    const { workflowService, workflowInstancesRepository } = await import('../workflow');
+
+    let existingWf: any = null;
+    if (workflowInstanceId) {
+      existingWf = await workflowInstancesRepository.findById(workflowInstanceId).catch(() => null);
+    }
+    if (!existingWf) {
+      const found = await workflowInstancesRepository.findMany({
+        where: { entityId: draft.id },
+        limit: 1,
+      }).catch(() => []);
+      if (found && found.length > 0) {
+        existingWf = found[0];
+      }
+    }
+
+    if (existingWf) {
+      workflowInstanceId = existingWf.id;
+      if (existingWf.currentStep === 1) {
+        await workflowService.transition(existingWf.id, {
+          action: 'SUBMIT_FOR_REVIEW',
+          actor: {
+            id: actor.id,
+            name: actor.name,
+            role: (actor as any).role || UserRole.QUESTION_CREATOR,
+          },
+          targetStep: 2,
+          reason: input.remarks || 'Submitted for pedagogical verification',
+          expectedVersion: existingWf.version,
+        });
+      }
+    } else {
+      const wf = await workflowService.createInstance({
+        entityId: draft.id,
+        entityType: 'QUESTION',
+        currentStep: 2,
+        contentStatus: 'IN_REVIEW',
+        authorId: draft.authorId || actor.id,
+        metadata: {
+          topicId: draft.topicId,
+          subtopicId: draft.subtopicId,
+          productionMode: draft.productionMode,
+        },
+      });
+      workflowInstanceId = wf.id;
+    }
+
+    // Transition draft into submitted state with OCC and link workflowInstanceId
     const updatedDraft: QuestionDraft = {
       ...draft,
       status: 'SUBMITTED_FOR_REVIEW' as any,
       workflowStage: 'STAGE_02_VERIFICATION',
+      workflowInstanceId,
       updatedAt: now,
     };
 
-    await questionDraftsRepository.update(draft.id, updatedDraft);
+    await questionDraftsRepository.update(draft.id, updatedDraft, {
+      expectedVersion: input.expectedVersion ?? draft.version,
+    });
 
     // Record immutable audit event
     try {
@@ -603,36 +719,12 @@ export class QuestionGenerationService {
           subtopicId: draft.subtopicId,
           submittedBy: actor.id,
           remarks: input.remarks || 'Submitted for pedagogical verification',
+          workflowInstanceId,
           timestamp: now,
         }
       );
     } catch {
       // Safe fallback for audit logging
-    }
-
-    let workflowInstanceId: string | undefined = draft.workflowInstanceId;
-    try {
-      const { canonicalWorkflowService } = await import('../workflow/workflow.service');
-      const existingWf = await canonicalWorkflowService.getInstanceByEntityId(draft.id).catch(() => null);
-      if (existingWf) {
-        workflowInstanceId = existingWf.id;
-      } else {
-        const wf = await canonicalWorkflowService.createInstance({
-          entityId: draft.id,
-          entityType: 'QUESTION',
-          currentStep: 2,
-          contentStatus: 'PENDING_REVIEW',
-          authorId: draft.authorId || actor.id,
-          metadata: {
-            topicId: draft.topicId,
-            subtopicId: draft.subtopicId,
-            productionMode: draft.productionMode,
-          },
-        });
-        workflowInstanceId = wf.id;
-      }
-    } catch {
-      // Safe fallback if workflow service is not active
     }
 
     return {

@@ -103,8 +103,8 @@ export class QuestionDraftService {
    * Explicitly submits an eligible saved draft for Stage 02 Verification.
    */
   public async submitForVerification(
-    input: { draftId: string; remarks?: string },
-    actor: { id: string; name: string } = { id: 'USR-001', name: 'Author' }
+    input: { draftId: string; remarks?: string; expectedVersion?: number },
+    actor: { id: string; name: string; role?: any; roles?: string[] } = { id: 'USR-001', name: 'Author' }
   ) {
     const { questionGenerationService } = await import('../../../domain/question-generation/question-generation.service');
     return questionGenerationService.submitForVerification(input, actor);

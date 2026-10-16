@@ -129,6 +129,32 @@ async function runS8T15PersistenceTests() {
       Authorization: `Bearer ${author2Token}`,
     };
 
+    const adminId = `usr_${Date.now()}_admin`;
+    await usersRepository.appendRecord({
+      id: adminId,
+      name: 'System Admin',
+      email: `admin_${Date.now()}@burrapariksha.com`,
+      role: UserRole.ADMIN,
+      roles: [UserRole.ADMIN],
+      isActive: true,
+      sessionVersion: 1,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    const adminToken = authService.generateSessionToken({
+      userId: adminId,
+      name: 'System Admin',
+      role: UserRole.ADMIN,
+      roles: [UserRole.ADMIN],
+      sessionVersion: 1,
+    });
+
+    const authHeadersAdmin = {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${adminToken}`,
+    };
+
     // ========================================================================
     // SECTION 1: Firestore Repository Architecture & Adapter Path
     // ========================================================================
@@ -482,8 +508,128 @@ async function runS8T15PersistenceTests() {
     assert.strictEqual(resUnauthCreate.status, 401, 'Unauthenticated draft creation must return HTTP 401');
     pass('5.6 Unauthenticated write operation rejected with HTTP 401');
 
+    // Test 5.7: Unauthenticated read on GET /questions/draft/:id returns HTTP 401
+    const resUnauthGet = await fetch(`${baseUrl}/questions/draft/${mode1Draft.id}`, {
+      headers: { 'Content-Type': 'application/json' },
+    });
+    assert.strictEqual(resUnauthGet.status, 401, 'Unauthenticated GET draft must return HTTP 401');
+    pass('5.7 Unauthenticated draft read rejected with HTTP 401');
+
+    // Test 5.8: Unauthenticated read on GET /questions/drafts returns HTTP 401
+    const resUnauthGetAll = await fetch(`${baseUrl}/questions/drafts`, {
+      headers: { 'Content-Type': 'application/json' },
+    });
+    assert.strictEqual(resUnauthGetAll.status, 401, 'Unauthenticated GET drafts must return HTTP 401');
+    pass('5.8 Unauthenticated drafts list read rejected with HTTP 401');
+
+    // Test 5.9: Cross-user read on GET /questions/draft/:id rejected with HTTP 403
+    const resCrossUserGet = await fetch(`${baseUrl}/questions/draft/${mode1Draft.id}`, {
+      headers: authHeaders2, // Author 2 trying to read Author 1's draft
+    });
+    assert.strictEqual(resCrossUserGet.status, 403, 'Cross-user draft read must return HTTP 403');
+    pass('5.9 Cross-user draft read rejected with HTTP 403 Forbidden');
+
+    // Test 5.10: Privileged Admin read on GET /questions/draft/:id succeeds with HTTP 200
+    const resAdminGet = await fetch(`${baseUrl}/questions/draft/${mode1Draft.id}`, {
+      headers: authHeadersAdmin,
+    });
+    assert.strictEqual(resAdminGet.status, 200, 'Admin reading draft must return HTTP 200');
+    pass('5.10 Privileged Admin read on draft succeeds with HTTP 200');
+
+    // Test 5.11: Ownership-filtered drafts list
+    // Author 1 sees only their drafts, Admin sees all drafts
+    const resAuthor1Drafts = await fetch(`${baseUrl}/questions/drafts`, {
+      headers: authHeaders1,
+    });
+    assert.strictEqual(resAuthor1Drafts.status, 200);
+    const author1Drafts = await resAuthor1Drafts.json();
+    assert(
+      author1Drafts.every((d: any) => d.authorId === author1Id),
+      'Author 1 draft list must be strictly scoped to Author 1 records'
+    );
+
+    const resAdminDrafts = await fetch(`${baseUrl}/questions/drafts`, {
+      headers: authHeadersAdmin,
+    });
+    assert.strictEqual(resAdminDrafts.status, 200);
+    const adminDrafts = await resAdminDrafts.json();
+    assert(adminDrafts.length >= author1Drafts.length, 'Admin must see all drafts across authors');
+    pass('5.11 Ownership-filtered drafts listing strictly enforces isolation per actor');
+
+    // Test 5.12: Cross-user submission on POST /questions/draft/:id/submit rejected with HTTP 403
+    // Create fresh draft by Author 1
+    const freshDraftPayload = {
+      ...mode1Payload,
+      questionText: 'Author 1 exclusive question for cross-submit test',
+    };
+    const resFreshDraft = await fetch(`${baseUrl}/questions/draft`, {
+      method: 'POST',
+      headers: authHeaders1,
+      body: JSON.stringify(freshDraftPayload),
+    });
+    assert.strictEqual(resFreshDraft.status, 201);
+    const freshDraft = await resFreshDraft.json();
+
+    const resCrossSubmit = await fetch(`${baseUrl}/questions/draft/${freshDraft.id}/submit`, {
+      method: 'POST',
+      headers: authHeaders2, // Author 2 attempting to submit Author 1's draft
+      body: JSON.stringify({ remarks: 'Unauthorized submit attempt' }),
+    });
+    assert.strictEqual(resCrossSubmit.status, 403, 'Cross-user submission must return HTTP 403');
+    pass('5.12 Cross-user submission rejected with HTTP 403 Forbidden');
+
+    // Test 5.13: Strict canonical ID rejection (no permissive prefix acceptance)
+    const malformedId = 'dft_not-a-valid-uuid-v4';
+    const resMalformedGet = await fetch(`${baseUrl}/questions/draft/${malformedId}`, {
+      headers: authHeaders1,
+    });
+    assert.strictEqual(resMalformedGet.status, 400, 'Malformed dft_ ID on GET must return HTTP 400');
+
+    const resMalformedPut = await fetch(`${baseUrl}/questions/draft/${malformedId}`, {
+      method: 'PUT',
+      headers: authHeaders1,
+      body: JSON.stringify(mode1Payload),
+    });
+    assert.strictEqual(resMalformedPut.status, 400, 'Malformed dft_ ID on PUT must return HTTP 400');
+
+    const resMalformedSubmit = await fetch(`${baseUrl}/questions/draft/${malformedId}/submit`, {
+      method: 'POST',
+      headers: authHeaders1,
+      body: JSON.stringify({ remarks: 'Submit malformed ID' }),
+    });
+    assert.strictEqual(resMalformedSubmit.status, 400, 'Malformed dft_ ID on submit must return HTTP 400');
+    pass('5.13 Strict canonical ID check rejects non-UUID dft_ prefixes with HTTP 400');
+
+    // Test 5.14: Concurrency-safe submission (OCC expectedVersion mismatch)
+    const resStaleSubmit = await fetch(`${baseUrl}/questions/draft/${freshDraft.id}/submit`, {
+      method: 'POST',
+      headers: authHeaders1,
+      body: JSON.stringify({
+        remarks: 'Submitting with stale version',
+        expectedVersion: 9999, // Intentional stale version mismatch
+      }),
+    });
+    assert.strictEqual(resStaleSubmit.status, 409, 'Stale expectedVersion on submit must return HTTP 409');
+    pass('5.14 Optimistic concurrency conflict on submission strictly rejected with HTTP 409');
+
+    // Test 5.15: Authorized submission by draft author succeeds
+    const resValidSubmit = await fetch(`${baseUrl}/questions/draft/${freshDraft.id}/submit`, {
+      method: 'POST',
+      headers: authHeaders1,
+      body: JSON.stringify({
+        remarks: 'Valid submission by author',
+        expectedVersion: freshDraft.version ?? 1,
+      }),
+    });
+    assert.strictEqual(resValidSubmit.status, 200, 'Valid submission by author must return HTTP 200');
+    const validSubmitData = await resValidSubmit.json();
+    assert.strictEqual(validSubmitData.success, true);
+    assert.strictEqual(validSubmitData.workflowStage, 'STAGE_02_VERIFICATION');
+    assert.strictEqual(validSubmitData.currentStep, 2);
+    pass('5.15 Authorized submission by author successfully advances to Stage 02');
+
     console.log('\n========================================================================');
-    console.log('ALL S8-T15 API TESTS PASSED: 19 checks verified successfully.');
+    console.log('ALL S8-T15 API TESTS PASSED: All checks verified successfully.');
     console.log('========================================================================\n');
   } finally {
     await new Promise<void>((resolve) => server.close(() => resolve()));
