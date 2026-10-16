@@ -42,7 +42,7 @@ import { questionDraftsRepository } from '../../../database/firestore/repositori
 import { thumbnailCandidatesRepository } from '../../../database/firestore/repositories/thumbnail-candidates.repository';
 import { ThumbnailSafetyValidator } from '../../ai/validators';
 import { aiOrchestrator } from '../../ai/orchestrator';
-import { QuestionStatus, UserRole, SocialReviewStatus, RenderValidationStatus, VideoProductionStatus } from '../../../shared';
+import { QuestionStatus, UserRole, SocialReviewStatus, RenderValidationStatus, VideoProductionStatus, canonicalIdService } from '../../../shared';
 import { WorkflowActor } from '../../../src/types';
 import { ProductionAssetValidationService } from '../../infrastructure/services/production-asset-validation.service';
 import { ActorContext } from '../../infrastructure/auth/services/object-auth.service';
@@ -1314,7 +1314,12 @@ apiRouter.post('/questions/smart-random', async (req: Request, res: Response) =>
 apiRouter.post(['/questions/draft', '/v1/questions/draft'], requireCapability('QUESTION:CREATE'), async (req: Request, res: Response) => {
   try {
     const actor = getRequestActor(req);
-    const draft = await questionDraftService.saveDraft(req.body, { id: actor.id, name: actor.name || 'Author' });
+    const draft = await questionDraftService.saveDraft(req.body, {
+      id: actor.id,
+      name: actor.name || 'Author',
+      role: (actor as any).role,
+      roles: (actor as any).roles,
+    } as any);
     res.status(201).json(draft);
   } catch (err: any) {
     res.status(err?.statusCode || 400).json({
@@ -1324,29 +1329,54 @@ apiRouter.post(['/questions/draft', '/v1/questions/draft'], requireCapability('Q
   }
 });
 
-apiRouter.get('/questions/drafts', async (req: Request, res: Response) => {
+apiRouter.put(['/questions/draft/:id', '/v1/questions/draft/:id'], requireCapability('QUESTION:CREATE'), async (req: Request, res: Response) => {
+  try {
+    const actor = getRequestActor(req);
+    const { id } = req.params;
+    const draft = await questionDraftService.saveDraft({ ...req.body, id }, {
+      id: actor.id,
+      name: actor.name || 'Author',
+      role: (actor as any).role,
+      roles: (actor as any).roles,
+    } as any);
+    res.status(200).json(draft);
+  } catch (err: any) {
+    res.status(err?.statusCode || 400).json({
+      error: err?.name || 'Draft Update Failed',
+      message: err?.message || 'Failed to update question draft',
+    });
+  }
+});
+
+apiRouter.get(['/questions/drafts', '/v1/questions/drafts'], async (req: Request, res: Response) => {
   try {
     const drafts = await questionDraftService.getAllDrafts();
     res.json(drafts);
   } catch (err: any) {
-    res.status(500).json({
+    res.status(err?.statusCode || 500).json({
       error: 'Failed to fetch drafts',
       message: err?.message || 'Unknown error',
     });
   }
 });
 
-apiRouter.get('/questions/draft/:id', async (req: Request, res: Response) => {
+apiRouter.get(['/questions/draft/:id', '/v1/questions/draft/:id'], async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    if (!id || (!canonicalIdService.validateCanonicalId(id, 'dft_') && !/^BP-DFT-\d+$/i.test(id) && !/^dft_/i.test(id))) {
+      return res.status(400).json({
+        error: 'InvalidDraftId',
+        message: `Question draft ID "${id}" is not a valid canonical identifier format.`,
+      });
+    }
     const draft = await questionDraftService.getDraftById(id);
     if (!draft) {
       return res.status(404).json({ error: `Question draft with ID "${id}" not found` });
     }
     res.json(draft);
   } catch (err: any) {
-    res.status(500).json({
-      error: 'Failed to fetch question draft',
+    res.status(err?.statusCode || 500).json({
+      error: err?.name || 'Failed to fetch question draft',
       message: err?.message || 'Unknown error',
     });
   }

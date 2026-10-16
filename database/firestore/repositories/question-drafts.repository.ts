@@ -2,18 +2,20 @@
  * BURRA PARIKSHA CMS - Question Drafts Repository
  * Stage 01: Question Generation & Drafting Persistence
  * 
- * Provides isolated storage for question drafts generated in Stage 01.
+ * Provides authoritative Cloud Firestore persistence for Stage 01 question drafts.
  * Decouples draft creation from final production Question ID allocation,
  * Content Master generation, and multi-layer verification save gates.
  */
 
+import { BaseRepository } from './base.repository';
 import { QuestionDraft } from '../../../shared';
 
-export class QuestionDraftsRepository {
+export class QuestionDraftsRepository extends BaseRepository<QuestionDraft> {
   private static instance: QuestionDraftsRepository | null = null;
-  private draftStore = new Map<string, QuestionDraft>();
 
-  private constructor() {}
+  private constructor() {
+    super('question_drafts', 'dft_');
+  }
 
   public static getInstance(): QuestionDraftsRepository {
     if (!QuestionDraftsRepository.instance) {
@@ -22,42 +24,39 @@ export class QuestionDraftsRepository {
     return QuestionDraftsRepository.instance;
   }
 
-  public async create(draft: QuestionDraft): Promise<QuestionDraft> {
-    this.draftStore.set(draft.id, { ...draft });
-    return { ...draft };
+  /**
+   * Creates a question draft document in Cloud Firestore.
+   */
+  public override async create(draft: Partial<QuestionDraft>): Promise<QuestionDraft> {
+    return super.create(draft);
   }
 
-  public async findById(id: string): Promise<QuestionDraft | null> {
-    const found = this.draftStore.get(id);
-    return found ? { ...found } : null;
-  }
-
-  public async findAll(): Promise<QuestionDraft[]> {
-    return Array.from(this.draftStore.values()).map((d) => ({ ...d }));
-  }
-
-  public async update(id: string, updates: Partial<QuestionDraft>): Promise<QuestionDraft> {
-    const existing = this.draftStore.get(id);
-    if (!existing) {
-      throw new Error(`Question draft with ID "${id}" does not exist.`);
+  /**
+   * Updates an existing question draft document in Cloud Firestore.
+   * Enforces optimistic concurrency control (OCC) when expectedVersion is provided.
+   */
+  public override async update(
+    recordOrId: QuestionDraft | string,
+    updates?: Partial<QuestionDraft>,
+    options?: { expectedVersion?: number }
+  ): Promise<QuestionDraft> {
+    const id = typeof recordOrId === 'string' ? recordOrId : recordOrId.id;
+    const patch = typeof recordOrId === 'string' ? (updates || {}) : (updates || recordOrId);
+    const updated = await super.update(id, patch, options);
+    if (!updated) {
+      const err = new Error(`Question draft with ID "${id}" does not exist.`);
+      (err as any).statusCode = 404;
+      throw err;
     }
-
-    const updated: QuestionDraft = {
-      ...existing,
-      ...updates,
-      updatedAt: new Date().toISOString(),
-    };
-
-    this.draftStore.set(id, updated);
-    return { ...updated };
+    return updated;
   }
 
-  public async delete(id: string): Promise<boolean> {
-    return this.draftStore.delete(id);
-  }
-
-  public clear(): void {
-    this.draftStore.clear();
+  /**
+   * Test fixture helper to purge draft collection.
+   */
+  public async clear(): Promise<void> {
+    const all = await this.findAll();
+    await Promise.all(all.map((d) => this.delete(d.id)));
   }
 }
 

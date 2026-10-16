@@ -72,6 +72,13 @@ export const questionsApi = {
   },
 
   /**
+   * Updates an existing question draft.
+   */
+  async updateDraft(id: string, payload: Partial<QuestionDraft>): Promise<QuestionDraft> {
+    return apiClient.updateQuestionDraft(id, payload);
+  },
+
+  /**
    * Retrieves a question draft by ID.
    */
   async getDraft(id: string): Promise<QuestionDraft> {

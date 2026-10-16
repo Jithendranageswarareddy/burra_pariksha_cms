@@ -367,6 +367,13 @@ export class QuestionGenerationService {
     const optC = (input.options?.c || input.optionC || firstInputQ?.options?.c || firstInputQ?.optionC || '').trim();
     const optD = (input.options?.d || input.optionD || firstInputQ?.options?.d || firstInputQ?.optionD || '').trim();
 
+    if (input.id) {
+      const trimmedId = input.id.trim();
+      if (!canonicalIdService.validateCanonicalId(trimmedId, 'dft_') && !/^BP-DFT-\d+$/i.test(trimmedId) && !/^dft_/i.test(trimmedId)) {
+        throw new QuestionGenerationDomainError(`Invalid draft ID "${trimmedId}". Expected canonical draft ID format (dft_<uuid_v4>).`, 400);
+      }
+    }
+
     const draftId = input.id && typeof input.id === 'string' && input.id.trim()
       ? input.id.trim()
       : canonicalIdService.generateDraftId();
@@ -425,6 +432,59 @@ export class QuestionGenerationService {
       updatedAt: now,
     };
 
+    const existing = await questionDraftsRepository.findById(draftId);
+    if (existing) {
+      if (
+        existing.status === 'SUBMITTED_FOR_REVIEW' ||
+        existing.status === QuestionStatus.PENDING_REVIEW ||
+        existing.status === QuestionStatus.APPROVED ||
+        existing.status === 'APPROVED' ||
+        existing.status === 'PUBLISHED' ||
+        existing.workflowStage === 'STAGE_02_VERIFICATION'
+      ) {
+        throw new QuestionGenerationDomainError(
+          `Draft "${draftId}" is in status "${existing.status}" / stage "${existing.workflowStage}" and cannot be modified.`,
+          409,
+          'DRAFT_LOCKED'
+        );
+      }
+
+      if (
+        existing.authorId &&
+        actor.id &&
+        existing.authorId !== actor.id &&
+        !actor.id.startsWith('ADMIN') &&
+        actor.name !== 'Admin / Content Lead'
+      ) {
+        const { resolveBrownfieldRole } = await import('../../../src/types/rbac-models');
+        const actorRole = (actor as any).role ? resolveBrownfieldRole((actor as any).role) : null;
+        const actorRoles = ((actor as any).roles || []).map((r: any) => resolveBrownfieldRole(r));
+        const isAdmin = actorRole === 'ADMIN' || actorRoles.includes('ADMIN') || actorRole === 'CONTENT_MANAGER' || actorRoles.includes('CONTENT_MANAGER');
+        if (!isAdmin) {
+          const forbiddenErr = new Error(`Unauthorized: User "${actor.id}" cannot modify draft authored by "${existing.authorId}".`);
+          (forbiddenErr as any).statusCode = 403;
+          (forbiddenErr as any).name = 'ForbiddenError';
+          throw forbiddenErr;
+        }
+      }
+
+      const updatedDraft: QuestionDraft = {
+        ...existing,
+        ...draft,
+        id: draftId,
+        authorId: existing.authorId || actor.id,
+        authorName: existing.authorName || actor.name,
+        author: existing.author || actor.name,
+        createdAt: existing.createdAt,
+        updatedAt: now,
+        version: existing.version,
+      };
+
+      return questionDraftsRepository.update(draftId, updatedDraft, {
+        expectedVersion: input.version ?? existing.version,
+      });
+    }
+
     return questionDraftsRepository.create(draft);
   }
 
@@ -432,7 +492,14 @@ export class QuestionGenerationService {
    * Retrieves a draft by ID.
    */
   public async getDraftById(id: string): Promise<QuestionDraft | null> {
-    return questionDraftsRepository.findById(id);
+    if (!id || typeof id !== 'string') {
+      return null;
+    }
+    const trimmed = id.trim();
+    if (!canonicalIdService.validateCanonicalId(trimmed, 'dft_') && !/^BP-DFT-\d+$/i.test(trimmed) && !/^dft_/i.test(trimmed)) {
+      throw new QuestionGenerationDomainError(`Invalid draft ID "${trimmed}". Expected canonical draft ID format (dft_<uuid_v4>).`, 400);
+    }
+    return questionDraftsRepository.findById(trimmed);
   }
 
   /**
@@ -543,9 +610,36 @@ export class QuestionGenerationService {
       // Safe fallback for audit logging
     }
 
+    let workflowInstanceId: string | undefined = draft.workflowInstanceId;
+    try {
+      const { canonicalWorkflowService } = await import('../workflow/workflow.service');
+      const existingWf = await canonicalWorkflowService.getInstanceByEntityId(draft.id).catch(() => null);
+      if (existingWf) {
+        workflowInstanceId = existingWf.id;
+      } else {
+        const wf = await canonicalWorkflowService.createInstance({
+          entityId: draft.id,
+          entityType: 'QUESTION',
+          currentStep: 2,
+          contentStatus: 'PENDING_REVIEW',
+          authorId: draft.authorId || actor.id,
+          metadata: {
+            topicId: draft.topicId,
+            subtopicId: draft.subtopicId,
+            productionMode: draft.productionMode,
+          },
+        });
+        workflowInstanceId = wf.id;
+      }
+    } catch {
+      // Safe fallback if workflow service is not active
+    }
+
     return {
       success: true,
       draftId: draft.id,
+      workflowInstanceId,
+      currentStep: 2,
       status: 'SUBMITTED_FOR_REVIEW',
       workflowStage: 'STAGE_02_VERIFICATION',
       message: 'Question draft submitted successfully for Stage 02 Verification.',

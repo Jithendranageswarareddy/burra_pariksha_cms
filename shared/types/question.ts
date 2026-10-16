@@ -130,9 +130,12 @@ export interface QuestionDraft {
   authorName?: string;
   author?: string;
   workflowStage?: string;
+  workflowInstanceId?: string;
   status: QuestionStatus | string;
   createdAt: string;
   updatedAt: string;
+  version?: number;
+  isDeleted?: boolean;
 }
 
 export interface QuestionCandidate {

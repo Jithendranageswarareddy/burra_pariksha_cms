@@ -419,6 +419,13 @@ export class ApiClient {
     });
   }
 
+  public async updateQuestionDraft(id: string, payload: any): Promise<QuestionDraft> {
+    return this.request(`/questions/draft/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  }
+
   public async getQuestionDraft(id: string): Promise<QuestionDraft> {
     return this.request(`/questions/draft/${encodeURIComponent(id)}`);
   }

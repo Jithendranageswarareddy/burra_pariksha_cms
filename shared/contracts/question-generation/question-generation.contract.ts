@@ -413,6 +413,8 @@ export interface SaveQuestionDraftInput {
   generationLatencyMs?: number;
   isFallback?: boolean;
   mathematicalVerification?: MathVerificationSummary;
+  version?: number;
+  workflowInstanceId?: string;
 }
 
 /**
