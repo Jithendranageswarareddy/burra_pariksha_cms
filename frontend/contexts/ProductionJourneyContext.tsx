@@ -38,6 +38,8 @@ import {
   DEFAULT_PRODUCTION_CONTEXT,
   validateProductionModeConfig,
   validateTaxonomyLink,
+  resolveDynamicWorkflow,
+  ResolvedWorkflowState,
 } from '../../shared';
 import { apiClient } from '../api/api-client';
 import { CANONICAL_15_STEPS } from '../../shared';
@@ -136,6 +138,10 @@ export interface ProductionJourneyContextType extends ProductionContextValue {
     publishing: Publishing | null;
     contentMaster: ContentMaster | null;
   }>) => void;
+
+  // Server-Authoritative Dynamic Workflow (S8-T14)
+  resolvedWorkflow: ResolvedWorkflowState | null;
+  transitionWorkflow: (action: string, targetStep: number, reason?: string, expectedVersion?: number) => Promise<boolean>;
 }
 
 export const STAGE_DEFINITIONS = CANONICAL_15_STEPS.map((s) => ({
@@ -245,6 +251,7 @@ export const ProductionJourneyProvider: React.FC<ProductionJourneyProviderProps>
   const [allowedActions, setAllowedActions] = useState<string[]>(
     initialContext?.workflow?.allowedActions || []
   );
+  const [serverResolvedWorkflow, setServerResolvedWorkflow] = useState<ResolvedWorkflowState | null>(null);
 
   // Authenticated actor resolution (advisory presentation only; backend RBAC authoritative)
   const authContext = useContext(AuthContext);
@@ -632,8 +639,49 @@ export const ProductionJourneyProvider: React.FC<ProductionJourneyProviderProps>
     }
   }, [videoId, questionId, contentMasterId, loadJourneyForVideo, loadJourneyForQuestion, loadJourneyForContentMaster]);
 
+  // Authoritative server-side transition execution (S8-T14)
+  const transitionWorkflow = useCallback(async (
+    action: string,
+    targetStep: number,
+    reason?: string,
+    expectedVersion?: number
+  ): Promise<boolean> => {
+    const wId = workflowInstanceId || (question as any)?.workflowInstanceId || (video as any)?.workflowInstanceId;
+    if (!wId) {
+      setError('No active workflow instance to transition.');
+      return false;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const res = await apiClient.transitionWorkflow(wId, {
+        action,
+        targetStep,
+        reason,
+        expectedVersion: expectedVersion ?? 1,
+      });
+
+      if (res?.success && res.workflow) {
+        setWorkflowInstanceId(res.workflow.id);
+        setStageStatus((res.workflow.contentStatus as any) || 'IN_PROGRESS');
+        setExplicitCurrentStage(res.workflow.currentStep);
+        await reloadJourneyData();
+        return true;
+      }
+      return false;
+    } catch (err: any) {
+      setError(err.message || 'Workflow transition failed.');
+      // Return false without optimistic drift on OCC concurrency conflict (HTTP 409) or validation failure
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [workflowInstanceId, question, video, reloadJourneyData]);
+
   // Compute active journey stage & individual stage states
-  const { currentStage, stages, nextAction } = useMemo(() => {
+  const { currentStage, stages, nextAction, resolvedWorkflow } = useMemo(() => {
     // Stage completion evaluation
     const isQCompleted = Boolean(
       question && (question.status === QuestionStatus.APPROVED || question.status === QuestionStatus.GENERATED || (question.status !== QuestionStatus.DRAFT && question.questionText))
@@ -825,6 +873,51 @@ export const ProductionJourneyProvider: React.FC<ProductionJourneyProviderProps>
       publishingId: resolvedPublishingId,
     };
 
+    // Shared Dynamic Workflow Resolution (S8-T14)
+    const entityKey = resolvedQuestionId || resolvedVideoId || draftId || 'temp_production';
+    const dynamicResolved = resolveDynamicWorkflow({
+      entityId: entityKey,
+      productionMode: modeConfig.productionMode,
+      persistedWorkflow: serverResolvedWorkflow ? {
+        id: serverResolvedWorkflow.workflowInstanceId,
+        currentStep: serverResolvedWorkflow.currentStage,
+        contentStatus: serverResolvedWorkflow.multiDimensionalState.contentStatus,
+        mediaStatus: serverResolvedWorkflow.multiDimensionalState.mediaStatus,
+        publicationStatus: serverResolvedWorkflow.multiDimensionalState.publicationStatus,
+        jobStatus: serverResolvedWorkflow.multiDimensionalState.jobStatus,
+        version: serverResolvedWorkflow.version,
+        authorId: serverResolvedWorkflow.assignment.ownerId,
+        lastTransitionAt: serverResolvedWorkflow.lastTransitionAt,
+        lastTransitionBy: serverResolvedWorkflow.lastTransitionBy,
+      } : (explicitCurrentStage ? { currentStep: explicitCurrentStage, contentStatus: stageStatus } : undefined),
+      entityData: {
+        topicId: taxonomy.topicId,
+        subtopicId: taxonomy.subtopicId,
+        productionMode: modeConfig.productionMode,
+        targetQuestionCount: modeConfig.questionCount,
+        aspectRatio: modeConfig.aspectRatio,
+        currentStep: stage,
+        status: question?.status,
+        authorId: assignment.ownerId,
+        questionText: question?.questionText,
+        options: question?.options,
+        correctAnswer: question?.correctAnswer,
+        proof: (question as any)?.proof || (question as any)?.proofSteps,
+        conceptTitle: (question as any)?.conceptTitle,
+        introductoryConcept: (question as any)?.introductoryConcept,
+      },
+      actor: {
+        id: actor.userId,
+        role: actor.roles[0] || 'QUESTION_AUTHOR',
+        roles: actor.roles,
+        isAiAgent: actor.isAiAgent,
+      },
+    });
+
+    if (dynamicResolved && serverResolvedWorkflow) {
+      stage = dynamicResolved.currentStage;
+    }
+
     // Build 15 stages list with prerequisite blocking logic & canonical route registry
     const stageItems: JourneyStage[] = STAGE_DEFINITIONS.map((def) => {
       let isCompleted = false;
@@ -933,14 +1026,17 @@ export const ProductionJourneyProvider: React.FC<ProductionJourneyProviderProps>
           break;
       }
 
+      const dynamicStep = dynamicResolved?.applicableSteps?.find((s) => s.stepNumber === def.stageNumber);
       return {
         ...def,
         route,
         tab,
-        isCompleted,
+        isCompleted: dynamicStep ? (dynamicStep.isCompleted || isCompleted) : isCompleted,
         isCurrent: isInsightsCompleted ? false : def.stageNumber === stage,
-        isBlocked,
-        blockerReason,
+        isBlocked: dynamicStep ? dynamicStep.isBlocked : isBlocked,
+        blockerReason: dynamicStep?.blockerReason || blockerReason,
+        isApplicable: dynamicStep ? dynamicStep.isApplicable : true,
+        applicableChecklistType: dynamicStep?.applicableChecklistType,
       };
     });
 
@@ -1196,6 +1292,7 @@ export const ProductionJourneyProvider: React.FC<ProductionJourneyProviderProps>
       currentStage: stage,
       stages: stageItems,
       nextAction: computedAction,
+      resolvedWorkflow: dynamicResolved,
     };
   }, [
     question,
@@ -1207,7 +1304,17 @@ export const ProductionJourneyProvider: React.FC<ProductionJourneyProviderProps>
     questionId,
     videoId,
     contentMasterId,
+    draftId,
     explicitCurrentStage,
+    stageStatus,
+    modeConfig.productionMode,
+    modeConfig.questionCount,
+    modeConfig.aspectRatio,
+    taxonomy.topicId,
+    taxonomy.subtopicId,
+    serverResolvedWorkflow,
+    actor,
+    assignment.ownerId,
   ]);
 
   // Jump to specific stage
@@ -1340,6 +1447,8 @@ export const ProductionJourneyProvider: React.FC<ProductionJourneyProviderProps>
         loadJourneyForContentMaster,
         setCanonicalIds,
         setEntityData,
+        resolvedWorkflow,
+        transitionWorkflow,
       }}
     >
       {children}

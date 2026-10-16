@@ -8,3 +8,4 @@ export * from './content';
 export * from './user';
 export * from './audit';
 export * from './production-context';
+export * from './content-mode-registry';

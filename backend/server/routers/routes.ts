@@ -4779,6 +4779,65 @@ apiRouter.get(
   }
 );
 
+// GET /api/v1/workflow/:id/resolve - Resolve dynamic workflow state for an instance
+apiRouter.get(
+  ['/workflow/:id/resolve', '/v1/workflow/:id/resolve', '/api/v1/workflow/:id/resolve'],
+  requireAuth,
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    const requestId = (req.headers['x-request-id'] as string) || (req as any).requestId || `req_${Date.now()}`;
+    const { id } = req.params;
+
+    try {
+      const mode = (req.query.mode as string) || (req.query.productionMode as string);
+      const resolved = await canonicalWorkflowService.resolve({
+        entityId: id,
+        productionMode: mode,
+        actor: req.user,
+      });
+
+      const successEnvelope = createSuccessResponse({ resolved }, requestId);
+      res.json(successEnvelope);
+    } catch (err: any) {
+      if (err instanceof NotFoundError || err?.statusCode === 404) {
+        const errEnvelope = createErrorResponse(
+          ApiErrorCode.RESOURCE_NOT_FOUND,
+          err.message,
+          requestId
+        );
+        res.status(404).json({ ...errEnvelope, message: err.message });
+        return;
+      }
+      next(err);
+    }
+  }
+);
+
+// POST /api/v1/workflow/resolve - Resolve dynamic workflow state for entity & mode
+apiRouter.post(
+  ['/workflow/resolve', '/v1/workflow/resolve', '/api/v1/workflow/resolve'],
+  requireAuth,
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    const requestId = (req.headers['x-request-id'] as string) || (req as any).requestId || `req_${Date.now()}`;
+
+    try {
+      const { entityId, entityType, productionMode, entityData, persistedWorkflow } = req.body || {};
+      const resolved = await canonicalWorkflowService.resolve({
+        entityId: entityId || 'temp_entity',
+        entityType,
+        productionMode,
+        entityData,
+        persistedWorkflow,
+        actor: req.user,
+      });
+
+      const successEnvelope = createSuccessResponse({ resolved }, requestId);
+      res.json(successEnvelope);
+    } catch (err: any) {
+      next(err);
+    }
+  }
+);
+
 // POST /api/v1/workflow/:id/transition - Authoritative deterministic state machine transition
 apiRouter.post(
   ['/workflow/:id/transition', '/v1/workflow/:id/transition', '/api/v1/workflow/:id/transition'],

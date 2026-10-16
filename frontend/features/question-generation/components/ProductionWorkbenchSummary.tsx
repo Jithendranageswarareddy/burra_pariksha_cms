@@ -35,6 +35,7 @@ import {
 
 import {
   ContentProductionMode,
+  ResolvedWorkflowState,
 } from '../../../../shared';
 
 import {
@@ -74,6 +75,7 @@ export interface ResolveWorkbenchSummaryInput {
   currentStage?: number;
   stages?: JourneyStage[];
   journeyNextAction?: JourneyNextAction | null;
+  resolvedWorkflow?: ResolvedWorkflowState | null;
 }
 
 export interface WorkbenchSummaryResult {
@@ -161,6 +163,7 @@ export function resolveWorkbenchSummary(input: ResolveWorkbenchSummaryInput): Wo
     currentStage = 1,
     stages = [],
     journeyNextAction = null,
+    resolvedWorkflow = null,
   } = input;
 
   // 1. Topic resolution
@@ -232,11 +235,24 @@ export function resolveWorkbenchSummary(input: ResolveWorkbenchSummaryInput): Wo
   }
 
   // 5. Progress resolution
-  const totalStagesCount = 15;
-  const completedStagesCount = stages.filter((s) => s.isCompleted).length;
+  let totalStagesCount = 15;
+  let completedStagesCount = 0;
+  let percentComplete = 0;
+  let effectiveStageNumber = currentStage;
   const currentStageObj = stages.find((s) => s.stageNumber === currentStage);
-  const currentStageLabel = currentStageObj?.label || `Stage ${String(currentStage).padStart(2, '0')}`;
-  const percentComplete = Math.min(100, Math.round((completedStagesCount / totalStagesCount) * 100));
+  let currentStageLabel = currentStageObj?.label || `Stage ${String(currentStage).padStart(2, '0')}`;
+
+  if (resolvedWorkflow && resolvedWorkflow.progress) {
+    effectiveStageNumber = resolvedWorkflow.progress.currentStage || currentStage;
+    totalStagesCount = resolvedWorkflow.progress.totalApplicableSteps || 15;
+    completedStagesCount = resolvedWorkflow.progress.completedApplicableSteps || 0;
+    percentComplete = resolvedWorkflow.progress.percentage || 0;
+    currentStageLabel = resolvedWorkflow.progress.currentStageName || currentStageLabel;
+  } else {
+    totalStagesCount = 15;
+    completedStagesCount = stages.filter((s) => s.isCompleted).length;
+    percentComplete = Math.min(100, Math.round((completedStagesCount / totalStagesCount) * 100));
+  }
 
   // 6. Next Action resolution
   let nextAction: WorkbenchSummaryResult['nextAction'] = {
@@ -341,7 +357,7 @@ export function resolveWorkbenchSummary(input: ResolveWorkbenchSummaryInput): Wo
       isDirty,
     },
     progress: {
-      currentStageNumber: currentStage,
+      currentStageNumber: effectiveStageNumber,
       currentStageLabel,
       completedStagesCount,
       totalStagesCount,
@@ -413,6 +429,7 @@ export const ProductionWorkbenchSummary: React.FC<ProductionWorkbenchSummaryProp
   let journeyStages: JourneyStage[] = [];
   let journeyNextAction: JourneyNextAction | null = null;
   let isQuestionApproved = false;
+  let journeyResolvedWorkflow: ResolvedWorkflowState | null = null;
 
   try {
     const journey = useProductionJourney();
@@ -421,6 +438,7 @@ export const ProductionWorkbenchSummary: React.FC<ProductionWorkbenchSummaryProp
       journeyStages = journey.stages;
       journeyNextAction = journey.nextAction;
       isQuestionApproved = journey.question?.status === 'APPROVED';
+      journeyResolvedWorkflow = journey.resolvedWorkflow || null;
     }
   } catch {
     // Graceful fallback if rendered outside provider in isolated tests
@@ -448,6 +466,7 @@ export const ProductionWorkbenchSummary: React.FC<ProductionWorkbenchSummaryProp
       currentStage: journeyCurrentStage,
       stages: journeyStages,
       journeyNextAction,
+      resolvedWorkflow: journeyResolvedWorkflow,
     });
   }, [
     selectedTopic,
@@ -470,6 +489,7 @@ export const ProductionWorkbenchSummary: React.FC<ProductionWorkbenchSummaryProp
     journeyCurrentStage,
     journeyStages,
     journeyNextAction,
+    journeyResolvedWorkflow,
   ]);
 
   const handleNextActionClick = async () => {

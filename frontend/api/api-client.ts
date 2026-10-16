@@ -22,6 +22,10 @@ import {
   UserWorkload,
   Video,
   Workflow,
+  WorkflowResolutionInput,
+  ResolvedWorkflowState,
+  WorkflowTransitionInput,
+  WorkflowTransitionResult,
 } from '../../shared';
 import { GenerateCandidateInput, GenerationResult, RefineCandidateInput } from '../../shared';
 import {
@@ -967,6 +971,28 @@ export class ApiClient {
 
   public async getWorkflowHistory(entityType: string, entityId: string): Promise<Workflow[]> {
     return this.request(`/workflow/${encodeURIComponent(entityType)}/${encodeURIComponent(entityId)}`);
+  }
+
+  public async resolveWorkflow(workflowId: string, mode?: string): Promise<{ resolved: ResolvedWorkflowState }> {
+    const qs = mode ? `?mode=${encodeURIComponent(mode)}` : '';
+    return this.request(`/workflow/${encodeURIComponent(workflowId)}/resolve${qs}`);
+  }
+
+  public async resolveWorkflowState(payload: WorkflowResolutionInput): Promise<{ resolved: ResolvedWorkflowState }> {
+    return this.request('/workflow/resolve', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  public async transitionWorkflow(
+    workflowId: string,
+    payload: WorkflowTransitionInput
+  ): Promise<WorkflowTransitionResult> {
+    return this.request(`/workflow/${encodeURIComponent(workflowId)}/transition`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
   }
 
   // Gemini AI Studio

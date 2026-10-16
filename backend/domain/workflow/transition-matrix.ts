@@ -7,7 +7,13 @@
  * - docs/architecture/08-STATE-MODEL.md
  */
 
-import { TransitionRule, WorkflowStepNumber, CANONICAL_WORKFLOW_STEPS, WorkflowInstanceDocument } from '../../../shared';
+import {
+  TransitionRule,
+  WorkflowStepNumber,
+  CANONICAL_WORKFLOW_STEPS,
+  WorkflowInstanceDocument,
+  contentModeRegistry,
+} from '../../../shared';
 
 /**
  * Authoritative Canonical Transition Rules Table.
@@ -660,26 +666,73 @@ export function checkStepPrerequisites(
 ): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
 
-  // Step 02 Prerequisite: Complete question text, proof, and 4 options
+  const rawMode = (
+    contentPayload?.productionMode ||
+    item.metadata?.productionMode ||
+    'QUESTION_CHALLENGE_SHORT'
+  ) as string;
+
+  if (contentPayload?.productionMode && typeof contentPayload.productionMode === 'string') {
+    if (!contentModeRegistry.hasDefinition(contentPayload.productionMode)) {
+      errors.push(`Invalid production mode specified: '${contentPayload.productionMode}'.`);
+    }
+  }
+
+  const mode = contentModeRegistry.hasDefinition(rawMode)
+    ? rawMode
+    : 'QUESTION_CHALLENGE_SHORT';
+
+  // Step 02 Prerequisite: Mode-specific verification requirements
   if (targetStep === 2) {
     if (contentPayload) {
-      if (!contentPayload.questionText && !contentPayload.text) {
-        errors.push('Question text is required before submitting for verification.');
-      }
-      if (Array.isArray(contentPayload.options) && contentPayload.options.length < 4) {
-        errors.push('Question must have exactly 4 options before submitting for verification.');
-      }
-      if (contentPayload.proofRequired && !contentPayload.proofSteps && !contentPayload.proof) {
-        errors.push('Mathematical proof is required before submitting for verification.');
+      if (mode === 'TOPIC_INTRODUCTION') {
+        if (Array.isArray(contentPayload.options) && contentPayload.options.length > 0) {
+          errors.push('Topic Introduction mode strictly prohibits practice question options (N=0).');
+        }
+        if (
+          !contentPayload.conceptTitle &&
+          !contentPayload.introductoryConcept &&
+          !contentPayload.questionText &&
+          !contentPayload.text
+        ) {
+          errors.push('Concept overview title or introductory concept notes are required before submitting for verification.');
+        }
+      } else if (mode === 'EXPLAINED_QUESTIONS_VIDEO') {
+        if (
+          typeof contentPayload.targetQuestionCount === 'number' &&
+          ![5, 10, 15, 20].includes(contentPayload.targetQuestionCount)
+        ) {
+          errors.push('Explained Questions Video requires strictly 5, 10, 15, or 20 questions.');
+        }
+        if (
+          Array.isArray(contentPayload.questions) &&
+          typeof contentPayload.targetQuestionCount === 'number'
+        ) {
+          if (contentPayload.questions.length < contentPayload.targetQuestionCount) {
+            errors.push(`All ${contentPayload.targetQuestionCount} practice questions must be provided.`);
+          }
+        }
+      } else {
+        // Mode 1: QUESTION_CHALLENGE_SHORT
+        if (!contentPayload.questionText && !contentPayload.text) {
+          errors.push('Question text is required before submitting for verification.');
+        }
+        if (Array.isArray(contentPayload.options) && contentPayload.options.length < 4) {
+          errors.push('Question must have exactly 4 options before submitting for verification.');
+        }
+        if (contentPayload.proofRequired && !contentPayload.proofSteps && !contentPayload.proof) {
+          errors.push('Mathematical proof is required before submitting for verification.');
+        }
       }
     }
   }
 
-  // Step 04 Prerequisite: Script duration cannot exceed 60 seconds
+  // Step 04 Prerequisite: Script duration pacing check
   if (targetStep === 4) {
     if (contentPayload && typeof contentPayload.estimatedDurationSeconds === 'number') {
-      if (contentPayload.estimatedDurationSeconds > 60) {
-        errors.push('Script duration exceeds 60 seconds; teleprompter pacing gate failed.');
+      const maxDuration = mode === 'TOPIC_INTRODUCTION' ? 180 : 60;
+      if (contentPayload.estimatedDurationSeconds > maxDuration) {
+        errors.push(`Script duration exceeds ${maxDuration} seconds; teleprompter pacing gate failed.`);
       }
     }
   }

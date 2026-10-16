@@ -118,3 +118,84 @@ export interface WorkflowTransitionResult {
   realtimeEvent?: string;
 }
 
+/**
+ * S8-T07 / S8-T14: Dynamic Workflow Resolution Contracts
+ */
+
+export interface ResolvedWorkflowStep {
+  stepNumber: WorkflowStepNumber;
+  code: string;
+  name: string;
+  shortName: string;
+  description: string;
+  isApplicable: boolean;
+  isConditional?: boolean;
+  isCurrent: boolean;
+  isCompleted: boolean;
+  isBlocked: boolean;
+  blockerReason?: string;
+  applicableChecklistType?: string;
+  route: string;
+}
+
+export interface ResolvedWorkflowProgress {
+  currentStage: WorkflowStepNumber;
+  currentStageCode: string;
+  currentStageName: string;
+  stageStatus: WorkflowStageStatus | string;
+  completedApplicableSteps: number;
+  totalApplicableSteps: number;
+  percentage: number;
+}
+
+export interface ResolvedWorkflowAction {
+  actionId: string;
+  label: string;
+  actionType: string;
+  targetStep: WorkflowStepNumber;
+  isAvailable: boolean;
+  requiredCapability: string;
+  blockedReason?: string;
+  isGar02Restricted?: boolean;
+  route?: string;
+}
+
+export interface WorkflowResolutionInput {
+  entityId: string;
+  entityType?: 'QUESTION' | 'VIDEO' | 'CONTENT' | 'DRAFT' | string;
+  productionMode?: string;
+  persistedWorkflow?: Partial<WorkflowInstanceDocument>;
+  entityData?: Record<string, unknown>;
+  actor?: WorkflowActorContext;
+}
+
+export interface ResolvedWorkflowState {
+  workflowInstanceId: string;
+  entityId: string;
+  entityType: string;
+  productionMode: string;
+  currentStage: WorkflowStepNumber;
+  stageCode: string;
+  stageStatus: WorkflowStageStatus | string;
+  multiDimensionalState: {
+    contentStatus: string;
+    mediaStatus: string;
+    publicationStatus: string;
+    jobStatus: string;
+  };
+  version: number;
+  assignment: {
+    ownerId: string;
+    stageAssigneeId?: string;
+  };
+  applicableSteps: ResolvedWorkflowStep[];
+  progress: ResolvedWorkflowProgress;
+  permittedActions: ResolvedWorkflowAction[];
+  primaryNextAction: ResolvedWorkflowAction | null;
+  isGar02Restricted: boolean;
+  isTerminal: boolean;
+  lastTransitionAt: string;
+  lastTransitionBy: string;
+  metadata?: Record<string, unknown>;
+}
+

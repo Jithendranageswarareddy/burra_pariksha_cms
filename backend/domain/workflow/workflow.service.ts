@@ -11,7 +11,15 @@
  * FC-004 audit dispatching, and realtime SSE event broadcasting.
  */
 
-import { WorkflowInstanceDocument, WorkflowActorContext, WorkflowTransitionInput, WorkflowTransitionResult } from '../../../shared';
+import {
+  WorkflowInstanceDocument,
+  WorkflowActorContext,
+  WorkflowTransitionInput,
+  WorkflowTransitionResult,
+  WorkflowResolutionInput,
+  ResolvedWorkflowState,
+  resolveDynamicWorkflow,
+} from '../../../shared';
 import { WorkflowHistoryEntry, CreateWorkflowInstanceInput, CreateWorkflowInstanceSchema, WorkflowTransitionRequestSchema } from '../../../src/types/workflow';
 import { workflowEngine } from './workflow-engine';
 import {
@@ -118,6 +126,45 @@ export class WorkflowService {
   }
 
   /**
+   * Authoritative dynamic workflow resolution:
+   * Reconstructs active stage, multi-mode applicability, prerequisites, blockers,
+   * permitted actions, and progress strictly from Cloud Firestore and ContentModeRegistry.
+   */
+  public async resolve(input: WorkflowResolutionInput): Promise<ResolvedWorkflowState> {
+    let instance: WorkflowInstanceDocument | null = null;
+    const targetId = input.entityId;
+
+    if (targetId) {
+      if (targetId.startsWith('wfl_')) {
+        try {
+          instance = await this.getInstance(targetId);
+        } catch {
+          // Continue if not found by workflow ID
+        }
+      }
+
+      if (!instance) {
+        try {
+          const found = await workflowInstancesRepository.findMany({
+            where: { entityId: targetId },
+            limit: 1,
+          });
+          if (found && found.length > 0) {
+            instance = found[0];
+          }
+        } catch {
+          // Continue if query fails
+        }
+      }
+    }
+
+    return resolveDynamicWorkflow({
+      ...input,
+      persistedWorkflow: instance || input.persistedWorkflow,
+    });
+  }
+
+  /**
    * Authoritative Workflow Transition Pipeline:
    * 1. Retrieve Current Instance
    * 2. Validate OCC expectedVersion vs current.version
@@ -195,6 +242,12 @@ export class WorkflowService {
           jobStatus: evaluation.resultingDimensions.jobStatus,
           lastTransitionAt: now,
           lastTransitionBy: actorContext.id,
+          metadata: {
+            ...(instance.metadata || {}),
+            ...(parsed.contentPayload?.productionMode
+              ? { productionMode: parsed.contentPayload.productionMode }
+              : {}),
+          },
         },
         {
           actorId: actorContext.id,

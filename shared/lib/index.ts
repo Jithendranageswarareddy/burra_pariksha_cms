@@ -4,3 +4,4 @@
 
 export * from './similarity';
 export * from './id.service';
+export * from './workflow-resolver';
