@@ -21,7 +21,7 @@ In accordance with `AGENTS.md` §1 (Source-of-Truth Authority Hierarchy) and §1
 1. **Preservation of Completed Work**: The verified implementation delivered in commit `454ef09` remains complete, valid, and fully closed. Its unit test suite (`npm run test:s8-t08`) continues to serve as regression proof.
 2. **Separation of Architectural Contract**: This document formalizes the binding folder-boundary and integration-design specification required to cleanly execute downstream production tasks (`S8-T09` through `S8-T18`) without architectural drift, monolithic router bloat, or circular dependency leaks.
 3. **Zero Parallel Engine Invariant**: Neither this document nor subsequent tasks may spawn parallel workflow engines, competing script services, or duplicated Firestore repositories.
-4. **Project Owner Acceptance & Closure**: This design specification has been formally accepted by the Project Owner on October 15, 2026. The architectural boundaries, Option B modular router extraction strategy, and integration contracts are locked and approved. S8-T08 is officially CLOSED.
+4. **Project Owner Acceptance & Closure**: This design specification has been formally accepted by the Project Owner on October 15, 2026. The architectural boundaries, Option B modular router extraction strategy (approved for S8-T09 execution; router files not extracted in S8-T08), and integration contracts are locked and approved. S8-T08 is officially CLOSED as an approved architecture/design task.
 
 ---
 
@@ -81,8 +81,8 @@ To preserve architectural cleanliness and prevent cross-cutting dependency conta
 | `frontend/pages/VideoReviewScriptPage.tsx` | Orphaned page (32 KB) | **EXPLICITLY UNNECESSARY** | Deprecated brownfield artifact. `App.tsx` already redirects `/videos/:id/review-script` to `/videos/:id?tab=script`. Do NOT build on this page. | None (Deprecate) |
 | `frontend/api/api-client.ts` | Active HTTP client (lines 828–876) | **REUSE UNCHANGED** | Holds typed transport methods: `getScript`, `saveScript`, `getScriptVersions`, `revertScript`, `markScriptReady`, `returnScriptToEditing`. | `shared` types, `fetch` transport |
 | `frontend/api/videos.api.ts` | Canonical API boundary | **MODIFY (Additive)** | Re-export typed script operations through `videosApi` (e.g. `videosApi.getScript`, `videosApi.saveScript`) to fulfill S7-T11 API boundary standards. | `apiClient` |
-| `backend/server/routers/routes.ts` | Monolithic router (7,400 lines) | **MODIFY (Extraction)** | Currently houses all 8 script route handlers inline (lines 2269–2376). Delegate these handlers to the extracted router to halt monolithic bloat. | Express, middlewares, domain services |
-| `backend/server/routers/script.routes.ts` | *Not yet created* | **CREATE (Recommended Extraction)** | Dedicated modular Express router for Stage 03 Script operations. Mounts seamlessly on `apiRouter.use(scriptRouter)`. Preserves exact URLs. | Express, `requireAuth`, `requireRole`, `scriptService` |
+| `backend/server/routers/routes.ts` | Monolithic router (7,400 lines) | **RETAIN IN S8-T08 / S8-T09 EXTRACTION PLAN** | Currently houses all 8 script route handlers inline (lines 2269–2376). Under approved Option B, these handlers are scheduled to be extracted into `script.routes.ts` in S8-T09. | Express, middlewares, domain services |
+| `backend/server/routers/script.routes.ts` | *Not yet created* | **FUTURE IMPLEMENTATION PLAN (S8-T09)** | Dedicated modular Express router for Stage 03 Script operations. Approved architectural plan to create and mount on `apiRouter.use(scriptRouter)` during S8-T09 implementation. Preserves exact URLs. | Express, `requireAuth`, `requireRole`, `scriptService` |
 | `backend/features/production/services/script.service.ts` | Active domain service (522 lines) | **REUSE & ENHANCE** | Sole authoritative business service for script CRUD, multi-mode template generation, OCC versioning, and status progression. | `scriptsRepository`, `scriptVersionsRepository`, `videosRepository` |
 | `backend/features/production/services/script-production.service.ts` | Active AI script service | **REUSE UNCHANGED** | Orchestrates Gemini AI script generation from approved questions. Advisory role only (AP-009). | `aiOrchestrator`, `ScriptValidator`, `canonicalIdService` |
 | `database/firestore/repositories/scripts.repository.ts` | Active Firestore repository | **REUSE UNCHANGED** | Owns transactional persistence for the `scripts` collection. Pure persistence mechanics; zero workflow logic. | `BaseRepository<Script>` |
@@ -128,12 +128,16 @@ To preserve architectural cleanliness and prevent cross-cutting dependency conta
 ```
 
 ### 4.2 Authoritative Decision: Option B (Focused Router Extraction)
-Antigravity selects **Option B: Extracting related handlers into a focused router mounted by the existing server**.
+Antigravity selects **Option B: Extracting related handlers into a focused router mounted by the existing server** as the approved architectural plan.
 
-#### 4.2.1 Extraction Mechanics & Zero URL Divergence
-The dedicated router will reside at `backend/server/routers/script.routes.ts` (or feature-slice `features/audience-script/backend/routes/script.routes.ts`) and export `scriptRouter: express.Router`.
+> [!IMPORTANT]
+> **Implementation Boundary Clarification**:
+> `backend/server/routers/script.routes.ts` has **NOT** been extracted, created, or mounted in the current codebase. In the active runtime, all 8 script route handlers reside inline within `backend/server/routers/routes.ts` (lines 2269–2376). Router extraction is a **future implementation decision**, not completed code. Option B is recorded here as the approved architectural plan for S8-T09 (or the designated implementation task).
 
-In `backend/server/routers/routes.ts`:
+#### 4.2.1 Target Extraction Mechanics & Zero URL Divergence (S8-T09 Implementation Plan)
+When extracted during S8-T09 implementation, the dedicated router will reside at `backend/server/routers/script.routes.ts` (or feature-slice `features/audience-script/backend/routes/script.routes.ts`) and export `scriptRouter: express.Router`.
+
+In `backend/server/routers/routes.ts` (target wiring in S8-T09):
 ```typescript
 import { scriptRouter } from './script.routes';
 
@@ -151,8 +155,8 @@ Because `apiRouter` is mounted at `/api` in `server.ts` (`app.use('/api', apiRou
 - `POST /api/videos/:videoId/script/return-to-editing`
 - `POST /api/scripts/generate`
 
-#### 4.2.2 Exact Handlers Moving vs. Remaining
-1. **Primary Stage 03 Handlers Moving to `script.routes.ts` (Phase 6 Core Lifecycle)**:
+#### 4.2.2 Exact Handlers Scheduled to Move in S8-T09 vs. Handlers Remaining
+1. **Primary Stage 03 Handlers Scheduled to Move to `script.routes.ts` (Phase 6 Core Lifecycle)**:
    - Lines 2269–2286: `GET /videos/:videoId/script` (loads authored script or starter draft proposal via `scriptService.getScriptByVideoId`)
    - Lines 2288–2297: `GET /scripts/:scriptId/versions` (retrieves version history via `scriptService.getScriptVersions`)
    - Lines 2299–2315: `POST /videos/:videoId/script` (saves draft or creates new version via `scriptService.saveScript`)
@@ -203,7 +207,8 @@ Because `apiRouter` is mounted at `/api` in `server.ts` (`app.use('/api', apiRou
                                            ▼ (HTTP Transport: /api/videos/:videoId/script)
    3. BACKEND API ROUTER & SECURITY GATE
       ┌────────────────────────────────────────────────────────────────────────────────────────┐
-      │ backend/server/routers/script.routes.ts (Mounted on apiRouter)                         │
+      │ Current Runtime: backend/server/routers/routes.ts (lines 2269–2376)                    │
+      │ Approved S8-T09 Plan: backend/server/routers/script.routes.ts (Mounted on apiRouter)   │
       │   ├─ requireAuth: Authenticates actor from Bearer token                                │
       │   ├─ requireRole([ADMIN, CONTENT_MANAGER, SCRIPT_WRITER, CONTENT_WRITER])              │
       │   └─ objectAuthService.canModifyScript(actor, video)                                   │
@@ -401,7 +406,7 @@ Every architectural boundary established in this design is backed by existing or
 - [x] S8-T08 task identity discrepancy reconciled without altering completed code (`454ef09`).
 - [x] Verified current architecture and file inventory mapped across Frontend, API, Backend, Repositories, and Shared contracts.
 - [x] File-by-file change plan classified (`REUSE UNCHANGED`, `MODIFY`, `CREATE`, `EXPLICITLY UNNECESSARY`).
-- [x] Router boundary evaluated (Option A vs B vs C) with clear recommendation (Option B extraction).
+- [x] Router boundary evaluated (Option A vs B vs C) with clear recommendation (Option B extraction approved for S8-T09).
 - [x] End-to-end data-flow pipeline illustrated and documented.
 - [x] Complete API contract table specified with HTTP methods, paths, schemas, and RBAC rules.
 - [x] Persistence contract formalizes Firestore `scripts` and `script_versions` with OCC version locking.
@@ -412,7 +417,7 @@ Every architectural boundary established in this design is backed by existing or
 ### 11.2 Architectural Decisions Register
 - **`OD-02` (Video Review Route Consolidation)**: Deprecate orphaned standalone pages (`VideoReviewScriptPage.tsx`, `/video-review`) in favor of tabbed workbench (`/videos/:id?tab=review` and `?tab=script`). Status: **ADOPTED IN DESIGN**.
 - **`OD-09` (Mode 2 Handoff)**: Mode 2 `TOPIC_INTRODUCTION` records populate canonical Firestore `Question` documents with `questionCount: 0` and `introductoryConcept` to preserve relational FK integrity with `videos.questionId`. Status: **ADOPTED IN DESIGN**.
-- **`OD-10` (Modular Router Extraction Timing)**: The physical extraction of `script.routes.ts` from `routes.ts` is targeted for execution during S8-T09 implementation, maintaining 100% URL backwards compatibility. Status: **APPROVED & SCHEDULED FOR S8-T09 EXECUTION**.
+- **`OD-10` (Modular Router Extraction Timing)**: The physical extraction and mounting of `script.routes.ts` from `routes.ts` is an approved architectural plan targeted for execution during S8-T09 implementation, maintaining 100% URL backwards compatibility (`script.routes.ts` is NOT yet created or mounted in S8-T08). Status: **APPROVED ARCHITECTURAL PLAN (SCHEDULED FOR S8-T09 EXECUTION)**.
 
 ### 11.3 Build, Lint & Automated Verification Evidence
 Execution results across current repository codebase:
@@ -426,13 +431,14 @@ Execution results across current repository codebase:
    - In accordance with task constraints (*"Do not modify application code or expand task scope"*), application source code was not touched during S8-T08; these type corrections are registered as mandatory prerequisites for S8-T09 implementation.
 3. **S8-T08 Unit Tests (`npm run test:s8-t08`)**: **PASS (Exit Code 0 - 7/7 Suites Passing)**.
    - Mode 2 (`TOPIC_INTRODUCTION`) and Mode 3 (`EXPLAINED_QUESTIONS_VIDEO`) workspaces, draft persistence, backend constraint validation, and GAR-02 anti-self-approval verified.
-4. **Architecture Boundary Tests**:
+4. **Architecture Boundary Tests (`npm run test:architecture`)**: **FAIL (Exit Code 1 - Documented Historical Manifest Baseline Discrepancy)**.
    - `s7-frontend-backend-boundary.test.ts`: **PASS (0 leaks)**.
    - `s7-t11-api-access-boundary.test.ts`: **PASS (All 8/8 gates passed)**.
    - `fc-005-shared-contract.test.ts`: **PASS (All 6/6 suites passed)**.
    - `s7-t16-dependency-boundaries.test.ts`: **PASS**.
-   - `s7-t01-inventory-reconciliation.test.ts`: Evaluates historical Sprint 7 baseline against tracked git files (Sprint 8 files intentionally excluded per `AGENTS.md` §1 hierarchy).
+   - `s7-t01-inventory-reconciliation.test.ts`: **FAIL (Exit Code 1)** — Evaluates historical Sprint 7 baseline against tracked git files; fails exit 1 due to 13 new Sprint 8 files tracked in git outside historical Sprint 7 manifest. Per `AGENTS.md` §1, historical sprint records do not override active architecture.
+   - **Quality Gate Summary**: Do not claim all quality gates pass. Build passes (exit 0) and S8-T08 tests pass (7/7 pass), but static typecheck (exit 1) and full architecture test suite (exit 1) fail with documented issues.
 5. **Project-Owner Approval Status**: **APPROVED & CLOSED (2026-10-15)**.
    - Document state: `APPROVED / CLOSED — PROJECT OWNER ACCEPTANCE RECORDED`.
-   - Formal sign-off and closure recorded on October 15, 2026 upon Project Owner authorization.
+   - Formal sign-off and closure recorded on October 15, 2026 upon Project Owner authorization. S8-T08 is closed as an approved architecture/design task, with known typecheck debt and future router extraction tracked separately.
    - Downstream dependencies for S8-T09 (Stage 03 Audience Script Multi-Mode Support) are fully satisfied.
