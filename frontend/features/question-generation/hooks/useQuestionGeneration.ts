@@ -14,6 +14,7 @@ import {
   DifficultyLevel,
   QuestionLanguage,
   ContentProductionMode,
+  validateProductionModeConfig,
 } from '../../../../shared';
 import {
   GenerateCandidateInput,
