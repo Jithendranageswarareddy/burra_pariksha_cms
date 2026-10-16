@@ -34,6 +34,78 @@ const VALID_MODES: ContentProductionMode[] = [
   'EXPLAINED_QUESTIONS_VIDEO',
 ];
 
+/**
+ * Resolves replacement subtopic on topic change:
+ * If current subtopic belongs to the new topic, preserves it.
+ * Otherwise, selects the first available subtopic of the new topic, or '' if none exist.
+ */
+export function resolveCascadingSubtopic(
+  newTopicId: string,
+  currentSubtopicId: string,
+  taxonomyTree: any[]
+): {
+  nextSubtopicId: string;
+  targetTopic: any | undefined;
+  targetSubtopic: any | undefined;
+} {
+  const top = taxonomyTree.find((t) => t.id === newTopicId);
+  const availableSubtopics = top?.subtopics || [];
+
+  let nextSubtopicId = '';
+  const currentSubBelongs = availableSubtopics.some((s: any) => s.id === currentSubtopicId);
+
+  if (currentSubBelongs) {
+    nextSubtopicId = currentSubtopicId;
+  } else if (availableSubtopics.length > 0) {
+    nextSubtopicId = availableSubtopics[0].id;
+  } else {
+    nextSubtopicId = '';
+  }
+
+  const targetSubtopic = availableSubtopics.find((s: any) => s.id === nextSubtopicId);
+  return { nextSubtopicId, targetTopic: top, targetSubtopic };
+}
+
+/**
+ * Authoritative guard against generation with invalid, incomplete, or mismatched taxonomy.
+ */
+export function validateGenerationTaxonomy(
+  selectedTopic: string,
+  selectedSubtopic: string,
+  taxonomyTree: any[],
+  loadingTaxonomy: boolean,
+  taxonomyError: string | null
+): { canGenerate: boolean; error?: string } {
+  if (loadingTaxonomy) {
+    return { canGenerate: false, error: 'Taxonomy is still loading. Please wait.' };
+  }
+  if (taxonomyError) {
+    return { canGenerate: false, error: `Cannot generate questions: ${taxonomyError}. Please retry loading taxonomy.` };
+  }
+  if (taxonomyTree.length === 0) {
+    return { canGenerate: false, error: 'Cannot generate questions: No topics available in taxonomy.' };
+  }
+  if (!selectedTopic) {
+    return { canGenerate: false, error: 'Please select a valid Topic before generating a question.' };
+  }
+  if (!selectedSubtopic) {
+    return { canGenerate: false, error: 'Please select a valid Subtopic before generating a question.' };
+  }
+
+  const matchedTop = taxonomyTree.find((t) => t.id === selectedTopic);
+  if (!matchedTop) {
+    return { canGenerate: false, error: `Selected topic "${selectedTopic}" does not exist in authoritative taxonomy.` };
+  }
+  if (selectedSubtopic !== 'RANDOM') {
+    const matchedSub = (matchedTop.subtopics || []).find((s: any) => s.id === selectedSubtopic);
+    if (!matchedSub) {
+      return { canGenerate: false, error: `Selected subtopic "${selectedSubtopic}" does not belong to topic "${matchedTop.name}".` };
+    }
+  }
+
+  return { canGenerate: true };
+}
+
 export function useQuestionGeneration() {
   const [searchParams] = useSearchParams();
 
@@ -173,12 +245,14 @@ export function useQuestionGeneration() {
       setIsModeModalOpen(false);
 
       // Persist in URL query parameters without reloading
-      const currentParams = new URLSearchParams(window.location.search);
-      currentParams.set('mode', mode);
-      currentParams.set('count', String(finalCount));
-      currentParams.set('aspect', finalAspect!);
-      const newRelativePathQuery = window.location.pathname + '?' + currentParams.toString();
-      window.history.replaceState(null, '', newRelativePathQuery);
+      if (typeof window !== 'undefined') {
+        const currentParams = new URLSearchParams(window.location.search);
+        currentParams.set('mode', mode);
+        currentParams.set('count', String(finalCount));
+        currentParams.set('aspect', finalAspect!);
+        const newRelativePathQuery = window.location.pathname + '?' + currentParams.toString();
+        window.history.replaceState(null, '', newRelativePathQuery);
+      }
 
       // Synchronize with shared production context
       prodContext?.setModeConfig({
@@ -190,60 +264,57 @@ export function useQuestionGeneration() {
     [prodContext]
   );
 
+  // Selected topic ref to avoid stale closures and prevent topic selection changes from retriggering taxonomy fetch
+  const selectedTopicRef = useRef(selectedTopic);
+  useEffect(() => {
+    selectedTopicRef.current = selectedTopic;
+  }, [selectedTopic]);
+
   // Load generation options from authoritative taxonomy API
-    const loadTaxonomyOptions = useCallback(async (isRetry = false) => {
-      setLoadingTaxonomy(true);
-      setTaxonomyError(null);
-      setConfigError(null);
+  const loadTaxonomyOptions = useCallback(async (isRetry = false) => {
+    setLoadingTaxonomy(true);
+    setTaxonomyError(null);
+    setConfigError(null);
 
-      try {
-        const [pureTree, aiInfo] = await Promise.all([
-          taxonomyApi.getTree(),
-          questionsApi.getAiStatus().catch(() => ({ isConfigured: false, model: 'gemini-3.1-flash-lite' })),
-        ]);
+    try {
+      const [pureTree, aiInfo] = await Promise.all([
+        taxonomyApi.getTree(),
+        questionsApi.getAiStatus().catch(() => ({ isConfigured: false, model: 'gemini-3.1-flash-lite' })),
+      ]);
 
-        const topicsList = pureTree || [];
-        setTaxonomyTree(topicsList);
-        setAiStatus(aiInfo);
+      const topicsList = pureTree || [];
+      setTaxonomyTree(topicsList);
+      setAiStatus(aiInfo);
 
-        if (topicsList.length === 0) {
-          // Empty taxonomy state: no hardcoded defaults
-          setSelectedTopic('');
-          setSelectedSubtopic('');
-          setCandidate((prev) => ({ ...prev, topicId: '', subtopicId: '' }));
-          return;
-        }
+      if (topicsList.length === 0) {
+        // Empty taxonomy state: no hardcoded defaults
+        setSelectedTopic('');
+        setSelectedSubtopic('');
+        setCandidate((prev) => ({ ...prev, topicId: '', subtopicId: '' }));
+        return;
+      }
 
-        // If not reopening a draft, initialize from deep-link or first available topic
-        if (!queryDraftId) {
-          if (queryTopic) {
-            const matchedTopic = topicsList.find((t) => t.id === queryTopic);
-            if (matchedTopic) {
-              setSelectedTopic(matchedTopic.id);
-              setCandidate((prev) => ({ ...prev, topicId: matchedTopic.id }));
-              const subtopics = matchedTopic.subtopics || [];
-              const matchedSub = subtopics.find((s) => s.id === querySubtopic);
-              if (matchedSub) {
-                setSelectedSubtopic(matchedSub.id);
-                setCandidate((prev) => ({ ...prev, subtopicId: matchedSub.id }));
-              } else if (subtopics.length > 0) {
-                setSelectedSubtopic(subtopics[0].id);
-                setCandidate((prev) => ({ ...prev, subtopicId: subtopics[0].id }));
-              } else {
-                setSelectedSubtopic('');
-                setCandidate((prev) => ({ ...prev, subtopicId: '' }));
-              }
+      // If not reopening a draft, initialize from deep-link or first available topic
+      if (!queryDraftId) {
+        if (queryTopic) {
+          const matchedTopic = topicsList.find((t) => t.id === queryTopic);
+          if (matchedTopic) {
+            setSelectedTopic(matchedTopic.id);
+            setCandidate((prev) => ({ ...prev, topicId: matchedTopic.id }));
+            const subtopics = matchedTopic.subtopics || [];
+            const matchedSub = subtopics.find((s) => s.id === querySubtopic);
+            if (matchedSub) {
+              setSelectedSubtopic(matchedSub.id);
+              setCandidate((prev) => ({ ...prev, subtopicId: matchedSub.id }));
+            } else if (subtopics.length > 0) {
+              setSelectedSubtopic(subtopics[0].id);
+              setCandidate((prev) => ({ ...prev, subtopicId: subtopics[0].id }));
             } else {
-              // Invalid deep-link topic! Fall back to first valid persisted topic
-              const firstTopic = topicsList[0];
-              setSelectedTopic(firstTopic.id);
-              setCandidate((prev) => ({ ...prev, topicId: firstTopic.id }));
-              const firstSub = (firstTopic.subtopics || [])[0];
-              const subId = firstSub ? firstSub.id : '';
-              setSelectedSubtopic(subId);
-              setCandidate((prev) => ({ ...prev, subtopicId: subId }));
+              setSelectedSubtopic('');
+              setCandidate((prev) => ({ ...prev, subtopicId: '' }));
             }
-          } else if (!selectedTopic || isRetry) {
+          } else {
+            // Invalid deep-link topic! Fall back to first valid persisted topic
             const firstTopic = topicsList[0];
             setSelectedTopic(firstTopic.id);
             setCandidate((prev) => ({ ...prev, topicId: firstTopic.id }));
@@ -252,27 +323,36 @@ export function useQuestionGeneration() {
             setSelectedSubtopic(subId);
             setCandidate((prev) => ({ ...prev, subtopicId: subId }));
           }
+        } else if (!selectedTopicRef.current || isRetry) {
+          const firstTopic = topicsList[0];
+          setSelectedTopic(firstTopic.id);
+          setCandidate((prev) => ({ ...prev, topicId: firstTopic.id }));
+          const firstSub = (firstTopic.subtopics || [])[0];
+          const subId = firstSub ? firstSub.id : '';
+          setSelectedSubtopic(subId);
+          setCandidate((prev) => ({ ...prev, subtopicId: subId }));
         }
-      } catch (err) {
-        console.error('Failed to load Question Generation options:', err);
-        const msg = err?.message || 'Failed to load taxonomy tree';
-        setTaxonomyError(msg);
-        setConfigError(msg);
-        setTaxonomyTree([]);
-        setSelectedTopic('');
-        setSelectedSubtopic('');
-      } finally {
-        setLoadingTaxonomy(false);
       }
-    }, [queryDraftId, queryTopic, querySubtopic, selectedTopic]);
+    } catch (err: any) {
+      console.error('Failed to load Question Generation options:', err);
+      const msg = err?.message || 'Failed to load taxonomy tree';
+      setTaxonomyError(msg);
+      setConfigError(msg);
+      setTaxonomyTree([]);
+      setSelectedTopic('');
+      setSelectedSubtopic('');
+    } finally {
+      setLoadingTaxonomy(false);
+    }
+  }, [queryDraftId, queryTopic, querySubtopic]);
 
-    useEffect(() => {
-      loadTaxonomyOptions();
-    }, [loadTaxonomyOptions]);
+  useEffect(() => {
+    loadTaxonomyOptions();
+  }, [loadTaxonomyOptions]);
 
-    const retryLoadTaxonomy = useCallback(async () => {
-      await loadTaxonomyOptions(true);
-    }, [loadTaxonomyOptions]);
+  const retryLoadTaxonomy = useCallback(async () => {
+    await loadTaxonomyOptions(true);
+  }, [loadTaxonomyOptions]);
 
 
   // Reopen saved draft from deep link parameter
@@ -425,12 +505,16 @@ export function useQuestionGeneration() {
   // Synchronize active taxonomy selection with ProductionContext
   useEffect(() => {
     if (selectedTopic || selectedSubtopic) {
+      const top = taxonomyTree.find((t: any) => t.id === selectedTopic);
+      const sub = (top?.subtopics || []).find((s: any) => s.id === selectedSubtopic);
       prodContext?.setTaxonomy({
         topicId: selectedTopic,
+        topicName: top?.name || '',
         subtopicId: selectedSubtopic,
+        subtopicName: sub?.name || '',
       });
     }
-  }, [selectedTopic, selectedSubtopic, prodContext]);
+  }, [selectedTopic, selectedSubtopic, taxonomyTree, prodContext]);
 
   // Synchronize dirty state with ProductionContext
   useEffect(() => {
@@ -439,6 +523,8 @@ export function useQuestionGeneration() {
 
   // Unsaved-work protection: window beforeunload warning when form is dirty
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (isDirty) {
         e.preventDefault();
@@ -463,62 +549,49 @@ export function useQuestionGeneration() {
   }, [currentTopicData]);
 
   // Topic & Subtopic Cascading Handlers
-    const handleTopicChange = useCallback((topId: string) => {
-      setSelectedTopic(topId);
+  const handleTopicChange = useCallback((topId: string) => {
+    setSelectedTopic(topId);
 
-      const top = taxonomyTree.find((t) => t.id === topId);
-      const availableSubtopics = top?.subtopics || [];
+    const { nextSubtopicId, targetTopic, targetSubtopic } = resolveCascadingSubtopic(
+      topId,
+      selectedSubtopic,
+      taxonomyTree
+    );
 
-      // Revalidate whether current subtopic belongs to the new topic
-      let nextSubtopicId = '';
-      const currentSubBelongs = availableSubtopics.some((s) => s.id === selectedSubtopic);
+    setSelectedSubtopic(nextSubtopicId);
 
-      if (currentSubBelongs) {
-        nextSubtopicId = selectedSubtopic;
-      } else if (availableSubtopics.length > 0) {
-        // Replacement subtopic selected only if it belongs to the newly selected topic
-        nextSubtopicId = availableSubtopics[0].id;
-      } else {
-        nextSubtopicId = '';
-      }
+    // Update candidate state and invalidate stale validations
+    setCandidate((prev) => ({
+      ...prev,
+      topicId: topId,
+      subtopicId: nextSubtopicId,
+    }));
 
-      setSelectedSubtopic(nextSubtopicId);
+    setIsValidationStale(true);
+    setServerValidationResult(null);
 
-      // Update candidate state and invalidate stale server validations
-      setCandidate((prev) => ({
-        ...prev,
-        topicId: topId,
-        subtopicId: nextSubtopicId,
-      }));
+    // Synchronize with shared ProductionJourneyContext consistently
+    prodContext?.setTaxonomy({
+      topicId: topId,
+      topicName: targetTopic?.name || '',
+      subtopicId: nextSubtopicId,
+      subtopicName: targetSubtopic?.name || '',
+    });
+  }, [taxonomyTree, selectedSubtopic, prodContext]);
 
-      if (serverValidationResult) {
-        setIsValidationStale(true);
-      }
+  const handleSubtopicChange = useCallback((subId: string) => {
+    setSelectedSubtopic(subId);
+    setCandidate((prev) => ({ ...prev, subtopicId: subId }));
 
-      // Synchronize with shared ProductionJourneyContext consistently
-      const targetSubtopic = availableSubtopics.find((s) => s.id === nextSubtopicId);
-      prodContext?.setTaxonomy({
-        topicId: topId,
-        topicName: top?.name || '',
-        subtopicId: nextSubtopicId,
-        subtopicName: targetSubtopic?.name || '',
-      });
-    }, [taxonomyTree, selectedSubtopic, serverValidationResult, prodContext]);
+    setIsValidationStale(true);
+    setServerValidationResult(null);
 
-    const handleSubtopicChange = useCallback((subId: string) => {
-      setSelectedSubtopic(subId);
-      setCandidate((prev) => ({ ...prev, subtopicId: subId }));
-
-      if (serverValidationResult) {
-        setIsValidationStale(true);
-      }
-
-      const currentSubtopic = currentSubtopics.find((s) => s.id === subId);
-      prodContext?.setTaxonomy({
-        subtopicId: subId,
-        subtopicName: currentSubtopic?.name || '',
-      });
-    }, [currentSubtopics, serverValidationResult, prodContext]);
+    const currentSubtopic = currentSubtopics.find((s) => s.id === subId);
+    prodContext?.setTaxonomy({
+      subtopicId: subId,
+      subtopicName: currentSubtopic?.name || '',
+    });
+  }, [currentSubtopics, prodContext]);
 
 
   // Duplicate Check Debounced
@@ -649,46 +722,24 @@ export function useQuestionGeneration() {
 
   // 4. GENERATE CANDIDATE ACTION
   const handleGenerate = async () => {
-        setErrorMessage(null);
-        setSaveSuccessMessage(null);
-        setSubmitSuccessResult(null);
+    setErrorMessage(null);
+    setSaveSuccessMessage(null);
+    setSubmitSuccessResult(null);
 
-        // Guard: Prevent generation if taxonomy is not loaded, has errors, or lacks valid selection
-        if (loadingTaxonomy) {
-          setErrorMessage('Taxonomy is still loading. Please wait.');
-          return;
-        }
-        if (taxonomyError) {
-          setErrorMessage(`Cannot generate questions: ${taxonomyError}. Please retry loading taxonomy.`);
-          return;
-        }
-        if (taxonomyTree.length === 0) {
-          setErrorMessage('Cannot generate questions: No topics available in taxonomy.');
-          return;
-        }
-        if (!selectedTopic) {
-          setErrorMessage('Please select a valid Topic before generating a question.');
-          return;
-        }
-        if (!selectedSubtopic) {
-          setErrorMessage('Please select a valid Subtopic before generating a question.');
-          return;
-        }
+    // Guard: Prevent generation if taxonomy is not loaded, has errors, or lacks valid selection
+    const validation = validateGenerationTaxonomy(
+      selectedTopic,
+      selectedSubtopic,
+      taxonomyTree,
+      loadingTaxonomy,
+      taxonomyError
+    );
+    if (!validation.canGenerate) {
+      setErrorMessage(validation.error || 'Invalid taxonomy configuration');
+      return;
+    }
 
-        const matchedTop = taxonomyTree.find((t) => t.id === selectedTopic);
-        if (!matchedTop) {
-          setErrorMessage(`Selected topic "${selectedTopic}" does not exist in authoritative taxonomy.`);
-          return;
-        }
-        if (selectedSubtopic !== 'RANDOM') {
-          const matchedSub = (matchedTop.subtopics || []).find((s) => s.id === selectedSubtopic);
-          if (!matchedSub) {
-            setErrorMessage(`Selected subtopic "${selectedSubtopic}" does not belong to topic "${matchedTop.name}".`);
-            return;
-          }
-        }
-
-        setIsGenerating(true);
+    setIsGenerating(true);
     setServerValidationResult(null);
     setIsValidationStale(false);
 

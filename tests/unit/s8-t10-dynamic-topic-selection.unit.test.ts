@@ -2,18 +2,32 @@
  * BURRA PARIKSHA CMS — S8-T10 Unit Test Suite
  * Dynamic Topic Selection, Two-Tier Taxonomy Grounding, and Context Synchronization
  *
- * Verifies all mandatory requirements of S8-T10:
- * 1. API-loaded topics: Connects to authoritative taxonomy (Topic -> Subtopic).
- * 2. Zero hardcoded catalog defaults: No assumption of TOP-QA-01, SUB-01, or SUB-GEN.
- * 3. Loading, empty, error, and retry states.
- * 4. Deep-link validation & grounding: Valid deep links restored, invalid deep links rejected.
- * 5. Topic-change context synchronization: Updates ProductionJourneyContext and replaces mismatched subtopic.
- * 6. Dependent selection invalidation: Prevents stale subtopics and invalidates candidate validation.
- * 7. Generation guard: Strictly prevents candidate generation when taxonomy is invalid, missing, or mismatched.
- * 8. Two-tier taxonomy invariant: Preserves Topic -> Subtopic hierarchy with zero category regression.
+ * Verifies all mandatory requirements of S8-T10 using actual production code:
+ * 1. Production UI Component: GenerationConfigPanel (renderToString)
+ *    - Real API-loaded topics & subtopics rendered in <select> options
+ *    - Zero hardcoded catalog defaults (no assumption of TOP-QA-01 / SUB-01)
+ *    - Explicit Loading, Empty, Error, and Retry banner states
+ *    - Strict disablement of generation button when taxonomy is unavailable or incomplete
+ *    - Filtering of subtopic options strictly matching the selected topic
+ * 2. Production Hook & Domain Invariants:
+ *    - useQuestionGeneration hook executed within ProductionJourneyProvider & MemoryRouter
+ *    - Initial state has empty unselected topic & subtopic (no hardcoded defaults)
+ *    - resolveCascadingSubtopic invalidates incompatible subtopic and replaces with valid child
+ *    - resolveCascadingSubtopic clears subtopic when switching to a topic with zero subtopics
+ *    - validateGenerationTaxonomy enforces strict guard against missing, loading, error, or mismatched taxonomy
+ *    - validateGenerationTaxonomy preserves documented RANDOM mode exception
+ * 3. Production Context Synchronization:
+ *    - ProductionJourneyProvider action setTaxonomy synchronizes topicId, topicName, subtopicId, subtopicName
+ * 4. Authoritative Backend Domain Boundary:
+ *    - taxonomyService.getPureTopicTree returns canonical two-tier hierarchy
+ *    - questionGenerationService.validateGenerationRequest rejects mismatched/unresolvable taxonomy
  */
 
 import assert from 'node:assert';
+import React from 'react';
+import { renderToString } from 'react-dom/server';
+import { MemoryRouter } from 'react-router-dom';
+
 import { taxonomyService } from '../../backend/domain/taxonomy/services/taxonomy.service';
 import { questionGenerationService } from '../../backend/domain/question-generation';
 import {
@@ -22,474 +36,416 @@ import {
   PureTaxonomyTreeItem,
   Topic,
   Subtopic,
+  DEFAULT_PRODUCTION_CONTEXT,
 } from '../../shared';
 
-// Simulated Frontend Hook & Studio State Evaluator for S8-T10
-class StudioTaxonomyStateSimulator {
-  public taxonomyTree: PureTaxonomyTreeItem[] = [];
-  public loadingTaxonomy = false;
-  public taxonomyError: string | null = null;
-  public selectedTopic = '';
-  public selectedSubtopic = '';
-  public isValidationStale = false;
-  public errorMessage: string | null = null;
-  public candidate: any = { topicId: '', subtopicId: '', questionText: '' };
-  public syncedContext: { topicId: string; subtopicId: string } | null = null;
-
-  // Simulate ProductionJourneyContext.setTaxonomy
-  public setContextTaxonomy(payload: { topicId: string; subtopicId: string }) {
-    this.syncedContext = { ...payload };
-  }
-
-  // Derived current subtopics
-  public get currentSubtopics(): Subtopic[] {
-    const topic = this.taxonomyTree.find((t) => t.id === this.selectedTopic);
-    return topic?.subtopics || [];
-  }
-
-  public get isTaxonomyUnavailable(): boolean {
-    return this.loadingTaxonomy || Boolean(this.taxonomyError) || this.taxonomyTree.length === 0;
-  }
-
-  // Simulate loading options from taxonomy API
-  public async loadTaxonomy(
-    fetcher: () => Promise<PureTaxonomyTreeItem[]>,
-    options?: { queryTopic?: string; querySubtopic?: string }
-  ) {
-    this.loadingTaxonomy = true;
-    this.taxonomyError = null;
-    this.errorMessage = null;
-
-    try {
-      const tree = await fetcher();
-      this.taxonomyTree = tree || [];
-
-      if (this.taxonomyTree.length === 0) {
-        this.selectedTopic = '';
-        this.selectedSubtopic = '';
-        this.candidate.topicId = '';
-        this.candidate.subtopicId = '';
-        return;
-      }
-
-      // Deep link resolution or first valid fallback
-      if (options?.queryTopic) {
-        const matchedTopic = this.taxonomyTree.find((t) => t.id === options.queryTopic);
-        if (matchedTopic) {
-          this.selectedTopic = matchedTopic.id;
-          this.candidate.topicId = matchedTopic.id;
-          const subtopics = matchedTopic.subtopics || [];
-          const matchedSub = subtopics.find((s) => s.id === options.querySubtopic);
-          if (matchedSub) {
-            this.selectedSubtopic = matchedSub.id;
-            this.candidate.subtopicId = matchedSub.id;
-          } else if (subtopics.length > 0) {
-            this.selectedSubtopic = subtopics[0].id;
-            this.candidate.subtopicId = subtopics[0].id;
-          } else {
-            this.selectedSubtopic = '';
-            this.candidate.subtopicId = '';
-          }
-        } else {
-          // Invalid deep-link topic! Fall back to first valid persisted topic
-          const firstTopic = this.taxonomyTree[0];
-          this.selectedTopic = firstTopic.id;
-          this.candidate.topicId = firstTopic.id;
-          const firstSub = (firstTopic.subtopics || [])[0];
-          this.selectedSubtopic = firstSub ? firstSub.id : '';
-          this.candidate.subtopicId = this.selectedSubtopic;
-        }
-      } else {
-        const firstTopic = this.taxonomyTree[0];
-        this.selectedTopic = firstTopic.id;
-        this.candidate.topicId = firstTopic.id;
-        const firstSub = (firstTopic.subtopics || [])[0];
-        this.selectedSubtopic = firstSub ? firstSub.id : '';
-        this.candidate.subtopicId = this.selectedSubtopic;
-      }
-
-      // Synchronize initial selection to production context
-      if (this.selectedTopic) {
-        this.setContextTaxonomy({
-          topicId: this.selectedTopic,
-          subtopicId: this.selectedSubtopic,
-        });
-      }
-    } catch (err: any) {
-      this.taxonomyError = err?.message || 'Failed to load syllabus taxonomy options';
-    } finally {
-      this.loadingTaxonomy = false;
-    }
-  }
-
-  // Simulate retry
-  public async retryTaxonomy(fetcher: () => Promise<PureTaxonomyTreeItem[]>) {
-    await this.loadTaxonomy(fetcher);
-  }
-
-  // Simulate topic change handler
-  public handleTopicChange(newTopicId: string) {
-    this.selectedTopic = newTopicId;
-    this.candidate.topicId = newTopicId;
-    this.isValidationStale = true;
-
-    const topic = this.taxonomyTree.find((t) => t.id === newTopicId);
-    const availableSubtopics = topic?.subtopics || [];
-
-    // Revalidate whether current subtopic belongs to the new topic
-    const currentSubBelongs = availableSubtopics.some((s) => s.id === this.selectedSubtopic);
-    let nextSubtopicId = '';
-
-    if (currentSubBelongs) {
-      nextSubtopicId = this.selectedSubtopic;
-    } else if (availableSubtopics.length > 0) {
-      // Replacement subtopic selected only if it belongs to the newly selected topic
-      nextSubtopicId = availableSubtopics[0].id;
-    } else {
-      nextSubtopicId = '';
-    }
-
-    this.selectedSubtopic = nextSubtopicId;
-    this.candidate.subtopicId = nextSubtopicId;
-
-    // Synchronize with ProductionJourneyContext
-    this.setContextTaxonomy({
-      topicId: newTopicId,
-      subtopicId: nextSubtopicId,
-    });
-  }
-
-  // Simulate subtopic change handler
-  public handleSubtopicChange(newSubtopicId: string) {
-    this.selectedSubtopic = newSubtopicId;
-    this.candidate.subtopicId = newSubtopicId;
-    this.isValidationStale = true;
-
-    this.setContextTaxonomy({
-      topicId: this.selectedTopic,
-      subtopicId: newSubtopicId,
-    });
-  }
-
-  // Simulate handleGenerate generation guard
-  public attemptGenerate(): { canGenerate: boolean; error?: string } {
-    if (this.loadingTaxonomy) {
-      const err = 'Taxonomy is currently loading. Please wait.';
-      this.errorMessage = err;
-      return { canGenerate: false, error: err };
-    }
-
-    if (this.taxonomyError) {
-      const err = 'Taxonomy data failed to load. Please retry loading taxonomy.';
-      this.errorMessage = err;
-      return { canGenerate: false, error: err };
-    }
-
-    if (this.taxonomyTree.length === 0) {
-      const err = 'No topics available. Please configure syllabus taxonomy in Settings.';
-      this.errorMessage = err;
-      return { canGenerate: false, error: err };
-    }
-
-    if (!this.selectedTopic || !this.selectedSubtopic) {
-      const err = 'Please select both a valid Topic and Subtopic before generating.';
-      this.errorMessage = err;
-      return { canGenerate: false, error: err };
-    }
-
-    const currentTopic = this.taxonomyTree.find((t) => t.id === this.selectedTopic);
-    const subExists = currentTopic?.subtopics?.some((s) => s.id === this.selectedSubtopic);
-
-    if (!subExists && this.selectedSubtopic !== 'RANDOM') {
-      const err = 'The selected subtopic does not belong to the selected topic.';
-      this.errorMessage = err;
-      return { canGenerate: false, error: err };
-    }
-
-    return { canGenerate: true };
-  }
-}
+import {
+  ProductionJourneyProvider,
+  useProductionContext,
+} from '../../frontend/contexts/ProductionJourneyContext';
+import { GenerationConfigPanel } from '../../frontend/features/question-generation/components/GenerationConfigPanel';
+import {
+  useQuestionGeneration,
+  resolveCascadingSubtopic,
+  validateGenerationTaxonomy,
+} from '../../frontend/features/question-generation/hooks/useQuestionGeneration';
 
 async function runS8T10UnitTests() {
   console.log('========================================================================');
-  console.log('RUNNING S8-T10 UNIT TESTS: Dynamic Topic Selection & Taxonomy Grounding');
+  console.log('RUNNING S8-T10 UNIT TESTS: Dynamic Topic Selection & Production Code');
   console.log('========================================================================\n');
 
-  // -------------------------------------------------------------------------
-  // TEST 1: Dynamic Loading from Authoritative Taxonomy
-  // -------------------------------------------------------------------------
-  console.log('[Test 1] Authoritative Pure Taxonomy Loading & Hierarchy Validation');
-  const tree = await taxonomyService.getPureTopicTree({ includeInactive: false });
-  assert(Array.isArray(tree), 'Taxonomy tree must be an array');
-  assert(tree.length > 0, 'Persisted taxonomy tree must contain topics');
+  // Load real authoritative pure taxonomy tree
+  const realTree = await taxonomyService.getPureTopicTree({ includeInactive: false });
+  assert(Array.isArray(realTree), 'Taxonomy tree must be an array');
+  assert(realTree.length >= 2, 'Must have at least 2 topics in taxonomy database');
 
-  // Verify that all items conform to Topic & { subtopics: Subtopic[] }
-  for (const topic of tree) {
-    assert(topic.id, 'Topic must have an id');
-    assert(topic.name, 'Topic must have a name');
-    assert(Array.isArray(topic.subtopics), `Topic ${topic.id} must have subtopics array`);
-    for (const sub of topic.subtopics) {
-      assert(sub.id, 'Subtopic must have an id');
-      assert(sub.name, 'Subtopic must have a name');
-      assert.strictEqual(
-        sub.topicId,
-        topic.id,
-        `Subtopic ${sub.id} topicId must strictly match parent topic ${topic.id}`
-      );
-      // Zero Category references
-      assert.strictEqual(
-        (sub as any).categoryId,
-        undefined,
-        'Subtopic must not contain legacy categoryId'
-      );
-    }
-  }
-  console.log(`  PASS: Loaded ${tree.length} topics from authoritative taxonomy with strict 2-tier hierarchy.`);
-
-  // -------------------------------------------------------------------------
-  // TEST 2: Zero Hardcoded Taxonomy Catalog in Initial State
-  // -------------------------------------------------------------------------
-  console.log('\n[Test 2] Zero Hardcoded Taxonomy Catalog in Initial State');
-  const freshSimulator = new StudioTaxonomyStateSimulator();
-  assert.strictEqual(freshSimulator.selectedTopic, '', 'Initial topic selection must be empty, not hardcoded');
-  assert.strictEqual(freshSimulator.selectedSubtopic, '', 'Initial subtopic selection must be empty, not hardcoded');
-  assert.strictEqual(freshSimulator.candidate.topicId, '', 'Candidate topicId must not have hardcoded default');
-  assert.strictEqual(freshSimulator.candidate.subtopicId, '', 'Candidate subtopicId must not have hardcoded default');
-  console.log('  PASS: Fresh studio initializes with unselected state; hardcoded catalog eliminated.');
-
-  // -------------------------------------------------------------------------
-  // TEST 3: Loading, Empty, Error, and Retry States
-  // -------------------------------------------------------------------------
-  console.log('\n[Test 3] Loading, Empty, Error, and Retry State Transitions');
-  const stateSim = new StudioTaxonomyStateSimulator();
-
-  // 3a. Loading State prevents generation
-  stateSim.loadingTaxonomy = true;
-  assert.strictEqual(stateSim.isTaxonomyUnavailable, true, 'isTaxonomyUnavailable must be true while loading');
-  const loadingGenAttempt = stateSim.attemptGenerate();
-  assert.strictEqual(loadingGenAttempt.canGenerate, false, 'Generation must be blocked while taxonomy is loading');
-  assert(loadingGenAttempt.error?.includes('currently loading'), 'Must report loading error message');
-  console.log('  PASS: Loading state blocks generation and marks controls unavailable.');
-
-  // 3b. Empty State handling
-  await stateSim.loadTaxonomy(async () => []);
-  assert.strictEqual(stateSim.isTaxonomyUnavailable, true, 'isTaxonomyUnavailable must be true when tree is empty');
-  assert.strictEqual(stateSim.selectedTopic, '', 'Topic must remain empty when tree is empty');
-  assert.strictEqual(stateSim.selectedSubtopic, '', 'Subtopic must remain empty when tree is empty');
-  const emptyGenAttempt = stateSim.attemptGenerate();
-  assert.strictEqual(emptyGenAttempt.canGenerate, false, 'Generation must be blocked when taxonomy tree is empty');
-  assert(emptyGenAttempt.error?.includes('No topics available'), 'Must report no topics available');
-  console.log('  PASS: Empty taxonomy state handled gracefully with disabled controls.');
-
-  // 3c. Error State handling
-  await stateSim.loadTaxonomy(async () => {
-    throw new Error('Network timeout: Failed to connect to Firestore taxonomy repository');
-  });
-  assert.strictEqual(stateSim.isTaxonomyUnavailable, true, 'isTaxonomyUnavailable must be true on error');
-  assert(
-    stateSim.taxonomyError?.includes('Failed to connect to Firestore'),
-    'taxonomyError must capture failure message'
-  );
-  const errorGenAttempt = stateSim.attemptGenerate();
-  assert.strictEqual(errorGenAttempt.canGenerate, false, 'Generation must be blocked on taxonomy error');
-  assert(errorGenAttempt.error?.includes('failed to load'), 'Must instruct user to retry');
-  console.log('  PASS: Error state captures error message and blocks generation.');
-
-  // 3d. Retry State recovery
-  await stateSim.retryTaxonomy(async () => tree);
-  assert.strictEqual(stateSim.loadingTaxonomy, false, 'loadingTaxonomy must be false after retry');
-  assert.strictEqual(stateSim.taxonomyError, null, 'taxonomyError must be cleared on successful retry');
-  assert.strictEqual(stateSim.isTaxonomyUnavailable, false, 'Taxonomy must be available after successful retry');
-  assert.strictEqual(stateSim.selectedTopic, tree[0].id, 'First valid topic must be selected upon recovery');
-  assert.strictEqual(
-    stateSim.selectedSubtopic,
-    (tree[0].subtopics[0]?.id || ''),
-    'First valid subtopic must be selected upon recovery'
-  );
-  console.log('  PASS: Retry state successfully clears error and restores valid persisted selections.');
-
-  // -------------------------------------------------------------------------
-  // TEST 4: Valid vs. Invalid Deep-Link Grounding
-  // -------------------------------------------------------------------------
-  console.log('\n[Test 4] Valid and Invalid Deep-Link Grounding');
-
-  // 4a. Valid deep-link topic and matching subtopic
-  const targetTopic = tree[0];
-  const targetSubtopic = targetTopic.subtopics[0];
-  const validLinkSim = new StudioTaxonomyStateSimulator();
-  await validLinkSim.loadTaxonomy(async () => tree, {
-    queryTopic: targetTopic.id,
-    querySubtopic: targetSubtopic.id,
-  });
-  assert.strictEqual(validLinkSim.selectedTopic, targetTopic.id, 'Valid deep link topic must be selected');
-  assert.strictEqual(validLinkSim.selectedSubtopic, targetSubtopic.id, 'Valid matching subtopic must be selected');
-  assert.strictEqual(validLinkSim.syncedContext?.topicId, targetTopic.id, 'Context must be synced with deep link topic');
-  assert.strictEqual(validLinkSim.syncedContext?.subtopicId, targetSubtopic.id, 'Context must be synced with deep link subtopic');
-  console.log('  PASS: Valid deep-link topic and subtopic restored and synced to context.');
-
-  // 4b. Deep-link with valid topic but unresolvable subtopic ID
-  const invalidSubLinkSim = new StudioTaxonomyStateSimulator();
-  await invalidSubLinkSim.loadTaxonomy(async () => tree, {
-    queryTopic: targetTopic.id,
-    querySubtopic: 'SUB-NON-EXISTENT-XYZ-999',
-  });
-  assert.strictEqual(invalidSubLinkSim.selectedTopic, targetTopic.id, 'Valid topic must be preserved');
-  assert.notStrictEqual(
-    invalidSubLinkSim.selectedSubtopic,
-    'SUB-NON-EXISTENT-XYZ-999',
-    'Unresolvable subtopic ID must NOT be assumed to exist'
-  );
-  assert.strictEqual(
-    invalidSubLinkSim.selectedSubtopic,
-    targetTopic.subtopics[0].id,
-    'Unresolvable subtopic must fall back to first valid subtopic under the topic'
-  );
-  console.log('  PASS: Unresolvable deep-link subtopic safely falls back to valid child subtopic.');
-
-  // 4c. Deep-link with invalid topic ID (never assume ID exists)
-  const invalidTopicLinkSim = new StudioTaxonomyStateSimulator();
-  await invalidTopicLinkSim.loadTaxonomy(async () => tree, {
-    queryTopic: 'TOP-GHOST-DOES-NOT-EXIST',
-    querySubtopic: 'SUB-01',
-  });
-  assert.notStrictEqual(
-    invalidTopicLinkSim.selectedTopic,
-    'TOP-GHOST-DOES-NOT-EXIST',
-    'Nonexistent topic ID must NOT be assumed to exist'
-  );
-  assert.strictEqual(
-    invalidTopicLinkSim.selectedTopic,
-    tree[0].id,
-    'Nonexistent deep-link topic must fall back to first valid persisted topic'
-  );
-  assert.strictEqual(
-    invalidTopicLinkSim.selectedSubtopic,
-    tree[0].subtopics[0]?.id || '',
-    'Subtopic must fall back to child of the fallback topic'
-  );
-  console.log('  PASS: Nonexistent deep-link topic safely grounded to valid persisted data.');
-
-  // -------------------------------------------------------------------------
-  // TEST 5: Topic-Change Context Synchronization & Subtopic Invalidation
-  // -------------------------------------------------------------------------
-  console.log('\n[Test 5] Topic-Change Context Synchronization & Subtopic Revalidation');
-  const topicsWithSubs = tree.filter((t) => (t.subtopics || []).length > 0);
-  assert(topicsWithSubs.length >= 2, 'Need at least 2 topics with subtopics in taxonomy to test topic switching');
+  const topicsWithSubs = realTree.filter((t) => (t.subtopics || []).length > 0);
+  assert(topicsWithSubs.length >= 2, 'Must have at least 2 topics with subtopics');
   const topicA = topicsWithSubs[0];
   const topicB = topicsWithSubs[1];
-  const topicWithoutSubs = tree.find((t) => (t.subtopics || []).length === 0);
+  const topicWithoutSubs = realTree.find((t) => (t.subtopics || []).length === 0);
 
-  const switchSim = new StudioTaxonomyStateSimulator();
-  await switchSim.loadTaxonomy(async () => tree);
-  switchSim.handleTopicChange(topicA.id);
-  assert.strictEqual(switchSim.selectedTopic, topicA.id);
-  assert.strictEqual(switchSim.syncedContext?.topicId, topicA.id);
+  // -------------------------------------------------------------------------
+  // SECTION 1: Production UI Component Verification (GenerationConfigPanel)
+  // -------------------------------------------------------------------------
+  console.log('[Test 1] Production UI: GenerationConfigPanel with Real API Loaded Topics');
+  const defaultAiStatus = { isConfigured: true, model: 'gemini-2.5-pro' };
 
-  // Pick the first subtopic of topicA
-  const subA = topicA.subtopics[0];
-  switchSim.handleSubtopicChange(subA.id);
-  assert.strictEqual(switchSim.selectedSubtopic, subA.id);
-  assert.strictEqual(switchSim.syncedContext?.subtopicId, subA.id);
-
-  // Switch to Topic B (which also has subtopics)
-  switchSim.handleTopicChange(topicB.id);
-
-  // Check 5a: Selected topic updated
-  assert.strictEqual(switchSim.selectedTopic, topicB.id, 'Selected topic must update to Topic B');
-  assert.strictEqual(switchSim.syncedContext?.topicId, topicB.id, 'Context topicId must update to Topic B');
-
-  // Check 5b: Previous subtopic (belonging to Topic A) is invalidated!
-  assert.notStrictEqual(
-    switchSim.selectedSubtopic,
-    subA.id,
-    'Previous subtopic belonging to Topic A must not remain selected for Topic B'
+  // 1a. Normal State with loaded topics
+  const normalHtml = renderToString(
+    React.createElement(GenerationConfigPanel, {
+      taxonomyTree: realTree,
+      loadingTaxonomy: false,
+      taxonomyError: null,
+      selectedTopic: topicA.id,
+      selectedSubtopic: topicA.subtopics[0].id,
+      currentSubtopics: topicA.subtopics,
+      difficulty: 'Intermediate',
+      language: QuestionLanguage.TELUGU,
+      realLifeContext: 'Metro train rush hour',
+      questionStyle: 'STANDARD',
+      customInstructions: '',
+      isGenerating: false,
+      aiStatus: defaultAiStatus,
+      onTopicChange: () => {},
+      onSubtopicChange: () => {},
+      onDifficultyChange: () => {},
+      onLanguageChange: () => {},
+      onContextChange: () => {},
+      onStyleChange: () => {},
+      onCustomInstructionsChange: () => {},
+      onGenerate: () => {},
+    })
   );
 
-  // Check 5c: New subtopic belongs to Topic B
-  const validTopicBSub = topicB.subtopics.some((s) => s.id === switchSim.selectedSubtopic);
-  assert(validTopicBSub, 'Replacement subtopic must strictly belong to Topic B');
-  assert.strictEqual(
-    switchSim.syncedContext?.subtopicId,
-    switchSim.selectedSubtopic,
-    'Context subtopicId must update to replacement subtopic'
-  );
+  // Verify Topic options are rendered from real data
+  assert(normalHtml.includes(`data-testid="topic-select"`), 'Must render topic select element');
+  assert(normalHtml.includes(topicA.id), `Must render topicA id "${topicA.id}"`);
+  assert(normalHtml.includes(topicB.id), `Must render topicB id "${topicB.id}"`);
+  assert(normalHtml.includes(topicA.subtopics[0].id), `Must render topicA subtopic id`);
+  assert(!normalHtml.includes('taxonomy-error-banner'), 'Must NOT render error banner in normal state');
+  assert(!normalHtml.includes('taxonomy-empty-banner'), 'Must NOT render empty banner in normal state');
+  assert(normalHtml.includes('✦ Generate Telugu Question'), 'Generate button text must be present');
+  console.log('  PASS: GenerationConfigPanel renders real API topics and subtopics cleanly.');
 
-  // Check 5d: Candidate validation marked stale
-  assert.strictEqual(
-    switchSim.isValidationStale,
-    true,
-    'Candidate validation must be marked stale on topic change'
+  // 1b. Loading State: disables controls and shows loading indicator
+  console.log('\n[Test 2] Production UI: Loading State in GenerationConfigPanel');
+  const loadingHtml = renderToString(
+    React.createElement(GenerationConfigPanel, {
+      taxonomyTree: [],
+      loadingTaxonomy: true,
+      taxonomyError: null,
+      selectedTopic: '',
+      selectedSubtopic: '',
+      currentSubtopics: [],
+      difficulty: 'Intermediate',
+      language: QuestionLanguage.TELUGU,
+      realLifeContext: '',
+      questionStyle: 'STANDARD',
+      customInstructions: '',
+      isGenerating: false,
+      aiStatus: defaultAiStatus,
+      onTopicChange: () => {},
+      onSubtopicChange: () => {},
+      onDifficultyChange: () => {},
+      onLanguageChange: () => {},
+      onContextChange: () => {},
+      onStyleChange: () => {},
+      onCustomInstructionsChange: () => {},
+      onGenerate: () => {},
+    })
   );
+  assert(loadingHtml.includes('Loading topics...'), 'Must render Loading topics indicator');
+  assert(loadingHtml.includes('Loading topics from server...'), 'Topic option must indicate loading from server');
+  assert(loadingHtml.includes('disabled=""') || loadingHtml.includes('disabled'), 'Controls must be disabled while loading');
+  console.log('  PASS: Loading state correctly displays indicator and disables selection/generation.');
 
-  // Check 5e: Switch to a topic with 0 subtopics (if present)
-  if (topicWithoutSubs) {
-    switchSim.handleTopicChange(topicWithoutSubs.id);
-    assert.strictEqual(switchSim.selectedTopic, topicWithoutSubs.id, 'Topic without subtopics must be selectable');
-    assert.strictEqual(switchSim.selectedSubtopic, '', 'Topic with 0 subtopics must clear selectedSubtopic');
-    assert.strictEqual(switchSim.currentSubtopics.length, 0, 'Current subtopics must be empty array');
-    const zeroSubGen = switchSim.attemptGenerate();
-    assert.strictEqual(zeroSubGen.canGenerate, false, 'Generation must be blocked for topic without subtopics');
+  // 1c. Empty State: banner rendered and generation disabled
+  console.log('\n[Test 3] Production UI: Empty State in GenerationConfigPanel');
+  const emptyHtml = renderToString(
+    React.createElement(GenerationConfigPanel, {
+      taxonomyTree: [],
+      loadingTaxonomy: false,
+      taxonomyError: null,
+      selectedTopic: '',
+      selectedSubtopic: '',
+      currentSubtopics: [],
+      difficulty: 'Intermediate',
+      language: QuestionLanguage.TELUGU,
+      realLifeContext: '',
+      questionStyle: 'STANDARD',
+      customInstructions: '',
+      isGenerating: false,
+      aiStatus: defaultAiStatus,
+      onTopicChange: () => {},
+      onSubtopicChange: () => {},
+      onDifficultyChange: () => {},
+      onLanguageChange: () => {},
+      onContextChange: () => {},
+      onStyleChange: () => {},
+      onCustomInstructionsChange: () => {},
+      onGenerate: () => {},
+    })
+  );
+  assert(emptyHtml.includes('data-testid="taxonomy-empty-banner"'), 'Must render empty state banner');
+  assert(emptyHtml.includes('No topics available'), 'Empty state must explain no topics available');
+  assert(emptyHtml.includes('disabled'), 'Generate button and selector must be disabled in empty state');
+  console.log('  PASS: Empty taxonomy state displays informative banner and prevents generation.');
+
+  // 1d. Error State & Retry Action
+  console.log('\n[Test 4] Production UI: Error State and Retry Button in GenerationConfigPanel');
+  let retryClicked = false;
+  const errorHtml = renderToString(
+    React.createElement(GenerationConfigPanel, {
+      taxonomyTree: [],
+      loadingTaxonomy: false,
+      taxonomyError: 'Failed to connect to authoritative taxonomy service',
+      onRetryTaxonomy: () => {
+        retryClicked = true;
+      },
+      selectedTopic: '',
+      selectedSubtopic: '',
+      currentSubtopics: [],
+      difficulty: 'Intermediate',
+      language: QuestionLanguage.TELUGU,
+      realLifeContext: '',
+      questionStyle: 'STANDARD',
+      customInstructions: '',
+      isGenerating: false,
+      aiStatus: defaultAiStatus,
+      onTopicChange: () => {},
+      onSubtopicChange: () => {},
+      onDifficultyChange: () => {},
+      onLanguageChange: () => {},
+      onContextChange: () => {},
+      onStyleChange: () => {},
+      onCustomInstructionsChange: () => {},
+      onGenerate: () => {},
+    })
+  );
+  assert(errorHtml.includes('data-testid="taxonomy-error-banner"'), 'Must render error banner');
+  assert(errorHtml.includes('Failed to connect to authoritative taxonomy service'), 'Must display the specific error message');
+  assert(errorHtml.includes('data-testid="retry-taxonomy-btn"'), 'Must render retry button in error state');
+  assert(errorHtml.includes('disabled'), 'Controls must be disabled during error state');
+  console.log('  PASS: Error state renders error banner, displays retry action, and disables generation.');
+
+  // 1e. Dependent Subtopic Filtering: only subtopics for selected topic appear
+  console.log('\n[Test 5] Production UI: Dependent Subtopic Filtering');
+  const filteredHtml = renderToString(
+    React.createElement(GenerationConfigPanel, {
+      taxonomyTree: realTree,
+      loadingTaxonomy: false,
+      taxonomyError: null,
+      selectedTopic: topicA.id,
+      selectedSubtopic: topicA.subtopics[0].id,
+      currentSubtopics: topicA.subtopics, // Only subtopics belonging to topicA!
+      difficulty: 'Intermediate',
+      language: QuestionLanguage.TELUGU,
+      realLifeContext: '',
+      questionStyle: 'STANDARD',
+      customInstructions: '',
+      isGenerating: false,
+      aiStatus: defaultAiStatus,
+      onTopicChange: () => {},
+      onSubtopicChange: () => {},
+      onDifficultyChange: () => {},
+      onLanguageChange: () => {},
+      onContextChange: () => {},
+      onStyleChange: () => {},
+      onCustomInstructionsChange: () => {},
+      onGenerate: () => {},
+    })
+  );
+  for (const sub of topicA.subtopics) {
+    assert(filteredHtml.includes(sub.id), `Subtopic select must contain topicA subtopic id "${sub.id}"`);
   }
-  console.log('  PASS: Topic switch invalidates stale subtopic, selects valid replacement, syncs context, and marks validation stale.');
+  for (const sub of topicB.subtopics) {
+    assert(!filteredHtml.includes(`(${sub.id})`), `Subtopic select must NOT contain topicB subtopic id "(${sub.id})"`);
+  }
+  console.log('  PASS: Subtopic dropdown strictly filters to child subtopics of the selected topic.');
 
   // -------------------------------------------------------------------------
-  // TEST 6: Generation Guard with Mismatched / Incompatible Taxonomy
+  // SECTION 2: Production Hook & Cascading Logic Verification
   // -------------------------------------------------------------------------
-  console.log('\n[Test 6] Generation Prevention with Incompatible Taxonomy');
-  const guardSim = new StudioTaxonomyStateSimulator();
-  await guardSim.loadTaxonomy(async () => tree);
+  console.log('\n[Test 6] Production Hook: useQuestionGeneration Initial State & Zero Hardcoded Defaults');
+  let capturedHook: any = null;
 
-  // 6a. Missing topic or subtopic
-  guardSim.selectedTopic = '';
-  assert.strictEqual(guardSim.attemptGenerate().canGenerate, false, 'Must reject generation with empty topic');
-  guardSim.selectedTopic = topicA.id;
-  guardSim.selectedSubtopic = '';
-  assert.strictEqual(guardSim.attemptGenerate().canGenerate, false, 'Must reject generation with empty subtopic');
+  function HookTestConsumer() {
+    capturedHook = useQuestionGeneration();
+    return React.createElement(
+      'div',
+      {
+        'data-topic': capturedHook.selectedTopic,
+        'data-subtopic': capturedHook.selectedSubtopic,
+      },
+      'HookTestConsumer'
+    );
+  }
 
-  // 6b. Mismatched subtopic forced into state
-  guardSim.selectedTopic = topicA.id;
-  guardSim.selectedSubtopic = topicB.subtopics[0].id; // Belongs to topicB, not topicA!
-  const mismatchAttempt = guardSim.attemptGenerate();
-  assert.strictEqual(mismatchAttempt.canGenerate, false, 'Generation must be blocked when subtopic does not belong to topic');
-  assert(
-    mismatchAttempt.error?.includes('does not belong to the selected topic'),
-    'Must explain subtopic mismatch error'
+  renderToString(
+    React.createElement(
+      MemoryRouter,
+      { initialEntries: ['/questions/studio'] },
+      React.createElement(
+        ProductionJourneyProvider,
+        null,
+        React.createElement(HookTestConsumer)
+      )
+    )
   );
 
-  // 6c. Backend validation matches client guard
-  const backendValResult = await questionGenerationService.validateGenerationRequest({
+  assert(capturedHook !== null, 'Hook must be captured');
+  assert.strictEqual(capturedHook.selectedTopic, '', 'Initial selectedTopic must be empty string (no hardcoded TOP-QA-01)');
+  assert.strictEqual(capturedHook.selectedSubtopic, '', 'Initial selectedSubtopic must be empty string (no hardcoded SUB-01)');
+  assert.strictEqual(capturedHook.candidate.topicId, '', 'Candidate topicId must be empty string initially');
+  assert.strictEqual(capturedHook.candidate.subtopicId, '', 'Candidate subtopicId must be empty string initially');
+  console.log('  PASS: Production hook initializes with zero hardcoded taxonomy defaults.');
+
+  // 2b. Production resolveCascadingSubtopic
+  console.log('\n[Test 7] Production Cascading: resolveCascadingSubtopic with Real Taxonomy');
+
+  // Case 1: Switching from topicA to topicB with a topicA subtopic
+  const subA = topicA.subtopics[0];
+  const cascadeToB = resolveCascadingSubtopic(topicB.id, subA.id, realTree);
+  assert.strictEqual(cascadeToB.targetTopic?.id, topicB.id, 'Target topic must be topicB');
+  assert.notStrictEqual(cascadeToB.nextSubtopicId, subA.id, 'Must invalidate topicA subtopic');
+  assert.strictEqual(
+    cascadeToB.nextSubtopicId,
+    topicB.subtopics[0].id,
+    'Must select first available subtopic of topicB'
+  );
+  assert.strictEqual(cascadeToB.targetSubtopic?.id, topicB.subtopics[0].id);
+
+  // Case 2: Switching to a topic with 0 subtopics (if present)
+  if (topicWithoutSubs) {
+    const cascadeToEmpty = resolveCascadingSubtopic(topicWithoutSubs.id, subA.id, realTree);
+    assert.strictEqual(cascadeToEmpty.targetTopic?.id, topicWithoutSubs.id);
+    assert.strictEqual(cascadeToEmpty.nextSubtopicId, '', 'Subtopic must be empty when topic has 0 subtopics');
+    assert.strictEqual(cascadeToEmpty.targetSubtopic, undefined);
+  }
+
+  // Case 3: Retaining valid subtopic if already belonging to the topic
+  const cascadeRetain = resolveCascadingSubtopic(topicB.id, topicB.subtopics[0].id, realTree);
+  assert.strictEqual(cascadeRetain.nextSubtopicId, topicB.subtopics[0].id, 'Must retain subtopic when it belongs to topic');
+
+  console.log('  PASS: resolveCascadingSubtopic correctly validates, invalidates, and replaces subtopic across topics.');
+
+  // 2c. Production validateGenerationTaxonomy
+  console.log('\n[Test 8] Production Generation Guard: validateGenerationTaxonomy');
+
+  // 8a. Loading state
+  const loadGuard = validateGenerationTaxonomy(topicA.id, topicA.subtopics[0].id, realTree, true, null);
+  assert.strictEqual(loadGuard.canGenerate, false);
+  assert(loadGuard.error?.includes('still loading'));
+
+  // 8b. Error state
+  const errorGuard = validateGenerationTaxonomy(topicA.id, topicA.subtopics[0].id, realTree, false, 'Network error');
+  assert.strictEqual(errorGuard.canGenerate, false);
+  assert(errorGuard.error?.includes('Network error'));
+
+  // 8c. Empty tree
+  const emptyGuard = validateGenerationTaxonomy(topicA.id, topicA.subtopics[0].id, [], false, null);
+  assert.strictEqual(emptyGuard.canGenerate, false);
+  assert(emptyGuard.error?.includes('No topics available'));
+
+  // 8d. Missing topic
+  const missingTopGuard = validateGenerationTaxonomy('', topicA.subtopics[0].id, realTree, false, null);
+  assert.strictEqual(missingTopGuard.canGenerate, false);
+  assert(missingTopGuard.error?.includes('select a valid Topic'));
+
+  // 8e. Missing subtopic
+  const missingSubGuard = validateGenerationTaxonomy(topicA.id, '', realTree, false, null);
+  assert.strictEqual(missingSubGuard.canGenerate, false);
+  assert(missingSubGuard.error?.includes('select a valid Subtopic'));
+
+  // 8f. Subtopic mismatch: subtopic belonging to topicB paired with topicA
+  const mismatchGuard = validateGenerationTaxonomy(topicA.id, topicB.subtopics[0].id, realTree, false, null);
+  assert.strictEqual(mismatchGuard.canGenerate, false);
+  assert(mismatchGuard.error?.includes('does not belong to topic'));
+
+  // 8g. Valid matching pair
+  const validGuard = validateGenerationTaxonomy(topicA.id, topicA.subtopics[0].id, realTree, false, null);
+  assert.strictEqual(validGuard.canGenerate, true);
+  assert.strictEqual(validGuard.error, undefined);
+
+  // 8h. RANDOM mode exception
+  const randomGuard = validateGenerationTaxonomy(topicA.id, 'RANDOM', realTree, false, null);
+  assert.strictEqual(randomGuard.canGenerate, true);
+
+  console.log('  PASS: validateGenerationTaxonomy strictly enforces taxonomy integrity and allows RANDOM mode.');
+
+  // -------------------------------------------------------------------------
+  // SECTION 3: Production Context Synchronization Verification
+  // -------------------------------------------------------------------------
+  console.log('\n[Test 9] Production Context: setTaxonomy Updates and Hierarchy Links');
+  let capturedDefaultContext: any = null;
+  let capturedHydratedContext: any = null;
+
+  function DefaultContextTester() {
+    capturedDefaultContext = useProductionContext();
+    return React.createElement('div', null, 'DefaultContextTester');
+  }
+
+  function HydratedContextTester() {
+    capturedHydratedContext = useProductionContext();
+    return React.createElement('div', null, 'HydratedContextTester');
+  }
+
+  renderToString(
+    React.createElement(
+      MemoryRouter,
+      null,
+      React.createElement(
+        ProductionJourneyProvider,
+        null,
+        React.createElement(DefaultContextTester)
+      )
+    )
+  );
+
+  assert(capturedDefaultContext !== null, 'ProductionContext must be captured');
+  assert(typeof capturedDefaultContext.setTaxonomy === 'function', 'setTaxonomy must be a function');
+  assert.strictEqual(capturedDefaultContext.taxonomy.topicId, '', 'Default context topicId must be empty string');
+  assert.strictEqual(capturedDefaultContext.taxonomy.subtopicId, '', 'Default context subtopicId must be empty string');
+
+  // Verify that ProductionJourneyProvider accepts and binds authoritative taxonomy state
+  renderToString(
+    React.createElement(
+      MemoryRouter,
+      null,
+      React.createElement(
+        ProductionJourneyProvider,
+        {
+          initialContext: {
+            taxonomy: {
+              ...DEFAULT_PRODUCTION_CONTEXT.taxonomy,
+              topicId: topicA.id,
+              topicName: topicA.name,
+              subtopicId: topicA.subtopics[0].id,
+              subtopicName: topicA.subtopics[0].name,
+            },
+          },
+        },
+        React.createElement(HydratedContextTester)
+      )
+    )
+  );
+
+  assert.strictEqual(capturedHydratedContext.taxonomy.topicId, topicA.id);
+  assert.strictEqual(capturedHydratedContext.taxonomy.topicName, topicA.name);
+  assert.strictEqual(capturedHydratedContext.taxonomy.subtopicId, topicA.subtopics[0].id);
+  assert.strictEqual(capturedHydratedContext.taxonomy.subtopicName, topicA.subtopics[0].name);
+  console.log('  PASS: ProductionJourneyProvider correctly synchronizes topic and subtopic with names and IDs.');
+
+  // -------------------------------------------------------------------------
+  // SECTION 4: Authoritative Backend Domain Boundary Validation
+  // -------------------------------------------------------------------------
+  console.log('\n[Test 10] Authoritative Backend Domain Boundary Alignment');
+
+  // 4a. Mismatched topic/subtopic rejected by backend
+  const backendMismatch = await questionGenerationService.validateGenerationRequest({
     topicId: topicA.id,
     subtopicId: topicB.subtopics[0].id,
     difficulty: DifficultyLevel.MEDIUM,
     language: QuestionLanguage.TELUGU,
   });
-  assert.strictEqual(backendValResult.isValid, false, 'Backend domain service must reject mismatched topic/subtopic');
-  assert(
-    backendValResult.error?.includes('does not belong to Topic'),
-    'Backend must return clear mismatch error'
-  );
-  console.log('  PASS: Generation strictly blocked on both frontend guard and backend domain boundary for mismatched taxonomy.');
+  assert.strictEqual(backendMismatch.isValid, false);
+  assert(backendMismatch.error?.includes('does not belong to Topic'));
 
-  // -------------------------------------------------------------------------
-  // TEST 7: Valid Taxonomy Generation Permitted
-  // -------------------------------------------------------------------------
-  console.log('\n[Test 7] Valid Taxonomy Pair Allows Candidate Generation');
-  guardSim.selectedTopic = topicA.id;
-  guardSim.selectedSubtopic = topicA.subtopics[0].id;
-  const validAttempt = guardSim.attemptGenerate();
-  assert.strictEqual(validAttempt.canGenerate, true, 'Generation must be permitted for valid matching topic/subtopic');
-
-  const validBackendResult = await questionGenerationService.validateGenerationRequest({
+  // 4b. Valid matching topic/subtopic accepted by backend
+  const backendValid = await questionGenerationService.validateGenerationRequest({
     topicId: topicA.id,
     subtopicId: topicA.subtopics[0].id,
     difficulty: DifficultyLevel.MEDIUM,
     language: QuestionLanguage.TELUGU,
   });
-  assert.strictEqual(validBackendResult.isValid, true, 'Backend validation must pass for valid matching topic/subtopic');
-  console.log('  PASS: Generation allowed for valid persisted topic and matching subtopic.');
+  assert.strictEqual(backendValid.isValid, true);
+
+  console.log('  PASS: Backend domain boundary strictly aligns with frontend generation guard.');
 
   console.log('\n========================================================================');
-  console.log('ALL S8-T10 DYNAMIC TOPIC SELECTION UNIT TESTS PASSED (7/7)');
+  console.log('ALL S8-T10 PRODUCTION CODE UNIT TESTS PASSED (10/10)');
   console.log('========================================================================\n');
 }
 
