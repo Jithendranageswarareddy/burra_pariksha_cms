@@ -436,11 +436,12 @@ export class ApiClient {
 
   public async submitQuestionDraftForVerification(
     id: string,
-    remarks?: string
+    remarks?: string,
+    expectedVersion?: number
   ): Promise<import('../../shared/contracts/question-generation').SubmitForVerificationResult> {
     return this.request(`/questions/draft/${encodeURIComponent(id)}/submit`, {
       method: 'POST',
-      body: JSON.stringify({ remarks }),
+      body: JSON.stringify({ remarks, expectedVersion }),
     });
   }
 

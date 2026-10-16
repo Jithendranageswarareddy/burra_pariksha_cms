@@ -9,6 +9,7 @@ import {
   PublishStatus,
   ValidationStatus,
   WorkflowStepNumber,
+  WorkflowStageStatus,
   FiveDimensionalState,
   ContentStatus,
   MediaStatus,

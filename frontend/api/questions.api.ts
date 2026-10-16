@@ -142,8 +142,8 @@ export const questionsApi = {
   /**
    * Explicitly submits an eligible saved draft for Stage 02 Verification.
    */
-  async submitForVerification(input: { draftId: string; remarks?: string }): Promise<import('../../shared/contracts/question-generation').SubmitForVerificationResult> {
-    return apiClient.submitQuestionDraftForVerification(input.draftId, input.remarks);
+  async submitForVerification(input: { draftId: string; remarks?: string; expectedVersion?: number }): Promise<import('../../shared/contracts/question-generation').SubmitForVerificationResult> {
+    return apiClient.submitQuestionDraftForVerification(input.draftId, input.remarks, input.expectedVersion);
   },
 
   /**

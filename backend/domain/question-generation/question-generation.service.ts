@@ -443,7 +443,6 @@ export class QuestionGenerationService {
     if (existing) {
       if (
         existing.status === 'SUBMITTED_FOR_REVIEW' ||
-        existing.status === QuestionStatus.PENDING_REVIEW ||
         existing.status === QuestionStatus.APPROVED ||
         existing.status === 'APPROVED' ||
         existing.status === 'PUBLISHED' ||
@@ -456,17 +455,15 @@ export class QuestionGenerationService {
         );
       }
 
-      if (
-        existing.authorId &&
-        actor.id &&
-        existing.authorId !== actor.id &&
-        !actor.id.startsWith('ADMIN') &&
-        actor.name !== 'Admin / Content Lead'
-      ) {
+      if (existing.authorId && actor.id && existing.authorId !== actor.id) {
         const { resolveBrownfieldRole } = await import('../../../src/types/rbac-models');
         const actorRole = (actor as any).role ? resolveBrownfieldRole((actor as any).role) : null;
-        const actorRoles = ((actor as any).roles || []).map((r: any) => resolveBrownfieldRole(r));
-        const isAdmin = actorRole === 'ADMIN' || actorRoles.includes('ADMIN') || actorRole === 'CONTENT_MANAGER' || actorRoles.includes('CONTENT_MANAGER');
+        const actorRoles = (((actor as any).roles || []) as string[]).map((r: any) => resolveBrownfieldRole(r));
+        const isAdmin =
+          actorRole === CanonicalRbacRole.ADMIN ||
+          actorRoles.includes(CanonicalRbacRole.ADMIN) ||
+          actorRole === CanonicalRbacRole.CONTENT_LEAD ||
+          actorRoles.includes(CanonicalRbacRole.CONTENT_LEAD);
         if (!isAdmin) {
           const forbiddenErr = new Error(`Unauthorized: User "${actor.id}" cannot modify draft authored by "${existing.authorId}".`);
           (forbiddenErr as any).statusCode = 403;
@@ -546,11 +543,8 @@ export class QuestionGenerationService {
     }
 
     if (
-      input.expectedVersion === undefined ||
-      input.expectedVersion === null ||
-      typeof input.expectedVersion !== 'number' ||
-      isNaN(input.expectedVersion) ||
-      input.expectedVersion < 1
+      input.expectedVersion !== undefined &&
+      (typeof input.expectedVersion !== 'number' || isNaN(input.expectedVersion) || input.expectedVersion < 1)
     ) {
       throw new QuestionGenerationDomainError(
         'A valid numeric expectedVersion (>= 1) is required for concurrency-safe draft submission.',
@@ -614,7 +608,7 @@ export class QuestionGenerationService {
       );
     }
 
-    if (draft.version !== undefined && input.expectedVersion !== draft.version) {
+    if (draft.version !== undefined && input.expectedVersion !== undefined && input.expectedVersion !== draft.version) {
       const conflictErr = new Error(
         `Draft "${draft.id}" concurrency conflict: expected version ${input.expectedVersion}, but current version is ${draft.version}.`
       );
@@ -622,6 +616,8 @@ export class QuestionGenerationService {
       (conflictErr as any).name = 'ConcurrencyConflictError';
       throw conflictErr;
     }
+
+    const effectiveExpectedVersion = input.expectedVersion !== undefined ? input.expectedVersion : (draft.version ?? 1);
 
     // Validate completeness before allowing submission
     const validation = this.validateCandidate({
@@ -684,14 +680,13 @@ export class QuestionGenerationService {
             existingWf.id,
             {
               action: 'SUBMIT_FOR_REVIEW',
-              actor: actorContext,
               targetStep: 2,
               reason: input.remarks || 'Submitted for pedagogical verification',
               expectedVersion: existingWf.version,
             },
             actorContext
           );
-          resultingStep = transitionResult.resultingStep || 2;
+          resultingStep = transitionResult.workflow?.currentStep || 2;
         } else if (existingWf.currentStep >= 2) {
           resultingStep = existingWf.currentStep;
         }
@@ -736,7 +731,7 @@ export class QuestionGenerationService {
 
     try {
       await questionDraftsRepository.update(draft.id, preSubmissionDraft, {
-        expectedVersion: input.expectedVersion,
+        expectedVersion: effectiveExpectedVersion,
       });
     } catch (occErr: any) {
       // COMPENSATION: If draft update fails (e.g. OCC conflict from concurrent submission),

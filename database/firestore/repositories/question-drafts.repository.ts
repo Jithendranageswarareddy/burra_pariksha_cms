@@ -13,7 +13,7 @@ import { QuestionDraft } from '../../../shared';
 export class QuestionDraftsRepository extends BaseRepository<QuestionDraft> {
   private static instance: QuestionDraftsRepository | null = null;
 
-  private constructor() {
+  public constructor() {
     super('question_drafts', 'dft_');
   }
 

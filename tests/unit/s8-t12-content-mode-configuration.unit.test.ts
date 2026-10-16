@@ -451,6 +451,7 @@ async function runS8T12UnitTests() {
         {
           questionNumber: 1,
           questionText: 'Question 1 solve',
+          options: { a: 'A', b: 'B', c: 'C', d: 'D' },
           optionA: 'A',
           optionB: 'B',
           optionC: 'C',
