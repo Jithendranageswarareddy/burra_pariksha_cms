@@ -154,7 +154,7 @@ async function runS8T16WorkflowRuleTests() {
   assert.strictEqual(m3Def.duration.maxSeconds, 3120);
   pass('1.3 Mode 3: Enforces questionCount=[5, 10, 15, 20], aspect=[16:9], 10-point proof checklist, duration [12-52min]');
 
-  // Test 1.4: Unsupported modes and graceful rejection
+  // Test 1.4: Unsupported modes explicitly rejected; valid modes retain canonical stages
   assert.strictEqual(contentModeRegistry.hasDefinition('UNSUPPORTED_MODE'), false);
   assert.throws(
     () => contentModeRegistry.getDefinition('UNSUPPORTED_MODE'),
@@ -163,9 +163,29 @@ async function runS8T16WorkflowRuleTests() {
   const unknownValidation = contentModeRegistry.validateConfig('UNSUPPORTED_MODE', 1, '9:16');
   assert.strictEqual(unknownValidation.isValid, false);
   assert(unknownValidation.error?.includes("Invalid production mode: 'UNSUPPORTED_MODE'"));
-  const defaultStages = contentModeRegistry.getApplicableStages('UNKNOWN_MODE');
-  assert.strictEqual(defaultStages.length, 15, 'Unrecognized mode safely returns all 15 stages without crashing');
-  pass('1.4 Unsupported modes rejected safely with informative errors without crashing');
+
+  // Unsupported mode must fail explicitly when requesting applicable stages (no silent 15-stage fallback)
+  assert.throws(
+    () => contentModeRegistry.getApplicableStages('UNKNOWN_MODE'),
+    /Unregistered content production mode: 'UNKNOWN_MODE'/
+  );
+
+  // Proving all three registered production modes retain their correct canonical stages
+  const registeredModes: ContentProductionMode[] = [
+    'QUESTION_CHALLENGE_SHORT',
+    'TOPIC_INTRODUCTION',
+    'EXPLAINED_QUESTIONS_VIDEO',
+  ];
+  for (const registeredMode of registeredModes) {
+    const stages = contentModeRegistry.getApplicableStages(registeredMode);
+    assert.strictEqual(stages.length, 15, `${registeredMode} must retain all 15 canonical stages`);
+    assert.deepStrictEqual(
+      stages,
+      [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+      `${registeredMode} applicable stages must match canonical sequence 1..15`
+    );
+  }
+  pass('1.4 Unsupported modes explicitly rejected without silent fallback; valid modes retain canonical stages');
 
   // =========================================================================
   // SECTION 2: Workflow Resolver & Conditional-Step Resolution Across All Modes

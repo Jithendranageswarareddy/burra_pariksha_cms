@@ -73,11 +73,11 @@ export class ContentModeRegistry {
 
   /**
    * Returns applicable stages for a given mode.
+   * Throws an error if the mode is not registered.
    */
   public getApplicableStages(mode: ContentProductionMode | string): readonly WorkflowStepNumber[] {
     if (!this.hasDefinition(mode)) {
-      // Default to all 15 stages if unconfigured
-      return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
+      throw new Error(`Unregistered content production mode: '${mode}'.`);
     }
     return this.getDefinition(mode).applicableStages;
   }
