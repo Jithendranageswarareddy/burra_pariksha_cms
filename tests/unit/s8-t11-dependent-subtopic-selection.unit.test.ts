@@ -552,7 +552,7 @@ async function runS8T11UnitTests() {
   const backendValidation = await questionGenerationService.validateGenerationRequest({
     topicId: topicA.id,
     subtopicId: topicB.subtopics[0].id, // Mismatched!
-    difficulty: DifficultyLevel.INTERMEDIATE,
+    difficulty: DifficultyLevel.MEDIUM,
     language: QuestionLanguage.TELUGU,
   });
   assert.strictEqual(backendValidation.isValid, false, 'Backend must reject mismatched subtopic');
@@ -565,7 +565,7 @@ async function runS8T11UnitTests() {
   const backendValidRes = await questionGenerationService.validateGenerationRequest({
     topicId: topicA.id,
     subtopicId: topicA.subtopics[0].id,
-    difficulty: DifficultyLevel.INTERMEDIATE,
+    difficulty: DifficultyLevel.MEDIUM,
     language: QuestionLanguage.TELUGU,
   });
   assert.strictEqual(backendValidRes.isValid, true, 'Backend must accept valid matching taxonomy');
