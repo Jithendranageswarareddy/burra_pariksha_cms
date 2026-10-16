@@ -25,6 +25,7 @@ import { TopicIntroWorkspace } from '../components/TopicIntroWorkspace';
 import { ExplainedQuestionsWorkspace } from '../components/ExplainedQuestionsWorkspace';
 import { ActionBar } from '../components/ActionBar';
 import { ProductionModeModal } from '../components/ProductionModeModal';
+import { ProductionWorkbenchSummary } from '../components/ProductionWorkbenchSummary';
 
 export const QuestionStudioPage: React.FC = () => {
   const navigate = useNavigate();
@@ -135,37 +136,31 @@ export const QuestionStudioPage: React.FC = () => {
         </div>
       )}
 
-      {/* ACTIVE PRODUCTION MODE BAR */}
-      {productionMode && (
-        <div className="flex items-center justify-between px-3.5 py-2 bg-white/90 border border-slate-200 rounded-xl text-xs shadow-2xs">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-semibold text-slate-500 uppercase tracking-wider text-[10px]">
-              Production Mode:
-            </span>
-            <span className="font-bold text-slate-900">
-              {productionMode === 'QUESTION_CHALLENGE_SHORT'
-                ? 'Mode 1: Question Challenge Short'
-                : productionMode === 'TOPIC_INTRODUCTION'
-                ? 'Mode 2: Topic Introduction'
-                : 'Mode 3: Explained Questions Video'}
-            </span>
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
-              {targetQuestionCount} {targetQuestionCount === 1 ? 'Question' : 'Questions'}
-            </span>
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
-              {aspectRatio}
-            </span>
-          </div>
-          <button
-            type="button"
-            data-testid="change-mode-btn"
-            onClick={() => setIsModeModalOpen(true)}
-            className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer"
-          >
-            Change Mode
-          </button>
-        </div>
-      )}
+      {/* 4. INTEGRATED PRODUCTION WORKBENCH SUMMARY */}
+      <ProductionWorkbenchSummary
+        selectedTopic={selectedTopic}
+        selectedSubtopic={selectedSubtopic}
+        taxonomyTree={taxonomyTree}
+        currentSubtopics={currentSubtopics}
+        loadingTaxonomy={loadingTaxonomy}
+        loadingSubtopics={loadingSubtopics}
+        taxonomyError={taxonomyError}
+        subtopicsError={subtopicsError}
+        productionMode={productionMode}
+        targetQuestionCount={targetQuestionCount}
+        aspectRatio={aspectRatio}
+        onOpenModeModal={() => setIsModeModalOpen(true)}
+        hasCandidate={hasCandidate}
+        isDirty={isDirty}
+        savedDraftId={savedDraftId}
+        isLoadingDraft={isLoadingDraft}
+        isSaving={isSaving}
+        isSubmitting={isSubmitting}
+        submitSuccessResult={submitSuccessResult}
+        onSaveDraft={handleSaveDraft}
+        onSubmitForVerification={onExplicitSubmit}
+        onGenerate={handleGenerate}
+      />
 
       {/* ERROR ALERT BANNER */}
       {errorMessage && (

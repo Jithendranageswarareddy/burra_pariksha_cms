@@ -50,6 +50,7 @@ export const ProductionJourneyBar: React.FC<ProductionJourneyBarProps> = ({
   const stageCodeToNumber: Record<string, number> = {
     QUESTION: 1,
     QUESTION_GENERATION: 1,
+    QUESTION_STUDIO: 1,
     VERIFICATION: 2,
     QUESTION_VERIFICATION: 2,
     AUDIENCE_SCRIPT: 3,

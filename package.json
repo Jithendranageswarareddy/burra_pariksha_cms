@@ -35,7 +35,8 @@
     "test:s8-t09": "tsx tests/unit/s8-t09-script-multimode.unit.test.ts && tsx tests/integration/script-routes.integration.test.ts",
     "test:s8-t10": "tsx tests/unit/s8-t10-dynamic-topic-selection.unit.test.ts",
     "test:s8-t11": "tsx tests/unit/s8-t11-dependent-subtopic-selection.unit.test.ts",
-    "test:s8-t12": "tsx tests/unit/s8-t12-content-mode-configuration.unit.test.ts"
+    "test:s8-t12": "tsx tests/unit/s8-t12-content-mode-configuration.unit.test.ts",
+    "test:s8-t13": "tsx tests/unit/s8-t13-production-workbench.unit.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
