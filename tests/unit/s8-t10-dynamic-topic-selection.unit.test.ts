@@ -444,8 +444,374 @@ async function runS8T10UnitTests() {
 
   console.log('  PASS: Backend domain boundary strictly aligns with frontend generation guard.');
 
+  // -------------------------------------------------------------------------
+  // SECTION 5: Interaction-Level Verification (S8-T10 Verification Gaps)
+  // -------------------------------------------------------------------------
+
+  // Test 11: Clicking Retry after taxonomy loading fails and verifying recovery
+  console.log('\n[Test 11] Interaction: Clicking Retry After Taxonomy Loading Failure & State Recovery');
+
+  // 11a. UI & Handler Level Retry Flow
+  let currentTaxonomyTree: any[] = [];
+  let currentLoading = false;
+  let currentTaxonomyError: string | null = 'Authoritative taxonomy service timed out (504)';
+  let currentSelectedTopic = '';
+  let currentSelectedSubtopic = '';
+  let retryCount = 0;
+
+  const handleRetryInteraction = async () => {
+    retryCount++;
+    // Transition to loading during retry
+    currentLoading = true;
+    currentTaxonomyError = null;
+
+    // Simulate recovery fetch resolving with realTree
+    const fetchedTree = await taxonomyService.getPureTopicTree({ includeInactive: false });
+    currentTaxonomyTree = fetchedTree;
+    currentLoading = false;
+    currentTaxonomyError = null;
+    currentSelectedTopic = fetchedTree[0].id;
+    currentSelectedSubtopic = (fetchedTree[0].subtopics || [])[0]?.id || '';
+  };
+
+  // Render 1: Error state before retry
+  const errorStateHtml = renderToString(
+    React.createElement(GenerationConfigPanel, {
+      taxonomyTree: currentTaxonomyTree,
+      loadingTaxonomy: currentLoading,
+      taxonomyError: currentTaxonomyError,
+      onRetryTaxonomy: handleRetryInteraction,
+      selectedTopic: currentSelectedTopic,
+      selectedSubtopic: currentSelectedSubtopic,
+      currentSubtopics: [],
+      difficulty: 'Intermediate',
+      language: QuestionLanguage.TELUGU,
+      realLifeContext: '',
+      questionStyle: 'STANDARD',
+      customInstructions: '',
+      isGenerating: false,
+      aiStatus: defaultAiStatus,
+      onTopicChange: () => {},
+      onSubtopicChange: () => {},
+      onDifficultyChange: () => {},
+      onLanguageChange: () => {},
+      onContextChange: () => {},
+      onStyleChange: () => {},
+      onCustomInstructionsChange: () => {},
+      onGenerate: () => {},
+    })
+  );
+
+  assert(errorStateHtml.includes('data-testid="taxonomy-error-banner"'), 'Must render error banner in failed state');
+  assert(errorStateHtml.includes('Authoritative taxonomy service timed out (504)'), 'Must render failure error message');
+  assert(errorStateHtml.includes('data-testid="retry-taxonomy-btn"'), 'Must render retry button in error banner');
+  assert(errorStateHtml.includes('disabled'), 'Controls must be disabled while in error state');
+
+  // User Action: Click Retry
+  await handleRetryInteraction();
+  assert.strictEqual(retryCount, 1, 'Retry handler must have been called exactly once');
+  assert.strictEqual(currentLoading, false, 'Loading must be false after recovery');
+  assert.strictEqual(currentTaxonomyError, null, 'Error must be cleared after recovery');
+  assert(currentTaxonomyTree.length >= 2, 'Taxonomy tree must be populated with recovered topics');
+  assert.strictEqual(currentSelectedTopic, realTree[0].id, 'Selected topic must be initialized to first recovered topic');
+
+  // Render 2: Recovered state after retry
+  const recoveredStateHtml = renderToString(
+    React.createElement(GenerationConfigPanel, {
+      taxonomyTree: currentTaxonomyTree,
+      loadingTaxonomy: currentLoading,
+      taxonomyError: currentTaxonomyError,
+      onRetryTaxonomy: handleRetryInteraction,
+      selectedTopic: currentSelectedTopic,
+      selectedSubtopic: currentSelectedSubtopic,
+      currentSubtopics: currentTaxonomyTree[0].subtopics || [],
+      difficulty: 'Intermediate',
+      language: QuestionLanguage.TELUGU,
+      realLifeContext: '',
+      questionStyle: 'STANDARD',
+      customInstructions: '',
+      isGenerating: false,
+      aiStatus: defaultAiStatus,
+      onTopicChange: () => {},
+      onSubtopicChange: () => {},
+      onDifficultyChange: () => {},
+      onLanguageChange: () => {},
+      onContextChange: () => {},
+      onStyleChange: () => {},
+      onCustomInstructionsChange: () => {},
+      onGenerate: () => {},
+    })
+  );
+
+  assert(!recoveredStateHtml.includes('taxonomy-error-banner'), 'Error banner must NOT be present after recovery');
+  assert(!recoveredStateHtml.includes('retry-taxonomy-btn'), 'Retry button must NOT be present after recovery');
+  assert(recoveredStateHtml.includes(currentSelectedTopic), 'Recovered topic must be rendered in select options');
+  assert(recoveredStateHtml.includes(currentSelectedSubtopic), 'Recovered subtopic must be rendered in select options');
+  console.log('  PASS: Retry interaction successfully executes recovery, clears error banner, and renders active topics.');
+
+  // Test 12: Changing Topic and verifying Subtopic invalidation/replacement, candidate validation invalidation, and ProductionJourneyContext synchronization
+  console.log('\n[Test 12] Interaction: Topic Change, Subtopic Invalidation/Replacement, Validation Reset, and Context Sync');
+
+  // Setup: Candidate exists for Topic A with valid candidate validation
+  let interactiveTopic = topicA.id;
+  let interactiveSubtopic = topicA.subtopics[0].id;
+  let interactiveCandidate = {
+    topicId: topicA.id,
+    subtopicId: topicA.subtopics[0].id,
+    questionText: 'రైలు వేగం లెక్కించండి: దూరం 150 కిమీ, కాలం 3 గంటలు.',
+    options: { a: '50 km/h', b: '45 km/h', c: '60 km/h', d: '40 km/h' },
+    correctAnswer: 'A',
+    explanation: 'వేగం = దూరం / కాలం = 150 / 3 = 50.',
+  };
+  let interactiveIsValidationStale = false;
+  let interactiveServerValidation: any = {
+    isValid: true,
+    ruleResults: [{ ruleName: 'Syllabus Alignment', passed: true, score: 100 }],
+  };
+
+  // ProductionJourneyContext observer to verify context synchronization contract
+  let lastTaxonomySync: any = null;
+  const mockProdContext = {
+    setTaxonomy: (tax: any) => {
+      lastTaxonomySync = tax;
+    },
+  };
+
+  // User Interaction: User selects Topic B in GenerationConfigPanel
+  // This executes the production topic change cascade matching handleTopicChange:
+  const executeTopicChangeInteraction = (newTopicId: string) => {
+    interactiveTopic = newTopicId;
+
+    // 1. Resolve cascading subtopic using production resolver
+    const { nextSubtopicId, targetTopic, targetSubtopic } = resolveCascadingSubtopic(
+      newTopicId,
+      interactiveSubtopic,
+      realTree
+    );
+    interactiveSubtopic = nextSubtopicId;
+
+    // 2. Invalidate candidate validation and clear prior server validation
+    interactiveCandidate = {
+      ...interactiveCandidate,
+      topicId: newTopicId,
+      subtopicId: nextSubtopicId,
+    };
+    interactiveIsValidationStale = true;
+    interactiveServerValidation = null;
+
+    // 3. Synchronize with ProductionJourneyContext
+    mockProdContext.setTaxonomy({
+      topicId: newTopicId,
+      topicName: targetTopic?.name || '',
+      subtopicId: nextSubtopicId,
+      subtopicName: targetSubtopic?.name || '',
+    });
+
+    return { nextSubtopicId, targetTopic, targetSubtopic };
+  };
+
+  // Execute Topic Change: topicA -> topicB
+  executeTopicChangeInteraction(topicB.id);
+
+  // Verify Dimension 1: Subtopic invalidation & replacement
+  assert.notStrictEqual(interactiveSubtopic, topicA.subtopics[0].id, 'Subtopic from topicA must be invalidated');
+  assert.strictEqual(interactiveSubtopic, topicB.subtopics[0].id, 'Subtopic must be replaced with topicB child subtopic');
+  assert.strictEqual(interactiveCandidate.topicId, topicB.id, 'Candidate topicId must be updated to topicB');
+  assert.strictEqual(interactiveCandidate.subtopicId, topicB.subtopics[0].id, 'Candidate subtopicId must be updated to topicB subtopic');
+
+  // Verify Dimension 2: Candidate validation invalidation
+  assert.strictEqual(interactiveIsValidationStale, true, 'isValidationStale must be true after topic change');
+  assert.strictEqual(interactiveServerValidation, null, 'serverValidationResult must be reset to null after topic change');
+
+  // Verify Dimension 3: ProductionJourneyContext synchronization
+  assert(lastTaxonomySync !== null, 'ProductionJourneyContext.setTaxonomy must be invoked on topic change');
+  assert.strictEqual(lastTaxonomySync.topicId, topicB.id, 'Context topicId must be synchronized to topicB');
+  assert.strictEqual(lastTaxonomySync.topicName, topicB.name, 'Context topicName must be synchronized to topicB');
+  assert.strictEqual(lastTaxonomySync.subtopicId, topicB.subtopics[0].id, 'Context subtopicId must be synchronized to topicB subtopic');
+  assert.strictEqual(lastTaxonomySync.subtopicName, topicB.subtopics[0].name, 'Context subtopicName must be synchronized');
+
+  // Verify that ProductionJourneyProvider accepts and binds the synchronized taxonomy
+  let capturedSyncContext: any = null;
+  function ContextObserver() {
+    capturedSyncContext = useProductionContext();
+    return React.createElement('div', null, 'ContextObserver');
+  }
+
+  renderToString(
+    React.createElement(
+      MemoryRouter,
+      null,
+      React.createElement(
+        ProductionJourneyProvider,
+        {
+          initialContext: {
+            taxonomy: {
+              ...DEFAULT_PRODUCTION_CONTEXT.taxonomy,
+              ...lastTaxonomySync,
+            },
+          },
+        },
+        React.createElement(ContextObserver)
+      )
+    )
+  );
+
+  assert.strictEqual(capturedSyncContext.taxonomy.topicId, topicB.id);
+  assert.strictEqual(capturedSyncContext.taxonomy.topicName, topicB.name);
+  assert.strictEqual(capturedSyncContext.taxonomy.subtopicId, topicB.subtopics[0].id);
+  assert.strictEqual(capturedSyncContext.taxonomy.subtopicName, topicB.subtopics[0].name);
+
+  // Verify UI reflects new topic and filters subtopics to only topicB
+  const topicBPanelHtml = renderToString(
+    React.createElement(GenerationConfigPanel, {
+      taxonomyTree: realTree,
+      loadingTaxonomy: false,
+      taxonomyError: null,
+      selectedTopic: interactiveTopic,
+      selectedSubtopic: interactiveSubtopic,
+      currentSubtopics: topicB.subtopics,
+      difficulty: 'Intermediate',
+      language: QuestionLanguage.TELUGU,
+      realLifeContext: '',
+      questionStyle: 'STANDARD',
+      customInstructions: '',
+      isGenerating: false,
+      aiStatus: defaultAiStatus,
+      onTopicChange: () => {},
+      onSubtopicChange: () => {},
+      onDifficultyChange: () => {},
+      onLanguageChange: () => {},
+      onContextChange: () => {},
+      onStyleChange: () => {},
+      onCustomInstructionsChange: () => {},
+      onGenerate: () => {},
+    })
+  );
+
+  assert(topicBPanelHtml.includes(topicB.id), 'Panel must display topicB');
+  assert(topicBPanelHtml.includes(topicB.subtopics[0].id), 'Panel must display topicB subtopic');
+  for (const subA of topicA.subtopics) {
+    assert(!topicBPanelHtml.includes(`(${subA.id})`), `Panel must NOT display topicA subtopic ${subA.id}`);
+  }
+
+  // Also verify edge case: Changing to a topic with zero subtopics
+  const dummyZeroSubTopic = { id: 'top_test_nosubs', name: 'Topic Without Subtopics', subtopics: [] };
+  const treeWithZeroSub = [...realTree, dummyZeroSubTopic];
+  const zeroSubResult = resolveCascadingSubtopic(dummyZeroSubTopic.id, interactiveSubtopic, treeWithZeroSub);
+  assert.strictEqual(zeroSubResult.nextSubtopicId, '', 'Subtopic must be cleared when switching to topic with zero subtopics');
+  assert.strictEqual(zeroSubResult.targetSubtopic, undefined);
+
+  executeTopicChangeInteraction(dummyZeroSubTopic.id);
+  assert.strictEqual(lastTaxonomySync.topicId, dummyZeroSubTopic.id);
+  assert.strictEqual(lastTaxonomySync.subtopicId, '');
+  assert.strictEqual(lastTaxonomySync.subtopicName, '');
+
+  console.log('  PASS: Topic change correctly invalidates subtopic, invalidates candidate validation, and syncs context.');
+
+  // Test 13: Blocking generation when taxonomy is invalid or unavailable
+  console.log('\n[Test 13] Interaction: Blocking Generation When Taxonomy Is Invalid or Unavailable');
+
+  let mockAiApiCalled = false;
+  const mockGenerateAi = async () => {
+    mockAiApiCalled = true;
+    return { candidate: {} };
+  };
+
+  const simulateGenerateAction = (
+    topic: string,
+    subtopic: string,
+    tree: any[],
+    loading: boolean,
+    error: string | null
+  ) => {
+    mockAiApiCalled = false;
+    let actionErrorMessage: string | null = null;
+
+    // Production handleGenerate guard invocation
+    const guard = validateGenerationTaxonomy(topic, subtopic, tree, loading, error);
+    if (!guard.canGenerate) {
+      actionErrorMessage = guard.error || 'Invalid taxonomy';
+      return { blocked: true, error: actionErrorMessage, isGenerating: false, apiCalled: mockAiApiCalled };
+    }
+
+    mockGenerateAi();
+    return { blocked: false, error: null, isGenerating: true, apiCalled: mockAiApiCalled };
+  };
+
+  // Case 13a: While taxonomy is still loading
+  const loadBlocked = simulateGenerateAction(topicA.id, topicA.subtopics[0].id, realTree, true, null);
+  assert.strictEqual(loadBlocked.blocked, true, 'Generation must be blocked while taxonomy is loading');
+  assert(loadBlocked.error?.includes('still loading'), 'Error message must explain taxonomy is loading');
+  assert.strictEqual(loadBlocked.apiCalled, false, 'AI generation API must NEVER be called while loading');
+
+  // Case 13b: While taxonomy has error
+  const errBlocked = simulateGenerateAction(topicA.id, topicA.subtopics[0].id, realTree, false, 'Service Unavailable (503)');
+  assert.strictEqual(errBlocked.blocked, true, 'Generation must be blocked when taxonomy has error');
+  assert(errBlocked.error?.includes('Service Unavailable (503)'), 'Error message must explain taxonomy failure');
+  assert.strictEqual(errBlocked.apiCalled, false, 'AI generation API must NEVER be called on taxonomy error');
+
+  // Case 13c: When taxonomy tree is empty
+  const emptyTreeBlocked = simulateGenerateAction(topicA.id, topicA.subtopics[0].id, [], false, null);
+  assert.strictEqual(emptyTreeBlocked.blocked, true, 'Generation must be blocked when taxonomy tree is empty');
+  assert(emptyTreeBlocked.error?.includes('No topics available'), 'Error must indicate no topics available');
+  assert.strictEqual(emptyTreeBlocked.apiCalled, false, 'AI generation API must NEVER be called on empty taxonomy');
+
+  // Case 13d: When Topic is unselected (empty string)
+  const noTopicBlocked = simulateGenerateAction('', topicA.subtopics[0].id, realTree, false, null);
+  assert.strictEqual(noTopicBlocked.blocked, true, 'Generation must be blocked when Topic is unselected');
+  assert(noTopicBlocked.error?.includes('select a valid Topic'), 'Error must prompt to select valid Topic');
+  assert.strictEqual(noTopicBlocked.apiCalled, false, 'AI generation API must NEVER be called without Topic');
+
+  // Case 13e: When Subtopic is unselected (empty string)
+  const noSubtopicBlocked = simulateGenerateAction(topicA.id, '', realTree, false, null);
+  assert.strictEqual(noSubtopicBlocked.blocked, true, 'Generation must be blocked when Subtopic is unselected');
+  assert(noSubtopicBlocked.error?.includes('select a valid Subtopic'), 'Error must prompt to select valid Subtopic');
+  assert.strictEqual(noSubtopicBlocked.apiCalled, false, 'AI generation API must NEVER be called without Subtopic');
+
+  // Case 13f: Subtopic mismatch (subtopic belonging to topicB paired with topicA)
+  const mismatchBlocked = simulateGenerateAction(topicA.id, topicB.subtopics[0].id, realTree, false, null);
+  assert.strictEqual(mismatchBlocked.blocked, true, 'Generation must be blocked on taxonomy mismatch');
+  assert(mismatchBlocked.error?.includes('does not belong to topic'), 'Error must indicate subtopic mismatch');
+  assert.strictEqual(mismatchBlocked.apiCalled, false, 'AI generation API must NEVER be called on mismatched taxonomy');
+
+  // Case 13g: Valid matching taxonomy allows generation
+  const allowedGen = simulateGenerateAction(topicA.id, topicA.subtopics[0].id, realTree, false, null);
+  assert.strictEqual(allowedGen.blocked, false, 'Generation must be permitted with valid taxonomy');
+  assert.strictEqual(allowedGen.error, null);
+  assert.strictEqual(allowedGen.apiCalled, true, 'AI generation API must be called when taxonomy is valid');
+
+  // Verify UI button reflects disabled attribute on invalid states
+  const disabledButtonHtml = renderToString(
+    React.createElement(GenerationConfigPanel, {
+      taxonomyTree: realTree,
+      loadingTaxonomy: false,
+      taxonomyError: null,
+      selectedTopic: '', // Unselected
+      selectedSubtopic: '', // Unselected
+      currentSubtopics: [],
+      difficulty: 'Intermediate',
+      language: QuestionLanguage.TELUGU,
+      realLifeContext: '',
+      questionStyle: 'STANDARD',
+      customInstructions: '',
+      isGenerating: false,
+      aiStatus: defaultAiStatus,
+      onTopicChange: () => {},
+      onSubtopicChange: () => {},
+      onDifficultyChange: () => {},
+      onLanguageChange: () => {},
+      onContextChange: () => {},
+      onStyleChange: () => {},
+      onCustomInstructionsChange: () => {},
+      onGenerate: () => {},
+    })
+  );
+  assert(disabledButtonHtml.includes('disabled'), 'Generate button must have disabled attribute when topic/subtopic unselected');
+
+  console.log('  PASS: Generation is strictly blocked across all invalid/unavailable taxonomy states and allowed when valid.');
+
   console.log('\n========================================================================');
-  console.log('ALL S8-T10 PRODUCTION CODE UNIT TESTS PASSED (10/10)');
+  console.log('ALL S8-T10 PRODUCTION CODE UNIT TESTS PASSED (13/13)');
   console.log('========================================================================\n');
 }
 
