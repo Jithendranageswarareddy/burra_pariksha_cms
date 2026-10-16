@@ -8,7 +8,7 @@
  * - Mode 3: EXPLAINED_QUESTIONS_VIDEO (count: {5,10,15,20}, aspect: 16:9)
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Sparkles, Video, BookOpen, Check, AlertCircle } from 'lucide-react';
 import {
   ContentProductionMode,
@@ -28,7 +28,14 @@ export interface ProductionModeModalProps {
   onClose?: () => void;
 }
 
-interface ModeCardOption {
+export interface ModeConfigState {
+  questionCount: number;
+  aspectRatio: '9:16' | '16:9';
+}
+
+export type ModeConfigsMap = Record<ContentProductionMode, ModeConfigState>;
+
+export interface ModeCardOption {
   id: ContentProductionMode;
   title: string;
   badge: string;
@@ -40,7 +47,7 @@ interface ModeCardOption {
   icon: React.ElementType;
 }
 
-const MODE_OPTIONS: ModeCardOption[] = [
+export const MODE_OPTIONS: ModeCardOption[] = [
   {
     id: 'QUESTION_CHALLENGE_SHORT',
     title: 'Mode 1: Question Challenge Short',
@@ -76,6 +83,96 @@ const MODE_OPTIONS: ModeCardOption[] = [
   },
 ];
 
+export function resolveModeDefaultConfig(
+  mode: ContentProductionMode,
+  count?: number,
+  aspect?: '9:16' | '16:9'
+): ModeConfigState {
+  if (mode === 'QUESTION_CHALLENGE_SHORT') {
+    return {
+      questionCount: count !== undefined ? count : 1,
+      aspectRatio: aspect !== undefined ? aspect : '9:16',
+    };
+  }
+  if (mode === 'TOPIC_INTRODUCTION') {
+    return {
+      questionCount: count !== undefined ? count : 0,
+      aspectRatio: aspect !== undefined ? aspect : '9:16',
+    };
+  }
+  if (mode === 'EXPLAINED_QUESTIONS_VIDEO') {
+    return {
+      questionCount: count !== undefined ? count : 10,
+      aspectRatio: aspect !== undefined ? aspect : '16:9',
+    };
+  }
+  return {
+    questionCount: count !== undefined ? count : 1,
+    aspectRatio: aspect !== undefined ? aspect : '9:16',
+  };
+}
+
+export class ModeSelectionManager {
+  private selectedMode: ContentProductionMode;
+  private modeConfigs: ModeConfigsMap;
+
+  constructor(
+    initialMode: ContentProductionMode = 'QUESTION_CHALLENGE_SHORT',
+    initialCount?: number,
+    initialAspect?: '9:16' | '16:9'
+  ) {
+    this.selectedMode = initialMode;
+    this.modeConfigs = {
+      QUESTION_CHALLENGE_SHORT: resolveModeDefaultConfig(
+        'QUESTION_CHALLENGE_SHORT',
+        initialMode === 'QUESTION_CHALLENGE_SHORT' ? initialCount : undefined,
+        initialMode === 'QUESTION_CHALLENGE_SHORT' ? initialAspect : undefined
+      ),
+      TOPIC_INTRODUCTION: resolveModeDefaultConfig(
+        'TOPIC_INTRODUCTION',
+        initialMode === 'TOPIC_INTRODUCTION' ? initialCount : undefined,
+        initialMode === 'TOPIC_INTRODUCTION' ? initialAspect : undefined
+      ),
+      EXPLAINED_QUESTIONS_VIDEO: resolveModeDefaultConfig(
+        'EXPLAINED_QUESTIONS_VIDEO',
+        initialMode === 'EXPLAINED_QUESTIONS_VIDEO' ? initialCount : undefined,
+        initialMode === 'EXPLAINED_QUESTIONS_VIDEO' ? initialAspect : undefined
+      ),
+    };
+  }
+
+  public getSelectedMode(): ContentProductionMode {
+    return this.selectedMode;
+  }
+
+  public getCurrentConfig(): ModeConfigState {
+    return this.modeConfigs[this.selectedMode];
+  }
+
+  public getAllConfigs(): ModeConfigsMap {
+    return { ...this.modeConfigs };
+  }
+
+  public selectMode(mode: ContentProductionMode): void {
+    this.selectedMode = mode;
+  }
+
+  public setQuestionCount(count: number): void {
+    if (this.selectedMode === 'TOPIC_INTRODUCTION') return;
+    this.modeConfigs[this.selectedMode].questionCount = count;
+  }
+
+  public setAspectRatio(aspect: '9:16' | '16:9'): void {
+    if (this.selectedMode !== 'TOPIC_INTRODUCTION') return;
+    this.modeConfigs[this.selectedMode].aspectRatio = aspect;
+  }
+
+  public validate(): { isValid: boolean; error?: string } {
+    const config = this.getCurrentConfig();
+    return validateProductionModeConfig(this.selectedMode, config.questionCount, config.aspectRatio);
+  }
+}
+
 export const ProductionModeModal: React.FC<ProductionModeModalProps> = ({
   isOpen,
   initialMode = 'QUESTION_CHALLENGE_SHORT',
@@ -84,45 +181,81 @@ export const ProductionModeModal: React.FC<ProductionModeModalProps> = ({
   onSelectMode,
   onClose,
 }) => {
+  const getInitialConfigs = useCallback((): ModeConfigsMap => {
+    return {
+      QUESTION_CHALLENGE_SHORT: resolveModeDefaultConfig(
+        'QUESTION_CHALLENGE_SHORT',
+        initialMode === 'QUESTION_CHALLENGE_SHORT' ? initialCount : undefined,
+        initialMode === 'QUESTION_CHALLENGE_SHORT' ? initialAspect : undefined
+      ),
+      TOPIC_INTRODUCTION: resolveModeDefaultConfig(
+        'TOPIC_INTRODUCTION',
+        initialMode === 'TOPIC_INTRODUCTION' ? initialCount : undefined,
+        initialMode === 'TOPIC_INTRODUCTION' ? initialAspect : undefined
+      ),
+      EXPLAINED_QUESTIONS_VIDEO: resolveModeDefaultConfig(
+        'EXPLAINED_QUESTIONS_VIDEO',
+        initialMode === 'EXPLAINED_QUESTIONS_VIDEO' ? initialCount : undefined,
+        initialMode === 'EXPLAINED_QUESTIONS_VIDEO' ? initialAspect : undefined
+      ),
+    };
+  }, [initialMode, initialCount, initialAspect]);
+
   const [selectedMode, setSelectedMode] = useState<ContentProductionMode>(initialMode);
-
-  // Initialize count and aspect based on chosen mode
-  const currentOption = MODE_OPTIONS.find((m) => m.id === selectedMode) || MODE_OPTIONS[0];
-
-  const [questionCount, setQuestionCount] = useState<number>(
-    initialCount !== undefined && currentOption.allowedCounts.includes(initialCount)
-      ? initialCount
-      : currentOption.defaultCount
-  );
-
-  const [aspectRatio, setAspectRatio] = useState<'9:16' | '16:9'>(
-    initialAspect && currentOption.allowedAspects.includes(initialAspect)
-      ? initialAspect
-      : currentOption.defaultAspect
-  );
-
+  const [modeConfigs, setModeConfigs] = useState<ModeConfigsMap>(getInitialConfigs);
   const [validationError, setValidationError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedMode(initialMode);
+      setModeConfigs(getInitialConfigs());
+      setValidationError(null);
+    }
+  }, [isOpen, initialMode, getInitialConfigs]);
 
   if (!isOpen) return null;
 
+  const currentConfig = modeConfigs[selectedMode] || resolveModeDefaultConfig(selectedMode);
+
   const handleModeChange = (modeId: ContentProductionMode) => {
     setSelectedMode(modeId);
-    const opt = MODE_OPTIONS.find((m) => m.id === modeId);
-    if (opt) {
-      setQuestionCount(opt.defaultCount);
-      setAspectRatio(opt.defaultAspect);
-      setValidationError(null);
-    }
+    setValidationError(null);
+  };
+
+  const handleCountChange = (count: number) => {
+    setModeConfigs((prev) => ({
+      ...prev,
+      [selectedMode]: {
+        ...prev[selectedMode],
+        questionCount: count,
+      },
+    }));
+    setValidationError(null);
+  };
+
+  const handleAspectChange = (aspect: '9:16' | '16:9') => {
+    setModeConfigs((prev) => ({
+      ...prev,
+      [selectedMode]: {
+        ...prev[selectedMode],
+        aspectRatio: aspect,
+      },
+    }));
+    setValidationError(null);
   };
 
   const handleConfirm = () => {
-    const valResult = validateProductionModeConfig(selectedMode, questionCount, aspectRatio);
+    const valResult = validateProductionModeConfig(
+      selectedMode,
+      currentConfig.questionCount,
+      currentConfig.aspectRatio
+    );
     if (!valResult.isValid) {
       setValidationError(valResult.error || 'Invalid mode configuration.');
       return;
     }
     setValidationError(null);
-    onSelectMode(selectedMode, questionCount, aspectRatio);
+    onSelectMode(selectedMode, currentConfig.questionCount, currentConfig.aspectRatio);
   };
 
   return (
@@ -150,7 +283,10 @@ export const ProductionModeModal: React.FC<ProductionModeModalProps> = ({
         {/* Modal Body */}
         <div className="p-6 overflow-y-auto space-y-4">
           {validationError && (
-            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs flex items-center gap-2">
+            <div
+              data-testid="mode-validation-error"
+              className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs flex items-center gap-2"
+            >
               <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
               <span>{validationError}</span>
             </div>
@@ -207,55 +343,65 @@ export const ProductionModeModal: React.FC<ProductionModeModalProps> = ({
                   {/* Mode-specific configuration parameters when selected */}
                   {isSelected && (
                     <div className="mt-3 pt-3 border-t border-indigo-100/80 pl-10 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                      {/* Question Count selector */}
-                      <div>
-                        <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                          Question Count:
-                        </label>
-                        {opt.allowedCounts.length === 1 ? (
-                          <div className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-700 font-medium">
-                            {opt.allowedCounts[0]} {opt.allowedCounts[0] === 1 ? 'Question' : 'Questions (Concept Only)'}
-                          </div>
-                        ) : (
+                      {/* Mode 1 & Mode 3: Question Count Selector */}
+                      {opt.id !== 'TOPIC_INTRODUCTION' && (
+                        <div>
+                          <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                            Question Count:
+                          </label>
                           <select
                             data-testid="mode-question-count-select"
-                            value={questionCount}
-                            onChange={(e) => setQuestionCount(Number(e.target.value))}
+                            value={currentConfig.questionCount}
+                            onChange={(e) => handleCountChange(Number(e.target.value))}
                             className="w-full px-2.5 py-1.5 bg-white border border-indigo-300 rounded-lg text-slate-800 font-medium focus:outline-hidden focus:ring-1 focus:ring-indigo-500"
                           >
                             {opt.allowedCounts.map((cnt) => (
                               <option key={cnt} value={cnt}>
-                                {cnt} {cnt === 1 ? 'Question (Standalone Short)' : `Questions (Series Batch)`}
+                                {opt.id === 'QUESTION_CHALLENGE_SHORT'
+                                  ? cnt === 1
+                                    ? '1 Question (Standalone Short)'
+                                    : `${cnt} Questions (Series Batch)`
+                                  : cnt === 10
+                                    ? `${cnt} Questions (Standard)`
+                                    : `${cnt} Questions`}
                               </option>
                             ))}
                           </select>
-                        )}
-                      </div>
+                        </div>
+                      )}
 
-                      {/* Aspect Ratio selector */}
-                      <div>
-                        <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                          Aspect Ratio:
-                        </label>
-                        {opt.allowedAspects.length === 1 ? (
-                          <div className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-700 font-medium">
-                            {opt.allowedAspects[0]} ({opt.allowedAspects[0] === '9:16' ? 'Vertical Short' : 'Landscape Masterclass'})
-                          </div>
-                        ) : (
+                      {/* Mode 2: Aspect Ratio Selector (9:16 or 16:9) */}
+                      {opt.id === 'TOPIC_INTRODUCTION' && (
+                        <div>
+                          <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                            Aspect Ratio:
+                          </label>
                           <select
                             data-testid="mode-aspect-ratio-select"
-                            value={aspectRatio}
-                            onChange={(e) => setAspectRatio(e.target.value as '9:16' | '16:9')}
+                            value={currentConfig.aspectRatio}
+                            onChange={(e) => handleAspectChange(e.target.value as '9:16' | '16:9')}
                             className="w-full px-2.5 py-1.5 bg-white border border-indigo-300 rounded-lg text-slate-800 font-medium focus:outline-hidden focus:ring-1 focus:ring-indigo-500"
                           >
-                            {opt.allowedAspects.map((asp) => (
-                              <option key={asp} value={asp}>
-                                {asp} ({asp === '9:16' ? 'Vertical Short' : 'Horizontal Video'})
-                              </option>
-                            ))}
+                            <option value="9:16">9:16 (Vertical Short)</option>
+                            <option value="16:9">16:9 (Horizontal Video)</option>
                           </select>
-                        )}
-                      </div>
+                        </div>
+                      )}
+
+                      {/* Mode 1 & Mode 3: Fixed Aspect Ratio Badge */}
+                      {opt.id !== 'TOPIC_INTRODUCTION' && (
+                        <div>
+                          <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                            Aspect Ratio:
+                          </label>
+                          <div
+                            data-testid="mode-aspect-ratio-fixed"
+                            className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 font-medium"
+                          >
+                            {opt.id === 'QUESTION_CHALLENGE_SHORT' ? '9:16 (Vertical Short)' : '16:9 (Landscape Masterclass)'}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

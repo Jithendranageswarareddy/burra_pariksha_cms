@@ -316,7 +316,8 @@ export function useQuestionGeneration() {
   const queryQuestionStyle = searchParams.get('questionStyle') || searchParams.get('style');
   const queryContext = searchParams.get('realWorldContext') || searchParams.get('context');
   const queryMode = searchParams.get('mode') as ContentProductionMode | null;
-  const queryCount = searchParams.get('count') ? Number(searchParams.get('count')) : undefined;
+  const queryCountStr = searchParams.get('count');
+  const queryCount = queryCountStr ? parseInt(queryCountStr, 10) : undefined;
   const queryAspect = searchParams.get('aspect') as '9:16' | '16:9' | null;
 
   const isValidQueryMode = Boolean(queryMode && VALID_MODES.includes(queryMode));
@@ -324,20 +325,39 @@ export function useQuestionGeneration() {
   // Shared Production Journey Context
   const prodContext = useContext(ProductionJourneyContext);
 
+  const contextMode = prodContext?.modeConfig?.productionMode;
+  const hasValidContextMode = Boolean(contextMode && VALID_MODES.includes(contextMode));
+
+  const effectiveMode = isValidQueryMode
+    ? queryMode
+    : (hasValidContextMode ? contextMode : null);
+
+  const effectiveCount = isValidQueryMode
+    ? (queryCount !== undefined
+        ? queryCount
+        : (queryMode === 'EXPLAINED_QUESTIONS_VIDEO' ? 10 : (queryMode === 'TOPIC_INTRODUCTION' ? 0 : 1)))
+    : (hasValidContextMode && prodContext?.modeConfig?.questionCount !== undefined
+        ? prodContext.modeConfig.questionCount
+        : (effectiveMode === 'EXPLAINED_QUESTIONS_VIDEO' ? 10 : (effectiveMode === 'TOPIC_INTRODUCTION' ? 0 : 1)));
+
+  const effectiveAspect = isValidQueryMode
+    ? (queryAspect || (queryMode === 'EXPLAINED_QUESTIONS_VIDEO' ? '16:9' : '9:16'))
+    : (hasValidContextMode && prodContext?.modeConfig?.aspectRatio
+        ? prodContext.modeConfig.aspectRatio
+        : (effectiveMode === 'EXPLAINED_QUESTIONS_VIDEO' ? '16:9' : '9:16'));
+
   // Production Mode Configuration State
   const [productionMode, setProductionMode] = useState<ContentProductionMode | null>(
-    isValidQueryMode ? queryMode : null
+    effectiveMode
   );
   const [targetQuestionCount, setTargetQuestionCount] = useState<number>(
-    queryCount !== undefined
-      ? queryCount
-      : (queryMode === 'EXPLAINED_QUESTIONS_VIDEO' ? 10 : (queryMode === 'TOPIC_INTRODUCTION' ? 0 : 1))
+    effectiveCount
   );
   const [aspectRatio, setAspectRatio] = useState<'9:16' | '16:9'>(
-    queryAspect || (queryMode === 'EXPLAINED_QUESTIONS_VIDEO' ? '16:9' : '9:16')
+    effectiveAspect
   );
   const [isModeModalOpen, setIsModeModalOpen] = useState<boolean>(
-    !isValidQueryMode && !queryDraftId
+    !effectiveMode && !queryDraftId
   );
   const [activeQuestionIndex, setActiveQuestionIndex] = useState<number>(0);
 
@@ -432,20 +452,31 @@ export function useQuestionGeneration() {
       let finalCount = count;
       let finalAspect = aspect;
 
-      if (mode === 'QUESTION_CHALLENGE_SHORT') {
-        if (finalCount === undefined || ![1, 5, 10, 15, 20].includes(finalCount)) finalCount = 1;
-        finalAspect = '9:16';
-      } else if (mode === 'TOPIC_INTRODUCTION') {
-        finalCount = 0;
-        if (!finalAspect || !['9:16', '16:9'].includes(finalAspect)) finalAspect = '9:16';
-      } else if (mode === 'EXPLAINED_QUESTIONS_VIDEO') {
-        if (finalCount === undefined || ![5, 10, 15, 20].includes(finalCount)) finalCount = 10;
-        finalAspect = '16:9';
+      if (finalCount === undefined) {
+        if (mode === 'QUESTION_CHALLENGE_SHORT') finalCount = 1;
+        else if (mode === 'TOPIC_INTRODUCTION') finalCount = 0;
+        else if (mode === 'EXPLAINED_QUESTIONS_VIDEO') finalCount = 10;
+        else finalCount = 1;
       }
 
+      if (finalAspect === undefined) {
+        if (mode === 'QUESTION_CHALLENGE_SHORT') finalAspect = '9:16';
+        else if (mode === 'TOPIC_INTRODUCTION') finalAspect = '9:16';
+        else if (mode === 'EXPLAINED_QUESTIONS_VIDEO') finalAspect = '16:9';
+        else finalAspect = '9:16';
+      }
+
+      // Enforce validation before accepting
+      const val = validateProductionModeConfig(mode, finalCount, finalAspect);
+      if (!val.isValid) {
+        setErrorMessage(val.error || 'Invalid production mode configuration');
+        return;
+      }
+
+      setErrorMessage(null);
       setProductionMode(mode);
-      setTargetQuestionCount(finalCount!);
-      setAspectRatio(finalAspect!);
+      setTargetQuestionCount(finalCount);
+      setAspectRatio(finalAspect);
       setIsModeModalOpen(false);
 
       // Persist in URL query parameters without reloading
@@ -1163,7 +1194,18 @@ export function useQuestionGeneration() {
       return null;
     }
 
-    // 3. Reject if candidate is structurally incomplete or invalid
+    // 3. Reject if mode configuration is invalid or missing
+    if (!productionMode) {
+      setErrorMessage('Production mode is required before submitting for verification.');
+      return null;
+    }
+    const modeValidation = validateProductionModeConfig(productionMode, targetQuestionCount, aspectRatio);
+    if (!modeValidation.isValid) {
+      setErrorMessage(modeValidation.error || 'Invalid production mode configuration.');
+      return null;
+    }
+
+    // 4. Reject if candidate is structurally incomplete or invalid
     if (!workflowState.canContinue) {
       setErrorMessage(workflowState.reason || 'Candidate has validation issues. Please resolve them and save draft before submitting.');
       return null;
