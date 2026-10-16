@@ -39,7 +39,8 @@
     "test:s8-t13": "tsx tests/unit/s8-t13-production-workbench.unit.test.ts",
     "test:s8-t14": "tsx tests/unit/s8-t14-dynamic-workflow-resolution.unit.test.ts",
     "test:s8-t15": "tsx tests/api/s8-t15-backend-persistence-draft-resumption.api.test.ts",
-    "test:s8-t15:integration": "tsx tests/integration/s8-t15-firestore-draft-persistence.integration.test.ts"
+    "test:s8-t15:integration": "tsx tests/integration/s8-t15-firestore-draft-persistence.integration.test.ts",
+    "test:s8-t16": "tsx tests/unit/s8-t16-content-mode-workflow-rules.unit.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
