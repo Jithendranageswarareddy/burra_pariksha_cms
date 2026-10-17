@@ -133,10 +133,10 @@ Antigravity selects **Option B: Extracting related handlers into a focused route
 
 > [!IMPORTANT]
 > **Implementation Boundary Clarification**:
-> `backend/server/routers/script.routes.ts` has **NOT** been extracted, created, or mounted in the current codebase. In the active runtime, all 8 script route handlers reside inline within `backend/server/routers/routes.ts` (lines 2269–2376). Router extraction is a **future implementation decision**, not completed code. Option B is recorded here as the approved architectural plan for S8-T09 (or the designated implementation task).
+> Option B was approved as the architectural plan and formally implemented in task **S8-T09** (commits `82bab6f` and `ce31639`). `backend/server/routers/script.routes.ts` was extracted, created, and mounted onto `apiRouter.use(scriptRouter)`, preserving 100% path compatibility for all Stage 03 script routes.
 
-#### 4.2.1 Target Extraction Mechanics & Zero URL Divergence (S8-T09 Implementation Plan)
-When extracted during S8-T09 implementation, the dedicated router will reside at `backend/server/routers/script.routes.ts` (or feature-slice `features/audience-script/backend/routes/script.routes.ts`) and export `scriptRouter: express.Router`.
+#### 4.2.1 Target Extraction Mechanics & Zero URL Divergence (Implemented in S8-T09)
+The dedicated router resides at `backend/server/routers/script.routes.ts` and exports `scriptRouter: express.Router`.
 
 In `backend/server/routers/routes.ts` (target wiring in S8-T09):
 ```typescript

@@ -32,6 +32,7 @@ export const AUTHORITATIVE_APPROVED_POST_S7_ADDITIONS: readonly string[] = [
   'docs/sprints/sprint-08/S8-T06-CONTENT-MODE-REGISTRY-DESIGN.md',
   'docs/sprints/sprint-08/S8-T07-WORKFLOW-RESOLUTION-TRANSITION-DESIGN.md',
   'docs/sprints/sprint-08/S8-T08-FOLDER-BOUNDARIES-INTEGRATION-DESIGN.md',
+  'docs/sprints/sprint-08/S8-T20-FINAL-ARCHITECTURE-GATE.md',
   'docs/sprints/sprint-08/S8-TASK-RECONCILIATION-REPORT.md',
   'frontend/features/question-generation/components/ExplainedQuestionsWorkspace.tsx',
   'frontend/features/question-generation/components/ProductionModeModal.tsx',
