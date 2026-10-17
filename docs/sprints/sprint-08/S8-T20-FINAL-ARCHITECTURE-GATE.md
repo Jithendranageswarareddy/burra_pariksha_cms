@@ -126,18 +126,35 @@ All verification commands were executed directly against the active codebase and
 ## 6. Production Deployment Target & Operational Assessment
 
 ### 6.1 Intended Production Deployment Target
-- **Primary Runtime Deployment Authority**: Google AI Studio (Applet container environment with the 8 canonical secrets configured, per `ENVIRONMENT-CONTRACT.md` Section 9).
+- **Primary Runtime Deployment Authority**: Google AI Studio (Applet container environment with the 8 canonical production secrets configured, per `ENVIRONMENT-CONTRACT.md` Section 9).
 - **Secondary Production Target**: Google Cloud Run (containerized deployment running standalone Express server on port 3000 via multi-stage `Dockerfile`, executing `node dist/server.cjs`).
 
-### 6.2 Available Deployment Mechanism
-- The repository does **not** maintain automated continuous deployment (CD) pipelines triggered on `git push` (`.github/workflows` does not exist in the repository).
-- Container images are built via the multi-stage `Dockerfile` (`FROM node:20-alpine AS runner`).
-- Applet deployment is executed within Google AI Studio by pulling `origin/main` and launching the Applet with runtime secrets.
+### 6.2 Available Deployment Mechanism & Infrastructure Status
+- **No CI/CD Pipeline**: The repository maintains no automated continuous deployment pipelines triggered on `git push` (`.github/workflows` does not exist in the repository). `git push origin main` synchronizes the authoritative GitHub repository, but does not deploy to production.
+- **Tooling Blocker**: The Google Cloud SDK (`gcloud` CLI) is not installed on this local workstation environment (`gcloud: The term 'gcloud' is not recognized`).
+- **External Console Requirement**: Per ADR-004, ADR-007, and `ENVIRONMENT-CONTRACT.md`, Google AI Studio Applet deployment is an external console action performed within the Google AI Studio environment by pulling `origin/main` and launching the Applet with the 8 canonical secrets.
+- **Authorization Guard**: Under AGENTS.md Rule 14 and ADR-007, automated or unverified production mutation is strictly prohibited. Live deployment requires explicit Project Owner authorization and a dedicated deployment maintenance window.
 
-### 6.3 Deployment Verdict: NOT DEPLOYED
+### 6.3 Local Production Bundle Health-Check Verification
+To verify production readiness of the compiled bundle prior to remote release, the production server was booted locally in pure production mode (`PORT=3001 NODE_ENV=production node dist/server.cjs`) and probed against all canonical health endpoints:
+
+| Endpoint Probed | Probe Type | HTTP Status | Response Payload | Verification Evidence |
+| :--- | :--- | :---: | :--- | :--- |
+| `GET /healthz` | Process Liveness | **200 OK** | `{"status":"ok","uptime":18,"timestamp":"2026-10-17T11:06:08.627Z"}` | Node.js process is active, responsive, and serving traffic. |
+| `GET /readyz` | Dependency Readiness | **200 OK** | `{"status":"ok","uptime":18,"timestamp":"2026-10-17T11:06:08.877Z","checks":{"database":"UP","drive":"OAUTH2"}}` | Database status is `UP`; Google Drive integration is operating in `OAUTH2` mode. |
+| `GET /api/health` | API & DB Connectivity | **200 OK** | `{"status":"ok","database":{"provider":"FIRESTORE","status":"CONNECTED"},"timestamp":"2026-10-17T11:06:09.129Z"}` | Express API router is mounted; Cloud Firestore provider reports `CONNECTED`. |
+
+- **Startup Audit Log**: `[EnvContract] Runtime: PRODUCTION (8/8 canonical variables configured)`.
+- **Security Audit**: Zero secret values exposed in health endpoints or server logs.
+
+### 6.4 Remote Production Deployment Verdict: NOT DEPLOYED (BLOCKER RECORDED)
 - **Status**: **NOT DEPLOYED**
-- **Reason**: `git push origin main` synchronizes the authoritative repository on GitHub, but does not deploy to production. In strict adherence to ADR-007, `AGENTS.md` Rule 14, and safe release protocols, automated deployment to live Cloud Run / Google AI Studio production is not configured, and live production deployment requires explicit human deployment authorization, production runtime secrets injection, and a dedicated deployment maintenance window. No unauthorized production deployment was triggered.
-- **Post-Deployment Health Verification**: N/A (deployment deferred to authorized release window).
+- **Blockers to Live Production Deployment**:
+  1. `gcloud` CLI is not available in the local execution environment.
+  2. No automated GitHub Actions CD workflow exists in the repository.
+  3. Live release deployment to the Google AI Studio Applet must be performed within the Google AI Studio console by importing the approved commit from GitHub and launching the Applet.
+  4. Live production release deployment requires explicit owner authorization and execution in the Google Cloud / AI Studio production environment.
+- **Deployment Prerequisites Satisfied**: The production build bundle (`dist/server.cjs`) is compiled, verified healthy via local liveness/readiness probes, and pushed to `origin/main` at commit `79c92a1`. Remote deployment can proceed in Google AI Studio immediately upon owner action.
 
 ---
 
