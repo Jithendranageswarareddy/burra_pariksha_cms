@@ -12,7 +12,7 @@
 ## 1. Executive Summary & Governance Baseline
 
 ### 1.1 Objective
-Deliver an authoritative, deterministic requirements specification and failure/recovery matrix for **Mode 1 Batch Creation Series (`QUESTION_CHALLENGE_SHORT` for counts $N \in \{5, 10, 15, 20\}$)**. This specification defines exact completeness invariants, dual remaining counters, slot lifecycle states, retry boundaries, partial persistence protocols, and regression acceptance scenarios.
+Deliver an authoritative, deterministic requirements specification and failure/recovery matrix for **Mode 1 Batch Creation Series (`QUESTION_CHALLENGE_SHORT` for counts $N \in \{5, 10, 15, 20\}$)**. This specification defines exact completeness invariants, mutually exclusive candidate accounting, classification precedence, dual remaining counters, slot lifecycle states, retry boundaries, partial persistence protocols, and regression acceptance scenarios.
 
 ### 1.2 Governance Authority & Implementation Boundaries
 1. **Architectural Authority**:
@@ -50,27 +50,97 @@ A question candidate occupying slot $k$ ($1 \le k \le N$) is deemed **`VALID`** 
 5. **Taxonomy & Mode Grounding**: Valid `topicId` and `subtopicId` matching the active syllabus hierarchy (`subtopic.topicId === topic.id`), with `productionMode === 'QUESTION_CHALLENGE_SHORT'`.
 6. **No Placeholder Content**: No unresolved template tokens (e.g. `[INSERT FORMULA]`, `TODO`, `N/A`, `Option text here`).
 
-### 2.3 Distinct Count Categories & Telemetry
-To avoid ambiguous progress reporting, every batch generation attempt maintains explicit counters distinguishing candidate evaluation, slot occupancy, editorial state, and remaining work:
+### 2.3 Candidate Telemetry & Accounting Model
+
+#### 2.3.1 Telemetry Counters
+To avoid ambiguous progress reporting, every batch generation attempt maintains explicit counters distinguishing candidate disposition, slot occupancy, editorial state, and remaining work:
 
 | Counter Symbol | Name | Definition | Invariant & Classification |
 | :---: | :--- | :--- | :--- |
 | $\mathbf{C_{\text{req}}}$ | **Configured Count** | The configured target count ($5, 10, 15, 20$). Immutable for that batch draft generation attempt. | $C_{\text{req}} \in \{5, 10, 15, 20\}$ `[APPROVED CONTRACT: ADR-010]` |
 | $\mathbf{C_{\text{gen}}}$ | **Raw Generated Candidates** | Total raw question candidate objects returned by the AI provider in response to the prompt. | $C_{\text{gen}} \ge 0$ |
 | $\mathbf{C_{\text{val\_slots}}}$ | **Valid In-Range Slots** | Number of distinct, valid questions successfully assigned to in-range slots $1 \dots N$. | $0 \le C_{\text{val\_slots}} \le C_{\text{req}}$ `[APPROVED CONTRACT]` |
-| $\mathbf{C_{\text{inv}}}$ | **Invalid Candidates** | Number of generated candidate objects that fail schema, option, answer, or proof validation. | $C_{\text{inv}} \ge 0$ |
-| $\mathbf{C_{\text{dup}}}$ | **Duplicate Candidates** | Number of generated candidates rejected due to semantic or textual collision with another candidate or existing slot. | $C_{\text{dup}} \ge 0$ |
-| $\mathbf{C_{\text{overflow}}}$ | **Overflow Candidates** | Candidates returned by the AI provider in excess of $C_{\text{req}}$ ($C_{\text{overflow}} = \max(0, C_{\text{gen}} - C_{\text{req}})$ in an un-deduplicated response). Overflow candidates may be valid or invalid; they are **never classified as invalid merely because they exceed $C_{\text{req}}$**. | $C_{\text{overflow}} \ge 0$ `[PROPOSED DEFAULT — Requires Owner Approval under OD-02]` |
+| $\mathbf{C_{\text{inv}}}$ | **Invalid Candidates** | Number of generated candidate objects that fail schema, option, answer, or proof validation (regardless of arrival index). | $C_{\text{inv}} \ge 0$ |
+| $\mathbf{C_{\text{dup}}}$ | **Duplicate Candidates** | Number of generated candidates rejected due to semantic or textual collision with another candidate or existing slot (regardless of arrival index). | $C_{\text{dup}} \ge 0$ |
+| $\mathbf{C_{\text{val\_overflow}}}$ | **Valid Overflow Candidates** | Valid and distinct candidates returned by the AI provider arriving after all $C_{\text{req}}$ in-range slots have already been satisfied ($C_{\text{val\_slots}} == C_{\text{req}}$). Quarantined in `overflowBuffer`. | $C_{\text{val\_overflow}} \ge 0$ `[PROPOSED DEFAULT — Requires Owner Approval under OD-02]` |
 | $\mathbf{C_{\text{edit}}}$ | **Manually Edited Slots** | Number of valid in-range slots whose content has been modified by the human editor. | $0 \le C_{\text{edit}} \le C_{\text{val\_slots}}$ `[APPROVED CONTRACT]` |
 | $\mathbf{C_{\text{acc}}}$ | **Accepted Slots** | Number of valid/edited in-range slots explicitly approved by the editor for verification. | $0 \le C_{\text{acc}} \le C_{\text{val\_slots}}$ `[APPROVED CONTRACT]` |
 | $\mathbf{C_{\text{rem\_gen}}}$ | **Remaining Generation Count** | Number of distinct valid slots still required to reach generation completeness ($C_{\text{rem\_gen}} = C_{\text{req}} - C_{\text{val\_slots}}$). | $0 \le C_{\text{rem\_gen}} \le C_{\text{req}}$ `[APPROVED CONTRACT]` |
 | $\mathbf{C_{\text{rem\_accept}}}$ | **Remaining Acceptance Count** | Number of valid slots still awaiting editorial acceptance ($C_{\text{rem\_accept}} = C_{\text{req}} - C_{\text{acc}}$). | $0 \le C_{\text{rem\_accept}} \le C_{\text{req}}$ `[APPROVED CONTRACT]` |
 
-#### Candidate Accounting Decomposition:
-$$C_{\text{gen}} = C_{\text{val\_slots}} + C_{\text{inv}} + C_{\text{dup}} + C_{\text{overflow}}$$
+#### 2.3.2 Mutually Exclusive Candidate Disposition Partition
+Every raw candidate $c \in \{1 \dots C_{\text{gen}}\}$ evaluated in order of arrival is mapped to **exactly one mutually exclusive category**:
 
-- **No False Invalidation**: Valid overflow candidates are isolated in an overflow quarantine buffer (`overflowBuffer`) and must **never** be added to $C_{\text{inv}}$.
-- **Immutable Target Invariant**: Extra candidate generation ($C_{\text{overflow}} > 0$) must **never** silently inflate $C_{\text{req}}$.
+$$\mathbf{C_{\text{gen}}} = \mathbf{C_{\text{val\_slots}}} + \mathbf{C_{\text{inv}}} + \mathbf{C_{\text{dup}}} + \mathbf{C_{\text{val\_overflow}}}$$
+
+- **No Overlap**: A candidate is classified into exactly one terminal disposition.
+- **No False Invalidation**: Valid overflow candidates ($C_{\text{val\_overflow}}$) are preserved in `overflowBuffer` and are **never** classified as invalid ($C_{\text{inv}}$).
+- **Immutable Target Invariant**: Extra candidate generation ($C_{\text{val\_overflow}} > 0$) must **never** silently inflate $C_{\text{req}}$.
+
+#### 2.3.3 Unambiguous Candidate Classification Precedence
+When raw candidate $c_i$ ($1 \le i \le C_{\text{gen}}$) arrives from the AI provider, the batch execution engine applies the following deterministic evaluation precedence:
+
+```text
+                                  ┌─────────────────────────────┐
+                                  │   Raw Candidate c_i Arrives │
+                                  └──────────────┬──────────────┘
+                                                 │
+                                                 ▼
+                                  ┌─────────────────────────────┐
+                                  │ Precedence 1: Schema Check  │
+                                  │  Fails options/proof/key?   │
+                                  └──────┬───────────────┬──────┘
+                                         │ YES           │ NO
+                                         ▼               ▼
+                        ┌──────────────────────┐  ┌─────────────────────────────┐
+                        │ Terminal Disposition │  │ Precedence 2: Uniqueness    │
+                        │      c_i in C_inv    │  │  Duplicates earlier/slot?   │
+                        └──────────────────────┘  └──────┬───────────────┬──────┘
+                                                         │ YES           │ NO
+                                                         ▼               ▼
+                                        ┌──────────────────────┐  ┌─────────────────────────────┐
+                                        │ Terminal Disposition │  │ Precedence 3: Capacity      │
+                                        │      c_i in C_dup    │  │  C_val_slots < C_req ?      │
+                                        └──────────────────────┘  └──────┬───────────────┬──────┘
+                                                                         │ YES           │ NO (Capacity Full)
+                                                                         ▼               ▼
+                                                        ┌──────────────────────┐  ┌─────────────────────────────┐
+                                                        │ Terminal Disposition │  │ Terminal Disposition        │
+                                                        │ c_i in C_val_slots   │  │ c_i in C_val_overflow       │
+                                                        │ Populates in-range   │  │ Quarantined in overflowTray │
+                                                        │ slot k = count + 1   │  │ C_req strictly unchanged    │
+                                                        └──────────────────────┘  └─────────────────────────────┘
+```
+
+1. **Precedence 1: Validation Engine (Schema & Pedagogical Validity)**:
+   - Evaluates non-empty statement, 4 distinct options, valid key (`A,B,C,D`), explanation length $\ge 5$, and taxonomy grounding.
+   - If invalid: candidate receives terminal disposition **`INVALID`** $\implies C_{\text{inv}}$ increments. Candidate is discarded from in-range slot assignment and from `overflowBuffer`.
+2. **Precedence 2: Uniqueness Engine (Deduplication Check)**:
+   - Evaluates pairwise similarity against all previously processed valid candidates and persisted batch slots.
+   - If duplicate: candidate receives terminal disposition **`DUPLICATE`** $\implies C_{\text{dup}}$ increments. Discarded from in-range slot assignment and from `overflowBuffer`.
+3. **Precedence 3: In-Range Slot Assignment (Capacity Check)**:
+   - Evaluates whether in-range slot capacity is still unfilled ($C_{\text{val\_slots}} < C_{\text{req}}$).
+   - If capacity available: candidate receives terminal disposition **`VALID_IN_RANGE`** $\implies C_{\text{val\_slots}}$ increments. Assigned to slot $k = C_{\text{val\_slots}}$.
+4. **Precedence 4: Valid Overflow Quarantine**:
+   - If all $C_{\text{req}}$ in-range slots are already populated ($C_{\text{val\_slots}} == C_{\text{req}}$), the candidate is valid and distinct, but exceeds the configured count.
+   - Candidate receives terminal disposition **`VALID_OVERFLOW`** $\implies C_{\text{val\_overflow}}$ increments.
+   - Quarantined in `overflowBuffer` for optional manual replacement tray.
+
+#### 2.3.4 Orthogonal Cross-Tabulation (Disposition vs. Arrival Position)
+To prevent confusing candidate quality with arrival position, the engine maintains the following orthogonal cross-tabulation:
+
+| Candidate Quality Disposition | In-Range Arrivals ($i \le C_{\text{req}}$) | Beyond Configured Count ($i > C_{\text{req}}$) | Total Candidate Disposition ($C_{\text{gen}}$) |
+| :--- | :---: | :---: | :---: |
+| **Invalid Candidates** | $C_{\text{inv\_in\_range}}$ | $C_{\text{inv\_overflow}}$ | $\mathbf{C_{\text{inv}}} = C_{\text{inv\_in\_range}} + C_{\text{inv\_overflow}}$ |
+| **Duplicate Candidates** | $C_{\text{dup\_in\_range}}$ | $C_{\text{dup\_overflow}}$ | $\mathbf{C_{\text{dup}}} = C_{\text{dup\_in\_range}} + C_{\text{dup\_overflow}}$ |
+| **Valid In-Range Slots** | $C_{\text{val\_slots\_primary}}$ | $C_{\text{val\_slots\_backfill}}$ | $\mathbf{C_{\text{val\_slots}}} = C_{\text{val\_slots\_primary}} + C_{\text{val\_slots\_backfill}} \le C_{\text{req}}$ |
+| **Valid Overflow Candidates** | $0$ (by definition) | $C_{\text{val\_overflow}}$ | $\mathbf{C_{\text{val\_overflow}}}$ (quarantined in `overflowBuffer`) |
+| **Total Candidates Evaluated** | $\mathbf{C_{\text{arrivals\_in\_range}}} \le C_{\text{req}}$ | $\mathbf{C_{\text{arrivals\_overflow}}}$ | $\mathbf{C_{\text{gen}}} = C_{\text{val\_slots}} + C_{\text{inv}} + C_{\text{dup}} + C_{\text{val\_overflow}}$ |
+
+- An invalid candidate arriving beyond $C_{\text{req}}$ increments $C_{\text{inv}}$ (specifically $C_{\text{inv\_overflow}}$); it is **never** counted in $C_{\text{val\_overflow}}$.
+- A duplicate candidate arriving beyond $C_{\text{req}}$ increments $C_{\text{dup}}$ (specifically $C_{\text{dup\_overflow}}$); it is **never** counted in $C_{\text{val\_overflow}}$ or $C_{\text{inv}}$.
+- A valid candidate arriving beyond $C_{\text{req}}$ when an earlier slot was invalid will **backfill** the unfilled slot ($C_{\text{val\_slots\_backfill}}$) rather than overflowing!
+- Only valid, distinct candidates arriving when $C_{\text{val\_slots}} == C_{\text{req}}$ enter $C_{\text{val\_overflow}}$.
 
 ---
 
@@ -129,7 +199,7 @@ The following matrix documents detection, persisted state, user feedback, recove
 | **1** | **AI returns fewer questions than requested** ($C_{\text{gen}} < C_{\text{req}}$) | Array length check: `candidates.length < targetCount`. | Incremental save: valid slots $1 \dots C_{\text{val\_slots}}$ saved as `VALID`; slots $C_{\text{val\_slots}}+1 \dots C_{\text{req}}$ remain `EMPTY`. | `PARTIAL_SUCCESS`: "Generated $C_{\text{val\_slots}}$ of $C_{\text{req}}$ questions." | User clicks "Generate Remaining Slots" or manually drafts missing slots. | Bounded retry: 1 automated attempt requesting exactly $C_{\text{rem\_gen}}$ items `[PROPOSED DEFAULT — Requires Owner Approval under OD-02]`. Terminal if retry fails. | `BATCH_GENERATION_SHORTFALL` (records $C_{\text{req}}, C_{\text{gen}}, C_{\text{val\_slots}}$). |
 | **2** | **AI returns malformed or schema-invalid questions** | Per-slot validator: `validateCandidate()` fails on missing options, short text, or bad answer key. | Valid slots saved as `VALID`; failing slots saved as `INVALID` with error array in `slotValidationErrors`. | `VALIDATION_FAILED`: Warning badge on invalid slot card with specific error message. | 1. Click "Regenerate Slot".<br>2. Manually fix invalid fields in Studio editor. | Bounded slot retry: max 2 automated attempts per slot `[PROPOSED DEFAULT — Requires Owner Approval under OD-02]`. Retries only targeted slot. | `BATCH_SLOT_VALIDATION_FAILED` (records slot index and error codes). |
 | **3** | **AI returns duplicate questions or duplicate slot IDs** | Deduplication check: exact string/option match `[APPROVED CONTRACT: ADR-009]` or Levenshtein $> 0.85$ `[PROPOSED DEFAULT — Requires Owner Approval under OD-02]`. | First instance retained as `VALID`; subsequent duplicate marked `DUPLICATE_REJECTED`. | `DUPLICATE_DETECTED`: "Question $j$ is duplicate of Question $i$." | Click "Regenerate Duplicate" to fetch a distinct candidate. | Prompt modifier appended: `excludeConcepts: [concept_i]`. Max 2 automated retries `[PROPOSED DEFAULT — Requires Owner Approval under OD-02]`. | `BATCH_DUPLICATE_DETECTED` (records conflicting slot indices). |
-| **4** | **AI returns more questions than requested** ($C_{\text{gen}} > C_{\text{req}}$) | Array length check: `candidates.length > targetCount`. | First $C_{\text{req}}$ valid questions accepted into slots $1 \dots N$. Overflow items quarantined in `overflowBuffer`. | `COMPLETE` (or `PARTIAL_SUCCESS`): "Generated $N$ questions. $M$ overflow candidates buffered." | Extra items can be viewed in "Buffer Tray" to swap with invalid slots. | Extra items never automatically increment $C_{\text{req}}$ `[APPROVED CONTRACT: ADR-010]`. Quarantined items expire on batch close `[PROPOSED DEFAULT — Requires Owner Approval under OD-02]`. | `BATCH_OVERFLOW_TRUNCATED` (records excess count $C_{\text{overflow}}$). |
+| **4** | **AI returns more questions than requested** ($C_{\text{gen}} > C_{\text{req}}$) | Array length check: `candidates.length > targetCount`. | First $C_{\text{req}}$ valid questions fill in-range slots $1 \dots N$. Valid overflow items quarantined in `overflowBuffer` ($C_{\text{val\_overflow}}$). Invalid or duplicate overflow candidates discarded. | `COMPLETE` (or `PARTIAL_SUCCESS`): "Generated $N$ questions. $C_{\text{val\_overflow}}$ valid overflow candidates buffered." | Extra items can be viewed in "Buffer Tray" to swap with invalid slots. | Extra items never automatically increment $C_{\text{req}}$ `[APPROVED CONTRACT: ADR-010]`. Quarantined items expire on batch close `[PROPOSED DEFAULT — Requires Owner Approval under OD-02]`. | `BATCH_OVERFLOW_EVALUATED` (records $C_{\text{val\_overflow}}, C_{\text{inv}}, C_{\text{dup}}$). |
 | **5** | **Generation fails or times out partway through** | HTTP 504 / network abort / stream disconnect before response completion. | Transaction rollback or save of last validated partial chunk with batch status `INCOMPLETE`. | `GENERATION_TIMEOUT`: "Generation timed out after slot $k$." | User clicks "Resume Batch Generation" to generate remaining $C_{\text{rem\_gen}}$ slots. | Bounded timeout: client aborts at 45s `[PROPOSED DEFAULT — Requires Owner Approval under OD-02]`. Marks batch `FAILED_RECOVERABLE`. No runaway retries. | `BATCH_GENERATION_TIMEOUT` (records elapsed ms and last valid slot). |
 | **6** | **Persistence fails after generation** | Firestore write error (e.g. quota limit, network glitch, OCC conflict). | Aggregate write rolled back; in-memory candidates retained in client state. | `PERSISTENCE_ERROR`: "Failed to save batch. Retry save?" | In-place "Retry Save" button using retained client state. Zero re-generation. | Client retries Firestore write with exponential backoff (1s, 2s, 4s). Max 3 attempts `[PROPOSED DEFAULT — Requires Owner Approval under OD-02]`. | `BATCH_PERSISTENCE_FAILED` (records Firestore error code). |
 | **7** | **User leaves and resumes partial batch** | User reopens workspace via `?draftId=dft_...`. | Document hydrated from `question_drafts/{id}` containing persisted slots $1 \dots N$. | `RESUMED_DRAFT`: Displays completed slots as green, unresolved slots as empty/actionable. | User reviews existing slots and clicks "Generate Remaining" for unresolved slots. | Idempotent: restores existing slot IDs and versions; zero re-generation of valid slots `[APPROVED CONTRACT]`. | `BATCH_WORKBENCH_RESUMED` (records draftId and hydrated count). |
@@ -254,27 +324,43 @@ The following deterministic scenarios specify required test behavior for future 
 │ Scenario ID   │ Test Case       │ Expected Counts, Asserted States & Invariants                  │
 ├───────────────┼─────────────────┼────────────────────────────────────────────────────────────────┤
 │ TC-BATCH-01   │ Counts 5,10,15,20│ Given valid prompt, AI returns N items.                        │
-│               │ (Happy Path)    │ Expected: C_req=N, C_gen=N, C_val_slots=N, C_inv=0, C_rem_gen=0│
-│               │                 │ BatchStatus = COMPLETE. All N slots VALID.                     │
+│               │ (Happy Path)    │ Expected: C_req=N, C_gen=N, C_val_slots=N, C_inv=0, C_dup=0,   │
+│               │                 │ C_val_overflow=0, C_rem_gen=0. BatchStatus = COMPLETE.         │
 ├───────────────┼─────────────────┼────────────────────────────────────────────────────────────────┤
 │ TC-BATCH-02   │ Fewer results   │ Given C_req=10, AI returns 7 items.                            │
-│               │ (Shortfall)     │ Expected: C_req=10, C_gen=7, C_val_slots=7, C_inv=0,           │
-│               │                 │ C_rem_gen=3. BatchStatus = PARTIAL. Slots 1-7 VALID, 8-10 EMPTY│
-│               │                 │ Submitting for verification is BLOCKED (HTTP 422).             │
+│               │ (Shortfall)     │ Expected: C_req=10, C_gen=7, C_val_slots=7, C_inv=0, C_dup=0,  │
+│               │                 │ C_val_overflow=0, C_rem_gen=3. BatchStatus = PARTIAL.          │
+│               │                 │ Slots 1-7 VALID, 8-10 EMPTY. Verification submit BLOCKED (422).│
 ├───────────────┼─────────────────┼────────────────────────────────────────────────────────────────┤
 │ TC-BATCH-03   │ Malformed item  │ Given C_req=5, AI returns 5 items, but Slot 3 missing optD.   │
-│               │ (Invalid slot)  │ Expected: C_req=5, C_gen=5, C_val_slots=4, C_inv=1,            │
-│               │                 │ C_rem_gen=1. Slot 3 status = INVALID. Error = "Missing optD". │
+│               │ (Invalid slot)  │ Expected: C_req=5, C_gen=5, C_val_slots=4, C_inv=1, C_dup=0,   │
+│               │                 │ C_val_overflow=0, C_rem_gen=1. Slot 3 status = INVALID.        │
 │               │                 │ BatchStatus = PARTIAL. Verification submission BLOCKED.        │
 ├───────────────┼─────────────────┼────────────────────────────────────────────────────────────────┤
-│ TC-BATCH-04   │ Extra results   │ Given C_req=5, AI returns 7 valid items.                       │
-│               │ (Overflow)      │ Expected: C_req=5, C_gen=7, C_val_slots=5, C_overflow=2,       │
-│               │                 │ C_inv=0, C_rem_gen=0. Slots 1-5 populated. Extra 2 items NOT   │
-│               │                 │ added to batch slots. C_req strictly 5. C_inv is 0 (not 2).    │
+│ TC-BATCH-04A  │ Valid overflow  │ Given C_req=5, AI returns 6 items. Candidates 1-5 valid &      │
+│               │ candidate       │ distinct. Candidate 6 is valid & distinct.                     │
+│               │                 │ Expected: C_req=5 (unchanged), C_gen=6, C_val_slots=5,         │
+│               │                 │ C_inv=0, C_dup=0, C_val_overflow=1, C_rem_gen=0.               │
+│               │                 │ Candidate 6 in overflowBuffer. BatchStatus = COMPLETE.         │
+│               │                 │ Invariant: Candidate 6 NOT invalid; C_req strictly 5.          │
+├───────────────┼─────────────────┼────────────────────────────────────────────────────────────────┤
+│ TC-BATCH-04B  │ Invalid beyond  │ Given C_req=5, AI returns 6 items. Candidates 1-5 valid &      │
+│               │ requested count │ distinct. Candidate 6 missing explanation (<5 chars).          │
+│               │                 │ Expected: C_req=5 (unchanged), C_gen=6, C_val_slots=5,         │
+│               │                 │ C_inv=1, C_dup=0, C_val_overflow=0, C_rem_gen=0.               │
+│               │                 │ Candidate 6 discarded (NOT in buffer). BatchStatus = COMPLETE. │
+│               │                 │ Invariant: C_inv=1; in-range slots valid; C_req strictly 5.    │
+├───────────────┼─────────────────┼────────────────────────────────────────────────────────────────┤
+│ TC-BATCH-04C  │ Duplicate beyond│ Given C_req=5, AI returns 6 items. Candidates 1-5 valid &      │
+│               │ requested count │ distinct. Candidate 6 duplicates Candidate 2 text/options.     │
+│               │                 │ Expected: C_req=5 (unchanged), C_gen=6, C_val_slots=5,         │
+│               │                 │ C_inv=0, C_dup=1, C_val_overflow=0, C_rem_gen=0.               │
+│               │                 │ Candidate 6 discarded (NOT in buffer). BatchStatus = COMPLETE. │
+│               │                 │ Invariant: C_dup=1, C_inv=0; C_req strictly 5.                 │
 ├───────────────┼─────────────────┼────────────────────────────────────────────────────────────────┤
 │ TC-BATCH-05   │ Duplicate items │ Given C_req=10, Slot 4 text identical to Slot 1 text.          │
-│               │ (Collision)     │ Expected: Slot 1 = VALID; Slot 4 = DUPLICATE_REJECTED.         │
-│               │                 │ C_dup=1, C_val_slots=9, C_rem_gen=1. BatchStatus = PARTIAL.    │
+│               │ in-range        │ Expected: Slot 1 = VALID; Slot 4 = DUPLICATE_REJECTED.         │
+│               │                 │ C_dup=1, C_val_slots=9, C_inv=0, C_rem_gen=1. Status = PARTIAL.│
 ├───────────────┼─────────────────┼────────────────────────────────────────────────────────────────┤
 │ TC-BATCH-06   │ Network timeout │ Given C_req=10, stream terminates after slot 4.                │
 │               │ (Interruption)  │ Expected: Slots 1-4 persisted as VALID; Slots 5-10 EMPTY.      │
@@ -346,7 +432,11 @@ The following deterministic scenarios specify required test behavior for future 
 
 - **Specification Status**: **`ACCEPTED AS AUTHORITATIVE REQUIREMENTS SPECIFICATION`**
 - **Evidence-Based Verdict**:
-  - Fully defines count semantics, dual remaining counters, valid question rules, failure matrix, recovery protocols, and 15 acceptance test cases.
+  - Fully defines mutually exclusive candidate accounting partition:
+    $$C_{\text{gen}} = C_{\text{val\_slots}} + C_{\text{inv}} + C_{\text{dup}} + C_{\text{val\_overflow}}$$
+  - Formalizes unambiguous 4-step candidate classification precedence.
+  - Resolves orthogonal cross-tabulation distinguishing candidate quality disposition from arrival position.
+  - Specifies 17 deterministic acceptance scenarios covering all count categories, overflow dispositions, persistence retries, OCC conflicts, and workflow gates.
   - Aligns with ADR-010, ADR-011 (DD-05), and canonical Firestore architecture.
   - Distinguishes approved contracts from proposed defaults requiring owner confirmation under OD-02.
   - Zero runtime application code, schemas, or production records mutated.
