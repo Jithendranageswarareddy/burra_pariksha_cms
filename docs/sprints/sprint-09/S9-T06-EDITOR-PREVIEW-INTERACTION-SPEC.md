@@ -258,7 +258,7 @@ Captures candidate disposition during an active AI generation attempt:
 | $\mathbf{C_{\text{inv}}}$ | **Invalid Candidates** | Number of generated candidate objects that fail schema, option, answer, or proof validation. | $C_{\text{inv}} \ge 0$. Unavailable (`"—"`) on resumed drafts. |
 | $\mathbf{C_{\text{dup}}}$ | **Duplicate Candidates** | Number of generated candidates rejected due to semantic or textual collision. | $C_{\text{dup}} \ge 0$. Unavailable (`"—"`) on resumed drafts. |
 | $\mathbf{C_{\text{val\_overflow}}}$ | **Valid Overflow Candidates** | Valid distinct candidates produced after all $C_{\text{req}}$ in-range slots are filled, quarantined in `overflowBuffer`. | $C_{\text{val\_overflow}} \ge 0$. Unavailable (`"—"`) on resumed drafts. |
-| $\mathbf{C_{\text{rem\_gen}}}$ | **Remaining Generation Count** | Number of distinct valid slots still required to reach generation completeness ($C_{\text{rem\_gen}} = \max(0, C_{\text{req}} - C_{\text{val\_slots}})$). | $0 \le C_{\text{rem\_gen}} \le C_{\text{req}}$. |
+| $\mathbf{C_{\text{rem\_gen}}}$ | **Remaining Generation Count** | Number of distinct valid slots still required to reach generation completeness ($C_{\text{rem\_gen}} = \max(0, C_{\text{req}} - C_{\text{val\_slots}})$). | $0 \le C_{\text{rem\_gen}} \le C_{\text{req}}$. Unavailable (`"—"`) on resumed drafts or during manual authoring. |
 
 $$\mathbf{Candidate\ Partition\ Invariant}:\quad C_{\text{gen}} = C_{\text{val\_slots}} + C_{\text{inv}} + C_{\text{dup}} + C_{\text{val\_overflow}}$$
 
@@ -278,20 +278,39 @@ Evaluates the live in-memory content state currently loaded in the studio:
 > 1. **Populated $\neq$ Valid**: An in-range slot containing question text that fails validation (e.g. `status = 'INVALID'`) is populated ($C_{\text{pop}}$), but does **NOT** increment $C_{\text{valid}}$ and does **NOT** satisfy $C_{\text{rem\_gen}}$.
 > 2. **`MANUALLY_EDITED` Is Strictly NOT Accepted**: Modifying an accepted question or drafting a question manually sets `status = 'MANUALLY_EDITED'`. It does **NOT** contribute to $C_{\text{acc}}$. A manually edited slot requires deliberate human review and clicking `"Accept Question"` before it increments $C_{\text{acc}}$ and decrements $C_{\text{rem\_accept}}$.
 > 3. **$C_{\text{val\_slots}}$ Is Not Overloaded**: Generation telemetry ($C_{\text{val\_slots}}$) is never conflated with live workbench validity ($C_{\text{valid}}$). When historical telemetry is missing, $C_{\text{val\_slots}}$ displays `"—"`, while $C_{\text{valid}}$ evaluates the current live slots.
+> 4. **Manual Edits Do Not Falsely Complete Generation Telemetry**: Manually drafting, pasting, or editing question text in the editor workbench updates workbench metrics ($C_{\text{pop}}, C_{\text{valid}}, C_{\text{edit}}$), but **never** mutates generation telemetry ($C_{\text{val\_slots}}$) and cannot falsely satisfy or decrement $C_{\text{rem\_gen}}$. Generation telemetry reflects solely what the AI generation pipeline produced during that specific attempt.
+> 5. **Resumed Drafts Preserve Unavailable Telemetry**: For drafts resumed from Firestore without active session telemetry (or created through manual authoring), all candidate generation counters ($C_{\text{gen}}, C_{\text{val\_slots}}, C_{\text{inv}}, C_{\text{dup}}, C_{\text{val\_overflow}}, C_{\text{rem\_gen}}$) must remain unavailable (`"—"`). The UI and runtime must **never** fabricate generation counts or assign a fabricated generation completion status (`batchStatus: 'COMPLETE'`) to a resumed draft.
 
 ### 6.2 Status Panel Presentation (`BatchStatusSummary`)
 The status panel renders these metrics clearly, distinguishing generation telemetry from workbench review status:
 
+#### Example 1: Active Generation Session with Subsequent Manual Editing
 ```
 +---------------------------------------------------------------------------------------------------+
 | BATCH STATUS: PARTIAL (3 of 5 Slots Populated, 2 Valid, 1 Accepted)                               |
 | [======================================-------------] 40% Valid Slots | 20% Editorial Acceptance  |
 |                                                                                                   |
-| Generation Telemetry:            Workbench Editorial Status:       Candidate Buffer:              |
-| - Target Count (C_req): 5        - Currently Valid (C_valid): 2    - Overflow Candidates: 1       |
-| - Valid In-Range (C_val_slots): 2- Manually Edited (C_edit): 1     - Rejected Duplicates: —       |
-| - Populated Slots (C_pop): 3     - Accepted Slots (C_acc): 1       - Validation Invalids: —       |
-| - Generation Rem (C_rem_gen): 3  - Remaining Accept: 4             - Unresolved Slots: 2          |
+| Generation Telemetry (Attempt):    Workbench Editorial Status:      Candidate Buffer:             |
+| - Target Count (C_req): 5          - Populated Slots (C_pop): 3     - Overflow Candidates: 1      |
+| - Raw Generated (C_gen): 3         - Currently Valid (C_valid): 2   - Rejected Duplicates: 0      |
+| - Valid In-Range (C_val_slots): 2  - Manually Edited (C_edit): 1    - Validation Invalids: 0      |
+| - Generation Rem (C_rem_gen): 3    - Accepted Slots (C_acc): 1      - Unresolved Slots: 2         |
+| - Generation Status: PARTIAL       - Remaining Accept: 4            - Buffer Action: IDLE         |
++---------------------------------------------------------------------------------------------------+
+```
+
+#### Example 2: Resumed Draft / Manual Authoring (Telemetry Unavailable)
+```
++---------------------------------------------------------------------------------------------------+
+| BATCH STATUS: PARTIAL (2 of 5 Slots Populated, 2 Valid, 1 Accepted) [Resumed Draft]               |
+| [======================================-------------] 40% Valid Slots | 20% Editorial Acceptance  |
+|                                                                                                   |
+| Generation Telemetry (Resumed):    Workbench Editorial Status:      Candidate Buffer:             |
+| - Target Count (C_req): 5          - Populated Slots (C_pop): 2     - Overflow Candidates: —      |
+| - Raw Generated (C_gen): —         - Currently Valid (C_valid): 2   - Rejected Duplicates: —      |
+| - Valid In-Range (C_val_slots): —  - Manually Edited (C_edit): 1    - Validation Invalids: —      |
+| - Generation Rem (C_rem_gen): —    - Accepted Slots (C_acc): 1      - Unresolved Slots: 3         |
+| - Generation Status: UNAVAILABLE   - Remaining Accept: 4            - Buffer Action: IDLE         |
 +---------------------------------------------------------------------------------------------------+
 ```
 
@@ -299,23 +318,55 @@ The status panel renders these metrics clearly, distinguishing generation teleme
 In accordance with S9-T03 §2.4, batch production enforces three sequential milestones:
 
 ```text
-┌───────────────────────────────┬──────────────────────────────────┬───────────────────────────────┐
-| 1. Generation Completeness     | 2. Editorial Acceptance          | 3. Submit for Verification     |
-| (C_rem_gen == 0)              | (C_rem_accept == 0)              | (Stage 01 -> Stage 02 Hand-off)|
-├───────────────────────────────┼──────────────────────────────────┼───────────────────────────────┤
-| • Exactly N in-range slots    | • Human reviews every slot       | • BATCH IS 100% COMPLETE      |
-| • All N slots C_valid == C_req| • All N slots status='ACCEPTED'  | • C_valid == C_req            |
-| • Zero EMPTY or INVALID slots | • C_acc == C_req                 | • C_acc == C_req              |
-| • batchStatus = 'COMPLETE'    | • batchStatus = 'ACCEPTED'       | • In-place Save committed     |
-| • DOES NOT allow auto-submit  | • Ready for formal submit check  | • AuthorId != ApproverId      |
-└───────────────────────────────┴──────────────────────────────────┴───────────────────────────────┘
+┌────────────────────────────────┬──────────────────────────────────┬───────────────────────────────┐
+| 1. Generation Completeness     | 2. Editorial Acceptance          | 3. Submit for Verification    |
+| (C_rem_gen == 0)               | (C_rem_accept == 0)              | (Stage 01 -> Stage 02 Gate)   |
+├────────────────────────────────┼──────────────────────────────────┼───────────────────────────────┤
+| • Exactly N in-range slots     | • Human reviews every slot       | • Current content 100% valid  |
+| • C_val_slots == C_req         | • All N slots status='ACCEPTED'  | • C_valid == C_req            |
+| • C_rem_gen == 0               | • C_acc == C_req                 | • C_acc == C_req              |
+| • Zero generation shortfall    | • C_rem_accept == 0              | • C_rem_accept == 0           |
+| • Gen Status = 'COMPLETE'      | • Editorial Status = 'ACCEPTED'  | • In-place Save committed     |
+| • Manual edits do NOT satisfy  | • Zero unreviewed/edited slots   | • AuthorId != ApproverId      |
+| • Resumed drafts = UNAVAILABLE | • Ready for verification submit  | • Independent of telemetry    |
+└────────────────────────────────┴──────────────────────────────────┴───────────────────────────────┘
 ```
 
-1. **Zero Is Distinct From Unavailable**:
-   - If candidate generation metrics ($C_{\text{val\_slots}}, C_{\text{inv}}, C_{\text{dup}}, C_{\text{val\_overflow}}$) were not captured during the active authoring session (e.g., when resuming an existing draft hydrated from Firestore), the UI displays `"—"` (Unavailable) rather than a deceptive `"0"`.
-2. **Verification Ineligibility Guard**:
+#### Milestone 1: Generation Completeness (`C_val_slots == C_req && C_rem_gen == 0`)
+1. **Governed by Generation Telemetry**:
+   - Generation Completeness depends **consistently and exclusively** on generation telemetry counters:
+     $$C_{\text{val\_slots}} == C_{\text{req}} \quad \land \quad C_{\text{rem\_gen}} == 0$$
+   - It represents that the active AI generation attempt successfully synthesized, validated, and assigned $N$ distinct valid candidates to in-range slots $1 \dots N$.
+2. **Manual Edits Cannot Falsely Complete Generation Telemetry**:
+   - Manually typing, editing, or pasting content into an empty or invalid slot updates workbench editorial metrics ($C_{\text{pop}}$, $C_{\text{valid}}$, $C_{\text{edit}}$), but **never** increments $C_{\text{val\_slots}}$ and **never** decrements $C_{\text{rem\_gen}}$.
+   - Generation telemetry reflects solely what the AI generation pipeline synthesized during that attempt. Manual intervention does not transform an incomplete generation attempt into a completed generation attempt.
+3. **Resumed Drafts Must Not Fabricate Generation Telemetry or Status**:
+   - When a draft is resumed from Firestore without active session telemetry (or was created via manual authoring), all generation counters ($C_{\text{gen}}, C_{\text{val\_slots}}, C_{\text{inv}}, C_{\text{dup}}, C_{\text{val\_overflow}}, C_{\text{rem\_gen}}$) remain unavailable (`"—"`).
+   - The UI and runtime must **never** assign fabricated counts (e.g. inventing $C_{\text{val\_slots}}$ or calculating $C_{\text{rem\_gen}}$ from empty slots) and must **never** assign a fabricated generation completion status (`batchStatus: 'COMPLETE'`).
+   - For resumed drafts, Generation Completeness is displayed as `UNAVAILABLE (Resumed Draft)` or `N/A`.
+4. **Advisory Role Only**:
+   - Generation completeness indicates only that AI synthesis produced sufficient candidates; it does **not** imply editorial review, does **not** satisfy acceptance, and does **not** permit automatic submission.
+
+#### Milestone 2: Editorial Acceptance (`C_acc == C_req && C_rem_accept == 0`)
+1. **Governed by Explicit Human Acceptance**:
+   - Editorial Acceptance depends strictly on:
+     $$C_{\text{acc}} == C_{\text{req}} \quad \land \quad C_{\text{rem\_accept}} == 0$$
+   - Requires that an authenticated human editor has reviewed each in-range slot ($1 \dots N$) and clicked `"Accept Question"`, setting `status = 'ACCEPTED'`.
+2. **`MANUALLY_EDITED` and `VALID` Are Strictly Not Accepted**:
+   - Slots with `status = 'MANUALLY_EDITED'` or `status = 'VALID'` (unreviewed) do NOT count toward $C_{\text{acc}}$.
+   - Any manual edit made to an already accepted question immediately revokes acceptance: slot status transitions from `'ACCEPTED'` to `'MANUALLY_EDITED'`, $C_{\text{acc}}$ decrements by 1, and $C_{\text{rem\_accept}}$ increments by 1.
+   - Acceptance requires deliberate human review and confirmation.
+
+#### Milestone 3: Submit for Verification Gate (Stage 01 $\rightarrow$ Stage 02 Hand-Off)
+1. **Governed by Live Editor-Content Validity and Editorial Acceptance**:
+   - A batch is eligible for Stage 02 submission if and only if:
+     $$C_{\text{valid}} == C_{\text{req}} \quad \land \quad C_{\text{acc}} == C_{\text{req}} \quad \land \quad C_{\text{rem\_accept}} == 0 \quad \land \quad \text{isDirty} == \text{false} \quad \land \quad \text{GAR-02}$$
+2. **Decoupled From Unavailable Telemetry**:
+   - While generation telemetry is essential for evaluating AI pipeline performance, eligibility for verification hand-off depends strictly on **current editor-content validity** ($C_{\text{valid}} == C_{\text{req}}$) and **explicit human acceptance** ($C_{\text{acc}} == C_{\text{req}}$).
+   - Resumed drafts or manually authored drafts with unavailable telemetry (`"—"`) proceed to Stage 02 seamlessly once all $N$ slots are valid and accepted, without requiring fabricated generation telemetry.
+3. **Verification Ineligibility Guard**:
    - The button `"Submit for Verification"` is disabled with an explanatory tooltip whenever:
-     $$C_{\text{valid}} < C_{\text{req}} \quad \lor \quad C_{\text{acc}} < C_{\text{req}} \quad \lor \quad C_{\text{rem\_accept}} > 0 \quad \lor \quad \text{hasBlockingErrors} = \text{true}$$
+     $$C_{\text{valid}} < C_{\text{req}} \quad \lor \quad C_{\text{acc}} < C_{\text{req}} \quad \lor \quad C_{\text{rem\_accept}} > 0 \quad \lor \quad \text{hasBlockingErrors} = \text{true} \quad \lor \quad \text{isDirty} = \text{true}$$
 
 ---
 
@@ -951,14 +1002,19 @@ $$\mathbf{SAVE\ DRAFT} \quad \neq \quad \mathbf{SUBMIT\ FOR\ VERIFICATION}$$
 
 #### Disambiguated Evaluation Metrics for Scenario 2:
 - **Configured Target**: $C_{\text{req}} = 5$
-- **Populated In-Range Slots**: $C_{\text{pop}} = 2$ (Slots 1 and 2)
-- **Currently Valid Slots**: $C_{\text{valid}} = 2$ (Both Slot 1 and Slot 2 pass validation)
-- **Manually Edited Slots**: $C_{\text{edit}} = 1$ (Slot 2 has manual edits awaiting acceptance)
-- **Accepted Slots**: $C_{\text{acc}} = 1$ (Only Slot 1 has status `ACCEPTED`. **Slot 2 with status `MANUALLY_EDITED` is strictly NOT accepted!**)
-- **Remaining Acceptance Count**: $C_{\text{rem\_accept}} = C_{\text{req}} - C_{\text{acc}} = 5 - 1 = 4$ (Slots 2, 3, 4, 5 still require acceptance)
-- **Remaining Generation Count**: $C_{\text{rem\_gen}} = 3$ (Slots 3, 4, 5 remain empty)
-- **Generation Telemetry**: $C_{\text{val\_slots}} = \text{"—"}$, $C_{\text{inv}} = \text{"—"}$, $C_{\text{dup}} = \text{"—"}$ (Unavailable on resumed draft)
-- **Verification Eligibility**: **BLOCKED** ($C_{\text{rem\_gen}} > 0 \lor C_{\text{rem\_accept}} > 0$).
+- **Generation Telemetry (Resumed Draft)**:
+  - $C_{\text{gen}} = \text{"—"}$ (Unavailable on resumed draft; zero fabricated metrics)
+  - $C_{\text{val\_slots}} = \text{"—"}$ (Unavailable on resumed draft; zero fabricated metrics)
+  - $C_{\text{rem\_gen}} = \text{"—"}$ (Unavailable on resumed draft; not fabricated from empty slots)
+  - $C_{\text{inv}} = \text{"—"}$, $C_{\text{dup}} = \text{"—"}$, $C_{\text{val\_overflow}} = \text{"—"}$ (Unavailable)
+  - **Generation Completeness Status**: `UNAVAILABLE (Resumed Draft)` (Milestone 1 is N/A)
+- **Workbench Editorial Status (Live Aggregate)**:
+  - **Populated In-Range Slots**: $C_{\text{pop}} = 2$ (Slots 1 and 2 populated; Slots 3, 4, 5 are EMPTY)
+  - **Currently Valid Slots**: $C_{\text{valid}} = 2$ (Both Slot 1 and Slot 2 pass schema/mode validation)
+  - **Manually Edited Slots**: $C_{\text{edit}} = 1$ (Slot 2 has manual edits awaiting acceptance)
+  - **Accepted Slots**: $C_{\text{acc}} = 1$ (Only Slot 1 has status `ACCEPTED`. **Slot 2 with status `MANUALLY_EDITED` is strictly NOT accepted!**)
+  - **Remaining Acceptance Count**: $C_{\text{rem\_accept}} = C_{\text{req}} - C_{\text{acc}} = 5 - 1 = 4$ (Slots 2, 3, 4, 5 still require acceptance)
+- **Verification Eligibility**: **BLOCKED** ($C_{\text{valid}} = 2 < 5 \lor C_{\text{rem\_accept}} = 4 > 0$). Blocked because 3 slots remain empty/unvalidated ($C_{\text{valid}} < C_{\text{req}}$) and 4 slots lack explicit editorial acceptance ($C_{\text{rem\_accept}} > 0$). (Evaluation is independent of unavailable generation telemetry).
 
 ### Scenario 3: Validation Error on Option Collision (`ERR_OPTION_DUPLICATE`)
 ```json
@@ -1110,4 +1166,4 @@ Under [AGENTS.md §15.1 and §15.2](../../../AGENTS.md#15-risk-based-engineering
 
 ### 20.2 Scope Verdict & Sign-Off
 - **Verdict**: **COMPLETE & ACCEPTED (GATE B BASELINE — RECONCILED)**.
-- **Summary**: All 8 primary acceptance criteria (AC-01 through AC-08) are fully satisfied. The specification completely reconciles $C_{\text{val\_slots}}$ with S9-T03 generation telemetry, defines $C_{\text{valid}}$ for workbench evaluation, enforces that `MANUALLY_EDITED` is strictly not accepted without explicit editorial sign-off, maintains unavailable metrics as `"—"`, and preserves the historical S7 baseline and architecture test manifest without alteration.
+- **Summary**: All 8 primary acceptance criteria (AC-01 through AC-08) are fully satisfied. The specification completely reconciles $C_{\text{val\_slots}}$ and $C_{\text{rem\_gen}}$ for generation completeness, establishes $C_{\text{valid}}$ for live workbench content validity, enforces $C_{\text{acc}}$ for explicit editorial acceptance, eliminates fabricated generation metrics on resumed drafts, provides well-formed status panel representations, and preserves the historical S7 baseline and architecture test manifest without alteration.
