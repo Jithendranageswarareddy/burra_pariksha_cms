@@ -19,6 +19,49 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+/**
+ * Authoritative explicit manifest of approved post-Sprint-7 additions.
+ * Under AGENTS.md §1 and S8-T08-FOLDER-BOUNDARIES-INTEGRATION-DESIGN.md:
+ * - The historical Sprint 7 manifest (713 files) is immutable.
+ * - Every post-S7 file tracked in git must explicitly belong to an approved sprint deliverable.
+ * - Broad regex or directory patterns are prohibited to prevent arbitrary un-audited file creep.
+ */
+export const AUTHORITATIVE_APPROVED_POST_S7_ADDITIONS: readonly string[] = [
+  'backend/server/routers/script.routes.ts',
+  'docs/sprints/sprint-08/S8-T05-PRODUCTION-CONTEXT-CONTRACT.md',
+  'docs/sprints/sprint-08/S8-T06-CONTENT-MODE-REGISTRY-DESIGN.md',
+  'docs/sprints/sprint-08/S8-T07-WORKFLOW-RESOLUTION-TRANSITION-DESIGN.md',
+  'docs/sprints/sprint-08/S8-T08-FOLDER-BOUNDARIES-INTEGRATION-DESIGN.md',
+  'docs/sprints/sprint-08/S8-TASK-RECONCILIATION-REPORT.md',
+  'frontend/features/question-generation/components/ExplainedQuestionsWorkspace.tsx',
+  'frontend/features/question-generation/components/ProductionModeModal.tsx',
+  'frontend/features/question-generation/components/ProductionWorkbenchSummary.tsx',
+  'frontend/features/question-generation/components/TopicIntroWorkspace.tsx',
+  'shared/lib/workflow-resolver.ts',
+  'shared/registry/content-mode.registry.ts',
+  'shared/registry/index.ts',
+  'shared/types/content-mode-registry.ts',
+  'shared/types/production-context.ts',
+  'tests/api/s8-t15-backend-persistence-draft-resumption.api.test.ts',
+  'tests/api/s8-t18-api-persistence-auth-recovery.api.test.ts',
+  'tests/integration/s8-t15-firestore-draft-persistence.integration.test.ts',
+  'tests/integration/s8-t18-firestore-persistence-recovery.integration.test.ts',
+  'tests/integration/script-routes.integration.test.ts',
+  'tests/unit/s8-t06-production-context.unit.test.ts',
+  'tests/unit/s8-t07-draft-reopening.unit.test.ts',
+  'tests/unit/s8-t08-mode-workspaces.unit.test.ts',
+  'tests/unit/s8-t09-script-multimode.unit.test.ts',
+  'tests/unit/s8-t10-dynamic-topic-selection.unit.test.ts',
+  'tests/unit/s8-t11-dependent-subtopic-selection.unit.test.ts',
+  'tests/unit/s8-t12-content-mode-configuration.unit.test.ts',
+  'tests/unit/s8-t13-production-workbench.unit.test.ts',
+  'tests/unit/s8-t14-dynamic-workflow-resolution.unit.test.ts',
+  'tests/unit/s8-t16-content-mode-workflow-rules.unit.test.ts',
+  'tests/unit/s8-t17-dynamic-page-states-navigation.unit.test.ts',
+];
+
+const EXPECTED_HISTORICAL_S7_COUNT = 713;
+
 async function runInventoryReconciliation() {
   console.log('============================================================');
   console.log('S7-T01 INVENTORY MANIFEST & GIT TRACKED FILE RECONCILIATION');
@@ -67,19 +110,24 @@ async function runInventoryReconciliation() {
 
   console.log(`[2] Parsed ${manifestRows.length} manifest rows in Section 2.`);
 
-  // 3. Check for duplicates in historical S7 manifest
+  // 3. Explicitly validate expected 713 unique rows and zero duplicates in historical S7 manifest
+  assert.strictEqual(
+    manifestRows.length,
+    EXPECTED_HISTORICAL_S7_COUNT,
+    `Historical S7 manifest row count must be exactly ${EXPECTED_HISTORICAL_S7_COUNT}, but found ${manifestRows.length}`
+  );
   assert.strictEqual(
     duplicatePaths.length,
     0,
     `Found duplicate paths in inventory manifest: ${duplicatePaths.join(', ')}`
   );
-  console.log('    PASS: Zero duplicate entries in inventory manifest.');
+  console.log(`    PASS: Historical S7 manifest contains exactly ${EXPECTED_HISTORICAL_S7_COUNT} unique rows with zero duplicates.`);
 
   // 4. Historical S7 Baseline vs Current Repository Reconciliation Separation
   // Under AGENTS.md §1 and S8-T08-FOLDER-BOUNDARIES-INTEGRATION-DESIGN.md:
   // - The Sprint 7 manifest (713 files) is an immutable historical audit record.
   // - Files in the S7 manifest must exist in the git repository (extraInManifest === 0).
-  // - Tracked files beyond the S7 manifest must belong to approved subsequent sprint scopes (Sprint 8).
+  // - Tracked files beyond the S7 manifest must belong to the explicit approved post-S7 manifest.
   const extraInManifest = manifestPaths.filter((f) => !gitSet.has(f));
 
   if (extraInManifest.length > 0) {
@@ -94,42 +142,61 @@ async function runInventoryReconciliation() {
   );
   console.log(`    PASS: All ${manifestRows.length} historical S7 manifest files confirmed present in git repository.`);
 
-  // Audit post-S7 additions against approved sprint scopes
-  const postS7Additions = gitFiles.filter((f) => !seenPaths.has(f));
-  console.log(`\n[Post-S7 Delta] Discovered ${postS7Additions.length} files added after Sprint 7 baseline.`);
-
-  const approvedPostS7Scopes = [
-    /^docs\/sprints\/sprint-08\//,
-    /^frontend\/features\/question-generation\/components\//,
-    /^backend\/server\/routers\/script\.routes\.ts$/,
-    /^shared\/lib\/workflow-resolver\.ts$/,
-    /^shared\/registry\//,
-    /^shared\/types\/(content-mode-registry|production-context)\.ts$/,
-    /^tests\/(api|integration|unit)\/(s8-|script-routes)/,
-  ];
-
-  const unapprovedAdditions = postS7Additions.filter(
-    (f) => !approvedPostS7Scopes.some((pattern) => pattern.test(f))
+  // 5. Meaningful Reconciliation of Current Git Index against S7 Baseline + Authoritative Post-S7 Manifest
+  const approvedPostS7Set = new Set(AUTHORITATIVE_APPROVED_POST_S7_ADDITIONS);
+  assert.strictEqual(
+    approvedPostS7Set.size,
+    AUTHORITATIVE_APPROVED_POST_S7_ADDITIONS.length,
+    'Authoritative approved post-S7 list must have zero duplicate entries'
   );
 
-  if (unapprovedAdditions.length > 0) {
-    console.error(`FAILED: ${unapprovedAdditions.length} unapproved/unaccounted tracked files outside S7 baseline and S8 scope:`);
-    unapprovedAdditions.forEach((f) => console.error(`  - ${f}`));
-  }
-
+  // Check 5a: Disallow overlap between S7 baseline and post-S7 additions
+  const overlappingFiles = AUTHORITATIVE_APPROVED_POST_S7_ADDITIONS.filter((f) => seenPaths.has(f));
   assert.strictEqual(
-    unapprovedAdditions.length,
+    overlappingFiles.length,
     0,
-    `Found ${unapprovedAdditions.length} unapproved/unaccounted tracked files outside S7 baseline and S8 scope: ${unapprovedAdditions.join(', ')}`
+    `Approved post-S7 list contains files that already exist in S7 baseline: ${overlappingFiles.join(', ')}`
   );
 
+  // Check 5b: Check for missing post-S7 approved files (approved file expected in git but missing)
+  const missingApprovedPostS7 = AUTHORITATIVE_APPROVED_POST_S7_ADDITIONS.filter((f) => !gitSet.has(f));
+  if (missingApprovedPostS7.length > 0) {
+    console.error(`FAILED: ${missingApprovedPostS7.length} approved post-S7 files missing from git tracked files:`);
+    missingApprovedPostS7.forEach((f) => console.error(`  - ${f}`));
+  }
   assert.strictEqual(
-    manifestRows.length + postS7Additions.length,
-    gitFiles.length,
-    `Reconciled total (${manifestRows.length} S7 + ${postS7Additions.length} post-S7) must match git tracked files (${gitFiles.length})`
+    missingApprovedPostS7.length,
+    0,
+    `${missingApprovedPostS7.length} approved post-S7 files are missing from git tracked files`
   );
 
-  console.log(`    PASS: Exact reconciliation: ${manifestRows.length} S7 baseline + ${postS7Additions.length} approved Sprint 8 additions = ${gitFiles.length} total tracked files.\n`);
+  // Check 5c: Check for unapproved additions (tracked in git, but neither in S7 manifest nor in approved post-S7 list)
+  const actualPostS7Tracked = gitFiles.filter((f) => !seenPaths.has(f));
+  const unapprovedTrackedFiles = actualPostS7Tracked.filter((f) => !approvedPostS7Set.has(f));
+  if (unapprovedTrackedFiles.length > 0) {
+    console.error(`FAILED: ${unapprovedTrackedFiles.length} unapproved/unaccounted tracked files found in git:`);
+    unapprovedTrackedFiles.forEach((f) => console.error(`  - ${f}`));
+  }
+  assert.strictEqual(
+    unapprovedTrackedFiles.length,
+    0,
+    `Found ${unapprovedTrackedFiles.length} unapproved/unaccounted tracked files outside S7 baseline and approved post-S7 manifest: ${unapprovedTrackedFiles.join(', ')}`
+  );
+
+  // Check 5d: Meaningful non-tautological total reconciliation
+  const expectedTotalTracked = EXPECTED_HISTORICAL_S7_COUNT + AUTHORITATIVE_APPROVED_POST_S7_ADDITIONS.length;
+  assert.strictEqual(
+    gitFiles.length,
+    expectedTotalTracked,
+    `Total git tracked files (${gitFiles.length}) must equal exact sum of S7 baseline (${EXPECTED_HISTORICAL_S7_COUNT}) + approved post-S7 manifest (${AUTHORITATIVE_APPROVED_POST_S7_ADDITIONS.length}) = ${expectedTotalTracked}`
+  );
+  assert.strictEqual(
+    actualPostS7Tracked.length,
+    AUTHORITATIVE_APPROVED_POST_S7_ADDITIONS.length,
+    `Actual post-S7 tracked additions count (${actualPostS7Tracked.length}) must exactly match authoritative approved list count (${AUTHORITATIVE_APPROVED_POST_S7_ADDITIONS.length})`
+  );
+
+  console.log(`    PASS: Meaningful reconciliation verified: exactly ${EXPECTED_HISTORICAL_S7_COUNT} S7 baseline files + ${AUTHORITATIVE_APPROVED_POST_S7_ADDITIONS.length} explicitly approved Sprint 8 additions = ${gitFiles.length} total tracked files.\n`);
 
   // 5. Verify Physical Distribution totals (Section 1.2)
   console.log('[3] Verifying Section 1.2 Physical Distribution totals...');
@@ -180,8 +247,8 @@ async function runInventoryReconciliation() {
       if (cls === 'TOTAL') {
         assert.strictEqual(
           count,
-          manifestRows.length,
-          `Section 1.3 TOTAL (${count}) must match historical manifest rows count (${manifestRows.length})`
+          EXPECTED_HISTORICAL_S7_COUNT,
+          `Section 1.3 TOTAL (${count}) must match expected historical manifest rows count (${EXPECTED_HISTORICAL_S7_COUNT})`
         );
       } else {
         const actualCount = actualClassCounts[cls] || 0;
@@ -202,12 +269,12 @@ async function runInventoryReconciliation() {
   const headingCount = parseInt(headingMatches[1], 10);
   assert.strictEqual(
     headingCount,
-    manifestRows.length,
-    `Heading "All ${headingCount} Files" must match historical manifest row count (${manifestRows.length})`
+    EXPECTED_HISTORICAL_S7_COUNT,
+    `Heading "All ${headingCount} Files" must match expected historical manifest row count (${EXPECTED_HISTORICAL_S7_COUNT})`
   );
 
   console.log('============================================================');
-  console.log(`INVENTORY RECONCILIATION RESULT: ALL CHECKS PASSED (${manifestRows.length} S7 baseline + ${postS7Additions.length} Sprint 8 = ${gitFiles.length} files)`);
+  console.log(`INVENTORY RECONCILIATION RESULT: ALL CHECKS PASSED (${EXPECTED_HISTORICAL_S7_COUNT} S7 baseline + ${AUTHORITATIVE_APPROVED_POST_S7_ADDITIONS.length} Sprint 8 = ${gitFiles.length} files)`);
   console.log('============================================================\n');
 }
 
