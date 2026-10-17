@@ -1,11 +1,11 @@
 # S9-T01: Sprint 8 Dependency Audit & Acceptance for Sprint 9
 
-**Milestone**: Sprint 9 — Question Challenge Short (Mode 1 Production Pipeline)
-**Task ID**: `S9-T01`
-**Effective Date**: October 17, 2026
-**Auditor**: Antigravity Software Architect & Systems Verification Engineer
-**Inspected Commit**: `acd5c163d94aee4951664c5bf401bc7fe93cd9a6` (`origin/main`)
-**Scope**: Verification of GitHub `main` foundation and dependencies for Sprint 9 (Question Challenge Short). Identification of concrete blockers, discrepancies, and architecture compliance.
+**Milestone**: Sprint 9 — Question Challenge Short (Mode 1 Production Pipeline)<br>
+**Task ID**: `S9-T01`<br>
+**Effective Date**: October 17, 2026<br>
+**Auditor**: Antigravity Software Architect & Systems Verification Engineer<br>
+**Inspected Commit**: `2a6924444a83b4e96156d1cc31623ce73678ac55` (`origin/main`)<br>
+**Scope**: Verification of GitHub `main` foundation and dependencies for Sprint 9 (Question Challenge Short). Identification of concrete blockers, discrepancies, batch runner boundaries, and architecture compliance.
 
 ---
 
@@ -13,8 +13,9 @@
 
 | Metric | Verdict | Detail |
 | :--- | :---: | :--- |
-| **Sprint 8 Foundation Status** | **ACCEPTED** | All core capabilities (Taxonomy, Mode Registry, OCC, Persistence, Workflow Resolver, Authorization) verified. |
-| **Readiness for S9-T02** | **READY** | Zero critical blocking defects prevent Sprint 9 (Question Challenge Short) from proceeding. |
+| **Sprint 8 Foundation Status** | **ACCEPTED** | All core foundational capabilities (Taxonomy, Mode Registry, OCC, Persistence, Workflow Resolver, Authorization) verified. |
+| **Readiness for S9-T02** | **READY** | Zero blocking defects prevent Sprint 9 Question Challenge Short Stage 01 authoring ($N=1$) from proceeding. |
+| **Mode 1 Supported Runtime Scope** | **SINGLE-SHORT ($N=1$)** | Single vertical short authoring ($N=1$) is fully operational. Batch series ($N \in \{5, 10, 15, 20\}$) is supported at configuration/validation level; batch runner execution engine is unbuilt (OD-02). |
 | **Datastore Authority** | **COMPLIANT** | Cloud Firestore sole transactional datastore; zero Google Sheets runtime persistence. |
 | **Invariant Compliance** | **COMPLIANT** | Save Draft $\neq$ Submit for Verification; GAR-02 ($authorId \neq approverId$) enforced without bypass. |
 | **Next Action** | **S9-T02** | Advance to Task `S9-T02` (Question Challenge Short Authoring / Stage 01 Mode 1 Dedicated Polish). |
@@ -26,7 +27,7 @@
 | Dependency Domain | Status | Exact Source Paths & Functions | API Routes & Contracts | Existing Test Evidence | Audit Notes |
 | :--- | :---: | :--- | :--- | :--- | :--- |
 | **1. Two-Tier Taxonomy & Cascading Selection** | **PASS** | `backend/domain/taxonomy/services/taxonomy.service.ts`<br>`frontend/features/question-generation/hooks/useQuestionGeneration.ts` (`SubtopicSelectionController`)<br>`frontend/features/question-generation/components/GenerationConfigPanel.tsx` | `GET /api/v1/taxonomy/topics`<br>`GET /api/v1/taxonomy/subtopics?topicId=:id`<br>Contract: `shared/contracts/taxonomy.ts` | `npm run test:s8-t10` (9/9 pass)<br>`npm run test:s8-t11` (12/12 pass) | Strictly two-tier (`Topic` $\to$ `Subtopic`). Zero legacy `Category` references. Out-of-order race conditions guarded by request sequence ID counter. |
-| **2. Content Mode Registry (Mode 1)** | **PASS** | `shared/registry/content-mode.registry.ts` (`ContentModeRegistry`)<br>`frontend/features/question-generation/components/ProductionModeModal.tsx` (`ModeSelectionManager`)<br>`shared/types/production-context.ts` | `shared/types/content-mode-registry.ts`<br>`shared/contracts/production-mode.ts` | `npm run test:s8-t12` (29/29 assertions pass)<br>`npm run test:s8-t16` (17/17 pass) | `QUESTION_CHALLENGE_SHORT` registered: allowed counts `[1, 5, 10, 15, 20]`, default `1`; fixed `9:16` aspect ratio; duration $30-58\text{s}$ (target $52\text{s}$); requires 4 MCQ options and declared correct answer. |
+| **2. Content Mode Registry (Mode 1)** | **PASS (Config) / BOUNDARY (Batch)** | `shared/registry/content-mode.registry.ts` (`ContentModeRegistry`)<br>`frontend/features/question-generation/components/ProductionModeModal.tsx` (`ModeSelectionManager`)<br>`shared/types/production-context.ts` | `shared/types/content-mode-registry.ts`<br>`shared/contracts/production-mode.ts` | `npm run test:s8-t12` (29/29 assertions pass)<br>`npm run test:s8-t14` (21/21 checks pass)<br>`npm run test:s8-t16` (21/21 checks pass) | `QUESTION_CHALLENGE_SHORT` registered: allowed counts `[1, 5, 10, 15, 20]`, default `1`; fixed `9:16` aspect ratio; duration $30-58\text{s}$ (target $52\text{s}$); requires 4 MCQ options and declared correct answer.<br>**Critical Scope Distinction**: Configuration validation for counts $\{5, 10, 15, 20\}$ is verified; however, multi-instance batch dispatch runner / independent workflow creation is not implemented. Single short ($N=1$) is the sole verified runtime path. |
 | **3. Draft Creation & Persistence** | **PASS** | `backend/features/question-generation/services/question-draft.service.ts`<br>`backend/domain/question-generation/question-generation.service.ts` (`saveDraft`)<br>`database/firestore/repositories/question-drafts.repository.ts` | `POST /api/v1/question-drafts`<br>`GET /api/v1/question-drafts/:id`<br>Contract: `shared/contracts/question-generation/` | `npm run test:s8-t15` (13/13 pass)<br>`npm run test:s8-t18` (20/20 pass) | Persists draft with canonical `dft_<uuid_v4>` ID into Firestore `question_drafts`. Save Draft strictly separated from verification; stays in Stage 01. |
 | **4. Deep Linking & Draft Reopening** | **PASS** | `frontend/features/question-generation/hooks/useQuestionGeneration.ts` (`loadExistingDraft`)<br>`frontend/features/question-generation/pages/QuestionStudioPage.tsx` | URL deep link: `?draftId=dft_<uuid>`<br>Contract: `shared/types/production-context.ts` | `npm run test:s8-t07` (6/6 pass)<br>`npm run test:s8-t17` (21/21 assertions pass) | Reopening draft restores candidate fields, taxonomy, and mode configuration. Persisted draft values strictly take precedence over URL default query parameters. |
 | **5. Optimistic Concurrency Control (OCC)** | **PASS** | `database/firestore/repositories/question-drafts.repository.ts`<br>`backend/domain/question-generation/question-generation.service.ts` | HTTP 409 `ConcurrencyConflictError`<br>Contract: `expectedVersion` | `npm run test:s8-t15` (OCC suites)<br>`npm run test:s8-t18` (concurrency & compensation) | Atomic integer `version` incremented on every update. Stale update attempts fail closed with HTTP 409. Duplicate concurrent submissions safely rejected. |
@@ -50,7 +51,7 @@
   5. Drops responses if `requestId` or `activeTopicId` changed during network latency.
   6. Filters active subtopics and sets default valid subtopic.
 
-### 3.2 Content Mode 1 (`QUESTION_CHALLENGE_SHORT`) Configuration
+### 3.2 Content Mode 1 (`QUESTION_CHALLENGE_SHORT`) Configuration & Execution Scope
 - **Registry Grounding**: `ContentModeRegistry.getInstance().getDefinition('QUESTION_CHALLENGE_SHORT')`:
   - `allowedCounts: [1, 5, 10, 15, 20]`, default `1`.
   - `allowedAspects: ['9:16']`, fixed aspect ratio.
@@ -58,6 +59,7 @@
   - `verification`: `10_POINT_PROOF` checklist (`S8-M1-01` to `S8-M1-10`).
   - `duration`: $30-58\text{s}$ hard ceiling.
 - **UI Interaction**: `ProductionModeModal.tsx` renders Mode 1 card with question count dropdown (`1, 5, 10, 15, 20`) and fixed `9:16` badge. Validated via `validateProductionModeConfig()`.
+- **Runtime Scope Boundary**: While configuration accepts counts `[1, 5, 10, 15, 20]`, Question Studio (`QuestionStudioPage.tsx` and `useQuestionGeneration.ts`) authors and persists a **single candidate question** (`POST /api/v1/question-drafts`). Batch dispatch execution ($N > 1$) is not implemented in runtime code.
 
 ### 3.3 Draft Creation, Persistence & Deep-Link Reopening
 - **Saving Draft**: `handleSaveDraft` in `useQuestionGeneration.ts`:
@@ -100,7 +102,7 @@
 
 ---
 
-## 4. Discrepancy & Gap Analysis: Reconciled
+## 4. Discrepancy & Gap Analysis
 
 ### 4.1 Mode 1 Question-Count Contract Reconciliation (Resolved)
 - **Previous Inconsistency**:
@@ -115,32 +117,49 @@
   - `shared/types/content-mode-registry.ts`: Updated `QuestionCountConstraint.allowedValues` type documentation.
   - `contentModeRegistry.validateConfig` and `validateProductionModeConfig` now produce identical validation results for all supported and unsupported question counts.
 
-### 4.2 Sprint 8 Inventory Tracking
+### 4.2 Mode 1 Configuration Validation vs. Batch Execution Engine (Architecture Boundary)
+- **Current State of Implementation**:
+  - Configuration acceptance and registry validation for `QUESTION_CHALLENGE_SHORT` correctly support question counts `[1, 5, 10, 15, 20]` across `validateProductionModeConfig` and `contentModeRegistry.validateConfig`.
+  - However, the actual application runtime, Question Studio hook (`useQuestionGeneration`), backend service (`question-draft.service.ts` / `question-generation.service.ts`), and workflow engine only support authoring, persisting, and submitting a **single question draft** ($N=1$, canonical `dft_<uuid_v4>`) linked to a single workflow instance.
+  - A batch dispatch runner, fanned-out generation worker, and creation of $N$ independent workflow instances for batch series ($N \in \{5, 10, 15, 20\}$) are **not demonstrated or implemented in code or test fixtures**.
+- **Reconciliation with ADR-010 and Sprint 8 Architecture**:
+  - In [ADR-010](../../architecture/DECISION-LOG.md) and [S8-T03 §5.2 / §6 OD-02](../sprint-08/S8-T03-CONTENT-MODE-REQUIREMENTS.md), selecting counts $>1$ was conceptually defined as a "Batch Creation Series" producing $N$ standalone single-question Shorts sharing syllabus taxonomy context.
+  - However, ADR-010 explicitly classified the batch execution engine as **"Proposed—Approval Required & Open Decision (OD-02)"** and confirmed: *"Mode 1 defaults strictly to one question per published video ($N=1$). Proposed batch runner generation remains an unapproved open decision and is not approved runtime functionality"* (see also [S8-T05 §1.2](../sprint-08/S8-T05-PRODUCTION-CONTEXT-CONTRACT.md) and [S8-T06 §7](../sprint-08/S8-T06-CONTENT-MODE-REGISTRY-DESIGN.md)).
+  - Therefore, the absence of a batch runner is an intentional architectural boundary, not an unhandled regression. End-to-end batch production must **not** be claimed without code and test evidence.
+- **Impact on S9-T02 (Is it a Blocker?)**:
+  - **Does NOT block S9-T02**. Task `S9-T02` is scoped to "Question Challenge Short Stage 01 Authoring & Mode 1 Workbench Polish", which focuses on the primary, approved single-question authoring pipeline ($N=1$, vertical 9:16 short $\le 58\text{s}$). Single-question authoring, Firestore draft persistence (`POST /api/v1/question-drafts`), OCC, and Stage 02 submission are fully functional and tested.
+  - **Supported Scope for S9-T02**: Single-question vertical short ($N=1$).
+  - **Downstream Dependency**: If end-to-end batch creation series ($N \in \{5, 10, 15, 20\}$) is scheduled for implementation, it must be assigned as an explicit downstream architectural task (batch dispatcher, queue manager, and multi-instance workflow coordinator) before batch execution can be advertised to users or executed at runtime.
+
+### 4.3 Sprint 8 Inventory Tracking
 - `tests/architecture/s7-t01-inventory-reconciliation.test.ts` tracks post-S7 additions via `AUTHORITATIVE_APPROVED_POST_S7_ADDITIONS`.
 - `docs/sprints/sprint-09/S9-T01-DEPENDENCY-AUDIT.md` is registered in the manifest; inventory verification passes (713 S7 baseline + 33 post-S7 approved files = 746 tracked files).
 
-### 4.3 Orphaned Legacy Pages (ADR-011 DD-07)
+### 4.4 Orphaned Legacy Pages (ADR-011 DD-07)
 - 8 unmounted page files identified in Sprint 8 inventory (e.g., `VideoReviewQCPage.tsx`, `VideoReviewScriptPage.tsx`) remain scheduled for physical retirement during Sprint 9 maintenance. They do not impede Mode 1 Question Challenge Short authoring.
 
 ---
 
 ## 5. Verification Evidence & Test Execution Record
 
+The following commands were executed directly against the committed codebase (`2a6924444a83b4e96156d1cc31623ce73678ac55`):
+
 | Verification Suite / Command | Scope & Purpose | Exit Code | Result Summary |
 | :--- | :--- | :---: | :--- |
-| `npx tsx tests/unit/s8-t12-content-mode-configuration.unit.test.ts` | Unit & integration tests for mode selection, configuration, and registry parity | `0` | **29/29 assertions passed**. Mode 1 validated for counts `1, 5, 10, 15, 20` across both `validateProductionModeConfig` and `contentModeRegistry.validateConfig`. |
-| `npx tsx tests/unit/s8-t14-dynamic-workflow-resolution.unit.test.ts` | Dynamic workflow state resolution & registry validation integration | `0` | **21/21 checks passed**. Validated Mode 1 registered definition, batch config validation, and step progression. |
-| `npx tsx tests/unit/s8-t16-content-mode-workflow-rules.unit.test.ts` | Content-mode workflow rules and boundary enforcement | `0` | **21/21 checks passed**. Verified all Mode 1 approved counts `[1, 5, 10, 15, 20]` and rejection of invalid counts `[0, 2, 3, 4, 6, 7, 12, 25, -1, 1.5, NaN]`. |
 | `npm run lint` (`tsc --noEmit`) | Full-repository static typecheck across all 746 files | `0` | **Clean exit (0 errors)**. Zero TypeScript compilation or contract violations. |
-| `npm run build` (`vite build` + `esbuild`) | Production frontend bundle and Node.js server bundle | `0` | **Clean build** in 27.74s (`dist/index.html`, `dist/assets/`, `dist/server.cjs`). |
+| `npm run build` (`vite build` + `esbuild`) | Production frontend bundle and Node.js server bundle | `0` | **Clean build** in 17.21s (`dist/index.html`, `dist/assets/index-DaEV_3LU.css` [180.18 kB], `dist/assets/index-atWM2EL4.js` [3,235.83 kB], `dist/server.cjs` [2.4mb]). |
+| `npx tsx tests/unit/s8-t12-content-mode-configuration.unit.test.ts` | Unit & integration tests for mode selection, configuration, and registry parity | `0` | **29/29 assertions passed across 8 sections**. Mode 1 validated for counts `1, 5, 10, 15, 20` across both `validateProductionModeConfig` and `contentModeRegistry.validateConfig`. |
+| `npx tsx tests/unit/s8-t14-dynamic-workflow-resolution.unit.test.ts` | Dynamic workflow state resolution & registry validation integration | `0` | **21/21 checks passed across 5 sections**. Validated Mode 1 registered definition, batch config validation, and step progression. |
+| `npx tsx tests/unit/s8-t16-content-mode-workflow-rules.unit.test.ts` | Content-mode workflow rules and boundary enforcement | `0` | **21/21 checks passed across 5 sections**. Verified all Mode 1 approved counts `[1, 5, 10, 15, 20]` and rejection of invalid counts `[0, 2, 3, 4, 6, 7, 12, 25, -1, 1.5, NaN]`. |
 | `npm run test:architecture` | Layer isolation boundaries and inventory manifest reconciliation | `0` | **5/5 test suites passed**. Tracked files verified: 713 S7 + 33 post-S7 = 746 files. Zero layer leaks. |
 
 ---
 
 ## 6. Concrete Blockers
 
-**Zero remaining blockers.**
-All dependencies, mode registry contracts, validation helpers, and UI configurations are reconciled, functional, and verified by automated test suites.
+**Zero blocking defects for S9-T02.**
+- All dependencies, mode registry contracts, validation helpers, and UI configurations are reconciled, functional, and verified by automated test suites.
+- The absence of a batch runner execution engine is an explicit architectural boundary (ADR-010 / OD-02) that applies to batch series generation ($N > 1$), but does **not** block single-question vertical short ($N=1$) authoring in Task `S9-T02`.
 
 ---
 
@@ -151,18 +170,20 @@ All dependencies, mode registry contracts, validation helpers, and UI configurat
 3. `tests/unit/s8-t12-content-mode-configuration.unit.test.ts`: Added assertions verifying parity between `validateProductionModeConfig` and `contentModeRegistry.validateConfig`.
 4. `tests/unit/s8-t14-dynamic-workflow-resolution.unit.test.ts`: Updated assertions for Mode 1 `allowedValues` and valid batch counts.
 5. `tests/unit/s8-t16-content-mode-workflow-rules.unit.test.ts`: Updated test suite to validate all approved Mode 1 counts (`1, 5, 10, 15, 20`) and rejection of invalid counts.
-6. `docs/sprints/sprint-09/S9-T01-DEPENDENCY-AUDIT.md`: Published reconciled audit findings, test evidence, and readiness verdict.
+6. `docs/sprints/sprint-09/S9-T01-DEPENDENCY-AUDIT.md`: Published reconciled audit findings, test evidence, batch runner boundary distinction, and readiness verdict.
 
 ---
 
 ## 8. Readiness Verdict & Next Action
 
-- **Verdict**: **`READY` FOR S9-T02**
+- **Verdict**: **`READY` FOR S9-T02 (Single-Question Vertical Short Authoring)**
 - **Evidence-Based Rationale**:
   - The Mode 1 question count contract is fully reconciled across the registry, validator, UI, and test suites.
-  - `npm run lint` (`tsc --noEmit`) passed with 0 errors.
-  - `npm run build` compiled both frontend and backend bundles cleanly.
-  - `npm run test:architecture` passed with 0 boundary violations.
-  - Focused content-mode unit test suites (`s8-t12`, `s8-t14`, `s8-t16`) passed cleanly with 100% assertions satisfied.
+  - Live execution of `npm run lint` (`tsc --noEmit`) passed with 0 errors across all 746 files.
+  - Live execution of `npm run build` compiled both frontend and backend bundles cleanly (exit code 0).
+  - Live execution of `npm run test:architecture` passed with 0 boundary violations (exit code 0).
+  - Focused content-mode unit test suites (`s8-t12`, `s8-t14`, `s8-t16`) passed cleanly with 100% assertions satisfied (exit code 0).
+  - The batch runner execution engine is clearly documented as an unbuilt architectural boundary under ADR-010 (OD-02) that does not block single-short authoring.
   - Cloud Firestore datastore authority, canonical UUID IDs, two-tier taxonomy, and GAR-02 invariants are strictly preserved.
+- **Supported Scope for S9-T02**: Single-question vertical short ($N=1$, 9:16 portrait, $\le 58\text{s}$) Stage 01 authoring, Firestore draft persistence, and Stage 02 submission handoff.
 - **Single Next Action**: Proceed with **Task `S9-T02`** (Question Challenge Short Stage 01 Authoring & Mode 1 Workbench Polish). S9-T02 will not be started during this task.
