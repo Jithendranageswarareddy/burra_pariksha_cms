@@ -310,6 +310,11 @@ export interface Mode1ValidationResultEnvelope {
 | `ERR_INVALID_ANSWER_KEY` | **BLOCKING** | `correctAnswer` not in `['A', 'B', 'C', 'D']` | HTTP 422 |
 | `ERR_MISSING_ANSWER_KEY` | **BLOCKING** | Correct answer key is missing or invalid; cannot be fabricated and requires human assignment | HTTP 422 |
 | `ERR_MISSING_DRAFT_ID` | **BLOCKING** | Record lacks a valid draft identifier (`id` or `draftId`) | HTTP 400 |
+| `ERR_SLOT_COUNT_MISMATCH` | **BLOCKING** | Number of slots in `slots` array does not match `configuredQuestionCount` | HTTP 422 |
+| `ERR_MISSING_SLOT_ID` | **BLOCKING** | Existing slot lacks a canonical `slotId` | HTTP 422 |
+| `ERR_DUPLICATE_SLOT_ID` | **BLOCKING** | Duplicate `slotId` found in slots array; IDs must be distinct | HTTP 422 |
+| `ERR_SLOT_STATUS_INCONSISTENT` | **BLOCKING** | Slot is marked `VALID` or `ACCEPTED` but contains blocking validation errors | HTTP 422 |
+| `ERR_BATCH_STATUS_INCONSISTENT` | **BLOCKING** | Batch is marked `COMPLETE` or `ACCEPTED` but contains incomplete or unreviewed slots | HTTP 422 |
 | `ERR_INCOMPLETE_LEGACY_BATCH` | **BLOCKING** | Legacy record specified `targetQuestionCount > 1`, but contains only 1 question at root. Remaining slots are empty | HTTP 422 |
 | `ERR_MISSING_EXPLANATION` | **BLOCKING** | `explanation.trim().length < 5` | HTTP 422 |
 | `ERR_EXACT_DUPLICATE_QUESTION` | **BLOCKING** | Duplicate question text and options match an earlier slot or active question | HTTP 422 |
@@ -318,7 +323,7 @@ export interface Mode1ValidationResultEnvelope {
 | `ERR_OCC_VERSION_MISMATCH` | **BLOCKING** | `expectedVersion !== draft.version` | HTTP 409 |
 | `ERR_UNAUTHORIZED_SUBMITTER` | **BLOCKING** | Submitter lacks `QUESTION:SUBMIT` capability or is not author/editor | HTTP 403 |
 | `ERR_SELF_APPROVAL_PROHIBITED` | **BLOCKING** | Reviewer matches author during approval (`NEG-01` / GAR-02) | HTTP 403 |
-| `WARN_MISSING_SLOT_ID` | **WARNING** | Legacy record lacks a canonical slotId; a canonical UUID will be generated upon save | N/A (Allowed) |
+| `WARN_MISSING_SLOT_ID` | **WARNING** | Legacy single-question record lacks a slotId; a canonical UUID will be generated upon save | N/A (Allowed) |
 | `WARN_LENGTH_PACING` | **WARNING** | `questionText.length > 180` characters (may exceed 58s duration) | N/A (Allowed) |
 | `WARN_SEMANTIC_SIMILARITY` | **WARNING** | Semantic overlap $> 0.85$ with another candidate | N/A (Allowed) |
 
@@ -763,8 +768,52 @@ The proposed Mode 1 contract strictly distinguishes between verified, currently 
 #### Proposed Hydration Function Implementation:
 
 ```typescript
+export interface HydratedMode1QuestionSlot {
+  slotNumber: number;
+  slotId?: string; // Undefined if legacy record lacked slotId; never fabricated
+  revisionNumber: number;
+  status: 'EMPTY' | 'GENERATING' | 'VALID' | 'INVALID' | 'MANUALLY_EDITED' | 'ACCEPTED';
+  isManuallyEdited: boolean;
+  questionText: string;
+  options: {
+    a: string;
+    b: string;
+    c: string;
+    d: string;
+  };
+  optionA?: string;
+  optionB?: string;
+  optionC?: string;
+  optionD?: string;
+  correctAnswer?: 'A' | 'B' | 'C' | 'D' | string; // Undefined or raw string if legacy record was invalid/missing
+  explanation: string;
+  trickOrPitfall?: string;
+  realWorldContext?: string;
+  validationErrors?: string[];
+  lastValidatedAt?: string;
+}
+
+export interface HydratedMode1BatchAggregate {
+  id?: string; // Undefined if legacy record lacked id
+  productionMode: 'QUESTION_CHALLENGE_SHORT';
+  topicId?: string;
+  subtopicId?: string;
+  configuredQuestionCount?: 1 | 5 | 10 | 15 | 20; // Undefined if missing or invalid; never inferred from slots.length
+  aspectRatio?: string;
+  batchStatus: 'EMPTY' | 'GENERATING' | 'PARTIAL' | 'COMPLETE' | 'ACCEPTED' | 'FAILED';
+  version: number;
+  authorId?: string;
+  authorName?: string;
+  workflowStage?: string;
+  status?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  slots: HydratedMode1QuestionSlot[];
+  [unmappedProperty: string]: unknown; // Retains all unmapped Firestore properties to prevent data loss
+}
+
 export interface HydrationResult {
-  aggregate: Mode1BatchDraftAggregate;
+  aggregate: HydratedMode1BatchAggregate;
   findings: Mode1ValidationResultEnvelope;
   requiresReview: boolean;
 }
@@ -774,55 +823,311 @@ export interface HydrationResult {
  * NOTE: PROPOSED DESIGN — NOT IMPLEMENTED IN CURRENT RUNTIME.
  * Converts legacy QuestionDraft documents into the Mode 1 batch aggregate structure
  * without fabricating semantic content or masking incomplete batch configurations.
+ * Validates existing multi-slot aggregates with zero validation bypass.
  */
 export function hydrateMode1Draft(raw: Record<string, any>): HydrationResult {
   const errors: ValidationErrorItem[] = [];
   const warnings: ValidationWarningItem[] = [];
 
   // 1. Identify Draft Aggregate ID
-  const draftId = raw.id || raw.draftId;
+  const draftId = typeof raw.id === 'string' && raw.id.trim()
+    ? raw.id.trim()
+    : (typeof raw.draftId === 'string' && raw.draftId.trim() ? raw.draftId.trim() : undefined);
+
   if (!draftId) {
     errors.push({
       code: 'ERR_MISSING_DRAFT_ID',
-      message: 'Legacy record lacks a valid draft identifier.',
+      message: 'Record lacks a valid draft identifier (id).',
       path: 'id',
       severity: 'BLOCKING',
     });
   }
 
-  // 2. Check if already a multi-slot aggregate
+  // 2. Validate Existing Multi-Slot Aggregate (Do NOT bypass validation)
   if (Array.isArray(raw.slots) && raw.slots.length > 0) {
+    // 2a. Validate Supported Configured Question Count (Strictly Do NOT infer from slots.length!)
+    let configuredCount: (1 | 5 | 10 | 15 | 20) | undefined = undefined;
+    const rawConfiguredCount = raw.configuredQuestionCount ?? raw.targetQuestionCount;
+
+    if (typeof rawConfiguredCount === 'number' && [1, 5, 10, 15, 20].includes(rawConfiguredCount)) {
+      configuredCount = rawConfiguredCount as 1 | 5 | 10 | 15 | 20;
+    } else {
+      errors.push({
+        code: 'ERR_INVALID_COUNT',
+        message: `Configured question count is missing or invalid (${rawConfiguredCount}). Must strictly be one of [1, 5, 10, 15, 20]. Cannot infer count from slots array length (${raw.slots.length}); explicit reconciliation required.`,
+        path: 'configuredQuestionCount',
+        severity: 'BLOCKING',
+      });
+    }
+
+    // 2b. Validate Exact Slot Count
+    if (configuredCount !== undefined && raw.slots.length !== configuredCount) {
+      errors.push({
+        code: 'ERR_SLOT_COUNT_MISMATCH',
+        message: `Configured question count is ${configuredCount}, but slots array contains ${raw.slots.length} element(s). Exact slot count match is required.`,
+        path: 'slots',
+        severity: 'BLOCKING',
+      });
+    }
+
+    // 2c. Validate Contiguous Slot Numbers & Unique Slot IDs
+    const seenSlotNumbers = new Set<number>();
+    const seenSlotIds = new Set<string>();
+    let hasDiscontinuousSlots = false;
+
+    for (let i = 0; i < raw.slots.length; i++) {
+      const slot = raw.slots[i] || {};
+      const expectedSlotNumber = i + 1;
+
+      // Slot Number Sequence Check
+      if (typeof slot.slotNumber !== 'number' || slot.slotNumber !== expectedSlotNumber || seenSlotNumbers.has(slot.slotNumber)) {
+        hasDiscontinuousSlots = true;
+      }
+      if (typeof slot.slotNumber === 'number') {
+        seenSlotNumbers.add(slot.slotNumber);
+      }
+
+      // Slot ID Check (Never fabricate IDs)
+      if (!slot.slotId || typeof slot.slotId !== 'string' || slot.slotId.trim() === '') {
+        errors.push({
+          code: 'ERR_MISSING_SLOT_ID',
+          message: `Slot ${slot.slotNumber ?? expectedSlotNumber} lacks a canonical slotId.`,
+          path: `slots[${i}].slotId`,
+          slotNumber: slot.slotNumber ?? expectedSlotNumber,
+          severity: 'BLOCKING',
+        });
+      } else if (seenSlotIds.has(slot.slotId)) {
+        errors.push({
+          code: 'ERR_DUPLICATE_SLOT_ID',
+          message: `Duplicate slotId '${slot.slotId}' found in slot ${slot.slotNumber ?? expectedSlotNumber}. Every slot must possess a distinct identifier.`,
+          path: `slots[${i}].slotId`,
+          slotNumber: slot.slotNumber ?? expectedSlotNumber,
+          severity: 'BLOCKING',
+        });
+      } else {
+        seenSlotIds.add(slot.slotId);
+      }
+    }
+
+    if (hasDiscontinuousSlots) {
+      errors.push({
+        code: 'ERR_DISCONTINUOUS_SLOTS',
+        message: 'Slot numbers must form a strictly contiguous 1-based sequence (1 to N) with zero gaps and zero duplicates.',
+        path: 'slots',
+        severity: 'BLOCKING',
+      });
+    }
+
+    // 2d. Validate Question Fields, Option Distinctness, Answer Key & Explanation
+    const hydratedSlots: HydratedMode1QuestionSlot[] = [];
+
+    for (let i = 0; i < raw.slots.length; i++) {
+      const slot = raw.slots[i] || {};
+      const slotNum = slot.slotNumber ?? i + 1;
+      const slotErrors: ValidationErrorItem[] = [];
+
+      // Empty slots omit question payload during drafting
+      if (slot.status === 'EMPTY') {
+        hydratedSlots.push({
+          slotNumber: slotNum,
+          slotId: typeof slot.slotId === 'string' && slot.slotId.trim() ? slot.slotId.trim() : undefined,
+          revisionNumber: slot.revisionNumber ?? 1,
+          status: 'EMPTY',
+          isManuallyEdited: Boolean(slot.isManuallyEdited),
+          questionText: '',
+          options: { a: '', b: '', c: '', d: '' },
+          explanation: '',
+        });
+        continue;
+      }
+
+      // Question Text
+      const qText = typeof slot.questionText === 'string' ? slot.questionText.trim() : '';
+      if (!qText || qText.length < 5) {
+        slotErrors.push({
+          code: 'ERR_EMPTY_PROMPT',
+          message: `Slot ${slotNum}: Question text is missing or less than 5 characters.`,
+          path: `slots[${i}].questionText`,
+          slotNumber: slotNum,
+          severity: 'BLOCKING',
+        });
+      }
+
+      // Options & Distinctness
+      const sOpts = slot.options || {};
+      const options = {
+        a: (sOpts.a ?? slot.optionA ?? '').trim(),
+        b: (sOpts.b ?? slot.optionB ?? '').trim(),
+        c: (sOpts.c ?? slot.optionC ?? '').trim(),
+        d: (sOpts.d ?? slot.optionD ?? '').trim(),
+      };
+
+      if (!options.a || !options.b || !options.c || !options.d) {
+        slotErrors.push({
+          code: 'ERR_OPTION_MISSING',
+          message: `Slot ${slotNum}: All four MCQ options (a, b, c, d) must be populated.`,
+          path: `slots[${i}].options`,
+          slotNumber: slotNum,
+          severity: 'BLOCKING',
+        });
+      } else {
+        const optValues = [options.a, options.b, options.c, options.d].map((v) => v.toLowerCase());
+        if (new Set(optValues).size < 4) {
+          slotErrors.push({
+            code: 'ERR_OPTION_DUPLICATE',
+            message: `Slot ${slotNum}: Options must be pairwise distinct.`,
+            path: `slots[${i}].options`,
+            slotNumber: slotNum,
+            severity: 'BLOCKING',
+          });
+        }
+      }
+
+      // Answer Key (Never fabricated!)
+      let correctAnswer: 'A' | 'B' | 'C' | 'D' | string | undefined = slot.correctAnswer;
+      if (typeof correctAnswer === 'string' && ['A', 'B', 'C', 'D'].includes(correctAnswer.trim().toUpperCase())) {
+        correctAnswer = correctAnswer.trim().toUpperCase() as 'A' | 'B' | 'C' | 'D';
+      } else {
+        slotErrors.push({
+          code: 'ERR_MISSING_ANSWER_KEY',
+          message: correctAnswer
+            ? `Slot ${slotNum}: Invalid answer key '${correctAnswer}'. Must strictly be A, B, C, or D.`
+            : `Slot ${slotNum}: Missing answer key. An answer key must not be fabricated and requires human assignment.`,
+          path: `slots[${i}].correctAnswer`,
+          slotNumber: slotNum,
+          severity: 'BLOCKING',
+        });
+      }
+
+      // Explanation
+      const expl = typeof slot.explanation === 'string' ? slot.explanation.trim() : '';
+      if (!expl || expl.length < 5) {
+        slotErrors.push({
+          code: 'ERR_MISSING_EXPLANATION',
+          message: `Slot ${slotNum}: Explanation derivation must be at least 5 characters.`,
+          path: `slots[${i}].explanation`,
+          slotNumber: slotNum,
+          severity: 'BLOCKING',
+        });
+      }
+
+      // Status consistency check
+      let resolvedSlotStatus: HydratedMode1QuestionSlot['status'] = slot.status ?? 'INVALID';
+      if (slotErrors.length > 0 && (resolvedSlotStatus === 'VALID' || resolvedSlotStatus === 'ACCEPTED')) {
+        errors.push({
+          code: 'ERR_SLOT_STATUS_INCONSISTENT',
+          message: `Slot ${slotNum} is marked '${resolvedSlotStatus}' but contains blocking validation errors.`,
+          path: `slots[${i}].status`,
+          slotNumber: slotNum,
+          severity: 'BLOCKING',
+        });
+        resolvedSlotStatus = 'INVALID';
+      }
+
+      errors.push(...slotErrors);
+
+      hydratedSlots.push({
+        slotNumber: slotNum,
+        slotId: typeof slot.slotId === 'string' && slot.slotId.trim() ? slot.slotId.trim() : undefined,
+        revisionNumber: slot.revisionNumber ?? 1,
+        status: resolvedSlotStatus,
+        isManuallyEdited: Boolean(slot.isManuallyEdited),
+        questionText: qText,
+        options,
+        optionA: options.a,
+        optionB: options.b,
+        optionC: options.c,
+        optionD: options.d,
+        correctAnswer,
+        explanation: expl,
+        trickOrPitfall: slot.trickOrPitfall,
+        realWorldContext: slot.realWorldContext ?? slot.realLifeContext,
+        validationErrors: slotErrors.map((e) => e.message),
+        lastValidatedAt: new Date().toISOString(),
+      });
+    }
+
+    // 2e. Lifecycle Invariants & Status Consistency Check
+    const effectiveTargetCount = configuredCount ?? raw.slots.length;
+    const validSlotCount = hydratedSlots.filter(
+      (s) => (s.status === 'VALID' || s.status === 'ACCEPTED' || s.status === 'MANUALLY_EDITED') &&
+             (!s.validationErrors || s.validationErrors.length === 0)
+    ).length;
+    const remainingCount = Math.max(0, effectiveTargetCount - validSlotCount);
+    const acceptedSlotCount = hydratedSlots.filter((s) => s.status === 'ACCEPTED').length;
+
+    if (remainingCount > 0 && raw.batchStatus === 'COMPLETE') {
+      errors.push({
+        code: 'ERR_BATCH_STATUS_INCONSISTENT',
+        message: `Batch status is marked 'COMPLETE', but ${remainingCount} slot(s) remain incomplete or invalid.`,
+        path: 'batchStatus',
+        severity: 'BLOCKING',
+      });
+    }
+
+    if ((remainingCount > 0 || acceptedSlotCount < effectiveTargetCount) && raw.batchStatus === 'ACCEPTED') {
+      errors.push({
+        code: 'ERR_BATCH_STATUS_INCONSISTENT',
+        message: `Batch status is marked 'ACCEPTED', but only ${acceptedSlotCount} of ${effectiveTargetCount} slots have attained editorial acceptance.`,
+        path: 'batchStatus',
+        severity: 'BLOCKING',
+      });
+    }
+
+    const aggregate: HydratedMode1BatchAggregate = {
+      ...raw, // Retain all unmapped legacy attributes to prevent data loss
+      id: draftId,
+      productionMode: 'QUESTION_CHALLENGE_SHORT',
+      topicId: raw.topicId,
+      subtopicId: raw.subtopicId,
+      configuredQuestionCount: configuredCount,
+      aspectRatio: raw.aspectRatio || '9:16',
+      batchStatus: raw.batchStatus || (remainingCount === 0 ? 'COMPLETE' : 'PARTIAL'),
+      version: raw.version || 1,
+      authorId: raw.authorId || '',
+      authorName: raw.authorName || '',
+      workflowStage: raw.workflowStage || 'STAGE_01_QUESTION_STUDIO',
+      status: raw.status || 'DRAFT',
+      createdAt: raw.createdAt || new Date().toISOString(),
+      updatedAt: raw.updatedAt || new Date().toISOString(),
+      slots: hydratedSlots,
+    };
+
     const findings: Mode1ValidationResultEnvelope = {
-      isValid: true,
-      configuredCount: raw.configuredQuestionCount || raw.slots.length,
-      validSlotCount: raw.slots.filter((s: any) => s.status === 'VALID' || s.status === 'ACCEPTED').length,
-      remainingCount: 0,
-      errors: [],
-      warnings: [],
+      isValid: errors.length === 0,
+      configuredCount: effectiveTargetCount,
+      validSlotCount,
+      remainingCount,
+      errors,
+      warnings,
       evaluatedAt: new Date().toISOString(),
     };
+
     return {
-      aggregate: raw as Mode1BatchDraftAggregate,
+      aggregate,
       findings,
-      requiresReview: false,
+      requiresReview: !findings.isValid || warnings.length > 0,
     };
   }
 
-  // 3. Resolve Configured Question Count
+  // 3. Resolve Configured Question Count for Legacy Single-Question Draft
   const rawTargetCount = raw.targetQuestionCount;
-  let configuredCount: 1 | 5 | 10 | 15 | 20 = 1;
+  let configuredCount: (1 | 5 | 10 | 15 | 20) | undefined = undefined;
 
   if (rawTargetCount !== undefined && rawTargetCount !== null) {
     if ([1, 5, 10, 15, 20].includes(rawTargetCount)) {
       configuredCount = rawTargetCount as 1 | 5 | 10 | 15 | 20;
     } else {
       errors.push({
-        code: 'ERR_INVALID_CONFIGURED_COUNT',
+        code: 'ERR_INVALID_COUNT',
         message: `Legacy targetQuestionCount (${rawTargetCount}) is not a supported Mode 1 count [1, 5, 10, 15, 20].`,
         path: 'configuredQuestionCount',
         severity: 'BLOCKING',
       });
     }
+  } else {
+    // Legacy single-question draft default
+    configuredCount = 1;
   }
 
   // 4. Hydrate Slot 1 from Root Question Fields (NEVER fabricate content)
@@ -849,15 +1154,36 @@ export function hydrateMode1Draft(raw: Record<string, any>): HydrationResult {
     d: (rawOpts.d ?? raw.optionD ?? '').trim(),
   };
 
+  if (!options.a || !options.b || !options.c || !options.d) {
+    errors.push({
+      code: 'ERR_OPTION_MISSING',
+      message: 'All four MCQ options (a, b, c, d) must be populated.',
+      path: 'slots[0].options',
+      slotNumber: 1,
+      severity: 'BLOCKING',
+    });
+  } else {
+    const optValues = [options.a, options.b, options.c, options.d].map((v) => v.toLowerCase());
+    if (new Set(optValues).size < 4) {
+      errors.push({
+        code: 'ERR_OPTION_DUPLICATE',
+        message: 'Options must be pairwise distinct.',
+        path: 'slots[0].options',
+        slotNumber: 1,
+        severity: 'BLOCKING',
+      });
+    }
+  }
+
   // Answer Key: NEVER fabricate default 'A'!
-  let correctAnswer: 'A' | 'B' | 'C' | 'D' | undefined = undefined;
-  if (typeof raw.correctAnswer === 'string' && ['A', 'B', 'C', 'D'].includes(raw.correctAnswer.trim().toUpperCase())) {
-    correctAnswer = raw.correctAnswer.trim().toUpperCase() as 'A' | 'B' | 'C' | 'D';
+  let correctAnswer: 'A' | 'B' | 'C' | 'D' | string | undefined = raw.correctAnswer;
+  if (typeof correctAnswer === 'string' && ['A', 'B', 'C', 'D'].includes(correctAnswer.trim().toUpperCase())) {
+    correctAnswer = correctAnswer.trim().toUpperCase() as 'A' | 'B' | 'C' | 'D';
   } else {
     errors.push({
       code: 'ERR_MISSING_ANSWER_KEY',
-      message: raw.correctAnswer
-        ? `Legacy record contains invalid answer key '${raw.correctAnswer}'. Must be A, B, C, or D.`
+      message: correctAnswer
+        ? `Legacy record contains invalid answer key '${correctAnswer}'. Must strictly be A, B, C, or D.`
         : 'Legacy record has no answer key. An answer key must not be fabricated and requires human assignment.',
       path: 'slots[0].correctAnswer',
       slotNumber: 1,
@@ -878,11 +1204,11 @@ export function hydrateMode1Draft(raw: Record<string, any>): HydrationResult {
   }
 
   // Slot Identity: Do not fabricate synthetic fallback strings
-  const slotId = raw.slotId;
+  const slotId = typeof raw.slotId === 'string' && raw.slotId.trim() ? raw.slotId.trim() : undefined;
   if (!slotId) {
     warnings.push({
       code: 'WARN_MISSING_SLOT_ID',
-      message: 'Legacy record lacks a canonical slotId; a canonical UUID (slt_<uuid>) will be generated upon save.',
+      message: 'Legacy single-question record lacks a slotId; a canonical UUID (slt_<uuid>) will be generated upon save.',
       path: 'slots[0].slotId',
       slotNumber: 1,
       severity: 'WARNING',
@@ -891,13 +1217,13 @@ export function hydrateMode1Draft(raw: Record<string, any>): HydrationResult {
 
   // Determine Slot 1 Initial Status
   const slot1HasBlockingErrors = errors.some((e) => e.slotNumber === 1);
-  const slot1Status: Mode1QuestionSlot['status'] = slot1HasBlockingErrors
+  const slot1Status: HydratedMode1QuestionSlot['status'] = slot1HasBlockingErrors
     ? 'INVALID'
     : (questionText ? 'VALID' : 'EMPTY');
 
-  const slot1: Mode1QuestionSlot = {
+  const slot1: HydratedMode1QuestionSlot = {
     slotNumber: 1,
-    slotId: slotId || '', // Resolved upon save if missing
+    slotId, // Preserved as undefined if missing in legacy record; never fabricated
     revisionNumber: 1,
     status: slot1Status,
     isManuallyEdited: Boolean(raw.isManuallyEdited ?? true),
@@ -907,59 +1233,60 @@ export function hydrateMode1Draft(raw: Record<string, any>): HydrationResult {
     optionB: options.b,
     optionC: options.c,
     optionD: options.d,
-    correctAnswer: correctAnswer as any, // Preserved as undefined if missing
+    correctAnswer, // Preserved as undefined/raw string if missing/invalid
     explanation,
     trickOrPitfall: raw.trickOrPitfall,
     realWorldContext: raw.realWorldContext ?? raw.realLifeContext,
+    validationErrors: errors.filter((e) => e.slotNumber === 1).map((e) => e.message),
+    lastValidatedAt: new Date().toISOString(),
   };
 
   // 5. Construct Slots Array & Incomplete Batch Check for N > 1
-  const slots: Mode1QuestionSlot[] = [slot1];
+  const slots: HydratedMode1QuestionSlot[] = [slot1];
+  const effectiveConfiguredCount = configuredCount ?? 1;
 
-  if (configuredCount > 1) {
-    // Legacy record asked for N > 1, but only 1 question was persisted at root!
-    // Remaining slots 2..N are missing and cannot be claimed to satisfy the count.
-    for (let k = 2; k <= configuredCount; k++) {
+  if (effectiveConfiguredCount > 1) {
+    for (let k = 2; k <= effectiveConfiguredCount; k++) {
       slots.push({
         slotNumber: k,
-        slotId: '',
+        slotId: undefined, // Empty slots start without fabricated IDs
         revisionNumber: 1,
         status: 'EMPTY',
         isManuallyEdited: false,
         questionText: '',
         options: { a: '', b: '', c: '', d: '' },
-        correctAnswer: undefined as any,
+        correctAnswer: undefined,
         explanation: '',
       });
     }
 
     errors.push({
       code: 'ERR_INCOMPLETE_LEGACY_BATCH',
-      message: `Legacy record specifies targetQuestionCount: ${configuredCount}, but contains only 1 question at root. Remaining ${configuredCount - 1} slots are empty and must be generated or authored.`,
+      message: `Legacy record specifies targetQuestionCount: ${effectiveConfiguredCount}, but contains only 1 question at root. Remaining ${effectiveConfiguredCount - 1} slots are empty and must be generated or authored.`,
       path: 'slots',
       severity: 'BLOCKING',
     });
   }
 
   // 6. Resolve Aggregate Batch Status
-  const validSlotCount = slots.filter((s) => s.status === 'VALID' || s.status === 'ACCEPTED').length;
-  const remainingCount = configuredCount - validSlotCount;
+  const validSlotCount = slots.filter((s) => (s.status === 'VALID' || s.status === 'ACCEPTED') && (!s.validationErrors || s.validationErrors.length === 0)).length;
+  const remainingCount = Math.max(0, effectiveConfiguredCount - validSlotCount);
 
-  let batchStatus: Mode1BatchDraftAggregate['batchStatus'] = 'PARTIAL';
-  if (configuredCount === 1 && slot1Status === 'VALID') {
+  let batchStatus: HydratedMode1BatchAggregate['batchStatus'] = 'PARTIAL';
+  if (effectiveConfiguredCount === 1 && slot1Status === 'VALID' && errors.length === 0) {
     batchStatus = 'COMPLETE'; // Generation complete; requires editorial review to reach ACCEPTED
   } else if (validSlotCount === 0) {
     batchStatus = 'EMPTY';
   }
 
-  const aggregate: Mode1BatchDraftAggregate = {
+  const aggregate: HydratedMode1BatchAggregate = {
     ...raw, // Retain all unmapped legacy fields to prevent data loss
     id: draftId,
     productionMode: 'QUESTION_CHALLENGE_SHORT',
     topicId: raw.topicId,
     subtopicId: raw.subtopicId,
     configuredQuestionCount: configuredCount,
-    aspectRatio: '9:16',
+    aspectRatio: raw.aspectRatio || '9:16',
     batchStatus,
     version: raw.version || 1,
     authorId: raw.authorId || '',
@@ -973,7 +1300,7 @@ export function hydrateMode1Draft(raw: Record<string, any>): HydrationResult {
 
   const findings: Mode1ValidationResultEnvelope = {
     isValid: errors.length === 0,
-    configuredCount,
+    configuredCount: effectiveConfiguredCount,
     validSlotCount,
     remainingCount,
     errors,
