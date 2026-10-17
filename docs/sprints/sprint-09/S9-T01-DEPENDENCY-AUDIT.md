@@ -100,29 +100,69 @@
 
 ---
 
-## 4. Discrepancy & Gap Analysis
+## 4. Discrepancy & Gap Analysis: Reconciled
 
-1. **Sprint 8 Inventory Tracking**:
-   - `tests/architecture/s7-t01-inventory-reconciliation.test.ts` maintains an explicit manifest `AUTHORITATIVE_APPROVED_POST_S7_ADDITIONS`.
-   - Any new tracked deliverable file in `docs/sprints/sprint-09/` must be registered in the manifest to ensure non-tautological inventory verification passes.
-2. **Batch Series Question Count in Mode 1**:
-   - ADR-010 and `ProductionModeModal.tsx` allow Mode 1 question counts of `[1, 5, 10, 15, 20]` (single short vs. batch series creation).
-   - In `shared/registry/content-mode.registry.ts`, Mode 1 `questionCount.allowedValues` is set to `[1]` with batch series documented in comments.
-   - `validateProductionModeConfig` in `shared/contracts/production-mode.ts` accepts `[1, 5, 10, 15, 20]`. This represents compatible behavior for single vs. batch creation in Sprint 9.
-3. **Orphaned Page Files**:
-   - 8 unmounted page files identified in Sprint 8 inventory (e.g., `VideoReviewQCPage.tsx`, `VideoReviewScriptPage.tsx`) remain scheduled for physical retirement in Sprint 9 per ADR-011 DD-07. They do not interfere with Mode 1 Question Challenge Short.
+### 4.1 Mode 1 Question-Count Contract Reconciliation (Resolved)
+- **Previous Inconsistency**:
+  - `shared/types/production-context.ts` (`validateProductionModeConfig`) and `ProductionModeModal.tsx` allowed question counts `[1, 5, 10, 15, 20]` (distinguishing single short $N=1$ from batch series $\{5, 10, 15, 20\}$).
+  - Conversely, `shared/registry/content-mode.registry.ts` declared `allowedValues: [1]` with `isConfigurable: false`, causing `contentModeRegistry.validateConfig` to reject batch counts $5, 10, 15, 20$.
+- **Authoritative Rule (ADR-010 & S8-T03 §5.2, OD-02)**:
+  - $N = 1$: Default single-question vertical short ($\le 58\text{s}$, 9:16 portrait).
+  - $N \in \{5, 10, 15, 20\}$: Batch creation series producing $N$ standalone single-question Shorts sharing syllabus taxonomy context.
+  - Arbitrary counts ($0, 2, 3, 4, 6, 7, 12, 25$, negative, non-integer): Strictly rejected.
+- **Reconciliation Applied**:
+  - `shared/registry/content-mode.registry.ts`: Updated `QUESTION_CHALLENGE_SHORT` definition to `allowedValues: [1, 5, 10, 15, 20]`, `defaultValue: 1`, `isConfigurable: true`, with description explicitly documenting the single-short vs. batch-series distinction.
+  - `shared/types/content-mode-registry.ts`: Updated `QuestionCountConstraint.allowedValues` type documentation.
+  - `contentModeRegistry.validateConfig` and `validateProductionModeConfig` now produce identical validation results for all supported and unsupported question counts.
+
+### 4.2 Sprint 8 Inventory Tracking
+- `tests/architecture/s7-t01-inventory-reconciliation.test.ts` tracks post-S7 additions via `AUTHORITATIVE_APPROVED_POST_S7_ADDITIONS`.
+- `docs/sprints/sprint-09/S9-T01-DEPENDENCY-AUDIT.md` is registered in the manifest; inventory verification passes (713 S7 baseline + 33 post-S7 approved files = 746 tracked files).
+
+### 4.3 Orphaned Legacy Pages (ADR-011 DD-07)
+- 8 unmounted page files identified in Sprint 8 inventory (e.g., `VideoReviewQCPage.tsx`, `VideoReviewScriptPage.tsx`) remain scheduled for physical retirement during Sprint 9 maintenance. They do not impede Mode 1 Question Challenge Short authoring.
 
 ---
 
-## 5. Concrete Blockers
+## 5. Verification Evidence & Test Execution Record
 
-**Zero critical blockers identified.**
-All core upstream and downstream dependencies for Sprint 9: Question Challenge Short are functional, tested, and conformant with authoritative architecture.
+| Verification Suite / Command | Scope & Purpose | Exit Code | Result Summary |
+| :--- | :--- | :---: | :--- |
+| `npx tsx tests/unit/s8-t12-content-mode-configuration.unit.test.ts` | Unit & integration tests for mode selection, configuration, and registry parity | `0` | **29/29 assertions passed**. Mode 1 validated for counts `1, 5, 10, 15, 20` across both `validateProductionModeConfig` and `contentModeRegistry.validateConfig`. |
+| `npx tsx tests/unit/s8-t14-dynamic-workflow-resolution.unit.test.ts` | Dynamic workflow state resolution & registry validation integration | `0` | **21/21 checks passed**. Validated Mode 1 registered definition, batch config validation, and step progression. |
+| `npx tsx tests/unit/s8-t16-content-mode-workflow-rules.unit.test.ts` | Content-mode workflow rules and boundary enforcement | `0` | **21/21 checks passed**. Verified all Mode 1 approved counts `[1, 5, 10, 15, 20]` and rejection of invalid counts `[0, 2, 3, 4, 6, 7, 12, 25, -1, 1.5, NaN]`. |
+| `npm run lint` (`tsc --noEmit`) | Full-repository static typecheck across all 746 files | `0` | **Clean exit (0 errors)**. Zero TypeScript compilation or contract violations. |
+| `npm run build` (`vite build` + `esbuild`) | Production frontend bundle and Node.js server bundle | `0` | **Clean build** in 27.74s (`dist/index.html`, `dist/assets/`, `dist/server.cjs`). |
+| `npm run test:architecture` | Layer isolation boundaries and inventory manifest reconciliation | `0` | **5/5 test suites passed**. Tracked files verified: 713 S7 + 33 post-S7 = 746 files. Zero layer leaks. |
 
 ---
 
-## 6. Readiness Verdict & Next Action
+## 6. Concrete Blockers
 
-- **Verdict**: **READY FOR S9-T02**
-- **Rationale**: The current `main` codebase provides a solid, verified foundation for Stage 01 Question Challenge Short authoring, Firestore draft persistence, dynamic taxonomy grounding, OCC concurrency safety, and Stage 02 verification handoff.
-- **Single Next Action**: Proceed with **Task `S9-T02`** (Question Challenge Short Stage 01 Authoring & Mode 1 Workbench Refinement).
+**Zero remaining blockers.**
+All dependencies, mode registry contracts, validation helpers, and UI configurations are reconciled, functional, and verified by automated test suites.
+
+---
+
+## 7. Exact Files Changed
+
+1. `shared/registry/content-mode.registry.ts`: Updated `QUESTION_CHALLENGE_SHORT` questionCount definition (`allowedValues: [1, 5, 10, 15, 20]`, `isConfigurable: true`, documentation).
+2. `shared/types/content-mode-registry.ts`: Updated interface documentation for `QuestionCountConstraint.allowedValues`.
+3. `tests/unit/s8-t12-content-mode-configuration.unit.test.ts`: Added assertions verifying parity between `validateProductionModeConfig` and `contentModeRegistry.validateConfig`.
+4. `tests/unit/s8-t14-dynamic-workflow-resolution.unit.test.ts`: Updated assertions for Mode 1 `allowedValues` and valid batch counts.
+5. `tests/unit/s8-t16-content-mode-workflow-rules.unit.test.ts`: Updated test suite to validate all approved Mode 1 counts (`1, 5, 10, 15, 20`) and rejection of invalid counts.
+6. `docs/sprints/sprint-09/S9-T01-DEPENDENCY-AUDIT.md`: Published reconciled audit findings, test evidence, and readiness verdict.
+
+---
+
+## 8. Readiness Verdict & Next Action
+
+- **Verdict**: **`READY` FOR S9-T02**
+- **Evidence-Based Rationale**:
+  - The Mode 1 question count contract is fully reconciled across the registry, validator, UI, and test suites.
+  - `npm run lint` (`tsc --noEmit`) passed with 0 errors.
+  - `npm run build` compiled both frontend and backend bundles cleanly.
+  - `npm run test:architecture` passed with 0 boundary violations.
+  - Focused content-mode unit test suites (`s8-t12`, `s8-t14`, `s8-t16`) passed cleanly with 100% assertions satisfied.
+  - Cloud Firestore datastore authority, canonical UUID IDs, two-tier taxonomy, and GAR-02 invariants are strictly preserved.
+- **Single Next Action**: Proceed with **Task `S9-T02`** (Question Challenge Short Stage 01 Authoring & Mode 1 Workbench Polish). S9-T02 will not be started during this task.

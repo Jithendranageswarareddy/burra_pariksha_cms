@@ -57,14 +57,16 @@ async function runS8T16WorkflowRuleTests() {
   console.log('[SECTION 1] Content-Mode Registry Behavior Across All Three Modes');
 
   // Test 1.1: Mode 1 (QUESTION_CHALLENGE_SHORT) configuration rules
-  const m1Valid = contentModeRegistry.validateConfig('QUESTION_CHALLENGE_SHORT', 1, '9:16');
-  assert.strictEqual(m1Valid.isValid, true, 'Mode 1 with count=1 and aspect=9:16 must be valid');
+  for (const count of [1, 5, 10, 15, 20]) {
+    const res = contentModeRegistry.validateConfig('QUESTION_CHALLENGE_SHORT', count, '9:16');
+    assert.strictEqual(res.isValid, true, `Mode 1 with count=${count} and aspect=9:16 must be valid`);
+  }
 
-  const m1InvalidCounts = [0, 2, 5, 10, -1, 1.5, NaN];
+  const m1InvalidCounts = [0, 2, 3, 4, 6, 7, 12, 25, -1, 1.5, NaN];
   for (const count of m1InvalidCounts) {
     const res = contentModeRegistry.validateConfig('QUESTION_CHALLENGE_SHORT', count, '9:16');
     assert.strictEqual(res.isValid, false, `Mode 1 must reject invalid question count ${count}`);
-    assert(res.error?.includes("requires question count in [1]"), 'Error must specify allowed count [1]');
+    assert(res.error?.includes("requires question count in [1, 5, 10, 15, 20]"), 'Error must specify allowed counts [1, 5, 10, 15, 20]');
   }
 
   const m1InvalidAspects = ['16:9', '4:3', '1:1', ''];

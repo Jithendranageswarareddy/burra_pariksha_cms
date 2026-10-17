@@ -24,7 +24,7 @@ export type SupportedAspectRatio = '9:16' | '16:9';
  * Target question count configuration constraint
  */
 export interface QuestionCountConstraint {
-  allowedValues: readonly number[]; // e.g. [1] for Mode 1; [0] for Mode 2; [5, 10, 15, 20] for Mode 3
+  allowedValues: readonly number[]; // e.g. [1, 5, 10, 15, 20] for Mode 1; [0] for Mode 2; [5, 10, 15, 20] for Mode 3
   defaultValue: number; // 1 for Mode 1; 0 for Mode 2; 10 for Mode 3
   isConfigurable: boolean; // true if user may pick count; false if strictly fixed
   requiresQuestionsArray: boolean; // true for Mode 3 (questions[]); false for Modes 1 & 2

@@ -42,6 +42,7 @@ import {
   QuestionLanguage,
   ProductionContext,
 } from '../../shared';
+import { contentModeRegistry } from '../../shared/registry/content-mode.registry';
 
 import {
   ProductionModeModal,
@@ -127,16 +128,21 @@ async function runS8T12UnitTests() {
   for (const count of [1, 5, 10, 15, 20]) {
     const res = validateProductionModeConfig('QUESTION_CHALLENGE_SHORT', count, '9:16');
     assert.strictEqual(res.isValid, true, `Mode 1 should approve question count ${count}`);
+    const regRes = contentModeRegistry.validateConfig('QUESTION_CHALLENGE_SHORT', count, '9:16');
+    assert.strictEqual(regRes.isValid, true, `Registry Mode 1 should approve question count ${count}`);
   }
-  pass('2.1 Mode 1 approves question counts 1, 5, 10, 15, and 20');
+  pass('2.1 Mode 1 approves question counts 1, 5, 10, 15, and 20 across validation and registry');
 
   // Test 2.2: Mode 1 invalid counts
   for (const count of [0, 2, 3, 4, 7, 12, 25, -1]) {
     const res = validateProductionModeConfig('QUESTION_CHALLENGE_SHORT', count, '9:16');
     assert.strictEqual(res.isValid, false, `Mode 1 must reject invalid question count ${count}`);
     assert(res.error?.includes('requires questionCount of 1 (or batch series 5, 10, 15, 20)'));
+    const regRes = contentModeRegistry.validateConfig('QUESTION_CHALLENGE_SHORT', count, '9:16');
+    assert.strictEqual(regRes.isValid, false, `Registry Mode 1 must reject invalid question count ${count}`);
+    assert(regRes.error?.includes('requires question count in [1, 5, 10, 15, 20]'));
   }
-  pass('2.2 Mode 1 strictly rejects invalid question counts (0, 2, 3, 4, 7, 25, etc.)');
+  pass('2.2 Mode 1 strictly rejects invalid question counts (0, 2, 3, 4, 7, 25, etc.) across validation and registry');
 
   // Test 2.3: Mode 2 strictly requires 0 questions
   const resMode2Zero = validateProductionModeConfig('TOPIC_INTRODUCTION', 0, '9:16');

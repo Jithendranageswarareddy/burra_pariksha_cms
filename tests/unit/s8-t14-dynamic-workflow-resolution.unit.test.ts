@@ -62,13 +62,15 @@ async function runS8T14UnitTests() {
   // Test 1.1: Mode 1 (QUESTION_CHALLENGE_SHORT) Registry Definition
   const m1Def = contentModeRegistry.getDefinition('QUESTION_CHALLENGE_SHORT');
   assert.strictEqual(m1Def.code, 'MODE_1');
-  assert.deepStrictEqual(m1Def.questionCount.allowedValues, [1]);
+  assert.deepStrictEqual(m1Def.questionCount.allowedValues, [1, 5, 10, 15, 20]);
+  assert.strictEqual(m1Def.questionCount.defaultValue, 1);
+  assert.strictEqual(m1Def.questionCount.isConfigurable, true);
   assert.strictEqual(m1Def.aspectRatio.defaultValue, '9:16');
   assert.strictEqual(m1Def.duration.maxSeconds, 58);
   assert.strictEqual(m1Def.verification.checklistType, '10_POINT_PROOF');
   assert.strictEqual(m1Def.verification.enforcesGar02, true);
   assert.strictEqual(m1Def.applicableStages.length, 15);
-  pass('1.1 Mode 1 registered with 1 MCQ, 9:16 vertical, 10-point proof checklist, GAR-02');
+  pass('1.1 Mode 1 registered with 1 MCQ (or 5/10/15/20 batch series), 9:16 vertical, 10-point proof checklist, GAR-02');
 
   // Test 1.2: Mode 2 (TOPIC_INTRODUCTION) Registry Definition
   const m2Def = contentModeRegistry.getDefinition('TOPIC_INTRODUCTION');
@@ -93,10 +95,13 @@ async function runS8T14UnitTests() {
   pass('1.3 Mode 3 registered with 5/10/15/20 questions, 16:9 landscape, masterclass model');
 
   // Test 1.4: Registry Config Validation
-  const validM1Config = contentModeRegistry.validateConfig('QUESTION_CHALLENGE_SHORT', 1, '9:16');
-  assert.strictEqual(validM1Config.isValid, true);
+  const validM1Single = contentModeRegistry.validateConfig('QUESTION_CHALLENGE_SHORT', 1, '9:16');
+  assert.strictEqual(validM1Single.isValid, true);
 
-  const invalidM1Count = contentModeRegistry.validateConfig('QUESTION_CHALLENGE_SHORT', 5, '9:16');
+  const validM1Batch = contentModeRegistry.validateConfig('QUESTION_CHALLENGE_SHORT', 5, '9:16');
+  assert.strictEqual(validM1Batch.isValid, true);
+
+  const invalidM1Count = contentModeRegistry.validateConfig('QUESTION_CHALLENGE_SHORT', 3, '9:16');
   assert.strictEqual(invalidM1Count.isValid, false);
 
   const validM2Landscape = contentModeRegistry.validateConfig('TOPIC_INTRODUCTION', 0, '16:9');

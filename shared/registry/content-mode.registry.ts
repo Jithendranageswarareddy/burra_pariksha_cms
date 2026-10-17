@@ -191,12 +191,12 @@ export class ContentModeRegistry {
       code: 'MODE_1',
       name: 'Question Challenge Short',
       shortLabel: 'Challenge Short',
-      description: 'Single-question vertical short with speed math trick and fast solution (<= 58s).',
+      description: 'Single-question vertical short with speed math trick and fast solution (<= 58s). Supports single short (1 question) or batch series (5, 10, 15, 20 questions) sharing taxonomy context.',
       pedagogicalObjective: 'Rapid engagement, viral comment challenge, and instant mental math shortcut reveal.',
       questionCount: {
-        allowedValues: [1],
+        allowedValues: [1, 5, 10, 15, 20],
         defaultValue: 1,
-        isConfigurable: false,
+        isConfigurable: true,
         requiresQuestionsArray: false,
       },
       aspectRatio: {
