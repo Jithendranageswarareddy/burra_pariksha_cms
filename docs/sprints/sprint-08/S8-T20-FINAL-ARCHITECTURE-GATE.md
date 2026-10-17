@@ -63,7 +63,7 @@ Sprint 8 has successfully achieved all architectural, domain, persistence, gover
 | **S8-T17** | Dynamic Page States, Selection Changes, and Draft Reopening | **PASS / ACCEPTED** | [tests/unit/s8-t17-dynamic-page-states-navigation.unit.test.ts](../../../tests/unit/s8-t17-dynamic-page-states-navigation.unit.test.ts) | `3766d26`, `ea3558e` | `npm run test:s8-t17` (21/21 assertions pass). Multi-stage page states, navigation continuity, selection changes, and draft restoration verified. |
 | **S8-T18** | Production Data Layer Persistence, OCC, Concurrency, Authorization & Recovery | **PASS / ACCEPTED** | [tests/api/s8-t18-api-persistence-auth-recovery.api.test.ts](../../../tests/api/s8-t18-api-persistence-auth-recovery.api.test.ts), [tests/integration/s8-t18-firestore-persistence-recovery.integration.test.ts](../../../tests/integration/s8-t18-firestore-persistence-recovery.integration.test.ts) | `93e65b7`, `da690e1`, `371c7e3`, `504439f` | In-memory: `npm run test:s8-t18` (20/20 pass). Persistent emulator integration: `npx firebase-tools emulators:exec --only firestore --project demo-burra-pariksha "npm run test:s8-t18:integration"` (8/8 phases pass, exit 0). Production datastore isolation guard fails closed (exit 2). |
 | **S8-T19** | Full Regression and Architecture Gates | **PASS / ACCEPTED** | [tests/architecture/s7-t01-inventory-reconciliation.test.ts](../../../tests/architecture/s7-t01-inventory-reconciliation.test.ts) | `4505af7`, `51f3ab2` | `npm run test:architecture` (5/5 suites pass), `npm test` (40/40 pass), `npm run lint` (exit 0), `npm run build` (exit 0), `git diff --check` (exit 0). |
-| **S8-T20** | Final Architecture Gate & Sprint 8 Closure | **PASS / ACCEPTED** | [docs/sprints/sprint-08/S8-T20-FINAL-ARCHITECTURE-GATE.md](./S8-T20-FINAL-ARCHITECTURE-GATE.md) | `95bdd93` | Complete 20-task forensic audit, architecture reconciliation, secret review, test execution evidence, and local production health probe verification. Production deployment explicitly excluded (manual release in Google AI Studio). |
+| **S8-T20** | Final Architecture Gate & Sprint 8 Closure | **PASS / ACCEPTED** | [docs/sprints/sprint-08/S8-T20-FINAL-ARCHITECTURE-GATE.md](./S8-T20-FINAL-ARCHITECTURE-GATE.md) | `6763230` | Complete 20-task forensic audit, architecture reconciliation, secret review, test execution evidence, and local production health probe verification. Production deployment explicitly excluded (manual release in Google AI Studio). |
 
 ---
 
@@ -149,7 +149,7 @@ To verify production readiness of the compiled bundle prior to remote release, t
 ### 6.4 Remote Production Deployment Verdict: NOT PERFORMED (MANUAL RELEASE IN GOOGLE AI STUDIO)
 - **Status**: **NOT DEPLOYED (EXCLUDED FROM AGENT SCOPE)**
 - **Operational Release Protocol**: Live release deployment is explicitly excluded from automated agent scope and will be performed manually by the Project Owner within Google AI Studio.
-- **Deployment Prerequisites Satisfied**: The production build bundle (`dist/server.cjs`) is compiled, verified healthy via local liveness/readiness probes, and pushed to `origin/main` at commit `95bdd93` (and candidate release commits). Remote deployment can proceed in Google AI Studio immediately upon Project Owner action.
+- **Deployment Prerequisites Satisfied**: The production build bundle (`dist/server.cjs`) is compiled, verified healthy via local liveness/readiness probes, and pushed to `origin/main` at commit `6763230` (and candidate release commits). Remote deployment can proceed in Google AI Studio immediately upon Project Owner action.
 
 ---
 
@@ -177,7 +177,7 @@ The following items are formally deferred to Sprint 9 with documented rationale 
 ## 8. Release Summary & Git Verification
 
 - **Milestone Release**: Sprint 8 Closure (`S8-T20`)
-- **Release Commit SHA**: `95bdd938f65eeb5a764e497b2491a9725e7878c5` (and release commit synchronized with `origin/main`)
+- **Release Commit SHA**: `676323042182875bc8452eb0732f4e81722c5fca` (and release commit synchronized with `origin/main`)
 - **Tracked Files**: Exactly 745 files (713 historical S7 baseline + 32 approved Sprint 8 additions)
 - **Working Tree**: Clean (`working tree clean`, `HEAD == origin/main`)
 - **Deployment Status**: Not deployed (manual release by Project Owner in Google AI Studio)
