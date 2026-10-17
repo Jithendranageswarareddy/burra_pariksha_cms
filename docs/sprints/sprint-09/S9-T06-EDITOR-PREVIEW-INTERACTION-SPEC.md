@@ -5,8 +5,8 @@
 **Effective Date**: October 18, 2026<br>
 **Author**: Antigravity Software Architect & Systems Verification Engineer<br>
 **Target Mode**: `QUESTION_CHALLENGE_SHORT` (Mode 1 Single Question $N=1$ and Batch Series $N \in \{5, 10, 15, 20\}$)<br>
-**Inspected Baseline Commit**: `38668c39756ccda128a7cb3c9eedcb0bdb46c5b2`<br>
-**Status**: Authoritative Interaction Contract & Specification (Gate B Design Baseline — Corrective Revision)
+**Inspected Baseline Commit**: `fee1a25e28756fcbd013dc2a8068d1e9119b65d5`<br>
+**Status**: Authoritative Interaction Contract & Specification (Gate B Design Baseline — Batch Metrics & Acceptance Reconciliation)
 
 ---
 
@@ -18,7 +18,10 @@ This specification establishes the authoritative interaction design, responsive 
 It provides the complete, reconciled design contract for:
 1. Production context restoration and header visibility.
 2. Generation settings and modification guardrails.
-3. Batch generation lifecycle and status counters ($C_{\text{req}}, C_{\text{val\_slots}}, C_{\text{inv}}, C_{\text{dup}}, C_{\text{val\_overflow}}, C_{\text{rem\_gen}}, C_{\text{rem\_accept}}$) strictly reconciled with [S9-T03](S9-T03-BATCH-GENERATION-REQUIREMENTS.md) and [S9-T05](S9-T05-MODE-SPECIFIC-CONTENT-CONTRACT.md).
+3. Batch generation lifecycle and status counters strictly reconciled with [S9-T03 §2.3](S9-T03-BATCH-GENERATION-REQUIREMENTS.md#23-batch-generation-metrics--counter-model) and [S9-T05 §6.1](S9-T05-MODE-SPECIFIC-CONTENT-CONTRACT.md#61-typed-validation-envelope-interfaces):
+   - **Generation Telemetry Counters**: $C_{\text{req}}, C_{\text{gen}}, C_{\text{val\_slots}}, C_{\text{inv}}, C_{\text{dup}}, C_{\text{val\_overflow}}, C_{\text{rem\_gen}}$.
+   - **Workbench Editorial Counters**: $C_{\text{pop}}, C_{\text{valid}}, C_{\text{edit}}, C_{\text{acc}}, C_{\text{rem\_accept}}$.
+   - Strict invariant: `MANUALLY_EDITED` is **not** treated as accepted; slots require explicit editorial acceptance (`status = 'ACCEPTED'`).
 4. Ordered slot management, stable slot identity (`slt_<uuid>`) versus display order, and reordering interactions.
 5. In-place question editing and dirty state tracking across slots.
 6. A derived, read-only 9:16 vertical short preview panel synchronized directly from in-memory editor state.
@@ -29,7 +32,7 @@ It provides the complete, reconciled design contract for:
 
 ### 1.2 Inspected Baseline & Commit Forensic Evidence
 In compliance with [AGENTS.md §0 and §1](../../../AGENTS.md#1-source-of-truth-authority-hierarchy), this specification was revised after inspecting the active repository working tree at commit:
-$$\mathbf{Commit\ SHA}:\ \texttt{38668c39756ccda128a7cb3c9eedcb0bdb46c5b2}$$
+$$\mathbf{Commit\ SHA}:\ \texttt{fee1a25e28756fcbd013dc2a8068d1e9119b65d5}$$
 
 #### Forensic Runtime Audit Findings:
 1. **Current Production Route for Stage 01**:
@@ -56,7 +59,9 @@ Mode 1 (`QUESTION_CHALLENGE_SHORT`) produces high-yield, vertical 9:16 video sho
 
 The primary architectural challenge addressed by S9-T06 is maintaining absolute consistency between the **Question Editor** and the **Preview Panel** without maintaining dual editable models, diverging state copies, or desynchronized persistence paths. Under this specification, the preview is strictly a **derived, read-only projection** of the canonical in-memory editor state. Furthermore, stable slot identities (`slt_<uuid>`) guarantee that question ordering, slot selection, and validation issues remain stable even when questions are moved, filtered, or refreshed.
 
-Critically, this revised specification enforces **safe, non-fabricating compatibility for legacy drafts** strictly aligned with [S9-T05 §8.2](S9-T05-MODE-SPECIFIC-CONTENT-CONTRACT.md#82-safe-compatibility--legacy-hydration-contract-proposed-gate-b-design). When reading legacy records, the editor does not invent answer keys, synthetic slot IDs, validation timestamps, or false completion states; missing or inconsistent attributes surface as explicit diagnostic findings requiring authenticated human review.
+Critically, this revised specification enforces two core architectural invariants:
+1. **Safe, Non-Fabricating Legacy Compatibility ([S9-T05 §8.2](S9-T05-MODE-SPECIFIC-CONTENT-CONTRACT.md#82-safe-compatibility--legacy-hydration-contract-proposed-gate-b-design))**: When reading legacy records, the editor does not invent answer keys, synthetic slot IDs, validation timestamps, or false completion states; missing or inconsistent attributes surface as explicit diagnostic findings requiring authenticated human review.
+2. **Disambiguated Batch Accounting & Editorial Acceptance ([S9-T03 §2.3](S9-T03-BATCH-GENERATION-REQUIREMENTS.md#23-batch-generation-metrics--counter-model))**: Generation telemetry ($C_{\text{val\_slots}}$) is strictly separated from live workbench validity ($C_{\text{valid}}$), and manual edits (`MANUALLY_EDITED`) are strictly distinguished from editorial acceptance (`ACCEPTED`).
 
 ### 2.2 Acceptance Criteria Matrix
 
@@ -64,9 +69,9 @@ Critically, this revised specification enforces **safe, non-fabricating compatib
 | :--- | :--- | :--- | :--- |
 | **AC-01** | Active Topic, Subtopic, Mode, Configured Count ($N$), and Completion Status are immediately visible. | [§4.2, §5.1, §5.2, §6.2](#5-generation-settings--production-context-header) | Header & workbench summary inspectable in all page states. |
 | **AC-02** | Editor and Preview consume the exact same underlying canonical content record; zero dual models or competing sources of truth. | [§3.1, §9.1, §9.2, §15.1](#9-preview-projection--synchronization-rules) | In-memory unidirection flow: $DraftAggregate \to In-Memory\ State \to Preview\ Projection$. |
-| **AC-03** | Batch generation lifecycle cleanly distinguishes configured count, populated slots, valid slots, unreviewed slots, and verification readiness. | [§6.1, §6.2, §6.3](#6-batch-status-model--completion-indicators) | Formal metrics ($C_{\text{req}}, C_{\text{val\_slots}}, C_{\text{inv}}, C_{\text{dup}}, C_{\text{val\_overflow}}, C_{\text{rem\_gen}}, C_{\text{rem\_accept}}$). Populated $\neq$ Valid. |
+| **AC-03** | Batch generation lifecycle cleanly distinguishes generation telemetry ($C_{\text{val\_slots}}$) from editor validity ($C_{\text{valid}}$), and manual edits from explicit editorial acceptance ($C_{\text{acc}}$). | [§6.1, §6.2, §6.3](#6-batch-status-model--completion-indicators) | Formal metrics strictly separated. Populated $\neq$ Valid, and `MANUALLY_EDITED` is strictly not accepted without explicit sign-off. |
 | **AC-04** | Stable slot identity (`slt_<uuid>`) is strictly separated from display position (`slotNumber`). Reordering preserves slot content and active selection. | [§7.1, §7.2, §7.3, §14.3](#7-question-list-selection-ordering--slot-lifecycle) | Stable ID preserved across array re-indexing; selection tracked by `selectedSlotId`. |
-| **AC-05** | Save Draft persists in-place to Firestore without advancing the 15-stage workflow; Submit for Verification requires deliberate action and 100% valid/accepted slots. | [§3.3, §14.1, §14.10, §15.2](#15-persistence-concurrency-authorization--workflow-boundaries) | Enforces AGENTS.md §11 and GAR-02 ($authorId \neq approverId$). |
+| **AC-05** | Save Draft persists in-place to Firestore without advancing the 15-stage workflow; Submit for Verification requires deliberate action, 100% valid slots ($C_{\text{valid}} = C_{\text{req}}$), and 100% accepted slots ($C_{\text{acc}} = C_{\text{req}}$). | [§3.3, §14.1, §14.10, §15.2](#15-persistence-concurrency-authorization--workflow-boundaries) | Enforces AGENTS.md §11 and GAR-02 ($authorId \neq approverId$). |
 | **AC-06** | Deterministic context restoration handles new drafts, existing drafts, deep links, route conflicts, legacy records, and OCC collisions without semantic fabrication. | [§11.1, §12.1, §12.2, §14.7, §14.8](#12-production-context-restoration--route-entry-behavior) | Authoritative record overrides URL hints; legacy drafts emit diagnostic findings per S9-T05. |
 | **AC-07** | Comprehensive 22-state page lifecycle matrix covers loading, empty, partial, failed, read-only, legacy, and error states. | [§11.1, §11.2](#11-complete-page-state-matrix) | Full matrix with triggers, indicators, allowed/prohibited actions, and recovery. |
 | **AC-08** | Unimplemented batch engine (OD-02) and aggregate persistence (ADR-011 DD-05) are labeled honestly as future dependencies. | [§1.2, §18.1](#18-runtime-dependencies-open-decisions--explicit-non-goals) | No false claims of runtime execution. |
@@ -147,12 +152,12 @@ The Stage 01 Question Studio workspace is organized into five functional regions
 | Topic > Subtopic | Mode 1: Question Challenge Short | N=5 | Status: DRAFT | Save: Saved (v3)      |
 +---------------------------------------------------------------------------------------------------+
 | ZONE 2: WORKSPACE TOOLBAR & BATCH STATUS SUMMARY                                                  |
-| Config: Telugu | Medium | Target: 52s | Progress: 3/5 Accepted | Gen Rem: 0 | Verif Ready: NO     |
+| Config: Telugu | Medium | Target: 52s | Progress: 3/5 Populated | C_valid: 2 | C_acc: 1 | Ready: NO |
 +------------------------------------+--------------------------------+-----------------------------+
 | ZONE 3: ORDERED SLOT LIST          | ZONE 4: QUESTION EDITOR        | ZONE 5: 9:16 PREVIEW PANEL  |
 | (Width: 260px - 320px)             | (Flexible Center: 480px+)      | (Width: 340px - 380px)      |
 |                                    |                                |                             |
-| [#1] slt_01 (VALID) - Selected     | Problem Statement (questionText) | +-------------------------+ |
+| [#1] slt_01 (ACCEPTED) - Selected  | Problem Statement (questionText) | +-------------------------+ |
 |      "భారత రాజ్యాంగ పితామహుడు..."  | [============================] | | 9:16 Vertical Short Sim | |
 | [#2] slt_02 (MANUALLY_EDITED)      | Canonical Options:             | | [TELUGU / ENGLISH]      | |
 |      "సింధు నాగరికతలో అతి పెద్ద..." | (A) డా. బి.ఆర్. అంబేద్కర్       | |                         | |
@@ -239,52 +244,78 @@ Controls syllabus parameters and generation constraints:
 
 ## 6. Batch Status Model & Completion Indicators
 
-### 6.1 Formal Metrics & Counter Definitions
-In strict alignment with [S9-T03 §2.3](S9-T03-BATCH-GENERATION-REQUIREMENTS.md#23-batch-generation-metrics--counter-model) and [S9-T05 §6.1](S9-T05-MODE-SPECIFIC-CONTENT-CONTRACT.md#61-typed-validation-envelope-interfaces), batch progress is computed strictly from verified slot states.
+### 6.1 Formal Metrics & Disambiguated Accounting Model
+In strict adherence to [S9-T03 §2.3](S9-T03-BATCH-GENERATION-REQUIREMENTS.md#23-batch-generation-metrics--counter-model) and [S9-T05 §6.1](S9-T05-MODE-SPECIFIC-CONTENT-CONTRACT.md#61-typed-validation-envelope-interfaces), batch tracking strictly separates **Generation Telemetry** from **Editor Workbench State**.
 
-Let $C_{\text{req}}$ be the configured question count ($N \in \{1, 5, 10, 15, 20\}$).
+#### 6.1.1 Generation Telemetry Counters (S9-T03 §2.3.1)
+Captures candidate disposition during an active AI generation attempt:
 
-$$\begin{aligned}
-C_{\text{req}} &= \text{Target question count } (1, 5, 10, 15, 20) \quad (\text{undefined if invalid/missing}) \\
-C_{\text{val\_slots}} &= \sum_{k=1}^{C_{\text{req}}} \mathbf{1}(\text{slot}[k].\text{status} \in \{\text{'VALID'}, \text{'MANUALLY\_EDITED'}, \text{'ACCEPTED'}\}) \\
-C_{\text{inv}} &= \text{Count of generated candidates failing validation checks} \\
-C_{\text{dup}} &= \text{Count of candidates flagged as semantic/exact duplicates} \\
-C_{\text{val\_overflow}} &= \text{Count of valid extra candidates stored in } \texttt{overflowBuffer} \\
-C_{\text{rem\_gen}} &= \max\left(0, C_{\text{req}} - C_{\text{val\_slots}}\right) \\
-C_{\text{acc}} &= \sum_{k=1}^{C_{\text{req}}} \mathbf{1}(\text{slot}[k].\text{status} \in \{\text{'ACCEPTED'}, \text{'MANUALLY\_EDITED'}\}) \\
-C_{\text{rem\_accept}} &= C_{\text{req}} - C_{\text{acc}}
-\end{aligned}$$
+| Counter Symbol | Name | Formal Definition | Operational Rule & Classification |
+| :---: | :--- | :--- | :--- |
+| $\mathbf{C_{\text{req}}}$ | **Configured Target Count** | Target batch size ($N \in \{1, 5, 10, 15, 20\}$). | Immutable for attempt. `undefined` if draft is malformed. |
+| $\mathbf{C_{\text{gen}}}$ | **Raw Generated Candidates** | Total candidate objects produced by AI provider in attempt. | $C_{\text{gen}} \ge 0$. |
+| $\mathbf{C_{\text{val\_slots}}}$ | **Valid Generated In-Range Slots** | Number of distinct valid candidates successfully assigned to in-range slots $1 \dots N$ during generation. | $0 \le C_{\text{val\_slots}} \le C_{\text{req}}$. Recorded as unavailable (`"—"`) when resuming draft without telemetry. |
+| $\mathbf{C_{\text{inv}}}$ | **Invalid Candidates** | Number of generated candidate objects that fail schema, option, answer, or proof validation. | $C_{\text{inv}} \ge 0$. Unavailable (`"—"`) on resumed drafts. |
+| $\mathbf{C_{\text{dup}}}$ | **Duplicate Candidates** | Number of generated candidates rejected due to semantic or textual collision. | $C_{\text{dup}} \ge 0$. Unavailable (`"—"`) on resumed drafts. |
+| $\mathbf{C_{\text{val\_overflow}}}$ | **Valid Overflow Candidates** | Valid distinct candidates produced after all $C_{\text{req}}$ in-range slots are filled, quarantined in `overflowBuffer`. | $C_{\text{val\_overflow}} \ge 0$. Unavailable (`"—"`) on resumed drafts. |
+| $\mathbf{C_{\text{rem\_gen}}}$ | **Remaining Generation Count** | Number of distinct valid slots still required to reach generation completeness ($C_{\text{rem\_gen}} = \max(0, C_{\text{req}} - C_{\text{val\_slots}})$). | $0 \le C_{\text{rem\_gen}} \le C_{\text{req}}$. |
+
+$$\mathbf{Candidate\ Partition\ Invariant}:\quad C_{\text{gen}} = C_{\text{val\_slots}} + C_{\text{inv}} + C_{\text{dup}} + C_{\text{val\_overflow}}$$
+
+#### 6.1.2 Editor Workbench Evaluation Counters
+Evaluates the live in-memory content state currently loaded in the studio:
+
+| Counter Symbol | Name | Formal Definition | Operational Rule & Invariant |
+| :---: | :--- | :--- | :--- |
+| $\mathbf{C_{\text{pop}}}$ | **Populated In-Range Slots** | Slots $1 \dots C_{\text{req}}$ containing non-empty question text. | $\sum_{k=1}^{C_{\text{req}}} \mathbf{1}(\text{slot}[k].\text{questionText.trim().length} > 0)$. |
+| $\mathbf{C_{\text{valid}}}$ | **Currently Valid Slots** | Slots $1 \dots C_{\text{req}}$ whose current content passes all schema and validation rules with zero blocking errors. | $\sum_{k=1}^{C_{\text{req}}} \mathbf{1}(\text{slot}[k].\text{status} \in \{\text{'VALID'}, \text{'MANUALLY\_EDITED'}, \text{'ACCEPTED'}\} \land \text{blockingErrors}[k] == 0)$. |
+| $\mathbf{C_{\text{edit}}}$ | **Manually Edited Slots** | Slots $1 \dots C_{\text{req}}$ whose content has been authored or modified by the human editor. | $\sum_{k=1}^{C_{\text{req}}} \mathbf{1}(\text{slot}[k].\text{status} == \text{'MANUALLY\_EDITED'} \lor \text{slot}[k].\text{isManuallyEdited} == \text{true})$. |
+| $\mathbf{C_{\text{acc}}}$ | **Accepted Slots** | Slots $1 \dots C_{\text{req}}$ explicitly reviewed and approved by the editor. | $\sum_{k=1}^{C_{\text{req}}} \mathbf{1}(\text{slot}[k].\text{status} == \text{'ACCEPTED'})$. |
+| $\mathbf{C_{\text{rem\_accept}}}$ | **Remaining Acceptance Count** | Slots still awaiting explicit editorial approval ($C_{\text{rem\_accept}} = C_{\text{req}} - C_{\text{acc}}$). | $0 \le C_{\text{rem\_accept}} \le C_{\text{req}}$. |
 
 > [!CRITICAL]
-> **Populated $\neq$ Valid, and Valid $\neq$ Accepted.**
-> An in-range slot containing question text that fails schema or validation checks (e.g., `status = 'INVALID'`) is populated, but does **NOT** increment $C_{\text{val\_slots}}$ and does **NOT** decrement $C_{\text{rem\_gen}}$.
-> The number of populated slots must **never** be used as a substitute for validation success.
+> **Cardinal Accounting Invariants**:
+> 1. **Populated $\neq$ Valid**: An in-range slot containing question text that fails validation (e.g. `status = 'INVALID'`) is populated ($C_{\text{pop}}$), but does **NOT** increment $C_{\text{valid}}$ and does **NOT** satisfy $C_{\text{rem\_gen}}$.
+> 2. **`MANUALLY_EDITED` Is Strictly NOT Accepted**: Modifying an accepted question or drafting a question manually sets `status = 'MANUALLY_EDITED'`. It does **NOT** contribute to $C_{\text{acc}}$. A manually edited slot requires deliberate human review and clicking `"Accept Question"` before it increments $C_{\text{acc}}$ and decrements $C_{\text{rem\_accept}}$.
+> 3. **$C_{\text{val\_slots}}$ Is Not Overloaded**: Generation telemetry ($C_{\text{val\_slots}}$) is never conflated with live workbench validity ($C_{\text{valid}}$). When historical telemetry is missing, $C_{\text{val\_slots}}$ displays `"—"`, while $C_{\text{valid}}$ evaluates the current live slots.
 
 ### 6.2 Status Panel Presentation (`BatchStatusSummary`)
-The status panel renders these metrics clearly, distinguishing generation metrics from editorial review metrics:
+The status panel renders these metrics clearly, distinguishing generation telemetry from workbench review status:
 
 ```
 +---------------------------------------------------------------------------------------------------+
-| BATCH STATUS: PARTIAL (3 of 5 Slots Populated, 2 Valid)                                           |
-| [======================================-------------] 40% Valid Slots | 40% Editorial Acceptance  |
+| BATCH STATUS: PARTIAL (3 of 5 Slots Populated, 2 Valid, 1 Accepted)                               |
+| [======================================-------------] 40% Valid Slots | 20% Editorial Acceptance  |
 |                                                                                                   |
-| Generation Status:               Editorial Status:                 Candidate Buffer:              |
-| - Target Count (C_req): 5        - Valid Slots (C_val_slots): 2    - Overflow Candidates: 1       |
-| - Populated Slots: 3             - Accepted Slots: 2               - Rejected Duplicates: —       |
-| - Generation Rem (C_rem_gen): 3  - Requiring Edits: 1              - Validation Invalids: —       |
+| Generation Telemetry:            Workbench Editorial Status:       Candidate Buffer:              |
+| - Target Count (C_req): 5        - Currently Valid (C_valid): 2    - Overflow Candidates: 1       |
+| - Valid In-Range (C_val_slots): 2- Manually Edited (C_edit): 1     - Rejected Duplicates: —       |
+| - Populated Slots (C_pop): 3     - Accepted Slots (C_acc): 1       - Validation Invalids: —       |
+| - Generation Rem (C_rem_gen): 3  - Remaining Accept: 4             - Unresolved Slots: 2          |
 +---------------------------------------------------------------------------------------------------+
 ```
 
-### 6.3 Metric Separation & Integrity Invariants
+### 6.3 Metric Separation & Milestone Progression
+In accordance with S9-T03 §2.4, batch production enforces three sequential milestones:
+
+```text
+┌───────────────────────────────┬──────────────────────────────────┬───────────────────────────────┐
+| 1. Generation Completeness     | 2. Editorial Acceptance          | 3. Submit for Verification     |
+| (C_rem_gen == 0)              | (C_rem_accept == 0)              | (Stage 01 -> Stage 02 Hand-off)|
+├───────────────────────────────┼──────────────────────────────────┼───────────────────────────────┤
+| • Exactly N in-range slots    | • Human reviews every slot       | • BATCH IS 100% COMPLETE      |
+| • All N slots C_valid == C_req| • All N slots status='ACCEPTED'  | • C_valid == C_req            |
+| • Zero EMPTY or INVALID slots | • C_acc == C_req                 | • C_acc == C_req              |
+| • batchStatus = 'COMPLETE'    | • batchStatus = 'ACCEPTED'       | • In-place Save committed     |
+| • DOES NOT allow auto-submit  | • Ready for formal submit check  | • AuthorId != ApproverId      |
+└───────────────────────────────┴──────────────────────────────────┴───────────────────────────────┘
+```
+
 1. **Zero Is Distinct From Unavailable**:
-   - If candidate generation metrics ($C_{\text{inv}}, C_{\text{dup}}, C_{\text{val\_overflow}}$) were not captured during the active authoring session (e.g., when resuming an existing draft hydrated from Firestore), the UI displays `"—"` (Unavailable) rather than a deceptive `"0"`.
-2. **Generation Completeness $\neq$ Human Acceptance**:
-   - An aggregate with 5 generated slots passing algorithmic schema checks has status `COMPLETE`.
-   - However, `C_rem_accept` remains $> 0$ until an authenticated editor inspects and marks each slot as `ACCEPTED` (or confirms manual edits).
-   - The UI displays an amber advisory badge: `"Generated (5/5) — Pending Human Editorial Review"`.
-3. **Verification Ineligibility Guard**:
+   - If candidate generation metrics ($C_{\text{val\_slots}}, C_{\text{inv}}, C_{\text{dup}}, C_{\text{val\_overflow}}$) were not captured during the active authoring session (e.g., when resuming an existing draft hydrated from Firestore), the UI displays `"—"` (Unavailable) rather than a deceptive `"0"`.
+2. **Verification Ineligibility Guard**:
    - The button `"Submit for Verification"` is disabled with an explanatory tooltip whenever:
-     $$C_{\text{val\_slots}} < C_{\text{req}} \quad \lor \quad C_{\text{rem\_gen}} > 0 \quad \lor \quad C_{\text{rem\_accept}} > 0 \quad \lor \quad \text{hasBlockingErrors} = \text{true}$$
+     $$C_{\text{valid}} < C_{\text{req}} \quad \lor \quad C_{\text{acc}} < C_{\text{req}} \quad \lor \quad C_{\text{rem\_accept}} > 0 \quad \lor \quad \text{hasBlockingErrors} = \text{true}$$
 
 ---
 
@@ -328,10 +359,11 @@ stateDiagram-v2
     EMPTY --> MANUALLY_EDITED: User Types Manually
     VALID --> MANUALLY_EDITED: User Modifies Field
     INVALID --> MANUALLY_EDITED: User Corrects Content
-    MANUALLY_EDITED --> VALID: In-Memory Validation Passes
+    MANUALLY_EDITED --> VALID: In-Memory Validation Passes (Unaccepted)
     MANUALLY_EDITED --> INVALID: In-Memory Validation Fails
-    VALID --> ACCEPTED: Editor Clicks "Accept Question"
-    ACCEPTED --> MANUALLY_EDITED: User Modifies Accepted Content
+    VALID --> ACCEPTED: Editor Clicks "Accept Question" (Explicit Sign-Off)
+    MANUALLY_EDITED --> ACCEPTED: Editor Clicks "Accept Question" (Explicit Sign-Off)
+    ACCEPTED --> MANUALLY_EDITED: User Modifies Accepted Content (Revokes Acceptance)
 ```
 
 ### 7.3 Ordered Question Slot List (`QuestionSlotList`)
@@ -343,8 +375,8 @@ The left sidebar renders an ordered list of cards (`QuestionSlotItem`).
 - **Status Tag**:
   - `EMPTY`: Gray dashed border, `"Empty Slot — Click to draft or generate"`.
   - `GENERATING`: Blue pulsating border, `"Generating..."`.
-  - `MANUALLY_EDITED`: Amber border, `"Manually Edited"`.
-  - `VALID`: Emerald border, `"Valid"`.
+  - `MANUALLY_EDITED`: Amber border, `"Manually Edited (Awaiting Acceptance)"`.
+  - `VALID`: Emerald border, `"Valid (Unreviewed)"`.
   - `INVALID`: Rose red border with badge `"1 Error"`.
   - `ACCEPTED`: Solid green badge `"Accepted"`.
 - **Diagnostic Tag**: Amber warning tag `"Legacy Record (Missing Slot ID)"` when `slotId` is absent.
@@ -416,12 +448,13 @@ All field definitions strictly reconcile with `shared/types/question.ts` and `sh
 > [!NOTE]
 > **Minimal Draft Save vs. Verification Readiness**:
 > - **Draft Save**: Requires only basic structural presence (valid draft ID, topic/subtopic IDs). An in-progress draft with partially filled options or unassigned answer key can be saved safely to Firestore without triggering blocking HTTP 422 errors.
-> - **Verification Readiness**: Evaluates all blocking schema and quality criteria. A batch cannot be submitted for verification while any `ERR_*` code remains unresolved.
+> - **Verification Readiness**: Evaluates all blocking schema and quality criteria. A batch cannot be submitted for verification while any `ERR_*` code remains unresolved, or while any slot remains in `MANUALLY_EDITED` / unaccepted status.
 
-### 8.3 In-Memory Dirty Tracking & Zero-Loss Slot Switching
+### 8.3 In-Memory Dirty Tracking & Revocation of Acceptance
 1. **Granular Dirty State**:
    - Edits update the canonical in-memory state immediately on keystroke (`onChange`).
    - The edited slot's `status` transitions to `'MANUALLY_EDITED'`.
+   - **Revocation of Prior Acceptance**: If the slot was previously `'ACCEPTED'`, modifying any field **immediately revokes acceptance**, transitioning the slot to `'MANUALLY_EDITED'`, decrementing $C_{\text{acc}}$, and incrementing $C_{\text{rem\_accept}}$.
    - The slot's `isDirty` flag becomes `true`.
    - The global `ProductionContext.isDirty` becomes `true`.
 2. **Switching Slots With Unsaved Edits**:
@@ -514,10 +547,10 @@ The following comprehensive matrix specifies deterministic behavior across all 2
 | **ST-03** | **Empty / New Draft ($N=1$)** | Workspace opened without `draftId`; $N=1$ selected | Header shows Topic/Subtopic; Editor shows blank canvas with `"Generate AI Candidate"` or `"Draft Manually"`. | Configure settings, generate AI, type question | Submit for verification, reorder | Clean initial state | User types content $\to$ ST-07 (Editing); AI generates $\to$ ST-08 (Valid). |
 | **ST-04** | **Empty Configured Batch ($N > 1$)** | New batch configured with $N \in \{5,10,15,20\}$ | Slot list shows $N$ empty slots with dashed borders; status says `"0 of N Populated"`. | Batch Generate, manual draft slot 1, change settings | Submit for verification, accept slot | In-memory slots initialized with unique `slotId`s | Batch generation $\to$ ST-06 (Partial) or ST-08 (Complete). |
 | **ST-05** | **Existing Single Draft ($N=1$)** | Hydrated existing draft from Firestore ($N=1$) | Complete single question loaded in editor and preview; version badge `"v{version}"`. | Edit fields, save draft, submit for verification | Batch controls, reordering | Server content hydrated into canonical state | User edits field $\to$ ST-07 (Editing, Dirty). |
-| **ST-06** | **Partial Batch** | Hydrated or generated batch with $k < N$ populated slots | Slot list shows populated cards and $N-k$ empty dashed cards; Batch status `"Partial (k/N)"`. | Edit populated slots, generate remaining slots, save draft | Submit for verification | All populated slots preserved in-memory and on save | Populating all slots $\to$ ST-08 (Complete). |
-| **ST-07** | **Editing / Dirty State** | User modifies any field in selected slot | Amber dot `"Unsaved local changes in Slot {k}"`; `Save Draft` enabled. | Edit fields, switch slots, reorder slots, click `Save Draft` | Submit for verification (until saved) | All keystrokes retained in canonical in-memory state | Click `Save Draft` $\to$ ST-10 (Saving); Discard $\to$ prompts revert. |
-| **ST-08** | **Complete Unreviewed Batch** | All $N$ slots populated and schema-valid, but unreviewed | Amber badge: `"All N slots populated — Editorial review required"`. | Inspect slots, edit content, click `[Accept Question]` on slots | Submit for verification (until all accepted) | Preserved | Editor accepts all slots $\to$ ST-09 (Accepted & Ready). |
-| **ST-09** | **Accepted & Verification Ready** | All $N$ slots valid and marked `ACCEPTED`; draft saved | Green badge: `"Batch Complete & Accepted (N/N) — Ready for Verification"`. | Click `[Submit for Verification]`, edit fields (reverts to ST-07) | None | Preserved in Firestore | Click `[Submit for Verification]` $\to$ Stage 02 transition. |
+| **ST-06** | **Partial Batch** | Hydrated or generated batch with $k < N$ populated slots | Slot list shows populated cards and $N-k$ empty dashed cards; Batch status `"Partial (k/N populated, C_acc < C_req)"`. | Edit populated slots, generate remaining slots, save draft | Submit for verification | All populated slots preserved in-memory and on save | Populating all slots and accepting $\to$ ST-09. |
+| **ST-07** | **Editing / Dirty State** | User modifies any field in selected slot | Amber dot `"Unsaved local changes in Slot {k}"`; Slot status becomes `'MANUALLY_EDITED'`. Any prior acceptance is revoked ($C_{\text{acc}}$ decrements, $C_{\text{rem\_accept}}$ increments). | Edit fields, switch slots, reorder slots, click `Save Draft`, click `[Accept Question]` | Submit for verification (until saved and accepted) | All keystrokes retained in canonical in-memory state | Click `Save Draft` $\to$ ST-10 (Saving); Click `[Accept Question]` $\to$ status becomes `'ACCEPTED'`. |
+| **ST-08** | **Complete Unreviewed Batch** | All $N$ slots populated and schema-valid ($C_{\text{valid}} == C_{\text{req}}$), but unreviewed ($C_{\text{acc}} < C_{\text{req}}$) | Amber badge: `"All N slots populated — Editorial review required (C_rem_accept = {rem})"`. Slots in `VALID` or `MANUALLY_EDITED` await acceptance. | Inspect slots, edit content, click `[Accept Question]` on slots | Submit for verification (until $C_{\text{acc}} == C_{\text{req}}$) | Preserved | Editor accepts all slots $\to$ ST-09 (Accepted & Ready). |
+| **ST-09** | **Accepted & Verification Ready** | All $N$ slots valid ($C_{\text{valid}} == C_{\text{req}}$) and explicitly marked `ACCEPTED` ($C_{\text{acc}} == C_{\text{req}}$, $C_{\text{rem\_accept}} == 0$); draft saved in Firestore | Green badge: `"Batch Complete & Accepted (N/N) — Ready for Verification"`. | Click `[Submit for Verification]`, edit fields (reverts to ST-07) | None | Preserved in Firestore | Click `[Submit for Verification]` $\to$ Stage 02 transition. |
 | **ST-10** | **Save In Progress** | User clicked `Save Draft`; network request active | Button shows spinning loader `"Saving to Firestore..."`; inputs read-only. | Cancel (if timeout exceeded) | Duplicate save clicks, slot reordering, page unload | Local state locked against concurrent mutation | Server 200 $\to$ ST-11 (Save Success); Server Error $\to$ ST-12 (Save Failure). |
 | **ST-11** | **Save Success** | Firestore write succeeded with new version counter | Toast: `"Draft saved successfully (v{version})"`; dirty flags cleared. | Continue editing, switch slots, submit if eligible | None | Server and in-memory state synchronized | Next user edit transitions to ST-07. |
 | **ST-12** | **Save Failure** | Network disconnect or server 500 during save | Banner: `"Save failed: [reason]. Local edits preserved. [Retry Save]"`. | Click `[Retry Save]`, inspect error | Overwrite from server, navigate away without warning | **Local edits strictly preserved in memory** | Successful retry $\to$ ST-11. |
@@ -603,7 +636,7 @@ sequenceDiagram
 | **`EditorStateCoordinator`** | `frontend/features/question-generation/pages/QuestionStudioPage.tsx` | Root state coordinator. Owns canonical in-memory draft aggregate, OCC version, and selected slot pointer. | Route params (`draftId`, `topicId`), User auth session | Dispatches API saves, transitions workflow | Canonical `draftAggregate`, `selectedSlotId`, `isSaving`, `saveError` | Direct Firestore SDK queries; Presentation rendering |
 | **`ProductionContextHeader`** | `frontend/features/question-generation/components/ProductionContextHeader.tsx` | Renders taxonomy breadcrumb, mode label, draft ID, version badge, and lock indicators. | `taxonomy`, `modeConfig`, `draftId`, `version`, `isDirty`, `workflowStatus` | `onOpenModeModal()`, `onOpenTaxonomySelector()` | None (pure presentation) | Mutating context directly |
 | **`GenerationSettingsPanel`** | `frontend/features/question-generation/components/GenerationSettingsPanel.tsx` | Provides inputs for Language, Difficulty, Question Style, and Count ($N$). | `modeConfig`, `isLocked`, `disabled` | `onUpdateConfig(partialConfig)` | Local drawer open/close | Altering persisted data without user confirmation |
-| **`BatchStatusSummary`** | `frontend/features/question-generation/components/BatchStatusSummary.tsx` | Visualizes batch metrics ($C_{\text{req}}, C_{\text{val\_slots}}$, completion bar, verification readiness). | `slots[]`, `configuredCount`, `overflowBuffer` | `onFilterSlots(statusFilter)` | Metric tooltip open/close | Fabricating missing metrics as 0 |
+| **`BatchStatusSummary`** | `frontend/features/question-generation/components/BatchStatusSummary.tsx` | Visualizes batch metrics ($C_{\text{req}}, C_{\text{val\_slots}}, C_{\text{valid}}, C_{\text{acc}}$, completion bar, verification readiness). | `slots[]`, `configuredCount`, `overflowBuffer` | `onFilterSlots(statusFilter)` | Metric tooltip open/close | Fabricating missing metrics as 0 |
 | **`QuestionSlotList`** | `frontend/features/question-generation/components/QuestionSlotList.tsx` | Renders scrollable vertical list of slot items; handles selection and reordering triggers. | `slots[]`, `selectedSlotId`, `disabled` | `onSelectSlot(slotId)`, `onReorderSlot(fromIdx, toIdx)`, `onAddSlot()` | Scroll position | Direct array mutation without coordinator callback |
 | **`QuestionSlotItem`** | `frontend/features/question-generation/components/QuestionSlotItem.tsx` | Individual slot card displaying excerpt, status badge, dirty dot, and move up/down buttons. | `slot: Mode1SlotDisplayModel`, `isSelected`, `isFirst`, `isLast` | `onClick()`, `onMoveUp()`, `onMoveDown()`, `onDelete()` | Hover & focus state | Evaluating cross-slot batch rules |
 | **`QuestionEditor`** | `frontend/features/question-generation/components/QuestionEditor.tsx` | Form editing problem statement, 4 canonical options, radio answer key, and explanation for active slot. | `slot: Mode1QuestionSlot`, `validationErrors[]`, `isReadOnly` | `onUpdateField(fieldPath, value)`, `onMarkAccepted(slotId)` | Active field focus | Independent persistence; dual content copies |
@@ -616,7 +649,7 @@ sequenceDiagram
 ## 14. Interaction Flows & State Transitions
 
 ### 14.1 Flow A: New Draft Creation & In-Place Persistence
-**Objective**: Creator configures Mode 1 ($N=5$), inputs question content, previews the result, and commits an in-place draft save to Firestore.
+**Objective**: Creator configures Mode 1 ($N=5$), inputs question content, previews the result, explicitly accepts the question, and commits an in-place draft save to Firestore.
 
 ```mermaid
 sequenceDiagram
@@ -637,6 +670,9 @@ sequenceDiagram
     UI->>State: Mutate slots[0].options & correctAnswer
     State-->>Preview: Update options list in 9:16 simulation
     State-->>UI: Mark Slot #1 status = MANUALLY_EDITED, isDirty = true
+    Note over State: C_edit = 1, but C_acc = 0! Slot is NOT accepted yet.
+    Creator->>UI: Inspect preview and click [Accept Question]
+    UI->>State: Mark Slot #1 status = ACCEPTED, C_acc = 1
     Creator->>UI: Click [Save Draft]
     UI->>State: Lock inputs, set isSaving = true
     UI->>API: POST /questions/draft (payload with 5 slots)
@@ -649,14 +685,18 @@ sequenceDiagram
 ```
 
 ### 14.2 Flow B: Edit and Switch Slots
-1. **Precondition**: Draft contains 5 slots. User is viewing Slot `#1`.
-2. **Action**: User types in Slot `#1` explanation field. `slots[0].isDirty` becomes `true`.
-3. **Action**: User clicks Slot `#2` in `QuestionSlotList`.
-4. **State Transition**:
+1. **Precondition**: Draft contains 5 slots. User is viewing Slot `#1` (status: `ACCEPTED`).
+2. **Action**: User modifies Slot `#1` explanation text.
+3. **State Transition**:
+   - `slots[0].status` transitions from `ACCEPTED` to `MANUALLY_EDITED`.
+   - Prior acceptance is revoked: $C_{\text{acc}}$ decrements from 1 to 0; $C_{\text{rem\_accept}}$ increments from 4 to 5.
+   - `slots[0].isDirty` becomes `true`.
+4. **Action**: User clicks Slot `#2` in `QuestionSlotList`.
+5. **State Transition**:
    - `selectedSlotId` shifts to `slots[1].slotId`.
    - `QuestionEditor` unmounts Slot `#1` bindings and binds to Slot `#2`.
    - `QuestionPreview` immediately projects Slot `#2` content.
-   - Slot `#1` card in `QuestionSlotList` retains its amber dirty dot indicator.
+   - Slot `#1` card in `QuestionSlotList` displays `"Manually Edited (Awaiting Acceptance)"` and retains its amber dirty dot indicator.
    - **Zero data loss**: Slot `#1` modifications remain safe in memory.
 
 ### 14.3 Flow C: Reorder Questions
@@ -685,7 +725,8 @@ sequenceDiagram
 2. **Feedback**:
    - Slot 1, 2, 3 display populated question cards with `status = 'VALID'`.
    - Slot 4, 5 display empty dashed placeholders with `status = 'EMPTY'`.
-   - Batch status banner displays: `"Partial Batch (3 of 5 generated, 3 valid). Generation interrupted: Rate limit exceeded."`
+   - Telemetry displays: $C_{\text{req}} = 5, C_{\text{val\_slots}} = 3, C_{\text{rem\_gen}} = 2$.
+   - Batch status banner displays: `"Partial Batch (3 of 5 generated, 3 valid, 0 accepted). Generation interrupted: Rate limit exceeded."`
    - Actions available: `[Retry Remaining 2 Slots]` or `[Draft Manually]`.
 3. **Integrity Rule**: Existing valid slots (1-3) are **never discarded or overwritten** on retry.
 
@@ -729,7 +770,11 @@ sequenceDiagram
    - The 9:16 Preview Panel remains fully interactive for review and testing.
 
 ### 14.10 Flow J: Submit for Verification Boundary
-1. **Precondition**: All $N$ slots are valid and marked `ACCEPTED` or confirmed `MANUALLY_EDITED` ($C_{\text{rem\_accept}} == 0$). Global `isDirty = false`.
+1. **Precondition**:
+   - All $N$ slots are valid ($C_{\text{valid}} == C_{\text{req}}$).
+   - All $N$ slots are explicitly marked `'ACCEPTED'` ($C_{\text{acc}} == C_{\text{req}}$, $C_{\text{rem\_accept}} == 0$).
+   - Zero slots remain in `'MANUALLY_EDITED'`, `'VALID'` (unaccepted), or `'EMPTY'`.
+   - Global `isDirty = false` (draft committed to Firestore).
 2. **Action**: User clicks `[Submit for Verification]`.
 3. **Execution**:
    - Client displays confirmation dialog:
@@ -738,9 +783,10 @@ sequenceDiagram
      > Confirm submission? `[Cancel]` `[Confirm & Submit]`
    - Upon confirmation, client invokes `POST /questions/draft/:id/submit`.
    - Backend `WorkflowEngine` verifies:
-     1. All $N$ slots pass schema validation ($C_{\text{val\_slots}} == C_{\text{req}}$).
-     2. Authenticated user has `QUESTION:SUBMIT` capability.
-     3. Anti-self-approval invariant GAR-02 is registered (`authorId = user.id`).
+     1. All $N$ slots pass schema validation ($C_{\text{valid}} == C_{\text{req}}$).
+     2. All $N$ slots are explicitly accepted ($C_{\text{acc}} == C_{\text{req}}$).
+     3. Authenticated user has `QUESTION:SUBMIT` capability.
+     4. Anti-self-approval invariant GAR-02 is registered (`authorId = user.id`).
    - Backend transitions draft to `stage: 2, status: 'PENDING_REVIEW'`.
    - UI displays success screen and navigates to the verification workspace after a 1.2s delay.
 
@@ -781,7 +827,7 @@ $$\mathbf{SAVE\ DRAFT} \quad \neq \quad \mathbf{SUBMIT\ FOR\ VERIFICATION}$$
 | **User Intent** | In-place progress persistence | Formal handover to Stage 02 Question QA |
 | **Navigation Effect** | **Remains in the editor** on the current page | Navigates to `/questions/:draftId/verify` |
 | **Validation Gate** | Minimal schema check (valid JSON shape, valid IDs) | Comprehensive 10-point Quality Verification Criteria (QVC) |
-| **Completeness Check** | Can save partial batches ($k < N$ populated slots) | Strictly requires $100\%$ populated and valid slots ($C_{\text{val\_slots}} = C_{\text{req}}$) |
+| **Completeness Check** | Can save partial batches ($k < N$ populated slots, unaccepted slots, or slots in `MANUALLY_EDITED` status) | Strictly requires $100\%$ valid slots ($C_{\text{valid}} = C_{\text{req}}$) AND $100\%$ explicitly accepted slots ($C_{\text{acc}} = C_{\text{req}}, C_{\text{rem\_accept}} = 0$) |
 | **Workflow State** | Remains in Stage 01 (`currentStage: 1, status: 'DRAFT'`) | Advances to Stage 02 (`currentStage: 2, status: 'PENDING_REVIEW'`) |
 | **Anti-Self-Approval** | N/A (author edits own draft) | Enforces GAR-02 ($authorId \neq approverId$) |
 | **Dirty State** | Clears `isDirty` flag, retains draft identity | Clears `isDirty`, locks document against further edits |
@@ -826,7 +872,7 @@ $$\mathbf{SAVE\ DRAFT} \quad \neq \quad \mathbf{SUBMIT\ FOR\ VERIFICATION}$$
     {
       "slotId": "slt_4a9f1b2c-3d4e-5f6a-7b8c-9d0e1f2a3b4c",
       "slotNumber": 1,
-      "status": "VALID",
+      "status": "ACCEPTED",
       "questionText": "భారత రాజ్యాంగంలోని ఏ అధికరణం అస్పృశ్యత నివారణను తెలియజేస్తుంది? / Which Article abolishes Untouchability?",
       "options": {
         "a": "ఆర్టికల్ 14 / Article 14",
@@ -857,7 +903,7 @@ $$\mathbf{SAVE\ DRAFT} \quad \neq \quad \mathbf{SUBMIT\ FOR\ VERIFICATION}$$
     {
       "slotId": "slt_11111111-2222-3333-4444-555555555555",
       "slotNumber": 1,
-      "status": "VALID",
+      "status": "ACCEPTED",
       "questionText": "1857 సిపాయిల తిరుగుబాటు ఎక్కడ ప్రారంభమైంది?",
       "options": { "a": "మీరట్", "b": "ఢిల్లీ", "c": "లక్నో", "d": "కాన్పూర్" },
       "correctAnswer": "A",
@@ -902,6 +948,17 @@ $$\mathbf{SAVE\ DRAFT} \quad \neq \quad \mathbf{SUBMIT\ FOR\ VERIFICATION}$$
   ]
 }
 ```
+
+#### Disambiguated Evaluation Metrics for Scenario 2:
+- **Configured Target**: $C_{\text{req}} = 5$
+- **Populated In-Range Slots**: $C_{\text{pop}} = 2$ (Slots 1 and 2)
+- **Currently Valid Slots**: $C_{\text{valid}} = 2$ (Both Slot 1 and Slot 2 pass validation)
+- **Manually Edited Slots**: $C_{\text{edit}} = 1$ (Slot 2 has manual edits awaiting acceptance)
+- **Accepted Slots**: $C_{\text{acc}} = 1$ (Only Slot 1 has status `ACCEPTED`. **Slot 2 with status `MANUALLY_EDITED` is strictly NOT accepted!**)
+- **Remaining Acceptance Count**: $C_{\text{rem\_accept}} = C_{\text{req}} - C_{\text{acc}} = 5 - 1 = 4$ (Slots 2, 3, 4, 5 still require acceptance)
+- **Remaining Generation Count**: $C_{\text{rem\_gen}} = 3$ (Slots 3, 4, 5 remain empty)
+- **Generation Telemetry**: $C_{\text{val\_slots}} = \text{"—"}$, $C_{\text{inv}} = \text{"—"}$, $C_{\text{dup}} = \text{"—"}$ (Unavailable on resumed draft)
+- **Verification Eligibility**: **BLOCKED** ($C_{\text{rem\_gen}} > 0 \lor C_{\text{rem\_accept}} > 0$).
 
 ### Scenario 3: Validation Error on Option Collision (`ERR_OPTION_DUPLICATE`)
 ```json
@@ -1042,15 +1099,15 @@ $$\mathbf{SAVE\ DRAFT} \quad \neq \quad \mathbf{SUBMIT\ FOR\ VERIFICATION}$$
 
 ### 20.1 Verification Protocol Execution
 Under [AGENTS.md §15.1 and §15.2](../../../AGENTS.md#15-risk-based-engineering-execution-cycle--verification-policy):
-- **Verification Tier**: Tier 1 Documentation-Only with manifest expansion and inventory-test correction.
+- **Verification Tier**: Tier 1 Documentation-Only.
 - **Mandatory Pre-Test Decision**:
-  1. *Changed Scope*: Correcting documentation deliverable `docs/sprints/sprint-09/S9-T06-EDITOR-PREVIEW-INTERACTION-SPEC.md` and correcting post-S7 inventory test logging in `tests/architecture/s7-t01-inventory-reconciliation.test.ts`.
+  1. *Changed Scope*: Updating documentation deliverable `docs/sprints/sprint-09/S9-T06-EDITOR-PREVIEW-INTERACTION-SPEC.md` to resolve batch status telemetry versus workbench validity and editorial acceptance invariants. Zero changes to manifest, test files, or runtime code.
   2. *Selected Verification Commands*:
      - `git diff --check`: Verify zero whitespace errors or merge marker corruptions.
-     - `npm run test:architecture`: Verify that inventory reconciliation and boundary tests pass with exact file counts.
   3. *Safely Bypassed Commands*:
-     - Full application build (`npm run build`) and runtime integration suites are safely bypassed per Tier 1 documentation policy, as zero runtime production application code was modified.
+     - `npm run test:architecture`: Bypassed because zero manifest files, test files, or tracked file counts were changed.
+     - `npm run build`: Bypassed because zero executable code was modified.
 
 ### 20.2 Scope Verdict & Sign-Off
-- **Verdict**: **COMPLETE & ACCEPTED (GATE B BASELINE — CORRECTED)**.
-- **Summary**: All 8 primary acceptance criteria (AC-01 through AC-08) are fully satisfied. The specification completely resolves the legacy-hydration contradiction, aligns all error codes and enums with S9-T05, corrects batch counter equations ($C_{\text{rem\_gen}}$), enforces single-source-of-truth invariants, and provides an unblocked path for downstream implementation tasks.
+- **Verdict**: **COMPLETE & ACCEPTED (GATE B BASELINE — RECONCILED)**.
+- **Summary**: All 8 primary acceptance criteria (AC-01 through AC-08) are fully satisfied. The specification completely reconciles $C_{\text{val\_slots}}$ with S9-T03 generation telemetry, defines $C_{\text{valid}}$ for workbench evaluation, enforces that `MANUALLY_EDITED` is strictly not accepted without explicit editorial sign-off, maintains unavailable metrics as `"—"`, and preserves the historical S7 baseline and architecture test manifest without alteration.
