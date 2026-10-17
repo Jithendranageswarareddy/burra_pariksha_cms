@@ -18,13 +18,14 @@ Deliver an authoritative, source-grounded requirements specification and determi
 In strict adherence to [AGENTS.md §1](../../../AGENTS.md#1-source-of-truth-authority-hierarchy), this specification reconciles verified runtime behavior with authoritative architecture:
 
 1. **Current Runtime Evidence (`main`)**:
-   - `QuestionDraftService` ([`backend/features/question-generation/services/question-draft.service.ts`](file:///c:/Users/jithendra/OneDrive/Desktop/burra_pariksha_cms/backend/features/question-generation/services/question-draft.service.ts)): Verified implementation of `saveDraft`, `submitForVerification`, and `approveDraft`. Enforces `NEG-01` anti-self-approval and administrative override constraints.
-   - `QuestionGenerationService` ([`backend/domain/question-generation/question-generation.service.ts`](file:///c:/Users/jithendra/OneDrive/Desktop/burra_pariksha_cms/backend/domain/question-generation/question-generation.service.ts)): Verified in-memory candidate validator (`validateCandidate`), OCC version checks (HTTP 409), draft authorization checks (HTTP 403), and backend submission gate (HTTP 422).
+   - `QuestionDraftService` ([`backend/features/question-generation/services/question-draft.service.ts`](../../../backend/features/question-generation/services/question-draft.service.ts)): Verified implementation of `saveDraft`, `submitForVerification`, and `approveDraft`. Enforces `NEG-01` anti-self-approval check.
+   - `QuestionGenerationService` ([`backend/domain/question-generation/question-generation.service.ts`](../../../backend/domain/question-generation/question-generation.service.ts)): Verified in-memory candidate validator (`validateCandidate`), OCC version checks (HTTP 409), draft authorization checks (HTTP 403), and backend submission gate (HTTP 422).
 2. **Authoritative Architecture Contracts**:
    - [07-CANONICAL-15-STEP-WORKFLOW.md](../../architecture/07-CANONICAL-15-STEP-WORKFLOW.md): Sequential business stages. Stage 01 (`Question Generation`) $\rightarrow$ Stage 02 (`Question Verification`). Strict separation of concerns.
    - [09-RBAC-CAPABILITY-MODEL.md](../../architecture/09-RBAC-CAPABILITY-MODEL.md): Atomic capability tokens (`QUESTION:EDIT`, `QUESTION:SUBMIT`, `QUESTION_REVIEW:VERIFY`, `QUESTION:APPROVE`), least-privilege scoping, and GAR-02 anti-self-approval invariant ($authorId \neq approverId$).
-   - [ADR-009, ADR-010, ADR-011](../../architecture/DECISION-LOG.md): Strict 4-option MCQ schema; Mode 1 batch series counts $N \in \{5, 10, 15, 20\}$; atomic aggregate draft document in `question_drafts` (DD-05).
-   - [AGENTS.md §11](../../../AGENTS.md#11-save-vs-verify-operational-contract): Mandatory invariant: `SAVE DRAFT` $\neq$ `SUBMIT FOR VERIFICATION`.
+   - [shared/constants/roles.ts](../../../shared/constants/roles.ts): Authoritative canonical RBAC roles (`CanonicalRbacRole`).
+   - [ADR-002, ADR-009, ADR-010, ADR-011](../../architecture/DECISION-LOG.md): Principle 3 GAR-02 anti-self-approval invariant across all stages with zero exceptions; strict 4-option MCQ schema; Mode 1 batch series counts $N \in \{5, 10, 15, 20\}$; atomic aggregate draft document in `question_drafts` (DD-05).
+   - [AGENTS.md §10, §11](../../../AGENTS.md#10-workflow-authority-and-gar-02-rule): Mandatory invariants: `authorId !== approverId` and `SAVE DRAFT` $\neq$ `SUBMIT FOR VERIFICATION`.
 3. **Explicit Scope Boundary: Video QC is NOT Question Verification**:
    - [FC-012-FINAL-QC-REVIEW-GATE.md](../../features/FC-012-FINAL-QC-REVIEW-GATE.md) governs **Stage 07 (Final Video QC)**, evaluating 9:16 smartphone safe-zones, audio LUFS normalization ($-14\text{LUFS}$), and video render artifacts.
    - Stage 02 **(Question Verification)** governs pedagogical correctness, mathematical solution proofs, Telugu distractor viability, and syllabus alignment. Stage 02 must **never** be conflated with Stage 07 video review.
@@ -36,7 +37,7 @@ In strict adherence to [AGENTS.md §1](../../../AGENTS.md#1-source-of-truth-auth
 The validation matrix defines every syntactic, structural, pedagogical, and operational check executed during draft authoring and verification handoff.
 
 ### 2.1 Severity Classifications
-- **`BLOCKING`**: Hard architectural or schema violation. Prevents submission to Stage 02 verification. Backend API rejects the submission with HTTP 422 `IncompleteBatchSubmissionError` or HTTP 400 `QuestionGenerationDomainError`. Saving as draft remains permitted.
+- **`BLOCKING`**: Hard architectural, schema, or uniqueness violation. Prevents submission to Stage 02 verification. Backend API rejects the submission with HTTP 422 `IncompleteBatchSubmissionError` or HTTP 400 `QuestionGenerationDomainError`. Saving as draft remains permitted.
 - **`WARNING`**: Advisory pedagogical or formatting observation. Surfaces an inline alert or warning badge. Submission may proceed **without restriction** unless an explicit, owner-approved warning acknowledgement policy is active `[PROPOSED DEFAULT — Requires Owner Approval under OD-02]`. Warnings never silently become blockers.
 - **`INFORMATIONAL`**: Informative metric (e.g. reading time, character count telemetry). Displayed in studio trays; zero impact on submission eligibility.
 
@@ -49,7 +50,7 @@ The validation matrix defines every syntactic, structural, pedagogical, and oper
 | **VAL-Q-03** | **Invalid Correct Answer Key** | `correctAnswer` is not strictly one of `'A'`, `'B'`, `'C'`, `'D'`. | **BLOCKING** | UI Radio Group + Backend Service (`validateCandidate`) | Form error: *"Correct answer must be specified (A, B, C, or D)."* | Select an explicit radio button corresponding to the mathematically correct option. | `TC-QC-03` | `[VERIFIED RUNTIME BEHAVIOR]` |
 | **VAL-Q-04** | **Missing Correct Answer Key** | `correctAnswer` is undefined, null, or empty string for Mode 1. | **BLOCKING** | UI Radio Group + Backend Service (`validateCandidate`) | Form validation error: *"Correct answer key is required for Question Challenge Short."* | Author must select the designated correct option before submission. | `TC-QC-03` | `[APPROVED CONTRACT: S9-T02]` |
 | **VAL-Q-05** | **Malformed Schema & Metadata** | Invalid/missing `topicId`, `subtopicId`, `difficulty`, or non-canonical ID formats. Subtopic does not belong to Topic. | **BLOCKING** | API Zod Parser + Domain Service (`validateGenerationRequest`) | HTTP 400 error banner: *"Subtopic does not exist or does not belong to selected Topic."* | Select valid syllabus topic and child subtopic from taxonomy dropdown. | `TC-QC-05` | `[VERIFIED RUNTIME BEHAVIOR]` |
-| **VAL-Q-06A**| **Exact Duplicate Question** | Identical `questionText` and options match an earlier slot in the batch or an active production question. | **BLOCKING** | Backend Deduplication Engine | Warning modal: *"Duplicate Question Detected: Matches Slot $j$."* Slot flagged `DUPLICATE_REJECTED`. | Author clicks "Regenerate Duplicate" or modifies problem values/text. | `TC-QC-05` | `[APPROVED CONTRACT: S9-T03]` |
+| **VAL-Q-06A**| **Exact Duplicate Question** | Identical `questionText` and options match an earlier slot in the batch or an active production question. | **BLOCKING** | UI Form + Backend Service + Batch Validator | Red error banner & blocking modal: *"Duplicate Question Error: Problem statement and options match Slot $j$ (or active Question). Submission blocked."* | Author must edit problem parameters or options to make question distinct, or regenerate slot. | `TC-QC-05` | `[APPROVED CONTRACT: S9-T03]` |
 | **VAL-Q-06B**| **Semantic Topical Overlap** | Normalized textual similarity $> 0.85$ (Levenshtein/vector metric) with another candidate. | **WARNING** | Studio Advisory Linter | Amber badge: *"High similarity with Question $j$. Consider varying the mathematical angle."* | Advisory only: author may proceed or rephrase to introduce distinct pedagogical framing. | `TC-QC-04` | `[PROPOSED RULE Requires Owner Approval under OD-02]` |
 | **VAL-Q-07** | **Missing or Invalid Proof/Explanation** | `trim(explanation).length < 5` characters, or missing step-by-step mathematical shortcut proof. | **BLOCKING** | UI Proof Field + Backend Service (`submitForVerification`) | Red input highlight: *"Mathematical solution proof and speed trick are required ($\ge 5$ chars)."* | Provide complete derivation showing how the shortcut arrives at the designated key. | `TC-QC-01` | `[APPROVED CONTRACT: S9-T02]` |
 | **VAL-Q-08** | **Incomplete Batch Slots** | For batch count $N$, $C_{\text{rem\_gen}} > 0$ or any slot in status `EMPTY`, `GENERATING`, or `INVALID`. | **BLOCKING** | Batch Aggregate Validator + Submission Dispatcher | Button disabled; API returns HTTP 422: *"Requires $N$ valid questions (currently has $C_{\text{val\_slots}}$)."* | Complete all missing slots via generation or manual entry before submitting. | `TC-QC-07` | `[APPROVED CONTRACT: S9-T03]` |
@@ -126,14 +127,15 @@ If an author clicks "Regenerate Entire Batch":
 
 ## 4. Role and Action Authorization Matrix
 
-Authorization enforces strict **least-privilege access, object-level ownership checks, and the GAR-02 anti-self-approval rule** in accordance with [09-RBAC-CAPABILITY-MODEL.md](../../architecture/09-RBAC-CAPABILITY-MODEL.md).
+Authorization enforces strict **least-privilege access, object-level ownership checks, and the absolute GAR-02 anti-self-approval rule** in accordance with [09-RBAC-CAPABILITY-MODEL.md](../../architecture/09-RBAC-CAPABILITY-MODEL.md) and [shared/constants/roles.ts](../../../shared/constants/roles.ts).
 
 ### 4.1 Canonical Roles Evaluated
+In strict compliance with `shared/constants/roles.ts`, authorization operations are restricted to canonical RBAC roles (`CanonicalRbacRole`):
 1. **`QUESTION_AUTHOR`**: Content writer responsible for drafting questions and generating candidates in Stage 01.
-2. **`QUESTION_EDITOR`**: Senior editorial staff permitted to refine content, reorder slots, and resolve defects.
-3. **`QA_REVIEWER` / `LEAD_SME`**: Independent verifier responsible for Stage 02 pedagogical verification and approval.
-4. **`CONTENT_LEAD`**: Supervisory content manager overseeing production schedules and quality audits.
-5. **`ADMIN`**: Privileged system administrator.
+2. **`QUESTION_EDITOR`**: Senior editorial staff permitted to refine content, reorder slots, and resolve defects across any draft.
+3. **`QA_REVIEWER`**: Independent verifier responsible for Stage 02 pedagogical verification and approval. (Editorial domain responsibilities such as "Lead SME" or "Subject Matter Expert" are performed by actors holding this canonical role; `LEAD_SME` is an editorial function, not an independent RBAC role).
+4. **`CONTENT_LEAD`**: Supervisory content manager overseeing production schedules and quality audits across the curriculum domain.
+5. **`ADMIN`**: Privileged system administrator managing system configurations, user roles, and maintenance workflows.
 
 ### 4.2 Role / Action Permissions Matrix
 
@@ -146,22 +148,27 @@ Authorization enforces strict **least-privilege access, object-level ownership c
 | **Acknowledge Linter Warnings** | `QUESTION:EDIT` | **ALLOW** (Own) | **ALLOW** (Any) | **ALLOW** | **ALLOW** (Any) | **ALLOW** (Any) | Warnings do not block submission. Acknowledgment logged in audit trail. |
 | **Submit for Verification** | `QUESTION:SUBMIT` | **ALLOW** (Own) | **ALLOW** (Any) | **DENY** | **ALLOW** (Any) | **ALLOW** (Any) | Requires $C_{\text{rem\_gen}} == 0 \land C_{\text{rem\_accept}} == 0 \land \text{draft.isDirty} == \text{false}$. |
 | **Verify / Inspect Question** | `QUESTION_REVIEW:VERIFY` | **DENY** | **DENY** | **ALLOW** | **ALLOW** | **ALLOW** | Stage 02 only. Reviewer audits 10-point pedagogical criteria and proof. |
-| **Approve Question Draft** | `QUESTION:APPROVE` | **DENY** | **DENY** | **ALLOW** | **ALLOW** | **ALLOW** | **GAR-02 ENFORCED**: $authorId \neq reviewerId$. Advances workflow to Stage 03. |
+| **Approve Question Draft** | `QUESTION:APPROVE` | **DENY** | **DENY** | **ALLOW** | **ALLOW** | **ALLOW** | **GAR-02 ABSOLUTE INVARIANT**: Permitted ONLY if $authorId \neq reviewerId$. Advances to Stage 03. |
 | **Request Changes (Return to 01)**| `QUESTION:REJECT` (`CHANGES_REQ`) | **DENY** | **DENY** | **ALLOW** | **ALLOW** | **ALLOW** | Stage 02 only. Requires mandatory structured feedback remarks ($\ge 10$ chars). |
-| **Administrative Override Approval**| `QUESTION:APPROVE` (`OVERRIDE`) | **DENY** | **DENY** | **DENY** | **DENY** | **CONDITIONAL** | **STRICT RUNTIME CONTRACT**: Admin role + `confirmedByAdmin` + reason $\ge 10$ chars. |
+| **Self-Approval Override Attempt**| `QUESTION:APPROVE` (`OVERRIDE`) | **DENY** | **DENY** | **DENY** | **DENY** | **DENY** | **GAR-02 STRICT RULE**: Zero self-approval exceptions, even for `ADMIN`. Throws HTTP 403 `NEG-01`. |
 
-### 4.3 Anti-Self-Approval Enforcement (GAR-02 Rule)
-Under Architecture Principle 3 and `NEG-01`:
+### 4.3 Anti-Self-Approval Enforcement (GAR-02 Rule — Zero Self-Approval Invariant)
+Under Architecture Principle 3, ADR-002, and `NEG-01`:
 
-$$\mathbf{authorId} \neq \mathbf{reviewerId}$$
+$$\mathbf{authorId} \neq \mathbf{reviewerId} \quad (\text{Absolute Invariant Across All Roles, Including } \texttt{ADMIN})$$
 
-- **Zero Self-Approval**: The user who drafted or authored the question draft cannot approve or verify it into production.
-- **Backend Enforcement**: Evaluated in `QuestionDraftService.approveDraft`. If `draft.authorId === actor.id`, the server throws HTTP 403 `NEG-01 AntiSelfApprovalViolation`.
-- **Audit Logging**: Every rejected self-approval attempt is logged in the append-only audit ledger (`QUESTION_DRAFT_APPROVAL_REJECTED`).
-- **Administrative Override Contract**:
-  - Verified in existing code ([`question-draft.service.ts:L142-L150`](file:///c:/Users/jithendra/OneDrive/Desktop/burra_pariksha_cms/backend/features/question-generation/services/question-draft.service.ts#L142-L150)):
-  - Permitted **only** if actor holds `ADMIN` role, explicitly passes `overrideContext.isOverride = true` and `overrideContext.confirmedByAdmin = true`, and supplies a justification `reason` of at least 10 characters.
-  - Emits `QUESTION_DRAFT_APPROVAL_ADMIN_OVERRIDE` audit event.
+1. **Zero Self-Approval Exceptions**:
+   - The user who authored, drafted, or generated a question is **strictly prohibited from approving or verifying their own work**.
+   - This rule is absolute and applies universally across all canonical roles: `QUESTION_AUTHOR`, `QUESTION_EDITOR`, `QA_REVIEWER`, `CONTENT_LEAD`, and `ADMIN`.
+   - Administrators possess broad administrative capabilities (e.g. managing users, assigning tasks, verifying drafts authored by *others*), but **cannot approve drafts they authored themselves**.
+2. **Backend Enforcement**:
+   - Evaluated in `QuestionDraftService.approveDraft`.
+   - If `draft.authorId === actor.id` (or author name match), the server strictly rejects the request with HTTP 403 `NEG-01 AntiSelfApprovalViolation`.
+   - Every rejected self-approval attempt is logged in the append-only audit ledger (`QUESTION_DRAFT_APPROVAL_REJECTED`).
+3. **Runtime Defect & Discrepancy Note**:
+   - *Active Runtime Mismatch*: The brownfield implementation in `QuestionDraftService.approveDraft` ([`backend/features/question-generation/services/question-draft.service.ts:L142-L150`](../../../backend/features/question-generation/services/question-draft.service.ts#L142-L150)) currently contains legacy logic permitting an `ADMIN` self-approval override if an `overrideContext` with a 10-character reason is supplied.
+   - *Architectural Conflict*: This override directly contradicts authoritative architecture (ADR-002 Principle 3: *"Author of an artifact cannot approve their own work under any circumstance ($authorId \neq approverId$)"* and [AGENTS.md §10](../../../AGENTS.md#10-workflow-authority-and-gar-02-rule)).
+   - *Resolution Contract*: The authoritative requirement strictly disallows self-approval under any override payload. The existing runtime bypass is an identified implementation defect scheduled for removal in subsequent runtime tasks.
 
 ---
 
@@ -173,7 +180,7 @@ The validation rules and editing capabilities map directly to the canonical 15-s
  ┌────────────────────────────────────────┐       Submit for Verification        ┌────────────────────────────────────────┐
  │   STAGE 01: QUESTION GENERATION        ├─────────────────────────────────────►│   STAGE 02: QUESTION VERIFICATION      │
  │   Workbench: /studio                   │   (Requires C_rem_gen == 0           │   Workbench: /questions/:id/verify     │
- │   Owner: Question Author / Editor      │    and all validation gates PASS)    │   Owner: Independent QA / SME          │
+ │   Owner: Question Author / Editor      │    and all validation gates PASS)    │   Owner: Independent QA Reviewer       │
  └──────────────────┬─────────────────────┘                                      └──────────────────┬─────────────────────┘
                     │                                                                               │
                     │ Save Draft                                                                    │ Request Changes
@@ -249,10 +256,10 @@ The following deterministic scenarios specify required verification behavior for
 │               │                 │ Persistence: Draft status transitions to SUBMITTED_FOR_REVIEW. │
 │               │                 │ Workflow: Advances to Stage 02. Warning did NOT block submit.  │
 ├───────────────┼─────────────────┼────────────────────────────────────────────────────────────────┤
-│ TC-QC-05      │ API Bypass      │ Action: Client script bypasses UI and calls POST /submit with  │
-│               │ Prevention      │ missing taxonomy topicId or duplicate options.                 │
+│ TC-QC-05      │ API Bypass &    │ Action: Client script calls POST /submit with missing topicId  │
+│               │ Duplicate Block │ OR exact duplicate question text matching another slot.        │
 │               │                 │ Result: Backend validates and rejects with HTTP 400 / 422.     │
-│               │                 │ Workflow: Stage remains 01. Zero trust in UI state.            │
+│               │                 │ Workflow: Stage remains 01. Exact duplicates strictly blocked. │
 ├───────────────┼─────────────────┼────────────────────────────────────────────────────────────────┤
 │ TC-QC-06      │ Save Draft vs.  │ Action: Author clicks "Save Draft" on valid draft.             │
 │               │ Verify Gate     │ Result: Save succeeds (HTTP 200). version increments.          │
@@ -290,10 +297,11 @@ The following deterministic scenarios specify required verification behavior for
 │               │                 │ Result: Rejected with HTTP 403 NEG-01 AntiSelfApprovalViolation│
 │               │                 │ Audit: QUESTION_DRAFT_APPROVAL_REJECTED logged.                │
 ├───────────────┼─────────────────┼────────────────────────────────────────────────────────────────┤
-│ TC-QC-14      │ Admin Override  │ Action: ADMIN executes approveDraft on own draft, passing      │
-│               │ Exception       │ overrideContext with reason >= 10 chars.                       │
-│               │                 │ Result: Approval succeeds (HTTP 200). Materializes Question.   │
-│               │                 │ Audit: QUESTION_DRAFT_APPROVAL_ADMIN_OVERRIDE logged.          │
+│ TC-QC-14      │ Admin Self-     │ Action: Actor with ADMIN role who authored Draft dft_123       │
+│               │ Approval Denied │ attempts approveDraft on dft_123 with overrideContext supplied.│
+│               │ (GAR-02 Absolute│ Result: REJECTED with HTTP 403 NEG-01 AntiSelfApprovalViolation│
+│               │ Invariant)      │ Persistence: Draft remains SUBMITTED_FOR_REVIEW; Question not  │
+│               │                 │ materialized. GAR-02 cannot be overridden by ADMIN role.      │
 ├───────────────┼─────────────────┼────────────────────────────────────────────────────────────────┤
 │ TC-QC-15      │ Concurrency OCC │ Action: Editor A and Editor B edit Draft v2 concurrently.      │
 │               │ Lock Conflict   │ Editor A saves (v2->v3). Editor B attempts submit with v2.     │
@@ -326,19 +334,20 @@ Every rule within this specification is classified under the SDLC provenance bas
    - Single atomic aggregate document for batch drafts in `question_drafts` ([ADR-011 DD-05](../../architecture/DECISION-LOG.md#L15)).
    - Save Draft $\neq$ Submit for Verification ([AGENTS.md §11](../../../AGENTS.md#11-save-vs-verify-operational-contract)).
    - Canonical 15-stage sequential workflow ([07-CANONICAL-15-STEP-WORKFLOW.md](../../architecture/07-CANONICAL-15-STEP-WORKFLOW.md)).
-   - RBAC capability model & GAR-02 anti-self-approval ([09-RBAC-CAPABILITY-MODEL.md](../../architecture/09-RBAC-CAPABILITY-MODEL.md)).
+   - Canonical RBAC roles ([shared/constants/roles.ts](../../../shared/constants/roles.ts)) & GAR-02 anti-self-approval rule ([ADR-002 Principle 3](../../architecture/DECISION-LOG.md#L6) and [09-RBAC-CAPABILITY-MODEL.md](../../architecture/09-RBAC-CAPABILITY-MODEL.md)).
 2. **Verified Current Runtime Behavior**:
-   - Backend candidate validator (`validateCandidate`) enforces question text length $\ge 5$, option presence, answer key in `['A', 'B', 'C', 'D']` ([`question-generation.service.ts:L286-L302`](file:///c:/Users/jithendra/OneDrive/Desktop/burra_pariksha_cms/backend/domain/question-generation/question-generation.service.ts#L286-L302)).
-   - Backend submission gate enforces optimistic locking (`expectedVersion`) and draft status `DRAFT` ([`question-generation.service.ts:L546-L623`](file:///c:/Users/jithendra/OneDrive/Desktop/burra_pariksha_cms/backend/domain/question-generation/question-generation.service.ts#L546-L623)).
-   - Anti-self-approval enforcement and Administrative Override in `approveDraft` ([`question-draft.service.ts:L131-L182`](file:///c:/Users/jithendra/OneDrive/Desktop/burra_pariksha_cms/backend/features/question-generation/services/question-draft.service.ts#L131-L182)).
+   - Backend candidate validator (`validateCandidate`) enforces question text length $\ge 5$, option presence, answer key in `['A', 'B', 'C', 'D']` ([`backend/domain/question-generation/question-generation.service.ts:L286-L302`](../../../backend/domain/question-generation/question-generation.service.ts#L286-L302)).
+   - Backend submission gate enforces optimistic locking (`expectedVersion`) and draft status `DRAFT` ([`backend/domain/question-generation/question-generation.service.ts:L546-L623`](../../../backend/domain/question-generation/question-generation.service.ts#L546-L623)).
+   - Anti-self-approval base enforcement in `approveDraft` ([`backend/features/question-generation/services/question-draft.service.ts:L131-L182`](../../../backend/features/question-generation/services/question-draft.service.ts#L131-L182)).
 3. **Proposed Rules Requiring Owner Approval**:
    - Semantic duplicate similarity threshold (e.g. Levenshtein / vector metric $> 0.85$ under `VAL-Q-06B`).
    - Linter warning threshold for presentation length (`questionText > 180` chars under `VAL-Q-11`).
    - Whole-batch regeneration Revision $R \to R+1$ branching policy (`Option B`).
    - Slot revision history array persistence (`slotHistory`).
-4. **Unresolved Implementation Gaps**:
-   - Multi-slot aggregate validation: runtime `validateCandidate` currently processes single-question fields; slot-array traversal for Mode 1 batch drafts is unbuilt.
-   - Batch slot reordering & deletion endpoints: runtime currently lacks dedicated Express routes for batch slot reordering.
+4. **Unresolved Implementation Gaps & Runtime Mismatches**:
+   - **Runtime GAR-02 Override Defect**: `QuestionDraftService.approveDraft` ([`backend/features/question-generation/services/question-draft.service.ts:L142-L150`](../../../backend/features/question-generation/services/question-draft.service.ts#L142-L150)) currently contains brownfield code permitting an `ADMIN` self-approval override if `overrideContext` is supplied. This conflicts with authoritative ADR-002 Principle 3 and must be decommissioned.
+   - **Multi-slot aggregate validation**: runtime `validateCandidate` currently processes single-question fields; slot-array traversal for Mode 1 batch drafts is unbuilt.
+   - **Batch slot reordering & deletion endpoints**: runtime currently lacks dedicated Express routes for batch slot reordering.
 
 ---
 
@@ -362,8 +371,9 @@ To formally approve Gate A and transition to Gate B (Technical Design), the Auth
 - **Evidence-Based Verdict**:
   - Fully defines validation matrix (12 rules with severity, layer, and remediation).
   - Establishes batch mutation rules (Save Draft, reorder, delete, replace, whole-batch protection).
-  - Details RBAC authorization matrix across 5 roles and 10 operational actions with strict GAR-02 enforcement.
+  - Details RBAC authorization matrix across canonical roles and operational actions with strict, absolute GAR-02 enforcement.
+  - Documents runtime discrepancy regarding legacy administrative self-approval bypass.
   - Maps Stage 01 authoring to Stage 02 independent verification; decouples from Stage 07 Video QC (FC-012).
-  - Supplies 17 deterministic acceptance scenarios.
+  - Supplies 17 deterministic acceptance scenarios, including `TC-QC-14` asserting admin self-approval denial.
   - Documents 5 pending Gate A decisions.
 - **Single Next Action**: Deliverable established for Task `S9-T04`. **Do NOT start Task `S9-T05` or begin detailed runtime design**.
