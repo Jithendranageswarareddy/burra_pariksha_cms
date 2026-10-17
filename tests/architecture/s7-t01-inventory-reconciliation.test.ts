@@ -39,6 +39,7 @@ export const AUTHORITATIVE_APPROVED_POST_S7_ADDITIONS: readonly string[] = [
   'docs/sprints/sprint-09/S9-T03-BATCH-GENERATION-REQUIREMENTS.md',
   'docs/sprints/sprint-09/S9-T04-EDITING-QUALITY-VERIFICATION-CRITERIA.md',
   'docs/sprints/sprint-09/S9-T05-MODE-SPECIFIC-CONTENT-CONTRACT.md',
+  'docs/sprints/sprint-09/S9-T06-EDITOR-PREVIEW-INTERACTION-SPEC.md',
   'frontend/features/question-generation/components/ExplainedQuestionsWorkspace.tsx',
   'frontend/features/question-generation/components/ProductionModeModal.tsx',
   'frontend/features/question-generation/components/ProductionWorkbenchSummary.tsx',
