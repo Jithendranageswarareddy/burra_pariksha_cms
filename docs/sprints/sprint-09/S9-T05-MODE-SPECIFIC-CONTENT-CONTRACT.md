@@ -37,8 +37,8 @@ This document establishes the authoritative, strongly typed content contract and
 ### 1.4 Source Authority Hierarchy & Current Implementation Status
 In strict adherence to [AGENTS.md §1](../../../AGENTS.md#1-source-of-truth-authority-hierarchy):
 1. **Verified Current Runtime Reality (`main`)**:
-   - Runtime `QuestionDraftService` and `QuestionGenerationService` successfully process single-question drafts ($N=1$) using flat option aliases and root fields.
-   - Batch series selection ($N \in \{5, 10, 15, 20\}$) is validated by `contentModeRegistry.validateConfig` ([`shared/registry/content-mode.registry.ts`](../../../shared/registry/content-mode.registry.ts)), but the batch dispatch runner and multi-slot persistence engine remain **unbuilt** per the S9-T01 audit.
+   - Runtime `QuestionDraftService` and `QuestionGenerationService` operate strictly on single-question documents ($N=1$) using flat option aliases and root fields.
+   - Batch series selection ($N \in \{5, 10, 15, 20\}$) is validated by `contentModeRegistry.validateConfig` ([`shared/registry/content-mode.registry.ts`](../../../shared/registry/content-mode.registry.ts)), but the batch dispatch runner, multi-slot persistence engine, and legacy hydration adapters remain **unbuilt future proposals** per the S9-T01 audit.
 2. **Authoritative Architectural Contracts**:
    - [ADR-002](../../architecture/DECISION-LOG.md#L6): Principle 3 GAR-02 anti-self-approval invariant ($authorId \neq approverId$) across all stages with zero exceptions.
    - [ADR-009](../../architecture/DECISION-LOG.md#L13): Canonical 4-option MCQ schema (`a, b, c, d` in canonical `options` object) and single answer key (`A, B, C, D`).
@@ -308,6 +308,9 @@ export interface Mode1ValidationResultEnvelope {
 | `ERR_OPTION_MISSING` | **BLOCKING** | Missing choice (`a`, `b`, `c`, or `d`) | HTTP 422 |
 | `ERR_OPTION_DUPLICATE` | **BLOCKING** | Non-distinct options ($\text{opt}_i == \text{opt}_j$) | HTTP 422 |
 | `ERR_INVALID_ANSWER_KEY` | **BLOCKING** | `correctAnswer` not in `['A', 'B', 'C', 'D']` | HTTP 422 |
+| `ERR_MISSING_ANSWER_KEY` | **BLOCKING** | Correct answer key is missing or invalid; cannot be fabricated and requires human assignment | HTTP 422 |
+| `ERR_MISSING_DRAFT_ID` | **BLOCKING** | Record lacks a valid draft identifier (`id` or `draftId`) | HTTP 400 |
+| `ERR_INCOMPLETE_LEGACY_BATCH` | **BLOCKING** | Legacy record specified `targetQuestionCount > 1`, but contains only 1 question at root. Remaining slots are empty | HTTP 422 |
 | `ERR_MISSING_EXPLANATION` | **BLOCKING** | `explanation.trim().length < 5` | HTTP 422 |
 | `ERR_EXACT_DUPLICATE_QUESTION` | **BLOCKING** | Duplicate question text and options match an earlier slot or active question | HTTP 422 |
 | `ERR_INCOMPLETE_BATCH_SLOTS` | **BLOCKING** | Slot status is `EMPTY`, `GENERATING`, or `INVALID` during submission | HTTP 422 |
@@ -315,6 +318,7 @@ export interface Mode1ValidationResultEnvelope {
 | `ERR_OCC_VERSION_MISMATCH` | **BLOCKING** | `expectedVersion !== draft.version` | HTTP 409 |
 | `ERR_UNAUTHORIZED_SUBMITTER` | **BLOCKING** | Submitter lacks `QUESTION:SUBMIT` capability or is not author/editor | HTTP 403 |
 | `ERR_SELF_APPROVAL_PROHIBITED` | **BLOCKING** | Reviewer matches author during approval (`NEG-01` / GAR-02) | HTTP 403 |
+| `WARN_MISSING_SLOT_ID` | **WARNING** | Legacy record lacks a canonical slotId; a canonical UUID will be generated upon save | N/A (Allowed) |
 | `WARN_LENGTH_PACING` | **WARNING** | `questionText.length > 180` characters (may exceed 58s duration) | N/A (Allowed) |
 | `WARN_SEMANTIC_SIMILARITY` | **WARNING** | Semantic overlap $> 0.85$ with another candidate | N/A (Allowed) |
 
@@ -337,7 +341,7 @@ The following payloads illustrate concrete request structures and the correspond
   "language": "TELUGU",
   "aspectRatio": "9:16",
   "configuredQuestionCount": 1,
-  "batchStatus": "COMPLETE",
+  "batchStatus": "ACCEPTED",
   "version": 1,
   "currentAttemptNumber": 1,
   "authorId": "usr_99887766-5544-3322-1100-aabbccddeeff",
@@ -351,7 +355,7 @@ The following payloads illustrate concrete request structures and the correspond
       "slotNumber": 1,
       "slotId": "slt_11223344-5566-7788-99aa-bbccddeeff00",
       "revisionNumber": 1,
-      "status": "VALID",
+      "status": "ACCEPTED",
       "isManuallyEdited": false,
       "questionText": "ఒక వ్యాపారి ఒక వస్తువును 20% లాభంతో ₹720కి అమ్మితే, దాని కొన్న ఖరీదు ఎంత?",
       "options": {
@@ -369,8 +373,9 @@ The following payloads illustrate concrete request structures and the correspond
 ```
 
 #### Expected Server Validation Response:
-- **Save Draft**: Allowed (HTTP 200). `version` increments to 2.
-- **Submit for Verification**: Allowed (HTTP 200). Draft transitions to `STAGE_02_VERIFICATION` (`status: SUBMITTED_FOR_REVIEW`).
+- **Save Draft**: Allowed (HTTP 200). Draft state is persisted in `question_drafts` at Stage 01 (`status: 'DRAFT'`). `version` increments to 2.
+- **Submit for Verification**: Allowed (HTTP 200). Because $C_{\text{rem\_gen}} == 0 \land C_{\text{rem\_accept}} == 0$ and `batchStatus === 'ACCEPTED'`, the package advances to `STAGE_02_VERIFICATION` (`status: 'SUBMITTED_FOR_REVIEW'`).
+- **Lifecycle Invariant Distinction**: If this draft were saved immediately following generation where `slot[0].status === 'VALID'` and `batchStatus === 'COMPLETE'`, **Save Draft** would succeed, but **Submit for Verification** would be blocked ($C_{\text{rem\_accept}} = 1$) until the editor explicitly marks the slot as `'ACCEPTED'`.
 - **Validation Envelope**:
   ```json
   {
@@ -411,7 +416,7 @@ The following payloads illustrate concrete request structures and the correspond
   "slots": [
     {
       "slotNumber": 1,
-      "slotId": "slt_0001",
+      "slotId": "slt_d1e2f3a4-0001-4000-8000-000000000001",
       "revisionNumber": 1,
       "status": "ACCEPTED",
       "isManuallyEdited": false,
@@ -422,9 +427,9 @@ The following payloads illustrate concrete request structures and the correspond
     },
     {
       "slotNumber": 2,
-      "slotId": "slt_0002",
+      "slotId": "slt_d1e2f3a4-0002-4000-8000-000000000002",
       "revisionNumber": 2,
-      "status": "MANUALLY_EDITED",
+      "status": "ACCEPTED",
       "isManuallyEdited": true,
       "questionText": "ప్రశ్న 2: ఒక సంఖ్యలో 25% విలువ 75 అయితే, ఆ సంఖ్యలో 40% ఎంత?",
       "options": { "a": "100", "b": "110", "c": "120", "d": "130" },
@@ -433,7 +438,7 @@ The following payloads illustrate concrete request structures and the correspond
     },
     {
       "slotNumber": 3,
-      "slotId": "slt_0003",
+      "slotId": "slt_d1e2f3a4-0003-4000-8000-000000000003",
       "revisionNumber": 1,
       "status": "ACCEPTED",
       "isManuallyEdited": false,
@@ -444,7 +449,7 @@ The following payloads illustrate concrete request structures and the correspond
     },
     {
       "slotNumber": 4,
-      "slotId": "slt_0004",
+      "slotId": "slt_d1e2f3a4-0004-4000-8000-000000000004",
       "revisionNumber": 1,
       "status": "ACCEPTED",
       "isManuallyEdited": false,
@@ -455,7 +460,7 @@ The following payloads illustrate concrete request structures and the correspond
     },
     {
       "slotNumber": 5,
-      "slotId": "slt_0005",
+      "slotId": "slt_d1e2f3a4-0005-4000-8000-000000000005",
       "revisionNumber": 1,
       "status": "ACCEPTED",
       "isManuallyEdited": false,
@@ -469,8 +474,9 @@ The following payloads illustrate concrete request structures and the correspond
 ```
 
 #### Expected Server Validation Response:
-- **Save Draft**: Allowed (HTTP 200).
-- **Submit for Verification**: Allowed (HTTP 200). $C_{\text{rem\_gen}} == 0 \land C_{\text{rem\_accept}} == 0$. Advances aggregate to Stage 02.
+- **Save Draft**: Allowed (HTTP 200). Draft state is saved in `question_drafts`, `version` advances from 4 to 5, workflow remains in Stage 01 (`status: 'DRAFT'`).
+- **Submit for Verification**: Allowed (HTTP 200). All 5 slots are populated and editorially accepted ($C_{\text{rem\_gen}} == 0 \land C_{\text{rem\_accept}} == 0$). Advances aggregate to Stage 02 (`status: 'SUBMITTED_FOR_REVIEW'`). Slot 2 manual edits (`isManuallyEdited: true`) are confirmed and preserved.
+- **Stage 02 Approval**: In Stage 02, an independent QA Reviewer (under GAR-02: $authorId \neq reviewerId$) verifies the 10-point checklist. Upon approval, `status` advances to `'APPROVED'` and 5 individual production `Question` entities are materialized into the `questions` collection.
 - **Validation Envelope**:
   ```json
   {
@@ -700,56 +706,296 @@ Client attempts to inject Mode 2 / Mode 3 properties or arbitrary keys into a Mo
 
 ## 8. Existing-Record Compatibility, Migration & API Versioning
 
-### 8.1 Zero Breaking Changes to Existing Records
-BP-CMS contains existing single-question drafts persisted in Firestore `question_drafts`. The proposed contract ensures 100% backward compatibility:
+### 8.1 Schema Separation: Existing Persisted Fields vs. Proposed Aggregate Fields
 
-1. **Compatibility Read Projection**:
-   - When hydrating an existing document where `slots` is undefined, the service dynamically projects root fields into Slot 1:
-     ```typescript
-     function hydrateMode1Draft(raw: any): Mode1BatchDraftAggregate {
-       if (raw.slots && Array.isArray(raw.slots) && raw.slots.length > 0) {
-         return raw as Mode1BatchDraftAggregate;
-       }
-       // Project legacy single-question draft to Slot 1
-       const slot1: Mode1QuestionSlot = {
-         slotNumber: 1,
-         slotId: raw.slotId || `slt_${raw.id?.replace(/^dft_/, '') || 'default'}`,
-         revisionNumber: 1,
-         status: raw.status === 'APPROVED' ? 'ACCEPTED' : (raw.questionText ? 'VALID' : 'EMPTY'),
-         isManuallyEdited: true,
-         questionText: raw.questionText || raw.question || '',
-         options: {
-           a: raw.options?.a || raw.optionA || '',
-           b: raw.options?.b || raw.optionB || '',
-           c: raw.options?.c || raw.optionC || '',
-           d: raw.options?.d || raw.optionD || '',
-         },
-         optionA: raw.options?.a || raw.optionA || '',
-         optionB: raw.options?.b || raw.optionB || '',
-         optionC: raw.options?.c || raw.optionC || '',
-         optionD: raw.options?.d || raw.optionD || '',
-         correctAnswer: (raw.correctAnswer as any) || 'A',
-         explanation: raw.explanation || '',
-         trickOrPitfall: raw.trickOrPitfall,
-         realWorldContext: raw.realWorldContext || raw.realLifeContext,
-       };
-       return {
-         ...raw,
-         configuredQuestionCount: raw.targetQuestionCount || 1,
-         batchStatus: slot1.status === 'VALID' ? 'COMPLETE' : 'PARTIAL',
-         version: raw.version || 1,
-         slots: [slot1],
-       };
-     }
-     ```
-2. **Zero Database Migrations**:
-   - No batch database rewrite or schema backfill script is required. Existing documents are lazily upgraded in memory upon retrieval.
-3. **Legacy Identifier Support**:
-   - Both canonical distributed UUIDs (`dft_<uuid>`, `qst_<uuid>`, `slt_<uuid>`) and legacy identifiers (`BP-DFT-###`, `BP-Q-###`) remain fully supported by `canonicalIdService.validateCanonicalId`.
+The proposed Mode 1 contract strictly distinguishes between verified, currently persisted `QuestionDraft` entity fields and proposed aggregate-only extensions:
 
-### 8.2 API Versioning Strategy
+| Category | Field Name | Type | Current Runtime Persistence (`QuestionDraft`) | Proposed Aggregate (`Mode1BatchDraftAggregate`) | Architectural Authority |
+| :--- | :--- | :--- | :---: | :---: | :--- |
+| **Identity & Taxonomy** | `id` | `string` | **Persisted** (`dft_<uuid>` or `BP-DFT-###`) | **Persisted** (Root Aggregate ID) | `shared/types/question.ts` |
+| | `topicId`, `subtopicId` | `string` | **Persisted** (`top_<uuid>`, `sub_<uuid>`) | **Persisted** (Root Syllabus Grounding) | `AGENTS.md §5` |
+| **Creation Context** | `productionMode` | `string` | **Persisted** (`'QUESTION_CHALLENGE_SHORT'`) | **Persisted** (Mode Discriminator) | `shared/registry/content-mode.registry.ts` |
+| | `targetQuestionCount` | `number` | **Persisted** (`1, 5, 10, 15, 20`) | **Projected** into `configuredQuestionCount` | `shared/types/question.ts` |
+| | `configuredQuestionCount` | `1 \| 5 \| 10 \| 15 \| 20` | N/A (Field not in runtime schema) | **Proposed** (Canonical property name) | `S9-T03` |
+| | `aspectRatio` | `string` | **Persisted** (`'9:16'`) | **Persisted** (Strict vertical) | `shared/registry/content-mode.registry.ts` |
+| **Lifecycle & Concurrency** | `version` | `number` | **Persisted** (OCC counter) | **Persisted** (Atomic aggregate version) | `S9-T04` |
+| | `workflowStage` | `string` | **Persisted** (`STAGE_01_QUESTION_STUDIO` etc.) | **Persisted** (Package workflow stage) | `07-CANONICAL-15-STEP-WORKFLOW.md` |
+| | `status` | `QuestionStatus` | **Persisted** (`DRAFT`, `SUBMITTED_FOR_REVIEW`) | **Persisted** (Package submission status) | `shared/types/question.ts` |
+| | `batchStatus` | `enum` | N/A (Field not in runtime schema) | **Proposed** (`EMPTY`, `COMPLETE`, `ACCEPTED`) | `S9-T03` |
+| **Question Content** | `questionText` | `string` | **Persisted** (Single root question text) | **Projected** to `slots[0].questionText` | `ADR-009` |
+| | `options` | `{ a, b, c, d }` | **Persisted** (Root nested 4 options) | **Projected** to `slots[0].options` | `ADR-009` |
+| | `optionA`..`optionD` | `string` | **Persisted** (Derived compatibility aliases) | **Projected** to `slots[0].optionA..D` | `shared/types/question.ts` |
+| | `correctAnswer` | `'A'\|'B'\|'C'\|'D'` | **Persisted** (Single answer key) | **Projected** to `slots[0].correctAnswer` | `ADR-009` |
+| | `explanation` | `string` | **Persisted** (Single explanation derivation) | **Projected** to `slots[0].explanation` | `S9-T02` |
+| | `realWorldContext` | `string` | **Persisted** (Contextual hook) | **Projected** to `slots[0].realWorldContext` | `S9-T02` |
+| **Ordered Collection** | `slots` | `Mode1QuestionSlot[]` | N/A (Multi-slot persistence unbuilt) | **Proposed** (Ordered slot array) | `ADR-011 DD-05` |
+| | `overflowBuffer` | `Array<...>` | N/A (Overflow quarantine unbuilt) | **Proposed** (Excess candidate tray) | `S9-T03` |
+
+### 8.2 Safe Compatibility & Legacy Hydration Contract (Proposed Gate B Design)
+
+> [!IMPORTANT]
+> **Status: Proposed Gate B Architecture — Not Implemented in Current Runtime.**<br>
+> The hydration adapter defined below represents a future Gate B design proposal for safely reading existing single-question drafts into the proposed batch aggregate structure. Current production services (`QuestionDraftService`, `question-generation.service.ts`) operate strictly on single-question documents. Zero-data-loss compatibility is not an automatic passive guarantee; it is achieved strictly by adhering to the following deterministic rules.
+
+#### Deterministic Compatibility Invariants:
+1. **Never Fabricate Semantic Content (Answer Key, Options, Proofs)**:
+   - A missing or invalid answer key must **NEVER** be defaulted to `'A'` or any other choice. Defaulting to `'A'` fabricates an answer key and risks teaching incorrect mathematical concepts.
+   - If `correctAnswer` is missing or invalid in a legacy record, it is preserved as `undefined` (or its raw invalid value) and surfaced as an explicit blocking validation error (`ERR_MISSING_ANSWER_KEY`), requiring authenticated human editorial review before submission.
+   - Missing question text or options must never be populated with dummy synthetic text.
+2. **Safe Deterministic Identifier Handling**:
+   - `draftId`: Must exist as `raw.id` or the Firestore document key. If missing, the record cannot establish aggregate identity and emits `ERR_MISSING_DRAFT_ID`. Legacy identifiers (`BP-DFT-###`) are read and validated without mutation.
+   - `slotId`: If absent in legacy single-question records, the hydration layer does **not** invent synthetic identifiers like `slt_default`. The property is left `undefined` (surfacing `WARN_MISSING_SLOT_ID`), and a canonical distributed UUID (`slt_<uuid_v4>`) is generated via `canonicalIdService.generateSlotId()` only when the draft is explicitly edited and persisted.
+3. **Multi-Question Legacy Draft Handling (`targetQuestionCount > 1`)**:
+   - If a legacy record specified `targetQuestionCount > 1` (e.g. 5, 10, 15, 20), but only contains one root question, it **CANNOT hydrate into one slot while claiming to satisfy the configured count**.
+   - The hydration adapter projects the root question into Slot 1, but sets $C_{\text{req}} = \text{targetQuestionCount}$.
+   - Slots 2 through $N$ are initialized as `'EMPTY'`.
+   - Aggregate `batchStatus` is set to `'PARTIAL'` ($C_{\text{val\_slots}} \le 1, C_{\text{rem\_gen}} \ge 4$), **never** `'COMPLETE'` or `'ACCEPTED'`.
+   - The adapter returns an explicit blocking validation error:
+     $$\texttt{ERR\_INCOMPLETE\_LEGACY\_BATCH: "Legacy record specifies targetQuestionCount: } N \texttt{, but contains only 1 question. Remaining } N-1 \texttt{ slots are empty."}$$
+   - The record cannot be submitted for verification until the remaining slots are generated or authored and accepted.
+   - If `targetQuestionCount` was undefined or 1, $C_{\text{req}} = 1$. If `targetQuestionCount` is an unsupported number (e.g. 3, 7), it emits `ERR_INVALID_CONFIGURED_COUNT`.
+4. **Preservation of Unmapped Attributes (Document Passthrough)**:
+   - Existing Firestore records contain legacy or mode-specific fields (e.g. `mathematicalVerification`, `tags`, `sourceModel`, `challengeType`, `introductoryConcept`, `syllabusScopeNotes`).
+   - To prevent data loss when an aggregate is updated, the hydration layer retains all unmapped Firestore properties in an open document passthrough container (`rawAttributes` or root spread) rather than stripping them upon conversion.
+5. **Inconsistent Legacy Fields Require Human Review**:
+   - Inconsistencies between flat options (`optionA..D`) and nested `options: { a, b, c, d }`, or invalid taxonomy references, surface as explicit validation findings. An existing record with validation findings can be saved as an intermediate draft, but cannot be submitted for verification until resolved.
+
+#### Proposed Hydration Function Implementation:
+
+```typescript
+export interface HydrationResult {
+  aggregate: Mode1BatchDraftAggregate;
+  findings: Mode1ValidationResultEnvelope;
+  requiresReview: boolean;
+}
+
+/**
+ * Proposed Gate B Legacy Draft Hydration Adapter.
+ * NOTE: PROPOSED DESIGN — NOT IMPLEMENTED IN CURRENT RUNTIME.
+ * Converts legacy QuestionDraft documents into the Mode 1 batch aggregate structure
+ * without fabricating semantic content or masking incomplete batch configurations.
+ */
+export function hydrateMode1Draft(raw: Record<string, any>): HydrationResult {
+  const errors: ValidationErrorItem[] = [];
+  const warnings: ValidationWarningItem[] = [];
+
+  // 1. Identify Draft Aggregate ID
+  const draftId = raw.id || raw.draftId;
+  if (!draftId) {
+    errors.push({
+      code: 'ERR_MISSING_DRAFT_ID',
+      message: 'Legacy record lacks a valid draft identifier.',
+      path: 'id',
+      severity: 'BLOCKING',
+    });
+  }
+
+  // 2. Check if already a multi-slot aggregate
+  if (Array.isArray(raw.slots) && raw.slots.length > 0) {
+    const findings: Mode1ValidationResultEnvelope = {
+      isValid: true,
+      configuredCount: raw.configuredQuestionCount || raw.slots.length,
+      validSlotCount: raw.slots.filter((s: any) => s.status === 'VALID' || s.status === 'ACCEPTED').length,
+      remainingCount: 0,
+      errors: [],
+      warnings: [],
+      evaluatedAt: new Date().toISOString(),
+    };
+    return {
+      aggregate: raw as Mode1BatchDraftAggregate,
+      findings,
+      requiresReview: false,
+    };
+  }
+
+  // 3. Resolve Configured Question Count
+  const rawTargetCount = raw.targetQuestionCount;
+  let configuredCount: 1 | 5 | 10 | 15 | 20 = 1;
+
+  if (rawTargetCount !== undefined && rawTargetCount !== null) {
+    if ([1, 5, 10, 15, 20].includes(rawTargetCount)) {
+      configuredCount = rawTargetCount as 1 | 5 | 10 | 15 | 20;
+    } else {
+      errors.push({
+        code: 'ERR_INVALID_CONFIGURED_COUNT',
+        message: `Legacy targetQuestionCount (${rawTargetCount}) is not a supported Mode 1 count [1, 5, 10, 15, 20].`,
+        path: 'configuredQuestionCount',
+        severity: 'BLOCKING',
+      });
+    }
+  }
+
+  // 4. Hydrate Slot 1 from Root Question Fields (NEVER fabricate content)
+  const questionText = typeof raw.questionText === 'string'
+    ? raw.questionText.trim()
+    : (typeof raw.question === 'string' ? raw.question.trim() : '');
+
+  if (!questionText || questionText.length < 5) {
+    errors.push({
+      code: 'ERR_EMPTY_PROMPT',
+      message: 'Question text is missing or less than 5 characters.',
+      path: 'slots[0].questionText',
+      slotNumber: 1,
+      severity: 'BLOCKING',
+    });
+  }
+
+  // Options: Preserve raw options without fabricating dummy choices
+  const rawOpts = raw.options || {};
+  const options = {
+    a: (rawOpts.a ?? raw.optionA ?? '').trim(),
+    b: (rawOpts.b ?? raw.optionB ?? '').trim(),
+    c: (rawOpts.c ?? raw.optionC ?? '').trim(),
+    d: (rawOpts.d ?? raw.optionD ?? '').trim(),
+  };
+
+  // Answer Key: NEVER fabricate default 'A'!
+  let correctAnswer: 'A' | 'B' | 'C' | 'D' | undefined = undefined;
+  if (typeof raw.correctAnswer === 'string' && ['A', 'B', 'C', 'D'].includes(raw.correctAnswer.trim().toUpperCase())) {
+    correctAnswer = raw.correctAnswer.trim().toUpperCase() as 'A' | 'B' | 'C' | 'D';
+  } else {
+    errors.push({
+      code: 'ERR_MISSING_ANSWER_KEY',
+      message: raw.correctAnswer
+        ? `Legacy record contains invalid answer key '${raw.correctAnswer}'. Must be A, B, C, or D.`
+        : 'Legacy record has no answer key. An answer key must not be fabricated and requires human assignment.',
+      path: 'slots[0].correctAnswer',
+      slotNumber: 1,
+      severity: 'BLOCKING',
+    });
+  }
+
+  // Explanation: Preserve raw explanation
+  const explanation = typeof raw.explanation === 'string' ? raw.explanation.trim() : '';
+  if (!explanation || explanation.length < 5) {
+    errors.push({
+      code: 'ERR_MISSING_EXPLANATION',
+      message: 'Explanation derivation is missing or less than 5 characters.',
+      path: 'slots[0].explanation',
+      slotNumber: 1,
+      severity: 'BLOCKING',
+    });
+  }
+
+  // Slot Identity: Do not fabricate synthetic fallback strings
+  const slotId = raw.slotId;
+  if (!slotId) {
+    warnings.push({
+      code: 'WARN_MISSING_SLOT_ID',
+      message: 'Legacy record lacks a canonical slotId; a canonical UUID (slt_<uuid>) will be generated upon save.',
+      path: 'slots[0].slotId',
+      slotNumber: 1,
+      severity: 'WARNING',
+    });
+  }
+
+  // Determine Slot 1 Initial Status
+  const slot1HasBlockingErrors = errors.some((e) => e.slotNumber === 1);
+  const slot1Status: Mode1QuestionSlot['status'] = slot1HasBlockingErrors
+    ? 'INVALID'
+    : (questionText ? 'VALID' : 'EMPTY');
+
+  const slot1: Mode1QuestionSlot = {
+    slotNumber: 1,
+    slotId: slotId || '', // Resolved upon save if missing
+    revisionNumber: 1,
+    status: slot1Status,
+    isManuallyEdited: Boolean(raw.isManuallyEdited ?? true),
+    questionText,
+    options,
+    optionA: options.a,
+    optionB: options.b,
+    optionC: options.c,
+    optionD: options.d,
+    correctAnswer: correctAnswer as any, // Preserved as undefined if missing
+    explanation,
+    trickOrPitfall: raw.trickOrPitfall,
+    realWorldContext: raw.realWorldContext ?? raw.realLifeContext,
+  };
+
+  // 5. Construct Slots Array & Incomplete Batch Check for N > 1
+  const slots: Mode1QuestionSlot[] = [slot1];
+
+  if (configuredCount > 1) {
+    // Legacy record asked for N > 1, but only 1 question was persisted at root!
+    // Remaining slots 2..N are missing and cannot be claimed to satisfy the count.
+    for (let k = 2; k <= configuredCount; k++) {
+      slots.push({
+        slotNumber: k,
+        slotId: '',
+        revisionNumber: 1,
+        status: 'EMPTY',
+        isManuallyEdited: false,
+        questionText: '',
+        options: { a: '', b: '', c: '', d: '' },
+        correctAnswer: undefined as any,
+        explanation: '',
+      });
+    }
+
+    errors.push({
+      code: 'ERR_INCOMPLETE_LEGACY_BATCH',
+      message: `Legacy record specifies targetQuestionCount: ${configuredCount}, but contains only 1 question at root. Remaining ${configuredCount - 1} slots are empty and must be generated or authored.`,
+      path: 'slots',
+      severity: 'BLOCKING',
+    });
+  }
+
+  // 6. Resolve Aggregate Batch Status
+  const validSlotCount = slots.filter((s) => s.status === 'VALID' || s.status === 'ACCEPTED').length;
+  const remainingCount = configuredCount - validSlotCount;
+
+  let batchStatus: Mode1BatchDraftAggregate['batchStatus'] = 'PARTIAL';
+  if (configuredCount === 1 && slot1Status === 'VALID') {
+    batchStatus = 'COMPLETE'; // Generation complete; requires editorial review to reach ACCEPTED
+  } else if (validSlotCount === 0) {
+    batchStatus = 'EMPTY';
+  }
+
+  const aggregate: Mode1BatchDraftAggregate = {
+    ...raw, // Retain all unmapped legacy fields to prevent data loss
+    id: draftId,
+    productionMode: 'QUESTION_CHALLENGE_SHORT',
+    topicId: raw.topicId,
+    subtopicId: raw.subtopicId,
+    configuredQuestionCount: configuredCount,
+    aspectRatio: '9:16',
+    batchStatus,
+    version: raw.version || 1,
+    authorId: raw.authorId || '',
+    authorName: raw.authorName || '',
+    workflowStage: raw.workflowStage || 'STAGE_01_QUESTION_STUDIO',
+    status: raw.status || 'DRAFT',
+    createdAt: raw.createdAt || new Date().toISOString(),
+    updatedAt: raw.updatedAt || new Date().toISOString(),
+    slots,
+  };
+
+  const findings: Mode1ValidationResultEnvelope = {
+    isValid: errors.length === 0,
+    configuredCount,
+    validSlotCount,
+    remainingCount,
+    errors,
+    warnings,
+    evaluatedAt: new Date().toISOString(),
+  };
+
+  return {
+    aggregate,
+    findings,
+    requiresReview: !findings.isValid || warnings.length > 0,
+  };
+}
+
+### 8.3 Zero Database Migrations
+- **No Batch Rewrites**: No batch database migration script is executed or required against Firestore collections.
+- **Lazy Non-Destructive Reading**: Existing documents are lazily projected in memory upon retrieval.
+- **Legacy Identifier Interoperability**: Both canonical distributed UUIDs (`dft_<uuid>`, `qst_<uuid>`, `slt_<uuid>`) and legacy identifiers (`BP-DFT-###`, `BP-Q-###`) remain fully supported by `canonicalIdService.validateCanonicalId`.
+
+### 8.4 API Versioning Strategy
 - **Universal API Envelope**: Existing routes utilize `ApiResponseEnvelope<T>` from `shared/contracts/api.ts`.
-- **Additive Evolution**: All proposed extensions (`slots`, `batchStatus`, `configuredQuestionCount`) are additive optional fields on responses, maintaining full compatibility with existing frontend callers. No breaking URL prefix (e.g. `/api/v2`) is required.
+- **Additive Evolution**: Proposed extensions (`slots`, `batchStatus`, `configuredQuestionCount`) are additive optional fields on responses, maintaining full compatibility with existing frontend callers. No breaking URL prefix (e.g. `/api/v2`) is required.
 
 ---
 
@@ -819,7 +1065,7 @@ Cloud Firestore is the sole authoritative transactional datastore for BP-CMS ([A
 | **AC-07** | **Save Draft Invariant**| Saving draft succeeds with intermediate/invalid content; never triggers Stage 02 verification. | `saveDraft` |
 | **AC-08** | **OCC Concurrency** | Mismatched `expectedVersion` rejects write with HTTP 409 `ConcurrencyConflictError`; local changes preserved. | Firestore repository OCC adapter |
 | **AC-09** | **GAR-02 Invariant** | Reviewer matching draft author is strictly rejected with HTTP 403 `NEG-01` with zero administrator bypass. | `approveDraft` |
-| **AC-10** | **Legacy Record Read**| Existing single-question drafts without `slots` property hydrate into Slot 1 without data loss or migration. | `hydrateMode1Draft` |
+| **AC-10** | **Legacy Record Compatibility** | Reading legacy single-question drafts projects root fields into Slot 1 without fabricating semantic content (no fabricated answer keys or slot IDs). Records with `targetQuestionCount > 1` are flagged as incomplete batches (`PARTIAL`) and require human review. | `hydrateMode1Draft` (Proposed Gate B Adapter) |
 
 ### 10.2 Open Architectural Decisions (Gate B Transition)
 
@@ -844,7 +1090,7 @@ Cloud Firestore is the sole authoritative transactional datastore for BP-CMS ([A
 - **Evidence-Based Verdict**:
   - Fully defines aggregate metadata, ordered slot identity, quality rules, and cross-model mappings.
   - Formulates typed server-side validation results with stable error codes and 7 concrete payload examples.
-  - Guarantees backward compatibility with existing single-question drafts without database migrations.
+  - Establishes safe, non-fabricating backward compatibility for existing single-question drafts, preventing incomplete legacy batches from claiming completion and requiring human review for inconsistent records.
   - Aligns with ADR-002, ADR-009, ADR-010, ADR-011 (DD-05), and canonical Firestore persistence.
   - Strictly preserves GAR-02 anti-self-approval invariant with zero administrator bypass.
 - **Single Next Action**: Deliverable established for Task `S9-T05`. **Do NOT start Task `S9-T06`**.
