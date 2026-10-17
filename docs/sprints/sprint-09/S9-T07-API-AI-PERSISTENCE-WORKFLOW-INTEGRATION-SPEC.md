@@ -1,6 +1,6 @@
 # S9-T07 — API, AI, Persistence & Workflow Integration Design Specification
 
-**Document Version**: `1.2.0`
+**Document Version**: `1.3.0`
 **Sprint**: `Sprint 9 — Mode 1 (Question Challenge Short) Production Pipeline`
 **Architectural Baseline**: `Gate B Architecture Design`
 **Status**: `PROPOSED DESIGN CONTRACT — AWAITING SPRINT 9 GATE B ARCHITECTURE APPROVAL (NOT YET APPROVED)`
@@ -72,11 +72,11 @@ The table below reconciles verified runtime reality against the proposed Gate B 
 | **Retrieve (Single Draft)** | `GET /api/questions/draft/:id`<br>`GET /api/v1/questions/draft/:id` | None (Route param: `id: dft_<uuid>`) | Raw `QuestionDraft` (unwrapped JSON object, HTTP 200) | `requireCapability('QUESTION:VIEW')` | `authorId === actor.id` or privileged (`ADMIN`, `CONTENT_LEAD`, `QA_REVIEWER`, `QUESTION_EDITOR`; 403 `ForbiddenError`) | Pure Deterministic (`questionDraftService.getDraftById`). **No DB mutation**. | **Verified Runtime Reality** |
 | **Retrieve (Draft List)** | `GET /api/questions/drafts`<br>`GET /api/v1/questions/drafts` | None (Optional query filters) | Raw `QuestionDraft[]` (array of drafts, HTTP 200) | `requireCapability('QUESTION:VIEW')` | Privileged sees all; non-privileged filtered to `authorId === actor.id` or `author === actor.name` | Pure Deterministic (`questionDraftService.getAllDrafts`). **No DB mutation**. | **Verified Runtime Reality** |
 | **Preview** | `POST /api/v1/questions/preview/render-frame`<br>`GET /questions/draft/:id/preview` | `RenderPreviewFrameInput` (`slotId`, `aspectRatio: '9:16'`) | `ApiResponseEnvelope<PreviewFrameProjection>` | `requireCapability('QUESTION:VIEW')` | None (Read-only projection) | Pure Deterministic (Zero-copy projection into 9:16 layout). **No DB mutation**. Runtime relies on client preview. | **Proposed Gate B Design** (No backend preview route in `routes.ts`) |
-| **Submit (Single Draft)** | `POST /api/questions/draft/:id/submit`<br>`POST /api/v1/questions/draft/:id/submit` | `{ remarks?: string, expectedVersion: number }` | Raw `SubmitForVerificationResult` (unwrapped JSON object, HTTP 200) | `requireCapability('QUESTION:SUBMIT')` | `authorId === actor.id` or `ADMIN`/`CONTENT_LEAD`/`QUESTION_EDITOR`; status must be `DRAFT`; validates completeness | Server-Authoritative Workflow (`questionDraftService.submitForVerification`). **Mutates Firestore** (Status $\to$ `SUBMITTED_FOR_REVIEW`, increments version). | **Verified Runtime Reality** ($N=1$ flat) |
-| **Submit (Batch Draft)** | `POST /api/v1/questions/batch/draft/:id/submit` | `SubmitBatchForVerificationInput` (`expectedVersion: number`, `remarks?: string`) | `ApiResponseEnvelope<SubmitBatchForVerificationResult>` | `requireCapability('QUESTION:SUBMIT')` | `authorId === actor.id` or `ADMIN`/`CONTENT_LEAD`/`QUESTION_EDITOR`; full batch QVC check; GAR-02 registered | Server-Authoritative Workflow (`WorkflowEngine` validates full batch, registers GAR-02). **Mutates Firestore**. | **Proposed Gate B Design** (Requires OD-02 & Gate B approval) |
+| **Submit (Single Draft)** | `POST /api/questions/draft/:id/submit`<br>`POST /api/v1/questions/draft/:id/submit` | `{ remarks?: string, expectedVersion: number }` | Raw `SubmitForVerificationResult` (unwrapped JSON object, HTTP 200) | `requireCapability('QUESTION:SUBMIT')` | **Verified Runtime**: `authorId === actor.id` or `ADMIN`, `CONTENT_LEAD`, `QUESTION_EDITOR` (throws 403 `ForbiddenError` if `draft.authorId` exists and caller is non-author without one of these 3 roles); status must be `DRAFT`; validates candidate completeness | Server-Authoritative Workflow (`questionDraftService.submitForVerification`). **Mutates Firestore** (Status $\to$ `SUBMITTED_FOR_REVIEW`, increments version). | **Verified Runtime Reality** ($N=1$ flat) |
+| **Submit (Batch Draft)** | `POST /api/v1/questions/batch/draft/:id/submit` | `SubmitBatchForVerificationInput` (`expectedVersion: number`, `remarks?: string`) | `ApiResponseEnvelope<SubmitBatchForVerificationResult>` | `requireCapability('QUESTION:SUBMIT')` | **Proposed Gate B Policy**: Draft author or authorized editor/lead role (`ADMIN`, `CONTENT_LEAD`, `QUESTION_EDITOR`); mandatory canonical `authorId` validation; full batch QVC check ($C_{\text{valid}} == C_{\text{req}}$, $C_{\text{acc}} == C_{\text{req}}$); registers author for GAR-02 | Server-Authoritative Workflow (`WorkflowEngine` validates full batch, registers GAR-02). **Mutates Firestore**. | **Proposed Gate B Design** (Requires OD-02 & Gate B approval) |
 
 ### 2.1 Precise Authorization Attribution & Tiered Enforcement
-Authorization is strictly bifurcated into two architectural layers to ensure separation of concerns:
+Authorization is strictly bifurcated into two architectural layers to ensure separation of concerns between HTTP dispatch security and domain business rules:
 
 1. **Route-Level Capability Middleware (`auth.middleware.ts`)**:
    - Executes immediately upon HTTP request dispatch in `backend/server/routers/routes.ts`.
@@ -85,11 +85,18 @@ Authorization is strictly bifurcated into two architectural layers to ensure sep
 2. **Domain-Level Ownership & Lifecycle Guard Enforcement**:
    - Executes inside domain services ([`backend/domain/question-generation/question-generation.service.ts`](../../../backend/domain/question-generation/question-generation.service.ts)) and feature services ([`backend/features/question-generation/services/question-draft.service.ts`](../../../backend/features/question-generation/services/question-draft.service.ts)).
    - Evaluates entity-level data invariants and fine-grained business authorization:
-     - **Author Ownership**: Enforces that only the creator of the draft (`draft.authorId === actor.id`) or an actor with privileged administrative roles (`ADMIN`, `CONTENT_LEAD`) can modify or submit a draft. Throws HTTP 403 `ForbiddenError` on mismatch.
+     - **Draft Modification Authorization (`PUT /api/questions/draft/:id`)**:
+       - *Route-Level Middleware*: `requireCapability('QUESTION:CREATE')`.
+       - *Domain-Level Rule (Verified Runtime)*: Checks `existing.authorId`. If `existing.authorId && existing.authorId !== actor.id`, permitted only if actor holds `ADMIN` or `CONTENT_LEAD` ([`question-generation.service.ts:464-472`](../../../backend/domain/question-generation/question-generation.service.ts#L464-L472)). Otherwise throws HTTP 403 `ForbiddenError`.
+     - **Draft Submission Authorization (`POST /api/questions/draft/:id/submit`)**:
+       - *Route-Level Middleware*: `requireCapability('QUESTION:SUBMIT')`.
+       - *Domain-Level Rule (Verified Runtime Reality)*: Checks `draft.authorId`. If `draft.authorId && draft.authorId !== actor.id`, permitted only if actor holds `ADMIN`, `CONTENT_LEAD`, or `QUESTION_EDITOR` ([`question-generation.service.ts:580-593`](../../../backend/domain/question-generation/question-generation.service.ts#L580-L593)). Otherwise throws HTTP 403 `ForbiddenError`. (Note: if `draft.authorId` is missing/empty on legacy records, this ownership check is bypassed in current runtime code).
+       - *Proposed Gate B Submission Policy*: Mandates non-empty `authorId` on all drafts; restricts submission to the verified draft author (`draft.authorId === actor.id`) or designated leads/editors (`ADMIN`, `CONTENT_LEAD`, `QUESTION_EDITOR`), requiring 100% complete and accepted slots before Stage 02 handover.
      - **Lifecycle Mutability Guards**: Checks that draft status is `DRAFT`. If the draft has already progressed to `SUBMITTED_FOR_REVIEW`, `APPROVED`, or `PUBLISHED`, throws HTTP 409 `DRAFT_LOCKED`.
-     - **Anti-Self-Approval (GAR-02)**: Enforces that when transitioning to Stage 02 approval, the author cannot approve their own work:
-       $$\text{authorId} \neq \text{approverId}$$
-       Throws HTTP 403 `AntiSelfApprovalViolation` (code `NEG-01`) if self-approval is attempted without an explicit, audited administrative override.
+     - **Anti-Self-Approval Enforcement (GAR-02 Absolute Invariant & Runtime Defect Identification)**:
+       $$\mathbf{GAR\text{-}02\ Absolute\ Invariant}:\quad \text{authorId} \neq \text{approverId} \quad (\text{Zero Exceptions})$$
+       - Under Architecture Principle 3, ADR-002, AGENTS.md §10, and S9-T04 §4.3, author self-approval is **strictly prohibited across all roles without exceptions, including for `ADMIN`**.
+       - *Runtime Defect Identification*: The brownfield implementation in `QuestionDraftService.approveDraft` ([`backend/features/question-generation/services/question-draft.service.ts:142-150`](../../../backend/features/question-generation/services/question-draft.service.ts#L142-L150)) and `routes.ts:1466-1474` currently permits an `ADMIN` self-approval override if an `overrideContext` with a 10-character reason is supplied. Consistent with S9-T04 §4.3, this override is an **identified implementation defect and architectural violation**, NOT compliant behavior. In the authoritative Gate B design, all self-approval attempts must fail closed with HTTP 403 `NEG-01 AntiSelfApprovalViolation` unconditionally without exception.
 
 ---
 
@@ -301,7 +308,7 @@ To achieve internal consistency, **exactly one HTTP status code** is assigned to
 | **Invalid Draft ID Format** | `InvalidDraftId` | **400** | `VALIDATION` | Returns HTTP 400 with `{ error: 'InvalidDraftId', message: '...not a valid canonical identifier...' }` (`routes.ts:1341`). | Returns HTTP 400 `ApiErrorResponse`. Enforces `dft_<uuid_v4>` canonical prefix. |
 | **Unauthorized Session** | `UNAUTHORIZED` | **401** | `AUTHORIZATION` | Handled by `requireAuth` middleware returning HTTP 401 `{ error: 'Unauthorized', message: '...' }`. | Returns HTTP 401 `ApiErrorResponse`. Client redirects to Login / Identity Provider. |
 | **Capability Denial** | `ForbiddenError` | **403** | `AUTHORIZATION` | Returns HTTP 403 `{ error: 'ForbiddenError', message: 'Unauthorized: User cannot access/modify draft...' }` (`routes.ts:1432`). | Returns HTTP 403 `ApiErrorResponse`. UI surfaces non-dismissible capability notice. |
-| **Anti-Self-Approval Gate** | `AntiSelfApprovalViolation` | **403** | `AUTHORIZATION` | Returns HTTP 403 with code `NEG-01` (`routes.ts:1479`, `question-draft.service.ts:178`). | Returns HTTP 403 `ApiErrorResponse`. Blocks author approval fail-closed (GAR-02). |
+| **Anti-Self-Approval Gate** | `AntiSelfApprovalViolation` | **403** | `AUTHORIZATION` | Returns HTTP 403 `NEG-01` (`routes.ts:1479`), *except* when bypassed via legacy administrative override defect (`isOverrideAllowed`). | Returns HTTP 403 `ApiErrorResponse`. Prohibits author self-approval unconditionally without exception; legacy override is rejected. |
 | **Draft Not Found** | `DRAFT_NOT_FOUND` | **404** | `NOT_FOUND` | Returns HTTP 404 with `{ error: 'Question draft with ID "..." not found' }` (`routes.ts:1409`). | Returns HTTP 404 `ApiErrorResponse`. Studio displays "Draft not found" with dashboard link. |
 | **OCC Concurrency Conflict** | `ConcurrencyConflictError` | **409** | `CONCURRENCY` | Catches `ConcurrencyConflictError` and returns HTTP 409 `{ error: 'ConcurrencyConflictError', message: ... }` (`routes.ts:1548`). | Returns HTTP 409 `ApiErrorResponse` with server version. Studio opens Diff & Conflict modal. |
 | **Draft Locked / Closed** | `DRAFT_LOCKED` | **409** | `WORKFLOW` | Thrown by domain service (`code: DRAFT_LOCKED`, status 409) if draft is already submitted/approved. | Returns HTTP 409 `ApiErrorResponse`. Studio transitions to read-only review view. |
@@ -423,11 +430,12 @@ Every component, route, and service implemented under this specification must st
 6. **Optimistic Concurrency Control (OCC)**:
    - Every draft document contains an atomic `version` integer. All update and submit operations must provide `expectedVersion`. Mismatches abort fail-closed with HTTP 409 `ConcurrencyConflictError`.
 7. **Strict Role-Based Access Control (RBAC) & Ownership**:
-   - Endpoints enforce coarse-grained capability checks via route middleware (`QUESTION:CREATE`, `QUESTION:VIEW`, `QUESTION:SUBMIT`), while domain services enforce entity-level ownership and role privileges (`authorId === actor.id` or `ADMIN`/`CONTENT_LEAD`).
-8. **Anti-Self-Approval Enforcement (GAR-02 Rule)**:
-   - The author of a draft can never approve their own work during Stage 02:
-     $$\mathbf{GAR\text{-}02\ Invariant}:\quad \text{authorId} \neq \text{approverId}$$
+   - Endpoints enforce coarse-grained capability checks via route middleware (`QUESTION:CREATE`, `QUESTION:VIEW`, `QUESTION:SUBMIT`), while domain services enforce entity-level ownership and role privileges (`authorId === actor.id` or `ADMIN`/`CONTENT_LEAD`/`QUESTION_EDITOR`).
+8. **Anti-Self-Approval Enforcement (GAR-02 Absolute Invariant & Defect Identification)**:
+   - The author of a draft can never approve their own work during Stage 02 across all roles without exception:
+     $$\mathbf{GAR\text{-}02\ Absolute\ Invariant}:\quad \text{authorId} \neq \text{approverId}$$
    - When a draft is submitted, `authorId` is registered immutably in the workflow instance to guarantee that the author is disqualified from Stage 02 approval.
+   - *Runtime Defect Identification*: The legacy `isOverrideAllowed` administrative bypass in `QuestionDraftService.approveDraft` ([`backend/features/question-generation/services/question-draft.service.ts:142-150`](../../../backend/features/question-generation/services/question-draft.service.ts#L142-L150)) is recognized as an active implementation defect and architectural violation consistent with S9-T04 §4.3. Authoritative Gate B architecture enforces zero self-approval exceptions.
 9. **Zero Google Sheets Persistence ([AGENTS.md §4](../../../AGENTS.md#4-google-sheets-decommissioning-rule))**:
    - Google Sheets is decommissioned. It must not be used as a database, runtime cache, or queue.
 
@@ -481,4 +489,4 @@ Under [AGENTS.md §15.1 and §15.2](../../../AGENTS.md#15-risk-based-engineering
 
 ### 9.2 Scope Verdict & Sign-Off
 - **Verdict**: **COMPLETE & ACCEPTED (GATE B PROPOSED DESIGN CONTRACT)**.
-- **Summary**: Sprint 9, Task S9-T07 is corrected and fully satisfied. The integration specification precisely attributes authorization between route capability middleware and domain ownership guards, accurately describes draft creation update paths upon ID reuse, documents the `input.version ?? existing.version` compatibility bridge for standardized `expectedVersion`, establishes idempotency guarantees, and preserves pending Gate B approval and unresolved open decisions OD-02 and S9-T03/S9-T06 with absolute architectural rigor.
+- **Summary**: Sprint 9, Task S9-T07 is corrected and fully satisfied. The integration specification precisely reconciles submission authorization between route capability middleware and domain ownership rules (separating verified runtime behavior from proposed policies), identifies the legacy administrative self-approval override as a known runtime defect consistent with S9-T04, documents the `input.version ?? existing.version` compatibility bridge for standardized `expectedVersion`, establishes idempotency guarantees, and preserves pending Gate B approval and unresolved open decisions OD-02 and S9-T03/S9-T06 with absolute architectural rigor.
