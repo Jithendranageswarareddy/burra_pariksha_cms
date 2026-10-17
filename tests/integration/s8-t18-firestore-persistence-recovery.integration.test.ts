@@ -29,6 +29,163 @@ function pass(name: string) {
   console.log(`  ✓ ${name}`);
 }
 
+/**
+ * Authoritative registry of independently documented and approved non-production targets.
+ * Under AGENTS.md Rule 14, ENVIRONMENT-CONTRACT.md, and S8-T18 data safety contracts:
+ * - Persistent integration tests must NEVER execute against the production datastore.
+ * - An approved target MUST be independently documented in docs/operations/ENVIRONMENT-CONTRACT.md.
+ * - Both projectId AND databaseId must be explicitly approved (reject missing database approval).
+ * - Environment variables alone (e.g. APPROVED_NON_PRODUCTION_PROJECT_ID) do NOT grant approval
+ *   without matching an independently documented target in this registry.
+ * - Safety is NEVER inferred from names (e.g. "ai-studio", "test", "dev", "sandbox").
+ */
+export interface ApprovedNonProductionTarget {
+  readonly projectId: string;
+  readonly databaseId: string;
+  readonly documentedIn: string;
+  readonly description: string;
+}
+
+export const INDEPENDENTLY_DOCUMENTED_APPROVED_TARGETS: readonly ApprovedNonProductionTarget[] = [
+  // To register a remote non-production target: provision an isolated GCP Firestore database,
+  // document it in docs/operations/ENVIRONMENT-CONTRACT.md Section 6, and register it here.
+  // Note: Canonical production database 'ai-studio-burraparikshacon-f592ca42-39af-4d83-aff2-6870ba939b0e'
+  // on project 'burra-pariksha-cms' is strictly PROHIBITED from ever being registered here.
+];
+
+export const KNOWN_PRODUCTION_TARGETS = [
+  {
+    projectId: 'burra-pariksha-cms',
+    databaseId: 'ai-studio-burraparikshacon-f592ca42-39af-4d83-aff2-6870ba939b0e',
+    reason: 'Production AI Studio applet database (ENVIRONMENT-CONTRACT.md Section 2)',
+  },
+  {
+    projectId: 'burra-pariksha-cms',
+    databaseId: '(default)',
+    reason: 'Default GCP database for production project burra-pariksha-cms',
+  },
+];
+
+export interface IsolationVerification {
+  isApproved: boolean;
+  isolationMode: 'LOCAL_FIRESTORE_EMULATOR' | 'APPROVED_REMOTE_NON_PRODUCTION' | 'NONE';
+  projectId: string;
+  databaseId: string;
+  emulatorHost: string | null;
+  rejectionReasons: string[];
+  approvalEvidence: string[];
+}
+
+export function evaluateDatastoreIsolation(
+  activeProjectId: string,
+  activeDatabaseId: string,
+  env: NodeJS.ProcessEnv = process.env
+): IsolationVerification {
+  const rejectionReasons: string[] = [];
+  const approvalEvidence: string[] = [];
+
+  const emulatorHost = env.FIRESTORE_EMULATOR_HOST?.trim() || null;
+  const envApprovedProject = (env.APPROVED_NON_PRODUCTION_PROJECT_ID || env.APPROVED_TEST_PROJECT_ID)?.trim() || null;
+  const envApprovedDatabase = (env.APPROVED_NON_PRODUCTION_DATABASE_ID || env.APPROVED_TEST_DATABASE_ID)?.trim() || null;
+
+  // Rule 1: Check known production target match (Immediate disqualification)
+  const isProduction = KNOWN_PRODUCTION_TARGETS.some(
+    (prod) =>
+      prod.projectId === activeProjectId &&
+      (prod.databaseId === activeDatabaseId || prod.databaseId === '(default)')
+  );
+  if (isProduction) {
+    rejectionReasons.push(
+      `Active datastore (project="${activeProjectId}", database="${activeDatabaseId}") matches canonical production infrastructure. Under AGENTS.md Rule 14, persistent mutation tests against production are strictly prohibited.`
+    );
+  }
+
+  // Rule 2: Evaluate local Firestore Emulator
+  if (emulatorHost && emulatorHost.length > 0) {
+    const hostPortRegex = /^([a-zA-Z0-9.-]+|\[[a-fA-F0-9:]+\]):[0-9]{1,5}$/;
+    if (!hostPortRegex.test(emulatorHost)) {
+      rejectionReasons.push(
+        `Configured FIRESTORE_EMULATOR_HOST ("${emulatorHost}") is malformed. Expected valid host:port format (e.g. 127.0.0.1:8080).`
+      );
+    } else {
+      approvalEvidence.push(`Configured for local Firestore Emulator at ${emulatorHost}`);
+      return {
+        isApproved: true,
+        isolationMode: 'LOCAL_FIRESTORE_EMULATOR',
+        projectId: activeProjectId,
+        databaseId: activeDatabaseId,
+        emulatorHost,
+        rejectionReasons: [],
+        approvalEvidence,
+      };
+    }
+  }
+
+  // Rule 3: Reject missing database approval (both project and database are mandatory)
+  if (!envApprovedDatabase || envApprovedDatabase.length === 0) {
+    rejectionReasons.push(
+      'Missing database approval: APPROVED_NON_PRODUCTION_DATABASE_ID is required but not provided. Both project ID and database ID must be explicitly approved.'
+    );
+  }
+
+  if (!envApprovedProject || envApprovedProject.length === 0) {
+    rejectionReasons.push(
+      'Missing project approval: APPROVED_NON_PRODUCTION_PROJECT_ID is required but not provided.'
+    );
+  }
+
+  // Rule 4: Do not accept environment variables alone as proof of approval.
+  // Both project ID and database ID must match an independently documented target.
+  const documentedMatch = INDEPENDENTLY_DOCUMENTED_APPROVED_TARGETS.find(
+    (target) =>
+      target.projectId === activeProjectId &&
+      target.databaseId === activeDatabaseId &&
+      target.projectId === envApprovedProject &&
+      target.databaseId === envApprovedDatabase
+  );
+
+  if (!documentedMatch) {
+    rejectionReasons.push(
+      `Target (project="${activeProjectId}", database="${activeDatabaseId}") does not match any entry in INDEPENDENTLY_DOCUMENTED_APPROVED_TARGETS. Environment variables alone cannot grant approval without independent architectural documentation.`
+    );
+  }
+
+  // Rule 5: Never infer safety from names (e.g. "ai-studio", "test", "dev")
+  // (Zero substring matching performed)
+
+  const isRemoteApproved = Boolean(
+    !isProduction &&
+    envApprovedProject &&
+    envApprovedDatabase &&
+    documentedMatch
+  );
+
+  if (isRemoteApproved && documentedMatch) {
+    approvalEvidence.push(
+      `Approved remote non-production target verified against ${documentedMatch.documentedIn}: ${documentedMatch.description}`
+    );
+    return {
+      isApproved: true,
+      isolationMode: 'APPROVED_REMOTE_NON_PRODUCTION',
+      projectId: activeProjectId,
+      databaseId: activeDatabaseId,
+      emulatorHost: null,
+      rejectionReasons: [],
+      approvalEvidence,
+    };
+  }
+
+  return {
+    isApproved: false,
+    isolationMode: 'NONE',
+    projectId: activeProjectId,
+    databaseId: activeDatabaseId,
+    emulatorHost,
+    rejectionReasons,
+    approvalEvidence: [],
+  };
+}
+
 async function runS8T18FirestorePersistenceIntegrationTest() {
   console.log('========================================================================');
   console.log('S8-T18: CLOUD FIRESTORE PERSISTENCE, CONCURRENCY & RECOVERY TEST');
@@ -38,46 +195,34 @@ async function runS8T18FirestorePersistenceIntegrationTest() {
   // MANDATORY STEP 1: Positively Verify Target Isolation (Fail Closed)
   // --------------------------------------------------------------------------
   console.log('[Step 1] Positively Verifying Target Isolation & Approved Non-Production Datastore...');
-  const emulatorHost = process.env.FIRESTORE_EMULATOR_HOST;
-  const approvedTestProject = process.env.APPROVED_NON_PRODUCTION_PROJECT_ID || process.env.APPROVED_TEST_PROJECT_ID;
-  const approvedTestDatabase = process.env.APPROVED_NON_PRODUCTION_DATABASE_ID || process.env.APPROVED_TEST_DATABASE_ID;
-
   const db = getAdminFirestore();
-  const dbId = (db as any)._settings?.databaseId || (db as any).databaseId || '(default)';
-  const projectId = (db as any)._settings?.projectId || (db as any).projectId || 'burra-pariksha-cms';
+  const activeDbId = (db as any)._settings?.databaseId || (db as any).databaseId || '(default)';
+  const activeProjectId = (db as any)._settings?.projectId || (db as any).projectId || 'burra-pariksha-cms';
 
-  console.log(`  Configured Emulator Host:       ${emulatorHost || 'None'}`);
-  console.log(`  Active GCP Project ID:          ${projectId}`);
-  console.log(`  Active Firestore Database ID:   ${dbId}`);
-  console.log(`  Approved Test Project ID:       ${approvedTestProject || 'None'}`);
-  console.log(`  Approved Test Database ID:      ${approvedTestDatabase || 'None'}`);
+  const isolation = evaluateDatastoreIsolation(activeProjectId, activeDbId);
 
-  // ISOLATION CONTRACT:
-  // Must be either:
-  // A) Local Firestore Emulator via FIRESTORE_EMULATOR_HOST
-  // B) Explicitly approved non-production GCP project & database via environment whitelist.
-  // CRITICAL: Database names containing "ai-studio" or "test" alone do NOT prove isolation.
-  const isEmulator = Boolean(emulatorHost && emulatorHost.trim().length > 0);
-  const isExplicitApprovedTarget = Boolean(
-    approvedTestProject &&
-    projectId === approvedTestProject &&
-    (!approvedTestDatabase || dbId === approvedTestDatabase)
-  );
+  console.log(`  Configured Emulator Host:       ${isolation.emulatorHost || 'None'}`);
+  console.log(`  Active GCP Project ID:          ${activeProjectId}`);
+  console.log(`  Active Firestore Database ID:   ${activeDbId}`);
+  console.log(`  Target Isolation Mode:          ${isolation.isolationMode}`);
+  console.log(`  Approved by Independent Doc:    ${isolation.isApproved ? 'YES' : 'NO'}`);
 
-  if (!isEmulator && !isExplicitApprovedTarget) {
+  if (!isolation.isApproved) {
     console.log('\n========================================================================');
     console.log('STATUS: BLOCKED');
-    console.log('REASON: No safe Firestore Emulator (FIRESTORE_EMULATOR_HOST) or explicitly');
-    console.log('approved non-production test project (APPROVED_NON_PRODUCTION_PROJECT_ID) is configured.');
-    console.log(`Detected target: project="${projectId}", database="${dbId}".`);
-    console.log('Under AGENTS.md Rule 14 and S8-T18 data safety contracts, persistent mutation tests');
-    console.log('against unverified / production databases are strictly prohibited to prevent data corruption.');
+    console.log('REASON: Target isolation could not be established.');
+    console.log('------------------------------------------------------------------------');
+    console.log('Isolation Rejection Details:');
+    isolation.rejectionReasons.forEach((r, idx) => console.log(`  ${idx + 1}. ${r}`));
+    console.log('------------------------------------------------------------------------');
+    console.log('Under AGENTS.md Rule 14 and S8-T18 data safety contracts, persistent mutation');
+    console.log('tests against unverified or production databases are strictly prohibited.');
     console.log('Failing closed: zero writes made to unverified datastore.');
     console.log('========================================================================\n');
     process.exit(2);
   }
 
-  // Probe live connectivity
+  // Probe live connectivity only after isolation is positively verified
   let isFirestoreAvailable = false;
   try {
     await db.collection('question_drafts').limit(1).get();
@@ -95,7 +240,7 @@ async function runS8T18FirestorePersistenceIntegrationTest() {
     process.exit(2);
   }
 
-  pass('Target isolation & connectivity verified: Operating against approved non-production datastore');
+  pass(`Target isolation & connectivity verified (${isolation.isolationMode}): Operating against approved non-production datastore`);
 
   // Tracking registry for explicit cleanup ownership
   const testNamespace = `s8_t18_int_${Date.now()}`;
@@ -493,11 +638,17 @@ async function runS8T18FirestorePersistenceIntegrationTest() {
       const auditDoc = await auditLogRepository.findById(audId);
       if (auditDoc) retainedAuditCount++;
     }
-    assert(retainedAuditCount > 0, 'Audit records must be retained immutably in Cloud Firestore');
+    if (trackedRecords.auditLogs.length > 0) {
+      assert.strictEqual(
+        retainedAuditCount,
+        trackedRecords.auditLogs.length,
+        'Audit records must be retained immutably in Cloud Firestore'
+      );
+    }
 
     console.log('------------------------------------------------------------------------');
     console.log('CLOUD FIRESTORE CLEANUP & AUDIT RETENTION SUMMARY:');
-    console.log(`- Target Project / DB:       ${projectId} / ${dbId}`);
+    console.log(`- Target Project / DB:       ${activeProjectId} / ${activeDbId}`);
     console.log(`- Synthetic Test Namespace:  ${testNamespace}`);
     console.log(`- Created Synthetic Drafts:  ${trackedRecords.drafts.length}`);
     console.log(`- Physically Deleted Drafts: ${draftsPhysicallyDeleted} (Verified physically absent: 0 remaining)`);
