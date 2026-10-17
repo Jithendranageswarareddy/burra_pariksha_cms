@@ -312,6 +312,11 @@ export interface Mode1ValidationResultEnvelope {
 | `ERR_INVALID_ANSWER_KEY` | **BLOCKING** | `correctAnswer` not in `['A', 'B', 'C', 'D']` | HTTP 422 |
 | `ERR_MISSING_ANSWER_KEY` | **BLOCKING** | Correct answer key is missing or invalid; cannot be fabricated and requires human assignment | HTTP 422 |
 | `ERR_MISSING_DRAFT_ID` | **BLOCKING** | Record lacks a valid draft identifier (`id` or `draftId`) | HTTP 400 |
+| `ERR_INVALID_METADATA_TYPE` | **BLOCKING** | Metadata attribute (e.g. `id`, `authorId`, `version`, `createdAt`, `updatedAt`) has an invalid data type | HTTP 400 |
+| `ERR_MALFORMED_SLOTS` | **BLOCKING** | `slots` field is present but is not an array | HTTP 400 |
+| `ERR_MALFORMED_SLOT_ENTRY` | **BLOCKING** | Slot entry in `slots` array is not a valid object | HTTP 422 |
+| `ERR_INVALID_SLOT_STATUS` | **BLOCKING** | Persisted slot `status` is missing or not in `['EMPTY', 'GENERATING', 'VALID', 'INVALID', 'MANUALLY_EDITED', 'ACCEPTED']` | HTTP 422 |
+| `ERR_INVALID_BATCH_STATUS` | **BLOCKING** | Persisted `batchStatus` is not in `['EMPTY', 'GENERATING', 'PARTIAL', 'COMPLETE', 'ACCEPTED', 'FAILED']` | HTTP 400 |
 | `ERR_SLOT_COUNT_MISMATCH` | **BLOCKING** | Number of slots in `slots` array does not match `configuredQuestionCount` | HTTP 422 |
 | `ERR_MISSING_SLOT_ID` | **BLOCKING** | Existing slot lacks a canonical `slotId` | HTTP 422 |
 | `ERR_DUPLICATE_SLOT_ID` | **BLOCKING** | Duplicate `slotId` found in slots array; IDs must be distinct | HTTP 422 |
@@ -756,29 +761,34 @@ The proposed Mode 1 contract strictly distinguishes between verified, currently 
    - If an option is missing or null, it produces an explicit blocking finding (`ERR_OPTION_MISSING`).
    - If an option value is of an invalid type (e.g., number, boolean, array, object), it produces an explicit blocking finding (`ERR_OPTION_INVALID_TYPE`) rather than triggering an unhandled runtime `TypeError`.
    - Option distinctness is evaluated strictly across verified non-empty string choices.
-3. **No Indirect Count Inference (No `raw.slots.length` Fallback)**:
-   - If `configuredQuestionCount` (or legacy `targetQuestionCount`) is missing or invalid (not strictly in $\{1, 5, 10, 15, 20\}$), `configuredCount` remains `undefined` throughout hydration and validation.
-   - The hydration adapter must **NEVER** infer `configuredCount` from `raw.slots.length` or default it to 1.
-   - Completion and remaining counts ($C_{\text{rem\_gen}}$) must NOT be calculated against an inferred count; `remainingCount` remains `undefined`.
-   - The validation envelope emits a blocking finding (`ERR_INVALID_COUNT`), requiring explicit user or administrative reconciliation.
-4. **Never Derive `batchStatus: COMPLETE` or `ACCEPTED` from Hydration**:
-   - Hydration is a read-time projection, not a workflow state machine transition or an editorial approval action.
-   - Valid persisted `batchStatus` values (`'EMPTY'`, `'GENERATING'`, `'PARTIAL'`, `'COMPLETE'`, `'ACCEPTED'`, `'FAILED'`) are preserved as-is.
-   - If `batchStatus` was not persisted in legacy single-question documents, it is preserved as `undefined` in the aggregate and surfaces an advisory warning (`WARN_MISSING_BATCH_STATUS`).
-   - Any divergence between persisted status and actual slot validity (e.g., `batchStatus: 'COMPLETE'` when slots are incomplete or invalid, or `batchStatus: 'ACCEPTED'` without editorial review) produces an explicit blocking error (`ERR_BATCH_STATUS_INCONSISTENT`).
-5. **Zero Metadata Fabrication During Hydration**:
-   - Hydration must NEVER fabricate or default metadata attributes.
-   - Author attribution (`authorId`, `authorName`), concurrency counter (`version`), `workflowStage`, `aspectRatio`, `status`, and timestamps (`createdAt`, `updatedAt`) must strictly reflect persisted source values.
-   - If absent in the source document, they remain `undefined` (surfacing appropriate blocking findings like `ERR_MISSING_AUTHOR_ID` or advisory warnings like `WARN_MISSING_VERSION`).
-   - Defaults applied during write operations are defined separately in Section 8.2.1.
-6. **Safe Deterministic Identifier Handling**:
+3. **Array Presence Governs Aggregate Path (No Fallthrough on Empty `slots: []`)**:
+   - The presence of `slots` as an array (`Array.isArray(raw.slots)`) strictly routes processing to the aggregate validation path, even when empty (`raw.slots.length === 0`).
+   - An existing empty aggregate must **never** fall through to legacy single-question hydration or fabricate a root question.
+   - Non-array values for `slots` produce an explicit blocking finding (`ERR_MALFORMED_SLOTS`) without falling through to legacy hydration.
+4. **Strict Lifecycle & Status Validation (No Silent Status Coercion)**:
+   - Persisted `slot.status` and aggregate `batchStatus` must be validated against their authoritative enum definitions (`ALLOWED_SLOT_STATUSES`, `ALLOWED_BATCH_STATUSES`).
+   - Invalid or unrecognized statuses produce blocking findings (`ERR_INVALID_SLOT_STATUS`, `ERR_INVALID_BATCH_STATUS`).
+   - Hydration preserves the raw persisted status for diagnostic observability; it does not silently coerce invalid statuses to `'INVALID'` or `'PARTIAL'`, nor does it claim the aggregate is valid.
+5. **Read-Only Hydration Semantics (Zero Metadata Generation)**:
+   - Hydration reflects persisted database state; it is strictly read-only in meaning.
+   - Hydration must **never** generate timestamps (e.g. `lastValidatedAt`) or invent boolean flags (e.g. `isManuallyEdited: false` or `true`) for existing slots.
+   - Missing metadata fields remain `undefined`.
+   - Distinct from read hydration, proposed new-slot initialization (where an unpersisted slot is first instantiated in memory with `revisionNumber: 1`, `status: 'EMPTY'`, `isManuallyEdited: false`) is documented separately as an explicit creation workflow.
+6. **No Indirect Count Inference (No `raw.slots.length` Fallback)**:
+   - If `configuredQuestionCount` (or legacy `targetQuestionCount`) is unresolved or invalid, `configuredCount` remains `undefined` throughout validation.
+   - `remainingCount` must also remain `undefined`. Completion is never calculated against an inferred count.
+   - Surfacing `ERR_INVALID_COUNT` requires explicit user or administrative reconciliation.
+7. **Malformed Slot Entries & Invalid Metadata Types Produce Findings**:
+   - Non-object or null entries in `raw.slots` produce `ERR_MALFORMED_SLOT_ENTRY` without throwing runtime exceptions.
+   - Metadata attributes with invalid types produce `ERR_INVALID_METADATA_TYPE`.
+8. **Safe Deterministic Identifier Handling**:
    - `draftId`: Must exist as `raw.id` or the Firestore document key. If missing, the record cannot establish aggregate identity and emits `ERR_MISSING_DRAFT_ID`. Legacy identifiers (`BP-DFT-###`) are read and validated without mutation.
    - `slotId`: If absent in legacy single-question records, the hydration layer does **not** invent synthetic identifiers. The property is left `undefined` (surfacing `WARN_MISSING_SLOT_ID`), and a canonical distributed UUID (`slt_<uuid_v4>`) is generated via `canonicalIdService.generateSlotId()` only when the draft is explicitly edited and persisted.
-7. **Multi-Question Legacy Draft Handling (`targetQuestionCount > 1`)**:
+9. **Multi-Question Legacy Draft Handling (`targetQuestionCount > 1`)**:
    - If a legacy record specified a valid `targetQuestionCount > 1` (e.g. 5, 10, 15, 20), but contains only one root question, it **CANNOT hydrate into one slot while claiming to satisfy the configured count**.
    - The hydration adapter projects the root question into Slot 1, and initializes Slots 2 through $N$ as `'EMPTY'`.
    - The aggregate emits an explicit blocking validation error (`ERR_INCOMPLETE_LEGACY_BATCH`).
-8. **Preservation of Unmapped Attributes (Document Passthrough)**:
+10. **Preservation of Unmapped Attributes (Document Passthrough)**:
    - Existing Firestore records contain legacy or mode-specific fields (e.g. `mathematicalVerification`, `tags`, `sourceModel`, `challengeType`, `introductoryConcept`, `syllabusScopeNotes`).
    - To prevent data loss when an aggregate is updated, the hydration layer retains all unmapped Firestore properties in an open document passthrough container (`rawAttributes` or root spread) rather than stripping them upon conversion.
 
@@ -789,8 +799,8 @@ export interface HydratedMode1QuestionSlot {
   slotNumber: number;
   slotId?: string; // Undefined if legacy record lacked slotId; never fabricated
   revisionNumber?: number; // Undefined if unpersisted; established upon write
-  status: 'EMPTY' | 'GENERATING' | 'VALID' | 'INVALID' | 'MANUALLY_EDITED' | 'ACCEPTED';
-  isManuallyEdited?: boolean;
+  status: 'EMPTY' | 'GENERATING' | 'VALID' | 'INVALID' | 'MANUALLY_EDITED' | 'ACCEPTED' | string; // Preserves raw string if invalid
+  isManuallyEdited?: boolean; // Undefined if absent from persisted record; never invented
   questionText: string;
   options: {
     a: string;
@@ -807,7 +817,7 @@ export interface HydratedMode1QuestionSlot {
   trickOrPitfall?: string;
   realWorldContext?: string;
   validationErrors?: string[];
-  lastValidatedAt?: string;
+  lastValidatedAt?: string; // Undefined if absent; never generated during read hydration
 }
 
 export interface HydratedMode1BatchAggregate {
@@ -817,7 +827,7 @@ export interface HydratedMode1BatchAggregate {
   subtopicId?: string;
   configuredQuestionCount?: 1 | 5 | 10 | 15 | 20; // Undefined if missing or invalid; never inferred from slots.length
   aspectRatio?: string; // Undefined if missing; never defaulted to '9:16'
-  batchStatus?: 'EMPTY' | 'GENERATING' | 'PARTIAL' | 'COMPLETE' | 'ACCEPTED' | 'FAILED' | string; // Undefined if missing; never derived
+  batchStatus?: 'EMPTY' | 'GENERATING' | 'PARTIAL' | 'COMPLETE' | 'ACCEPTED' | 'FAILED' | string; // Preserves raw string if invalid; never derived
   version?: number; // Undefined if missing; never fabricated as 1
   authorId?: string; // Undefined if missing; never fabricated as empty string
   authorName?: string; // Undefined if missing; never fabricated
@@ -834,6 +844,9 @@ export interface HydrationResult {
   findings: Mode1ValidationResultEnvelope;
   requiresReview: boolean;
 }
+
+export const ALLOWED_SLOT_STATUSES = ['EMPTY', 'GENERATING', 'VALID', 'INVALID', 'MANUALLY_EDITED', 'ACCEPTED'] as const;
+export const ALLOWED_BATCH_STATUSES = ['EMPTY', 'GENERATING', 'PARTIAL', 'COMPLETE', 'ACCEPTED', 'FAILED'] as const;
 
 /**
  * Type-safe option extractor and validator.
@@ -888,19 +901,29 @@ function hydrateOptionValue(
  * Proposed Gate B Legacy Draft Hydration Adapter.
  * NOTE: PROPOSED DESIGN — NOT IMPLEMENTED IN CURRENT RUNTIME.
  * Converts legacy QuestionDraft documents into the Mode 1 batch aggregate structure
- * without fabricating semantic content, metadata, or batch completion status.
- * Enforces strict zero-inference validation on existing multi-slot aggregates.
+ * without fabricating semantic content, metadata, timestamps, or batch completion status.
+ * Enforces strict zero-inference validation on existing multi-slot aggregates, including empty arrays [].
  */
 export function hydrateMode1Draft(raw: Record<string, any>): HydrationResult {
   const errors: ValidationErrorItem[] = [];
   const warnings: ValidationWarningItem[] = [];
 
   // 1. Identify Draft Aggregate ID (Never fabricate identifier)
-  const draftId = typeof raw.id === 'string' && raw.id.trim()
-    ? raw.id.trim()
-    : (typeof raw.draftId === 'string' && raw.draftId.trim() ? raw.draftId.trim() : undefined);
+  let draftId: string | undefined = undefined;
+  if (typeof raw.id === 'string' && raw.id.trim()) {
+    draftId = raw.id.trim();
+  } else if (typeof raw.draftId === 'string' && raw.draftId.trim()) {
+    draftId = raw.draftId.trim();
+  } else if (raw.id !== undefined && typeof raw.id !== 'string') {
+    errors.push({
+      code: 'ERR_INVALID_METADATA_TYPE',
+      message: `Field 'id' must be a string, but received ${typeof raw.id}.`,
+      path: 'id',
+      severity: 'BLOCKING',
+    });
+  }
 
-  if (!draftId) {
+  if (!draftId && (!raw.id || typeof raw.id === 'string')) {
     errors.push({
       code: 'ERR_MISSING_DRAFT_ID',
       message: 'Record lacks a valid draft identifier (id).',
@@ -909,8 +932,15 @@ export function hydrateMode1Draft(raw: Record<string, any>): HydrationResult {
     });
   }
 
-  // 2. Metadata Validation (Preserve persisted values; never fabricate defaults)
-  if (!raw.authorId || typeof raw.authorId !== 'string' || raw.authorId.trim() === '') {
+  // 2. Metadata Type & Field Validation (Preserve persisted values; validate types; never fabricate defaults)
+  if (raw.authorId !== undefined && typeof raw.authorId !== 'string') {
+    errors.push({
+      code: 'ERR_INVALID_METADATA_TYPE',
+      message: `Field 'authorId' must be a string, but received ${typeof raw.authorId}.`,
+      path: 'authorId',
+      severity: 'BLOCKING',
+    });
+  } else if (!raw.authorId || raw.authorId.trim() === '') {
     errors.push({
       code: 'ERR_MISSING_AUTHOR_ID',
       message: 'Record lacks an author identifier (authorId).',
@@ -919,15 +949,32 @@ export function hydrateMode1Draft(raw: Record<string, any>): HydrationResult {
     });
   }
 
-  if (raw.version === undefined || raw.version === null || typeof raw.version !== 'number') {
+  if (raw.authorName !== undefined && typeof raw.authorName !== 'string') {
+    errors.push({
+      code: 'ERR_INVALID_METADATA_TYPE',
+      message: `Field 'authorName' must be a string, but received ${typeof raw.authorName}.`,
+      path: 'authorName',
+      severity: 'BLOCKING',
+    });
+  }
+
+  if (raw.version === undefined || raw.version === null) {
     warnings.push({
       code: 'WARN_MISSING_VERSION',
       message: 'Record lacks persisted version counter; version 1 will be established upon explicit write.',
       path: 'version',
       severity: 'WARNING',
     });
+  } else if (typeof raw.version !== 'number' || isNaN(raw.version)) {
+    errors.push({
+      code: 'ERR_INVALID_METADATA_TYPE',
+      message: `Field 'version' must be a number, but received ${typeof raw.version}.`,
+      path: 'version',
+      severity: 'BLOCKING',
+    });
   }
 
+  // Validate persisted batchStatus against allowed enum (preserve raw for diagnosis)
   if (raw.batchStatus === undefined || raw.batchStatus === null) {
     warnings.push({
       code: 'WARN_MISSING_BATCH_STATUS',
@@ -935,19 +982,71 @@ export function hydrateMode1Draft(raw: Record<string, any>): HydrationResult {
       path: 'batchStatus',
       severity: 'WARNING',
     });
-  }
-
-  if (raw.aspectRatio !== undefined && raw.aspectRatio !== '9:16') {
+  } else if (typeof raw.batchStatus !== 'string' || !ALLOWED_BATCH_STATUSES.includes(raw.batchStatus as any)) {
     errors.push({
-      code: 'ERR_INVALID_ASPECT_RATIO',
-      message: `Mode 'Question Challenge Short' requires aspect ratio '9:16', but received '${raw.aspectRatio}'.`,
-      path: 'aspectRatio',
+      code: 'ERR_INVALID_BATCH_STATUS',
+      message: `Persisted batchStatus '${raw.batchStatus}' is not a recognized batch status enum value [${ALLOWED_BATCH_STATUSES.join(', ')}].`,
+      path: 'batchStatus',
       severity: 'BLOCKING',
     });
   }
 
-  // 3. Existing Multi-Slot Aggregate Path
-  if (Array.isArray(raw.slots) && raw.slots.length > 0) {
+  if (raw.aspectRatio !== undefined) {
+    if (typeof raw.aspectRatio !== 'string') {
+      errors.push({
+        code: 'ERR_INVALID_METADATA_TYPE',
+        message: `Field 'aspectRatio' must be a string, but received ${typeof raw.aspectRatio}.`,
+        path: 'aspectRatio',
+        severity: 'BLOCKING',
+      });
+    } else if (raw.aspectRatio !== '9:16') {
+      errors.push({
+        code: 'ERR_INVALID_ASPECT_RATIO',
+        message: `Mode 'Question Challenge Short' requires aspect ratio '9:16', but received '${raw.aspectRatio}'.`,
+        path: 'aspectRatio',
+        severity: 'BLOCKING',
+      });
+    }
+  }
+
+  if (raw.workflowStage !== undefined && typeof raw.workflowStage !== 'string') {
+    errors.push({
+      code: 'ERR_INVALID_METADATA_TYPE',
+      message: `Field 'workflowStage' must be a string, but received ${typeof raw.workflowStage}.`,
+      path: 'workflowStage',
+      severity: 'BLOCKING',
+    });
+  }
+
+  if (raw.status !== undefined && typeof raw.status !== 'string') {
+    errors.push({
+      code: 'ERR_INVALID_METADATA_TYPE',
+      message: `Field 'status' must be a string, but received ${typeof raw.status}.`,
+      path: 'status',
+      severity: 'BLOCKING',
+    });
+  }
+
+  if (raw.createdAt !== undefined && typeof raw.createdAt !== 'string') {
+    errors.push({
+      code: 'ERR_INVALID_METADATA_TYPE',
+      message: `Field 'createdAt' must be an ISO timestamp string, but received ${typeof raw.createdAt}.`,
+      path: 'createdAt',
+      severity: 'BLOCKING',
+    });
+  }
+
+  if (raw.updatedAt !== undefined && typeof raw.updatedAt !== 'string') {
+    errors.push({
+      code: 'ERR_INVALID_METADATA_TYPE',
+      message: `Field 'updatedAt' must be an ISO timestamp string, but received ${typeof raw.updatedAt}.`,
+      path: 'updatedAt',
+      severity: 'BLOCKING',
+    });
+  }
+
+  // 3. Existing Multi-Slot / Aggregate Path (Governed strictly by Array.isArray(raw.slots), including empty [])
+  if (Array.isArray(raw.slots)) {
     // 3a. Validate Supported Configured Question Count (Strictly Do NOT infer from slots.length!)
     let configuredCount: (1 | 5 | 10 | 15 | 20) | undefined = undefined;
     const rawConfiguredCount = raw.configuredQuestionCount ?? raw.targetQuestionCount;
@@ -979,34 +1078,45 @@ export function hydrateMode1Draft(raw: Record<string, any>): HydrationResult {
     let hasDiscontinuousSlots = false;
 
     for (let i = 0; i < raw.slots.length; i++) {
-      const slot = raw.slots[i] || {};
+      const rawSlot = raw.slots[i];
       const expectedSlotNumber = i + 1;
 
-      if (typeof slot.slotNumber !== 'number' || slot.slotNumber !== expectedSlotNumber || seenSlotNumbers.has(slot.slotNumber)) {
-        hasDiscontinuousSlots = true;
-      }
-      if (typeof slot.slotNumber === 'number') {
-        seenSlotNumbers.add(slot.slotNumber);
-      }
-
-      if (!slot.slotId || typeof slot.slotId !== 'string' || slot.slotId.trim() === '') {
+      if (typeof rawSlot !== 'object' || rawSlot === null || Array.isArray(rawSlot)) {
         errors.push({
-          code: 'ERR_MISSING_SLOT_ID',
-          message: `Slot ${slot.slotNumber ?? expectedSlotNumber} lacks a canonical slotId.`,
-          path: `slots[${i}].slotId`,
-          slotNumber: slot.slotNumber ?? expectedSlotNumber,
+          code: 'ERR_MALFORMED_SLOT_ENTRY',
+          message: `Slot at index ${i} is malformed; must be an object, but received ${rawSlot === null ? 'null' : Array.isArray(rawSlot) ? 'array' : typeof rawSlot}.`,
+          path: `slots[${i}]`,
+          slotNumber: expectedSlotNumber,
           severity: 'BLOCKING',
         });
-      } else if (seenSlotIds.has(slot.slotId)) {
+        continue;
+      }
+
+      if (typeof rawSlot.slotNumber !== 'number' || rawSlot.slotNumber !== expectedSlotNumber || seenSlotNumbers.has(rawSlot.slotNumber)) {
+        hasDiscontinuousSlots = true;
+      }
+      if (typeof rawSlot.slotNumber === 'number') {
+        seenSlotNumbers.add(rawSlot.slotNumber);
+      }
+
+      if (!rawSlot.slotId || typeof rawSlot.slotId !== 'string' || rawSlot.slotId.trim() === '') {
+        errors.push({
+          code: 'ERR_MISSING_SLOT_ID',
+          message: `Slot ${rawSlot.slotNumber ?? expectedSlotNumber} lacks a canonical slotId.`,
+          path: `slots[${i}].slotId`,
+          slotNumber: rawSlot.slotNumber ?? expectedSlotNumber,
+          severity: 'BLOCKING',
+        });
+      } else if (seenSlotIds.has(rawSlot.slotId)) {
         errors.push({
           code: 'ERR_DUPLICATE_SLOT_ID',
-          message: `Duplicate slotId '${slot.slotId}' found in slot ${slot.slotNumber ?? expectedSlotNumber}. Every slot must possess a distinct identifier.`,
+          message: `Duplicate slotId '${rawSlot.slotId}' found in slot ${rawSlot.slotNumber ?? expectedSlotNumber}. Every slot must possess a distinct identifier.`,
           path: `slots[${i}].slotId`,
-          slotNumber: slot.slotNumber ?? expectedSlotNumber,
+          slotNumber: rawSlot.slotNumber ?? expectedSlotNumber,
           severity: 'BLOCKING',
         });
       } else {
-        seenSlotIds.add(slot.slotId);
+        seenSlotIds.add(rawSlot.slotId);
       }
     }
 
@@ -1019,13 +1129,47 @@ export function hydrateMode1Draft(raw: Record<string, any>): HydrationResult {
       });
     }
 
-    // 3d. Validate Question Fields, Type-Safe Options, Answer Key & Explanation
+    // 3d. Validate Question Fields, Type-Safe Options, Status, Answer Key & Explanation
     const hydratedSlots: HydratedMode1QuestionSlot[] = [];
 
     for (let i = 0; i < raw.slots.length; i++) {
-      const slot = raw.slots[i] || {};
-      const slotNum = slot.slotNumber ?? i + 1;
+      const rawSlot = raw.slots[i];
+      const expectedSlotNumber = i + 1;
+
+      if (typeof rawSlot !== 'object' || rawSlot === null || Array.isArray(rawSlot)) {
+        hydratedSlots.push({
+          slotNumber: expectedSlotNumber,
+          status: 'INVALID',
+          questionText: '',
+          options: { a: '', b: '', c: '', d: '' },
+          explanation: '',
+          validationErrors: [`Slot at index ${i} is not a valid object.`],
+        });
+        continue;
+      }
+
+      const slot = rawSlot;
+      const slotNum = typeof slot.slotNumber === 'number' ? slot.slotNumber : expectedSlotNumber;
       const slotErrors: ValidationErrorItem[] = [];
+
+      // Validate slot status against allowed enum (preserve raw for diagnosis)
+      if (slot.status === undefined || slot.status === null) {
+        slotErrors.push({
+          code: 'ERR_INVALID_SLOT_STATUS',
+          message: `Slot ${slotNum}: Persisted status is missing. Must strictly be one of [${ALLOWED_SLOT_STATUSES.join(', ')}].`,
+          path: `slots[${i}].status`,
+          slotNumber: slotNum,
+          severity: 'BLOCKING',
+        });
+      } else if (typeof slot.status !== 'string' || !ALLOWED_SLOT_STATUSES.includes(slot.status as any)) {
+        slotErrors.push({
+          code: 'ERR_INVALID_SLOT_STATUS',
+          message: `Slot ${slotNum}: Persisted status '${slot.status}' is not a recognized slot status enum value [${ALLOWED_SLOT_STATUSES.join(', ')}].`,
+          path: `slots[${i}].status`,
+          slotNumber: slotNum,
+          severity: 'BLOCKING',
+        });
+      }
 
       // Empty slots omit question payload during drafting
       if (slot.status === 'EMPTY') {
@@ -1033,12 +1177,15 @@ export function hydrateMode1Draft(raw: Record<string, any>): HydrationResult {
           slotNumber: slotNum,
           slotId: typeof slot.slotId === 'string' && slot.slotId.trim() ? slot.slotId.trim() : undefined,
           revisionNumber: typeof slot.revisionNumber === 'number' ? slot.revisionNumber : undefined,
-          status: 'EMPTY',
-          isManuallyEdited: Boolean(slot.isManuallyEdited),
+          status: slot.status,
+          isManuallyEdited: typeof slot.isManuallyEdited === 'boolean' ? slot.isManuallyEdited : undefined,
           questionText: '',
           options: { a: '', b: '', c: '', d: '' },
           explanation: '',
+          validationErrors: slotErrors.length > 0 ? slotErrors.map((e) => e.message) : undefined,
+          lastValidatedAt: typeof slot.lastValidatedAt === 'string' ? slot.lastValidatedAt : undefined,
         });
+        errors.push(...slotErrors);
         continue;
       }
 
@@ -1069,7 +1216,7 @@ export function hydrateMode1Draft(raw: Record<string, any>): HydrationResult {
       }
 
       // Type-Safe Options & Distinctness
-      const sOpts = (typeof slot.options === 'object' && slot.options !== null) ? slot.options : {};
+      const sOpts = (typeof slot.options === 'object' && slot.options !== null && !Array.isArray(slot.options)) ? slot.options : {};
       const optA = hydrateOptionValue(sOpts.a ?? slot.optionA, 'a', slotNum, `slots[${i}]`, slotErrors);
       const optB = hydrateOptionValue(sOpts.b ?? slot.optionB, 'b', slotNum, `slots[${i}]`, slotErrors);
       const optC = hydrateOptionValue(sOpts.c ?? slot.optionC, 'c', slotNum, `slots[${i}]`, slotErrors);
@@ -1131,17 +1278,15 @@ export function hydrateMode1Draft(raw: Record<string, any>): HydrationResult {
         });
       }
 
-      // Status consistency check
-      let resolvedSlotStatus: HydratedMode1QuestionSlot['status'] = slot.status ?? 'INVALID';
-      if (slotErrors.length > 0 && (resolvedSlotStatus === 'VALID' || resolvedSlotStatus === 'ACCEPTED')) {
-        errors.push({
+      // Status consistency check: do NOT silently coerce invalid status
+      if (slotErrors.length > 0 && (slot.status === 'VALID' || slot.status === 'ACCEPTED')) {
+        slotErrors.push({
           code: 'ERR_SLOT_STATUS_INCONSISTENT',
-          message: `Slot ${slotNum} is marked '${resolvedSlotStatus}' but contains blocking validation errors.`,
+          message: `Slot ${slotNum} is marked '${slot.status}' but contains blocking validation errors.`,
           path: `slots[${i}].status`,
           slotNumber: slotNum,
           severity: 'BLOCKING',
         });
-        resolvedSlotStatus = 'INVALID';
       }
 
       errors.push(...slotErrors);
@@ -1150,8 +1295,8 @@ export function hydrateMode1Draft(raw: Record<string, any>): HydrationResult {
         slotNumber: slotNum,
         slotId: typeof slot.slotId === 'string' && slot.slotId.trim() ? slot.slotId.trim() : undefined,
         revisionNumber: typeof slot.revisionNumber === 'number' ? slot.revisionNumber : undefined,
-        status: resolvedSlotStatus,
-        isManuallyEdited: Boolean(slot.isManuallyEdited),
+        status: slot.status, // Preserves raw persisted status for diagnosis; never silently coerced
+        isManuallyEdited: typeof slot.isManuallyEdited === 'boolean' ? slot.isManuallyEdited : undefined,
         questionText: qText,
         options,
         optionA: options.a || undefined,
@@ -1162,8 +1307,8 @@ export function hydrateMode1Draft(raw: Record<string, any>): HydrationResult {
         explanation: expl,
         trickOrPitfall: typeof slot.trickOrPitfall === 'string' ? slot.trickOrPitfall : undefined,
         realWorldContext: typeof slot.realWorldContext === 'string' ? slot.realWorldContext : (typeof slot.realLifeContext === 'string' ? slot.realLifeContext : undefined),
-        validationErrors: slotErrors.map((e) => e.message),
-        lastValidatedAt: new Date().toISOString(),
+        validationErrors: slotErrors.length > 0 ? slotErrors.map((e) => e.message) : undefined,
+        lastValidatedAt: typeof slot.lastValidatedAt === 'string' ? slot.lastValidatedAt : undefined,
       });
     }
 
@@ -1212,7 +1357,7 @@ export function hydrateMode1Draft(raw: Record<string, any>): HydrationResult {
       subtopicId: typeof raw.subtopicId === 'string' ? raw.subtopicId : undefined,
       configuredQuestionCount: configuredCount,
       aspectRatio: typeof raw.aspectRatio === 'string' ? raw.aspectRatio : undefined,
-      batchStatus: typeof raw.batchStatus === 'string' ? raw.batchStatus : undefined,
+      batchStatus: raw.batchStatus,
       version: typeof raw.version === 'number' ? raw.version : undefined,
       authorId: typeof raw.authorId === 'string' && raw.authorId.trim() ? raw.authorId.trim() : undefined,
       authorName: typeof raw.authorName === 'string' && raw.authorName.trim() ? raw.authorName.trim() : undefined,
@@ -1240,8 +1385,53 @@ export function hydrateMode1Draft(raw: Record<string, any>): HydrationResult {
     };
   }
 
-  // 4. Legacy Single-Question Draft Path
-  // 4a. Resolve Configured Question Count (Strictly Do NOT default or infer)
+  // 4. Intercept Malformed Slots Field (Non-array value when present)
+  if (raw.slots !== undefined && !Array.isArray(raw.slots)) {
+    errors.push({
+      code: 'ERR_MALFORMED_SLOTS',
+      message: `Field 'slots' must be an array when present, but received ${typeof raw.slots}.`,
+      path: 'slots',
+      severity: 'BLOCKING',
+    });
+
+    const aggregate: HydratedMode1BatchAggregate = {
+      ...raw,
+      id: draftId,
+      productionMode: 'QUESTION_CHALLENGE_SHORT',
+      topicId: typeof raw.topicId === 'string' ? raw.topicId : undefined,
+      subtopicId: typeof raw.subtopicId === 'string' ? raw.subtopicId : undefined,
+      configuredQuestionCount: undefined,
+      aspectRatio: typeof raw.aspectRatio === 'string' ? raw.aspectRatio : undefined,
+      batchStatus: raw.batchStatus,
+      version: typeof raw.version === 'number' ? raw.version : undefined,
+      authorId: typeof raw.authorId === 'string' && raw.authorId.trim() ? raw.authorId.trim() : undefined,
+      authorName: typeof raw.authorName === 'string' && raw.authorName.trim() ? raw.authorName.trim() : undefined,
+      workflowStage: typeof raw.workflowStage === 'string' ? raw.workflowStage : undefined,
+      status: typeof raw.status === 'string' ? raw.status : undefined,
+      createdAt: typeof raw.createdAt === 'string' ? raw.createdAt : undefined,
+      updatedAt: typeof raw.updatedAt === 'string' ? raw.updatedAt : undefined,
+      slots: [],
+    };
+
+    const findings: Mode1ValidationResultEnvelope = {
+      isValid: false,
+      configuredCount: undefined,
+      validSlotCount: 0,
+      remainingCount: undefined,
+      errors,
+      warnings,
+      evaluatedAt: new Date().toISOString(),
+    };
+
+    return {
+      aggregate,
+      findings,
+      requiresReview: true,
+    };
+  }
+
+  // 5. Legacy Single-Question Draft Path (Only executed when raw.slots is absent)
+  // 5a. Resolve Configured Question Count (Strictly Do NOT default or infer)
   const rawTargetCount = raw.configuredQuestionCount ?? raw.targetQuestionCount;
   let configuredCount: (1 | 5 | 10 | 15 | 20) | undefined = undefined;
 
@@ -1256,7 +1446,7 @@ export function hydrateMode1Draft(raw: Record<string, any>): HydrationResult {
     });
   }
 
-  // 4b. Hydrate Slot 1 from Root Question Fields (Type-safe options & zero semantic fabrication)
+  // 5b. Hydrate Slot 1 from Root Question Fields (Type-safe options & zero semantic fabrication)
   const slot1Errors: ValidationErrorItem[] = [];
 
   let questionText = '';
@@ -1285,7 +1475,7 @@ export function hydrateMode1Draft(raw: Record<string, any>): HydrationResult {
   }
 
   // Type-Safe Options Extraction
-  const rawOpts = (typeof raw.options === 'object' && raw.options !== null) ? raw.options : {};
+  const rawOpts = (typeof raw.options === 'object' && raw.options !== null && !Array.isArray(raw.options)) ? raw.options : {};
   const optA = hydrateOptionValue(rawOpts.a ?? raw.optionA, 'a', 1, 'slots[0]', slot1Errors);
   const optB = hydrateOptionValue(rawOpts.b ?? raw.optionB, 'b', 1, 'slots[0]', slot1Errors);
   const optC = hydrateOptionValue(rawOpts.c ?? raw.optionC, 'c', 1, 'slots[0]', slot1Errors);
@@ -1359,9 +1549,34 @@ export function hydrateMode1Draft(raw: Record<string, any>): HydrationResult {
     });
   }
 
-  const slot1Status: HydratedMode1QuestionSlot['status'] = slot1Errors.length > 0
-    ? 'INVALID'
-    : (questionText ? 'VALID' : 'EMPTY');
+  // Slot status resolution for legacy single question: validate against allowed enums if persisted
+  let slot1Status: string = 'VALID';
+  if (raw.slotStatus !== undefined) {
+    if (typeof raw.slotStatus !== 'string' || !ALLOWED_SLOT_STATUSES.includes(raw.slotStatus as any)) {
+      slot1Errors.push({
+        code: 'ERR_INVALID_SLOT_STATUS',
+        message: `Legacy slotStatus '${raw.slotStatus}' is not a recognized slot status enum value [${ALLOWED_SLOT_STATUSES.join(', ')}].`,
+        path: 'slotStatus',
+        slotNumber: 1,
+        severity: 'BLOCKING',
+      });
+      slot1Status = raw.slotStatus;
+    } else {
+      slot1Status = raw.slotStatus;
+    }
+  } else {
+    slot1Status = slot1Errors.length > 0 ? 'INVALID' : (questionText ? 'VALID' : 'EMPTY');
+  }
+
+  if (slot1Errors.length > 0 && (slot1Status === 'VALID' || slot1Status === 'ACCEPTED')) {
+    slot1Errors.push({
+      code: 'ERR_SLOT_STATUS_INCONSISTENT',
+      message: `Slot 1 is marked '${slot1Status}' but contains blocking validation errors.`,
+      path: 'slots[0].status',
+      slotNumber: 1,
+      severity: 'BLOCKING',
+    });
+  }
 
   errors.push(...slot1Errors);
 
@@ -1370,7 +1585,7 @@ export function hydrateMode1Draft(raw: Record<string, any>): HydrationResult {
     slotId,
     revisionNumber: typeof raw.revisionNumber === 'number' ? raw.revisionNumber : undefined,
     status: slot1Status,
-    isManuallyEdited: Boolean(raw.isManuallyEdited ?? true),
+    isManuallyEdited: typeof raw.isManuallyEdited === 'boolean' ? raw.isManuallyEdited : undefined,
     questionText,
     options,
     optionA: options.a || undefined,
@@ -1381,11 +1596,11 @@ export function hydrateMode1Draft(raw: Record<string, any>): HydrationResult {
     explanation,
     trickOrPitfall: typeof raw.trickOrPitfall === 'string' ? raw.trickOrPitfall : undefined,
     realWorldContext: typeof raw.realWorldContext === 'string' ? raw.realWorldContext : (typeof raw.realLifeContext === 'string' ? raw.realLifeContext : undefined),
-    validationErrors: slot1Errors.map((e) => e.message),
-    lastValidatedAt: new Date().toISOString(),
+    validationErrors: slot1Errors.length > 0 ? slot1Errors.map((e) => e.message) : undefined,
+    lastValidatedAt: typeof raw.lastValidatedAt === 'string' ? raw.lastValidatedAt : undefined,
   };
 
-  // 4c. Construct Slots Array & Incomplete Batch Check for N > 1
+  // 5c. Construct Slots Array & Incomplete Batch Check for N > 1
   const slots: HydratedMode1QuestionSlot[] = [slot1];
 
   if (configuredCount !== undefined && configuredCount > 1) {
@@ -1395,11 +1610,12 @@ export function hydrateMode1Draft(raw: Record<string, any>): HydrationResult {
         slotId: undefined,
         revisionNumber: undefined,
         status: 'EMPTY',
-        isManuallyEdited: false,
+        isManuallyEdited: undefined,
         questionText: '',
         options: { a: '', b: '', c: '', d: '' },
         correctAnswer: undefined,
         explanation: '',
+        lastValidatedAt: undefined,
       });
     }
 
@@ -1411,9 +1627,9 @@ export function hydrateMode1Draft(raw: Record<string, any>): HydrationResult {
     });
   }
 
-  // 4d. Completion & Inconsistency Checks (Never derive COMPLETE or ACCEPTED)
+  // 5d. Completion & Inconsistency Checks (Never derive COMPLETE or ACCEPTED)
   const validSlotCount = slots.filter(
-    (s) => (s.status === 'VALID' || s.status === 'ACCEPTED') &&
+    (s) => (s.status === 'VALID' || s.status === 'ACCEPTED' || s.status === 'MANUALLY_EDITED') &&
            (!s.validationErrors || s.validationErrors.length === 0)
   ).length;
 
@@ -1453,7 +1669,7 @@ export function hydrateMode1Draft(raw: Record<string, any>): HydrationResult {
     subtopicId: typeof raw.subtopicId === 'string' ? raw.subtopicId : undefined,
     configuredQuestionCount: configuredCount,
     aspectRatio: typeof raw.aspectRatio === 'string' ? raw.aspectRatio : undefined,
-    batchStatus: typeof raw.batchStatus === 'string' ? raw.batchStatus : undefined,
+    batchStatus: raw.batchStatus,
     version: typeof raw.version === 'number' ? raw.version : undefined,
     authorId: typeof raw.authorId === 'string' && raw.authorId.trim() ? raw.authorId.trim() : undefined,
     authorName: typeof raw.authorName === 'string' && raw.authorName.trim() ? raw.authorName.trim() : undefined,
@@ -1502,6 +1718,9 @@ To maintain absolute separation between read hydration (non-destructive projecti
    - As generation completes and all $N$ slots achieve validity, batch generation services advance `batchStatus` to `'COMPLETE'`.
    - Advancing `batchStatus` to `'ACCEPTED'` strictly requires explicit human editorial approval of all $N$ slots ($C_{\text{rem\_accept}} == 0$).
    - Progression to `STAGE_02_VERIFICATION` (`status = 'SUBMITTED_FOR_REVIEW'`) is gated by explicit user action ("Submit for Verification") and cannot be triggered during read projection or intermediate draft saves.
+6. **Proposed New-Slot Initialization vs. Read Hydration**:
+   - *Read Hydration (Existing Slots)*: Reflects persisted data strictly as-is. `lastValidatedAt`, `isManuallyEdited`, and `revisionNumber` are preserved from the persisted slot document if present, or left `undefined` if absent. No timestamps or boolean defaults are generated.
+   - *Proposed New-Slot Initialization (Creation Path)*: When an unpersisted slot is first instantiated in memory (e.g., during explicit draft creation or interactive batch expansion in Question Studio), explicit creation defaults are assigned: `revisionNumber: 1`, `status: 'EMPTY'`, `isManuallyEdited: false`, with `questionText` and `options` initialized to empty strings. These creation defaults belong to the editor initialization contract, not to read hydration.
 
 ### 8.3 Zero Database Migrations
 - **No Batch Rewrites**: No batch database migration script is executed or required against Firestore collections.
