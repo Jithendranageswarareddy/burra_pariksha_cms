@@ -1,6 +1,6 @@
 # S9-T07 — API, AI, Persistence & Workflow Integration Design Specification
 
-**Document Version**: `1.1.0`
+**Document Version**: `1.2.0`
 **Sprint**: `Sprint 9 — Mode 1 (Question Challenge Short) Production Pipeline`
 **Architectural Baseline**: `Gate B Architecture Design`
 **Status**: `PROPOSED DESIGN CONTRACT — AWAITING SPRINT 9 GATE B ARCHITECTURE APPROVAL (NOT YET APPROVED)`
@@ -58,22 +58,38 @@ The Stage 01 Question Studio interacts with the backend through seven canonical 
 
 The table below reconciles verified runtime reality against the proposed Gate B design. Implemented endpoints reflect the exact behavior in `backend/server/routers/routes.ts` mounted under `/api` (`backend/server/server.ts:65`).
 
-| Operation | Canonical Endpoint & Method | Request Contract (DTO) | Response Contract (Payload Shape) | Authorization Rule | Execution Nature | State Mutation Boundary | Operational Classification |
+| Operation | Canonical Endpoint & Method | Request Contract (DTO) | Response Contract (Payload Shape) | Route-Level Capability Middleware | Domain-Level Ownership & State Rule | Execution Nature & Mutation Boundary | Operational Classification |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Generate (Single)** | `POST /api/ai/generate` | `GenerateCandidateInput` (`topicId`, `subtopicId`, `difficulty`, `options`) | Raw `GenerationResult` (unwrapped JSON object) | Unauthenticated / IP rate-limited (`aiRateLimiter`); no route capability check | Advisory AI (`aiOrchestrator.generateQuestionCandidate` via Gemini) | **None** (In-memory transient candidate) | **Verified Runtime Reality** |
-| **Generate (Batch)** | `POST /api/v1/questions/batch/generate` | `GenerateBatchCandidatesInput` (`topicId`, `subtopicId`, $N \in \{5,10,15,20\}$, `language`) | `ApiResponseEnvelope<BatchGenerationResult>` | `requireCapability('QUESTION:CREATE')` | Advisory AI Batch Runner (Orchestrates $N$ items, candidate buffer, telemetry) | **None** or **Optional Draft Init** | **Proposed Gate B Design** (Requires OD-02) |
-| **Parameter Resolve** | `POST /api/questions/smart-random` | `{ topicId?, difficulty? }` | `{ topicId, subtopicId, difficulty, ... }` | None (Public / internal) | Deterministic taxonomy parameter resolution (`smartRandomService.resolveParameters`) | **None** (Read-only parameter picker) | **Verified Runtime Reality** |
-| **Edit (Single Full Draft)** | `PUT /api/questions/draft/:id`<br>`PUT /api/v1/questions/draft/:id` | `SaveDraftInput` (`expectedVersion`, `questionText`, `options`, `correctAnswer`) | Raw `QuestionDraft` (unwrapped JSON object, HTTP 200) | `requireCapability('QUESTION:CREATE')` + Ownership check (Author or Admin/Content Lead; 403 if unauthorized) | Pure Deterministic (`questionDraftService.saveDraft` with OCC version verification) | **Firestore** (`question_drafts` document updated; `version` incremented) | **Verified Runtime Reality** |
-| **Edit (Slot Partial)** | `PATCH /api/v1/questions/draft/:id/slots/:slotId` | `UpdateSlotContentInput` (`slotId`, `questionText`, `options`, `correctAnswer`, `expectedVersion`) | `ApiResponseEnvelope<Mode1QuestionSlot>` | `requireCapability('QUESTION:CREATE')` + Ownership check | Pure Deterministic (Field assignment, sets `isManuallyEdited = true`, recalculates slot checksum) | **Firestore** (Slot updated in draft aggregate; OCC checked) | **Proposed Gate B Design** |
-| **Validate (Single Candidate)** | `POST /api/questions/validate-candidate` | `{ question: Partial<StudioCandidate>, skipTaxonomyLookup?, skipDuplicateCheck? }` | `{ success: true, data: QuestionValidationResult }` (HTTP 200) | `requireAuth` + `requireRole([ADMIN, CONTENT_MANAGER, QUESTION_EDITOR, REVIEWER, CONTENT_WRITER])` | Pure Deterministic (`questionValidationService.validateCandidate`; taxonomy, duplicate, grammar) | **None** (Diagnostic evaluation; zero side effects) | **Verified Runtime Reality** |
-| **Validate (Batch Aggregate)** | `POST /api/v1/questions/batch/validate` | `ValidateBatchPayloadInput` (`slots[]`, `targetCount`) | `ApiResponseEnvelope<Mode1BatchValidationEnvelope>` | `requireCapability('QUESTION:VIEW')` | Pure Deterministic (Executes S9-T05 QVC rules on-the-fly across slots; zero AI) | **None** (Side-effect-free diagnostic evaluation) | **Proposed Gate B Design** |
-| **Save (Draft Create)** | `POST /api/questions/draft`<br>`POST /api/v1/questions/draft` | `SaveDraftInput` (`topicId`, `subtopicId`, `questionText`, `options`, `correctAnswer`) | Raw `QuestionDraft` (unwrapped JSON object, HTTP 201) | `requireCapability('QUESTION:CREATE')` | Pure Deterministic (`questionDraftService.saveDraft` $\to$ `questionGenerationService.saveDraft`) | **Firestore** (`question_drafts` document created; initial `version: 1`) | **Verified Runtime Reality** ($N=1$ flat) |
-| **Save (Batch Draft Aggregate)** | `POST /api/v1/questions/batch/draft`<br>`PUT /api/v1/questions/batch/draft/:id` | `Mode1BatchDraftAggregate` (`slots[]`, `telemetry`, `expectedVersion`) | `ApiResponseEnvelope<Mode1BatchDraftAggregate>` | `requireCapability('QUESTION:CREATE')` + Ownership check | Pure Deterministic (OCC check, schema normalization, batch aggregate persistence) | **Firestore** (`question_drafts` document created/updated; increments `version`) | **Proposed Gate B Design** ($N \in \{5,10,15,20\}$ aggregate) |
-| **Retrieve (Single Draft)** | `GET /api/questions/draft/:id`<br>`GET /api/v1/questions/draft/:id` | None (Route param: `id: dft_<uuid>`) | Raw `QuestionDraft` (unwrapped JSON object, HTTP 200) | `requireCapability('QUESTION:VIEW')` + Ownership check (Author or Admin/Content Lead/QA Reviewer/Question Editor; 403 `ForbiddenError`) | Pure Deterministic (`questionDraftService.getDraftById`) | **None** (Read-only query) | **Verified Runtime Reality** |
-| **Retrieve (Draft List)** | `GET /api/questions/drafts`<br>`GET /api/v1/questions/drafts` | None (Optional query filters) | Raw `QuestionDraft[]` (array of drafts, HTTP 200) | `requireCapability('QUESTION:VIEW')` (Privileged sees all; unprivileged filtered to `authorId === actor.id`) | Pure Deterministic (`questionDraftService.getAllDrafts`) | **None** (Read-only query) | **Verified Runtime Reality** |
-| **Preview** | `POST /api/v1/questions/preview/render-frame`<br>`GET /questions/draft/:id/preview` | `RenderPreviewFrameInput` (`slotId`, `aspectRatio: '9:16'`) | `ApiResponseEnvelope<PreviewFrameProjection>` | `requireCapability('QUESTION:VIEW')` | Pure Deterministic (Zero-copy projection of slot text into 9:16 canvas layout) | **None** (Read-only projection; current runtime relies on client-side rendering) | **Proposed Gate B Design** (No backend preview route currently in `routes.ts`) |
-| **Submit (Single Draft)** | `POST /api/questions/draft/:id/submit`<br>`POST /api/v1/questions/draft/:id/submit` | `{ remarks?: string, expectedVersion: number }` | Raw `SubmitForVerificationResult` (unwrapped JSON object, HTTP 200) | `requireCapability('QUESTION:SUBMIT')` + Ownership check (Author or Admin/Content Lead/Question Editor; 403 `ForbiddenError`) | Server-Authoritative Workflow (`questionDraftService.submitForVerification`, validates completeness, registers stage transition) | **Firestore** (Status $\to$ `SUBMITTED_FOR_REVIEW`, Stage 01 $\to$ 02 hand-off, increments `version`) | **Verified Runtime Reality** ($N=1$ flat) |
-| **Submit (Batch Draft)** | `POST /api/v1/questions/batch/draft/:id/submit` | `SubmitBatchForVerificationInput` (`expectedVersion: number`, `remarks?: string`) | `ApiResponseEnvelope<SubmitBatchForVerificationResult>` | `requireCapability('QUESTION:SUBMIT')` + Ownership check | Server-Authoritative Workflow (`WorkflowEngine` validates full batch QVC, checks GAR-02, advances stage) | **Firestore** (Status $\to$ `SUBMITTED_FOR_REVIEW`, Stage 01 $\to$ 02 hand-off, immutable audit log) | **Proposed Gate B Design** (Requires OD-02 & Gate B approval) |
+| **Generate (Single)** | `POST /api/ai/generate` | `GenerateCandidateInput` (`topicId`, `subtopicId`, `difficulty`, `options`) | Raw `GenerationResult` (unwrapped JSON object) | None (Unauthenticated / IP rate-limited `aiRateLimiter`) | None (Stateless candidate generation) | Advisory AI (`aiOrchestrator.generateQuestionCandidate` via Gemini). **No DB mutation**. | **Verified Runtime Reality** |
+| **Generate (Batch)** | `POST /api/v1/questions/batch/generate` | `GenerateBatchCandidatesInput` (`topicId`, `subtopicId`, $N \in \{5,10,15,20\}$, `language`) | `ApiResponseEnvelope<BatchGenerationResult>` | `requireCapability('QUESTION:CREATE')` | None (Stateless or transient buffer) | Advisory AI Batch Runner (Orchestrates $N$ items, candidate buffer, telemetry). **No DB mutation**. | **Proposed Gate B Design** (Requires OD-02) |
+| **Parameter Resolve** | `POST /api/questions/smart-random` | `{ topicId?, difficulty? }` | `{ topicId, subtopicId, difficulty, ... }` | None (Public / internal) | None (Read-only taxonomy query) | Deterministic taxonomy resolution (`smartRandomService.resolveParameters`). **No DB mutation**. | **Verified Runtime Reality** |
+| **Edit (Single Full Draft)** | `PUT /api/questions/draft/:id`<br>`PUT /api/v1/questions/draft/:id` | `SaveDraftInput` (`version?: number`, `questionText`, `options`, `correctAnswer`) | Raw `QuestionDraft` (unwrapped JSON object, HTTP 200) | `requireCapability('QUESTION:CREATE')` | `authorId === actor.id` or `ADMIN`/`CONTENT_LEAD` (403 `ForbiddenError`); `DRAFT_LOCKED` if not in DRAFT | Pure Deterministic (`questionDraftService.saveDraft`). **Mutates Firestore** (`question_drafts`, version $V \to V+1$). | **Verified Runtime Reality** |
+| **Edit (Slot Partial)** | `PATCH /api/v1/questions/draft/:id/slots/:slotId` | `UpdateSlotContentInput` (`slotId`, `questionText`, `options`, `correctAnswer`, `expectedVersion`) | `ApiResponseEnvelope<Mode1QuestionSlot>` | `requireCapability('QUESTION:CREATE')` | `authorId === actor.id` or `ADMIN`/`CONTENT_LEAD`; `DRAFT_LOCKED` check | Pure Deterministic (Sets `isManuallyEdited = true`, recalculates checksum). **Mutates Firestore** (Aggregate slot, increments version). | **Proposed Gate B Design** |
+| **Validate (Single Candidate)** | `POST /api/questions/validate-candidate` | `{ question: Partial<StudioCandidate>, skipTaxonomyLookup?, skipDuplicateCheck? }` | `{ success: true, data: QuestionValidationResult }` (HTTP 200) | `requireAuth` + `requireRole([ADMIN, CONTENT_MANAGER, QUESTION_EDITOR, REVIEWER, CONTENT_WRITER])` | None (Diagnostic evaluation) | Pure Deterministic (`questionValidationService.validateCandidate`; taxonomy, duplicate, grammar). **No DB mutation**. | **Verified Runtime Reality** |
+| **Validate (Batch Aggregate)** | `POST /api/v1/questions/batch/validate` | `ValidateBatchPayloadInput` (`slots[]`, `targetCount`) | `ApiResponseEnvelope<Mode1BatchValidationEnvelope>` | `requireCapability('QUESTION:VIEW')` | None (Diagnostic evaluation) | Pure Deterministic (Executes S9-T05 QVC rules on-the-fly across slots; zero AI). **No DB mutation**. | **Proposed Gate B Design** |
+| **Save (Draft Create)** | `POST /api/questions/draft`<br>`POST /api/v1/questions/draft` | `SaveDraftInput` (`id?: string`, `topicId`, `subtopicId`, `questionText`, `options`, `correctAnswer`) | Raw `QuestionDraft` (unwrapped JSON object, HTTP 201) | `requireCapability('QUESTION:CREATE')` | If `id` exists: ownership check (`authorId === actor.id` or Admin/Lead); `DRAFT_LOCKED` check | Pure Deterministic (`questionDraftService.saveDraft`). **Mutates Firestore** (`question_drafts` created or updated). | **Verified Runtime Reality** ($N=1$ flat) |
+| **Save (Batch Draft Aggregate)** | `POST /api/v1/questions/batch/draft`<br>`PUT /api/v1/questions/batch/draft/:id` | `Mode1BatchDraftAggregate` (`slots[]`, `telemetry`, `expectedVersion`) | `ApiResponseEnvelope<Mode1BatchDraftAggregate>` | `requireCapability('QUESTION:CREATE')` | `authorId === actor.id` or `ADMIN`/`CONTENT_LEAD`; `DRAFT_LOCKED` check | Pure Deterministic (OCC check, schema normalization, batch aggregate persistence). **Mutates Firestore**. | **Proposed Gate B Design** ($N \in \{5,10,15,20\}$ aggregate) |
+| **Retrieve (Single Draft)** | `GET /api/questions/draft/:id`<br>`GET /api/v1/questions/draft/:id` | None (Route param: `id: dft_<uuid>`) | Raw `QuestionDraft` (unwrapped JSON object, HTTP 200) | `requireCapability('QUESTION:VIEW')` | `authorId === actor.id` or privileged (`ADMIN`, `CONTENT_LEAD`, `QA_REVIEWER`, `QUESTION_EDITOR`; 403 `ForbiddenError`) | Pure Deterministic (`questionDraftService.getDraftById`). **No DB mutation**. | **Verified Runtime Reality** |
+| **Retrieve (Draft List)** | `GET /api/questions/drafts`<br>`GET /api/v1/questions/drafts` | None (Optional query filters) | Raw `QuestionDraft[]` (array of drafts, HTTP 200) | `requireCapability('QUESTION:VIEW')` | Privileged sees all; non-privileged filtered to `authorId === actor.id` or `author === actor.name` | Pure Deterministic (`questionDraftService.getAllDrafts`). **No DB mutation**. | **Verified Runtime Reality** |
+| **Preview** | `POST /api/v1/questions/preview/render-frame`<br>`GET /questions/draft/:id/preview` | `RenderPreviewFrameInput` (`slotId`, `aspectRatio: '9:16'`) | `ApiResponseEnvelope<PreviewFrameProjection>` | `requireCapability('QUESTION:VIEW')` | None (Read-only projection) | Pure Deterministic (Zero-copy projection into 9:16 layout). **No DB mutation**. Runtime relies on client preview. | **Proposed Gate B Design** (No backend preview route in `routes.ts`) |
+| **Submit (Single Draft)** | `POST /api/questions/draft/:id/submit`<br>`POST /api/v1/questions/draft/:id/submit` | `{ remarks?: string, expectedVersion: number }` | Raw `SubmitForVerificationResult` (unwrapped JSON object, HTTP 200) | `requireCapability('QUESTION:SUBMIT')` | `authorId === actor.id` or `ADMIN`/`CONTENT_LEAD`/`QUESTION_EDITOR`; status must be `DRAFT`; validates completeness | Server-Authoritative Workflow (`questionDraftService.submitForVerification`). **Mutates Firestore** (Status $\to$ `SUBMITTED_FOR_REVIEW`, increments version). | **Verified Runtime Reality** ($N=1$ flat) |
+| **Submit (Batch Draft)** | `POST /api/v1/questions/batch/draft/:id/submit` | `SubmitBatchForVerificationInput` (`expectedVersion: number`, `remarks?: string`) | `ApiResponseEnvelope<SubmitBatchForVerificationResult>` | `requireCapability('QUESTION:SUBMIT')` | `authorId === actor.id` or `ADMIN`/`CONTENT_LEAD`/`QUESTION_EDITOR`; full batch QVC check; GAR-02 registered | Server-Authoritative Workflow (`WorkflowEngine` validates full batch, registers GAR-02). **Mutates Firestore**. | **Proposed Gate B Design** (Requires OD-02 & Gate B approval) |
+
+### 2.1 Precise Authorization Attribution & Tiered Enforcement
+Authorization is strictly bifurcated into two architectural layers to ensure separation of concerns:
+
+1. **Route-Level Capability Middleware (`auth.middleware.ts`)**:
+   - Executes immediately upon HTTP request dispatch in `backend/server/routers/routes.ts`.
+   - Uses `requireCapability(capability)` to assert that the authenticated session token possesses the required coarse-grained operational permission (`QUESTION:CREATE`, `QUESTION:VIEW`, `QUESTION:SUBMIT`).
+   - Fails closed with HTTP 401 `UNAUTHORIZED` (if unauthenticated) or HTTP 403 `ForbiddenError` (if the capability is missing), terminating execution before any domain logic or database read is invoked.
+2. **Domain-Level Ownership & Lifecycle Guard Enforcement**:
+   - Executes inside domain services ([`backend/domain/question-generation/question-generation.service.ts`](../../../backend/domain/question-generation/question-generation.service.ts)) and feature services ([`backend/features/question-generation/services/question-draft.service.ts`](../../../backend/features/question-generation/services/question-draft.service.ts)).
+   - Evaluates entity-level data invariants and fine-grained business authorization:
+     - **Author Ownership**: Enforces that only the creator of the draft (`draft.authorId === actor.id`) or an actor with privileged administrative roles (`ADMIN`, `CONTENT_LEAD`) can modify or submit a draft. Throws HTTP 403 `ForbiddenError` on mismatch.
+     - **Lifecycle Mutability Guards**: Checks that draft status is `DRAFT`. If the draft has already progressed to `SUBMITTED_FOR_REVIEW`, `APPROVED`, or `PUBLISHED`, throws HTTP 409 `DRAFT_LOCKED`.
+     - **Anti-Self-Approval (GAR-02)**: Enforces that when transitioning to Stage 02 approval, the author cannot approve their own work:
+       $$\text{authorId} \neq \text{approverId}$$
+       Throws HTTP 403 `AntiSelfApprovalViolation` (code `NEG-01`) if self-approval is attempted without an explicit, audited administrative override.
 
 ---
 
@@ -135,8 +151,7 @@ sequenceDiagram
     autonumber
     actor Creator as Human Creator (Editor)
     participant Studio as Frontend QuestionStudio
-    participant Router as Mode1BatchRouter
-    participant Controller as Mode1BatchController
+    participant Router as ApiRouter / Mode1BatchRouter
     participant Service as QuestionGenerationService
     participant Repo as QuestionDraftsRepository
     participant DB as Cloud Firestore (question_drafts)
@@ -144,18 +159,17 @@ sequenceDiagram
 
     Creator->>Studio: Click [Save Draft] (or auto-save debounce)
     Studio->>Router: PUT /api/questions/draft/:id (slots[], expectedVersion: 3)
-    Router->>Controller: saveDraft(req, res)
-    Note over Controller: Enforce requireCapability('QUESTION:CREATE')
-    Controller->>Service: saveDraft(payload, actor)
+    Note over Router: Enforce requireCapability('QUESTION:CREATE')
+    Router->>Service: saveDraft(payload, actor)
 
     Service->>Repo: findById(dft_uuid)
     Repo->>DB: getDoc(question_drafts/dft_uuid)
     DB-->>Repo: Current Document Snapshot (version: 3)
     Repo-->>Service: Current Draft Record
 
-    alt Version Mismatch (expectedVersion != current.version)
-        Service-->>Controller: throw ConcurrencyConflictError(expected: 3, actual: 4)
-        Controller-->>Studio: HTTP 409 Conflict (ConcurrencyConflictError)
+    alt Version Mismatch (resolvedExpectedVersion != current.version)
+        Service-->>Router: throw ConcurrencyConflictError(expected: 3, actual: 4)
+        Router-->>Studio: HTTP 409 Conflict (ConcurrencyConflictError)
         Studio-->>Creator: Surface OCC Conflict Modal with field diff
     else Concurrency Check Passes
         Service->>Service: Calculate new version (v3 -> v4), touch updatedAt
@@ -163,8 +177,8 @@ sequenceDiagram
         Repo->>DB: updateDoc(question_drafts/dft_uuid, fields, precondition: version==3)
         DB-->>Repo: Transaction Committed
         Service->>Audit: logAction('DRAFT_SAVED_IN_PLACE', dft_uuid, actor.id)
-        Service-->>Controller: Saved Mode1BatchDraftAggregate (version: 4)
-        Controller-->>Studio: HTTP 200 OK (Clean aggregate, version: 4)
+        Service-->>Router: Saved Draft Record (version: 4)
+        Router-->>Studio: HTTP 200 OK (version: 4)
         Studio-->>Creator: Toast: "Draft saved in Firestore (v4)", clear isDirty flag
     end
 ```
@@ -283,7 +297,7 @@ To achieve internal consistency, **exactly one HTTP status code** is assigned to
 | Error Condition | Canonical Error Code | Proposed HTTP Status | Category | Existing Runtime Handler Behavior (`backend/server/routers/routes.ts`) | Proposed Gate B Handling & Recovery Protocol |
 | :--- | :--- | :---: | :--- | :--- | :--- |
 | **Field Schema Failure** | `ERR_SCHEMA_VIOLATION` | **400** | `VALIDATION` | Returns HTTP 400 with `{ error: 'Draft Save Failed', message: ... }` (unstructured string message). | Returns HTTP 400 `ApiErrorResponse` listing exact failing fields and slot indices. |
-| **Missing Expected Version** | `MissingExpectedVersion` | **400** | `CONCURRENCY` | Returns HTTP 400 with `{ error: 'MissingExpectedVersion', message: 'A valid positive integer...' }` (`routes.ts:1531`). | Returns HTTP 400 `ApiErrorResponse`. Client must pass `draft.version` in payload. |
+| **Missing Expected Version** | `MissingExpectedVersion` | **400** | `CONCURRENCY` | Returns HTTP 400 with `{ error: 'MissingExpectedVersion', message: 'A valid positive integer...' }` (`routes.ts:1531`). | Returns HTTP 400 `ApiErrorResponse`. Client must pass `expectedVersion` in payload. |
 | **Invalid Draft ID Format** | `InvalidDraftId` | **400** | `VALIDATION` | Returns HTTP 400 with `{ error: 'InvalidDraftId', message: '...not a valid canonical identifier...' }` (`routes.ts:1341`). | Returns HTTP 400 `ApiErrorResponse`. Enforces `dft_<uuid_v4>` canonical prefix. |
 | **Unauthorized Session** | `UNAUTHORIZED` | **401** | `AUTHORIZATION` | Handled by `requireAuth` middleware returning HTTP 401 `{ error: 'Unauthorized', message: '...' }`. | Returns HTTP 401 `ApiErrorResponse`. Client redirects to Login / Identity Provider. |
 | **Capability Denial** | `ForbiddenError` | **403** | `AUTHORIZATION` | Returns HTTP 403 `{ error: 'ForbiddenError', message: 'Unauthorized: User cannot access/modify draft...' }` (`routes.ts:1432`). | Returns HTTP 403 `ApiErrorResponse`. UI surfaces non-dismissible capability notice. |
@@ -309,9 +323,33 @@ To prevent duplicate draft documents, redundant AI token expenditure, and corrup
 | :--- | :--- | :--- | :--- | :---: | :--- |
 | **AI Generation (Single)**<br>`POST /api/ai/generate` | Transient (none in runtime; proposed `x-idempotency-key: <uuid>`) | Uncached. Every retry executes a fresh Gemini LLM call, consuming provider rate limit and tokens. | Returns cached candidate payload if duplicate request with same `x-idempotency-key` arrives within 5-minute TTL. | **Zero DB Risk**<br>*(High Token Drain)* | **[OD-IDEM-01]**: Approval to cache advisory AI payloads in memory/Redis by idempotency key vs. remaining fully stateless. |
 | **AI Generation (Batch)**<br>`POST /api/v1/questions/batch/generate` | `x-idempotency-key: <uuid>` or `batchRequestId: req_<uuid>` | Not implemented in runtime. | Returns in-progress promise or cached batch candidate buffer for identical request key within 10-minute window. | **Zero DB Risk**<br>*(High Token Drain)* | **[OD-IDEM-01]**: Caching boundary for multi-slot AI batches. Linked to OD-02 approval. |
-| **Draft Create**<br>`POST /api/questions/draft` | Entity ID: `input.id` (`dft_<uuid>`) or `x-idempotency-key` | If client omits `id`, `questionGenerationService.saveDraft` generates a brand new `dft_<uuid>` every time via `canonicalIdService.generateDraftId()`. Retrying creates **duplicate documents** in Firestore. If client passes `id`, it updates the existing draft. | Client MUST pre-allocate canonical `id: dft_<uuid>` statelessly before POST. Duplicate POST with identical ID performs idempotent upsert (HTTP 200/201). | **HIGH RUNTIME RISK**<br>*(Zero in Proposed)* | **[OD-IDEM-02]**: Enforce mandatory client-side canonical `dft_<uuid>` pre-allocation for all draft creations. |
+| **Draft Create**<br>`POST /api/questions/draft` | Entity ID: `input.id` (`dft_<uuid>`) or `x-idempotency-key` | **Omitting ID**: `questionGenerationService.saveDraft` allocates a new `dft_<uuid>` on every call, creating **duplicate documents** in Firestore.<br>**Reusing ID**: Enters the **update path** (`existing = findById(draftId)`). Merges fields and executes `questionDraftsRepository.update()`, **incrementing the version ($V \to V+1$)**. It does **NOT** perform an idempotent replay. | Pre-allocating `dft_<uuid>` ensures no new documents are created. Proposed replay semantics would compare payload checksum against current draft state, returning HTTP 200/201 without incrementing version. | **HIGH RUNTIME RISK** (Duplicate docs if ID omitted; version bumps if ID reused) | **[OD-IDEM-02]**: Mandatory client-side canonical `dft_<uuid>` pre-allocation for draft creation.<br>**[OD-IDEM-02B]**: Checksum-based idempotent replay on repeat create/update requests. |
 | **Draft Update**<br>`PUT /api/questions/draft/:id` | URI parameter `:id` + `expectedVersion` | First request succeeds, increments version ($V \to V+1$). Immediate retry with identical payload and old `expectedVersion: V` fails fail-closed with HTTP 409 `ConcurrencyConflictError`. | Idempotent replay: If repeat payload matches current draft checksum and version is $V+1$, return HTTP 200 with current draft instead of throwing 409. | **Zero Risk**<br>*(OCC blocks duplicate overwrites)* | **[OD-IDEM-03]**: Approval for checksum-based idempotent replay vs. strict fail-closed 409 rejection on repeat requests. |
 | **Draft Submission**<br>`POST /api/questions/draft/:id/submit` | URI parameter `:id` + `expectedVersion` | First submit transitions draft from `DRAFT` $\to$ `SUBMITTED_FOR_REVIEW` (`STAGE_02_VERIFICATION`) and sets version to $V+1$. Duplicate retry with old `expectedVersion: V` throws HTTP 409 (`Draft already submitted`). | Idempotent return: If draft is already in `SUBMITTED_FOR_REVIEW` with matching workflow instance and payload checksum, return existing `SubmitForVerificationResult` (HTTP 200). | **Zero Risk**<br>*(Status guard blocks re-transition)* | **[OD-IDEM-04]**: Approval for idempotent submission return vs. strict HTTP 409 conflict. |
+
+### 5.1 Version Attribute Resolution & Compatibility Change
+A key operational distinction exists between current runtime version resolution and the proposed standardized contract:
+
+- **Current Runtime Domain Behavior (`QuestionGenerationService.ts:489`)**:
+  In the existing domain service, draft update OCC is resolved via:
+  ```typescript
+  return questionDraftsRepository.update(draftId, updatedDraft, {
+    expectedVersion: input.version ?? existing.version,
+  });
+  ```
+  1. The DTO property is named `version`, not `expectedVersion`.
+  2. If the client omits `input.version`, the domain service silently falls back to `existing.version` (using the current document version fetched from Firestore). This **silently bypasses optimistic concurrency protection**, allowing blind overwrites if the client does not explicitly submit a version.
+  3. In contrast, draft submission (`POST /api/questions/draft/:id/submit`, `routes.ts:1532`) strictly mandates `expectedVersion: number (>= 1)` and rejects missing values with HTTP 400 `MissingExpectedVersion`.
+- **Proposed Gate B Standardized Contract**:
+  Standardizes on `expectedVersion: number` across all mutation operations (`PUT /api/questions/draft/:id`, `PATCH /slots/:slotId`, and `POST /submit`) to enforce strict, fail-closed concurrency safety.
+- **Compatibility Changes Needed**:
+  1. Update `SaveQuestionDraftInput` and `SaveDraftInput` interfaces in `shared/contracts/question-generation` to accept `expectedVersion?: number` alongside deprecated `version?: number`.
+  2. In `QuestionGenerationService.saveDraft`, resolve:
+     ```typescript
+     const resolvedExpectedVersion = input.expectedVersion ?? input.version;
+     ```
+  3. In the update path, mandate `resolvedExpectedVersion` and deprecate the silent fallback to `existing.version`, throwing HTTP 400 `MissingExpectedVersion` if omitted.
+  4. Add route-level `expectedVersion` validation in `routes.ts` for `PUT /api/questions/draft/:id`.
 
 ---
 
@@ -346,12 +384,12 @@ shared/
 | :--- | :--- | :--- |
 | [`backend/server/routers/routes.ts`](../../../backend/server/routers/routes.ts) | Monolithic API Router | **Mount Delegator**: Mount `mode1BatchRouter` at `/api/v1/questions/batch` and `/questions/draft/:id/batch`. Remove any ad-hoc inline batch logic. |
 | [`backend/features/question-generation/services/question-draft.service.ts`](../../../backend/features/question-generation/services/question-draft.service.ts) | Public Question Draft Service Façade | **Service Facade**: Expose typed methods `saveBatchDraft`, `submitBatchForVerification`, and `getBatchDraftById`. |
-| [`backend/domain/question-generation/question-generation.service.ts`](../../../backend/domain/question-generation/question-generation.service.ts) | Authoritative Domain Service | **Domain Authority**: Update `saveDraft` and `submitForVerification` to support `Mode1BatchDraftAggregate` alongside legacy $N=1$ records. |
+| [`backend/domain/question-generation/question-generation.service.ts`](../../../backend/domain/question-generation/question-generation.service.ts) | Authoritative Domain Service | **Domain Authority**: Update `saveDraft` and `submitForVerification` to support `Mode1BatchDraftAggregate` alongside legacy $N=1$ records. Implement `expectedVersion` standardization. |
 | [`database/firestore/repositories/question-drafts.repository.ts`](../../../database/firestore/repositories/question-drafts.repository.ts) | Cloud Firestore Persistence Repository | **Data Layer**: Persist atomic `slots[]` array under ADR-011 DD-05. Enforce atomic OCC precondition checking on updates. |
 | [`backend/ai/orchestrator/ai-orchestrator.service.ts`](../../../backend/ai/orchestrator/ai-orchestrator.service.ts) | Server-Side AI Orchestration | **AI Gateway**: Route batch generation requests to approved provider adapters with structured output schemas. |
 | [`backend/ai/providers/gemini.adapter.ts`](../../../backend/ai/providers/gemini.adapter.ts) | Gemini LLM Provider Implementation | **Provider**: Execute candidate generation prompts with temperature control and schema validation. |
 | [`backend/infrastructure/audit/services/audit.service.ts`](../../../backend/infrastructure/audit/services/audit.service.ts) | Immutable Audit Logging | **Audit Trail**: Record immutable events: `BATCH_GENERATION_INITIATED`, `BATCH_SLOTS_REORDERED`, `BATCH_SUBMITTED_FOR_VERIFICATION`. |
-| [`shared/contracts/question-generation/question-generation.contract.ts`](../../../shared/contracts/question-generation/question-generation.contract.ts) | Shared Contracts & DTOs | **Base Contracts**: Re-export common enums and base generation interfaces. |
+| [`shared/contracts/question-generation/question-generation.contract.ts`](../../../shared/contracts/question-generation/question-generation.contract.ts) | Shared Contracts & DTOs | **Base Contracts**: Re-export common enums and base generation interfaces; add `expectedVersion` to `SaveDraftInput`. |
 | [`shared/registry/content-mode.registry.ts`](../../../shared/registry/content-mode.registry.ts) | Canonical Content Mode Registry | **Mode Authority**: Validate mode-specific parameters ($N \in \{1, 5, 10, 15, 20\}$, 9:16 aspect ratio, duration $\le 58\text{s}$). |
 | [`shared/lib/id.service.ts`](../../../shared/lib/id.service.ts) | Canonical Distributed ID Generator | **ID Service**: Generate distributed UUIDs (`dft_<uuid>`, `slt_<uuid>`, `cnd_<uuid>`) statelessly without database round-trips. |
 
@@ -384,8 +422,8 @@ Every component, route, and service implemented under this specification must st
    - Submitting for verification is an explicit, separate user command that advances the draft to Stage 02 (`stage: 2, status: 'PENDING_REVIEW'`), strictly requiring $100\%$ valid and accepted slots.
 6. **Optimistic Concurrency Control (OCC)**:
    - Every draft document contains an atomic `version` integer. All update and submit operations must provide `expectedVersion`. Mismatches abort fail-closed with HTTP 409 `ConcurrencyConflictError`.
-7. **Strict Role-Based Access Control (RBAC)**:
-   - Endpoints enforce capability checks via middleware: `QUESTION:CREATE` for generation and drafting, `QUESTION:VIEW` for retrieval, and `QUESTION:SUBMIT` for verification handover.
+7. **Strict Role-Based Access Control (RBAC) & Ownership**:
+   - Endpoints enforce coarse-grained capability checks via route middleware (`QUESTION:CREATE`, `QUESTION:VIEW`, `QUESTION:SUBMIT`), while domain services enforce entity-level ownership and role privileges (`authorId === actor.id` or `ADMIN`/`CONTENT_LEAD`).
 8. **Anti-Self-Approval Enforcement (GAR-02 Rule)**:
    - The author of a draft can never approve their own work during Stage 02:
      $$\mathbf{GAR\text{-}02\ Invariant}:\quad \text{authorId} \neq \text{approverId}$$
@@ -434,7 +472,7 @@ This specification explicitly carries forward the unresolved source-contract con
 Under [AGENTS.md §15.1 and §15.2](../../../AGENTS.md#15-risk-based-engineering-execution-cycle--verification-policy):
 - **Verification Tier**: **Tier 1: Documentation-Only**.
 - **Mandatory Pre-Test Decision**:
-  1. *Changed Scope*: Updated documentation deliverable `docs/sprints/sprint-09/S9-T07-API-AI-PERSISTENCE-WORKFLOW-INTEGRATION-SPEC.md`. Zero changes to runtime code, test fixtures, or inventory manifests.
+  1. *Changed Scope*: Corrected documentation deliverable `docs/sprints/sprint-09/S9-T07-API-AI-PERSISTENCE-WORKFLOW-INTEGRATION-SPEC.md`. Zero changes to runtime code, test fixtures, or inventory manifests.
   2. *Selected Verification Commands*:
      - `git diff --check`: Verify zero whitespace errors, trailing whitespace, or merge conflict markers.
   3. *Safely Bypassed Commands*:
@@ -443,4 +481,4 @@ Under [AGENTS.md §15.1 and §15.2](../../../AGENTS.md#15-risk-based-engineering
 
 ### 9.2 Scope Verdict & Sign-Off
 - **Verdict**: **COMPLETE & ACCEPTED (GATE B PROPOSED DESIGN CONTRACT)**.
-- **Summary**: Sprint 9, Task S9-T07 is corrected and fully satisfied. The integration specification establishes the end-to-end API operation matrix, data-flow topologies, standardized error envelopes with single HTTP status mappings, idempotency guarantees, a modular file-level implementation plan, and safety invariants. It grounds every endpoint in current codebase reality, cleanly distinguishes verified single-question runtime behavior from proposed batch designs, and carries forward open decisions OD-02, OD-IDEM-01..04, and the S9-T03/S9-T06 telemetry conflict with complete architectural integrity.
+- **Summary**: Sprint 9, Task S9-T07 is corrected and fully satisfied. The integration specification precisely attributes authorization between route capability middleware and domain ownership guards, accurately describes draft creation update paths upon ID reuse, documents the `input.version ?? existing.version` compatibility bridge for standardized `expectedVersion`, establishes idempotency guarantees, and preserves pending Gate B approval and unresolved open decisions OD-02 and S9-T03/S9-T06 with absolute architectural rigor.
