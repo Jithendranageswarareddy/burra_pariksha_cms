@@ -203,7 +203,7 @@ async function runInventoryReconciliation() {
     `Actual post-S7 tracked additions count (${actualPostS7Tracked.length}) must exactly match authoritative approved list count (${AUTHORITATIVE_APPROVED_POST_S7_ADDITIONS.length})`
   );
 
-  console.log(`    PASS: Meaningful reconciliation verified: exactly ${EXPECTED_HISTORICAL_S7_COUNT} S7 baseline files + ${AUTHORITATIVE_APPROVED_POST_S7_ADDITIONS.length} explicitly approved Sprint 8 additions = ${gitFiles.length} total tracked files.\n`);
+  console.log(`    PASS: Meaningful reconciliation verified: exactly ${EXPECTED_HISTORICAL_S7_COUNT} S7 baseline files + ${AUTHORITATIVE_APPROVED_POST_S7_ADDITIONS.length} explicitly approved post-S7 additions = ${gitFiles.length} total tracked files.\n`);
 
   // 5. Verify Physical Distribution totals (Section 1.2)
   console.log('[3] Verifying Section 1.2 Physical Distribution totals...');
@@ -281,7 +281,7 @@ async function runInventoryReconciliation() {
   );
 
   console.log('============================================================');
-  console.log(`INVENTORY RECONCILIATION RESULT: ALL CHECKS PASSED (${EXPECTED_HISTORICAL_S7_COUNT} S7 baseline + ${AUTHORITATIVE_APPROVED_POST_S7_ADDITIONS.length} Sprint 8 = ${gitFiles.length} files)`);
+  console.log(`INVENTORY RECONCILIATION RESULT: ALL CHECKS PASSED (${EXPECTED_HISTORICAL_S7_COUNT} S7 baseline + ${AUTHORITATIVE_APPROVED_POST_S7_ADDITIONS.length} post-S7 additions = ${gitFiles.length} files)`);
   console.log('============================================================\n');
 }
 
