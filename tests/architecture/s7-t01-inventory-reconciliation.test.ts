@@ -35,6 +35,7 @@ export const AUTHORITATIVE_APPROVED_POST_S7_ADDITIONS: readonly string[] = [
   'docs/sprints/sprint-08/S8-T20-FINAL-ARCHITECTURE-GATE.md',
   'docs/sprints/sprint-08/S8-TASK-RECONCILIATION-REPORT.md',
   'docs/sprints/sprint-09/S9-T01-DEPENDENCY-AUDIT.md',
+  'docs/sprints/sprint-09/S9-T02-QUESTION-CHALLENGE-SHORT-CONTENT-SPEC.md',
   'frontend/features/question-generation/components/ExplainedQuestionsWorkspace.tsx',
   'frontend/features/question-generation/components/ProductionModeModal.tsx',
   'frontend/features/question-generation/components/ProductionWorkbenchSummary.tsx',
