@@ -197,32 +197,68 @@ Under [AGENTS.md §15.1 and §15.2](../../../AGENTS.md#15-risk-based-engineering
 | :---: | :---: | :--- | :--- | :---: |
 | `1.0.0` | 2026-10-18 | Antigravity Software Architect & Systems Verification Engineer | Initial comprehensive Phase A & Phase B formal gate closure report. | Prepared for Owner Sign-Off |
 
-### Formal Decision & Gate Approval Request Block
+### 7.2 Formal Project Owner Decision Ledger & Approval Checklist
+
+This checklist provides the exact decision ledger for the Authorized Project Owner to formally approve, reject, or amend each Phase A requirement and Phase B architectural contract.
+
+#### 7.2.1 Gate A — Requirements Decisions (DEC-A-01 through DEC-A-05)
+
+| Decision ID | Topic & Current Recommendation | Rationale & Architectural Invariants | Consequences & Trade-Offs | Exact Scope of Approval | Owner Decision Action |
+| :---: | :--- | :--- | :--- | :--- | :---: |
+| **DEC-A-01** | **Atomic Batch Aggregate Persistence Model**<br>*Recommendation*: **Option A**. Persist all $N$ slots as a single atomic document (`Mode1BatchDraftAggregate`) in `question_drafts` per ADR-011 DD-05. | Single round-trip batch save; atomic OCC document versioning; zero orphan child records; consistent with Mode 3 aggregate pattern. | Batch document size bounded ($N \le 20$, $\approx 15-25\text{ KB}$, well within 1 MB Firestore limit). Updating any slot increments aggregate `version`. | Authorizes Firestore repository layer to implement atomic aggregate document schema and transactions in Phase C. | `[ ] APPROVE`<br>`[ ] REJECT`<br>`[ ] AMEND` |
+| **DEC-A-02** | **Semantic Deduplication Policy**<br>*Recommendation*: **Option B**. Exact-string duplicate is blocking `ERROR` (`ERR_DUPLICATE_QUESTION`); Levenshtein distance $> 0.85$ is advisory `WARNING` (`WARN_Q_06B_SIMILARITY`). | Exact collisions within a batch are unacceptable and block submission. Pedagogically similar questions (variants with different numbers) alert the author without restricting author agency. | Pure TypeScript evaluator execution without external vector database or latency-heavy LLM calls during Studio typing. | Authorizes deduplication logic in Mode 1 server validator (`VAL-Q-06` and `VAL-Q-06B`). | `[ ] APPROVE`<br>`[ ] REJECT`<br>`[ ] AMEND` |
+| **DEC-A-03** | **Linter Warning Policy & Submission Gating**<br>*Recommendation*: **Option B**. Warnings display badges and amber banners in Studio and QA matrices, but do not block `Submit for Verification`. | Maximizes author workflow velocity. Quality verification in Stage 02 provides human reviewer oversight before video rendering. | Only blocking errors (`ERR_*`) disable `Submit for Verification` button. Warnings are recorded in audit logs and remain visible in Stage 02. | Authorizes submission gate validation rules and warning presentation in Studio UI. | `[ ] APPROVE`<br>`[ ] REJECT`<br>`[ ] AMEND` |
+| **DEC-A-04** | **Slot Deletion Invariant & Count Stability**<br>*Recommendation*: **Option B**. Discrete Count Immutability ($N \in \{5, 10, 15, 20\}$). Deleting a slot clears content, sets status to `EMPTY`, and increments $C_{\text{rem\_gen}}$; $C_{\text{req}}$ does not shrink. | Preserves ADR-010 and `ContentModeRegistry` count constraints. Arbitrary batch counts (e.g. 9 or 14) violate YouTube Shorts playlist series structuring. | Author must refill the slot (regenerate, pick from overflow tray, or manually draft) before the batch can advance to Stage 02. | Authorizes slot deletion behavior in Studio state coordinator and backend slot endpoints. | `[ ] APPROVE`<br>`[ ] REJECT`<br>`[ ] AMEND` |
+| **DEC-A-05** | **Downstream Fan-Out from Batch Draft**<br>*Recommendation*: **Option B**. Stage 02 $\to$ Stage 03 Fan-Out. Approved aggregate decomposes at Stage 03 into $N$ standalone `Question` and `Script` entities linked by `batchId`. | Downstream Remotion rendering, audio synthesis, and social scheduling are inherently per-video workflows ($\le 58\text{s}$). Preserves downstream contracts (FC-003, FC-004, FC-012) unchanged. | Aggregate authoring cohesion in Stages 01–02 transitions to parallel video pipelines in Stages 03–15 without monolithic downstream refactoring. | Authorizes Stage 02 $\to$ Stage 03 workflow transition handler to spawn $N$ child production entities. | `[ ] APPROVE`<br>`[ ] REJECT`<br>`[ ] AMEND` |
+
+---
+
+#### 7.2.2 Gate B — Architecture Specifications & OD-02 Batch Runner
+
+| Deliverable / Decision | Current Technical Recommendation | Rationale & Architectural Invariants | Consequences & Trade-Offs | Exact Scope of Approval | Owner Decision Action |
+| :---: | :--- | :--- | :--- | :--- | :---: |
+| **S9-T05 Contract** | **Mode-Specific Content Contract**<br>Approve `Mode1BatchDraftAggregate` schema, stable slot IDs (`slt_<uuid>`), ordered slot array, typed validation envelopes (`ERR_*` / `WARN_*`), and non-fabricating legacy hydration contract. | Reuses canonical types (`options` map, 4-option MCQ, declared answer key, $\ge 5$ char proof). Prevents synthetic attribute fabrication on legacy draft resumption. | Explicit diagnostic findings surface for missing legacy attributes, requiring authenticated human review. | Authorizes TypeScript interfaces, DTOs, and validation schemas in `shared/` and `backend/` as binding for Phase C. | `[ ] APPROVE`<br>`[ ] REJECT`<br>`[ ] AMEND` |
+| **S9-T06 Design** | **Editor & Preview Interaction Design**<br>Approve Question Studio page interaction contract, 22-state machine, single-source-of-truth 9:16 vertical preview projection, direct issue navigation, and OCC conflict resolution modal. | Eliminates dual editable models. Synchronizes preview directly from in-memory canonical state. Strictly maintains Save Draft $\neq$ Submit for Verification. | Ensures non-destructive editing: local unsaved edits are never lost on network disconnects or OCC collisions. | Authorizes React component architecture, local hooks, and design system layout in `frontend/features/question-generation/` for Phase C. | `[ ] APPROVE`<br>`[ ] REJECT`<br>`[ ] AMEND` |
+| **S9-T07 Design** | **API, AI, Persistence & Workflow Integration Design**<br>Approve modular router structure (`mode1-batch.routes.ts`), `Mode1BatchController`, OCC `expectedVersion` compatibility bridge, idempotency caching, route capability vs. domain ownership attribution, and zero-exception GAR-02 rule. | Prevents route monolith expansion. Grounded in actual route middleware and service implementations. Identifies legacy override as a known runtime defect. | Mandates strict `expectedVersion` for OCC; establishes idempotency key replay cache for network retries. | Authorizes backend routing, controller delegation, and service boundaries for Phase C runtime build. | `[ ] APPROVE`<br>`[ ] REJECT`<br>`[ ] AMEND` |
+| **OD-02 Runner** | **Mode 1 Batch Dispatcher & Runner Orchestration**<br>Approve automated multi-prompt batch generation runner with candidate buffering (`overflowBuffer`) and bounded retries (max 1 shortfall retry; max 2 slot invalidity retries). | Automates candidate synthesis for counts $N \in \{5, 10, 15, 20\}$ while guarding against runaway LLM costs and rate limits. | Strictly distinguishes target batch runner architecture from existing verified single-short ($N=1$) runtime code. | Authorizes creation of batch dispatch runner service, retry bounds, and candidate buffer manager in Phase C. | `[ ] APPROVE`<br>`[ ] REJECT`<br>`[ ] AMEND` |
+
+---
+
+#### 7.2.3 Formal Gate Governance Status & Signatures
+
+| Governance Gate | Status | Prerequisite Criteria Satisfied | Remaining Approval Requirement |
+| :--- | :---: | :--- | :--- |
+| **GATE A (Requirements Baseline)** | **PREPARED FOR OWNER SIGN-OFF** | Tasks S9-T01 through S9-T04 complete; acceptance evidence verified; DEC-A-01..05 resolved with options and recommendations. | Requires formal Project Owner signature on `DEC-A-01` through `DEC-A-05`. |
+| **GATE B (Architecture & Design)** | **PREPARED FOR OWNER SIGN-OFF** | Tasks S9-T05 through S9-T07 complete; telemetry conflict authoritatively reconciled; modular file plan and idempotency matrix established. | Requires formal Project Owner signature on `S9-T05`, `S9-T06`, `S9-T07`, and `OD-02`. |
+| **PHASE C (Runtime Implementation)** | **AWAITING OWNER SIGN-OFF (UNAUTHORIZED)** | All specifications, contracts, and interaction models finalized. Zero technical blockers remain. | Implementation is strictly unauthorized until Gate A and Gate B signatures are formally affixed. |
 
 ```text
 ================================================================================
-SPRINT 9 FORMAL GATE SIGN-OFF REQUEST (PROJECT OWNER REVIEW)
+SPRINT 9 FORMAL GATE SIGN-OFF LEDGER (PROJECT OWNER EXECUTION BLOCK)
 ================================================================================
 Project: Burra Pariksha Content Management System (BP-CMS)
 Mode: Mode 1 (QUESTION_CHALLENGE_SHORT) Production Pipeline
 
-Phase A Decisions Submitted for Signature:
-[ ] DEC-A-01: Adopt Atomic Aggregate Document Model in question_drafts (Approved)
-[ ] DEC-A-02: Adopt Exact Match = ERROR, Levenshtein > 0.85 = WARNING (Approved)
-[ ] DEC-A-03: Adopt Non-Blocking Linter Visual Advisories (Approved)
-[ ] DEC-A-04: Adopt Discrete Count Immutability N in {5,10,15,20} on Deletion (Approved)
-[ ] DEC-A-05: Adopt Stage 02 -> Stage 03 Fan-Out to Standalone Entities (Approved)
+Phase A Decisions:
+[ ] DEC-A-01: Adopt Atomic Aggregate Document Model in question_drafts
+[ ] DEC-A-02: Adopt Exact Match = ERROR, Levenshtein > 0.85 = WARNING
+[ ] DEC-A-03: Adopt Non-Blocking Linter Visual Advisories
+[ ] DEC-A-04: Adopt Discrete Count Immutability N in {5,10,15,20} on Deletion
+[ ] DEC-A-05: Adopt Stage 02 -> Stage 03 Fan-Out to Standalone Entities
 
-Phase B Architecture Submitted for Signature:
-[ ] OD-02: Authorize Mode 1 Batch Generation Runner & Retry Orchestration (Approved)
-[ ] S9-T05: Approve Mode 1 Content Schema & Validation Envelope (Approved)
-[ ] S9-T06: Approve Studio Editor Lifecycle & 9:16 Preview Projection (Approved)
-[ ] S9-T07: Approve Modular Router, Idempotency & OCC Integration Design (Approved)
+Phase B Architecture & Execution Decisions:
+[ ] S9-T05: Approve Mode 1 Content Schema & Validation Envelope
+[ ] S9-T06: Approve Studio Editor Lifecycle & 9:16 Preview Projection
+[ ] S9-T07: Approve Modular Router, Idempotency & OCC Integration Design
+[ ] OD-02: Authorize Mode 1 Batch Generation Runner & Retry Orchestration
 
-Gate Signatures:
-GATE A (Requirements Baseline):      [   ] PENDING OWNER SIGNATURE
-GATE B (Architecture & Design):      [   ] PENDING OWNER SIGNATURE
+Gate Formal Closure Actions:
+GATE A (Requirements Baseline):      [ ] APPROVED    [X] PENDING OWNER REVIEW
+GATE B (Architecture & Design):      [ ] APPROVED    [X] PENDING OWNER REVIEW
+PHASE C (Runtime Implementation):    [ ] AUTHORIZED  [X] PENDING GATE SIGN-OFF
 
-Authorized Project Owner: _______________________    Date: ______________
+Authorized Project Owner: ____________________________________
+Signature:                ____________________________________
+Date of Execution:        ____________________________________
 ================================================================================
 ```
