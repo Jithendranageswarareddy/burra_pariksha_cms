@@ -47,7 +47,10 @@
     "test:s8-t18:integration": "tsx tests/integration/s8-t18-firestore-persistence-recovery.integration.test.ts",
     "test:s9-t18": "tsx tests/integration/question-generation/s9-t18-persistence-authorization-workflow.integration.test.ts",
     "test:s9-t19:browser": "tsx tests/e2e/question-generation/s9-t19-question-challenge-short-browser.e2e.test.ts",
-    "test:isolation": "tsx tests/integration/s9-isolation-guard.test.ts"
+    "test:isolation": "tsx tests/integration/s9-isolation-guard.test.ts",
+    "test:s10-t16": "tsx tests/unit/question-generation/s10-t16-topic-introduction.unit.test.ts",
+    "test:s10-t17": "tsx tests/unit/question-generation/s10-t17-explained-questions.unit.test.ts",
+    "test:s10-t18": "tsx tests/integration/question-generation/s10-t18-multimode-persistence-isolation.integration.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

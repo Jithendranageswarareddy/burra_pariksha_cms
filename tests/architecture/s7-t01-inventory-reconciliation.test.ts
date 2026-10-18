@@ -93,6 +93,18 @@ export const AUTHORITATIVE_APPROVED_POST_S7_ADDITIONS: readonly string[] = [
   'tests/e2e/question-generation/s9-t19-question-challenge-short-browser.e2e.test.ts',
   'docs/testing/sprint-9-gate-d-verification.md',
   'tests/integration/s9-isolation-guard.test.ts',
+  'docs/sprints/sprint-10/S10-GATE-CLOSURE-REPORT.md',
+  'docs/sprints/sprint-10/S10-MASTER-EXECUTION-PROGRESS.md',
+  'docs/sprints/sprint-10/S10-T01-DEPENDENCY-AUDIT.md',
+  'docs/sprints/sprint-10/S10-T02-TOPIC-INTRODUCTION-SPEC.md',
+  'docs/sprints/sprint-10/S10-T03-EXPLAINED-QUESTIONS-SPEC.md',
+  'docs/sprints/sprint-10/S10-T04-SHARED-WORKFLOW-PAGE-RULES.md',
+  'docs/sprints/sprint-10/S10-T05-TOPIC-INTRODUCTION-CONTRACT.md',
+  'docs/sprints/sprint-10/S10-T06-EXPLAINED-QUESTIONS-CONTRACT.md',
+  'docs/sprints/sprint-10/S10-T07-EDITOR-PREVIEW-INTEGRATION-SPEC.md',
+  'tests/integration/question-generation/s10-t18-multimode-persistence-isolation.integration.test.ts',
+  'tests/unit/question-generation/s10-t16-topic-introduction.unit.test.ts',
+  'tests/unit/question-generation/s10-t17-explained-questions.unit.test.ts',
 ];
 
 const EXPECTED_HISTORICAL_S7_COUNT = 713;
