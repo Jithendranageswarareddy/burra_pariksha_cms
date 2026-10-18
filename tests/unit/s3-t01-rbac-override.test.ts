@@ -100,8 +100,8 @@ async function runSprint3AuthorizationTests() {
     assert.ok(decision.errorMessage?.includes('GAR-02'));
   });
 
-  // --- Test 3: Admin Audited Override is ALLOWED with Valid Reason ---
-  test('3. Admin CAN approve own artifact via Audited Administrative Override', () => {
+  // --- Test 3: Admin Self-Approval is BLOCKED under strict GAR-02 (Zero-Bypass) ---
+  test('3. Admin CANNOT approve own artifact even with override attempt (strict GAR-02)', () => {
     const adminActor = {
       id: 'USR-ADMIN-01',
       role: CanonicalRbacRole.ADMIN,
@@ -126,14 +126,13 @@ async function runSprint3AuthorizationTests() {
       },
     });
 
-    assert.strictEqual(decision.allowed, true);
-    assert.strictEqual(decision.isOverride, true);
-    assert.strictEqual(decision.auditEvent?.verdict, 'ALLOWED_BY_ADMIN_OVERRIDE');
-    assert.strictEqual(decision.auditEvent?.overrideReason, 'Emergency broadcast schedule requires direct administrator verification');
+    assert.strictEqual(decision.allowed, false);
+    assert.strictEqual(decision.errorCode, AuthorizationErrorCode.FORBIDDEN_BY_SEGREGATION_OF_DUTIES);
+    assert.ok(decision.errorMessage?.includes('GAR-02'));
   });
 
-  // --- Test 4: Admin Override without Reason is REJECTED ---
-  test('4. Admin Override without mandatory reason (< 10 chars) is strictly rejected', () => {
+  // --- Test 4: Missing authorId Fails Closed (Cannot Enable Silent Self-Approval) ---
+  test('4. Missing author identity strictly fails closed on verification/approval', () => {
     const adminActor = {
       id: 'USR-ADMIN-01',
       role: CanonicalRbacRole.ADMIN,
@@ -146,54 +145,38 @@ async function runSprint3AuthorizationTests() {
       action: AuthorizationAction.APPROVE,
       targetContext: {
         resourceId: 'BP-DFT-200',
-        authorUserId: 'USR-ADMIN-01',
-        createdBy: 'USR-ADMIN-01',
         stageNumber: 2,
-        override: {
-          isOverride: true,
-          confirmedByAdmin: true,
-          reason: 'too short', // < 10 characters
-          overrideActionType: 'ADMIN_APPROVAL_OVERRIDE',
-        },
       },
     });
 
     assert.strictEqual(decision.allowed, false);
     assert.strictEqual(decision.errorCode, AuthorizationErrorCode.FORBIDDEN_BY_SEGREGATION_OF_DUTIES);
-    assert.ok(decision.errorMessage?.includes('minimum 10 characters'));
+    assert.ok(decision.errorMessage?.includes('missing authorId'));
   });
 
-  // --- Test 5: Non-Admin Attempting Override is REJECTED ---
-  test('5. Non-Admin attempting override is strictly rejected', () => {
-    const reviewerActor = {
-      id: 'USR-REV-01',
-      role: CanonicalRbacRole.QA_REVIEWER,
-      roles: [CanonicalRbacRole.QA_REVIEWER],
+  // --- Test 5: Admin CAN Approve Another User\'s Item as Independent Reviewer ---
+  test('5. Admin CAN approve another user\'s artifact as an independent reviewer', () => {
+    const adminActor = {
+      id: 'USR-ADMIN-01',
+      role: CanonicalRbacRole.ADMIN,
+      roles: [CanonicalRbacRole.ADMIN],
     };
 
     const decision = evaluateAuthorization({
-      actor: reviewerActor,
+      actor: adminActor,
       resource: AuthorizationResource.QUESTION,
       action: AuthorizationAction.APPROVE,
       targetContext: {
         resourceId: 'BP-DFT-300',
-        authorUserId: 'USR-REV-01',
-        createdBy: 'USR-REV-01',
+        authorUserId: 'USR-CREATOR-99',
+        createdBy: 'USR-CREATOR-99',
         stageNumber: 2,
-        override: {
-          isOverride: true,
-          confirmedByAdmin: true,
-          reason: 'Attempting override without admin credentials',
-          overrideActionType: 'ADMIN_APPROVAL_OVERRIDE',
-        },
       },
     });
 
-    assert.strictEqual(decision.allowed, false);
-    assert.strictEqual(decision.errorCode, AuthorizationErrorCode.FORBIDDEN_BY_SEGREGATION_OF_DUTIES);
-    assert.ok(decision.errorMessage?.includes('strictly restricted to System Administrators'));
+    assert.strictEqual(decision.allowed, true);
+    assert.strictEqual(decision.auditEvent?.verdict, 'ALLOWED');
   });
-
   // --- Test 6: Data Scope Resolution ---
   test('6. Data Scope correctly maps role authority', () => {
     const adminScope = centralAuthorizationService.getDataScope({
@@ -265,8 +248,8 @@ async function runSprint3AuthorizationTests() {
     );
 
     assert.strictEqual(adminUiDecision.state, UiActionState.DISABLED);
-    assert.strictEqual(adminUiDecision.isOverrideEligible, true);
-    assert.ok(adminUiDecision.reason?.includes('Administrator override available'));
+    assert.strictEqual(adminUiDecision.isOverrideEligible, false);
+    assert.ok(adminUiDecision.reason?.includes('GAR-02'));
 
     // Normal author looking at approval button for their own question
     const authorActor = {

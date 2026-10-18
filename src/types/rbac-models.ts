@@ -176,6 +176,7 @@ export function isHumanGatedStage(stage: number): stage is HumanGatedStageNumber
 
 export const ADMINISTRATIVE_CAPABILITIES: readonly CapabilityString[] = [
   'USER:ADMINISTER',
+  'USER:VIEW',
   'ROLE:ADMINISTER',
   'CAPABILITY:ADMINISTER',
   'CONFIGURATION:ADMINISTER',
@@ -183,6 +184,9 @@ export const ADMINISTRATIVE_CAPABILITIES: readonly CapabilityString[] = [
   'CONTENT:ARCHIVE',
   'MEDIA_ASSET:RESTORE',
   'QUESTION:DELETE',
+  'WORKFLOW_INSTANCE:ASSIGN',
+  'WORKFLOW_INSTANCE:CANCEL',
+  'WORKFLOW_INSTANCE:RETRY',
 ] as const;
 
 export function isAdministrativeCapability(capability: string): boolean {
@@ -295,7 +299,9 @@ export const ROLE_CAPABILITIES_MAP: Record<CanonicalRbacRole, readonly Capabilit
   ],
   [CanonicalRbacRole.ADMIN]: [
     ...BASE_UNIVERSAL_CAPABILITIES,
+    // Administrative & Governance capabilities
     'USER:ADMINISTER',
+    'USER:VIEW',
     'ROLE:ADMINISTER',
     'CAPABILITY:ADMINISTER',
     'CONFIGURATION:ADMINISTER',
@@ -303,34 +309,67 @@ export const ROLE_CAPABILITIES_MAP: Record<CanonicalRbacRole, readonly Capabilit
     'CONTENT:ARCHIVE',
     'MEDIA_ASSET:RESTORE',
     'QUESTION:DELETE',
-    // Oversight and supervisory capabilities across all 6 hubs
+    // Operational capabilities across all 15 workflow stages
+    // Stage 01 & Stage 02: Question generation, editing, submission, verification & approval
     'QUESTION:VIEW',
     'QUESTION:CREATE',
     'QUESTION:EDIT',
+    'QUESTION:SUBMIT',
+    'QUESTION_VERSION:CREATE',
+    'QUESTION_REVIEW:VERIFY',
     'QUESTION:APPROVE',
     'QUESTION:REJECT',
+    // Stage 03: Teleprompter & audience scripts
     'SCRIPT:VIEW',
+    'SCRIPT:CREATE',
+    'SCRIPT:EDIT',
+    'SCRIPT:SUBMIT',
+    'SCRIPT_VERSION:CREATE',
+    // Stage 04 & 05: Studio recording, video takes, and media references
     'VIDEO:VIEW',
     'VIDEO:EDIT',
+    'VIDEO_TAKE:CREATE',
+    'VIDEO_TAKE:VIEW',
+    'MEDIA_REFERENCE:UPLOAD',
+    // Stage 06 & 07: Video editing, review & QC approval
     'VIDEO_EDIT:CREATE',
+    'VIDEO_EDIT:EDIT',
+    'VIDEO_EDIT:SUBMIT',
     'VIDEO_EDIT:APPROVE',
     'VIDEO_EDIT:REJECT',
+    // Stage 08: Thumbnail design & packaging
     'THUMBNAIL:VIEW',
+    'THUMBNAIL:CREATE',
+    'THUMBNAIL:EDIT',
+    'THUMBNAIL:SUBMIT',
+    // Stage 09: Social review & quality sign-off
     'SOCIAL_REVIEW:REVIEW',
     'SOCIAL_REVIEW:APPROVE',
     'SOCIAL_REVIEW:REJECT',
+    // Stage 10: Multi-channel publishing packages
     'PUBLISHING_PACKAGE:VIEW',
+    'PUBLISHING_PACKAGE:CREATE',
+    'PUBLISHING_PACKAGE:EDIT',
     'PUBLISHING_PACKAGE:APPROVE',
+    // Stage 11 & 12: Publication scheduling, platform syndication & sync
     'PUBLICATION:SCHEDULE',
     'PUBLICATION:PUBLISH',
     'PUBLICATION:SYNC',
     'PLATFORM:VIEW',
+    // Stage 13, 14, 15: Analytics, performance reviews, intelligence insights
     'ANALYTICS_SNAPSHOT:VIEW',
+    'ANALYTICS_SNAPSHOT:EXPORT',
     'PERFORMANCE_RECORD:VIEW',
+    'PERFORMANCE_RECORD:REVIEW',
     'INTELLIGENCE_INSIGHT:VIEW',
+    'INTELLIGENCE_INSIGHT:APPROVE',
+    // Workflow management & lifecycle operations
     'CONTENT:CREATE',
     'CONTENT:EDIT',
     'WORKFLOW_INSTANCE:TRANSITION',
+    'WORKFLOW_INSTANCE:ASSIGN',
+    'WORKFLOW_INSTANCE:CANCEL',
+    'WORKFLOW_INSTANCE:RETRY',
   ],
 };
 

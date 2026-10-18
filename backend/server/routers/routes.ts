@@ -3610,7 +3610,7 @@ apiRouter.get(
       }
 
       // Restrict access using object authorization boundaries for non-admin/manager roles
-      const isManagerOrAdmin = actor.role === UserRole.ADMIN || actor.role === UserRole.CONTENT_MANAGER;
+      const isManagerOrAdmin = objectAuthService.isManagerOrAdmin(actor);
       if (!isManagerOrAdmin) {
         const isAuthorized = await objectAuthService.canAccessSocialPackage(actor, question);
         if (!isAuthorized) {
@@ -3772,7 +3772,7 @@ apiRouter.get(
       }
 
       // Restrict access using object authorization boundaries for non-admin/manager roles
-      const isManagerOrAdmin = actor.role === UserRole.ADMIN || actor.role === UserRole.CONTENT_MANAGER;
+      const isManagerOrAdmin = objectAuthService.isManagerOrAdmin(actor);
       if (!isManagerOrAdmin) {
         const isAuthorized = await objectAuthService.canAccessSocialPackage(actor, question);
         if (!isAuthorized) {
@@ -4336,7 +4336,7 @@ apiRouter.post('/planning/ai-recommendation', async (req: Request, res: Response
 apiRouter.get('/assignments', async (req: Request, res: Response) => {
   try {
     const authReq = req as AuthenticatedRequest;
-    const isManagerOrAdmin = authReq.user && [UserRole.ADMIN, UserRole.CONTENT_MANAGER].includes(authReq.user.role as UserRole);
+    const isManagerOrAdmin = authReq.user && objectAuthService.isManagerOrAdmin(authReq.user as any);
     let assigneeId = req.query.assigneeId as string;
     if (!isManagerOrAdmin && authReq.user) {
       assigneeId = authReq.user.id;
@@ -4423,7 +4423,7 @@ apiRouter.get('/assignments/:id', async (req: Request, res: Response) => {
     if (!assignment) {
       return res.status(404).json({ error: `Assignment ${id} not found` });
     }
-    const isManagerOrAdmin = authReq.user && [UserRole.ADMIN, UserRole.CONTENT_MANAGER].includes(authReq.user.role as UserRole);
+    const isManagerOrAdmin = authReq.user && objectAuthService.isManagerOrAdmin(authReq.user as any);
     if (!isManagerOrAdmin && authReq.user && assignment.assigneeId !== authReq.user.id) {
       return res.status(403).json({ error: 'Forbidden: You do not have access to view this assignment.' });
     }
@@ -4450,7 +4450,7 @@ apiRouter.post('/assignments/:id/start', async (req: Request, res: Response) => 
     const { id } = req.params;
     const authReq = req as AuthenticatedRequest;
     const assignment = await assignmentService.getAssignmentById(id);
-    const isManagerOrAdmin = authReq.user && [UserRole.ADMIN, UserRole.CONTENT_MANAGER].includes(authReq.user.role as UserRole);
+    const isManagerOrAdmin = authReq.user && objectAuthService.isManagerOrAdmin(authReq.user as any);
     if (!isManagerOrAdmin && authReq.user && assignment.assigneeId !== authReq.user.id) {
       return res.status(403).json({ error: 'Forbidden: You can only update your own assigned tasks.' });
     }
@@ -4468,7 +4468,7 @@ apiRouter.post('/assignments/:id/block', async (req: Request, res: Response) => 
     const { reason } = req.body;
     const authReq = req as AuthenticatedRequest;
     const assignment = await assignmentService.getAssignmentById(id);
-    const isManagerOrAdmin = authReq.user && [UserRole.ADMIN, UserRole.CONTENT_MANAGER].includes(authReq.user.role as UserRole);
+    const isManagerOrAdmin = authReq.user && objectAuthService.isManagerOrAdmin(authReq.user as any);
     if (!isManagerOrAdmin && authReq.user && assignment.assigneeId !== authReq.user.id) {
       return res.status(403).json({ error: 'Forbidden: You can only update your own assigned tasks.' });
     }
@@ -4485,7 +4485,7 @@ apiRouter.post('/assignments/:id/complete', async (req: Request, res: Response) 
     const { id } = req.params;
     const authReq = req as AuthenticatedRequest;
     const assignment = await assignmentService.getAssignmentById(id);
-    const isManagerOrAdmin = authReq.user && [UserRole.ADMIN, UserRole.CONTENT_MANAGER].includes(authReq.user.role as UserRole);
+    const isManagerOrAdmin = authReq.user && objectAuthService.isManagerOrAdmin(authReq.user as any);
     if (!isManagerOrAdmin && authReq.user && assignment.assigneeId !== authReq.user.id) {
       return res.status(403).json({ error: 'Forbidden: You can only update your own assigned tasks.' });
     }
@@ -5967,7 +5967,7 @@ apiRouter.get('/team/workload/:userId', requireRole([UserRole.ADMIN, UserRole.CO
 apiRouter.get('/my-work', async (req: Request, res: Response) => {
   try {
     const authReq = req as AuthenticatedRequest;
-    const isManagerOrAdmin = authReq.user && [UserRole.ADMIN, UserRole.CONTENT_MANAGER].includes(authReq.user.role as UserRole);
+    const isManagerOrAdmin = authReq.user && objectAuthService.isManagerOrAdmin(authReq.user as any);
     // Non-admin / non-manager can only access their own work
     let userId = authReq.user?.id || 'USR-001';
     if (isManagerOrAdmin && req.query.userId) {

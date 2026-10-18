@@ -92,7 +92,12 @@ export class WorkflowEngine implements IWorkflowEngine {
 
     if (isVerificationStep && isApprovalAction) {
       const authorId = item.authorId || (contentPayload?.authorId as string) || (contentPayload?.authorUserId as string);
-      if (authorId && authorId.trim() === actorContext.id.trim()) {
+      if (!authorId || !authorId.trim()) {
+        throw new ForbiddenError(
+          `Author identity cannot be verified (missing authorId). Segregation of duties (GAR-02) requires an identifiable author before approval/verification at Step ${currentStep}.`
+        );
+      }
+      if (authorId.trim() === actorContext.id.trim()) {
         throw new ForbiddenError(
           `Self-approval strictly prohibited under GAR-02 segregation of duties: Author (${authorId}) cannot approve their own work at Step ${currentStep}.`
         );
@@ -153,7 +158,10 @@ export class WorkflowEngine implements IWorkflowEngine {
       // Check GAR-02 if actor provided
       if (actorContext && rule.isVerificationGate) {
         const authorId = item.authorId;
-        if (authorId && authorId.trim() === actorContext.id.trim()) {
+        if (!authorId || !authorId.trim()) {
+          isAvailable = false;
+          blockedReason = 'Verification blocked (GAR-02): Author identity is missing. Independent verification requires an established author.';
+        } else if (authorId.trim() === actorContext.id.trim()) {
           isAvailable = false;
           blockedReason = 'Self-approval prohibited (GAR-02): Author cannot approve own work.';
         }

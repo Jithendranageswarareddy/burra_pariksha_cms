@@ -514,15 +514,12 @@ export class ObjectAuthorizationService {
     actor: ActorContext,
     videoId: string
   ): Promise<boolean> {
-    if (this.isManagerOrAdmin(actor)) return true;
     if (!videoId) return false;
-
-    if (!this.hasAnyRole(actor, [UserRole.REVIEWER, 'REVIEWER'])) return false;
 
     const video = await videosRepository.findById(videoId);
     if (!video) return false;
 
-    // Self-approval protection: Reviewer cannot be host/editor/creator of video/question
+    // Strict GAR-02: Reviewer/approver cannot be host, editor, or author of the video/question
     if (
       video.assignedHost === actor.id || video.assignedHost === actor.name ||
       video.assignedEditor === actor.id || video.assignedEditor === actor.name
@@ -532,8 +529,14 @@ export class ObjectAuthorizationService {
 
     if (video.questionId) {
       const question = await questionsRepository.findById(video.questionId);
-      if (question && question.authorId === actor.id) return false;
+      if (question && (question.authorId === actor.id || (question as any).createdBy === actor.id)) {
+        return false;
+      }
     }
+
+    if (this.isManagerOrAdmin(actor)) return true;
+
+    if (!this.hasAnyRole(actor, [UserRole.REVIEWER, 'REVIEWER', 'QA_REVIEWER', 'CONTENT_LEAD'])) return false;
 
     return await this.hasActiveAssignment(actor, 'VIDEO', videoId);
   }

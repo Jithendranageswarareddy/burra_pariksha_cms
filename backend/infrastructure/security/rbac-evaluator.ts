@@ -130,52 +130,27 @@ export function evaluateSegregationOfDuties(
   }
 
   if (!targetContext) {
-    return { allowed: true };
-  }
-
-  const authorId = targetContext.authorUserId || targetContext.createdBy;
-  if (authorId && actor.id === authorId) {
-    const actorRole = actor.role ? resolveBrownfieldRole(actor.role) : CanonicalRbacRole.QUESTION_AUTHOR;
-    const actorRoles = (actor.roles || [actorRole]).map((r) => resolveBrownfieldRole(r));
-    const isAdmin = actorRole === CanonicalRbacRole.ADMIN || actorRoles.includes(CanonicalRbacRole.ADMIN);
-
-    if (targetContext.override?.isOverride) {
-      if (!isAdmin) {
-        return {
-          allowed: false,
-          errorCode: AuthorizationErrorCode.FORBIDDEN_BY_SEGREGATION_OF_DUTIES,
-          errorMessage: 'Self-approval prohibited: Creator cannot approve their own artifact (GAR-02). Administrative override is strictly restricted to System Administrators.',
-        };
-      }
-
-      if (!targetContext.override.confirmedByAdmin) {
-        return {
-          allowed: false,
-          errorCode: AuthorizationErrorCode.FORBIDDEN_BY_SEGREGATION_OF_DUTIES,
-          errorMessage: 'Administrative override requires explicit confirmation.',
-        };
-      }
-
-      const reason = targetContext.override.reason ? targetContext.override.reason.trim() : '';
-      if (reason.length < 10) {
-        return {
-          allowed: false,
-          errorCode: AuthorizationErrorCode.FORBIDDEN_BY_SEGREGATION_OF_DUTIES,
-          errorMessage: 'Administrative override requires a mandatory justification reason (minimum 10 characters).',
-        };
-      }
-
-      // Valid audited administrative override
-      return {
-        allowed: true,
-        isOverride: true,
-      };
-    }
-
     return {
       allowed: false,
       errorCode: AuthorizationErrorCode.FORBIDDEN_BY_SEGREGATION_OF_DUTIES,
-      errorMessage: 'Self-approval prohibited: Creator cannot approve their own artifact (GAR-02).',
+      errorMessage: 'Author identity cannot be verified (missing target context). Segregation of duties (GAR-02) requires an identifiable author before approval/verification.',
+    };
+  }
+
+  const authorId = targetContext.authorUserId || targetContext.createdBy;
+  if (!authorId || !authorId.trim()) {
+    return {
+      allowed: false,
+      errorCode: AuthorizationErrorCode.FORBIDDEN_BY_SEGREGATION_OF_DUTIES,
+      errorMessage: 'Author identity cannot be verified (missing authorId). Segregation of duties (GAR-02) requires an identifiable author before approval/verification.',
+    };
+  }
+
+  if (actor.id === authorId.trim()) {
+    return {
+      allowed: false,
+      errorCode: AuthorizationErrorCode.FORBIDDEN_BY_SEGREGATION_OF_DUTIES,
+      errorMessage: 'Self-approval strictly prohibited: Author/creator cannot approve or verify their own artifact (GAR-02). System Administrators must assign an independent reviewer.',
     };
   }
 

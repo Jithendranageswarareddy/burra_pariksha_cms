@@ -486,16 +486,17 @@ export class SocialReviewService {
         }
       }
 
-      // Gate: Self-approval policy
+      // Gate: Self-approval policy (GAR-02)
       const authorId = (liveBundle.question as any).createdBy || (liveBundle.question as any).authorId || (liveBundle.question as any).userId;
-      if (authorId && String(authorId) === String(actor.id)) {
-        if (normalizedRole !== 'ADMIN') {
-          const err = new Error('Self-approval is forbidden. Final review must be performed by an independent reviewer or Content Manager.');
-          (err as any).statusCode = 403;
-          throw err;
-        } else {
-          isAdminOverride = true;
-        }
+      if (!authorId || !String(authorId).trim()) {
+        const err = new Error('Author identity cannot be verified (missing authorId). Segregation of duties (GAR-02) requires an identifiable author before final review.');
+        (err as any).statusCode = 403;
+        throw err;
+      }
+      if (String(authorId).trim() === String(actor.id).trim()) {
+        const err = new Error('Self-approval is forbidden (GAR-02). Final review must be performed by an independent reviewer or Content Manager.');
+        (err as any).statusCode = 403;
+        throw err;
       }
     }
 

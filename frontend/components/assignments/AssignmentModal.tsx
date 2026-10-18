@@ -414,6 +414,22 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
               />
             </div>
 
+            {newAssigneeId && (
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs space-y-1.5">
+                <div className="font-semibold text-amber-900 flex items-center gap-1.5">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>Consequential Action: Task Reassignment</span>
+                </div>
+                <div className="text-amber-800 space-y-1 text-[11px]">
+                  <p><strong>Item affected:</strong> {entityType} ({entityId || existingAssignment?.entityId})</p>
+                  <p><strong>Current Assignee:</strong> {users.find(u => u.id === existingAssignment?.assigneeId)?.name || existingAssignment?.assigneeId} &rarr; <strong>New Assignee:</strong> {users.find(u => u.id === newAssigneeId)?.name}</p>
+                  <p><strong>What is changing:</strong> Active task responsibility and editing locks will be transferred immediately.</p>
+                  <p><strong>Reversibility:</strong> Reversible. Administrators or leads can reassign this task again if needed.</p>
+                  <p><strong>Downstream consequences:</strong> The previous assignee will lose access to active submission controls, and the new assignee will receive handover notes in their active workspace.</p>
+                </div>
+              </div>
+            )}
+
             <div className="flex justify-end gap-3 pt-2">
               <button
                 type="button"
