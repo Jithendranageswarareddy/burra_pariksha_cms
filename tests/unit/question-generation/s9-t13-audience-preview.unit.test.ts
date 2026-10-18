@@ -60,6 +60,8 @@ export async function runAudiencePreviewUnitTests(): Promise<void> {
       },
       correctAnswer: 'A',
       explanation: 'వేగం = 72 * (5/18) = 20 m/s. కాలం = 200 / 20 = 10 సెకన్లు. బుర్ర ట్రిక్: 18 * 4 = 72 కాబట్టి 5 * 4 = 20 m/s.',
+      validationErrors: [],
+      revisionNumber: 1,
     },
     {
       slotId: 'slt_test_02',
@@ -75,6 +77,8 @@ export async function runAudiencePreviewUnitTests(): Promise<void> {
       },
       correctAnswer: 'B',
       explanation: 'లాభం = 600 - 500 = 100. లాభ శాతం = (100 / 500) * 100 = 20%.',
+      validationErrors: [],
+      revisionNumber: 1,
     },
     {
       slotId: 'slt_test_03',
@@ -90,6 +94,8 @@ export async function runAudiencePreviewUnitTests(): Promise<void> {
       },
       correctAnswer: 'B',
       explanation: 'కలిసి చేసే కాలం = (10 * 15) / (10 + 15) = 150 / 25 = 6 రోజులు.',
+      validationErrors: [],
+      revisionNumber: 1,
     },
   ];
 
@@ -114,6 +120,11 @@ export async function runAudiencePreviewUnitTests(): Promise<void> {
     explanation: 'వేగం = 72 * (5/18) = 20 m/s. కాలం = 200 / 20 = 10 సెకన్లు. బుర్ర ట్రిక్: 18 * 4 = 72 కాబట్టి 5 * 4 = 20 m/s.',
     topicId: 'top_arithmetic_01',
     subtopicId: 'sub_speed_distance_01',
+    difficulty: 'MEDIUM',
+    challengeType: 'ABCD',
+    presentationType: 'TEXT',
+    language: 'TELUGU',
+    realLifeContext: 'Real-world speed problem',
     tags: ['Aptitude', 'Telugu'],
   };
 
@@ -124,6 +135,7 @@ export async function runAudiencePreviewUnitTests(): Promise<void> {
     topicName: 'అంకగణితం (Arithmetic)',
     subtopicId: 'sub_speed_distance_01',
     subtopicName: 'కాలం & దూరం (Time & Distance)',
+    difficulty: 'MEDIUM',
     productionMode: 'QUESTION_CHALLENGE_SHORT',
     targetQuestionCount: 3,
     aspectRatio: '9:16',
@@ -139,8 +151,6 @@ export async function runAudiencePreviewUnitTests(): Promise<void> {
     workflowStage: 'STAGE_01_GENERATE',
     status: 'DRAFT',
     authorId: 'usr_internal_author_99',
-    reviewerId: 'usr_reviewer_internal',
-    reviewerNotes: 'Internal reviewer note: Verify step-by-step arithmetic.',
     slots: representativeBatchSlots,
     createdAt: '2026-10-18T10:00:00.000Z',
     updatedAt: '2026-10-18T10:30:00.000Z',
@@ -325,7 +335,7 @@ export async function runAudiencePreviewUnitTests(): Promise<void> {
   // --------------------------------------------------------------------------
   console.log('[Test 9] Incomplete and empty slots handled without fabricating artificial content...');
   const emptySlotAssembly: QuestionBatchAssembly = {
-    requestedCount: 3,
+    requestedCount: 5,
     inMemoryValidCount: 1,
     persistedValidCount: 1,
     rejectedCount: 0,
@@ -342,6 +352,8 @@ export async function runAudiencePreviewUnitTests(): Promise<void> {
         options: { a: '', b: '', c: '', d: '' },
         correctAnswer: '',
         explanation: '',
+        validationErrors: [],
+        revisionNumber: 1,
       },
     ],
     rejectedItems: [],
@@ -408,6 +420,14 @@ export async function runAudiencePreviewUnitTests(): Promise<void> {
     optionD: '140',
     correctAnswer: 'A',
     explanation: 'సంఖ్య = 45 / 0.30 = 150.',
+    topicId: 'top_arithmetic_01',
+    subtopicId: 'sub_percentages_01',
+    difficulty: 'MEDIUM',
+    challengeType: 'ABCD',
+    presentationType: 'TEXT',
+    language: 'TELUGU',
+    realLifeContext: 'Commercial math percentage',
+    tags: ['Arithmetic', 'Telugu'],
   };
 
   const singleProjection = projectToAudiencePreview({

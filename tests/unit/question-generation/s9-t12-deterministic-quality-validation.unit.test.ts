@@ -53,7 +53,7 @@ export async function runDeterministicQualityValidationTests(): Promise<void> {
     optionB: '15 సెకన్లు',
     optionC: '20 సెకన్లు',
     optionD: '25 సెకన్లు',
-    correctAnswer: 'A',
+    correctAnswer: 'A' as const,
     explanation: 'వేగం = 72 * (5/18) = 20 m/s. కాలం = 200 / 20 = 10 సెకన్లు. బుర్ర ట్రిక్: 18 * 4 = 72 కాబట్టి 5 * 4 = 20 m/s.',
     difficulty: DifficultyLevel.MEDIUM,
     language: QuestionLanguage.TELUGU,

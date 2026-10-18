@@ -51,7 +51,7 @@ function formatChoices(options?: any): AudienceChoiceItem[] {
 }
 
 function projectSlotToAudienceItem(slot: QuestionBatchSlot, index: number): AudienceQuestionItemProjection {
-  const qText = String(slot.questionText || slot.content || '').trim();
+  const qText = String(slot.questionText || (slot as any).content || '').trim();
   const rawOptions = slot.options || {
     a: (slot as any).optionA,
     b: (slot as any).optionB,
@@ -198,11 +198,12 @@ export function projectToAudiencePreview({
   } else {
     // Single candidate in editor
     const qText = String(candidate.questionText || '').trim();
+    const candAny = candidate as any;
     const choices = formatChoices({
-      a: candidate.optionA || candidate.options?.a,
-      b: candidate.optionB || candidate.options?.b,
-      c: candidate.optionC || candidate.options?.c,
-      d: candidate.optionD || candidate.options?.d,
+      a: candidate.optionA || candAny?.options?.a,
+      b: candidate.optionB || candAny?.options?.b,
+      c: candidate.optionC || candAny?.options?.c,
+      d: candidate.optionD || candAny?.options?.d,
     });
     const hasPrompt = qText.length >= 5;
     const hasAllChoices = choices.every((c) => c.text.length > 0);
