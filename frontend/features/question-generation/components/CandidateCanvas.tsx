@@ -22,7 +22,7 @@ import {
   Loader2,
   CheckCircle2,
 } from 'lucide-react';
-import { AiRefinementAction, QuestionLanguage } from '../../../../shared';
+import { AiRefinementAction, QuestionLanguage, validateStudioCandidate } from '../../../../shared';
 import { StudioCandidate } from '../../../../shared/contracts/question-generation';
 
 interface CandidateCanvasProps {
@@ -48,6 +48,8 @@ export const CandidateCanvas: React.FC<CandidateCanvasProps> = ({
   onGenerate,
   onManualDraft,
 }) => {
+  const validationErrors = validateStudioCandidate(candidate);
+
   return (
     <div className="space-y-3">
       {/* CANVAS HEADER */}
@@ -187,6 +189,9 @@ export const CandidateCanvas: React.FC<CandidateCanvasProps> = ({
               placeholder="స్పష్టమైన ప్రశ్న మరియు లెక్క ఇక్కడ రాయండి..."
               className="w-full text-xs font-medium text-slate-900 bg-slate-50 border border-slate-200 rounded-lg p-2.5 focus:border-indigo-500 focus:outline-hidden font-telugu"
             />
+            {validationErrors.questionText && (
+              <p role="alert" className="mt-1 text-[10px] text-rose-600">{validationErrors.questionText}</p>
+            )}
           </div>
 
           {/* 4 OPTIONS WITH CORRECT ANSWER RADIO */}
@@ -219,6 +224,9 @@ export const CandidateCanvas: React.FC<CandidateCanvasProps> = ({
                       onChange={() => onUpdateField('correctAnswer', 'A')}
                       className="w-3 h-3 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
                     />
+                    {validationErrors.optionA && (
+                      <p role="alert" className="mt-1 text-[10px] text-rose-600">{validationErrors.optionA}</p>
+                    )}
                     <span className="text-[11px] font-bold text-slate-800">Option A / ఎ</span>
                   </div>
                   {candidate.correctAnswer === 'A' && (
@@ -235,6 +243,9 @@ export const CandidateCanvas: React.FC<CandidateCanvasProps> = ({
                   placeholder="Option A value"
                   className="w-full font-telugu text-xs font-medium text-slate-900 bg-white px-2 py-1 rounded border border-slate-200 focus:border-indigo-500 focus:outline-hidden"
                 />
+                {validationErrors.optionB && (
+                  <p role="alert" className="mt-1 text-[10px] text-rose-600">{validationErrors.optionB}</p>
+                )}
               </div>
 
               {/* Option B */}
@@ -255,6 +266,9 @@ export const CandidateCanvas: React.FC<CandidateCanvasProps> = ({
                       onChange={() => onUpdateField('correctAnswer', 'B')}
                       className="w-3 h-3 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
                     />
+                    {validationErrors.optionC && (
+                      <p role="alert" className="mt-1 text-[10px] text-rose-600">{validationErrors.optionC}</p>
+                    )}
                     <span className="text-[11px] font-bold text-slate-800">Option B / బి</span>
                   </div>
                   {candidate.correctAnswer === 'B' && (
@@ -271,6 +285,9 @@ export const CandidateCanvas: React.FC<CandidateCanvasProps> = ({
                   placeholder="Option B value"
                   className="w-full font-telugu text-xs font-medium text-slate-900 bg-white px-2 py-1 rounded border border-slate-200 focus:border-indigo-500 focus:outline-hidden"
                 />
+                {validationErrors.optionD && (
+                  <p role="alert" className="mt-1 text-[10px] text-rose-600">{validationErrors.optionD}</p>
+                )}
               </div>
 
               {/* Option C */}
@@ -359,6 +376,9 @@ export const CandidateCanvas: React.FC<CandidateCanvasProps> = ({
               placeholder="వివరణ మరియు బుర్ర ట్రిక్ ఇక్కడ రాయండి..."
               className="w-full text-xs font-medium text-slate-900 bg-slate-50 border border-slate-200 rounded-lg p-2.5 focus:border-indigo-500 focus:outline-hidden font-telugu"
             />
+            {validationErrors.explanation && (
+              <p role="alert" className="mt-1 text-[10px] text-rose-600">{validationErrors.explanation}</p>
+            )}
           </div>
 
           {/* MATH VERIFICATION BADGE */}

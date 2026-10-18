@@ -267,8 +267,8 @@ export const ExplainedQuestionsWorkspace: React.FC<ExplainedQuestionsWorkspacePr
               </h4>
             </div>
             <div className="flex items-center gap-1">
-              <button type="button" disabled={activeQuestionIndex <= 1} onClick={() => onReorderQuestion(activeQuestionIndex - 1, activeQuestionIndex - 2)} className="px-2 py-1 text-[10px] rounded border border-slate-200 disabled:opacity-40">Move up</button>
-              <button type="button" disabled={activeQuestionIndex >= targetQuestionCount} onClick={() => onReorderQuestion(activeQuestionIndex - 1, activeQuestionIndex)} className="px-2 py-1 text-[10px] rounded border border-slate-200 disabled:opacity-40">Move down</button>
+              <button type="button" disabled={activeQuestionIndex <= 1} onClick={() => { onReorderQuestion(activeQuestionIndex - 1, activeQuestionIndex - 2); onSelectTab(activeQuestionIndex - 1); }} className="px-2 py-1 text-[10px] rounded border border-slate-200 disabled:opacity-40">Move up</button>
+              <button type="button" disabled={activeQuestionIndex >= targetQuestionCount} onClick={() => { onReorderQuestion(activeQuestionIndex - 1, activeQuestionIndex); onSelectTab(activeQuestionIndex + 1); }} className="px-2 py-1 text-[10px] rounded border border-slate-200 disabled:opacity-40">Move down</button>
             </div>
             <div className="flex items-center gap-2 text-xs">
               <button

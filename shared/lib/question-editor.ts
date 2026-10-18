@@ -12,7 +12,10 @@ export function validateExplainedQuestion(
     const value = question.options ? question.options[key] : question[optionField];
     if (!value?.trim()) errors[`option${key.toUpperCase()}`] = `Option ${key.toUpperCase()} is required.`;
   }
-  const options = ['a', 'b', 'c', 'd'].map((key) => (question.options?.[key as 'a' | 'b' | 'c' | 'd'] || '').trim().toLowerCase());
+  const options = ['a', 'b', 'c', 'd'].map((key) => {
+    const optionField = `option${key.toUpperCase()}` as 'optionA' | 'optionB' | 'optionC' | 'optionD';
+    return (question.options?.[key as 'a' | 'b' | 'c' | 'd'] || question[optionField] || '').trim().toLowerCase();
+  });
   if (options.every(Boolean) && new Set(options).size !== 4) {
     errors.options = 'Options must be distinct.';
   }
@@ -21,6 +24,26 @@ export function validateExplainedQuestion(
   }
   if (!question.explanation?.trim()) errors.explanation = 'Explanation is required.';
   return errors;
+}
+
+export function validateStudioCandidate(candidate: {
+  questionText?: string;
+  optionA?: string;
+  optionB?: string;
+  optionC?: string;
+  optionD?: string;
+  correctAnswer?: string;
+  explanation?: string;
+}): Record<string, string> {
+  return validateExplainedQuestion({
+    questionText: candidate.questionText || '',
+    optionA: candidate.optionA || '',
+    optionB: candidate.optionB || '',
+    optionC: candidate.optionC || '',
+    optionD: candidate.optionD || '',
+    correctAnswer: candidate.correctAnswer as ExplainedQuestionItem['correctAnswer'],
+    explanation: candidate.explanation || '',
+  });
 }
 
 export function reorderExplainedQuestions(
