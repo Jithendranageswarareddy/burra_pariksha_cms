@@ -40,7 +40,7 @@ import {
 import {
   projectToAudiencePreview,
 } from '../../../shared/lib/audience-preview-projection';
-import {
+import type {
   AudiencePreviewSourceVersion,
 } from '../../../shared/contracts/question-generation/audience-preview.contract';
 import { ConcurrencyConflictError } from '../../../src/lib/errors';
@@ -316,6 +316,7 @@ export async function runDraftResumptionUnitTests(): Promise<void> {
     await questionGenerationService.saveDraft({
       id: createdDraft.id,
       version: postRefreshDraft.version,
+      difficulty: 'Intermediate',
       topicId: '', // Invalid!
       subtopicId: 'SUB-01',
       questionText: inMemoryWorkingCopy.questionText,
@@ -442,6 +443,17 @@ export async function runDraftResumptionUnitTests(): Promise<void> {
   // --------------------------------------------------------------------------
   console.log('[Scenario 14] Restore the correct saved-versus-unsaved audience preview source...');
   // Saved draft projection
+  const savedBatchAssembly: QuestionBatchAssembly = {
+    requestedCount: 5,
+    inMemoryValidCount: 5,
+    persistedValidCount: 5,
+    rejectedCount: 0,
+    overflowCount: 0,
+    batchStatus: 'COMPLETE',
+    slots: step4!.slots || [],
+    rejectedItems: [],
+  };
+
   const savedProjection = projectToAudiencePreview({
     candidate: {
       questionText: step4!.questionText,
@@ -455,12 +467,12 @@ export async function runDraftResumptionUnitTests(): Promise<void> {
       targetQuestionCount: step4!.targetQuestionCount,
       aspectRatio: step4!.aspectRatio,
     },
-    slots: step4!.slots,
-    sourceVersion: AudiencePreviewSourceVersion.SAVED,
+    batchAssembly: savedBatchAssembly,
+    sourceVersion: 'SAVED_RECORD',
     savedDraft: step4,
   });
 
-  assert.strictEqual(savedProjection.sourceVersion, AudiencePreviewSourceVersion.SAVED);
+  assert.strictEqual(savedProjection.sourceVersion, 'SAVED_RECORD');
   assert.strictEqual(savedProjection.totalQuestions, 5);
   // Verify audience projection excludes internal correct answers and explanations
   assert.strictEqual((savedProjection.questions[0] as any).correctAnswer, undefined, 'Audience preview must NOT leak correctAnswer');
@@ -470,12 +482,23 @@ export async function runDraftResumptionUnitTests(): Promise<void> {
 
   // Unsaved modifications projection
   const unsavedEditedSlots: QuestionBatchSlot[] = [
-    ...step4!.slots!.map((s, idx) =>
+    ...(step4!.slots || []).map((s, idx) =>
       idx === 0
         ? { ...s, questionText: 'తాత్కాలిక అన్‌సేవ్డ్ ఎడిట్ ప్రశ్న' }
         : s
     ),
   ];
+
+  const unsavedBatchAssembly: QuestionBatchAssembly = {
+    requestedCount: 5,
+    inMemoryValidCount: 5,
+    persistedValidCount: 5,
+    rejectedCount: 0,
+    overflowCount: 0,
+    batchStatus: 'COMPLETE',
+    slots: unsavedEditedSlots,
+    rejectedItems: [],
+  };
 
   const unsavedProjection = projectToAudiencePreview({
     candidate: {
@@ -490,14 +513,14 @@ export async function runDraftResumptionUnitTests(): Promise<void> {
       targetQuestionCount: step4!.targetQuestionCount,
       aspectRatio: step4!.aspectRatio,
     },
-    slots: unsavedEditedSlots,
-    sourceVersion: AudiencePreviewSourceVersion.UNSAVED,
+    batchAssembly: unsavedBatchAssembly,
+    sourceVersion: 'UNSAVED_EDITS',
     savedDraft: step4,
   });
 
-  assert.strictEqual(unsavedProjection.sourceVersion, AudiencePreviewSourceVersion.UNSAVED);
-  assert.strictEqual(unsavedProjection.questions[0].prompt, 'తాత్కాలిక అన్‌సేవ్డ్ ఎడిట్ ప్రశ్న');
-  assert.notStrictEqual(savedProjection.questions[0].prompt, unsavedProjection.questions[0].prompt, 'Saved vs Unsaved projection prompts must remain isolated');
+  assert.strictEqual(unsavedProjection.sourceVersion, 'UNSAVED_EDITS');
+  assert.strictEqual(unsavedProjection.questions[0].questionText, 'తాత్కాలిక అన్‌సేవ్డ్ ఎడిట్ ప్రశ్న');
+  assert.notStrictEqual(savedProjection.questions[0].questionText, unsavedProjection.questions[0].questionText, 'Saved vs Unsaved projection question text must remain isolated');
   console.log('  PASS: Audience preview accurately isolated saved vs unsaved projection sources.');
 
   // Cleanup test artifacts
