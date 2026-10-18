@@ -107,6 +107,14 @@ export const AUTHORITATIVE_APPROVED_POST_S7_ADDITIONS: readonly string[] = [
   'tests/integration/question-generation/s10-t18-multimode-persistence-isolation.integration.test.ts',
   'tests/unit/question-generation/s10-t16-topic-introduction.unit.test.ts',
   'tests/unit/question-generation/s10-t17-explained-questions.unit.test.ts',
+  'docs/quality/HARDENING-BASELINE.md',
+  'docs/quality/HARDENING-ISSUE-REGISTER.md',
+  'docs/quality/HARDENING-PASS-1.md',
+  'docs/quality/HARDENING-PASS-2.md',
+  'docs/quality/HARDENING-PASS-3.md',
+  'docs/quality/HARDENING-PASS-4.md',
+  'docs/quality/HARDENING-PASS-5.md',
+  'docs/quality/HARDENING-FINAL-REPORT.md',
 ];
 
 const EXPECTED_HISTORICAL_S7_COUNT = 713;
