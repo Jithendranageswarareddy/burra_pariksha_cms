@@ -66,10 +66,14 @@ export function getAdminFirestore(): Firestore {
   }
 
   const app = getAdminApp();
-  const databaseId =
+  let databaseId =
     process.env.FIRESTORE_DATABASE_ID ||
     (process.env.FIRESTORE_EMULATOR_HOST ? '(default)' : (firebaseConfig as any).firestoreDatabaseId) ||
     '(default)';
+
+  if (databaseId.includes('burraparishacon')) {
+    databaseId = databaseId.replace('burraparishacon', 'burraparikshacon');
+  }
 
   adminFirestoreInstance = getFirestore(app, databaseId);
   return adminFirestoreInstance;

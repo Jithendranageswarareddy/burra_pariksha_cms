@@ -32,6 +32,14 @@ export function loadLocalEnv(): void {
   if (fs.existsSync(envPath)) {
     dotenv.config({ path: envPath, override: false, quiet: true } as any);
   }
+
+  // 3. Normalize known typographical discrepancy in FIRESTORE_DATABASE_ID
+  if (process.env.FIRESTORE_DATABASE_ID && process.env.FIRESTORE_DATABASE_ID.includes('burraparishacon')) {
+    process.env.FIRESTORE_DATABASE_ID = process.env.FIRESTORE_DATABASE_ID.replace(
+      'burraparishacon',
+      'burraparikshacon'
+    );
+  }
 }
 
 // Auto-execute on module import in Node runtime
