@@ -4,6 +4,8 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { CandidateCanvas } from '../../../frontend/features/question-generation/components/CandidateCanvas';
 import {
   reorderExplainedQuestions,
+  getReorderedActiveQuestionIndex,
+  updateExplainedQuestionList,
   validateExplainedQuestion,
   validateStudioCandidate,
 } from '../../../shared/lib/question-editor';
@@ -38,6 +40,16 @@ assert.equal(edited.find((item) => item.slotId === activeSlotId)?.questionText, 
 const movedActive = reorderExplainedQuestions(edited, 0, 1);
 assert.equal(movedActive[1].slotId, activeSlotId);
 assert.equal(movedActive[1].questionText, 'Edited while away');
+const updatedThroughProductionPath = updateExplainedQuestionList(
+  questions,
+  2,
+  { questionText: 'Edited through the editor state update' }
+);
+assert.equal(updatedThroughProductionPath[1].questionText, 'Edited through the editor state update');
+assert.equal(updatedThroughProductionPath[0].questionText, questions[0].questionText);
+assert.equal(updatedThroughProductionPath[1].slotId, questions[1].slotId);
+assert.equal(getReorderedActiveQuestionIndex(questions, 2, 1, 0), 1);
+assert.equal(getReorderedActiveQuestionIndex(questions, 2, 1, 2), 3);
 
 const invalid = validateExplainedQuestion({
   ...question('slt-invalid', 1),

@@ -17,6 +17,7 @@ import {
   validateProductionModeConfig,
   canonicalIdService,
   reorderExplainedQuestions,
+  updateExplainedQuestionList,
 } from '../../../../shared';
 import {
   GenerateCandidateInput,
@@ -1035,13 +1036,11 @@ export function useQuestionGeneration() {
 
       setCandidate((prev) => {
         const currentList = [...(prev.questions || [])];
-        const existingIdx = currentList.findIndex((q) => q.questionNumber === index);
-
-        if (existingIdx >= 0) {
-          currentList[existingIdx] = {
-            ...currentList[existingIdx],
-            ...updatedFields,
-            questionNumber: index,
+        const updatedList = updateExplainedQuestionList(currentList, index, updatedFields);
+        if (updatedList !== currentList) {
+          return {
+            ...prev,
+            questions: updatedList,
           };
         } else {
           currentList.push({

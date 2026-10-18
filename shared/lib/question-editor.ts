@@ -59,3 +59,30 @@ export function reorderExplainedQuestions(
   reordered.splice(toIndex, 0, moved);
   return reordered.map((question, index) => ({ ...question, questionNumber: index + 1 }));
 }
+
+export function updateExplainedQuestionList(
+  questions: ExplainedQuestionItem[],
+  questionNumber: number,
+  updatedFields: Partial<ExplainedQuestionItem>
+): ExplainedQuestionItem[] {
+  const existingIndex = questions.findIndex((question) => question.questionNumber === questionNumber);
+  if (existingIndex < 0) return questions;
+  return questions.map((question, index) =>
+    index === existingIndex
+      ? { ...question, ...updatedFields, questionNumber }
+      : question
+  );
+}
+
+export function getReorderedActiveQuestionIndex(
+  questions: ExplainedQuestionItem[],
+  activeQuestionNumber: number,
+  fromIndex: number,
+  toIndex: number
+): number {
+  const activeSlotId = questions[activeQuestionNumber - 1]?.slotId;
+  const reordered = reorderExplainedQuestions(questions, fromIndex, toIndex);
+  if (!activeSlotId) return activeQuestionNumber;
+  const activeIndex = reordered.findIndex((question) => question.slotId === activeSlotId);
+  return activeIndex >= 0 ? activeIndex + 1 : activeQuestionNumber;
+}
