@@ -322,6 +322,14 @@ export const ProductionJourneyProvider: React.FC<ProductionJourneyProviderProps>
   // Context Action Setters
   const setTaxonomy = useCallback((tax: Partial<ProductionContextTaxonomy>) => {
     setTaxonomyState((prev) => {
+      if (
+        (tax.topicId === undefined || tax.topicId === prev.topicId) &&
+        (tax.topicName === undefined || tax.topicName === prev.topicName) &&
+        (tax.subtopicId === undefined || tax.subtopicId === prev.subtopicId) &&
+        (tax.subtopicName === undefined || tax.subtopicName === prev.subtopicName)
+      ) {
+        return prev;
+      }
       const next = { ...prev, ...tax };
       if (next.topicId && next.subtopicId) {
         const res = validateTaxonomyLink(next.topicId, next.subtopicId);
@@ -335,6 +343,13 @@ export const ProductionJourneyProvider: React.FC<ProductionJourneyProviderProps>
 
   const setModeConfig = useCallback((cfg: Partial<ProductionContextModeConfig>) => {
     setModeConfigState((prev) => {
+      if (
+        (cfg.productionMode === undefined || cfg.productionMode === prev.productionMode) &&
+        (cfg.questionCount === undefined || cfg.questionCount === prev.questionCount) &&
+        (cfg.aspectRatio === undefined || cfg.aspectRatio === prev.aspectRatio)
+      ) {
+        return prev;
+      }
       const next = { ...prev, ...cfg };
       const res = validateProductionModeConfig(next.productionMode, next.questionCount, next.aspectRatio);
       if (!res.isValid && res.error) {
@@ -342,6 +357,10 @@ export const ProductionJourneyProvider: React.FC<ProductionJourneyProviderProps>
       }
       return next;
     });
+  }, []);
+
+  const setIsDirtySafe = useCallback((dirty: boolean) => {
+    setIsDirty((prev) => (prev === dirty ? prev : dirty));
   }, []);
 
   const setEntityIds = useCallback((ids: Partial<ProductionContextEntityIds>) => {
@@ -1419,7 +1438,7 @@ export const ProductionJourneyProvider: React.FC<ProductionJourneyProviderProps>
         setEntityIds,
         setWorkflow,
         setAssignment,
-        setIsDirty,
+        setIsDirty: setIsDirtySafe,
         setError: setContextError,
         resetContext,
 

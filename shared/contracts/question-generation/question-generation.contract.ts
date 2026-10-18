@@ -227,7 +227,7 @@ export function evaluateStep01CandidateState({
   configError,
 }: {
   hasCandidate: boolean;
-  candidate: Partial<StudioCandidate>;
+  candidate: Partial<StudioCandidate> & { batchAssembly?: QuestionBatchAssembly | null; slots?: any[] };
   configError?: string | null;
 }): Step01StateEvaluation {
   if (configError) {

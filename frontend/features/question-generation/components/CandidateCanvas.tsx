@@ -120,7 +120,11 @@ export const CandidateCanvas: React.FC<CandidateCanvasProps> = ({
   }, [audiencePreviewProjection, candidate, batchAssembly, savedDraft, currentSourceVersion]);
 
   const validationErrors = validateStudioCandidate(candidate);
-  const qualityResult = validateQuestionQuality(candidate);
+  const qualityResult = validateQuestionQuality({
+    ...candidate,
+    batchAssembly,
+    slots: batchAssembly?.slots,
+  });
 
   return (
     <div className="space-y-3">
@@ -385,6 +389,7 @@ export const CandidateCanvas: React.FC<CandidateCanvasProps> = ({
               </span>
             </div>
             <textarea
+              data-testid="question-text-textarea"
               value={candidate.questionText}
               onChange={(e) => onUpdateField('questionText', e.target.value)}
               rows={3}

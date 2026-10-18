@@ -90,6 +90,7 @@ export const AUTHORITATIVE_APPROVED_POST_S7_ADDITIONS: readonly string[] = [
   'tests/unit/question-generation/s9-t17-editing-validation-preview.unit.test.ts',
   'tests/unit/s9-t08-mode-generation-config.unit.test.ts',
   'tests/unit/system-admin-workflow-permissions.unit.test.ts',
+  'tests/e2e/question-generation/s9-t19-question-challenge-short-browser.e2e.test.ts',
   'docs/testing/sprint-9-gate-d-verification.md',
 ];
 

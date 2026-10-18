@@ -376,6 +376,8 @@ export function useQuestionGeneration() {
 
   // Shared Production Journey Context
   const prodContext = useContext(ProductionJourneyContext);
+  const prodContextRef = useRef(prodContext);
+  prodContextRef.current = prodContext;
 
   const contextMode = prodContext?.modeConfig?.productionMode;
   const hasValidContextMode = Boolean(contextMode && VALID_MODES.includes(contextMode));
@@ -573,14 +575,16 @@ export function useQuestionGeneration() {
         window.history.replaceState(null, '', newRelativePathQuery);
       }
 
+      setIsModeModalOpen(false);
+
       // Synchronize with shared production context
-      prodContext?.setModeConfig({
+      prodContextRef.current?.setModeConfig({
         productionMode: mode,
         questionCount: finalCount,
         aspectRatio: finalAspect,
       });
     },
-    [prodContext]
+    []
   );
 
   // Selected topic ref to avoid stale closures and prevent topic selection changes from retriggering taxonomy fetch
@@ -903,7 +907,7 @@ export function useQuestionGeneration() {
   // Synchronize initial URL mode config with ProductionContext
   useEffect(() => {
     if (isValidQueryMode && queryMode) {
-      prodContext?.setModeConfig({
+      prodContextRef.current?.setModeConfig({
         productionMode: queryMode,
         questionCount: queryCount !== undefined
           ? queryCount
@@ -911,26 +915,28 @@ export function useQuestionGeneration() {
         aspectRatio: queryAspect || (queryMode === 'EXPLAINED_QUESTIONS_VIDEO' ? '16:9' : '9:16'),
       });
     }
-  }, [isValidQueryMode, queryMode, queryCount, queryAspect, prodContext]);  // Synchronize active taxonomy selection with ProductionContext
+  }, [isValidQueryMode, queryMode, queryCount, queryAspect]);
+
+  // Synchronize active taxonomy selection with ProductionContext
   useEffect(() => {
     if (selectedTopic || selectedSubtopic) {
       const top = taxonomyTree.find((t: any) => t.id === selectedTopic);
       const sub =
         (currentSubtopics || []).find((s: any) => s.id === selectedSubtopic) ||
         (top?.subtopics || []).find((s: any) => s.id === selectedSubtopic);
-      prodContext?.setTaxonomy({
+      prodContextRef.current?.setTaxonomy({
         topicId: selectedTopic,
         topicName: top?.name || '',
         subtopicId: selectedSubtopic,
         subtopicName: sub?.name || '',
       });
     }
-  }, [selectedTopic, selectedSubtopic, taxonomyTree, currentSubtopics, prodContext]);
+  }, [selectedTopic, selectedSubtopic, taxonomyTree, currentSubtopics]);
 
   // Synchronize dirty state with ProductionContext
   useEffect(() => {
-    prodContext?.setIsDirty(isDirty);
-  }, [isDirty, prodContext]);
+    prodContextRef.current?.setIsDirty(isDirty);
+  }, [isDirty]);
 
   // Unsaved-work protection: window beforeunload warning when form is dirty
   useEffect(() => {
@@ -1176,10 +1182,12 @@ export function useQuestionGeneration() {
         productionMode: productionMode || undefined,
         targetQuestionCount,
         aspectRatio,
+        batchAssembly,
+        slots: batchAssembly?.slots,
       },
       configError,
     });
-  }, [hasCandidate, candidate, productionMode, targetQuestionCount, aspectRatio, configError]);
+  }, [hasCandidate, candidate, batchAssembly, productionMode, targetQuestionCount, aspectRatio, configError]);
 
   // Clean up timers on unmount
   useEffect(() => {
@@ -1549,8 +1557,8 @@ export function useQuestionGeneration() {
       window.history.replaceState(null, '', newRelativePathQuery);
 
       // Synchronize with shared production context
-      prodContext?.setEntityIds({ draftId: savedDraft.id });
-      prodContext?.setIsDirty(false);
+      prodContextRef.current?.setEntityIds({ draftId: savedDraft.id });
+      prodContextRef.current?.setIsDirty(false);
 
       setSaveSuccessMessage(`Draft saved successfully as ${savedDraft.id}. Ready for explicit submission.`);
       return savedDraft.id;

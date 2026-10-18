@@ -76,7 +76,10 @@ export const ActionBar: React.FC<ActionBarProps> = ({
         )}
 
         {savedDraftId && !isDirty && (
-          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-800 bg-emerald-50 px-2 py-1 rounded border border-emerald-200">
+          <span
+            data-testid="saved-draft-badge"
+            className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-800 bg-emerald-50 px-2 py-1 rounded border border-emerald-200"
+          >
             <CheckCircle className="w-3 h-3 text-emerald-600 shrink-0" />
             <span>Draft: {savedDraftId}</span>
           </span>
@@ -85,6 +88,7 @@ export const ActionBar: React.FC<ActionBarProps> = ({
         {/* 1. SAVE DRAFT (Persist only, no verification, no navigation) */}
         <button
           type="button"
+          data-testid="save-draft-btn"
           onClick={onSaveDraft}
           disabled={!workflowState.canContinue || isBusy}
           className="px-3.5 py-1.5 rounded-lg border border-indigo-300 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 font-bold text-xs shadow-2xs flex items-center gap-1.5 cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
@@ -107,6 +111,7 @@ export const ActionBar: React.FC<ActionBarProps> = ({
         {/* Strictly disabled unless a persisted draft exists, candidate is valid, no unsaved changes remain, and not busy */}
         <button
           type="button"
+          data-testid="submit-verification-btn"
           onClick={onSubmitForVerification}
           disabled={!savedDraftId || isDirty || !workflowState.canContinue || isBusy}
           className="px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-bold text-xs shadow-xs flex items-center gap-1.5 cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed"

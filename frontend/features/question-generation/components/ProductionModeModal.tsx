@@ -214,7 +214,7 @@ export const ProductionModeModal: React.FC<ProductionModeModalProps> = ({
       setModeConfigs(getInitialConfigs());
       setValidationError(null);
     }
-  }, [isOpen, initialMode, getInitialConfigs]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 

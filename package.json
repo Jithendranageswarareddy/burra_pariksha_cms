@@ -44,7 +44,9 @@
     "test:s8-t16": "tsx tests/unit/s8-t16-content-mode-workflow-rules.unit.test.ts",
     "test:s8-t17": "tsx tests/unit/s8-t17-dynamic-page-states-navigation.unit.test.ts",
     "test:s8-t18": "tsx tests/api/s8-t18-api-persistence-auth-recovery.api.test.ts",
-    "test:s8-t18:integration": "tsx tests/integration/s8-t18-firestore-persistence-recovery.integration.test.ts"
+    "test:s8-t18:integration": "tsx tests/integration/s8-t18-firestore-persistence-recovery.integration.test.ts",
+    "test:s9-t18": "tsx tests/integration/question-generation/s9-t18-persistence-authorization-workflow.integration.test.ts",
+    "test:s9-t19:browser": "tsx tests/e2e/question-generation/s9-t19-question-challenge-short-browser.e2e.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
