@@ -11,6 +11,11 @@ import {
   QuestionValidationStatus,
   VideoProductionStatus,
 } from '../constants/enums';
+import {
+  QuestionBatchRejectedItem,
+  QuestionBatchSlot,
+  QuestionBatchStatus,
+} from '../contracts/question-generation/question-generation.contract';
 
 export interface ExplainedQuestionItem {
   questionNumber: number;
@@ -136,6 +141,12 @@ export interface QuestionDraft {
   updatedAt: string;
   version?: number;
   isDeleted?: boolean;
+  batchStatus?: QuestionBatchStatus;
+  persistedValidCount?: number;
+  rejectedCount?: number;
+  overflowCount?: number;
+  slots?: QuestionBatchSlot[];
+  rejectedItems?: QuestionBatchRejectedItem[];
 }
 
 export interface QuestionCandidate {

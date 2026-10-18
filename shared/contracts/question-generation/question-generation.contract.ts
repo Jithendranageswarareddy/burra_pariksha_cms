@@ -106,6 +106,50 @@ export interface GenerationResult {
   validation?: any;
 }
 
+export type QuestionBatchStatus =
+  | 'EMPTY'
+  | 'GENERATING'
+  | 'PARTIAL'
+  | 'COMPLETE'
+  | 'ACCEPTED'
+  | 'FAILED';
+
+export type QuestionBatchSlotStatus =
+  | 'EMPTY'
+  | 'GENERATING'
+  | 'VALID'
+  | 'INVALID'
+  | 'MANUALLY_EDITED'
+  | 'ACCEPTED';
+
+export interface QuestionBatchSlot {
+  slotNumber: number;
+  slotId: string;
+  status: QuestionBatchSlotStatus;
+  questionText: string;
+  options: { a: string; b: string; c: string; d: string };
+  correctAnswer: 'A' | 'B' | 'C' | 'D' | '';
+  explanation: string;
+  isManuallyEdited: boolean;
+  validationErrors: string[];
+  revisionNumber: number;
+}
+
+export interface QuestionBatchRejectedItem {
+  candidateIndex: number;
+  reason: string;
+}
+
+export interface QuestionBatchAssembly {
+  requestedCount: 5 | 10 | 15 | 20;
+  persistedValidCount: number;
+  rejectedCount: number;
+  overflowCount: number;
+  batchStatus: QuestionBatchStatus;
+  slots: QuestionBatchSlot[];
+  rejectedItems: QuestionBatchRejectedItem[];
+}
+
 /**
  * Candidate data held in the Question Studio workspace.
  */
@@ -419,6 +463,12 @@ export interface SaveQuestionDraftInput {
   mathematicalVerification?: MathVerificationSummary;
   version?: number;
   workflowInstanceId?: string;
+  batchStatus?: QuestionBatchStatus;
+  persistedValidCount?: number;
+  rejectedCount?: number;
+  overflowCount?: number;
+  slots?: QuestionBatchSlot[];
+  rejectedItems?: QuestionBatchRejectedItem[];
 }
 
 /**
