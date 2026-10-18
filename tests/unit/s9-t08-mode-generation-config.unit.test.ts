@@ -679,7 +679,7 @@ async function runS9T08UnitTests() {
   }
 
   console.log(`\n========================================================================`);
-  console.log(`RESULTS: ${passedTests}/18 S9-T08 UNIT TESTS PASSED CLEANLY`);
+  console.log(`RESULTS: ${passedTests}/19 S9-T08 UNIT TESTS PASSED CLEANLY`);
   console.log(`========================================================================\n`);
   process.exit(0);
 }
