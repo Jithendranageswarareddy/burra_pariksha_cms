@@ -23,8 +23,10 @@ import {
   Step01StateEvaluation,
   evaluateStep01CandidateState,
   SubmitForVerificationResult,
+  QuestionBatchAssembly,
 } from '../../../../shared/contracts/question-generation';
 import { ExplainedQuestionItem } from '../../../../shared/types/question';
+import { assembleQuestionBatch } from '../../../../shared';
 import { questionsApi } from '../../../api/questions.api';
 import { taxonomyApi } from '../../../api/taxonomy.api';
 import { ProductionJourneyContext } from '../../../contexts/ProductionJourneyContext';
@@ -471,6 +473,7 @@ export function useQuestionGeneration() {
     const [hasCandidate, setHasCandidate] = useState(false);
     const [isDirty, setIsDirty] = useState(false);
     const [savedDraftId, setSavedDraftId] = useState<string | null>(null);
+    const [batchAssembly, setBatchAssembly] = useState<QuestionBatchAssembly | null>(null);
 
 
   // 3. Operation Lifecycle States
@@ -754,6 +757,17 @@ export function useQuestionGeneration() {
         };
 
         setCandidate(loadedCandidate);
+        if (draft.batchStatus && draft.slots) {
+          setBatchAssembly({
+            requestedCount: (draft.targetQuestionCount || 5) as 5 | 10 | 15 | 20,
+            persistedValidCount: draft.persistedValidCount || 0,
+            rejectedCount: draft.rejectedCount || 0,
+            overflowCount: draft.overflowCount || 0,
+            batchStatus: draft.batchStatus,
+            slots: draft.slots,
+            rejectedItems: draft.rejectedItems || [],
+          });
+        }
         setHasCandidate(true);
         setIsDirty(false); // Clean saved state!
         setSavedDraftId(draft.id);
@@ -974,11 +988,34 @@ export function useQuestionGeneration() {
       return updated;
     });
 
+    if (
+      batchAssembly &&
+      productionMode === 'QUESTION_CHALLENGE_SHORT' &&
+      ['questionText', 'optionA', 'optionB', 'optionC', 'optionD', 'correctAnswer', 'explanation'].includes(field)
+    ) {
+      setBatchAssembly((current) => {
+        if (!current || current.slots.length === 0) return current;
+        const slots = current.slots.map((slot, index) => {
+          if (index !== 0) return slot;
+          const updated = { ...slot, isManuallyEdited: true, status: 'MANUALLY_EDITED' as const };
+          if (field === 'questionText') updated.questionText = String(value);
+          if (field === 'optionA') updated.options = { ...updated.options, a: String(value) };
+          if (field === 'optionB') updated.options = { ...updated.options, b: String(value) };
+          if (field === 'optionC') updated.options = { ...updated.options, c: String(value) };
+          if (field === 'optionD') updated.options = { ...updated.options, d: String(value) };
+          if (field === 'correctAnswer') updated.correctAnswer = value;
+          if (field === 'explanation') updated.explanation = String(value);
+          return updated;
+        });
+        return { ...current, slots, batchStatus: current.persistedValidCount === current.requestedCount ? 'COMPLETE' : 'PARTIAL' };
+      });
+    }
+
     if (field === 'questionText') {
       triggerDuplicateCheck(value);
     }
     setHasCandidate(true);
-  }, [serverValidationResult, triggerDuplicateCheck]);
+  }, [batchAssembly, productionMode, serverValidationResult, triggerDuplicateCheck]);
 
   // Update an individual question in Mode 3 (EXPLAINED_QUESTIONS_VIDEO)
   const updateExplainedQuestion = useCallback(
@@ -1133,6 +1170,11 @@ export function useQuestionGeneration() {
       };
 
       setCandidate(newCandidate);
+      if (productionMode === 'QUESTION_CHALLENGE_SHORT' && targetQuestionCount > 1) {
+        setBatchAssembly(assembleQuestionBatch(targetQuestionCount as 5 | 10 | 15 | 20, [generated]));
+      } else {
+        setBatchAssembly(null);
+      }
       setHasCandidate(true);
       setIsDirty(true);
       setSavedDraftId(null); // Fresh candidate not yet saved
@@ -1254,6 +1296,12 @@ export function useQuestionGeneration() {
         generationLatencyMs: candidate.generationLatencyMs,
         isFallback: candidate.isFallback,
         mathematicalVerification: candidate.mathematicalVerification,
+        batchStatus: batchAssembly?.batchStatus,
+        persistedValidCount: batchAssembly?.persistedValidCount,
+        rejectedCount: batchAssembly?.rejectedCount,
+        overflowCount: batchAssembly?.overflowCount,
+        slots: batchAssembly?.slots,
+        rejectedItems: batchAssembly?.rejectedItems,
       });
 
       setSavedDraftId(savedDraft.id);
@@ -1364,6 +1412,7 @@ export function useQuestionGeneration() {
       realLifeContext,
       tags: ['Aptitude', 'Telugu'],
     });
+    setBatchAssembly(null);
 
     setHasCandidate(false);
     setIsDirty(false);
@@ -1434,6 +1483,7 @@ export function useQuestionGeneration() {
 
     // Candidate
     candidate,
+    batchAssembly,
     hasCandidate,
     isDirty,
     savedDraftId,

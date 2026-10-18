@@ -38,6 +38,7 @@ import {
   QuestionLanguage,
   ContentProductionMode,
 } from '../../../../shared';
+import { QuestionBatchAssembly } from '../../../../shared/contracts/question-generation';
 
 export interface GenerationConfigPanelProps {
   taxonomyTree: any[];
@@ -62,6 +63,7 @@ export interface GenerationConfigPanelProps {
   productionMode?: ContentProductionMode | string;
   targetQuestionCount?: number;
   aspectRatio?: '9:16' | '16:9' | string;
+  batchAssembly?: QuestionBatchAssembly | null;
   onQuestionCountChange?: (count: number) => void;
   onOpenModeModal?: () => void;
 
@@ -115,6 +117,7 @@ export const GenerationConfigPanel: React.FC<GenerationConfigPanelProps> = ({
   productionMode = 'QUESTION_CHALLENGE_SHORT',
   targetQuestionCount = 1,
   aspectRatio = '9:16',
+  batchAssembly = null,
   onQuestionCountChange,
   onOpenModeModal,
   onTopicChange,
@@ -574,6 +577,23 @@ export const GenerationConfigPanel: React.FC<GenerationConfigPanelProps> = ({
           </div>
         </div>
       </div>
+
+      {batchAssembly && (
+        <div
+          data-testid="batch-status-card"
+          className="p-2.5 rounded-lg bg-indigo-50 border border-indigo-200 text-[11px] text-indigo-900"
+        >
+          <div className="flex items-center justify-between font-bold">
+            <span>Batch status</span>
+            <span>{batchAssembly.batchStatus}</span>
+          </div>
+          <div className="mt-1 flex gap-3">
+            <span>Valid: {batchAssembly.persistedValidCount}/{batchAssembly.requestedCount}</span>
+            <span>Rejected: {batchAssembly.rejectedCount}</span>
+            {batchAssembly.overflowCount > 0 && <span>Overflow: {batchAssembly.overflowCount}</span>}
+          </div>
+        </div>
+      )}
 
       {/* 9. GENERATE ACTION BUTTON WITH DUPLICATE SUBMISSION PROTECTION */}
       <div className="pt-1">

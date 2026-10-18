@@ -64,6 +64,7 @@ export const QuestionStudioPage: React.FC = () => {
     activeQuestionIndex,
     setActiveQuestionIndex,
     candidate,
+    batchAssembly,
     hasCandidate,
     isDirty,
     savedDraftId,
@@ -241,6 +242,7 @@ export const QuestionStudioPage: React.FC = () => {
             productionMode={productionMode || 'QUESTION_CHALLENGE_SHORT'}
             targetQuestionCount={targetQuestionCount}
             aspectRatio={aspectRatio}
+            batchAssembly={batchAssembly}
             onQuestionCountChange={(cnt) =>
               setProductionModeConfig(productionMode || 'QUESTION_CHALLENGE_SHORT', cnt, aspectRatio)
             }

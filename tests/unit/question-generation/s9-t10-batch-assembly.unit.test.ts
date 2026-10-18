@@ -1,5 +1,5 @@
 import assert from 'node:assert';
-import { assembleQuestionBatch } from '../../../backend/domain/question-generation';
+import { assembleQuestionBatch } from '../../../shared';
 
 const valid = (text: string) => ({
   content: text,
