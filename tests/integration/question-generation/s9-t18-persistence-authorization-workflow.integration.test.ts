@@ -639,10 +639,7 @@ export async function runPersistenceAuthorizationWorkflowIntegrationTests(): Pro
   console.log('========================================================================\n');
 }
 
-// Standalone execution hook (for closure verification)
-if (require.main === module) {
-  runPersistenceAuthorizationWorkflowIntegrationTests().catch((err) => {
-    console.error('S9-T18 TEST EXECUTION FAILED:', err);
-    process.exitCode = 1;
-  });
-}
+runPersistenceAuthorizationWorkflowIntegrationTests().catch((err) => {
+  console.error('S9-T18 TEST EXECUTION FAILED:', err);
+  process.exitCode = 1;
+});

@@ -531,3 +531,8 @@ export async function runDraftResumptionUnitTests(): Promise<void> {
   console.log('ALL 14 S9-T14 DRAFT RESUMPTION UNIT TEST SCENARIOS PASSED (SPECIFIED)');
   console.log('============================================================\n');
 }
+
+runDraftResumptionUnitTests().catch((err) => {
+  console.error('S9-T14 TEST EXECUTION FAILED:', err);
+  process.exitCode = 1;
+});

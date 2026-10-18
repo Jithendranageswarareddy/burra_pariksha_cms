@@ -663,7 +663,9 @@ async function runS8T18FirestorePersistenceIntegrationTest() {
   }
 }
 
-runS8T18FirestorePersistenceIntegrationTest().catch((err) => {
-  console.error('\n❌ S8-T18 Cloud Firestore Persistence Integration Test Failed:', err);
-  process.exit(1);
-});
+if (process.argv[1] && process.argv[1].includes('s8-t18-firestore-persistence-recovery.integration.test')) {
+  runS8T18FirestorePersistenceIntegrationTest().catch((err) => {
+    console.error('\n❌ S8-T18 Cloud Firestore Persistence Integration Test Failed:', err);
+    process.exit(1);
+  });
+}

@@ -448,3 +448,8 @@ export async function runAudiencePreviewUnitTests(): Promise<void> {
   console.log('ALL 11 AUDIENCE PREVIEW UNIT TEST SCENARIOS DEFINED');
   console.log('============================================================');
 }
+
+runAudiencePreviewUnitTests().catch((err) => {
+  console.error('S9-T13 TEST EXECUTION FAILED:', err);
+  process.exitCode = 1;
+});

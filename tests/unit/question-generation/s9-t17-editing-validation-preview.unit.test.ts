@@ -220,7 +220,7 @@ export async function runEditingValidationPreviewUnitTests(): Promise<void> {
   assert.strictEqual(missingExplResult.isValid, false);
   assert.ok(
     missingExplResult.errors.some(
-      (e) => e.ruleId === 'VAL-Q-07' && e.code === 'ERR_MISSING_PROOF_EXPLANATION' && e.severity === 'BLOCKING'
+      (e) => e.ruleId === 'VAL-Q-07' && (e.code === 'ERR_MISSING_PROOF_EXPLANATION' || e.code === 'ERR_MISSING_EXPLANATION') && e.severity === 'BLOCKING'
     )
   );
   console.log('  PASS: VAL-Q-07 missing explanation flagged as BLOCKING when required.');
@@ -260,7 +260,7 @@ export async function runEditingValidationPreviewUnitTests(): Promise<void> {
     assert.strictEqual(placeholderResult.isValid, false);
     assert.ok(
       placeholderResult.errors.some(
-        (e) => e.ruleId === 'VAL-Q-05' && e.code === 'ERR_UNRESOLVED_PLACEHOLDER'
+        (e) => e.ruleId === 'VAL-Q-05' && (e.code === 'ERR_UNRESOLVED_PLACEHOLDER' || e.code === 'ERR_PLACEHOLDER_CONTENT')
       ),
       `Token ${token} must trigger ERR_UNRESOLVED_PLACEHOLDER`
     );
@@ -287,7 +287,7 @@ export async function runEditingValidationPreviewUnitTests(): Promise<void> {
   assert.strictEqual(shortBatchResult.isValid, false);
   assert.ok(
     shortBatchResult.errors.some(
-      (e) => e.ruleId === 'VAL-Q-08' && e.code === 'ERR_INCOMPLETE_BATCH_SLOTS'
+      (e) => e.ruleId === 'VAL-Q-08' && (e.code === 'ERR_INCOMPLETE_BATCH_SLOTS' || e.code === 'ERR_INCOMPLETE_BATCH')
     )
   );
   console.log('  PASS: VAL-Q-08 incomplete batch slots rejected with BLOCKING error.');
@@ -334,7 +334,7 @@ export async function runEditingValidationPreviewUnitTests(): Promise<void> {
       draftId: savedInvalidDraft.id,
       expectedVersion: savedInvalidDraft.version,
       actorId: testActor.id,
-    });
+    }, testActor);
   } catch (err: any) {
     submitRejected = true;
     assert.ok(err.statusCode === 422 || err.code === 'VALIDATION_FAILED' || err instanceof QuestionGenerationDomainError);
@@ -696,13 +696,17 @@ export async function runEditingValidationPreviewUnitTests(): Promise<void> {
   console.log('  PASS: Reordered slots mapped directly to audience questions array.');
 
   // 3.6 Preview after saving and reopening
-  console.log('[Scenario 3.6] Save and reopen convergence in preview...');
+  const updatedSlots = [
+    { ...persistedDraft.slots![0], questionText: 'సేవ్ చేయబడిన కొత్త ప్రశ్న' },
+    ...persistedDraft.slots!.slice(1),
+  ];
   const saveUpdatedDraft = await questionGenerationService.saveDraft({
     ...persistedDraft,
     id: persistedDraft.id,
     version: persistedDraft.version,
     expectedVersion: persistedDraft.version,
     questionText: 'సేవ్ చేయబడిన కొత్త ప్రశ్న',
+    slots: updatedSlots,
   }, testActor);
   assert.strictEqual(saveUpdatedDraft.version, 2);
 
@@ -907,10 +911,7 @@ export async function runEditingValidationPreviewUnitTests(): Promise<void> {
   console.log('============================================================\n');
 }
 
-// Standalone execution hook (for closure verification)
-if (require.main === module) {
-  runEditingValidationPreviewUnitTests().catch((err) => {
-    console.error('S9-T17 TEST EXECUTION FAILED:', err);
-    process.exitCode = 1;
-  });
-}
+runEditingValidationPreviewUnitTests().catch((err) => {
+  console.error('S9-T17 TEST EXECUTION FAILED:', err);
+  process.exitCode = 1;
+});

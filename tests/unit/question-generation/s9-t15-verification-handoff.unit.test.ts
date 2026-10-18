@@ -46,7 +46,7 @@ export async function runVerificationHandoffUnitTests(): Promise<void> {
   const authorActor = {
     id: 'USR-AUTHOR-T15',
     name: 'Author Raghu',
-    role: UserRole.CONTENT_WRITER,
+    role: UserRole.QUESTION_CREATOR,
   };
 
   const reviewerActor = {
@@ -414,3 +414,8 @@ export async function runVerificationHandoffUnitTests(): Promise<void> {
   console.log('ALL 15 S9-T15 VERIFICATION HANDOFF TEST SCENARIOS PASSED (SPECIFIED)');
   console.log('============================================================\n');
 }
+
+runVerificationHandoffUnitTests().catch((err) => {
+  console.error('S9-T15 TEST EXECUTION FAILED:', err);
+  process.exitCode = 1;
+});

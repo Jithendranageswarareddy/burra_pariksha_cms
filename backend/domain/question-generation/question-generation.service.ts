@@ -772,11 +772,12 @@ export class QuestionGenerationService {
       input.subtopicId === 'SUB-GEN' ||
       input.generationMode === 'RANDOM';
 
+    let subtopic: any = null;
     if (!isRandomSubtopic) {
       if (!input.subtopicId || typeof input.subtopicId !== 'string') {
         throw new QuestionGenerationDomainError('A valid subtopicId is required when saving draft.', 400);
       }
-      const subtopic = await this.resolveTaxonomySubtopic(input.subtopicId);
+      subtopic = await this.resolveTaxonomySubtopic(input.subtopicId);
       if (!subtopic) {
         throw new QuestionGenerationDomainError(`Subtopic with ID "${input.subtopicId}" does not exist in authoritative taxonomy.`, 400);
       }
@@ -1513,8 +1514,6 @@ export class QuestionGenerationService {
       actorRoles.includes(CanonicalRbacRole.CONTENT_LEAD) ||
       actorRole === CanonicalRbacRole.QA_REVIEWER ||
       actorRoles.includes(CanonicalRbacRole.QA_REVIEWER) ||
-      actorRole === CanonicalRbacRole.CONTENT_MANAGER ||
-      actorRoles.includes(CanonicalRbacRole.CONTENT_MANAGER) ||
       actorRole === CanonicalRbacRole.QUESTION_EDITOR ||
       actorRoles.includes(CanonicalRbacRole.QUESTION_EDITOR);
 

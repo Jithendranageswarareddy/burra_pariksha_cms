@@ -296,8 +296,8 @@ export async function runDeterministicQualityValidationTests(): Promise<void> {
     topicId: 'TOP-QA-01',
     subtopicId: 'SUB-01',
     productionMode: 'QUESTION_CHALLENGE_SHORT',
-    questionText: '   ', // Invalid empty prompt
-    optionA: '',
+    questionText: 'రైలు 72 కి.మీ/గం వేగంతో ప్రయాణిస్తూ 200 మీటర్ల ప్లాట్‌ఫారమ్‌ను ఎంత సమయంలో దాటుతుంది?',
+    optionA: '', // Missing option A triggers blocking validation error on submit
     optionB: 'B',
     correctAnswer: 'A',
     difficulty: DifficultyLevel.MEDIUM,
@@ -387,3 +387,8 @@ export async function runDeterministicQualityValidationTests(): Promise<void> {
   console.log('ALL 12 DETERMINISTIC QUESTION QUALITY TEST SCENARIOS DEFINED');
   console.log('============================================================');
 }
+
+runDeterministicQualityValidationTests().catch((err) => {
+  console.error('S9-T12 TEST EXECUTION FAILED:', err);
+  process.exitCode = 1;
+});

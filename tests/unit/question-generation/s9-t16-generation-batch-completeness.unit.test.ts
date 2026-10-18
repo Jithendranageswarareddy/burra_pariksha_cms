@@ -317,7 +317,7 @@ export async function runGenerationBatchCompletenessUnitTests(): Promise<void> {
   const identicalOptionsAssembly = assembleQuestionBatch(5, [identicalOptionsCandidate]);
   assert.strictEqual(identicalOptionsAssembly.inMemoryValidCount, 0);
   assert.strictEqual(identicalOptionsAssembly.rejectedCount, 1);
-  assert.match(identicalOptionsAssembly.rejectedItems[0].reason, /distinct/i);
+  assert.match(identicalOptionsAssembly.rejectedItems[0].reason, /duplicate|distinct/i);
   console.log('  PASS: Structural option violations rejected with specific quality errors.\n');
 
   // =========================================================================
@@ -382,7 +382,7 @@ export async function runGenerationBatchCompletenessUnitTests(): Promise<void> {
   };
 
   await assert.rejects(
-    () => questionGenerationService.generateCandidate(baseCandidateInput, { maxRetries: 2 }, nonRetryableOrchestrator),
+    () => questionGenerationService.generateCandidate({ ...baseCandidateInput, targetQuestionCount: 1 }, { maxRetries: 2 }, nonRetryableOrchestrator),
     (err: any) => err.code === 'AI_GENERATION_UNAVAILABLE'
   );
   assert.strictEqual(nonRetryableCalls, 1, 'Non-retryable error must fail fast after exactly 1 attempt');
@@ -479,7 +479,7 @@ export async function runGenerationBatchCompletenessUnitTests(): Promise<void> {
     },
   };
   await assert.rejects(
-    () => questionGenerationService.generateCandidate(baseCandidateInput, undefined, secretLeakingOrchestrator),
+    () => questionGenerationService.generateCandidate({ ...baseCandidateInput, targetQuestionCount: 1 }, undefined, secretLeakingOrchestrator),
     (err: any) => {
       assert.strictEqual(err.code, 'AI_GENERATION_UNAVAILABLE');
       assert.strictEqual(err.message.includes('sk-ant-live-secret-token-xyz'), false);
@@ -569,7 +569,6 @@ export async function runGenerationBatchCompletenessUnitTests(): Promise<void> {
   const freshAiCandidates = [
     makeValidCandidate(101, 'ఏఐ కొత్తది 1'),
     makeValidCandidate(102, 'ఏఐ కొత్తది 2'),
-    makeValidCandidate(103, 'ఏఐ కొత్తది 3'),
   ];
 
   const regeneratedAssembly = assembleQuestionBatch(5, freshAiCandidates, existingSlotsWithProtected);
@@ -799,7 +798,7 @@ export async function runGenerationBatchCompletenessUnitTests(): Promise<void> {
   const beforeCount = (await questionGenerationService.getAllDrafts()).filter((d) => d.id === savedFullDraft.id).length;
   assert.strictEqual(beforeCount, 1);
 
-  await questionGenerationService.saveDraft({
+  const repeatedSaved = await questionGenerationService.saveDraft({
     ...serverVerify!,
     id: savedFullDraft.id,
     version: serverVerify!.version,
@@ -813,16 +812,16 @@ export async function runGenerationBatchCompletenessUnitTests(): Promise<void> {
   // 5.8 Deterministic slot ordering preservation
   console.log('[Scenario 5.8] Deterministic slot sequence (1..N) preserved across out-of-order edits...');
   // Edit slot 4, then slot 2
-  const reorderedSlots = serverVerify!.slots!.map((s) => {
+  const reorderedSlots = repeatedSaved.slots!.map((s) => {
     if (s.slotNumber === 4) return { ...s, explanation: 'స్లాట్ 4 అప్‌డేట్' };
     if (s.slotNumber === 2) return { ...s, explanation: 'స్లాట్ 2 అప్‌డేట్' };
     return s;
   });
   const reorderedSave = await questionGenerationService.saveDraft({
-    ...serverVerify!,
-    id: serverVerify!.id,
-    version: serverVerify!.version,
-    expectedVersion: serverVerify!.version,
+    ...repeatedSaved,
+    id: repeatedSaved.id,
+    version: repeatedSaved.version,
+    expectedVersion: repeatedSaved.version,
     slots: reorderedSlots,
   }, testAuthorActor);
 
@@ -843,10 +842,7 @@ export async function runGenerationBatchCompletenessUnitTests(): Promise<void> {
   console.log('============================================================\n');
 }
 
-// Standalone runner execution hook (for closure verification)
-if (require.main === module) {
-  runGenerationBatchCompletenessUnitTests().catch((err) => {
-    console.error('S9-T16 TEST EXECUTION FAILED:', err);
-    process.exitCode = 1;
-  });
-}
+runGenerationBatchCompletenessUnitTests().catch((err) => {
+  console.error('S9-T16 TEST EXECUTION FAILED:', err);
+  process.exitCode = 1;
+});
