@@ -52,6 +52,7 @@ import { GenerationConfigPanel } from '../../frontend/features/question-generati
 import {
   resolveCascadingSubtopic,
   validateGenerationTaxonomy,
+  validateGenerationSettings,
   SubtopicSelectionController,
 } from '../../frontend/features/question-generation/hooks/useQuestionGeneration';
 import {
@@ -283,12 +284,46 @@ async function runS9T08UnitTests() {
     });
 
     // Change topic to 'top_reasoning_201'
-    controller.handleTopicChange('top_reasoning_201');
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () =>
+      new Response(JSON.stringify([]), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    try {
+      await controller.handleTopicChange('top_reasoning_201');
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
 
     assert.strictEqual(updatedTopic, 'top_reasoning_201');
     assert.strictEqual(updatedSubtopic, '', 'Subtopic must be cleared immediately when topic changes');
     assert.deepStrictEqual(currentSubtopicsList, [], 'Subtopics list must be cleared before loading new ones');
     pass('Test 7: Changing topic immediately clears incompatible subtopic and dependent options');
+  }
+
+  // Test 7b: Required generation settings are validated before submission
+  {
+    const missingLanguage = validateGenerationSettings(
+      'QUESTION_CHALLENGE_SHORT',
+      1,
+      '9:16',
+      '',
+      'Intermediate'
+    );
+    assert.strictEqual(missingLanguage.canGenerate, false);
+    assert.ok(missingLanguage.error?.includes('language'));
+
+    const invalidDifficulty = validateGenerationSettings(
+      'QUESTION_CHALLENGE_SHORT',
+      1,
+      '9:16',
+      QuestionLanguage.TELUGU,
+      'EXPERT'
+    );
+    assert.strictEqual(invalidDifficulty.canGenerate, false);
+    assert.ok(invalidDifficulty.error?.includes('difficulty'));
+    pass('Test 7b: Required language and difficulty settings block invalid generation');
   }
 
   // Test 8: Subtopic belonging to another topic cannot be submitted

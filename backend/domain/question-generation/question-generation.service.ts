@@ -234,17 +234,19 @@ export class QuestionGenerationService {
       }
 
       if (mode === 'QUESTION_CHALLENGE_SHORT') {
-        if (input.language) {
-          const validLangs = ['TELUGU', 'ENGLISH', 'TELUGU_ENGLISH'];
-          if (!validLangs.includes(String(input.language).toUpperCase())) {
-            return { isValid: false, error: `Invalid language '${input.language}' for Question Challenge Short.` };
-          }
+        const validLangs = ['TELUGU', 'ENGLISH', 'TELUGU_ENGLISH'];
+        if (!input.language) {
+          return { isValid: false, error: 'Language is required for Question Challenge Short.' };
         }
-        if (input.difficulty) {
-          const validDifficulties = ['EASY', 'MEDIUM', 'HARD', 'BASIC', 'INTERMEDIATE', 'ADVANCED'];
-          if (!validDifficulties.includes(String(input.difficulty).toUpperCase())) {
-            return { isValid: false, error: `Invalid difficulty '${input.difficulty}' for Question Challenge Short.` };
-          }
+        if (!validLangs.includes(String(input.language).toUpperCase())) {
+          return { isValid: false, error: `Invalid language '${input.language}' for Question Challenge Short.` };
+        }
+        const validDifficulties = ['EASY', 'MEDIUM', 'HARD', 'BASIC', 'INTERMEDIATE', 'ADVANCED'];
+        if (!input.difficulty) {
+          return { isValid: false, error: 'Difficulty is required for Question Challenge Short.' };
+        }
+        if (!validDifficulties.includes(String(input.difficulty).toUpperCase())) {
+          return { isValid: false, error: `Invalid difficulty '${input.difficulty}' for Question Challenge Short.` };
         }
       }
     }

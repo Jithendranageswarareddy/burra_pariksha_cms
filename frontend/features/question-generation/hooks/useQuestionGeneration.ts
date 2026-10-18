@@ -123,6 +123,49 @@ export function validateGenerationTaxonomy(
   return { canGenerate: true };
 }
 
+/**
+ * Validates the complete canonical generation configuration before the API call.
+ */
+export function validateGenerationSettings(
+  productionMode: ContentProductionMode | null,
+  targetQuestionCount: number | undefined,
+  aspectRatio: '9:16' | '16:9' | undefined,
+  language: string | undefined,
+  difficulty: string | undefined
+): { canGenerate: boolean; error?: string } {
+  if (!productionMode || !VALID_MODES.includes(productionMode)) {
+    return { canGenerate: false, error: 'Please select a valid production mode before generating.' };
+  }
+
+  const modeValidation = validateProductionModeConfig(
+    productionMode,
+    targetQuestionCount,
+    aspectRatio
+  );
+  if (!modeValidation.isValid) {
+    return { canGenerate: false, error: modeValidation.error || 'Invalid production mode configuration.' };
+  }
+
+  const validLanguages = Object.values(QuestionLanguage) as string[];
+  if (!language || !validLanguages.includes(language)) {
+    return { canGenerate: false, error: 'Please select a valid language before generating.' };
+  }
+
+  const validDifficulties = [
+    DifficultyLevel.EASY,
+    DifficultyLevel.MEDIUM,
+    DifficultyLevel.HARD,
+    'Basic',
+    'Intermediate',
+    'Advanced',
+  ];
+  if (!difficulty || !validDifficulties.includes(difficulty)) {
+    return { canGenerate: false, error: 'Please select a valid difficulty before generating.' };
+  }
+
+  return { canGenerate: true };
+}
+
 export interface SubtopicSelectionCallbacks {
   setSelectedTopic: (topicId: string) => void;
   setSelectedSubtopic: (subtopicId: string) => void;
@@ -1022,6 +1065,18 @@ export function useQuestionGeneration() {
     );
     if (!validation.canGenerate) {
       setErrorMessage(validation.error || 'Invalid taxonomy configuration');
+      return;
+    }
+
+    const settingsValidation = validateGenerationSettings(
+      productionMode,
+      targetQuestionCount,
+      aspectRatio,
+      language,
+      difficulty
+    );
+    if (!settingsValidation.canGenerate) {
+      setErrorMessage(settingsValidation.error || 'Invalid generation configuration');
       return;
     }
 
