@@ -58,6 +58,21 @@ const run = () => {
   assert.equal(persisted.persistedValidCount, 4);
   assert.equal(persisted.batchStatus, 'PARTIAL');
 
+  const invalidManualSlot = {
+    ...accumulated.slots[0],
+    status: 'MANUALLY_EDITED' as const,
+    isManuallyEdited: true,
+    options: { ...accumulated.slots[0].options, d: '' },
+  };
+  const invalidManualState = recalculateQuestionBatchState(
+    5,
+    [invalidManualSlot, ...accumulated.slots.slice(1, 5)],
+    [],
+  );
+  assert.equal(invalidManualState.inMemoryValidCount, 3);
+  assert.equal(invalidManualState.persistedValidCount, 3);
+  assert.equal(invalidManualState.batchStatus, 'PARTIAL');
+
   console.log('S9-T10 BATCH ASSEMBLY TESTS PASSED');
 };
 

@@ -33,7 +33,17 @@ function validateCandidate(candidate: any): string[] {
   if (/(TODO|N\/A|\{\{|\}\})/i.test(`${value.questionText} ${options.join(' ')} ${value.explanation}`)) {
     errors.push('Placeholder content is not allowed.');
   }
+
   return errors;
+}
+
+function validateSlot(slot: QuestionBatchSlot): string[] {
+  return validateCandidate({
+    questionText: slot.questionText,
+    options: slot.options,
+    correctAnswer: slot.correctAnswer,
+    explanation: slot.explanation,
+  });
 }
 
 export function assembleQuestionBatch(
@@ -91,7 +101,8 @@ export function assembleQuestionBatch(
   });
 
   const persistedValidCount = slots.filter((slot) =>
-    slot.status === 'VALID' || slot.status === 'MANUALLY_EDITED' || slot.status === 'ACCEPTED'
+    ['VALID', 'MANUALLY_EDITED', 'ACCEPTED'].includes(slot.status) &&
+    validateSlot(slot).length === 0
   ).length;
   const batchStatus = persistedValidCount === requestedCount
     ? 'COMPLETE'
@@ -119,7 +130,8 @@ export function recalculateQuestionBatchState(
   overflowCount = 0
 ): Pick<QuestionBatchAssembly, 'inMemoryValidCount' | 'persistedValidCount' | 'rejectedCount' | 'overflowCount' | 'batchStatus'> {
   const inMemoryValidCount = slots.filter((slot) =>
-    slot.status === 'VALID' || slot.status === 'MANUALLY_EDITED' || slot.status === 'ACCEPTED'
+    ['VALID', 'MANUALLY_EDITED', 'ACCEPTED'].includes(slot.status) &&
+    validateSlot(slot).length === 0
   ).length;
   return {
     inMemoryValidCount,
