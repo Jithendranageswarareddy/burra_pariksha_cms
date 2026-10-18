@@ -1,10 +1,14 @@
 import assert from 'node:assert/strict';
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { CandidateCanvas } from '../../../frontend/features/question-generation/components/CandidateCanvas';
 import {
   reorderExplainedQuestions,
   validateExplainedQuestion,
   validateStudioCandidate,
 } from '../../../shared/lib/question-editor';
 import { ExplainedQuestionItem } from '../../../shared/types/question';
+import { StudioCandidate } from '../../../shared/contracts/question-generation';
 
 const question = (slotId: string, number: number): ExplainedQuestionItem => ({
   slotId,
@@ -64,5 +68,54 @@ assert.equal(candidateErrors.questionText, 'Question text must contain at least 
 assert.equal(candidateErrors.optionA, 'Option A is required.');
 assert.equal(candidateErrors.correctAnswer, 'Select a correct answer.');
 assert.equal(candidateErrors.explanation, 'Explanation is required.');
+
+const candidate: StudioCandidate = {
+  questionText: '',
+  optionA: '',
+  optionB: 'same',
+  optionC: 'same',
+  optionD: 'D',
+  correctAnswer: 'A',
+  explanation: '',
+  topicId: 'top-test',
+  subtopicId: 'sub-test',
+  difficulty: 'EASY',
+  challengeType: 'MCQ',
+  presentationType: 'TEXT',
+  language: 'TELUGU',
+  realLifeContext: '',
+  tags: [],
+};
+const renderedEditor = renderToStaticMarkup(
+  React.createElement(CandidateCanvas, {
+    candidate,
+    hasCandidate: true,
+    isDirty: true,
+    isGenerating: false,
+    isRefining: false,
+    onUpdateField: () => undefined,
+    onRefine: () => undefined,
+    onGenerate: () => undefined,
+    onManualDraft: () => undefined,
+  })
+);
+assert.match(renderedEditor, /Question text must contain at least 5 characters/);
+assert.match(renderedEditor, /Option A is required/);
+assert.match(renderedEditor, /Explanation is required/);
+assert.equal((renderedEditor.match(/role="alert"/g) || []).length, 3);
+const renderedDuplicateOptions = renderToStaticMarkup(
+  React.createElement(CandidateCanvas, {
+    candidate: { ...candidate, optionA: 'same' },
+    hasCandidate: true,
+    isDirty: true,
+    isGenerating: false,
+    isRefining: false,
+    onUpdateField: () => undefined,
+    onRefine: () => undefined,
+    onGenerate: () => undefined,
+    onManualDraft: () => undefined,
+  })
+);
+assert.match(renderedDuplicateOptions, /Options must be distinct/);
 
 console.log('S9-T11 QUESTION EDITOR TESTS PASSED CLEANLY');
