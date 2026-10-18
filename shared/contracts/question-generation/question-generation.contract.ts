@@ -427,6 +427,7 @@ export interface SaveQuestionDraftInput {
   isFallback?: boolean;
   mathematicalVerification?: MathVerificationSummary;
   version?: number;
+  expectedVersion?: number;
   workflowInstanceId?: string;
   batchStatus?: QuestionBatchStatus;
   persistedValidCount?: number;

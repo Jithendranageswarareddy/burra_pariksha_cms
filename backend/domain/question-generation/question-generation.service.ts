@@ -824,7 +824,9 @@ export class QuestionGenerationService {
     const draft: QuestionDraft = {
       id: draftId,
       topicId: input.topicId,
+      topicName: input.topicName || topic?.name,
       subtopicId: input.subtopicId,
+      subtopicName: input.subtopicName || (subtopic as any)?.name,
       difficulty: input.difficulty || 'Intermediate',
       language: input.language || 'TELUGU',
       questionText: rawText,
@@ -920,8 +922,15 @@ export class QuestionGenerationService {
         version: existing.version,
       };
 
+      const expectedVersionToUse =
+        (input as any).expectedVersion !== undefined
+          ? (input as any).expectedVersion
+          : input.version !== undefined
+          ? input.version
+          : existing.version;
+
       return questionDraftsRepository.update(draftId, updatedDraft, {
-        expectedVersion: input.version ?? existing.version,
+        expectedVersion: expectedVersionToUse,
       });
     }
 

@@ -15,7 +15,7 @@
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertCircle, CheckCircle, AlertTriangle, ArrowRight } from 'lucide-react';
+import { AlertCircle, CheckCircle, AlertTriangle, ArrowRight, RotateCcw } from 'lucide-react';
 import { PageHeader } from '../../../components/layout/PageHeader';
 import { ProductionJourneyBar } from '../../../components/production/ProductionJourneyBar';
 import { useQuestionGeneration } from '../hooks/useQuestionGeneration';
@@ -94,6 +94,7 @@ export const QuestionStudioPage: React.FC = () => {
     handleGenerate,
     handleRefine,
     handleSaveDraft,
+    handleReloadDraft,
     handleSubmitForVerification,
     handleResetStudio,
     handleSelectSlot,
@@ -181,13 +182,26 @@ export const QuestionStudioPage: React.FC = () => {
             <h4 className="font-bold">Notice</h4>
             <p className="text-rose-700 mt-0.5">{errorMessage}</p>
           </div>
-          <button
-            type="button"
-            onClick={() => setErrorMessage(null)}
-            className="text-[11px] text-rose-500 hover:text-rose-800 font-semibold cursor-pointer"
-          >
-            Dismiss
-          </button>
+          <div className="flex items-center gap-2">
+            {savedDraftId && (
+              <button
+                type="button"
+                onClick={() => handleReloadDraft()}
+                className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold bg-rose-100 text-rose-800 hover:bg-rose-200 rounded-md border border-rose-300 transition-colors cursor-pointer"
+                title="Reload latest draft snapshot from server"
+              >
+                <RotateCcw className="w-3 h-3" />
+                Reload from Server
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setErrorMessage(null)}
+              className="text-[11px] text-rose-500 hover:text-rose-800 font-semibold cursor-pointer px-1 py-1"
+            >
+              Dismiss
+            </button>
+          </div>
         </div>
       )}
 

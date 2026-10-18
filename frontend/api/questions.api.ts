@@ -66,8 +66,12 @@ export const questionsApi = {
 
   /**
    * Saves a question draft (Stage 01 authoring).
+   * Dispatches to update when draft ID is present, or create when new.
    */
   async saveDraft(payload: SaveQuestionDraftInput | Partial<QuestionDraft>): Promise<QuestionDraft> {
+    if (payload.id) {
+      return apiClient.updateQuestionDraft(payload.id, payload);
+    }
     return apiClient.saveQuestionDraft(payload);
   },
 

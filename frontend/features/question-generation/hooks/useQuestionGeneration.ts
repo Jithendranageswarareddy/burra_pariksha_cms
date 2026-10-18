@@ -781,6 +781,19 @@ export function useQuestionGeneration() {
             slots: draft.slots,
             rejectedItems: draft.rejectedItems || [],
           });
+
+          // Ensure slot 0 is reflected into candidate if candidate statement was empty
+          if (!loadedCandidate.questionText.trim() && draft.slots[0]?.questionText) {
+            const slot0 = draft.slots[0];
+            loadedCandidate.questionText = slot0.questionText;
+            loadedCandidate.optionA = slot0.options?.a || (slot0 as any).optionA || '';
+            loadedCandidate.optionB = slot0.options?.b || (slot0 as any).optionB || '';
+            loadedCandidate.optionC = slot0.options?.c || (slot0 as any).optionC || '';
+            loadedCandidate.optionD = slot0.options?.d || (slot0 as any).optionD || '';
+            loadedCandidate.correctAnswer = (slot0.correctAnswer as any) || 'A';
+            loadedCandidate.explanation = slot0.explanation || '';
+            setCandidate({ ...loadedCandidate });
+          }
         }
         setHasCandidate(true);
         setIsDirty(false); // Clean saved state!
@@ -1440,10 +1453,20 @@ export function useQuestionGeneration() {
         ? (candidate.introductoryConcept || candidate.questionText || '').trim()
         : (candidate.questionText || candidate.introductoryConcept || '').trim();
 
+      const matchedTopic = taxonomyTree.find((t) => t.id === selectedTopic);
+      const subtopicsList = Array.isArray(currentSubtopics)
+        ? currentSubtopics
+        : (matchedTopic?.subtopics || []);
+      const matchedSubtopic = subtopicsList.find((s: any) => s.id === selectedSubtopic);
+
       const savedDraft = await questionsApi.saveDraft({
         id: savedDraftId || undefined,
+        version: draftVersion,
+        expectedVersion: draftVersion,
         topicId: selectedTopic,
+        topicName: matchedTopic?.name,
         subtopicId: selectedSubtopic,
+        subtopicName: matchedSubtopic?.name,
         difficulty: candidate.difficulty,
         challengeType: candidate.challengeType,
         presentationType: candidate.presentationType,
@@ -1515,12 +1538,112 @@ export function useQuestionGeneration() {
       setSaveSuccessMessage(`Draft saved successfully as ${savedDraft.id}. Ready for explicit submission.`);
       return savedDraft.id;
     } catch (err: any) {
-      setErrorMessage(err?.message || 'Failed to save question draft.');
+      const isConflict =
+        err?.status === 409 ||
+        err?.statusCode === 409 ||
+        err?.code === 'CONFLICT_OPTIMISTIC_LOCK' ||
+        err?.message?.toLowerCase().includes('concurrency') ||
+        err?.message?.toLowerCase().includes('conflict');
+
+      if (isConflict) {
+        setErrorMessage(
+          `Conflict: This draft (version ${draftVersion}) was updated in another session. Your unsaved edits are preserved in the editor. Please reload the draft or save with resolution.`
+        );
+      } else {
+        setErrorMessage(err?.message || 'Failed to save question draft.');
+      }
       return null;
     } finally {
       setIsSaving(false);
     }
   };
+
+  // 7. RELOAD SAVED DRAFT FROM SERVER (Recovery from Conflict / Stale State)
+  const handleReloadDraft = useCallback(async (): Promise<QuestionDraft | null> => {
+    if (!savedDraftId) return null;
+    setIsLoadingDraft(true);
+    setErrorMessage(null);
+    try {
+      const draft = await questionsApi.getDraft(savedDraftId);
+      const optionsObj = draft.options || {
+        a: draft.optionA || '',
+        b: draft.optionB || '',
+        c: draft.optionC || '',
+        d: draft.optionD || '',
+      };
+      const loadedCandidate: StudioCandidate = {
+        questionText: draft.questionText || draft.question || draft.introductoryConcept || '',
+        optionA: optionsObj.a || draft.optionA || '',
+        optionB: optionsObj.b || draft.optionB || '',
+        optionC: optionsObj.c || draft.optionC || '',
+        optionD: optionsObj.d || draft.optionD || '',
+        correctAnswer: draft.correctAnswer || 'A',
+        explanation: draft.explanation || '',
+        topicId: draft.topicId,
+        subtopicId: draft.subtopicId,
+        difficulty: draft.difficulty || difficulty,
+        challengeType: draft.challengeType || challengeType,
+        presentationType: draft.presentationType || presentationType,
+        language: (draft.language as QuestionLanguage) || language,
+        realLifeContext: draft.realLifeContext || draft.realWorldContext || realLifeContext,
+        questionStyle: (draft.questionStyle as string) || questionStyle,
+        generationMode: (draft.generationMode as any) || 'SUBTOPIC',
+        productionMode: draft.productionMode,
+        targetQuestionCount: draft.targetQuestionCount,
+        aspectRatio: draft.aspectRatio,
+        introductoryConcept: draft.introductoryConcept || (draft.productionMode === 'TOPIC_INTRODUCTION' ? draft.questionText : ''),
+        conceptTitle: draft.conceptTitle || '',
+        syllabusScopeNotes: draft.syllabusScopeNotes || '',
+        questions: draft.questions || [],
+        tags: draft.tags || ['Aptitude', 'Telugu'],
+        sourceModel: draft.sourceModel,
+        generationLatencyMs: draft.generationLatencyMs,
+        isFallback: draft.isFallback,
+        mathematicalVerification: draft.mathematicalVerification,
+      };
+
+      if (draft.slots && draft.slots.length > 0) {
+        const reqCount = (draft.targetQuestionCount || draft.slots.length || 5) as 5 | 10 | 15 | 20;
+        const validSlotsCount = draft.slots.filter(
+          (s) => s.status === 'VALID' || s.status === 'MANUALLY_EDITED' || s.status === 'ACCEPTED'
+        ).length;
+        setBatchAssembly({
+          requestedCount: reqCount,
+          inMemoryValidCount: draft.persistedValidCount ?? validSlotsCount,
+          persistedValidCount: draft.persistedValidCount ?? validSlotsCount,
+          rejectedCount: draft.rejectedCount || 0,
+          overflowCount: draft.overflowCount || 0,
+          batchStatus: draft.batchStatus || (validSlotsCount === reqCount ? 'COMPLETE' : validSlotsCount > 0 ? 'PARTIAL' : 'EMPTY'),
+          slots: draft.slots,
+          rejectedItems: draft.rejectedItems || [],
+        });
+        if (!loadedCandidate.questionText.trim() && draft.slots[0]?.questionText) {
+          const slot0 = draft.slots[0];
+          loadedCandidate.questionText = slot0.questionText;
+          loadedCandidate.optionA = slot0.options?.a || (slot0 as any).optionA || '';
+          loadedCandidate.optionB = slot0.options?.b || (slot0 as any).optionB || '';
+          loadedCandidate.optionC = slot0.options?.c || (slot0 as any).optionC || '';
+          loadedCandidate.optionD = slot0.options?.d || (slot0 as any).optionD || '';
+          loadedCandidate.correctAnswer = (slot0.correctAnswer as any) || 'A';
+          loadedCandidate.explanation = slot0.explanation || '';
+        }
+      }
+
+      setCandidate(loadedCandidate);
+      setHasCandidate(true);
+      setIsDirty(false);
+      setSavedDraftId(draft.id);
+      setSavedDraftRecord(draft);
+      setDraftVersion(draft.version);
+      setSaveSuccessMessage(`Draft ${draft.id} successfully reloaded from server (version ${draft.version}).`);
+      return draft;
+    } catch (err: any) {
+      setErrorMessage(err?.message || `Failed to reload draft "${savedDraftId}".`);
+      return null;
+    } finally {
+      setIsLoadingDraft(false);
+    }
+  }, [savedDraftId, difficulty, challengeType, presentationType, language, realLifeContext, questionStyle]);
 
   // 7. SUBMIT FOR VERIFICATION ACTION (Explicit User Command)
   // Submits an eligible saved draft for Stage 02 Verification.
@@ -1722,6 +1845,7 @@ export function useQuestionGeneration() {
     handleGenerate,
     handleRefine,
     handleSaveDraft,
+    handleReloadDraft,
     handleSubmitForVerification,
     handleResetStudio,
     handleSelectSlot,

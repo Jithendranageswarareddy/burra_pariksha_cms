@@ -7,7 +7,7 @@
  * allocation, Content Master creation, or multi-layer verification blocking save gates.
  */
 
-import { QuestionDraft, QuestionStatus, UserRole } from '../../../../shared';
+import { QuestionDraft, QuestionStatus, UserRole, SaveQuestionDraftInput } from '../../../../shared';
 import { questionDraftsRepository } from '../../../../database/firestore/repositories/question-drafts.repository';
 import { taxonomyService } from '../../../domain/taxonomy/services/taxonomy.service';
 import { questionService } from './question.service';
@@ -15,46 +15,7 @@ import { auditService } from '../../../infrastructure/audit/services/audit.servi
 import { CanonicalRbacRole } from '../../../../shared';
 import { type AdministrativeOverrideContext, resolveBrownfieldRole } from '../../../../src/types/rbac-models';
 
-export interface SaveDraftInput {
-  id?: string;
-  topicId: string;
-  subtopicId: string;
-  difficulty: string;
-  language?: string;
-  questionText: string;
-  question?: string;
-  options?: {
-    a: string;
-    b: string;
-    c?: string;
-    d?: string;
-  };
-  optionA?: string;
-  optionB?: string;
-  optionC?: string;
-  optionD?: string;
-  correctAnswer?: 'A' | 'B' | 'C' | 'D' | string;
-  explanation?: string;
-  realWorldContext?: string;
-  realLifeContext?: string;
-  challengeType?: string;
-  presentationType?: string;
-  questionStyle?: string;
-  generationMode?: 'SUBTOPIC' | 'RANDOM' | string;
-  productionMode?: string;
-  targetQuestionCount?: number;
-  aspectRatio?: string;
-  introductoryConcept?: string;
-  conceptTitle?: string;
-  syllabusScopeNotes?: string;
-  questions?: any[];
-  tags?: string[];
-  source?: string;
-  sourceModel?: string;
-  generationLatencyMs?: number;
-  isFallback?: boolean;
-  mathematicalVerification?: any;
-}
+export type SaveDraftInput = SaveQuestionDraftInput;
 
 export class QuestionDraftService {
   private static instance: QuestionDraftService | null = null;

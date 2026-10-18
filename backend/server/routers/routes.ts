@@ -1329,6 +1329,10 @@ apiRouter.post(['/questions/draft', '/v1/questions/draft'], requireCapability('Q
     res.status(err?.statusCode || 400).json({
       error: err?.name || 'Draft Save Failed',
       message: err?.message || 'Failed to save question draft',
+      code: err?.code,
+      details: err?.details,
+      expectedVersion: err?.expectedVersion,
+      currentVersion: err?.currentVersion,
     });
   }
 });
@@ -1354,6 +1358,10 @@ apiRouter.put(['/questions/draft/:id', '/v1/questions/draft/:id'], requireCapabi
     res.status(err?.statusCode || 400).json({
       error: err?.name || 'Draft Update Failed',
       message: err?.message || 'Failed to update question draft',
+      code: err?.code,
+      details: err?.details,
+      expectedVersion: err?.expectedVersion,
+      currentVersion: err?.currentVersion,
     });
   }
 });
