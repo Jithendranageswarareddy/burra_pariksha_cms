@@ -25,6 +25,7 @@ import {
 import { validateQuestionQuality } from '../../lib/question-quality-validator';
 
 export * from './question-quality.contract';
+export * from './audience-preview.contract';
 
 export type QuestionBatchStatus =
   | 'EMPTY'

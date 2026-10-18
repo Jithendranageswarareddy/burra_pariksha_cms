@@ -8,4 +8,5 @@ export * from './components/GenerationConfigPanel';
 export * from './components/CandidateCanvas';
 export * from './components/ActionBar';
 export * from './components/ProductionWorkbenchSummary';
+export * from './components/AudienceQuestionPreview';
 export * from './pages/QuestionStudioPage';

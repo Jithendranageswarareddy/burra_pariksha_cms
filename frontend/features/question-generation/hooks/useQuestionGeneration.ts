@@ -18,6 +18,9 @@ import {
   canonicalIdService,
   reorderExplainedQuestions,
   updateExplainedQuestionList,
+  AudiencePreviewSourceVersion,
+  AudiencePreviewPackageProjection,
+  projectToAudiencePreview,
 } from '../../../../shared';
 import {
   GenerateCandidateInput,
@@ -28,7 +31,7 @@ import {
   SubmitForVerificationResult,
   QuestionBatchAssembly,
 } from '../../../../shared/contracts/question-generation';
-import { ExplainedQuestionItem } from '../../../../shared/types/question';
+import { ExplainedQuestionItem, QuestionDraft } from '../../../../shared/types/question';
 import { assembleQuestionBatch, recalculateQuestionBatchState } from '../../../../shared';
 import { questionsApi } from '../../../api/questions.api';
 import { taxonomyApi } from '../../../api/taxonomy.api';
@@ -476,7 +479,10 @@ export function useQuestionGeneration() {
     const [hasCandidate, setHasCandidate] = useState(false);
     const [isDirty, setIsDirty] = useState(false);
     const [savedDraftId, setSavedDraftId] = useState<string | null>(null);
+    const [savedDraftRecord, setSavedDraftRecord] = useState<QuestionDraft | null>(null);
     const [batchAssembly, setBatchAssembly] = useState<QuestionBatchAssembly | null>(null);
+    const [previewSourceVersion, setPreviewSourceVersion] = useState<AudiencePreviewSourceVersion>('UNSAVED_EDITS');
+    const [previewViewMode, setPreviewViewMode] = useState<'EDITOR' | 'PREVIEW'>('EDITOR');
 
 
   // 3. Operation Lifecycle States
@@ -779,6 +785,7 @@ export function useQuestionGeneration() {
         setHasCandidate(true);
         setIsDirty(false); // Clean saved state!
         setSavedDraftId(draft.id);
+        setSavedDraftRecord(draft);
         setDraftVersion(draft.version);
 
         // If the draft is in submitted stage, restore submission state
@@ -1083,6 +1090,56 @@ export function useQuestionGeneration() {
     setHasCandidate(true);
   }, []);
 
+  // Reorder batch slots for Mode 1 (QUESTION_CHALLENGE_SHORT)
+  const reorderBatchSlot = useCallback((fromIndex: number, toIndex: number) => {
+    setIsDirty(true);
+    setSaveSuccessMessage(null);
+    setBatchAssembly((current) => {
+      if (!current || current.slots.length <= 1) return current;
+      if (fromIndex < 0 || fromIndex >= current.slots.length || toIndex < 0 || toIndex >= current.slots.length) {
+        return current;
+      }
+      const newSlots = [...current.slots];
+      const [moved] = newSlots.splice(fromIndex, 1);
+      newSlots.splice(toIndex, 0, moved);
+      const updatedSlots = newSlots.map((s, idx) => ({
+        ...s,
+        slotNumber: idx + 1,
+      }));
+      return {
+        ...current,
+        slots: updatedSlots,
+      };
+    });
+  }, []);
+
+  // Audience-Facing Preview Projection (S9-T13)
+  const audiencePreviewProjection: AudiencePreviewPackageProjection = useMemo(() => {
+    const matchedTopic = taxonomyTree.find((t) => t.id === candidate.topicId || t.id === selectedTopic);
+    const topicName = matchedTopic?.name;
+    const subtopicsList = Array.isArray(currentSubtopics) ? currentSubtopics : (matchedTopic?.subtopics || []);
+    const matchedSubtopic = subtopicsList.find((s: any) => s.id === candidate.subtopicId || s.id === selectedSubtopic);
+    const subtopicName = matchedSubtopic?.name;
+
+    return projectToAudiencePreview({
+      candidate,
+      batchAssembly,
+      savedDraft: savedDraftRecord,
+      sourceVersion: previewSourceVersion,
+      topicName,
+      subtopicName,
+    });
+  }, [
+    candidate,
+    batchAssembly,
+    savedDraftRecord,
+    previewSourceVersion,
+    taxonomyTree,
+    currentSubtopics,
+    selectedTopic,
+    selectedSubtopic,
+  ]);
+
   // Evaluated workflow state
   const workflowState: Step01StateEvaluation = useMemo(() => {
     return evaluateStep01CandidateState({
@@ -1228,6 +1285,7 @@ export function useQuestionGeneration() {
       setIsDirty(true);
       if (!batchAssembly || !isMode1 || targetQuestionCount <= 1) {
         setSavedDraftId(null); // Fresh single candidate is not yet saved
+        setSavedDraftRecord(null);
       }
       setGenerationDuration(res.metadata?.generationDurationMs || Date.now() - startTime);
 
@@ -1430,6 +1488,7 @@ export function useQuestionGeneration() {
       });
 
       setSavedDraftId(savedDraft.id);
+      setSavedDraftRecord(savedDraft);
       if (batchAssembly) {
         setBatchAssembly((current) => current ? {
           ...current,
@@ -1551,6 +1610,9 @@ export function useQuestionGeneration() {
     setHasCandidate(false);
     setIsDirty(false);
     setSavedDraftId(null);
+    setSavedDraftRecord(null);
+    setPreviewSourceVersion('UNSAVED_EDITS');
+    setPreviewViewMode('EDITOR');
     setDraftVersion(undefined);
     draftLoadedRef.current = null;
     setClientReport(null);
@@ -1621,6 +1683,13 @@ export function useQuestionGeneration() {
     hasCandidate,
     isDirty,
     savedDraftId,
+    savedDraftRecord,
+    previewSourceVersion,
+    setPreviewSourceVersion,
+    previewViewMode,
+    setPreviewViewMode,
+    audiencePreviewProjection,
+    reorderBatchSlot,
     workflowState,
     updateCandidateField,
     updateExplainedQuestion,

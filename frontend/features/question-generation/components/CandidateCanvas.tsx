@@ -10,7 +10,7 @@
  * - Advisory AI refinement bar
  */
 
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   FileCheck,
   Wand2,
@@ -26,8 +26,23 @@ import {
   Eye,
   AlertTriangle,
 } from 'lucide-react';
-import { AiRefinementAction, QuestionLanguage, validateStudioCandidate, validateQuestionQuality } from '../../../../shared';
-import { StudioCandidate, QuestionBatchAssembly } from '../../../../shared/contracts/question-generation';
+import {
+  AiRefinementAction,
+  QuestionLanguage,
+  validateStudioCandidate,
+  validateQuestionQuality,
+  projectToAudiencePreview,
+} from '../../../../shared';
+import {
+  StudioCandidate,
+  QuestionBatchAssembly,
+} from '../../../../shared/contracts/question-generation';
+import {
+  AudiencePreviewPackageProjection,
+  AudiencePreviewSourceVersion,
+} from '../../../../shared/contracts/question-generation/audience-preview.contract';
+import { QuestionDraft } from '../../../../shared/types/question';
+import { AudienceQuestionPreview } from './AudienceQuestionPreview';
 
 interface CandidateCanvasProps {
   candidate: StudioCandidate;
@@ -44,6 +59,14 @@ interface CandidateCanvasProps {
   onRefine: (action: AiRefinementAction) => void;
   onGenerate: () => void;
   onManualDraft: () => void;
+
+  // S9-T13 Audience Preview integration
+  audiencePreviewProjection?: AudiencePreviewPackageProjection;
+  previewSourceVersion?: AudiencePreviewSourceVersion;
+  onPreviewSourceVersionChange?: (source: AudiencePreviewSourceVersion) => void;
+  previewViewMode?: 'EDITOR' | 'PREVIEW';
+  onPreviewViewModeChange?: (view: 'EDITOR' | 'PREVIEW') => void;
+  savedDraft?: QuestionDraft | null;
 }
 
 export const CandidateCanvas: React.FC<CandidateCanvasProps> = ({
@@ -61,7 +84,41 @@ export const CandidateCanvas: React.FC<CandidateCanvasProps> = ({
   onRefine,
   onGenerate,
   onManualDraft,
+  audiencePreviewProjection,
+  previewSourceVersion,
+  onPreviewSourceVersionChange,
+  previewViewMode,
+  onPreviewViewModeChange,
+  savedDraft,
 }) => {
+  const [internalViewMode, setInternalViewMode] = useState<'EDITOR' | 'PREVIEW'>('EDITOR');
+  const [internalSourceVersion, setInternalSourceVersion] = useState<AudiencePreviewSourceVersion>('UNSAVED_EDITS');
+
+  const currentView = previewViewMode ?? internalViewMode;
+  const currentSourceVersion = previewSourceVersion ?? internalSourceVersion;
+
+  const handleViewChange = (view: 'EDITOR' | 'PREVIEW') => {
+    setInternalViewMode(view);
+    onPreviewViewModeChange?.(view);
+  };
+
+  const handleSourceChange = (source: AudiencePreviewSourceVersion) => {
+    setInternalSourceVersion(source);
+    onPreviewSourceVersionChange?.(source);
+  };
+
+  const effectiveProjection: AudiencePreviewPackageProjection = useMemo(() => {
+    if (audiencePreviewProjection) {
+      return audiencePreviewProjection;
+    }
+    return projectToAudiencePreview({
+      candidate,
+      batchAssembly,
+      savedDraft,
+      sourceVersion: currentSourceVersion,
+    });
+  }, [audiencePreviewProjection, candidate, batchAssembly, savedDraft, currentSourceVersion]);
+
   const validationErrors = validateStudioCandidate(candidate);
   const qualityResult = validateQuestionQuality(candidate);
 
@@ -74,7 +131,40 @@ export const CandidateCanvas: React.FC<CandidateCanvasProps> = ({
           <h3 className="text-xs font-bold tracking-tight">Question Canvas</h3>
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
+          {/* S9-T13: VIEW SWITCHER (EDITOR vs 9:16 AUDIENCE PREVIEW) */}
+          <div
+            data-testid="canvas-view-toggle"
+            className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-[10px]"
+          >
+            <button
+              type="button"
+              data-testid="toggle-canvas-editor"
+              onClick={() => handleViewChange('EDITOR')}
+              className={`px-2 py-0.5 rounded font-semibold flex items-center gap-1 transition-colors cursor-pointer ${
+                currentView === 'EDITOR'
+                  ? 'bg-white text-slate-800 shadow-xs'
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <PenTool className="w-2.5 h-2.5" />
+              <span>Editor</span>
+            </button>
+            <button
+              type="button"
+              data-testid="toggle-canvas-preview"
+              onClick={() => handleViewChange('PREVIEW')}
+              className={`px-2 py-0.5 rounded font-bold flex items-center gap-1 transition-colors cursor-pointer ${
+                currentView === 'PREVIEW'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <Eye className="w-2.5 h-2.5" />
+              <span>9:16 Audience Preview</span>
+            </button>
+          </div>
+
           {isDirty && (
             <span className="text-[9px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
@@ -90,8 +180,16 @@ export const CandidateCanvas: React.FC<CandidateCanvasProps> = ({
         </div>
       </div>
 
-      {/* BATCH SLOTS TABS (when multi-question batch is active) */}
-      {batchAssembly && batchAssembly.slots.length > 1 && (
+      {currentView === 'PREVIEW' ? (
+        <AudienceQuestionPreview
+          projection={effectiveProjection}
+          onSourceVersionChange={handleSourceChange}
+          onClose={() => handleViewChange('EDITOR')}
+        />
+      ) : (
+        <>
+          {/* BATCH SLOTS TABS (when multi-question batch is active) */}
+          {batchAssembly && batchAssembly.slots.length > 1 && (
         <div data-testid="batch-slots-nav" className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg space-y-2">
           <div className="flex items-center justify-between text-xs font-bold text-slate-800">
             <span>Batch Slots ({batchAssembly.slots.length})</span>
@@ -508,9 +606,20 @@ export const CandidateCanvas: React.FC<CandidateCanvasProps> = ({
             <div className="flex items-center justify-between text-xs font-bold text-slate-300 pb-1 border-b border-slate-800">
               <div className="flex items-center gap-1.5">
                 <Eye className="w-3.5 h-3.5 text-indigo-400" />
-                <span>9:16 Vertical Short Live Simulation</span>
+                <span>9:16 Vertical Short Simulation</span>
               </div>
-              <span className="text-[10px] font-mono text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded">9:16 Vertical</span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  data-testid="open-audience-preview-btn"
+                  onClick={() => handleViewChange('PREVIEW')}
+                  className="text-[10px] font-medium text-indigo-300 hover:text-white bg-indigo-950/80 hover:bg-indigo-900 px-2 py-0.5 rounded border border-indigo-700/50 cursor-pointer flex items-center gap-1 transition-colors"
+                >
+                  <span>9:16 Audience Preview</span>
+                  <Eye className="w-2.5 h-2.5" />
+                </button>
+                <span className="text-[10px] font-mono text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded">9:16 Vertical</span>
+              </div>
             </div>
             <div className="p-2.5 bg-slate-800/80 rounded-lg space-y-2 text-xs">
               <p className="font-telugu font-semibold text-slate-100 leading-snug">
@@ -519,15 +628,10 @@ export const CandidateCanvas: React.FC<CandidateCanvasProps> = ({
               <div className="grid grid-cols-2 gap-1.5 pt-1 text-[11px]">
                 {(['A', 'B', 'C', 'D'] as const).map((optKey) => {
                   const optVal = candidate[`option${optKey}` as keyof StudioCandidate] as string;
-                  const isCorrect = candidate.correctAnswer === optKey;
                   return (
                     <div
                       key={optKey}
-                      className={`p-1.5 rounded border text-left font-telugu flex items-start gap-1.5 ${
-                        isCorrect
-                          ? 'bg-emerald-950/80 border-emerald-500 text-emerald-200 font-bold'
-                          : 'bg-slate-700/60 border-slate-600 text-slate-200'
-                      }`}
+                      className="p-1.5 rounded border text-left font-telugu flex items-start gap-1.5 bg-slate-700/60 border-slate-600 text-slate-200"
                     >
                       <span className="font-mono text-[10px] font-bold opacity-75">{optKey}:</span>
                       <span className="truncate">{optVal || `Option ${optKey}`}</span>
@@ -535,16 +639,12 @@ export const CandidateCanvas: React.FC<CandidateCanvasProps> = ({
                   );
                 })}
               </div>
-              {candidate.explanation && (
-                <div className="pt-1 border-t border-slate-700/70 text-[10px] text-slate-300 font-telugu">
-                  <span className="font-bold text-indigo-300">Speed Trick / Proof: </span>
-                  <span>{candidate.explanation}</span>
-                </div>
-              )}
             </div>
           </div>
         </div>
       )}
-    </div>
+    </>
+  )}
+</div>
   );
 };

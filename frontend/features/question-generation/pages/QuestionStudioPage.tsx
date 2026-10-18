@@ -68,6 +68,12 @@ export const QuestionStudioPage: React.FC = () => {
     hasCandidate,
     isDirty,
     savedDraftId,
+    savedDraftRecord,
+    previewSourceVersion,
+    setPreviewSourceVersion,
+    previewViewMode,
+    setPreviewViewMode,
+    audiencePreviewProjection,
     workflowState,
     updateCandidateField,
     updateExplainedQuestion,
@@ -312,6 +318,12 @@ export const QuestionStudioPage: React.FC = () => {
                 setHasCandidate(true);
                 setIsDirty(true);
               }}
+              audiencePreviewProjection={audiencePreviewProjection}
+              previewSourceVersion={previewSourceVersion}
+              onPreviewSourceVersionChange={setPreviewSourceVersion}
+              previewViewMode={previewViewMode}
+              onPreviewViewModeChange={setPreviewViewMode}
+              savedDraft={savedDraftRecord}
             />
           )}
 

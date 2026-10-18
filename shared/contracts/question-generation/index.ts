@@ -5,3 +5,4 @@
 
 export * from './question-generation.contract';
 export * from './question-quality.contract';
+export * from './audience-preview.contract';
