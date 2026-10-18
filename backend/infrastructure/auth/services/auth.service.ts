@@ -305,6 +305,18 @@ export class AuthService {
       if (user.password_hash) {
         isValidPassword = await this.verifyPassword(password, user.password_hash);
       } else {
+        // In production, strictly reject unhashed accounts: no hardcoded fallback allowed
+        if (process.env.NODE_ENV === 'production') {
+          await auditService.log(
+            user.id,
+            user.name,
+            'LOGIN_FAILURE',
+            'SYSTEM',
+            'AUTH',
+            { reason: 'NO_PASSWORD_HASH_IN_PRODUCTION' }
+          );
+          return { success: false, error: 'Account requires password setup by administrator.' };
+        }
         // Fallback for existing unmigrated accounts in testing/dev: accept standard default 'password123'
         isValidPassword = (password === 'password123');
         if (isValidPassword) {

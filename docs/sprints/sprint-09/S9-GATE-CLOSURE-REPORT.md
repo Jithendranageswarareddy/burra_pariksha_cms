@@ -178,6 +178,14 @@ The backend architecture, routing, security, and persistence mechanisms have bee
 - `test:isolation` executes 8 deterministic negative and positive tests verifying that unapproved targets, malformed hosts, and unreachable endpoints fail closed before test fixture creation.
 - Normal development and automated tests never mutate, reset, or purge production Firestore data.
 
+### 6.3 Firestore Configuration & Artifact Readiness for Manual Release
+
+| Artifact | Location | Mapping in firebase.json | Release Readiness Status |
+| :--- | :--- | :--- | :---: |
+| **Security Rules** | `database/firestore/rules/firestore.rules` | `"firestore.rules"` | **READY FOR OWNER RELEASE**.<br>Enforces OPTION A (Backend-only gateway). Direct client writes denied. |
+| **Composite Indexes** | N/A (Standard single-field indexes) | Not required | **NO ACTION REQUIRED**.<br>All queries in current repositories use single-field equality or primary-key lookups. |
+| **Emulator Config** | `firebase.json` | `"emulators.firestore"` (port 8080, host 127.0.0.1) | **VERIFIED**.<br>Used strictly for local test execution. |
+
 ---
 
 ## 7. Release Verification Matrix & Execution Evidence
@@ -220,25 +228,41 @@ In accordance with Sprint 9 scope boundaries, the following two content modes ar
 > **NO AUTOMATED DEPLOYMENT HAS BEEN PERFORMED.**
 > The project owner must execute the following deployment steps manually in their authorized hosting environment (e.g. Google Cloud Run / Firebase App Hosting).
 
-### 9.1 Required Production Environment Variables
+### 9.1 Required Production Environment Variables & Safe Credential Provisioning
 
-Ensure the following environment variables are set in the production runtime container (do not commit secrets to Git):
+The application runtime contract (`src/config/env.contract.ts`) defines the authoritative environment requirements. The owner must provision these via secrets management (e.g. GCP Secret Manager or Cloud Run Environment Secrets):
 
 ```bash
-# GCP & Firebase Configuration
+# 1. Core Authentication & Session Secrets (Mandatory)
+SESSION_SECRET="<generate-secure-64-char-random-string>"
+
+# 2. Database & Firestore Identity (Mandatory)
 GCP_PROJECT="burra-pariksha-cms"
 GCP_PROJECT_ID="burra-pariksha-cms"
 FIRESTORE_DATABASE_ID="ai-studio-burraparikshacon-f592ca42-39af-4d83-aff2-6870ba939b0e"
 
-# Service Account Credentials (if not using GCP Cloud Run Workload Identity / ADC)
+# 3. GCP Service Account Credentials (Optional if ambient GCP Workload Identity / ADC is active)
 GOOGLE_SERVICE_ACCOUNT_EMAIL="<authorized-service-account-email>"
 GOOGLE_PRIVATE_KEY="<authorized-private-key-with-newlines>"
 
-# Application Security & Auth
-JWT_SECRET="<secure-cryptographic-random-secret>"
-INITIAL_ADMIN_PASSWORD="<bootstrap-admin-password>"
+# 4. AI & Media Pipeline Secrets (Mandatory)
+GEMINI_API_KEY="<authorized-gemini-api-key>"
+GOOGLE_DRIVE_ROOT_FOLDER_ID="<drive-folder-id>"
+GOOGLE_CLIENT_ID="<client-id.apps.googleusercontent.com>"
+GOOGLE_CLIENT_SECRET="<oauth-client-secret>"
+GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN="<oauth-refresh-token>"
+
+# 5. First-Admin Bootstrap Credential & Security Invariants
+# Operator-selected high-entropy bootstrap password used ONLY during initial seeding of USR-001.
+# NEVER use a default password like 'password123'. In production (NODE_ENV=production),
+# unhashed accounts strictly fail closed and cannot authenticate via development fallbacks.
+INITIAL_ADMIN_PASSWORD="<operator-selected-high-entropy-initial-password>"
+
+# 6. Operational Runtime Overrides
 NODE_ENV="production"
 PORT=8080
+HOST="0.0.0.0"
+LOG_LEVEL="INFO"
 ```
 
 ### 9.2 Build and Deployment Steps for Project Owner
