@@ -333,7 +333,7 @@ export async function runEditingValidationPreviewUnitTests(): Promise<void> {
     await questionGenerationService.submitForVerification({
       draftId: savedInvalidDraft.id,
       expectedVersion: savedInvalidDraft.version,
-      authorId: testActor.id,
+      actorId: testActor.id,
     });
   } catch (err: any) {
     submitRejected = true;
@@ -780,8 +780,6 @@ export async function runEditingValidationPreviewUnitTests(): Promise<void> {
   // Build draft with extensive production metadata, secrets, and internal answers
   const confidentialDraft: QuestionDraft = {
     id: 'dft_confidential_test_01',
-    contentId: 'BP-CNT-999999',
-    contentMasterId: 'BP-CM-888888',
     productionMode: 'QUESTION_CHALLENGE_SHORT',
     topicId: 'TOP-QA-01',
     topicName: 'Quantitative Aptitude',
@@ -825,6 +823,8 @@ export async function runEditingValidationPreviewUnitTests(): Promise<void> {
       },
     ],
   };
+  (confidentialDraft as any).contentId = 'BP-CNT-999999';
+  (confidentialDraft as any).contentMasterId = 'BP-CM-888888';
 
   const audienceProjection = projectToAudiencePreview({
     candidate: {},
