@@ -3,7 +3,7 @@
 **Document Version**: `1.3.0`
 **Sprint**: `Sprint 9 — Mode 1 (Question Challenge Short) Production Pipeline`
 **Architectural Baseline**: `Gate B Architecture Design`
-**Status**: `PROPOSED DESIGN CONTRACT — AWAITING SPRINT 9 GATE B ARCHITECTURE APPROVAL (NOT YET APPROVED)`
+**Status**: `INTEGRATION DESIGN COMPLETE — PREPARED FOR FORMAL SPRINT 9 GATE B OWNER SIGN-OFF (NOT YET APPROVED)`
 **Authoritative Context**: [AGENTS.md](../../../AGENTS.md), [S9-T01](../../sprints/sprint-09/S9-T01-DEPENDENCY-AUDIT.md), [S9-T02](../../sprints/sprint-09/S9-T02-QUESTION-CHALLENGE-SHORT-CONTENT-SPEC.md), [S9-T03](../../sprints/sprint-09/S9-T03-BATCH-GENERATION-REQUIREMENTS.md), [S9-T04](../../sprints/sprint-09/S9-T04-EDITING-QUALITY-VERIFICATION-CRITERIA.md), [S9-T05](../../sprints/sprint-09/S9-T05-MODE-SPECIFIC-CONTENT-CONTRACT.md), [S9-T06](../../sprints/sprint-09/S9-T06-EDITOR-PREVIEW-INTERACTION-SPEC.md)
 
 ---
@@ -443,15 +443,14 @@ Every component, route, and service implemented under this specification must st
 
 ## 8. Open Decisions & Gate B Architecture Checklist
 
-### 8.1 Open Decision 1: S9-T03 TC-BATCH-08 vs. S9-T06 Telemetry Conflict
-This specification explicitly carries forward the unresolved source-contract conflict identified in [S9-T06 §6.4](S9-T06-EDITOR-PREVIEW-INTERACTION-SPEC.md#64-unresolved-contract-conflict-s9-t06-telemetry-isolation-vs-s9-t03-tc-batch-08-slot-repair):
+### 8.1 Resolved Decision: Telemetry Invariant & Workbench Validity Reconciliation
+The prior divergence between S9-T03 §5.2 (TC-BATCH-08) and S9-T06 (§6.1–§6.4) regarding $C_{\text{val\_slots}}$ has been authoritatively resolved under the unified dual-counter model:
 
-- **S9-T03 TC-BATCH-08 Clause**: Specifies that upon manual slot repair, `Slot 3 status = MANUALLY_EDITED`, `C_edit = 1`, **$C_{\text{val\_slots}}$ increments to 5**, and $C_{\text{rem\_gen}} = 0$, transitioning `batchStatus` to `COMPLETE`. This overloads $C_{\text{val\_slots}}$ as an aggregate-level valid-slot counter.
-- **S9-T06 Invariant**: Strictly isolates $C_{\text{val\_slots}}$ as **AI Generation Attempt Telemetry** to preserve the candidate partition equation ($C_{\text{gen}} = C_{\text{val\_slots}} + C_{\text{inv}} + C_{\text{dup}} + C_{\text{val\_overflow}}$). Manual edits update **Editor Workbench Validity** ($C_{\text{valid}}$), leaving $C_{\text{val\_slots}}$ untouched.
-- **Integration Resolution for S9-T07**:
-  - The API design models generation telemetry as a separate nested sub-object (`draft.telemetry`) from the slot array (`draft.slots`).
-  - Stage 01 $\rightarrow$ Stage 02 verification eligibility evaluates live editor validity ($C_{\text{valid}} == C_{\text{req}}$) and editorial acceptance ($C_{\text{acc}} == C_{\text{req}}$), decoupling workflow submission from whether the telemetry field $C_{\text{val\_slots}}$ is mutated or frozen.
-  - This conflict is **explicitly recorded as an active open decision** for final resolution at the Sprint 9 architecture gate.
+- **Generation Telemetry Counters** ($C_{\text{val\_slots}}, C_{\text{gen}}, C_{\text{inv}}, C_{\text{dup}}, C_{\text{val\_overflow}}, C_{\text{rem\_gen}}$) are strictly preserved as immutable AI generation attempt performance metrics nested under `draft.telemetry`.
+- **Workbench Editorial Counters** ($C_{\text{pop}}, C_{\text{valid}}, C_{\text{edit}}, C_{\text{acc}}, C_{\text{rem\_accept}}$) are derived dynamically from active slot states under `draft.slots`.
+- Manual edits increment $C_{\text{valid}}$ and $C_{\text{edit}}$, leaving historical generation telemetry $C_{\text{val\_slots}}$ untouched. This preserves the candidate partition invariant $C_{\text{gen}} = C_{\text{val\_slots}} + C_{\text{inv}} + C_{\text{dup}} + C_{\text{val\_overflow}}$ without fabricating synthetic AI candidates.
+- Stage 01 $\rightarrow$ Stage 02 verification eligibility evaluates live editor validity ($C_{\text{valid}} == C_{\text{req}}$) and explicit human acceptance ($C_{\text{acc}} == C_{\text{req}}$), decoupling workflow submission from whether telemetry was complete, partial, or unavailable.
+- **Contract Status**: **FULLY RESOLVED & CONSISTENT ACROSS S9-T03, S9-T05, S9-T06, AND S9-T07**.
 
 ### 8.2 Open Decision 2: OD-02 Batch Dispatch Approval
 - **Status**: **PROPOSED DEFAULT — REQUIRES OWNER APPROVAL**.
@@ -468,7 +467,7 @@ This specification explicitly carries forward the unresolved source-contract con
 | **G-04** | Idempotency matrix defines request identity, duplicate behaviors, and transition safety. | [§5](#5-idempotency--concurrency-matrix) | **COMPLETE** |
 | **G-05** | File-level implementation plan reuses existing services and avoids monolithic route bloat. | [§6](#6-file-level-modular-implementation-plan) | **COMPLETE** |
 | **G-06** | Safety invariants enforced: No frontend Firestore, no client AI, Save $\neq$ Verify, GAR-02, OCC. | [§7](#7-safety-invariants--architectural-non-negotiables) | **COMPLETE** |
-| **G-07** | Unresolved S9-T03 TC-BATCH-08 telemetry conflict and OD-02 are honestly carried forward. | [§8.1, §8.2](#8-open-decisions--gate-b-architecture-checklist) | **COMPLETE** |
+| **G-07** | S9-T03/S9-T06 telemetry conflict authoritatively resolved; OD-02 batch dispatch decision formally prepared. | [§8.1, §8.2](#8-open-decisions--gate-b-architecture-checklist) | **COMPLETE** |
 | **G-08** | Zero Google Sheets runtime persistence; Cloud Firestore is sole datastore. | [§1.1, §7](#7-safety-invariants--architectural-non-negotiables) | **COMPLETE** |
 | **G-09** | Gate B approval status accurately declared as pending; unverified batch code marked proposed. | [§1.1, §1.3](#1-document-mission-authority-hierarchy--grounding) | **COMPLETE** |
 

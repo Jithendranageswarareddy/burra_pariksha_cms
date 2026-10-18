@@ -6,7 +6,7 @@
 **Author**: Antigravity Software Architect & Systems Verification Engineer<br>
 **Target Mode**: `QUESTION_CHALLENGE_SHORT` (Mode 1 Single Question $N=1$ and Batch Series $N \in \{5, 10, 15, 20\}$)<br>
 **Inspected Baseline Commit**: `fee1a25e28756fcbd013dc2a8068d1e9119b65d5`<br>
-**Status**: Authoritative Interaction Contract & Specification (Gate B Design Baseline — Batch Metrics & Acceptance Reconciliation)
+**Status**: Authoritative Interaction Contract & Specification (Phase B Interaction Design Complete — Prepared for Formal Gate B Owner Sign-Off)
 
 ---
 
@@ -18,7 +18,7 @@ This specification establishes the authoritative interaction design, responsive 
 It provides the complete, reconciled design contract for:
 1. Production context restoration and header visibility.
 2. Generation settings and modification guardrails.
-3. Batch generation lifecycle and status counters based on [S9-T03 §2.3](S9-T03-BATCH-GENERATION-REQUIREMENTS.md#23-batch-generation-metrics--counter-model) and [S9-T05 §6.1](S9-T05-MODE-SPECIFIC-CONTENT-CONTRACT.md#61-typed-validation-envelope-interfaces), with explicit documentation of an unresolved contract conflict regarding S9-T03 TC-BATCH-08 (`C_val_slots` behavior on manual edit; see §6.4):
+3. Batch generation lifecycle and status counters based on [S9-T03 §2.3](S9-T03-BATCH-GENERATION-REQUIREMENTS.md#23-batch-generation-metrics--counter-model) and [S9-T05 §6.1](S9-T05-MODE-SPECIFIC-CONTENT-CONTRACT.md#61-typed-validation-envelope-interfaces), with authoritative reconciliation of S9-T03 TC-BATCH-08 under the unified dual-counter architecture across contracts (see §6.4):
    - **Generation Telemetry Counters**: $C_{\text{req}}, C_{\text{gen}}, C_{\text{val\_slots}}, C_{\text{inv}}, C_{\text{dup}}, C_{\text{val\_overflow}}, C_{\text{rem\_gen}}$.
    - **Workbench Editorial Counters**: $C_{\text{pop}}, C_{\text{valid}}, C_{\text{edit}}, C_{\text{acc}}, C_{\text{rem\_accept}}$.
    - Strict invariant: `MANUALLY_EDITED` is **not** treated as accepted; slots require explicit editorial acceptance (`status = 'ACCEPTED'`).
@@ -61,7 +61,7 @@ The primary architectural challenge addressed by S9-T06 is maintaining absolute 
 
 Critically, this revised specification enforces two core architectural invariants:
 1. **Safe, Non-Fabricating Legacy Compatibility ([S9-T05 §8.2](S9-T05-MODE-SPECIFIC-CONTENT-CONTRACT.md#82-safe-compatibility--legacy-hydration-contract-proposed-gate-b-design))**: When reading legacy records, the editor does not invent answer keys, synthetic slot IDs, validation timestamps, or false completion states; missing or inconsistent attributes surface as explicit diagnostic findings requiring authenticated human review.
-2. **Disambiguated Batch Accounting & Editorial Acceptance ([S9-T03 §2.3](S9-T03-BATCH-GENERATION-REQUIREMENTS.md#23-batch-generation-metrics--counter-model))**: Generation telemetry ($C_{\text{val\_slots}}$) is strictly separated from live workbench validity ($C_{\text{valid}}$), and manual edits (`MANUALLY_EDITED`) are strictly distinguished from editorial acceptance (`ACCEPTED`). *Note*: S9-T06 documents an explicit, unresolved source-contract conflict with S9-T03 TC-BATCH-08 regarding whether manual edits increment $C_{\text{val\_slots}}$ (see §6.4).
+2. **Disambiguated Batch Accounting & Editorial Acceptance ([S9-T03 §2.3](S9-T03-BATCH-GENERATION-REQUIREMENTS.md#23-batch-generation-metrics--counter-model))**: Generation telemetry ($C_{\text{val\_slots}}$) is strictly separated from live workbench validity ($C_{\text{valid}}$), and manual edits (`MANUALLY_EDITED`) are strictly distinguished from editorial acceptance (`ACCEPTED`). *Reconciliation*: S9-T03 and S9-T06 are authoritatively reconciled under this dual-counter architecture, preserving both candidate partition integrity ($C_{\text{gen}}$) and workbench submission ergonomics ($C_{\text{valid}}$) (see §6.4).
 
 ### 2.2 Acceptance Criteria Matrix
 
@@ -69,7 +69,7 @@ Critically, this revised specification enforces two core architectural invariant
 | :--- | :--- | :--- | :--- |
 | **AC-01** | Active Topic, Subtopic, Mode, Configured Count ($N$), and Completion Status are immediately visible. | [§4.2, §5.1, §5.2, §6.2](#5-generation-settings--production-context-header) | Header & workbench summary inspectable in all page states. |
 | **AC-02** | Editor and Preview consume the exact same underlying canonical content record; zero dual models or competing sources of truth. | [§3.1, §9.1, §9.2, §15.1](#9-preview-projection--synchronization-rules) | In-memory unidirection flow: $DraftAggregate \to In-Memory\ State \to Preview\ Projection$. |
-| **AC-03** | Batch generation lifecycle cleanly distinguishes generation telemetry ($C_{\text{val\_slots}}$) from editor validity ($C_{\text{valid}}$), and manual edits from explicit editorial acceptance ($C_{\text{acc}}$). | [§6.1, §6.2, §6.3, §6.4](#6-batch-status-model--completion-indicators) | Formal metrics strictly separated. Populated $\neq$ Valid, and `MANUALLY_EDITED` is strictly not accepted without explicit sign-off. Unresolved conflict with S9-T03 TC-BATCH-08 explicitly documented in §6.4. |
+| **AC-03** | Batch generation lifecycle cleanly distinguishes generation telemetry ($C_{\text{val\_slots}}$) from editor validity ($C_{\text{valid}}$), and manual edits from explicit editorial acceptance ($C_{\text{acc}}$). | [§6.1, §6.2, §6.3, §6.4](#6-batch-status-model--completion-indicators) | Formal metrics strictly separated. Populated $\neq$ Valid, and `MANUALLY_EDITED` is strictly not accepted without explicit sign-off. S9-T03 and S9-T06 are fully reconciled (see §6.4). |
 | **AC-04** | Stable slot identity (`slt_<uuid>`) is strictly separated from display position (`slotNumber`). Reordering preserves slot content and active selection. | [§7.1, §7.2, §7.3, §14.3](#7-question-list-selection-ordering--slot-lifecycle) | Stable ID preserved across array re-indexing; selection tracked by `selectedSlotId`. |
 | **AC-05** | Save Draft persists in-place to Firestore without advancing the 15-stage workflow; Submit for Verification requires deliberate action, 100% valid slots ($C_{\text{valid}} = C_{\text{req}}$), and 100% accepted slots ($C_{\text{acc}} = C_{\text{req}}$). | [§3.3, §14.1, §14.10, §15.2](#15-persistence-concurrency-authorization--workflow-boundaries) | Enforces AGENTS.md §11 and GAR-02 ($authorId \neq approverId$). |
 | **AC-06** | Deterministic context restoration handles new drafts, existing drafts, deep links, route conflicts, legacy records, and OCC collisions without semantic fabrication. | [§11.1, §12.1, §12.2, §14.7, §14.8](#12-production-context-restoration--route-entry-behavior) | Authoritative record overrides URL hints; legacy drafts emit diagnostic findings per S9-T05. |
@@ -368,37 +368,47 @@ In accordance with S9-T03 §2.4, batch production enforces three sequential mile
    - The button `"Submit for Verification"` is disabled with an explanatory tooltip whenever:
      $$C_{\text{valid}} < C_{\text{req}} \quad \lor \quad C_{\text{acc}} < C_{\text{req}} \quad \lor \quad C_{\text{rem\_accept}} > 0 \quad \lor \quad \text{hasBlockingErrors} = \text{true} \quad \lor \quad \text{isDirty} = \text{true}$$
 
-### 6.4 Unresolved Contract Conflict: S9-T06 Telemetry Isolation vs. S9-T03 TC-BATCH-08 Slot Repair
+### 6.4 Authoritative Resolution: S9-T03 Batch Generation Requirements and S9-T06 Telemetry Reconciliation
 
-A formal source-contract conflict exists between **S9-T03 (Batch Generation Execution Pipeline Contract)** and **S9-T06 (Editor and Preview Interaction Specification)** regarding the behavior of $C_{\text{val\_slots}}$ during manual human editing:
+The prior divergence between **S9-T03 §5.2 (TC-BATCH-08)** and **S9-T06 (§6.1–§6.3)** regarding candidate counters has been authoritatively resolved across both specifications under a unified dual-counter model:
 
-#### 6.4.1 The Conflicting Contract Specifications
-| Architectural Dimension | S9-T03 Specification ([S9-T03 §2.3.1, §2.4, TC-BATCH-08](S9-T03-BATCH-GENERATION-REQUIREMENTS.md#tc-batch-08)) | S9-T06 Specification (§6.1, §6.2, §6.3) | Nature of Divergence |
-| :--- | :--- | :--- | :--- |
-| **Manual Slot Repair Behavior** | **TC-BATCH-08**: *"Given partial batch with Slot 3 INVALID, user edits Slot 3. Action: User fills missing Option D and saves. Expected: Slot 3 status = MANUALLY_EDITED. $C_{\text{edit}}=1$, **$C_{\text{val\_slots}}$ increments to 5**. $C_{\text{rem\_gen}} = 0$. BatchStatus transitions to COMPLETE."* | **§6.1.2 & §6.3**: Manual edits update $C_{\text{pop}}, C_{\text{valid}}, C_{\text{edit}}$, but **never** increment $C_{\text{val\_slots}}$ and **never** decrement $C_{\text{rem\_gen}}$. $C_{\text{val\_slots}}$ is strictly isolated to AI generation telemetry. | Direct operational contradiction: S9-T03 mutates $C_{\text{val\_slots}}$ on human edits; S9-T06 keeps $C_{\text{val\_slots}}$ immutable to human edits. |
-| **$C_{\text{val\_slots}}$ Semantic Scope** | Overloaded as an **Aggregate Valid-Slot Counter**: represents the total count of valid slots currently occupying in-range positions in the batch aggregate (including human edits). | Strictly defined as **AI Generation Attempt Telemetry**: represents valid candidate objects successfully synthesized and assigned by the AI model during that attempt. | Scope conflation: S9-T03 conflates AI telemetry with live workbench state; S9-T06 isolates telemetry from editor state. |
-| **Candidate Partition Invariant** | States $C_{\text{gen}} = C_{\text{val\_slots}} + C_{\text{inv}} + C_{\text{dup}} + C_{\text{val\_overflow}}$ in §2.3.1, but TC-BATCH-08 increments $C_{\text{val\_slots}}$ without an AI generation event ($C_{\text{gen}}$ unchanged). | Preserves $C_{\text{gen}} = C_{\text{val\_slots}} + C_{\text{inv}} + C_{\text{dup}} + C_{\text{val\_overflow}}$ as a strictly closed equation over the AI attempt by defining $C_{\text{valid}}$ for human edits. | Mathematical consistency: S9-T03 breaks partition invariant on manual edit; S9-T06 preserves mathematical integrity. |
-| **Generation Completeness Milestone** | Attained when $C_{\text{val\_slots}} == C_{\text{req}}$ (which TC-BATCH-08 allows manual repair to satisfy). | Attained if and only if an AI generation attempt fills all $N$ slots ($C_{\text{val\_slots}} == C_{\text{req}} \land C_{\text{rem\_gen}} == 0$). Resumed drafts or manual batches evaluate as `UNAVAILABLE` or `N/A`. | Milestone semantic: S9-T03 allows human edits to complete AI generation; S9-T06 restricts Milestone 1 to AI performance. |
+#### 6.4.1 The Reconciled Unified Counter Model
+To prevent confusing AI pipeline telemetry with live human editing state, the system formalizes two orthogonal sets of counters:
 
-#### 6.4.2 Root Cause Analysis
-1. **Upstream Overloading in S9-T03**:
-   - In S9-T03 §2.3.1, $C_{\text{val\_slots}}$ was introduced under the candidate partition invariant to evaluate AI pipeline yield ($C_{\text{gen}} = C_{\text{val\_slots}} + C_{\text{inv}} + C_{\text{dup}} + C_{\text{val\_overflow}}$).
-   - However, in S9-T03 TC-BATCH-08 and §2.4 Milestone 1, S9-T03 simultaneously used $C_{\text{val\_slots}}$ as the aggregate validity condition for the batch draft document.
-   - When a human editor repairs an invalid slot, treating that repair as incrementing $C_{\text{val\_slots}}$ satisfies batch completeness in S9-T03, but creates an accounting anomaly: $C_{\text{val\_slots}}$ increments by 1 while $C_{\text{gen}}$ (total AI-generated candidates) does not, mathematically violating the partition invariant unless non-existent AI candidates are fabricated.
-2. **Telemetry Isolation in S9-T06**:
-   - To prevent telemetry distortion and avoid displaying fabricated generation metrics when loading resumed or manually drafted batches, S9-T06 introduced $C_{\text{valid}}$ for live workbench evaluation while freezing $C_{\text{val\_slots}}$ as historical generation telemetry.
-   - While architecturally rigorous for UI and state projection, this decision directly contradicts the explicit test case TC-BATCH-08 in S9-T03.
+1. **Generation Telemetry Counters (AI Synthesis Attempt)**:
+   - $C_{\text{req}}$: Target question count ($5, 10, 15, 20$).
+   - $C_{\text{gen}}$: Raw candidate objects received from the AI model during that attempt.
+   - $C_{\text{val\_slots}}$: Distinct valid candidates synthesized by the AI provider assigned to in-range slots ($0 \le C_{\text{val\_slots}} \le C_{\text{req}}$). Manual human edits do **not** increment $C_{\text{val\_slots}}$.
+   - $C_{\text{inv}}$: Raw candidate objects failing validation.
+   - $C_{\text{dup}}$: Candidate objects rejected due to duplicate text/options.
+   - $C_{\text{val\_overflow}}$: Valid candidates arriving beyond $C_{\text{req}}$ (buffered in `overflowBuffer`).
+   - $C_{\text{rem\_gen}}$: Unfilled AI generation slots ($C_{\text{req}} - C_{\text{val\_slots}}$).
+   - **Candidate Partition Invariant**: Preserved as a strictly closed equation over the AI generation attempt:
+     $$C_{\text{gen}} = C_{\text{val\_slots}} + C_{\text{inv}} + C_{\text{dup}} + C_{\text{val\_overflow}}$$
 
-#### 6.4.3 S9-T06 Resolution & Guidance for Downstream Implementation
-- **Status of Conflict**: **UNRESOLVED AT SOURCE-CONTRACT LEVEL**. S9-T06 does **NOT** claim full alignment with S9-T03 on this specific accounting rule; it records this divergence transparently as an architectural conflict for future sprint reconciliation.
-- **Adopted S9-T06 Interaction & UI Decision**:
-  - The studio UI presents **Generation Telemetry** ($C_{\text{val\_slots}}, C_{\text{rem\_gen}}$) separately from **Workbench Editorial Status** ($C_{\text{valid}}, C_{\text{edit}}, C_{\text{acc}}$).
-  - Verification readiness (Stage 01 $\rightarrow$ Stage 02 submission gate) evaluates live editor validity ($C_{\text{valid}} == C_{\text{req}}$) and explicit human acceptance ($C_{\text{acc}} == C_{\text{req}}$).
-  - This ensures that creators are never blocked from submitting a valid, accepted batch regardless of whether its contents originated from AI synthesis or manual repair.
-- **Implementation Requirement for Downstream Tasks (S9-T07 / S9-T08)**:
-  - Downstream engine and persistence engineers must review this conflict before implementing batch aggregate schema types.
-  - If the backend adopts S9-T03 TC-BATCH-08, $C_{\text{val\_slots}}$ must be recomputed on slot edits and documented as an aggregate-level valid-slot counter rather than attempt telemetry.
-  - If the backend adopts S9-T06 telemetry isolation, `generationTelemetry` must be modeled as a distinct nested object within `Mode1BatchDraftAggregate` (`draft.telemetry.valSlots` vs. `draft.slots.filter(s => s.status === 'VALID').length`), cleanly resolving the conflict across both contracts.
+2. **Workbench Editorial Counters (Studio Editor Live State)**:
+   - $C_{\text{pop}}$: Populated in-range slots ($0 \le C_{\text{pop}} \le C_{\text{req}}$).
+   - $C_{\text{valid}}$: Currently valid in-range slots ($0 \le C_{\text{valid}} \le C_{\text{req}}$), passing all schema, option, answer, and proof rules (originating from either valid AI synthesis or human edit).
+   - $C_{\text{edit}}$: In-range slots modified or created by the human editor ($0 \le C_{\text{edit}} \le C_{\text{req}}$).
+   - $C_{\text{acc}}$: In-range slots explicitly approved by the human editor (`status = 'ACCEPTED'`).
+   - $C_{\text{rem\_accept}}$: In-range slots still requiring human editorial acceptance ($C_{\text{req}} - C_{\text{acc}}$).
+
+#### 6.4.2 Authoritative Resolution of TC-BATCH-08
+In accordance with this unified architecture, S9-T03 TC-BATCH-08 is authoritatively interpreted and updated as follows:
+- When a human editor manually repairs Slot 3 (filling missing Option D and saving):
+  - Slot 3 transitions from `'INVALID'` to `'MANUALLY_EDITED'`.
+  - $C_{\text{edit}}$ increments to 1.
+  - The live workbench validity counter $C_{\text{valid}}$ reaches 5 ($C_{\text{valid}} == C_{\text{req}}$).
+  - Generation telemetry $C_{\text{val\_slots}}$ remains 4, preserving the exact record of what the AI model generated and keeping the candidate partition equation intact without fabricating synthetic AI candidates.
+  - When the editor subsequently reviews and clicks `"Accept"` on each slot, $C_{\text{acc}}$ reaches 5 ($C_{\text{rem\_accept}} == 0$).
+  - **Milestone 3 (Submit for Verification)** evaluates $C_{\text{valid}} == C_{\text{req}}$ and $C_{\text{acc}} == C_{\text{req}}$, enabling seamless Stage 02 submission.
+
+#### 6.4.3 Architectural Impact & Downstream Alignment
+- **Contract Status**: **FULLY RECONCILED**. S9-T03, S9-T05, S9-T06, and S9-T07 share identical mathematical definitions and lifecycle milestones.
+- **Data Modeling Contract**: The batch draft aggregate persistently separates generation telemetry from slot status:
+  - Telemetry is stored under `draft.telemetry` (`valSlots`, `rawGen`, `invalids`, `duplicates`, `overflowCount`).
+  - Active editor state is derived dynamically from `draft.slots` (`valid`, `manuallyEdited`, `accepted`).
+- This resolution guarantees zero mathematical contradictions, zero telemetry fabrication on resumed drafts, and unblocked editorial progress.
 
 ---
 

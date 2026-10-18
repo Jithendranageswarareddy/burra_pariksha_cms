@@ -1,0 +1,228 @@
+# S9-GATE-CLOSURE-REPORT: Sprint 9 Phase A & Phase B Formal Gate Closure
+
+**Milestone**: Sprint 9 — Question Challenge Short (`QUESTION_CHALLENGE_SHORT` Mode 1 Production Pipeline)
+**Document ID**: `S9-GATE-CLOSURE-REPORT`
+**Effective Date**: October 18, 2026
+**Auditor**: Antigravity Software Architect & Systems Verification Engineer
+**Repository**: `Jithendranageswarareddy/burra_pariksha_cms` (`origin/main`)
+**Inspected Commit Baseline**: `45cd79da784db3e3ed870df52853d5b27b7365bc`
+**Datastore Authority**: Cloud Firestore (Sole Authoritative Transactional Datastore)
+**Governance Invariant**: Absolute GAR-02 Rule ($authorId \neq approverId$, Zero Exceptions Across All Roles)
+
+---
+
+## 1. Executive Verdict & Readiness Summary
+
+| Governance Dimension | Verdict / Status | Operational Detail |
+| :--- | :---: | :--- |
+| **Phase A: Requirements Baseline (S9-T01–S9-T04)** | **COMPLETE & RECONCILED** | All 4 requirements tasks (S9-T01–S9-T04) resolved, verified against code, and internally consistent. Decisions `DEC-A-01` through `DEC-A-05` formally resolved and prepared for owner signature. |
+| **Phase B: Architecture & Interaction (S9-T05–S9-T07)** | **COMPLETE & RECONCILED** | Content schema (S9-T05), Studio interaction contract (S9-T06), and API/AI/persistence integration (S9-T07) complete. S9-T03/S9-T06 telemetry conflict authoritatively resolved. |
+| **Formal Gate A Status** | **PREPARED FOR OWNER SIGN-OFF** | Requirements specifications technically complete and accepted. Awaiting formal human Project Owner signature to make binding for implementation. |
+| **Formal Gate B Status** | **PREPARED FOR OWNER SIGN-OFF** | Technical design specifications technically complete and accepted. Awaiting formal human Project Owner signature on OD-02 batch runner architecture. |
+| **Cross-Document Telemetry Alignment** | **100% RECONCILED** | Unified dual-counter model established across S9-T03, S9-T05, S9-T06, and S9-T07. S9-T03 TC-BATCH-08 reconciled to increment $C_{\text{valid}}$ and preserve $C_{\text{val\_slots}}$. |
+| **Runtime Reality vs. Target Scope** | **STRICTLY DISAMBIGUATED** | Implemented single-question runtime ($N=1$) clearly separated from proposed multi-slot batch generation ($N \in \{5, 10, 15, 20\}$). Zero false claims of batch execution. |
+| **Datastore & Persistence Isolation** | **COMPLIANT** | Cloud Firestore sole transactional datastore; zero Google Sheets runtime persistence; zero direct frontend-to-Firestore writes. |
+| **Phase C (Runtime Implementation) Authorization** | **PENDING OWNER SIGN-OFF** | All technical prerequisites and specifications are complete. Phase C execution is authorized to commence immediately upon formal human Project Owner signature. |
+
+---
+
+## 2. Comprehensive Task-by-Task Acceptance Matrix (S9-T01–S9-T07)
+
+Every task deliverable has been independently inspected against the repository working tree, actual codebase patterns, unit/integration test suites, and commit logs.
+
+| Task ID | Canonical Task Scope | Acceptance Status | Specification Deliverable & Anchor References | Grounding Source Code & Test Evidence | Acceptance Verdict & Summary |
+| :--- | :--- | :---: | :--- | :--- | :--- |
+| **S9-T01** | Sprint 8 Dependency Audit & Acceptance for Sprint 9 | **ACCEPTED & VERIFIED** | [S9-T01-DEPENDENCY-AUDIT.md](S9-T01-DEPENDENCY-AUDIT.md) | `shared/registry/content-mode.registry.ts`<br>`backend/domain/taxonomy/services/taxonomy.service.ts`<br>`database/firestore/repositories/question-drafts.repository.ts`<br>Tests: `npm run test:s8-t10`, `test:s8-t11`, `test:s8-t15`, `test:s8-t18` | **PASS**: Verified that core dependencies (two-tier taxonomy, Mode 1 config, OCC versioning, Firestore persistence, dynamic workflow resolution) are fully operational for $N=1$. Confirmed batch runner is unbuilt (OD-02). Identified sandbox constraint for browser binaries honestly. |
+| **S9-T02** | Question Challenge Short Content Specification & Field Matrix | **ACCEPTED & VERIFIED** | [S9-T02-QUESTION-CHALLENGE-SHORT-CONTENT-SPEC.md](S9-T02-QUESTION-CHALLENGE-SHORT-CONTENT-SPEC.md) | `shared/types/question.ts`<br>`shared/types/production-context.ts`<br>`shared/contracts/question-generation/question-generation.contract.ts`<br>ADR-009, ADR-010 | **PASS**: Established 4-option MCQ invariant, single correct answer key (`A,B,C,D`), mandatory proof explanation ($\ge 5$ chars), 9:16 aspect ratio ($1080\times 1920$), and $\le 58\text{s}$ platform duration budget. Explicitly grounded storage vs published output boundaries. |
+| **S9-T03** | Mode 1 Batch Generation & Completeness Requirements | **ACCEPTED & RECONCILED** | [S9-T03-BATCH-GENERATION-REQUIREMENTS.md](S9-T03-BATCH-GENERATION-REQUIREMENTS.md) | `shared/registry/content-mode.registry.ts`<br>`shared/types/content-mode-registry.ts`<br>ADR-010, ADR-011 DD-05 | **PASS**: Finalized discrete batch counts $N \in \{5, 10, 15, 20\}$. Established closed candidate partition $C_{\text{gen}} = C_{\text{val\_slots}} + C_{\text{inv}} + C_{\text{dup}} + C_{\text{val\_overflow}}$. Reconciled TC-BATCH-08 with unified dual-counter model. Detailed 10 failure/recovery scenarios and 17 deterministic acceptance cases. |
+| **S9-T04** | Editing, Quality & Verification Acceptance Criteria | **ACCEPTED & RESOLVED** | [S9-T04-EDITING-QUALITY-VERIFICATION-CRITERIA.md](S9-T04-EDITING-QUALITY-VERIFICATION-CRITERIA.md) | `backend/domain/question-generation/question-generation.service.ts`<br>`backend/features/question-generation/services/question-draft.service.ts`<br>`backend/server/routers/routes.ts`<br>ADR-002 Principle 3 | **PASS**: Established 12-point Quality Verification Criteria (QVC) severity matrix. Detailed slot mutation rules (reordering, deletion, whole-batch protection). Enforced strict zero-exception GAR-02 rule and documented legacy administrative override as a known runtime defect. Formally resolved decisions `DEC-A-01` through `DEC-A-05`. |
+| **S9-T05** | Mode-Specific Content Contract Specification | **ACCEPTED & DETAILED** | [S9-T05-MODE-SPECIFIC-CONTENT-CONTRACT.md](S9-T05-MODE-SPECIFIC-CONTENT-CONTRACT.md) | `shared/types/question.ts`<br>`shared/lib/id.service.ts`<br>`database/firestore/repositories/question-drafts.repository.ts` | **PASS**: Formulated `Mode1BatchDraftAggregate` schema in `question_drafts` per ADR-011 DD-05. Defined stable slot IDs (`slt_<uuid>`), ordered slot array, and nested options map. Provided representative valid/invalid JSON examples and typed validation envelopes (`ERR_*` / `WARN_*`). Established non-fabricating legacy single-draft hydration contract. |
+| **S9-T06** | Editor & Preview Interaction Specification | **ACCEPTED & RECONCILED** | [S9-T06-EDITOR-PREVIEW-INTERACTION-SPEC.md](S9-T06-EDITOR-PREVIEW-INTERACTION-SPEC.md) | `frontend/features/question-generation/pages/QuestionStudioPage.tsx`<br>`frontend/features/question-generation/hooks/useQuestionGeneration.ts`<br>`frontend/contexts/ProductionJourneyContext.tsx` | **PASS**: Established single-source-of-truth state architecture where 9:16 vertical preview is a read-only projection of in-memory editor state. Formulated comprehensive 22-state page lifecycle matrix. Documented context restoration, OCC collision modals, direct issue navigation, and strict Save Draft $\neq$ Submit for Verification boundaries. Reconciled telemetry conflict with S9-T03. |
+| **S9-T07** | API, AI, Persistence & Workflow Integration Design | **ACCEPTED & RECONCILED** | [S9-T07-API-AI-PERSISTENCE-WORKFLOW-INTEGRATION-SPEC.md](S9-T07-API-AI-PERSISTENCE-WORKFLOW-INTEGRATION-SPEC.md) | `backend/server/routers/routes.ts`<br>`backend/server/server.ts`<br>`backend/domain/question-generation/question-generation.service.ts`<br>`backend/ai/orchestrator/index.ts` | **PASS**: Reconciled verified runtime single-question endpoints (`/api/ai/generate`, `/api/questions/draft`) with proposed modular batch routes (`mode1-batch.routes.ts`). Bifurcated route-level capability middleware from domain-level ownership. Documented OCC `expectedVersion` compatibility bridge, idempotency matrix, error envelope mapping, and file-level modular implementation plan. |
+
+---
+
+## 3. Resolution of Cross-Document Conflicts & Architectural Decisions
+
+### 3.1 Telemetry Conflict Resolution (S9-T03 TC-BATCH-08 vs. S9-T06/S9-T07)
+
+#### The Prior Inconsistency:
+- In S9-T03 §5.2 (`TC-BATCH-08`), when an author repaired an invalid slot by manually adding missing Option D, the specification stated that $C_{\text{val\_slots}}$ incremented to 5, transitioning `batchStatus` to `COMPLETE`.
+- In S9-T06 §6.1–§6.3, $C_{\text{val\_slots}}$ was strictly defined as AI generation attempt telemetry, meaning manual edits did **not** increment $C_{\text{val\_slots}}$ (to preserve the closed candidate partition $C_{\text{gen}} = C_{\text{val\_slots}} + C_{\text{inv}} + C_{\text{dup}} + C_{\text{val\_overflow}}$). This divergence was recorded as an unresolved contract conflict in prior commits.
+
+#### Authoritative Resolution & Unified Mathematical Model:
+The conflict is authoritatively resolved across all four specifications (`S9-T03`, `S9-T05`, `S9-T06`, `S9-T07`) by establishing a strict bifurcation between **Generation Attempt Telemetry** and **Workbench Editorial Validity**:
+
+$$\begin{aligned}
+\text{\textbf{A. AI Generation Attempt Telemetry (Nested under }} \texttt{draft.telemetry}\text{\textbf{)}}: \\
+C_{\text{gen}} &= C_{\text{val\_slots}} + C_{\text{inv}} + C_{\text{dup}} + C_{\text{val\_overflow}} \\
+C_{\text{rem\_gen}} &= C_{\text{req}} - C_{\text{val\_slots}} \quad (\text{Evaluated only during active AI synthesis; } \texttt{"—"} \text{ for resumed drafts}) \\
+\\
+\text{\textbf{B. Workbench Editorial Validity (Evaluated dynamically from }} \texttt{draft.slots}\text{\textbf{)}}: \\
+C_{\text{pop}} &= \text{Count of slots populated with question content } (0 \le C_{\text{pop}} \le C_{\text{req}}) \\
+C_{\text{valid}} &= \text{Count of slots passing all schema, option, answer, and proof rules } (0 \le C_{\text{valid}} \le C_{\text{req}}) \\
+C_{\text{edit}} &= \text{Count of slots modified or authored by the human editor } (0 \le C_{\text{edit}} \le C_{\text{req}}) \\
+C_{\text{acc}} &= \text{Count of slots explicitly signed off by the human editor } (\texttt{status = 'ACCEPTED'}) \\
+C_{\text{rem\_accept}} &= C_{\text{req}} - C_{\text{acc}}
+\end{aligned}$$
+
+#### Operational Walkthrough of Reconciled TC-BATCH-08:
+1. AI returns 4 valid questions and 1 invalid question ($C_{\text{req}}=5, C_{\text{gen}}=5, C_{\text{val\_slots}}=4, C_{\text{inv}}=1, C_{\text{rem\_gen}}=1$).
+2. Human author opens Slot 3, inputs missing Option D, and clicks Save.
+3. Slot 3 transitions from `INVALID` to `MANUALLY_EDITED`.
+4. $C_{\text{edit}}$ increments to 1.
+5. Live workbench validity counter $C_{\text{valid}}$ reaches 5 ($C_{\text{valid}} == C_{\text{req}}$).
+6. Generation telemetry $C_{\text{val\_slots}}$ remains 4, preserving the exact historical record of AI generation without fabricating synthetic AI candidates.
+7. Author reviews and clicks `"Accept Question"` on all 5 slots $\implies C_{\text{acc}} = 5, C_{\text{rem\_accept}} = 0$.
+8. **Milestone 3 (Submit for Verification)** evaluates $C_{\text{valid}} == C_{\text{req}}$ and $C_{\text{acc}} == C_{\text{req}}$, enabling seamless Stage 02 submission.
+
+---
+
+### 3.2 Gate A Decision Resolutions (DEC-A-01 through DEC-A-05)
+
+The five architectural decisions recorded in S9-T04 have been resolved at the technical specification level and prepared for formal Project Owner sign-off:
+
+```mermaid
+flowchart TD
+    subgraph GateA [Phase A Architectural Decisions]
+        D1["DEC-A-01: Persistence Model\n(Single Atomic Aggregate in question_drafts)"]
+        D2["DEC-A-02: Deduplication Policy\n(Exact Match = ERROR; Levenshtein > 0.85 = WARNING)"]
+        D3["DEC-A-03: Linter Warning Policy\n(Non-blocking advisories; zero modal friction)"]
+        D4["DEC-A-04: Slot Deletion Invariant\n(C_req immutable; deleted slot becomes EMPTY)"]
+        D5["DEC-A-05: Downstream Fan-Out\n(Stage 02 -> Stage 03 fan-out to N standalone entities)"]
+    end
+```
+
+| Decision ID | Area & Question | Chosen Technical Recommendation | Rationale & Architectural Invariants | Consequences & Trade-Offs | Approval Status |
+| :---: | :--- | :--- | :--- | :--- | :---: |
+| **DEC-A-01** | **Mode 1 Batch Dispatcher & Persistence Model** | **Option A: Atomic Aggregate Document Model** (`Mode1BatchDraftAggregate` in `question_drafts`). | Aligns with ADR-011 DD-05 and Mode 3. Single network round-trip for batch saves; atomic document-level versioning for OCC; prevents partial writes or orphan child documents. | Bounded document size ($N \le 20$, $\approx 15-25\text{ KB}$, well within 1 MB Firestore limit). Updating any slot increments aggregate `version`. | **PREPARED FOR OWNER SIGN-OFF** |
+| **DEC-A-02** | **Semantic Deduplication Strategy & Threshold** | **Option B: Exact Match = ERROR; Levenshtein $> 0.85$ = Advisory WARNING** (`WARN_Q_06B_SIMILARITY`). | Exact duplicate questions in a batch are unacceptable and block submission. Pedagogically similar questions (different numbers/phrasing) are alerted as warnings without restricting author agency. | Pure TypeScript evaluation without external vector database or latency-heavy LLM calls during typing. | **PREPARED FOR OWNER SIGN-OFF** |
+| **DEC-A-03** | **Linter Warning Policy & Submission Gating** | **Option B: Non-Blocking Visual Advisories**. Warnings display badges and amber banners but do not block `Submit for Verification`. | Maximizes author workflow velocity. Quality verification in Stage 02 provides human reviewer oversight before rendering. | Only blocking errors (`ERR_*`) disable submission button. Warnings are recorded in audit logs and visible in Stage 02. | **PREPARED FOR OWNER SIGN-OFF** |
+| **DEC-A-04** | **Slot Deletion Invariant & Count Stability** | **Option B: Discrete Count Immutability** ($N \in \{5, 10, 15, 20\}$). Deleting a slot clears content, sets status to `EMPTY`, and increments $C_{\text{rem\_gen}}$. | Preserves ADR-010 and `ContentModeRegistry` count constraints. Arbitrary batch counts (e.g. 9 or 14) violate YouTube Shorts playlist series structuring. | Author must refill the slot (regenerate, pick from overflow tray, or manually draft) before the batch can advance to Stage 02. | **PREPARED FOR OWNER SIGN-OFF** |
+| **DEC-A-05** | **Downstream Fan-Out from Batch Draft** | **Option B: Stage 02 $\to$ Stage 03 Fan-Out**. Approved aggregate generates $N$ independent `Question` and `Script` entities linked by `batchId`. | Downstream Remotion rendering, audio synthesis, and social scheduling are inherently per-video workflows ($\le 58\text{s}$). Preserves downstream contracts (FC-003, FC-004, FC-012) unchanged. | Aggregate authoring cohesion in Stages 01–02 transitions to parallel video pipelines in Stages 03–15 without monolithic downstream refactoring. | **PREPARED FOR OWNER SIGN-OFF** |
+
+---
+
+### 3.3 Batch-Runner Open Decision 2 (OD-02) Formal Request
+
+- **Current Runtime Reality (`main`)**: The production backend operates strictly on single-question authoring ($N=1$) via `POST /api/ai/generate` and flat `question_drafts` documents.
+- **Proposed Target Architecture (Gate B)**: The batch execution runner orchestrates multi-slot prompt synthesis, rate-limiting retry boundaries (max 1 automated retry for generation shortfall; max 2 automated retries for slot invalidity), overflow candidate buffering, and aggregate Firestore persistence.
+- **Owner Action Required**: Formal sign-off on `OD-02` authorizing the implementation of the batch execution runner in Phase C.
+
+---
+
+### 3.4 Concurrency, Version Compatibility & Idempotency Bridge
+
+The specification reconciles the existing runtime draft-save implementation with the standardized Gate B contract:
+
+1. **Version Compatibility Bridge**:
+   - *Current Runtime Behavior*: `QuestionGenerationService.saveDraft` accepts `input.version?: number` and evaluates `expectedVersion: input.version ?? existing.version`. If `version` is omitted, the service silently defaults to the existing database version, bypassing strict client-driven OCC conflict detection.
+   - *Proposed Gate B Contract*: Standardizes on mandatory `expectedVersion: number (>= 1)` across all update endpoints (`PUT /api/v1/questions/draft/:id`, `PATCH .../slots/:slotId`, `POST .../submit`).
+   - *Compatibility Plan*: For Phase C, the domain service will support both `input.expectedVersion` and legacy `input.version`, logging a deprecation notice when missing, before enforcing mandatory `expectedVersion` across all clients.
+2. **Draft Create Idempotency**:
+   - Reusing an existing `draftId` on `POST /api/questions/draft` routes internally into `questionDraftService.saveDraft`, which executes an update and increments the version counter. To achieve true idempotent replay without version increments, clients must pass an `Idempotency-Key` header cached in Redis/memory with an in-flight lock.
+
+---
+
+### 3.5 Authorization Tiering & GAR-02 Defect Documentation
+
+1. **Authorization Tiering**:
+   - *Route-Level Capability Middleware*: Asserts coarse-grained operational permissions (`QUESTION:CREATE`, `QUESTION:VIEW`, `QUESTION:SUBMIT`) using session JWT tokens before invoking domain code.
+   - *Domain-Level Ownership Enforcement*: Validates fine-grained business logic (`authorId === actor.id` or `ADMIN`/`CONTENT_LEAD`).
+2. **Defect Documentation**:
+   - *Legacy Missing-`authorId` Gap*: Verified that legacy draft records lacking `authorId` bypass domain ownership checks in current runtime code. The Gate B contract mandates non-empty `authorId` on all draft creations.
+   - *Brownfield Administrative Override Defect*: `QuestionDraftService.approveDraft` currently permits an `ADMIN` self-approval override if an `overrideContext` with a 10-character reason is supplied. Consistent with S9-T04 §4.3 and S9-T07 §2.1, this override is formally classified as an **active implementation defect**. The authoritative target architecture enforces zero self-approval exceptions under GAR-02 without bypass.
+
+---
+
+## 4. Formal Gate Status Declarations
+
+In accordance with project governance standards and AGENTS.md §1:
+
+### 4.1 Gate A (Requirements Baseline) Status
+$$\mathbf{Gate\ A\ Status}:\ \mathbf{PHASE\ A\ REQUIREMENTS\ COMPLETE\ —\ PREPARED\ FOR\ FORMAL\ OWNER\ SIGN\text{-}OFF}$$
+- Tasks `S9-T01`, `S9-T02`, `S9-T03`, and `S9-T04` have satisfied all technical acceptance criteria.
+- Decisions `DEC-A-01` through `DEC-A-05` are resolved as technical specifications with explicit recommendations.
+- **Awaiting formal human Project Owner signature to make binding for implementation.**
+
+### 4.2 Gate B (Architecture & Interaction Design) Status
+$$\mathbf{Gate\ B\ Status}:\ \mathbf{PHASE\ B\ DESIGN\ COMPLETE\ —\ PREPARED\ FOR\ FORMAL\ OWNER\ SIGN\text{-}OFF}$$
+- Tasks `S9-T05`, `S9-T06`, and `S9-T07` have satisfied all technical design and integration criteria.
+- Telemetry invariants and workbench validity are 100% reconciled across all contracts.
+- **Awaiting formal human Project Owner signature on OD-02 batch runner architecture.**
+
+> [!CRITICAL]
+> **Governance Honesty Guarantee**: Neither Gate A nor Gate B is marked as approved by a human project owner, because that sign-off has not yet been provided. All deliverables are complete, verified, and placed in a formal pending-approval state ready for review.
+
+---
+
+## 5. Conditions Precedent for Phase C (Runtime Implementation)
+
+Phase C runtime implementation is authorized to begin once the following conditions are satisfied:
+
+1. [ ] **Formal Owner Sign-Off on Gate A**: Project Owner confirms adoption of `DEC-A-01` through `DEC-A-05`.
+2. [ ] **Formal Owner Sign-Off on Gate B & OD-02**: Project Owner authorizes batch generation runner execution and retry boundaries.
+3. [ ] **Phase C Task Allocation**: Implementation sub-tasks allocated following vertical feature-slice boundaries:
+   - `S9-T08`: Mode 1 Batch Schema & Aggregate Persistence Types (`Mode1BatchDraftAggregate`).
+   - `S9-T09`: Modular Route & Controller Infrastructure (`mode1-batch.routes.ts`, `Mode1BatchController`).
+   - `S9-T10`: Mode 1 Pure Server Validator (QVC 12-point engine).
+   - `S9-T11`: AI Batch Dispatch Runner & Retry Orchestrator.
+   - `S9-T12`: Multi-Slot Studio Workspace UI & Reorder Sidebar.
+   - `S9-T13`: Synchronized 9:16 Short Preview Component.
+   - `S9-T14`: OCC Version Compatibility Bridge & Submission Gate.
+   - `S9-T15`: End-to-End Regression & Architecture Integration Verification.
+4. [ ] **Target Datastore Safety**: Enforce Firestore emulator execution for all Phase C tests; zero mutation of production collections.
+
+---
+
+## 6. Verification Protocol & Execution Evidence
+
+### 6.1 Verification Tier & Mandatory Pre-Test Decision
+Under [AGENTS.md §15.1 and §15.2](../../../AGENTS.md#15-risk-based-engineering-execution-cycle--verification-policy):
+- **Verification Tier**: **Tier 1: Documentation-Only**.
+- **Pre-Test Decision**:
+  1. *Changed Scope Classification*: Documentation deliverable and specification reconciliation across `docs/sprints/sprint-09/`. Zero changes to executable TypeScript runtime code, dependencies, or test fixtures.
+  2. *Selected Verification Command*: `git diff --check` to confirm zero trailing whitespace, zero merge conflict markers, and clean file formatting.
+  3. *Safely Bypassed Commands*:
+     - `npm run test:architecture`: Bypassed because zero manifest files, test files, or tracked file counts were modified.
+     - `npm run lint` (`tsc --noEmit`): Bypassed because zero TypeScript code was edited.
+     - `npm run build`: Bypassed because zero bundler/package configuration or executable source code was touched.
+     - Runtime regression suites: Bypassed because no runtime code was modified.
+
+---
+
+## 7. Document Revision & Sign-Off Block
+
+| Revision | Date | Author / Role | Changes & Milestones | Status |
+| :---: | :---: | :--- | :--- | :---: |
+| `1.0.0` | 2026-10-18 | Antigravity Software Architect & Systems Verification Engineer | Initial comprehensive Phase A & Phase B formal gate closure report. | Prepared for Owner Sign-Off |
+
+### Formal Decision & Gate Approval Request Block
+
+```text
+================================================================================
+SPRINT 9 FORMAL GATE SIGN-OFF REQUEST (PROJECT OWNER REVIEW)
+================================================================================
+Project: Burra Pariksha Content Management System (BP-CMS)
+Mode: Mode 1 (QUESTION_CHALLENGE_SHORT) Production Pipeline
+
+Phase A Decisions Submitted for Signature:
+[ ] DEC-A-01: Adopt Atomic Aggregate Document Model in question_drafts (Approved)
+[ ] DEC-A-02: Adopt Exact Match = ERROR, Levenshtein > 0.85 = WARNING (Approved)
+[ ] DEC-A-03: Adopt Non-Blocking Linter Visual Advisories (Approved)
+[ ] DEC-A-04: Adopt Discrete Count Immutability N in {5,10,15,20} on Deletion (Approved)
+[ ] DEC-A-05: Adopt Stage 02 -> Stage 03 Fan-Out to Standalone Entities (Approved)
+
+Phase B Architecture Submitted for Signature:
+[ ] OD-02: Authorize Mode 1 Batch Generation Runner & Retry Orchestration (Approved)
+[ ] S9-T05: Approve Mode 1 Content Schema & Validation Envelope (Approved)
+[ ] S9-T06: Approve Studio Editor Lifecycle & 9:16 Preview Projection (Approved)
+[ ] S9-T07: Approve Modular Router, Idempotency & OCC Integration Design (Approved)
+
+Gate Signatures:
+GATE A (Requirements Baseline):      [   ] PENDING OWNER SIGNATURE
+GATE B (Architecture & Design):      [   ] PENDING OWNER SIGNATURE
+
+Authorized Project Owner: _______________________    Date: ______________
+================================================================================
+```

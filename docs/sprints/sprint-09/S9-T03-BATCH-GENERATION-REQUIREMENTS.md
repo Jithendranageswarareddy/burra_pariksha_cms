@@ -53,20 +53,31 @@ A question candidate occupying slot $k$ ($1 \le k \le N$) is deemed **`VALID`** 
 ### 2.3 Candidate Telemetry & Accounting Model
 
 #### 2.3.1 Telemetry Counters
-To avoid ambiguous progress reporting, every batch generation attempt maintains explicit counters distinguishing candidate disposition, slot occupancy, editorial state, and remaining work:
+To avoid ambiguous progress reporting, every batch generation attempt maintains explicit counters distinguishing candidate disposition, slot occupancy, editorial state, and remaining work under a unified dual-counter model:
+
+##### A. Generation Telemetry Counters (AI Synthesis Attempt Pipeline)
+These counters measure the performance and output of the AI generation pipeline during that specific attempt:
 
 | Counter Symbol | Name | Definition | Invariant & Classification |
 | :---: | :--- | :--- | :--- |
 | $\mathbf{C_{\text{req}}}$ | **Configured Count** | The configured target count ($5, 10, 15, 20$). Immutable for that batch draft generation attempt. | $C_{\text{req}} \in \{5, 10, 15, 20\}$ `[APPROVED CONTRACT: ADR-010]` |
 | $\mathbf{C_{\text{gen}}}$ | **Raw Generated Candidates** | Total raw question candidate objects returned by the AI provider in response to the prompt. | $C_{\text{gen}} \ge 0$ |
-| $\mathbf{C_{\text{val\_slots}}}$ | **Valid In-Range Slots** | Number of distinct, valid questions successfully assigned to in-range slots $1 \dots N$. | $0 \le C_{\text{val\_slots}} \le C_{\text{req}}$ `[APPROVED CONTRACT]` |
+| $\mathbf{C_{\text{val\_slots}}}$ | **Valid In-Range Slots (AI)** | Number of distinct, valid questions successfully synthesized by the AI provider and assigned to in-range slots $1 \dots N$. Manual edits do NOT increment this counter. | $0 \le C_{\text{val\_slots}} \le C_{\text{req}}$ `[APPROVED CONTRACT]` |
 | $\mathbf{C_{\text{inv}}}$ | **Invalid Candidates** | Number of generated candidate objects that fail schema, option, answer, or proof validation (regardless of arrival index). | $C_{\text{inv}} \ge 0$ |
 | $\mathbf{C_{\text{dup}}}$ | **Duplicate Candidates** | Number of generated candidates rejected due to semantic or textual collision with another candidate or existing slot (regardless of arrival index). | $C_{\text{dup}} \ge 0$ |
 | $\mathbf{C_{\text{val\_overflow}}}$ | **Valid Overflow Candidates** | Valid and distinct candidates returned by the AI provider arriving after all $C_{\text{req}}$ in-range slots have already been satisfied ($C_{\text{val\_slots}} == C_{\text{req}}$). Quarantined in `overflowBuffer`. | $C_{\text{val\_overflow}} \ge 0$ `[PROPOSED DEFAULT — Requires Owner Approval under OD-02]` |
-| $\mathbf{C_{\text{edit}}}$ | **Manually Edited Slots** | Number of valid in-range slots whose content has been modified by the human editor. | $0 \le C_{\text{edit}} \le C_{\text{val\_slots}}$ `[APPROVED CONTRACT]` |
-| $\mathbf{C_{\text{acc}}}$ | **Accepted Slots** | Number of valid/edited in-range slots explicitly approved by the editor for verification. | $0 \le C_{\text{acc}} \le C_{\text{val\_slots}}$ `[APPROVED CONTRACT]` |
-| $\mathbf{C_{\text{rem\_gen}}}$ | **Remaining Generation Count** | Number of distinct valid slots still required to reach generation completeness ($C_{\text{rem\_gen}} = C_{\text{req}} - C_{\text{val\_slots}}$). | $0 \le C_{\text{rem\_gen}} \le C_{\text{req}}$ `[APPROVED CONTRACT]` |
-| $\mathbf{C_{\text{rem\_accept}}}$ | **Remaining Acceptance Count** | Number of valid slots still awaiting editorial acceptance ($C_{\text{rem\_accept}} = C_{\text{req}} - C_{\text{acc}}$). | $0 \le C_{\text{rem\_accept}} \le C_{\text{req}}$ `[APPROVED CONTRACT]` |
+| $\mathbf{C_{\text{rem\_gen}}}$ | **Remaining Generation Shortfall** | Number of distinct valid AI slots still required to reach generation completeness ($C_{\text{rem\_gen}} = C_{\text{req}} - C_{\text{val\_slots}}$). Resumed or manual drafts display `UNAVAILABLE` (`"—"`). | $0 \le C_{\text{rem\_gen}} \le C_{\text{req}}$ `[APPROVED CONTRACT]` |
+
+##### B. Workbench Editorial Counters (Live Studio Editor State)
+These counters measure the live state of slots in the Question Studio workbench:
+
+| Counter Symbol | Name | Definition | Invariant & Classification |
+| :---: | :--- | :--- | :--- |
+| $\mathbf{C_{\text{pop}}}$ | **Populated Slots** | Total in-range slots populated with question content (AI-generated or manually authored). | $0 \le C_{\text{pop}} \le C_{\text{req}}$ `[APPROVED CONTRACT]` |
+| $\mathbf{C_{\text{valid}}}$ | **Currently Valid Slots** | Number of in-range slots currently passing all schema, option, answer, and proof validation rules (whether valid from AI or repaired via human edit). | $0 \le C_{\text{valid}} \le C_{\text{req}}$ `[APPROVED CONTRACT]` |
+| $\mathbf{C_{\text{edit}}}$ | **Manually Edited Slots** | Number of in-range slots whose content has been modified or authored by the human editor. | $0 \le C_{\text{edit}} \le C_{\text{req}}$ `[APPROVED CONTRACT]` |
+| $\mathbf{C_{\text{acc}}}$ | **Accepted Slots** | Number of in-range slots explicitly approved by the human editor for verification (`status: 'ACCEPTED'`). `MANUALLY_EDITED` slots do NOT count until explicitly accepted. | $0 \le C_{\text{acc}} \le C_{\text{valid}}$ `[APPROVED CONTRACT]` |
+| $\mathbf{C_{\text{rem\_accept}}}$ | **Remaining Acceptance Count** | Number of slots still awaiting explicit human editorial acceptance ($C_{\text{rem\_accept}} = C_{\text{req}} - C_{\text{acc}}$). | $0 \le C_{\text{rem\_accept}} \le C_{\text{req}}$ `[APPROVED CONTRACT]` |
 
 #### 2.3.2 Mutually Exclusive Candidate Disposition Partition
 Every raw candidate $c \in \{1 \dots C_{\text{gen}}\}$ evaluated in order of arrival is mapped to **exactly one mutually exclusive category**:
@@ -155,9 +166,11 @@ Batch authoring enforces three strictly separated milestones. No incomplete or i
 | 1. Generation Completeness     | 2. Editorial Acceptance          | 3. Submit for Verification     |
 | (C_rem_gen == 0)              | (C_rem_accept == 0)              | (Stage 01 -> Stage 02 Hand-off)|
 ├───────────────────────────────┼──────────────────────────────────┼───────────────────────────────┤
-| • Exactly N distinct slots    | • Human reviews each slot        | • BATCH IS 100% COMPLETE      |
-| • All N slots VALID or EDITED | • Slots marked ACCEPTED          | • All N slots ACCEPTED/EDITED |
-| • Zero EMPTY or INVALID slots | • C_acc == C_req                 | • Save Draft committed to DB  |
+| • Exactly N distinct AI slots | • Human reviews each slot        | • All N slots valid in editor |
+| • C_val_slots == C_req        | • All N slots status='ACCEPTED'  | • C_valid == C_req            |
+| • AI synthesis succeeded      | • C_acc == C_req                 | • C_acc == C_req              |
+| • Manual edits do NOT satisfy | • C_rem_accept == 0              | • C_rem_accept == 0           |
+| • Resumed drafts = UNAVAILABLE| • Zero unreviewed/edited slots   | • Save Draft committed to DB  |
 | • batchStatus = 'COMPLETE'    | • batchStatus = 'ACCEPTED'       | • AuthorId != ApproverId      |
 └───────────────────────────────┴──────────────────────────────────┴───────────────────────────────┘
 ```
@@ -167,26 +180,29 @@ A batch attains **Generation Completeness** if and only if:
 
 $$\mathbf{C_{\text{val\_slots}}} == \mathbf{C_{\text{req}}} \quad \land \quad \mathbf{C_{\text{distinct\_slots}}} == \mathbf{C_{\text{req}}} \quad \land \quad \mathbf{C_{\text{rem\_gen}}} == 0$$
 
-- All $N$ configured slots ($1 \dots N$) are filled with distinct, canonical questions in status `'VALID'` or `'MANUALLY_EDITED'`.
+- All $N$ configured slots ($1 \dots N$) are filled with distinct, canonical questions synthesized by the AI provider in status `'VALID'`.
 - Zero slots remain in `'EMPTY'`, `'GENERATING'`, or `'INVALID'` status.
-- *Crucial Rule*: Generation completeness indicates only that AI synthesis succeeded; it does **not** imply editorial sign-off or permit automatic submission.
+- *Preservation of Telemetry Invariant*: Generation completeness indicates solely that the AI synthesis pipeline generated $N$ valid in-range candidates. Manual edits do NOT increment $C_{\text{val\_slots}}$ and do NOT satisfy Milestone 1. Resumed drafts or manually authored drafts without active AI telemetry display generation status as `UNAVAILABLE` or `N/A`.
+- *Crucial Rule*: Generation completeness does **not** imply editorial sign-off or permit automatic submission.
 
 #### Milestone 2: Editorial Acceptance (`batchStatus: 'ACCEPTED'`)
 A batch attains **Editorial Acceptance** if and only if:
 
 $$\mathbf{C_{\text{acc}}} == \mathbf{C_{\text{req}}} \quad \land \quad \mathbf{C_{\text{rem\_accept}}} == 0$$
 
-- The authenticated human editor has reviewed every slot and marked it as approved (`status: 'ACCEPTED'`) or confirmed acceptable manual edits (`status: 'MANUALLY_EDITED'`).
-- No pending review flags or validation warnings remain.
+- The authenticated human editor has reviewed every in-range slot ($1 \dots N$) and marked it as approved (`status: 'ACCEPTED'`).
+- Slots with `status = 'MANUALLY_EDITED'` or `status = 'VALID'` (unreviewed) do NOT count toward $C_{\text{acc}}$ until explicitly accepted.
+- No pending review flags or blocking validation errors remain.
 
 #### Milestone 3: Eligibility for Submit for Verification (Stage 01 $\rightarrow$ Stage 02 Gate)
 A batch is eligible for **Submit for Verification** if and only if:
-1. **Full Completeness**: $C_{\text{val\_slots}} == C_{\text{req}}$ and $C_{\text{rem\_gen}} == 0$.
-2. **Editorial Sign-Off**: $C_{\text{rem\_accept}} == 0$ (all $N$ slots are accepted or confirmed edited).
-3. **Persisted State**: All changes are committed to the Firestore aggregate draft document (`isDirty === false`).
-4. **Human Action Mandatory**: Submit must be initiated by an authenticated human editor; AI cannot self-submit [ADR-002, Principle 3].
-5. **Anti-Self-Approval Enforcement (GAR-02)**: The author cannot approve their own batch during Stage 02 ($authorId \neq approverId$).
-6. **Strict Prohibition**: An incomplete ($C_{\text{rem\_gen}} > 0$), invalid ($C_{\text{inv}} > 0$ occupying a slot), or un-reviewed batch must **never** be presented as complete or submitted for verification. Attempting submission on an incomplete batch throws HTTP 422 `IncompleteBatchSubmissionError`.
+1. **Full Editor Validity**: All $N$ in-range slots are currently valid ($C_{\text{valid}} == C_{\text{req}}$). All slots pass validation; zero slots are `EMPTY` or `INVALID`.
+2. **Editorial Sign-Off**: All $N$ in-range slots are explicitly accepted by the editor ($C_{\text{acc}} == C_{\text{req}}$ and $C_{\text{rem\_accept}} == 0$).
+3. **Decoupled From AI Generation Telemetry**: Submission gate eligibility evaluates live editor validity ($C_{\text{valid}} == C_{\text{req}}$) and human acceptance ($C_{\text{acc}} == C_{\text{req}}$). Batches with manually repaired slots or resumed drafts with unavailable generation telemetry proceed smoothly to Stage 02 once all $N$ slots are valid and accepted.
+4. **Persisted State**: All changes are committed to the Firestore aggregate draft document (`isDirty === false`).
+5. **Human Action Mandatory**: Submit must be initiated by an authenticated human editor; AI cannot self-submit [ADR-002, Principle 3].
+6. **Anti-Self-Approval Enforcement (GAR-02)**: The author cannot approve their own batch during Stage 02 ($authorId \neq approverId$).
+7. **Strict Prohibition**: An incomplete ($C_{\text{valid}} < C_{\text{req}}$), invalid, un-reviewed, or un-accepted batch must **never** be submitted for verification. Attempting submission on an incomplete batch throws HTTP 422 `IncompleteBatchSubmissionError`.
 
 ---
 
@@ -375,8 +391,11 @@ The following deterministic scenarios specify required test behavior for future 
 │ TC-BATCH-08   │ Slot repair     │ Given partial batch with Slot 3 INVALID, user edits Slot 3.    │
 │               │ (Manual edit)   │ Action: User fills missing Option D and saves.                 │
 │               │                 │ Expected: Slot 3 status = MANUALLY_EDITED. C_edit=1,           │
-│               │                 │ C_val_slots increments to 5. C_rem_gen = 0.                    │
-│               │                 │ BatchStatus transitions to COMPLETE.                           │
+│               │                 │ C_valid increments to 5 (editor validity satisfied).           │
+│               │                 │ C_val_slots remains 4 (AI generation telemetry preserved).     │
+│               │                 │ C_rem_gen remains 1 (attempt shortfall preserved).             │
+│               │                 │ After explicit user review ("Accept"), C_acc reaches 5,        │
+│               │                 │ enabling Milestone 3 Submit for Verification hand-off.         │
 ├───────────────┼─────────────────┼────────────────────────────────────────────────────────────────┤
 │ TC-BATCH-09   │ Single slot     │ Given batch of 5, user clicks "Regenerate Slot 2".             │
 │               │ regeneration    │ Expected: Only Slot 2 sent to AI. Slots 1, 3, 4, 5 unchanged.  │

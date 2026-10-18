@@ -5,7 +5,7 @@
 **Effective Date**: October 18, 2026<br>
 **Author**: Antigravity Software Architect & Systems Verification Engineer<br>
 **Mode Identifier**: `QUESTION_CHALLENGE_SHORT` (Mode 1 Single & Batch Creation Series)<br>
-**Status**: Authoritative Requirements & Quality Acceptance Specification (Gate A Approval Pending Authorized Owner Sign-Off)
+**Status**: Authoritative Requirements & Quality Acceptance Specification (Phase A Requirements Complete — Prepared for Formal Gate A Owner Sign-Off)
 
 ---
 
@@ -351,23 +351,96 @@ Every rule within this specification is classified under the SDLC provenance bas
 
 ---
 
-### 7.2 Gate A Decision Checklist (Owner Sign-Off Pending)
+### 7.2 Gate A Decision Resolution & Owner Sign-Off Register
 
-To formally approve Gate A and transition to Gate B (Technical Design), the Authorized Project Owner must resolve the following five architectural decisions:
+To bring Sprint 9 Phase A Requirements to an internally consistent, implementation-ready state, decisions `DEC-A-01` through `DEC-A-05` have been technically resolved as specifications. They are formally prepared for Authorized Project Owner sign-off:
 
-| Decision ID | Area | Question for Authorized Owner | Status | Default Recommendation |
-| :---: | :--- | :--- | :---: | :--- |
-| **DEC-A-01** | **Mode 1 Batch Dispatcher** | Confirm adoption of atomic aggregate slot model (`Mode1BatchDraftAggregate` in `question_drafts`) per ADR-011 DD-05 for runtime execution runner. | **PENDING** | **APPROVE**: Adopts atomic aggregate document to prevent premature multi-document proliferation. |
-| **DEC-A-02** | **Semantic Deduplication** | Approve Levenshtein $> 0.85$ as an advisory `WARNING` threshold (VAL-Q-06B) or mandate exact-string matching only. | **PENDING** | **APPROVE AS WARNING**: Advisory alert without blocking submission. |
-| **DEC-A-03** | **Warning Policy** | Confirm whether linter warnings require explicit user acknowledgement in the UI before submission or remain non-blocking advisories. | **PENDING** | **APPROVE AS ADVISORY**: Non-blocking advisories to minimize author friction. |
-| **DEC-A-04** | **Slot Deletion Invariant** | Confirm that deleting a question in an active batch leaves the slot empty ($C_{\text{rem\_gen}}$ increments) rather than shrinking $C_{\text{req}}$. | **PENDING** | **APPROVE**: Preserves discrete count contract $N \in \{5, 10, 15, 20\}$. |
-| **DEC-A-05** | **Downstream Fan-Out** | Confirm handoff mechanism from 1 approved batch draft to $N$ independent short videos in Stage 03 Studio Production. | **PENDING** | **DEFER TO GATE B**: Establish 1-to-N script generation mapper in S9-T05. |
+#### 7.2.1 DEC-A-01: Mode 1 Batch Dispatcher & Persistence Model
+- **Question for Authorized Owner**: Should Mode 1 batch creation series persist questions as a single atomic aggregate document in `question_drafts` (Option A) or immediately fan-out into $N$ separate `question_drafts` documents (Option B)?
+- **Viable Options Considered**:
+  - *Option A*: Single atomic aggregate document (`Mode1BatchDraftAggregate` with `slots: Mode1QuestionSlot[]` in `question_drafts` collection).
+  - *Option B*: Multiple child documents in a subcollection or separate root drafts linked by `batchId`.
+- **Chosen / Recommended Option**: **Option A (Atomic Aggregate Document Model)** per ADR-011 DD-05.
+- **Technical & Architectural Rationale**:
+  - Provides a single network round-trip for batch save operations.
+  - Guarantees atomic document-level versioning for Optimistic Concurrency Control (OCC).
+  - Prevents partial writes, split-brain states, or orphan child documents during network failures.
+  - Aligns with the existing proven pattern in Mode 3 (`ExplainedQuestionsWorkspace`).
+- **Consequences & Trade-Offs**:
+  - Batch document size is bounded ($N \le 20$, document size $\approx 15-25\text{ KB}$, well within the 1 MB Cloud Firestore document limit).
+  - Updating any single slot increments the aggregate document `version` counter.
+- **Affected Contracts**: `S9-T02`, `S9-T03`, `S9-T05 §2.1`, `S9-T06 §15.1`, `S9-T07 §2`, `ADR-011 DD-05`.
+- **Approval Status**: **TECHNICAL SPECIFICATION RESOLVED — PREPARED FOR FORMAL OWNER SIGN-OFF**.
+
+#### 7.2.2 DEC-A-02: Semantic Deduplication Strategy and Threshold
+- **Question for Authorized Owner**: What deduplication logic and severity threshold should govern question collision detection within a batch and against existing questions?
+- **Viable Options Considered**:
+  - *Option A*: Exact-string matching only (case-insensitive normalized text equality).
+  - *Option B*: Exact-string matching as blocking ERROR (`ERR_DUPLICATE_QUESTION`), plus Levenshtein normalized distance $> 0.85$ as advisory WARNING (`WARN_Q_06B_SIMILARITY`).
+  - *Option C*: Semantic similarity $> 0.85$ as a hard blocking ERROR.
+- **Chosen / Recommended Option**: **Option B (Exact match ERROR + Levenshtein $> 0.85$ advisory WARNING)**.
+- **Technical & Architectural Rationale**:
+  - Exact duplicate questions in a batch are unacceptable and must block generation and submission.
+  - Highly similar questions (e.g. variants of standard competitive exam problems with different numbers or phrasing) may be pedagogically intended by the instructor; blocking them creates false-positive author friction.
+  - Advisory warnings alert the author without restricting author agency.
+- **Consequences & Trade-Offs**:
+  - Deduplication evaluator executes deterministically in pure TypeScript without requiring external vector database calls or latency-heavy LLM calls during Studio typing.
+- **Affected Contracts**: `S9-T03 §2.3.3`, `S9-T04 §3.1 (VAL-Q-06, VAL-Q-06B)`, `S9-T05 §6.2`, `S9-T06 §10.1`, `S9-T07 §4.1`.
+- **Approval Status**: **TECHNICAL SPECIFICATION RESOLVED — PREPARED FOR FORMAL OWNER SIGN-OFF**.
+
+#### 7.2.3 DEC-A-03: Linter Warning Policy & Submission Gating
+- **Question for Authorized Owner**: Do validation warnings (e.g., prompt length $> 180$ chars `WARN_LENGTH_PACING`, missing speed trick `WARN_MISSING_SPEED_TRICK`) require explicit per-warning user acknowledgement/dismissal before submission, or remain non-blocking visual advisories?
+- **Viable Options Considered**:
+  - *Option A*: Strict modal acknowledgement (author must click "Acknowledge" for every warning before `Submit for Verification` is enabled).
+  - *Option B*: Non-blocking visual advisories (warnings display badges and amber banners in Studio and QA matrices, but do not block `Submit for Verification`; only blocking ERRORS block submission).
+- **Chosen / Recommended Option**: **Option B (Non-blocking visual advisories)**.
+- **Technical & Architectural Rationale**:
+  - Author workflows must be friction-efficient. High-velocity content creators should not be forced through confirmation modals for non-critical stylistic advice.
+  - Independent verification in Stage 02 provides human reviewer oversight before video rendering.
+- **Consequences & Trade-Offs**:
+  - Only blocking errors (`ERR_*`) disable `Submit for Verification`.
+  - Warnings are recorded in audit logs and remain visible to Stage 02 reviewers.
+- **Affected Contracts**: `S9-T04 §3.1, §5.1`, `S9-T05 §6.2`, `S9-T06 §10.1, §14.10`, `S9-T07 §3.2`.
+- **Approval Status**: **TECHNICAL SPECIFICATION RESOLVED — PREPARED FOR FORMAL OWNER SIGN-OFF**.
+
+#### 7.2.4 DEC-A-04: Slot Deletion Invariant & Batch Count Stability
+- **Question for Authorized Owner**: When an author deletes a slot from an active batch (e.g. deleting Slot 3 from a batch of 10), what happens to the batch target count $C_{\text{req}}$?
+- **Viable Options Considered**:
+  - *Option A*: Deleting a slot shrinks $C_{\text{req}}$ (e.g. batch of 10 becomes batch of 9).
+  - *Option B*: $C_{\text{req}}$ is strictly immutable ($N \in \{5, 10, 15, 20\}$). Deleting a slot clears the slot content, setting slot status to `'EMPTY'`, incrementing $C_{\text{rem\_gen}}$, and requiring the author to regenerate, pick from overflow tray, or manually draft the missing slot before submission.
+- **Chosen / Recommended Option**: **Option B (Immutable Discrete Count Invariant)**.
+- **Technical & Architectural Rationale**:
+  - ADR-010 and `ContentModeRegistry` strictly restrict batch counts to discrete sets $N \in \{5, 10, 15, 20\}$.
+  - Arbitrary counts like 9 or 14 violate the production mode contract, YouTube Shorts playlist series structuring, and batch scheduling pipelines.
+- **Consequences & Trade-Offs**:
+  - An author deleting a question cannot submit the batch until the vacated slot is refilled, guaranteeing that only complete batches of 5, 10, 15, or 20 advance to Stage 02.
+- **Affected Contracts**: `S9-T03 §2.1, §4.3`, `S9-T04 §4.2`, `S9-T06 §7.2, §14.4`, `ContentModeRegistry`.
+- **Approval Status**: **TECHNICAL SPECIFICATION RESOLVED — PREPARED FOR FORMAL OWNER SIGN-OFF**.
+
+#### 7.2.5 DEC-A-05: Downstream Fan-Out from Batch Draft to Stage 03+ Production
+- **Question for Authorized Owner**: How does a single approved batch draft aggregate ($N$ questions) transition to downstream Stage 03 (Script Generation) through Stage 15 (Publishing/Analytics)?
+- **Viable Options Considered**:
+  - *Option A*: Downstream stages process batches as a single monolithic aggregate entity all the way to publishing.
+  - *Option B*: Downstream fan-out occurs at the Stage 02 $\to$ Stage 03 transition: upon Stage 02 Question QA approval, the batch aggregate triggers the creation of $N$ individual standalone `Question` and `Script` production entities, each assigned a canonical ID (`qst_<uuid>`, `scr_<uuid>`) and linked by `batchId: string` and `batchIndex: number (1..N)`.
+- **Chosen / Recommended Option**: **Option B (Stage 02 $\to$ Stage 03 Canonical Entity Fan-Out)**.
+- **Technical & Architectural Rationale**:
+  - Video rendering (Remotion), thumbnail generation, audio synthesis, and social media scheduling (YouTube/Instagram) are inherently per-video short workflows ($\le 58\text{s}$).
+  - Storing questions as an aggregate in Stage 01/02 provides editorial and QA cohesion, while fan-out at Stage 03 enables parallel video processing and independent publishing without refactoring downstream stages 03–15.
+- **Consequences & Trade-Offs**:
+  - Mode 1 preserves existing downstream contracts (FC-003, FC-004, FC-005, FC-012) unchanged; downstream stages consume individual standard question entities with `batchId` metadata.
+- **Affected Contracts**: `S9-T02 §2.2`, `S9-T05 §8.3`, `S9-T07 §6.1`, `Canonical 15-Step Workflow`.
+- **Approval Status**: **TECHNICAL SPECIFICATION RESOLVED — PREPARED FOR FORMAL OWNER SIGN-OFF**.
 
 ---
 
-## 8. Specification Verdict & Next Action
+## 8. Specification Verdict & Gate A Closure Status
 
-- **Specification Status**: **`ACCEPTED AS REQUIREMENTS SPECIFICATION — GATE A APPROVAL PENDING`**
+- **Phase A Tasks Status**:
+  - **S9-T01 (Dependency Audit)**: **ACCEPTED & VERIFIED** (Foundation verified, batch boundaries documented).
+  - **S9-T02 (Content Specification)**: **ACCEPTED & VERIFIED** (MCQ invariants, mode package, physical boundaries).
+  - **S9-T03 (Batch Completeness)**: **ACCEPTED & RECONCILED** (Dual-counter model, mutually exclusive candidate partition, TC-BATCH-08 reconciled).
+  - **S9-T04 (Quality Verification & Mutation)**: **ACCEPTED & RESOLVED** (12 QVC rules, RBAC matrix, DEC-A-01..05 resolved).
+- **Formal Gate A Status**: **`PHASE A REQUIREMENTS COMPLETE — PREPARED FOR FORMAL GATE A OWNER SIGN-OFF`**
 - **Evidence-Based Verdict**:
   - Fully defines validation matrix (12 rules with severity, layer, and remediation).
   - Establishes batch mutation rules (Save Draft, reorder, delete, replace, whole-batch protection).
@@ -375,5 +448,5 @@ To formally approve Gate A and transition to Gate B (Technical Design), the Auth
   - Documents runtime discrepancy regarding legacy administrative self-approval bypass.
   - Maps Stage 01 authoring to Stage 02 independent verification; decouples from Stage 07 Video QC (FC-012).
   - Supplies 17 deterministic acceptance scenarios, including `TC-QC-14` asserting admin self-approval denial.
-  - Documents 5 pending Gate A decisions.
-- **Single Next Action**: Deliverable established for Task `S9-T04`. **Do NOT start Task `S9-T05` or begin detailed runtime design**.
+  - Resolves all 5 Gate A decisions (`DEC-A-01` through `DEC-A-05`) with options, architectural recommendations, rationales, and consequences.
+- **Gate Governance Note**: In accordance with project governance rules, this specification does **not** claim human project owner sign-off has already occurred. It stands fully resolved at the technical specification level and ready for formal owner signature.
