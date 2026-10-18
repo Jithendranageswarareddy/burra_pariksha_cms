@@ -152,13 +152,11 @@ export const QuestionVerifyApprovePage: React.FC = () => {
 
 
 
+  const canonicalAuthorId = question?.authorId || (question as any)?.createdBy;
   const isSelfAuthor = Boolean(
-    user?.id && question && (
-      question.authorId === user.id ||
-      (question as any).author === user.id ||
-      (question as any).author === user.name
-    )
+    user?.id && canonicalAuthorId && canonicalAuthorId === user.id
   );
+  const isMissingAuthor = Boolean(question && !canonicalAuthorId);
   const isAdmin = user?.role === 'ADMIN' || (Array.isArray((user as any)?.roles) && (user as any).roles.includes('ADMIN'));
 
   // 1. If no active question ID, load questions needing verification
@@ -257,6 +255,15 @@ export const QuestionVerifyApprovePage: React.FC = () => {
   // Approve Question & Bridge directly into Video Production
   const handleApprove = async () => {
     if (!activeQuestionId || !question) return;
+
+    if (isMissingAuthor) {
+      setNotification({
+        type: 'error',
+        title: 'Missing Author Identity (GAR-02)',
+        message: 'This question draft lacks an established author ID. Under segregation of duties (GAR-02), author identity must be reconciled by an administrator before approval.',
+      });
+      return;
+    }
 
     if (isSelfAuthor) {
       setNotification({
@@ -1126,6 +1133,19 @@ export const QuestionVerifyApprovePage: React.FC = () => {
                     </div>
                   )}
 
+                  {/* GAR-02 Missing Author Notice */}
+                  {isMissingAuthor && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-xl space-y-1.5 text-xs">
+                      <div className="flex items-center gap-1.5 font-bold text-red-900">
+                        <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                        <span>Missing Author Identity (GAR-02)</span>
+                      </div>
+                      <p className="text-red-800 text-[11px] leading-relaxed">
+                        This draft lacks an authoritative author user ID. Segregation of duties (GAR-02) requires an identifiable author before approval. An administrator must reconcile the author record before verification can proceed.
+                      </p>
+                    </div>
+                  )}
+
                   <p className="text-xs text-slate-600 leading-relaxed">
                     Approving locks the mathematical proof and automatically queues this question into the YouTube Shorts production pipeline.
                   </p>
@@ -1140,6 +1160,16 @@ export const QuestionVerifyApprovePage: React.FC = () => {
                         className="flex-1 justify-center font-bold py-2.5 bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed shadow-none"
                       >
                         Self-Approval Prohibited (GAR-02)
+                      </Button>
+                    ) : isMissingAuthor ? (
+                      <Button
+                        variant="primary"
+                        size="md"
+                        disabled={true}
+                        icon={ShieldCheck}
+                        className="flex-1 justify-center font-bold py-2.5 bg-amber-50 text-amber-700 border border-amber-200 cursor-not-allowed shadow-none"
+                      >
+                        Reconcile Author Required (GAR-02)
                       </Button>
                     ) : (
                       <Button

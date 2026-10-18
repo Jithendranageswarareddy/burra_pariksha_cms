@@ -129,10 +129,13 @@ export class QuestionDraftService {
     }
 
     // GAR-02: Anti-Self-Approval Constraint Enforcement
-    // Missing legacy authorId values must fail closed (cannot enable silent self-approval).
-    const authorIdentifier = draft.authorId?.trim() || draft.author?.trim();
-    if (!authorIdentifier) {
-      const err = new Error('Author identity cannot be verified (missing authorId). Segregation of duties (GAR-02) requires an identifiable author before approval/verification.');
+    // Canonical author user ID must be resolved strictly from trusted persisted ID fields (authorId or createdBy).
+    // Human display names (author, authorName) MUST NOT be used as identity keys.
+    const canonicalAuthorId = draft.authorId?.trim() || (draft as any).createdBy?.trim();
+    if (!canonicalAuthorId) {
+      const err = new Error(
+        'Author identity cannot be verified (missing authoritative authorId). Segregation of duties (GAR-02) requires an established author user ID before approval/verification. An administrator must reconcile the author record via POST /api/v1/questions/draft/:id/reconcile-author or assign it for independent review.'
+      );
       (err as any).statusCode = 403;
       (err as any).name = 'MissingAuthorIdentityError';
       (err as any).code = 'GAR-02';
@@ -140,10 +143,8 @@ export class QuestionDraftService {
     }
 
     // An author who created or drafted the question is strictly prohibited from approving/verifying their own draft into production.
-    const isSelfApproval = Boolean(
-      (draft.authorId && actor.id && draft.authorId.trim() === actor.id.trim()) ||
-      (draft.author && actor.name && draft.author.trim().toLowerCase() === actor.name.trim().toLowerCase() && (!draft.authorId || draft.authorId.trim() === actor.id.trim()))
-    );
+    // Zero administrative override bypass: even an ADMIN cannot self-approve their own authored content.
+    const isSelfApproval = Boolean(actor.id && canonicalAuthorId === actor.id.trim());
 
     if (isSelfApproval) {
       // Record rejected audit event in authoritative audit ledger
@@ -156,7 +157,7 @@ export class QuestionDraftService {
           draftId,
           {
             reason: 'GAR-02: Anti-Self-Approval constraint violation (strict zero-bypass)',
-            authorId: draft.authorId,
+            authorId: canonicalAuthorId,
             authorName: draft.authorName || draft.author,
             reviewerId: actor.id,
             reviewerName: actor.name,
@@ -195,8 +196,8 @@ export class QuestionDraftService {
         skipDuplicateCheck: true, // reviewed by human verifier
       },
       {
-        id: draft.authorId || actor.id,
-        name: draft.authorName || draft.author || actor.name,
+        id: canonicalAuthorId,
+        name: draft.authorName || draft.author || 'Author',
         role: UserRole.CONTENT_WRITER,
       }
     );
@@ -221,6 +222,66 @@ export class QuestionDraftService {
     this.draftToCanonicalMap.set(draftId, approvedQuestion.id);
 
     return approvedQuestion;
+  }
+
+  /**
+   * Reconciles the authoritative author user ID for a legacy draft lacking an established authorId.
+   * Administrative recovery path strictly restricted to System Administrators.
+   */
+  public async reconcileDraftAuthor(
+    draftId: string,
+    authorUserId: string,
+    actor: { id: string; name: string; role: UserRole | string; roles?: string[] },
+    authorDisplayName?: string
+  ): Promise<QuestionDraft> {
+    const isAuthorized =
+      actor.role === UserRole.ADMIN ||
+      actor.role === 'ADMIN' ||
+      (Array.isArray(actor.roles) && actor.roles.includes('ADMIN'));
+
+    if (!isAuthorized) {
+      const err = new Error('Unauthorized: Only System Administrators can reconcile legacy draft author identities.');
+      (err as any).statusCode = 403;
+      throw err;
+    }
+
+    if (!authorUserId || !authorUserId.trim()) {
+      const err = new Error('authorUserId is required to reconcile draft author identity.');
+      (err as any).statusCode = 400;
+      throw err;
+    }
+
+    const draft = await questionDraftsRepository.findById(draftId);
+    if (!draft) {
+      const err = new Error(`Draft with ID "${draftId}" not found for author reconciliation.`);
+      (err as any).statusCode = 404;
+      throw err;
+    }
+
+    const updated = await questionDraftsRepository.update(draftId, {
+      authorId: authorUserId.trim(),
+      ...(authorDisplayName ? { author: authorDisplayName.trim(), authorName: authorDisplayName.trim() } : {}),
+      updatedAt: new Date().toISOString(),
+    });
+
+    try {
+      await auditService.log(
+        actor.id,
+        actor.name,
+        'DRAFT_AUTHOR_RECONCILED',
+        'QUESTION_DRAFT',
+        draftId,
+        {
+          previousAuthorId: draft.authorId,
+          newAuthorId: authorUserId.trim(),
+          reconciledBy: actor.id,
+        }
+      );
+    } catch {
+      // Safe fallback for audit logging
+    }
+
+    return updated;
   }
 }
 

@@ -238,6 +238,13 @@ export const QuestionStudioPage: React.FC = () => {
             customInstructions={customInstructions}
             isGenerating={isGenerating}
             aiStatus={aiStatus}
+            productionMode={productionMode || 'QUESTION_CHALLENGE_SHORT'}
+            targetQuestionCount={targetQuestionCount}
+            aspectRatio={aspectRatio}
+            onQuestionCountChange={(cnt) =>
+              setProductionModeConfig(productionMode || 'QUESTION_CHALLENGE_SHORT', cnt, aspectRatio)
+            }
+            onOpenModeModal={() => setIsModeModalOpen(true)}
             onTopicChange={handleTopicChange}
             onSubtopicChange={handleSubtopicChange}
             onDifficultyChange={setDifficulty}

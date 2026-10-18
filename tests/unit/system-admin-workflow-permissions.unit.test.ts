@@ -30,6 +30,7 @@ import { centralAuthorizationService } from '../../backend/infrastructure/auth/s
 import { objectAuthService } from '../../backend/infrastructure/auth/services/object-auth.service';
 import { workflowEngine } from '../../backend/domain/workflow/workflow-engine';
 import { UserRole, WorkflowInstanceDocument } from '../../shared';
+import { questionDraftService } from '../../backend/features/question-generation/services/question-draft.service';
 
 async function runSystemAdminWorkflowPermissionsTests() {
   console.log('========================================================================');
@@ -38,16 +39,18 @@ async function runSystemAdminWorkflowPermissionsTests() {
 
   let passed = 0;
   let total = 0;
+  let failed = 0;
 
-  function test(name: string, fn: () => void | Promise<void>) {
+  async function test(name: string, fn: () => void | Promise<void>) {
     total++;
     try {
-      fn();
+      await fn();
       console.log(`✓ PASS: ${name}`);
       passed++;
     } catch (err: any) {
       console.error(`❌ FAIL: ${name}`);
       console.error(err);
+      failed++;
       process.exitCode = 1;
     }
   }
@@ -55,7 +58,7 @@ async function runSystemAdminWorkflowPermissionsTests() {
   // --------------------------------------------------------------------------
   // 1. System Admin Capabilities Across All 15 Stages
   // --------------------------------------------------------------------------
-  test('1. System Admin possesses required operational capabilities across all 15 workflow stages', () => {
+  await test('1. System Admin possesses required operational capabilities across all 15 workflow stages', () => {
     const adminRole = CanonicalRbacRole.ADMIN;
 
     // Stage 01: Question Generation & Draft Authoring
@@ -134,7 +137,7 @@ async function runSystemAdminWorkflowPermissionsTests() {
   // --------------------------------------------------------------------------
   // 2. Strict GAR-02 Invariant: Admin CANNOT Self-Approve (Zero-Bypass)
   // --------------------------------------------------------------------------
-  test('2. System Admin who authored an item CANNOT approve or verify it under any circumstances', () => {
+  await test('2. System Admin who authored an item CANNOT approve or verify it under any circumstances', () => {
     const adminActor = {
       id: 'USR-ADMIN-01',
       role: CanonicalRbacRole.ADMIN,
@@ -180,7 +183,7 @@ async function runSystemAdminWorkflowPermissionsTests() {
   // --------------------------------------------------------------------------
   // 3. Non-Author Admin Can Approve Another User's Item
   // --------------------------------------------------------------------------
-  test('3. System Admin CAN approve another user\'s authored item as an independent reviewer', () => {
+  await test('3. System Admin CAN approve another user\'s authored item as an independent reviewer', () => {
     const adminActor = {
       id: 'USR-ADMIN-01',
       role: CanonicalRbacRole.ADMIN,
@@ -216,7 +219,7 @@ async function runSystemAdminWorkflowPermissionsTests() {
   // --------------------------------------------------------------------------
   // 4. Peer Reviewer Can Approve Admin-Authored Item
   // --------------------------------------------------------------------------
-  test('4. Independent peer reviewer (QA Reviewer) CAN approve Admin-authored item', () => {
+  await test('4. Independent peer reviewer (QA Reviewer) CAN approve Admin-authored item', () => {
     const qaReviewerActor = {
       id: 'USR-QA-01',
       role: CanonicalRbacRole.QA_REVIEWER,
@@ -252,7 +255,7 @@ async function runSystemAdminWorkflowPermissionsTests() {
   // --------------------------------------------------------------------------
   // 5. Missing Author ID Fails Closed (No Silent Self-Approval)
   // --------------------------------------------------------------------------
-  test('5. Missing or empty authorId strictly fails closed with 403 / denied decision', () => {
+  await test('5. Missing or empty authorId strictly fails closed with 403 / denied decision', () => {
     const adminActor = {
       id: 'USR-ADMIN-01',
       role: CanonicalRbacRole.ADMIN,
@@ -288,7 +291,7 @@ async function runSystemAdminWorkflowPermissionsTests() {
   // --------------------------------------------------------------------------
   // 6. WorkflowEngine evaluateTransition GAR-02 & Fail-Closed Enforcement
   // --------------------------------------------------------------------------
-  test('6. WorkflowEngine evaluateTransition enforces strict GAR-02 and fails closed on missing author', () => {
+  await test('6. WorkflowEngine evaluateTransition enforces strict GAR-02 and fails closed on missing author', () => {
     const mockItem: WorkflowInstanceDocument = {
       id: 'wf_item_01',
       entityType: 'QUESTION',
@@ -366,7 +369,7 @@ async function runSystemAdminWorkflowPermissionsTests() {
   // --------------------------------------------------------------------------
   // 7. objectAuthService.isManagerOrAdmin Robust Identification
   // --------------------------------------------------------------------------
-  test('7. objectAuthService.isManagerOrAdmin identifies Admin across role string, roles array, and CanonicalRbacRole', () => {
+  await test('7. objectAuthService.isManagerOrAdmin identifies Admin across role string, roles array, and CanonicalRbacRole', () => {
     // Canonical enum in role
     assert.strictEqual(
       objectAuthService.isManagerOrAdmin({ id: 'usr_1', role: CanonicalRbacRole.ADMIN }),
@@ -408,8 +411,112 @@ async function runSystemAdminWorkflowPermissionsTests() {
     );
   });
 
+  // --------------------------------------------------------------------------
+  // 8. Canonical Author ID vs Display Name & Admin Author Reconciliation Recovery
+  // --------------------------------------------------------------------------
+  await test('8. Canonical author ID is strictly enforced: display names are not identity keys, and Admin can reconcile legacy drafts', async () => {
+    const draftPayload = {
+      topicId: 'TOP-QA-01',
+      subtopicId: 'SUB-01',
+      difficulty: 'Medium',
+      language: 'TELUGU',
+      questionText: 'What is the sum of angles in a triangle?',
+      options: { a: '180°', b: '90°', c: '360°', d: '270°' },
+      correctAnswer: 'A',
+      explanation: 'Sum of angles in any Euclidean triangle is 180 degrees.',
+    };
+
+    // 8.1 Draft missing authorId and createdBy fails closed (throws 403 / MissingAuthorIdentityError)
+    const draftMissingAuthor = await questionDraftService.saveDraft(
+      draftPayload,
+      { id: '', name: 'Anonymous Author' }
+    );
+
+    let threwMissingAuthor = false;
+    try {
+      await questionDraftService.approveDraft(draftMissingAuthor.id, {
+        id: 'USR-ADMIN-01',
+        name: 'Admin User',
+        role: UserRole.ADMIN,
+      });
+    } catch (err: any) {
+      threwMissingAuthor = true;
+      assert.strictEqual(err.statusCode, 403);
+      assert.strictEqual(err.name, 'MissingAuthorIdentityError');
+    }
+    assert.ok(threwMissingAuthor, 'Draft with missing authorId must fail closed with 403 MissingAuthorIdentityError');
+
+    // 8.2 Display name equality does NOT trigger false self-approval if canonical user IDs are different
+    // Save draft authored by user "USR-AUTHOR-99", display name "Admin User"
+    const draftWithSameDisplayName = await questionDraftService.saveDraft(
+      draftPayload,
+      { id: 'USR-AUTHOR-99', name: 'Admin User' }
+    );
+
+    // Admin reviewer has id "USR-ADMIN-01" and name "Admin User".
+    // Because canonical user IDs are different ('USR-AUTHOR-99' !== 'USR-ADMIN-01'), approval must NOT be blocked!
+    const approvedItem = await questionDraftService.approveDraft(draftWithSameDisplayName.id, {
+      id: 'USR-ADMIN-01',
+      name: 'Admin User',
+      role: UserRole.ADMIN,
+    });
+    assert.ok(approvedItem, 'Independent Admin with matching display name must be permitted to approve because user IDs differ');
+
+    // 8.3 Admin author self-approval is strictly blocked (zero-bypass GAR-02)
+    const adminAuthoredDraft = await questionDraftService.saveDraft(
+      draftPayload,
+      { id: 'USR-ADMIN-01', name: 'Admin User' }
+    );
+
+    let threwSelfApproval = false;
+    try {
+      await questionDraftService.approveDraft(
+        adminAuthoredDraft.id,
+        {
+          id: 'USR-ADMIN-01',
+          name: 'Admin User',
+          role: UserRole.ADMIN,
+        },
+        'Emergency approval notes',
+        {
+          isOverride: true,
+          confirmedByAdmin: true,
+          reason: 'Emergency attempt to approve own draft',
+          overrideActionType: 'ADMIN_APPROVAL_OVERRIDE',
+        }
+      );
+    } catch (err: any) {
+      threwSelfApproval = true;
+      assert.strictEqual(err.statusCode, 403);
+      assert.strictEqual(err.name, 'AntiSelfApprovalViolation');
+    }
+    assert.ok(threwSelfApproval, 'Admin cannot self-approve own draft even with override payload');
+
+    // 8.4 Administrative Reconciliation Recovery Path
+    // Reconcile the legacy draft missing authorId
+    const reconciledDraft = await questionDraftService.reconcileDraftAuthor(
+      draftMissingAuthor.id,
+      'USR-ORIGINAL-CREATOR-88',
+      { id: 'USR-ADMIN-01', name: 'Admin User', role: UserRole.ADMIN },
+      'Reconciled Author'
+    );
+    assert.strictEqual(reconciledDraft.authorId, 'USR-ORIGINAL-CREATOR-88');
+
+    // Non-author Admin can now approve the reconciled draft
+    const approvedReconciled = await questionDraftService.approveDraft(reconciledDraft.id, {
+      id: 'USR-ADMIN-01',
+      name: 'Admin User',
+      role: UserRole.ADMIN,
+    });
+    assert.ok(approvedReconciled, 'Admin can approve reconciled legacy draft as independent reviewer');
+  });
+
   console.log(`\n========================================================================`);
   console.log(`RESULTS: ${passed}/${total} SYSTEM ADMIN WORKFLOW PERMISSION TESTS PASSED`);
+  if (failed > 0) {
+    console.error(`FAILURE: ${failed} tests failed!`);
+    process.exitCode = 1;
+  }
   console.log(`========================================================================\n`);
 }
 

@@ -329,9 +329,9 @@ export function useQuestionGeneration() {
   const contextMode = prodContext?.modeConfig?.productionMode;
   const hasValidContextMode = Boolean(contextMode && VALID_MODES.includes(contextMode));
 
-  const effectiveMode = isValidQueryMode
-    ? queryMode
-    : (hasValidContextMode ? contextMode : null);
+  const effectiveMode: ContentProductionMode | null = isValidQueryMode
+    ? queryMode!
+    : (hasValidContextMode ? contextMode! : null);
 
   const effectiveCount = isValidQueryMode
     ? (queryCount !== undefined
@@ -341,7 +341,7 @@ export function useQuestionGeneration() {
         ? prodContext.modeConfig.questionCount
         : (effectiveMode === 'EXPLAINED_QUESTIONS_VIDEO' ? 10 : (effectiveMode === 'TOPIC_INTRODUCTION' ? 0 : 1)));
 
-  const effectiveAspect = isValidQueryMode
+  const effectiveAspect: '9:16' | '16:9' = isValidQueryMode
     ? (queryAspect || (queryMode === 'EXPLAINED_QUESTIONS_VIDEO' ? '16:9' : '9:16'))
     : (hasValidContextMode && prodContext?.modeConfig?.aspectRatio
         ? prodContext.modeConfig.aspectRatio
@@ -382,9 +382,13 @@ export function useQuestionGeneration() {
     });
     const [configError, setConfigError] = useState<string | null>(null);
 
-    // Configuration options selection (no hardcoded defaults; starts empty or from deep link)
-    const [selectedTopic, setSelectedTopic] = useState<string>(queryTopic || '');
-    const [selectedSubtopic, setSelectedSubtopic] = useState<string>(querySubtopic || '');
+    // Configuration options selection: derive from deep link or shared production context
+    const [selectedTopic, setSelectedTopic] = useState<string>(
+      queryTopic || prodContext?.taxonomy?.topicId || ''
+    );
+    const [selectedSubtopic, setSelectedSubtopic] = useState<string>(
+      querySubtopic || prodContext?.taxonomy?.subtopicId || ''
+    );
     const [difficulty, setDifficulty] = useState<string>(queryDifficulty || 'Intermediate');
     const [challengeType, setChallengeType] = useState<string>('ABCD');
     const [presentationType, setPresentationType] = useState<string>('Text');
@@ -406,8 +410,8 @@ export function useQuestionGeneration() {
       optionD: '',
       correctAnswer: 'A',
       explanation: '',
-      topicId: queryTopic || '',
-      subtopicId: querySubtopic || '',
+      topicId: queryTopic || prodContext?.taxonomy?.topicId || '',
+      subtopicId: querySubtopic || prodContext?.taxonomy?.subtopicId || '',
       difficulty,
       challengeType,
       presentationType,
@@ -415,6 +419,9 @@ export function useQuestionGeneration() {
       realLifeContext,
       questionStyle,
       generationMode: 'SUBTOPIC',
+      productionMode: effectiveMode || 'QUESTION_CHALLENGE_SHORT',
+      targetQuestionCount: effectiveCount,
+      aspectRatio: effectiveAspect,
       tags: ['Aptitude', 'Telugu'],
     });
 
@@ -454,18 +461,27 @@ export function useQuestionGeneration() {
       let finalCount = count;
       let finalAspect = aspect;
 
-      if (finalCount === undefined) {
-        if (mode === 'QUESTION_CHALLENGE_SHORT') finalCount = 1;
-        else if (mode === 'TOPIC_INTRODUCTION') finalCount = 0;
-        else if (mode === 'EXPLAINED_QUESTIONS_VIDEO') finalCount = 10;
-        else finalCount = 1;
-      }
-
-      if (finalAspect === undefined) {
-        if (mode === 'QUESTION_CHALLENGE_SHORT') finalAspect = '9:16';
-        else if (mode === 'TOPIC_INTRODUCTION') finalAspect = '9:16';
-        else if (mode === 'EXPLAINED_QUESTIONS_VIDEO') finalAspect = '16:9';
-        else finalAspect = '9:16';
+      // Mode-specific defaults and reconciliation of invalid parameters across mode switches
+      if (mode === 'QUESTION_CHALLENGE_SHORT') {
+        const allowedCounts = [1, 5, 10, 15, 20];
+        if (finalCount === undefined || !allowedCounts.includes(finalCount)) {
+          finalCount = 1;
+        }
+        finalAspect = '9:16';
+      } else if (mode === 'TOPIC_INTRODUCTION') {
+        finalCount = 0;
+        if (!finalAspect || (finalAspect !== '9:16' && finalAspect !== '16:9')) {
+          finalAspect = '9:16';
+        }
+      } else if (mode === 'EXPLAINED_QUESTIONS_VIDEO') {
+        const allowedCounts = [5, 10, 15, 20];
+        if (finalCount === undefined || !allowedCounts.includes(finalCount)) {
+          finalCount = 10;
+        }
+        finalAspect = '16:9';
+      } else {
+        finalCount = 1;
+        finalAspect = '9:16';
       }
 
       // Enforce validation before accepting
@@ -480,6 +496,14 @@ export function useQuestionGeneration() {
       setTargetQuestionCount(finalCount);
       setAspectRatio(finalAspect);
       setIsModeModalOpen(false);
+
+      // Reconcile candidate fields on mode change
+      setCandidate((prev) => ({
+        ...prev,
+        productionMode: mode,
+        targetQuestionCount: finalCount,
+        aspectRatio: finalAspect,
+      }));
 
       // Persist in URL query parameters without reloading
       if (typeof window !== 'undefined') {
@@ -573,16 +597,18 @@ export function useQuestionGeneration() {
         return;
       }
 
-      // If not reopening a draft, initialize from deep-link or first available topic
+      // If not reopening a draft, initialize from deep-link, shared production context, or first available topic
       if (!queryDraftId) {
-        if (queryTopic) {
-          const matchedTopic = topicsList.find((t) => t.id === queryTopic);
+        const initialTopicId = queryTopic || prodContext?.taxonomy?.topicId;
+        const initialSubtopicId = querySubtopic || prodContext?.taxonomy?.subtopicId;
+        if (initialTopicId) {
+          const matchedTopic = topicsList.find((t) => t.id === initialTopicId);
           if (matchedTopic) {
             setSelectedTopic(matchedTopic.id);
             setCandidate((prev) => ({ ...prev, topicId: matchedTopic.id }));
-            loadSubtopicsForTopic(matchedTopic.id, querySubtopic || undefined, isRetry);
+            loadSubtopicsForTopic(matchedTopic.id, initialSubtopicId || undefined, isRetry);
           } else {
-            // Invalid deep-link topic! Fall back to first valid persisted topic
+            // Invalid topic! Fall back to first valid persisted topic
             const firstTopic = topicsList[0];
             setSelectedTopic(firstTopic.id);
             setCandidate((prev) => ({ ...prev, topicId: firstTopic.id }));
@@ -1014,6 +1040,10 @@ export function useQuestionGeneration() {
         realWorldContext: realLifeContext,
         customInstructions: customInstructions.trim() || undefined,
         generationMode: selectedSubtopic === 'RANDOM' ? 'RANDOM' : 'SUBTOPIC',
+        productionMode: productionMode || 'QUESTION_CHALLENGE_SHORT',
+        targetQuestionCount,
+        questionCount: targetQuestionCount,
+        aspectRatio,
       };
 
       const res = await questionsApi.generateAiQuestion(payload);
@@ -1037,6 +1067,9 @@ export function useQuestionGeneration() {
         realLifeContext: generated.real_world_context || realLifeContext,
         questionStyle: questionStyle || 'STORY_BASED',
         generationMode: selectedSubtopic === 'RANDOM' ? 'RANDOM' : 'SUBTOPIC',
+        productionMode: productionMode || 'QUESTION_CHALLENGE_SHORT',
+        targetQuestionCount,
+        aspectRatio,
         tags: ['AI-Generated', 'Aptitude'],
         sourceModel: res.metadata?.modelUsed || aiStatus.model,
         generationLatencyMs: res.metadata?.generationDurationMs || Date.now() - startTime,

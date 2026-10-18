@@ -1485,6 +1485,34 @@ apiRouter.post(
   }
 );
 
+apiRouter.post(
+  ['/questions/draft/:id/reconcile-author', '/v1/questions/draft/:id/reconcile-author'],
+  requireRole([UserRole.ADMIN]),
+  async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const { authorUserId, authorDisplayName } = req.body;
+      const actor = getRequestActor(req);
+      const reconciled = await questionDraftService.reconcileDraftAuthor(
+        id,
+        authorUserId,
+        actor,
+        authorDisplayName
+      );
+      res.status(200).json({
+        message: 'Draft author identity reconciled successfully.',
+        draft: reconciled,
+      });
+    } catch (err: any) {
+      const statusCode = err?.statusCode || 400;
+      res.status(statusCode).json({
+        error: err?.name || 'AuthorReconciliationFailed',
+        message: err?.message || 'Failed to reconcile draft author identity',
+      });
+    }
+  }
+);
+
 apiRouter.delete(
   ['/questions/draft/:id', '/v1/questions/draft/:id'],
   requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.QUESTION_EDITOR, UserRole.CONTENT_WRITER]),
@@ -3451,6 +3479,16 @@ export function sanitizeClientOrchestratorOptions(rawOptions: any): { preferredP
 
 apiRouter.post('/ai/generate', async (req: Request, res: Response) => {
   try {
+    const { questionGenerationService } = await import('../../domain/question-generation/question-generation.service');
+    const validation = await questionGenerationService.validateGenerationRequest(req.body || {});
+    if (!validation.isValid) {
+      return res.status(400).json({
+        error: 'Invalid generation request parameters',
+        message: validation.error,
+        code: 'VALIDATION_FAILED',
+      });
+    }
+
     const sanitizedOptions = sanitizeClientOrchestratorOptions(req.body?.options);
     const result = await aiOrchestrator.generateQuestionCandidate(req.body, sanitizedOptions);
     res.json(result);

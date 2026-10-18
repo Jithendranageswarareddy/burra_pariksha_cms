@@ -89,26 +89,29 @@ export function resolveModeDefaultConfig(
   aspect?: '9:16' | '16:9'
 ): ModeConfigState {
   if (mode === 'QUESTION_CHALLENGE_SHORT') {
+    const validCount = (count !== undefined && [1, 5, 10, 15, 20].includes(count)) ? count : 1;
     return {
-      questionCount: count !== undefined ? count : 1,
-      aspectRatio: aspect !== undefined ? aspect : '9:16',
+      questionCount: validCount,
+      aspectRatio: '9:16', // Mode 1 strictly requires 9:16
     };
   }
   if (mode === 'TOPIC_INTRODUCTION') {
+    const validAspect = (aspect === '9:16' || aspect === '16:9') ? aspect : '9:16';
     return {
-      questionCount: count !== undefined ? count : 0,
-      aspectRatio: aspect !== undefined ? aspect : '9:16',
+      questionCount: 0, // Mode 2 strictly requires 0
+      aspectRatio: validAspect,
     };
   }
   if (mode === 'EXPLAINED_QUESTIONS_VIDEO') {
+    const validCount = (count !== undefined && [5, 10, 15, 20].includes(count)) ? count : 10;
     return {
-      questionCount: count !== undefined ? count : 10,
-      aspectRatio: aspect !== undefined ? aspect : '16:9',
+      questionCount: validCount,
+      aspectRatio: '16:9', // Mode 3 strictly requires 16:9
     };
   }
   return {
     questionCount: count !== undefined ? count : 1,
-    aspectRatio: aspect !== undefined ? aspect : '9:16',
+    aspectRatio: '9:16',
   };
 }
 

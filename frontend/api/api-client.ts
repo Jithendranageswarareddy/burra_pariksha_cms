@@ -465,6 +465,17 @@ export class ApiClient {
     });
   }
 
+  public async reconcileDraftAuthor(
+    id: string,
+    authorUserId: string,
+    authorDisplayName?: string
+  ): Promise<{ message: string; draft: QuestionDraft }> {
+    return this.request(`/questions/draft/${encodeURIComponent(id)}/reconcile-author`, {
+      method: 'POST',
+      body: JSON.stringify({ authorUserId, authorDisplayName }),
+    });
+  }
+
   public async createQuestion(input: CreateQuestionInput): Promise<Question> {
     return this.request('/questions', {
       method: 'POST',

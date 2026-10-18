@@ -171,49 +171,57 @@ export function requireAuth(req: AuthenticatedRequest, res: Response, next: Next
  */
 export function requireRole(allowedRoles: string[]) {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
-    const requestId = (req.headers['x-request-id'] as string) || `req_${Date.now()}`;
+    const checkRoles = () => {
+      const requestId = (req.headers['x-request-id'] as string) || ('req_' + Date.now());
+      if (!req.user) {
+        const errEnvelope = createErrorResponse(
+          ApiErrorCode.UNAUTHENTICATED,
+          'Authentication required.',
+          requestId
+        );
+        res.status(401).json({
+          ...errEnvelope,
+          message: 'Authentication required.',
+        });
+        return;
+      }
+
+      const userRoles: string[] = [];
+      if (Array.isArray(req.user.roles) && req.user.roles.length > 0) {
+        req.user.roles.forEach((r) => r && userRoles.push(String(r).trim()));
+      }
+      if (req.user.role) {
+        String(req.user.role).split(',').forEach((r) => r.trim() && !userRoles.includes(r.trim()) && userRoles.push(r.trim()));
+      }
+
+      const canonicalUserRoles = userRoles.map((r) => resolveBrownfieldRole(r));
+      const canonicalAllowed = allowedRoles.map((r) => resolveBrownfieldRole(r));
+
+      // ADMIN global authority bypass
+      const isAdmin = canonicalUserRoles.includes(CanonicalRbacRole.ADMIN) || userRoles.includes(UserRole.ADMIN) || userRoles.includes('ADMIN');
+      const isAllowed = isAdmin || canonicalUserRoles.some((r) => canonicalAllowed.includes(r)) || userRoles.some((r) => allowedRoles.includes(r));
+
+      if (!isAllowed) {
+        const errEnvelope = createErrorResponse(
+          ApiErrorCode.FORBIDDEN_LACKS_CAPABILITY,
+          'Forbidden: Insufficient role permissions.',
+          requestId
+        );
+        res.status(403).json({
+          ...errEnvelope,
+          message: 'Forbidden: Insufficient role permissions.',
+        });
+        return;
+      }
+
+      next();
+    };
+
     if (!req.user) {
-      const errEnvelope = createErrorResponse(
-        ApiErrorCode.UNAUTHENTICATED,
-        'Authentication required.',
-        requestId
-      );
-      res.status(401).json({
-        ...errEnvelope,
-        message: 'Authentication required.',
-      });
-      return;
+      requireAuth(req, res, checkRoles);
+    } else {
+      checkRoles();
     }
-
-    const userRoles: string[] = [];
-    if (Array.isArray(req.user.roles) && req.user.roles.length > 0) {
-      req.user.roles.forEach((r) => r && userRoles.push(String(r).trim()));
-    }
-    if (req.user.role) {
-      String(req.user.role).split(',').forEach((r) => r.trim() && !userRoles.includes(r.trim()) && userRoles.push(r.trim()));
-    }
-
-    const canonicalUserRoles = userRoles.map((r) => resolveBrownfieldRole(r));
-    const canonicalAllowed = allowedRoles.map((r) => resolveBrownfieldRole(r));
-
-    // ADMIN global authority bypass
-    const isAdmin = canonicalUserRoles.includes(CanonicalRbacRole.ADMIN) || userRoles.includes(UserRole.ADMIN) || userRoles.includes('ADMIN');
-    const isAllowed = isAdmin || canonicalUserRoles.some((r) => canonicalAllowed.includes(r)) || userRoles.some((r) => allowedRoles.includes(r));
-
-    if (!isAllowed) {
-      const errEnvelope = createErrorResponse(
-        ApiErrorCode.FORBIDDEN_LACKS_CAPABILITY,
-        'Forbidden: Insufficient role permissions.',
-        requestId
-      );
-      res.status(403).json({
-        ...errEnvelope,
-        message: 'Forbidden: Insufficient role permissions.',
-      });
-      return;
-    }
-
-    next();
   };
 }
 

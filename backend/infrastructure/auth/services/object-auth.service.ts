@@ -519,10 +519,10 @@ export class ObjectAuthorizationService {
     const video = await videosRepository.findById(videoId);
     if (!video) return false;
 
-    // Strict GAR-02: Reviewer/approver cannot be host, editor, or author of the video/question
+    // Strict GAR-02: Reviewer/approver cannot be host, editor, or author of the video/question (canonical IDs only)
     if (
-      video.assignedHost === actor.id || video.assignedHost === actor.name ||
-      video.assignedEditor === actor.id || video.assignedEditor === actor.name
+      video.assignedHost === actor.id ||
+      video.assignedEditor === actor.id
     ) {
       return false;
     }

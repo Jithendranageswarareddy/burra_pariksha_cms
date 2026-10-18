@@ -498,6 +498,12 @@ export class SocialReviewService {
         (err as any).statusCode = 403;
         throw err;
       }
+      const scriptAuthorId = (liveBundle.teleprompterScript as any)?.authorId || (liveBundle.teleprompterScript as any)?.createdBy;
+      if (scriptAuthorId && String(scriptAuthorId).trim() === String(actor.id).trim()) {
+        const err = new Error('Self-approval is forbidden (GAR-02). Teleprompter script author cannot approve social package.');
+        (err as any).statusCode = 403;
+        throw err;
+      }
     }
 
     // 6. Gate checks for CHANGES_REQUESTED and REJECTED

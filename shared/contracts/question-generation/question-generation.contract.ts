@@ -48,6 +48,10 @@ export interface GenerateCandidateInput {
   presentationType?: string;
   customInstructions?: string;
   generationMode?: 'SUBTOPIC' | 'RANDOM';
+  productionMode?: string;
+  targetQuestionCount?: number;
+  questionCount?: number;
+  aspectRatio?: '9:16' | '16:9' | string;
 }
 
 /**
