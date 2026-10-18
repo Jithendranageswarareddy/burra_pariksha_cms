@@ -66,13 +66,35 @@ export function validateGenerationResult(
   result: GenerationResult,
   input: GenerateCandidateInput
 ): { isValid: boolean; error?: string } {
+  const supportedModes = [
+    'QUESTION_CHALLENGE_SHORT',
+    'TOPIC_INTRODUCTION',
+    'EXPLAINED_QUESTIONS_VIDEO',
+  ];
+  if (!input.productionMode || !supportedModes.includes(input.productionMode)) {
+    return { isValid: false, error: 'The AI provider request has an unsupported production mode.' };
+  }
+
+  const metadata = result?.metadata as any;
+  if (
+    !metadata ||
+    typeof metadata.modelUsed !== 'string' ||
+    metadata.modelUsed.trim().length === 0 ||
+    typeof metadata.generationDurationMs !== 'number' ||
+    !Number.isFinite(metadata.generationDurationMs) ||
+    metadata.generationDurationMs < 0
+  ) {
+    return { isValid: false, error: 'The AI provider returned incomplete generation metadata.' };
+  }
+
   const candidate = result?.candidate as any;
   if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) {
     return { isValid: false, error: 'The AI provider returned an invalid candidate.' };
   }
 
-  if (typeof candidate.content !== 'string' || candidate.content.trim().length === 0) {
-    return { isValid: false, error: 'The AI provider returned an empty question.' };
+  const content = typeof candidate.content === 'string' ? candidate.content.trim() : '';
+  if (!content) {
+    return { isValid: false, error: 'The AI provider returned empty candidate content.' };
   }
 
   if (input.productionMode === 'QUESTION_CHALLENGE_SHORT') {
@@ -89,6 +111,47 @@ export function validateGenerationResult(
     }
     if (typeof candidate.explanation !== 'string' || candidate.explanation.trim().length === 0) {
       return { isValid: false, error: 'The AI provider returned an empty explanation.' };
+    }
+  } else if (input.productionMode === 'TOPIC_INTRODUCTION') {
+    if (content.length < 15) {
+      return { isValid: false, error: 'The AI provider returned an incomplete topic introduction.' };
+    }
+  } else if (input.productionMode === 'EXPLAINED_QUESTIONS_VIDEO') {
+    if (content.length < 15) {
+      return { isValid: false, error: 'The AI provider returned an incomplete explained-questions overview.' };
+    }
+
+    const targetCount = input.targetQuestionCount;
+    const questions = candidate.questions;
+    if (
+      !Array.isArray(questions) ||
+      ![5, 10, 15, 20].includes(targetCount || 0) ||
+      questions.length !== targetCount
+    ) {
+      return { isValid: false, error: 'The AI provider returned an incomplete explained-questions collection.' };
+    }
+
+    for (let index = 0; index < questions.length; index += 1) {
+      const question = questions[index];
+      const options = question?.options;
+      const optionValues = [options?.a, options?.b, options?.c, options?.d];
+      if (
+        !question ||
+        typeof question.questionNumber !== 'number' ||
+        question.questionNumber !== index + 1 ||
+        typeof question.questionText !== 'string' ||
+        question.questionText.trim().length === 0 ||
+        optionValues.some((value) => typeof value !== 'string' || value.trim().length === 0) ||
+        new Set(optionValues.map((value) => value.trim())).size !== 4 ||
+        !['A', 'B', 'C', 'D'].includes(question.correctAnswer) ||
+        typeof question.explanation !== 'string' ||
+        question.explanation.trim().length === 0
+      ) {
+        return {
+          isValid: false,
+          error: `The AI provider returned an invalid explained question at position ${index + 1}.`,
+        };
+      }
     }
   }
 

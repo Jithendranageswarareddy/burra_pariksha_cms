@@ -35,6 +35,28 @@ const validResult: GenerationResult = {
   metadata: { modelUsed: 'test', generationDurationMs: 1 },
 };
 
+const mode2Input: GenerateCandidateInput = {
+  ...baseInput,
+  productionMode: 'TOPIC_INTRODUCTION',
+  targetQuestionCount: 0,
+  aspectRatio: '16:9',
+};
+
+const mode3Input: GenerateCandidateInput = {
+  ...baseInput,
+  productionMode: 'EXPLAINED_QUESTIONS_VIDEO',
+  targetQuestionCount: 5,
+  aspectRatio: '16:9',
+};
+
+const validExplainedQuestion = (questionNumber: number) => ({
+  questionNumber,
+  questionText: `Explained question ${questionNumber}`,
+  options: { a: 'One', b: 'Two', c: 'Three', d: 'Four' },
+  correctAnswer: 'A' as const,
+  explanation: 'The first option is correct.',
+});
+
 async function run(): Promise<void> {
   assert.deepStrictEqual(validateGenerationResult(validResult, baseInput), { isValid: true });
 
@@ -49,6 +71,33 @@ async function run(): Promise<void> {
     candidate: { ...validResult.candidate, correct_answer: 'E' as any },
   };
   assert.strictEqual(validateGenerationResult(missingAnswer, baseInput).isValid, false);
+
+  assert.strictEqual(
+    validateGenerationResult(
+      { ...validResult, metadata: { modelUsed: '', generationDurationMs: 1 } },
+      baseInput
+    ).isValid,
+    false
+  );
+
+  const invalidMode2Result = {
+    ...validResult,
+    candidate: { ...validResult.candidate, content: 'Too short' },
+  };
+  assert.strictEqual(validateGenerationResult(invalidMode2Result, mode2Input).isValid, false);
+
+  const invalidMode3Result = {
+    ...validResult,
+    candidate: {
+      ...validResult.candidate,
+      content: 'A sufficiently long explained questions overview.',
+      questions: Array.from({ length: 5 }, (_, index) => ({
+        ...validExplainedQuestion(index + 1),
+        options: { a: 'Same', b: 'Same', c: 'Same', d: 'Same' },
+      })),
+    },
+  };
+  assert.strictEqual(validateGenerationResult(invalidMode3Result, mode3Input).isValid, false);
 
   const malformedOrchestrator = {
     async generateQuestionCandidate() {
