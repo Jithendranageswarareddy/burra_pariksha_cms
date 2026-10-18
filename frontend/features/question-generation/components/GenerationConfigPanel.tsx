@@ -624,7 +624,7 @@ export const GenerationConfigPanel: React.FC<GenerationConfigPanelProps> = ({
             <>
               <Sparkles className="w-3.5 h-3.5 text-amber-300" />
               <span>
-                ✦ Generate {isMode1 ? (targetQuestionCount > 1 ? `${targetQuestionCount} Challenge Shorts` : 'Question Challenge Short') : 'Candidate'}
+                {`✦ Generate ${isMode1 ? (targetQuestionCount > 1 ? `${targetQuestionCount} Challenge Shorts` : (language === QuestionLanguage.TELUGU ? 'Telugu Question' : 'Question Candidate')) : 'Candidate'}`}
               </span>
             </>
           )}

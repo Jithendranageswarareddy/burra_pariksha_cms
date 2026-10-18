@@ -760,14 +760,18 @@ export function useQuestionGeneration() {
         };
 
         setCandidate(loadedCandidate);
-        if (draft.batchStatus && draft.slots) {
+        if (draft.slots && draft.slots.length > 0) {
+          const reqCount = (draft.targetQuestionCount || draft.slots.length || 5) as 5 | 10 | 15 | 20;
+          const validSlotsCount = draft.slots.filter(
+            (s) => s.status === 'VALID' || s.status === 'MANUALLY_EDITED' || s.status === 'ACCEPTED'
+          ).length;
           setBatchAssembly({
-            requestedCount: (draft.targetQuestionCount || 5) as 5 | 10 | 15 | 20,
-            inMemoryValidCount: draft.persistedValidCount || 0,
-            persistedValidCount: draft.persistedValidCount || 0,
+            requestedCount: reqCount,
+            inMemoryValidCount: draft.persistedValidCount ?? validSlotsCount,
+            persistedValidCount: draft.persistedValidCount ?? validSlotsCount,
             rejectedCount: draft.rejectedCount || 0,
             overflowCount: draft.overflowCount || 0,
-            batchStatus: draft.batchStatus,
+            batchStatus: draft.batchStatus || (validSlotsCount === reqCount ? 'COMPLETE' : validSlotsCount > 0 ? 'PARTIAL' : 'EMPTY'),
             slots: draft.slots,
             rejectedItems: draft.rejectedItems || [],
           });
@@ -1000,7 +1004,7 @@ export function useQuestionGeneration() {
       setBatchAssembly((current) => {
         if (!current || current.slots.length === 0) return current;
         const slots = current.slots.map((slot, index) => {
-          if (index !== 0) return slot;
+          if (index !== activeQuestionIndex) return slot;
           const updated = { ...slot, isManuallyEdited: true, status: 'MANUALLY_EDITED' as const };
           if (field === 'questionText') updated.questionText = String(value);
           if (field === 'optionA') updated.options = { ...updated.options, a: String(value) };
@@ -1025,7 +1029,7 @@ export function useQuestionGeneration() {
       triggerDuplicateCheck(value);
     }
     setHasCandidate(true);
-  }, [batchAssembly, productionMode, serverValidationResult, triggerDuplicateCheck]);
+  }, [activeQuestionIndex, batchAssembly, productionMode, serverValidationResult, triggerDuplicateCheck]);
 
   // Update an individual question in Mode 3 (EXPLAINED_QUESTIONS_VIDEO)
   const updateExplainedQuestion = useCallback(
@@ -1155,20 +1159,26 @@ export function useQuestionGeneration() {
         targetQuestionCount,
         questionCount: targetQuestionCount,
         aspectRatio,
+        existingSlots: batchAssembly?.slots || undefined,
       };
 
       const res = await questionsApi.generateAiQuestion(payload);
       const generated = res.candidate;
       const mathVerification = res.validation?.mathematicalVerification || (generated as any).mathematicalVerification;
 
+      const isMode1 = (productionMode || 'QUESTION_CHALLENGE_SHORT') === 'QUESTION_CHALLENGE_SHORT';
+      const isMode2 = productionMode === 'TOPIC_INTRODUCTION';
+      const isMode3 = productionMode === 'EXPLAINED_QUESTIONS_VIDEO';
+
+      const generatedQuestions = (generated as any).questions || res.candidates || [];
       const newCandidate: StudioCandidate = {
         questionText: generated.content || (generated as any).questionText || '',
-        optionA: generated.option_a,
-        optionB: generated.option_b,
-        optionC: generated.option_c,
-        optionD: generated.option_d,
-        correctAnswer: generated.correct_answer,
-        explanation: generated.explanation,
+        optionA: generated.option_a || (generated as any).options?.a || '',
+        optionB: generated.option_b || (generated as any).options?.b || '',
+        optionC: generated.option_c || (generated as any).options?.c || '',
+        optionD: generated.option_d || (generated as any).options?.d || '',
+        correctAnswer: generated.correct_answer || (generated as any).correctAnswer || 'A',
+        explanation: generated.explanation || '',
         topicId: selectedTopic,
         subtopicId: selectedSubtopic,
         difficulty,
@@ -1181,6 +1191,10 @@ export function useQuestionGeneration() {
         productionMode: productionMode || 'QUESTION_CHALLENGE_SHORT',
         targetQuestionCount,
         aspectRatio,
+        introductoryConcept: (generated as any).introductoryConcept || (isMode2 ? (generated.content || '') : undefined),
+        conceptTitle: (generated as any).conceptTitle || candidate.conceptTitle || undefined,
+        syllabusScopeNotes: (generated as any).syllabusScopeNotes || candidate.syllabusScopeNotes || undefined,
+        questions: isMode3 ? generatedQuestions : [],
         tags: ['AI-Generated', 'Aptitude'],
         sourceModel: res.metadata?.modelUsed || aiStatus.model,
         generationLatencyMs: res.metadata?.generationDurationMs || Date.now() - startTime,
@@ -1188,30 +1202,116 @@ export function useQuestionGeneration() {
         mathematicalVerification: mathVerification,
       };
 
-      setCandidate(newCandidate);
-      if (productionMode === 'QUESTION_CHALLENGE_SHORT' && targetQuestionCount > 1) {
-        setBatchAssembly((current) => assembleQuestionBatch(
+      if (isMode1 && targetQuestionCount > 1) {
+        const assembly = res.batchAssembly || assembleQuestionBatch(
           targetQuestionCount as 5 | 10 | 15 | 20,
-          [generated],
-          current?.slots || []
-        ));
+          res.candidates || [generated],
+          batchAssembly?.slots || []
+        );
+        setBatchAssembly(assembly);
+        const activeSlot = assembly.slots[activeQuestionIndex] || assembly.slots[0];
+        if (activeSlot && activeSlot.status !== 'EMPTY') {
+          newCandidate.questionText = activeSlot.questionText;
+          newCandidate.optionA = activeSlot.options?.a || '';
+          newCandidate.optionB = activeSlot.options?.b || '';
+          newCandidate.optionC = activeSlot.options?.c || '';
+          newCandidate.optionD = activeSlot.options?.d || '';
+          newCandidate.correctAnswer = (activeSlot.correctAnswer as any) || 'A';
+          newCandidate.explanation = activeSlot.explanation;
+        }
       } else {
         setBatchAssembly(null);
       }
+
+      setCandidate(newCandidate);
       setHasCandidate(true);
       setIsDirty(true);
-      if (!batchAssembly || productionMode !== 'QUESTION_CHALLENGE_SHORT' || targetQuestionCount <= 1) {
+      if (!batchAssembly || !isMode1 || targetQuestionCount <= 1) {
         setSavedDraftId(null); // Fresh single candidate is not yet saved
       }
       setGenerationDuration(res.metadata?.generationDurationMs || Date.now() - startTime);
 
-      triggerDuplicateCheck(generated.content);
+      triggerDuplicateCheck(generated.content || newCandidate.questionText);
     } catch (err: any) {
       setErrorMessage(err?.message || 'Failed to generate question candidate.');
     } finally {
       setIsGenerating(false);
     }
   };
+
+  const handleSelectSlot = useCallback((index: number) => {
+    setActiveQuestionIndex(index);
+    if (batchAssembly && batchAssembly.slots[index]) {
+      const slot = batchAssembly.slots[index];
+      setCandidate((prev) => ({
+        ...prev,
+        questionText: slot.questionText || '',
+        optionA: slot.options?.a || '',
+        optionB: slot.options?.b || '',
+        optionC: slot.options?.c || '',
+        optionD: slot.options?.d || '',
+        correctAnswer: slot.correctAnswer || 'A',
+        explanation: slot.explanation || '',
+      }));
+    }
+  }, [batchAssembly]);
+
+  const handleAcceptSlot = useCallback((index: number) => {
+    setIsDirty(true);
+    setBatchAssembly((current) => {
+      if (!current || !current.slots[index]) return current;
+      const slots = current.slots.map((slot, i) =>
+        i === index ? { ...slot, status: 'ACCEPTED' as const } : slot
+      );
+      const counts = recalculateQuestionBatchState(
+        current.requestedCount,
+        slots,
+        current.rejectedItems,
+        current.overflowCount
+      );
+      return { ...current, slots, ...counts, persistedValidCount: current.persistedValidCount };
+    });
+  }, []);
+
+  const handleClearSlot = useCallback((index: number) => {
+    setIsDirty(true);
+    setBatchAssembly((current) => {
+      if (!current || !current.slots[index]) return current;
+      const slots = current.slots.map((slot, i) =>
+        i === index
+          ? {
+              ...slot,
+              status: 'EMPTY' as const,
+              questionText: '',
+              options: { a: '', b: '', c: '', d: '' },
+              correctAnswer: 'A' as const,
+              explanation: '',
+              isManuallyEdited: false,
+              validationErrors: [],
+            }
+          : slot
+      );
+      const counts = recalculateQuestionBatchState(
+        current.requestedCount,
+        slots,
+        current.rejectedItems,
+        current.overflowCount
+      );
+      return { ...current, slots, ...counts, persistedValidCount: current.persistedValidCount };
+    });
+    if (activeQuestionIndex === index) {
+      setCandidate((prev) => ({
+        ...prev,
+        questionText: '',
+        optionA: '',
+        optionB: '',
+        optionC: '',
+        optionD: '',
+        correctAnswer: 'A',
+        explanation: '',
+      }));
+    }
+  }, [activeQuestionIndex]);
 
   // 5. REFINE CANDIDATE ACTION
   const handleRefine = async (action: AiRefinementAction) => {
@@ -1555,6 +1655,9 @@ export function useQuestionGeneration() {
     handleSaveDraft,
     handleSubmitForVerification,
     handleResetStudio,
+    handleSelectSlot,
+    handleAcceptSlot,
+    handleClearSlot,
     subtopicController: controllerRef.current,
   };
 }

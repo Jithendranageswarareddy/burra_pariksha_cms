@@ -11,7 +11,7 @@
  */
 
 import React from 'react';
-import { BookOpen, Sparkles, Layers, Ratio, Info, CheckCircle2, AlertCircle } from 'lucide-react';
+import { BookOpen, Sparkles, Layers, Ratio, Info, CheckCircle2, AlertCircle, Eye } from 'lucide-react';
 import { StudioCandidate } from '../../../../shared/contracts/question-generation';
 
 interface TopicIntroWorkspaceProps {
@@ -191,7 +191,42 @@ export const TopicIntroWorkspace: React.FC<TopicIntroWorkspaceProps> = ({
         />
       </div>
 
-      {/* 7. PEDAGOGICAL GUIDANCE FOOTER */}
+      {/* 7. SYNCHRONIZED TOPIC INTRO SIMULATION PREVIEW */}
+      <div data-testid="topic-intro-preview-card" className="p-3 bg-slate-900 text-white rounded-xl space-y-2 border border-slate-800">
+        <div className="flex items-center justify-between text-xs font-bold text-slate-300 pb-1 border-b border-slate-800">
+          <div className="flex items-center gap-1.5">
+            <Eye className="w-3.5 h-3.5 text-amber-400" />
+            <span>Mode 2 Live Simulation Preview</span>
+          </div>
+          <span className="text-[10px] font-mono text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded">
+            {aspectRatio} {aspectRatio === '9:16' ? 'Vertical Short' : 'Landscape Video'}
+          </span>
+        </div>
+        <div className="p-3 bg-slate-800/80 rounded-lg space-y-2 text-xs">
+          {conceptTitle ? (
+            <h4 className="font-bold text-amber-300 text-sm leading-tight font-telugu">{conceptTitle}</h4>
+          ) : (
+            <span className="text-slate-500 italic text-[11px]">Headline / Concept Title</span>
+          )}
+          <p className="font-telugu text-slate-100 leading-relaxed text-xs">
+            {conceptText || 'Introductory concept explanation will appear here...'}
+          </p>
+          {syllabusScope && (
+            <div className="pt-2 border-t border-slate-700/60 text-[11px] text-slate-300 font-telugu">
+              <span className="font-bold text-amber-200">Syllabus Scope & Insights: </span>
+              <span>{syllabusScope}</span>
+            </div>
+          )}
+          {candidate.realLifeContext && (
+            <div className="pt-1 text-[11px] text-slate-400 font-telugu">
+              <span className="font-semibold text-slate-300">Hook: </span>
+              <span>{candidate.realLifeContext}</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 8. PEDAGOGICAL GUIDANCE FOOTER */}
       <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-[11px] text-slate-600 space-y-1">
         <div className="flex items-center gap-1.5 font-bold text-slate-800">
           <Info className="w-3.5 h-3.5 text-indigo-600" />

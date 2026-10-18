@@ -22,6 +22,7 @@ import {
   Info,
   Ratio,
   Zap,
+  Eye,
 } from 'lucide-react';
 import { StudioCandidate } from '../../../../shared/contracts/question-generation';
 import { ExplainedQuestionItem } from '../../../../shared/types/question';
@@ -454,6 +455,75 @@ export const ExplainedQuestionsWorkspace: React.FC<ExplainedQuestionsWorkspacePr
           </div>
         </div>
       )}
+
+      {/* SYNCHRONIZED 16:9 MASTERCLASS SIMULATION PREVIEW */}
+      <div data-testid="explained-preview-card" className="p-3 bg-slate-900 text-white rounded-xl space-y-2 border border-slate-800">
+        <div className="flex items-center justify-between text-xs font-bold text-slate-300 pb-1 border-b border-slate-800">
+          <div className="flex items-center gap-1.5">
+            <Eye className="w-3.5 h-3.5 text-indigo-400" />
+            <span>16:9 Landscape Video Live Simulation</span>
+          </div>
+          <span className="text-[10px] font-mono text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded">
+            {activeQuestionIndex === 0 ? 'Intro Concept Overview' : `Question ${activeQuestionIndex} of ${targetQuestionCount}`}
+          </span>
+        </div>
+        <div className="p-3 bg-slate-800/80 rounded-lg space-y-2 text-xs">
+          {activeQuestionIndex === 0 ? (
+            <div className="space-y-1.5">
+              <h4 className="font-bold text-amber-300 text-sm font-telugu">
+                {candidate.conceptTitle || 'Introductory Concept Overview'}
+              </h4>
+              <p className="font-telugu text-slate-100 leading-relaxed">
+                {candidate.introductoryConcept || candidate.questionText || 'Introductory concept statement will appear here...'}
+              </p>
+              {candidate.syllabusScopeNotes && (
+                <p className="text-[11px] text-slate-300 font-telugu pt-1 border-t border-slate-700/60">
+                  <span className="font-bold text-indigo-300">Syllabus Scope: </span>
+                  {candidate.syllabusScopeNotes}
+                </p>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <p className="font-telugu font-semibold text-slate-100 leading-snug">
+                {currentQ?.questionText || `Question ${activeQuestionIndex} statement will appear here...`}
+              </p>
+              <div className="grid grid-cols-2 gap-2 text-[11px]">
+                {(['a', 'b', 'c', 'd'] as const).map((key) => {
+                  const upperKey = key.toUpperCase();
+                  const val = currentQ?.options?.[key] || (currentQ as any)?.[`option${upperKey}`];
+                  const isCorrect = currentQ?.correctAnswer === upperKey;
+                  return (
+                    <div
+                      key={key}
+                      className={`p-1.5 rounded border text-left font-telugu flex items-start gap-1.5 ${
+                        isCorrect
+                          ? 'bg-emerald-950/80 border-emerald-500 text-emerald-200 font-bold'
+                          : 'bg-slate-700/60 border-slate-600 text-slate-200'
+                      }`}
+                    >
+                      <span className="font-mono text-[10px] font-bold opacity-75">{upperKey}:</span>
+                      <span className="truncate">{val || `Option ${upperKey}`}</span>
+                    </div>
+                  );
+                })}
+              </div>
+              {currentQ?.explanation && (
+                <div className="pt-1.5 border-t border-slate-700/70 text-[10px] text-slate-300 font-telugu">
+                  <span className="font-bold text-indigo-300">Explanation: </span>
+                  <span>{currentQ.explanation}</span>
+                </div>
+              )}
+              {currentQ?.trickOrPitfall && (
+                <div className="text-[10px] text-amber-300 font-telugu">
+                  <span className="font-bold">⚡ Speed Trick: </span>
+                  <span>{currentQ.trickOrPitfall}</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 };

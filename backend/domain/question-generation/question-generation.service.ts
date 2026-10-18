@@ -17,6 +17,7 @@ import {
   DifficultyLevel,
   QuestionDraft,
   QuestionStatus,
+  QuestionLanguage,
   UserRole,
   canonicalIdService,
   ContentProductionMode,
@@ -230,7 +231,7 @@ export function assembleQuestionBatch(
     const errors = validateBatchCandidate(candidate);
     const signature = `${value.questionText.toLowerCase()}|${Object.values(value.options).join('|').toLowerCase()}`;
     const target = slots.find((slot) =>
-      !slot.isManuallyEdited && slot.status !== 'ACCEPTED' && slot.status === 'EMPTY'
+      !slot.isManuallyEdited && slot.status !== 'ACCEPTED' && (slot.status === 'EMPTY' || slot.status === 'INVALID')
     );
     if (!target || seen.has(signature)) {
       if (!target && errors.length === 0 && !seen.has(signature)) overflowCount += 1;
@@ -468,6 +469,146 @@ export class QuestionGenerationService {
   }
 
   /**
+   * Generates a batch of candidates for Mode 1 (QUESTION_CHALLENGE_SHORT) with bounded retries.
+   * Dispatches provider requests, buffers candidates, handles duplicates and shortfalls,
+   * preserves accepted and manually edited slots, and returns an assembled QuestionBatchAssembly.
+   */
+  public async generateBatch(
+    input: GenerateCandidateInput,
+    options?: OrchestratorOptions,
+    orchestrator: Pick<AIOrchestrator, 'generateQuestionCandidate'> = aiOrchestrator
+  ): Promise<GenerationResult> {
+    const requestedCount = (input.targetQuestionCount || 5) as 5 | 10 | 15 | 20;
+    const existingSlots = input.existingSlots || [];
+
+    // Identify preserved slots (accepted or manually edited)
+    const preservedSlots = existingSlots.filter(
+      (slot) => slot.isManuallyEdited || slot.status === 'ACCEPTED'
+    );
+    const slotsNeeded = Math.max(0, requestedCount - preservedSlots.length);
+
+    const collectedCandidates: any[] = [];
+    let shortfallRetriesRemaining = 1; // At most 1 shortfall retry round
+    let invalidityRetriesRemaining = 2; // At most 2 slot-invalidity retries
+    const singleInput: GenerateCandidateInput = {
+      ...input,
+      targetQuestionCount: 1,
+      questionCount: 1,
+    };
+
+    let totalDurationMs = 0;
+    let modelUsed = 'gemini-1.5-pro';
+    let promptTokensUsed = 0;
+    let completionTokensUsed = 0;
+
+    const dispatchBatchCalls = async (count: number) => {
+      if (count <= 0) return;
+      const promises = Array.from({ length: count }, () =>
+        orchestrator.generateQuestionCandidate(singleInput, options)
+      );
+      const settled = await Promise.allSettled(promises);
+      for (const res of settled) {
+        if (res.status === 'fulfilled' && res.value?.candidate) {
+          const val = res.value;
+          collectedCandidates.push(val.candidate);
+          if (val.metadata?.modelUsed || (val.metadata as any)?.modelId) {
+            modelUsed = val.metadata.modelUsed || (val.metadata as any).modelId;
+          }
+          if (typeof val.metadata?.generationDurationMs === 'number') {
+            totalDurationMs += val.metadata.generationDurationMs;
+          }
+          if (typeof (val.metadata as any)?.promptTokensUsed === 'number') {
+            promptTokensUsed += (val.metadata as any).promptTokensUsed;
+          }
+          if (typeof (val.metadata as any)?.completionTokensUsed === 'number') {
+            completionTokensUsed += (val.metadata as any).completionTokensUsed;
+          }
+        }
+      }
+    };
+
+    const startBatchTime = Date.now();
+    await dispatchBatchCalls(slotsNeeded);
+
+    let assembly = assembleQuestionBatch(requestedCount, collectedCandidates, existingSlots);
+
+    // Shortfall retry (at most 1 automated retry round)
+    const currentValid = assembly.slots.filter(
+      (s) => s.status === 'VALID' || s.status === 'MANUALLY_EDITED' || s.status === 'ACCEPTED'
+    ).length;
+    const shortfall = requestedCount - currentValid;
+    if (shortfall > 0 && shortfallRetriesRemaining > 0) {
+      shortfallRetriesRemaining--;
+      await dispatchBatchCalls(shortfall);
+      assembly = assembleQuestionBatch(requestedCount, collectedCandidates, existingSlots);
+    }
+
+    // Invalidity retry (at most 2 automated retry rounds)
+    while (invalidityRetriesRemaining > 0) {
+      const unfilledOrInvalid = assembly.slots.filter(
+        (s) => !s.isManuallyEdited && s.status !== 'ACCEPTED' && (s.status === 'EMPTY' || s.status === 'INVALID')
+      ).length;
+      if (unfilledOrInvalid <= 0 || assembly.rejectedItems.length === 0) {
+        break;
+      }
+      invalidityRetriesRemaining--;
+      await dispatchBatchCalls(Math.min(unfilledOrInvalid, 5));
+      assembly = assembleQuestionBatch(requestedCount, collectedCandidates, existingSlots);
+    }
+
+    if (totalDurationMs === 0) {
+      totalDurationMs = Date.now() - startBatchTime;
+    }
+
+    const firstValidSlot = assembly.slots.find(
+      (s) => s.status === 'VALID' || s.status === 'MANUALLY_EDITED' || s.status === 'ACCEPTED'
+    ) || assembly.slots[0];
+
+    const primaryCandidate: any = {
+      content: firstValidSlot?.questionText || '',
+      questionText: firstValidSlot?.questionText || '',
+      option_a: firstValidSlot?.options?.a || '',
+      option_b: firstValidSlot?.options?.b || '',
+      option_c: firstValidSlot?.options?.c || '',
+      option_d: firstValidSlot?.options?.d || '',
+      correct_answer: firstValidSlot?.correctAnswer || 'A',
+      explanation: firstValidSlot?.explanation || '',
+      real_world_context: input.realWorldContext || input.realLifeContext || '',
+      difficulty: input.difficulty || 'Intermediate',
+      language: input.language || 'TELUGU',
+      productionMode: 'QUESTION_CHALLENGE_SHORT',
+      targetQuestionCount: requestedCount,
+      aspectRatio: '9:16',
+    };
+
+    return {
+      candidate: primaryCandidate,
+      candidates: assembly.slots.map((s) => ({
+        content: s.questionText,
+        questionText: s.questionText,
+        option_a: s.options?.a || '',
+        option_b: s.options?.b || '',
+        option_c: s.options?.c || '',
+        option_d: s.options?.d || '',
+        correct_answer: (s.correctAnswer as any) || 'A',
+        explanation: s.explanation,
+        difficulty: (input.difficulty as any) || 'Intermediate',
+        language: (input.language as any) || QuestionLanguage.TELUGU,
+        slotNumber: s.slotNumber,
+        slotId: s.slotId,
+        status: s.status,
+      })),
+      batchAssembly: assembly,
+      metadata: {
+        modelUsed,
+        generationDurationMs: totalDurationMs,
+        promptTokens: promptTokensUsed,
+        outputTokens: completionTokensUsed,
+      },
+    };
+  }
+
+  /**
    * Orchestrates advisory AI question candidate generation.
    * AI output is strictly advisory and requires human review.
    */
@@ -479,6 +620,16 @@ export class QuestionGenerationService {
     const validation = await this.validateGenerationRequest(input);
     if (!validation.isValid) {
       throw new QuestionGenerationDomainError(validation.error || 'Invalid generation request parameters.');
+    }
+
+    const isMode1Batch =
+      (input.productionMode === 'QUESTION_CHALLENGE_SHORT' || !input.productionMode) &&
+      input.targetQuestionCount !== undefined &&
+      input.targetQuestionCount > 1 &&
+      [5, 10, 15, 20].includes(input.targetQuestionCount);
+
+    if (isMode1Batch) {
+      return this.generateBatch(input, options, orchestrator);
     }
 
     const maxRetries = Math.min(Math.max(options?.maxRetries ?? 2, 0), 2);
@@ -496,6 +647,25 @@ export class QuestionGenerationService {
             'INVALID_PROVIDER_OUTPUT'
           );
         }
+
+        const candidateObj = (result as GenerationResult).candidate as any;
+        if (input.productionMode === 'TOPIC_INTRODUCTION') {
+          if (!candidateObj.introductoryConcept) {
+            candidateObj.introductoryConcept = candidateObj.content || candidateObj.questionText || '';
+          }
+          if (!candidateObj.conceptTitle && input.conceptTitle) {
+            candidateObj.conceptTitle = input.conceptTitle;
+          }
+          candidateObj.questions = [];
+        } else if (input.productionMode === 'EXPLAINED_QUESTIONS_VIDEO') {
+          if (!candidateObj.introductoryConcept) {
+            candidateObj.introductoryConcept = candidateObj.content || candidateObj.questionText || '';
+          }
+          if (!Array.isArray(candidateObj.questions)) {
+            candidateObj.questions = [];
+          }
+        }
+
         return result as GenerationResult;
       } catch (err) {
         if (
@@ -575,6 +745,43 @@ export class QuestionGenerationService {
     }
 
     // Default Mode 1: QUESTION_CHALLENGE_SHORT
+    const targetCount = candidate.targetQuestionCount || 1;
+    if (targetCount > 1) {
+      const slots = (candidate as any).slots as QuestionBatchSlot[] | undefined;
+      if (!slots || slots.length < targetCount) {
+        errors.push(`Mode 1 batch requires ${targetCount} slots (currently has ${slots?.length || 0}).`);
+      } else {
+        const emptyCount = slots.filter((s) => s.status === 'EMPTY' || !s.questionText?.trim()).length;
+        if (emptyCount > 0) {
+          errors.push(`Batch has ${emptyCount} unfilled/empty slots. All ${targetCount} slots must be complete.`);
+        }
+        const invalidCount = slots.filter((s) => s.status === 'INVALID' || (s.validationErrors && s.validationErrors.length > 0)).length;
+        if (invalidCount > 0) {
+          errors.push(`Batch has ${invalidCount} invalid slots.`);
+        }
+        const statements = slots.map((s) => (s.questionText || '').trim().toLowerCase()).filter(Boolean);
+        if (new Set(statements).size < statements.length) {
+          errors.push('Batch contains duplicate question statements.');
+        }
+        for (const slot of slots) {
+          if (slot.status !== 'EMPTY' && slot.questionText?.trim()) {
+            const opts = slot.options || { a: '', b: '', c: '', d: '' };
+            if (!opts.a?.trim() || !opts.b?.trim() || !opts.c?.trim() || !opts.d?.trim()) {
+              errors.push(`Slot #${slot.slotNumber}: Options A, B, C, and D are required.`);
+            }
+            if (!slot.correctAnswer || !['A', 'B', 'C', 'D'].includes(slot.correctAnswer)) {
+              errors.push(`Slot #${slot.slotNumber}: Correct answer must be A, B, C, or D.`);
+            }
+            const optVals = [opts.a?.trim(), opts.b?.trim(), opts.c?.trim(), opts.d?.trim()].filter(Boolean);
+            if (new Set(optVals).size !== 4) {
+              errors.push(`Slot #${slot.slotNumber}: Options must be distinct.`);
+            }
+          }
+        }
+      }
+      return { isValid: errors.length === 0, errors };
+    }
+
     const text = (candidate.questionText || '').trim();
     if (!text || text.length < 5) {
       errors.push('Question problem statement must be at least 5 characters.');
@@ -947,7 +1154,8 @@ export class QuestionGenerationService {
       optionD: draft.options?.d || draft.optionD,
       correctAnswer: draft.correctAnswer as any,
       challengeType: draft.challengeType,
-    });
+      slots: draft.slots,
+    } as any);
 
     if (!validation.isValid) {
       throw new QuestionGenerationDomainError(

@@ -90,6 +90,9 @@ export const QuestionStudioPage: React.FC = () => {
     handleSaveDraft,
     handleSubmitForVerification,
     handleResetStudio,
+    handleSelectSlot,
+    handleAcceptSlot,
+    handleClearSlot,
   } = useQuestionGeneration();
 
   const onExplicitSubmit = async () => {
@@ -297,6 +300,11 @@ export const QuestionStudioPage: React.FC = () => {
               isDirty={isDirty}
               isGenerating={isGenerating}
               isRefining={isRefining}
+              batchAssembly={batchAssembly}
+              activeSlotIndex={activeQuestionIndex}
+              onSelectSlot={handleSelectSlot}
+              onAcceptSlot={handleAcceptSlot}
+              onClearSlot={handleClearSlot}
               onUpdateField={updateCandidateField}
               onRefine={handleRefine}
               onGenerate={handleGenerate}

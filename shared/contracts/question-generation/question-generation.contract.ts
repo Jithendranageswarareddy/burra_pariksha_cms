@@ -19,6 +19,51 @@ import {
 } from '../../constants/enums';
 import { ExplainedQuestionItem, QuestionCandidate } from '../../types/question';
 
+export type QuestionBatchStatus =
+  | 'EMPTY'
+  | 'GENERATING'
+  | 'PARTIAL'
+  | 'COMPLETE'
+  | 'ACCEPTED'
+  | 'FAILED';
+
+export type QuestionBatchSlotStatus =
+  | 'EMPTY'
+  | 'GENERATING'
+  | 'VALID'
+  | 'INVALID'
+  | 'MANUALLY_EDITED'
+  | 'ACCEPTED';
+
+export interface QuestionBatchSlot {
+  slotNumber: number;
+  slotId: string;
+  status: QuestionBatchSlotStatus;
+  questionText: string;
+  options: { a: string; b: string; c: string; d: string };
+  correctAnswer: 'A' | 'B' | 'C' | 'D' | '';
+  explanation: string;
+  isManuallyEdited: boolean;
+  validationErrors: string[];
+  revisionNumber: number;
+}
+
+export interface QuestionBatchRejectedItem {
+  candidateIndex: number;
+  reason: string;
+}
+
+export interface QuestionBatchAssembly {
+  requestedCount: 5 | 10 | 15 | 20;
+  inMemoryValidCount: number;
+  persistedValidCount: number | null;
+  rejectedCount: number;
+  overflowCount: number;
+  batchStatus: QuestionBatchStatus;
+  slots: QuestionBatchSlot[];
+  rejectedItems: QuestionBatchRejectedItem[];
+}
+
 /**
  * Valid options for generating a question.
  */
@@ -52,6 +97,10 @@ export interface GenerateCandidateInput {
   targetQuestionCount?: number;
   questionCount?: number;
   aspectRatio?: '9:16' | '16:9' | string;
+  introductoryConcept?: string;
+  conceptTitle?: string;
+  syllabusScopeNotes?: string;
+  existingSlots?: QuestionBatchSlot[];
 }
 
 /**
@@ -104,51 +153,8 @@ export interface GenerationResult {
   candidate: QuestionCandidate;
   metadata: GenerationMetadata;
   validation?: any;
-}
-
-export type QuestionBatchStatus =
-  | 'EMPTY'
-  | 'GENERATING'
-  | 'PARTIAL'
-  | 'COMPLETE'
-  | 'ACCEPTED'
-  | 'FAILED';
-
-export type QuestionBatchSlotStatus =
-  | 'EMPTY'
-  | 'GENERATING'
-  | 'VALID'
-  | 'INVALID'
-  | 'MANUALLY_EDITED'
-  | 'ACCEPTED';
-
-export interface QuestionBatchSlot {
-  slotNumber: number;
-  slotId: string;
-  status: QuestionBatchSlotStatus;
-  questionText: string;
-  options: { a: string; b: string; c: string; d: string };
-  correctAnswer: 'A' | 'B' | 'C' | 'D' | '';
-  explanation: string;
-  isManuallyEdited: boolean;
-  validationErrors: string[];
-  revisionNumber: number;
-}
-
-export interface QuestionBatchRejectedItem {
-  candidateIndex: number;
-  reason: string;
-}
-
-export interface QuestionBatchAssembly {
-  requestedCount: 5 | 10 | 15 | 20;
-  inMemoryValidCount: number;
-  persistedValidCount: number | null;
-  rejectedCount: number;
-  overflowCount: number;
-  batchStatus: QuestionBatchStatus;
-  slots: QuestionBatchSlot[];
-  rejectedItems: QuestionBatchRejectedItem[];
+  candidates?: QuestionCandidate[];
+  batchAssembly?: QuestionBatchAssembly;
 }
 
 /**
@@ -334,6 +340,62 @@ export function evaluateStep01CandidateState({
   }
 
   // --- MODE 1: QUESTION_CHALLENGE_SHORT (Default) ---
+  const candidateBatchSlots = (candidate as any).batchAssembly?.slots || (candidate as any).slots;
+  if (candidate.targetQuestionCount && candidate.targetQuestionCount > 1 && Array.isArray(candidateBatchSlots) && candidateBatchSlots.length > 0) {
+    const targetCount = candidate.targetQuestionCount;
+    const errors: string[] = [];
+    if (candidateBatchSlots.length < targetCount) {
+      errors.push(`Batch requires ${targetCount} slots (currently has ${candidateBatchSlots.length}).`);
+    }
+    const seenBatchQuestions = new Set<string>();
+    candidateBatchSlots.forEach((slot: QuestionBatchSlot) => {
+      const sIdx = slot.slotNumber;
+      const sText = (slot.questionText || '').trim();
+      const a = (slot.options?.a || '').trim();
+      const b = (slot.options?.b || '').trim();
+      const c = (slot.options?.c || '').trim();
+      const d = (slot.options?.d || '').trim();
+      const ans = (slot.correctAnswer || '').trim().toUpperCase();
+
+      if (slot.status === 'EMPTY' || !sText) {
+        errors.push(`Slot #${sIdx}: Slot is empty.`);
+      } else if (sText.length < 5) {
+        errors.push(`Slot #${sIdx}: Statement must be at least 5 characters.`);
+      }
+      if (!a) errors.push(`Slot #${sIdx}: Option A is required.`);
+      if (!b) errors.push(`Slot #${sIdx}: Option B is required.`);
+      if (!c) errors.push(`Slot #${sIdx}: Option C is required.`);
+      if (!d) errors.push(`Slot #${sIdx}: Option D is required.`);
+      if (!['A', 'B', 'C', 'D'].includes(ans)) {
+        errors.push(`Slot #${sIdx}: Correct answer must be A, B, C, or D.`);
+      }
+      if (sText) {
+        const lower = sText.toLowerCase();
+        if (seenBatchQuestions.has(lower)) {
+          errors.push(`Slot #${sIdx}: Duplicate question within batch.`);
+        }
+        seenBatchQuestions.add(lower);
+      }
+    });
+
+    if (errors.length > 0) {
+      return {
+        state: 'INCOMPLETE',
+        canContinue: false,
+        reason: errors[0],
+        errors,
+        warnings: [],
+      };
+    }
+
+    return {
+      state: 'VALID',
+      canContinue: true,
+      errors: [],
+      warnings: [],
+    };
+  }
+
   const qText = (candidate.questionText || '').trim();
   if (!hasCandidate || !qText) {
     return {

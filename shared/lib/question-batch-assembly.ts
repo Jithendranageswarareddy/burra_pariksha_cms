@@ -79,7 +79,7 @@ export function assembleQuestionBatch(
     const errors = validateCandidate(candidate);
     const signature = `${value.questionText.toLowerCase()}|${Object.values(value.options).join('|').toLowerCase()}`;
     const target = slots.find((slot) =>
-      !slot.isManuallyEdited && slot.status !== 'ACCEPTED' && slot.status === 'EMPTY'
+      !slot.isManuallyEdited && slot.status !== 'ACCEPTED' && (slot.status === 'EMPTY' || slot.status === 'INVALID')
     );
     if (!target || seen.has(signature)) {
       if (!target && errors.length === 0 && !seen.has(signature)) overflowCount += 1;
