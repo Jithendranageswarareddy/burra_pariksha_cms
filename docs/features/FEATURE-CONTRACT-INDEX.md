@@ -2,6 +2,13 @@
 ## Burra Pariksha Content Management System
 ### Authoritative Feature Contract Inventory & Stage 27 Implementation Gateway
 
+> **Historical planning inventory.** This document records the Stage 27
+> contract plan. Current runtime behavior and approved decisions are governed
+> by production code, tests, [`docs/architecture/DECISION-LOG.md`](../architecture/DECISION-LOG.md),
+> and [`docs/ENGINEERING-INDEX.md`](../ENGINEERING-INDEX.md). Legacy Sheets
+> migration planning must not override the current Firestore-only transactional
+> datastore rule.
+
 ```
 ================================================================================
 Document ID:       BP-FC-INDEX

@@ -93,20 +93,16 @@ In strict adherence to the mandate to inspect the real repository rather than re
 ===========================================================================================================================================
 | Inspection Dimension             | Discovered Reality in Codebase            | Evaluation & Architectural Implication             |
 | :---                             | :---                                      | :---                                               |
-| **Automated Tests Existing**     | **0 automated tests**                     | Not a single test file exists in the repository.   |
-| **Test Files in Repository**     | **0 test files** (`*test*`, `*spec*`)     | Zero `.test.ts`, `.spec.ts`, or test directories.  |
-| **Test Runner in package.json**  | **NONE**                                  | No Vitest, Jest, Mocha, Playwright, or Cypress.    |
-| **Test Scripts in package.json** | **NONE**                                  | Scripts: `dev`, `build`, `start`, `preview`, `lint`.|
-| **Executable Tests Today**       | **0 tests runnable**                      | No command exists to verify application behavior.  |
-| **Automated Coverage**           | **0.00% across all modules**              | Every domain, controller, and UI component is 0%.  |
-| **CI Configuration**             | **NONE** (`.github/workflows` missing)    | No automated CI pipeline executes on Git push.     |
-| **Existing Diagnostic Scripts**  | 2 diagnostic scripts in `scripts/`        | `verify-drive-state.ts`, `verify-gcs-state.ts`.     |
-| **Evaluation of Scripts**        | Manual diagnostic probes only             | They print console logs; they assert zero tests.   |
+| **Automated Tests Existing**     | Integration, unit, API, architecture, and E2E files exist under `tests/`. | Focused scripts are available for routine changes. |
+| **Test Runner in package.json**  | Direct `tsx` scripts with Node assertions; no Vitest/Jest discovery runner. | Use `docs/TESTING-GUIDE.md`. |
+| **Executable Tests Today**       | `npm test` and many `test:*` scripts are defined. | A passing build is not the only quality gate. |
+| **CI Configuration**             | No `.github/workflows/` directory was found in this audit. | Verification is currently local; CI remains a proposal. |
+| **Historical target**            | The 15x9 test matrix and higher-level gates remain documented here. | This document is target architecture, not a current-state inventory. |
 ===========================================================================================================================================
 ```
 
 ### 2.1 Distinction: Baseline Reality vs. Target Architecture
-- **Current Brownfield Reality:** The codebase currently possesses **zero automated tests**, zero test runners, and zero test infrastructure. A passing build (`npm run build`) is the only quality gate currently active.
+- **Current Repository Reality (audited 2026-10-18):** The repository contains executable test files and direct `tsx` test scripts listed in `package.json`; no automated CI workflow was found. See `docs/TESTING-GUIDE.md` for the current command map.
 - **Target Test Architecture (Stage 24):** Establishes the authoritative multi-tier verification contract, canonical test pyramid, 15×9 matrix, and test gates that Stages 25 through 28 will implement.
 
 ---
