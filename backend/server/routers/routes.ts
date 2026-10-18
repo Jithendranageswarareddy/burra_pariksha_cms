@@ -3490,13 +3490,20 @@ apiRouter.post('/ai/generate', async (req: Request, res: Response) => {
     }
 
     const sanitizedOptions = sanitizeClientOrchestratorOptions(req.body?.options);
-    const result = await aiOrchestrator.generateQuestionCandidate(req.body, sanitizedOptions);
+    const result = await questionGenerationService.generateCandidate(req.body, sanitizedOptions);
     res.json(result);
   } catch (err: any) {
     const statusCode = err.statusCode || (err.code === 'QUOTA_EXHAUSTED' ? 429 : 500);
+    const safeMessage = err.code === 'INVALID_PROVIDER_OUTPUT'
+      ? err.message
+      : err.code === 'AI_GENERATION_UNAVAILABLE'
+        ? err.message
+        : err.code === 'QUESTION_GENERATION_DOMAIN_ERROR'
+          ? err.message
+          : 'Question generation failed. Please try again.';
     res.status(statusCode).json({
       error: 'AI Generation Failed',
-      message: err?.message || 'Failed to generate question candidate',
+      message: safeMessage,
       code: err?.code || 'AI_GENERATION_FAILED',
     });
   }
@@ -7447,7 +7454,6 @@ apiRouter.get('/copilot/suggestion/:suggestionId', requireAuth, async (req: Requ
 
 // Universal API Error Handling Middleware (FC-003)
 apiRouter.use(globalErrorHandler);
-
 
 
 

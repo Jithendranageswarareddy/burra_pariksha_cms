@@ -40,6 +40,8 @@ import { auditService } from '../../infrastructure/audit/services/audit.service'
 import { questionService } from '../../features/question-generation/services/question.service';
 import { type AdministrativeOverrideContext, resolveBrownfieldRole } from '../../../src/types/rbac-models';
 import { CanonicalRbacRole } from '../../../shared';
+import { AIOrchestrator, OrchestratorOptions } from '../../ai/orchestrator';
+import { AIProviderError } from '../../ai/errors';
 
 export class QuestionGenerationDomainError extends Error {
   public readonly statusCode: number;
@@ -58,6 +60,39 @@ export class QuestionGenerationDomainError extends Error {
  */
 export function isLegacyDraftId(id: string): boolean {
   return /^BP-DFT-\d+$/i.test(id);
+}
+
+export function validateGenerationResult(
+  result: GenerationResult,
+  input: GenerateCandidateInput
+): { isValid: boolean; error?: string } {
+  const candidate = result?.candidate as any;
+  if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) {
+    return { isValid: false, error: 'The AI provider returned an invalid candidate.' };
+  }
+
+  if (typeof candidate.content !== 'string' || candidate.content.trim().length === 0) {
+    return { isValid: false, error: 'The AI provider returned an empty question.' };
+  }
+
+  if (input.productionMode === 'QUESTION_CHALLENGE_SHORT') {
+    const optionKeys = ['option_a', 'option_b', 'option_c', 'option_d'];
+    const options = optionKeys.map((key) => candidate[key]);
+    if (options.some((value) => typeof value !== 'string' || value.trim().length === 0)) {
+      return { isValid: false, error: 'The AI provider returned incomplete question options.' };
+    }
+    if (new Set(options.map((value) => value.trim())).size !== 4) {
+      return { isValid: false, error: 'The AI provider returned duplicate question options.' };
+    }
+    if (!['A', 'B', 'C', 'D'].includes(candidate.correct_answer)) {
+      return { isValid: false, error: 'The AI provider returned an invalid answer key.' };
+    }
+    if (typeof candidate.explanation !== 'string' || candidate.explanation.trim().length === 0) {
+      return { isValid: false, error: 'The AI provider returned an empty explanation.' };
+    }
+  }
+
+  return { isValid: true };
 }
 
 export class QuestionGenerationService {
@@ -258,15 +293,51 @@ export class QuestionGenerationService {
    * Orchestrates advisory AI question candidate generation.
    * AI output is strictly advisory and requires human review.
    */
-  public async generateCandidate(input: GenerateCandidateInput): Promise<GenerationResult> {
+  public async generateCandidate(
+    input: GenerateCandidateInput,
+    options?: OrchestratorOptions,
+    orchestrator: Pick<AIOrchestrator, 'generateQuestionCandidate'> = aiOrchestrator
+  ): Promise<GenerationResult> {
     const validation = await this.validateGenerationRequest(input);
     if (!validation.isValid) {
       throw new QuestionGenerationDomainError(validation.error || 'Invalid generation request parameters.');
     }
 
-    // Delegate to server-side AI orchestrator (AP-009 Human-in-the-Loop)
-    const result = await aiOrchestrator.generateQuestionCandidate(input);
-    return result as GenerationResult;
+    const maxRetries = Math.min(Math.max(options?.maxRetries ?? 2, 0), 2);
+    let attempt = 0;
+
+    while (true) {
+      try {
+        // Delegate to server-side AI orchestrator (AP-009 Human-in-the-Loop).
+        const result = await orchestrator.generateQuestionCandidate(input, options);
+        const resultValidation = validateGenerationResult(result as GenerationResult, input);
+        if (!resultValidation.isValid) {
+          throw new QuestionGenerationDomainError(
+            resultValidation.error || 'The AI provider returned an invalid candidate.',
+            502,
+            'INVALID_PROVIDER_OUTPUT'
+          );
+        }
+        return result as GenerationResult;
+      } catch (err) {
+        if (
+          err instanceof AIProviderError &&
+          (err.classification === 'TIMEOUT' || err.classification === 'TRANSIENT_ERROR') &&
+          attempt < maxRetries
+        ) {
+          attempt += 1;
+          continue;
+        }
+        if (err instanceof QuestionGenerationDomainError) {
+          throw err;
+        }
+        throw new QuestionGenerationDomainError(
+          'Question generation is temporarily unavailable. Please try again.',
+          503,
+          'AI_GENERATION_UNAVAILABLE'
+        );
+      }
+    }
   }
 
   /**
