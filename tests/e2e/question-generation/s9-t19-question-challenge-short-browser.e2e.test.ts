@@ -38,7 +38,10 @@ import {
   evaluateDatastoreIsolation,
   KNOWN_PRODUCTION_TARGETS,
   IsolationVerification,
+  verifyFirebaseAdminBinding,
+  probeFirestoreConnectivity,
 } from '../../integration/s8-t18-firestore-persistence-recovery.integration.test';
+import { getAdminFirestore } from '../../../database/firestore/adapter/admin';
 
 const CHROME_PATH = process.env.CHROME_PATH || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
 
@@ -113,21 +116,32 @@ export async function runQuestionChallengeShortBrowserE2ETest(): Promise<void> {
   );
   console.log(`[Isolation Audit] Evaluated mode: ${isolation.isolationMode}`);
   console.log(`[Isolation Audit] Emulator Host: ${process.env.FIRESTORE_EMULATOR_HOST || 'NONE'}`);
+  console.log(`[Isolation Audit] Approved: ${isolation.isApproved ? 'YES' : 'NO'}`);
 
-  const isProductionMatch = KNOWN_PRODUCTION_TARGETS.some(
-    (prod) =>
-      prod.projectId === activeProjectId &&
-      (prod.databaseId === activeDatabaseId || prod.databaseId === '(default)')
-  );
-  assert.strictEqual(
-    isProductionMatch && !process.env.FIRESTORE_EMULATOR_HOST,
-    false,
-    'FAIL-CLOSED: Execution against canonical production Firestore without emulator is prohibited.'
-  );
-
-  if (!isolation.isApproved && !process.env.FIRESTORE_EMULATOR_HOST) {
-    throw new Error(`FAIL-CLOSED: Datastore isolation could not be established: ${isolation.rejectionReasons.join('; ')}`);
+  // FAIL-CLOSED: ANY isolation.isApproved === false result MUST abort execution immediately!
+  // A non-empty emulator-host variable must NOT independently authorize test execution.
+  if (!isolation.isApproved) {
+    throw new Error(
+      `FAIL-CLOSED: Datastore isolation could not be established: ${isolation.rejectionReasons.join('; ')}`
+    );
   }
+
+  // Verify that Firebase Admin SDK instance is bound to the exact same emulator configuration
+  const adminDb = getAdminFirestore();
+  verifyFirebaseAdminBinding(adminDb, {
+    projectId: activeProjectId,
+    databaseId: activeDatabaseId,
+    emulatorHost: isolation.emulatorHost!,
+  });
+
+  // Verify live emulator reachability before any fixture creation
+  const reachability = await probeFirestoreConnectivity(adminDb);
+  if (!reachability.reachable) {
+    throw new Error(
+      `FAIL-CLOSED: Local Firestore emulator at ${isolation.emulatorHost} is unreachable: ${reachability.error}`
+    );
+  }
+
   console.log('✓ Datastore isolation verified. Zero production exposure.\n');
 
   assert.ok(fs.existsSync(CHROME_PATH), `Google Chrome binary not found at ${CHROME_PATH}`);
@@ -615,5 +629,5 @@ export async function runQuestionChallengeShortBrowserE2ETest(): Promise<void> {
 
 runQuestionChallengeShortBrowserE2ETest().catch((err) => {
   console.error('S9-T19 BROWSER E2E TEST FAILED:', err);
-  process.exitCode = 1;
+  process.exit(1);
 });

@@ -44,7 +44,10 @@ import {
   evaluateDatastoreIsolation,
   KNOWN_PRODUCTION_TARGETS,
   IsolationVerification,
+  verifyFirebaseAdminBinding,
+  probeFirestoreConnectivity,
 } from '../s8-t18-firestore-persistence-recovery.integration.test';
+import { getAdminFirestore } from '../../../database/firestore/adapter/admin';
 
 // ---------------------------------------------------------------------------
 // Synthetic Test Data Helpers & Cleanup Tracking
@@ -176,26 +179,33 @@ export async function runPersistenceAuthorizationWorkflowIntegrationTests(): Pro
   );
   console.log(`[Isolation Audit] Evaluated mode: ${isolation.isolationMode}`);
   console.log(`[Isolation Audit] Active Project: ${activeProjectId}, Database: ${activeDatabaseId}`);
+  console.log(`[Isolation Audit] Approved: ${isolation.isApproved ? 'YES' : 'NO'}`);
 
-  // 1.2 Disqualification of known production targets
-  const isProductionMatch = KNOWN_PRODUCTION_TARGETS.some(
-    (prod) =>
-      prod.projectId === activeProjectId &&
-      (prod.databaseId === activeDatabaseId || prod.databaseId === '(default)')
-  );
-  assert.strictEqual(
-    isProductionMatch && !process.env.FIRESTORE_EMULATOR_HOST,
-    false,
-    'CRITICAL: Execution against canonical production Firestore without an emulator is strictly prohibited.'
-  );
-
-  // 1.3 Fail-closed verification
-  if (!isolation.isApproved && !process.env.FIRESTORE_EMULATOR_HOST) {
-    console.error('❌ Datastore isolation could not be proven. Integration tests must run against local emulator.');
-    console.error('Rejection reasons:', isolation.rejectionReasons);
-    return;
+  // 1.2 Fail-closed verification: ANY isolation.isApproved === false result MUST abort execution immediately!
+  // A non-empty emulator-host variable must NOT independently authorize test fixture creation, writes, or cleanup.
+  if (!isolation.isApproved) {
+    throw new Error(
+      `CRITICAL FAIL-CLOSED: Datastore isolation could not be established: ${isolation.rejectionReasons.join('; ')}`
+    );
   }
-  console.log('✓ Suite 1 Passed: Datastore isolation verified. Zero production exposure.\n');
+
+  // 1.3 Verify that Firebase Admin SDK instance is bound to the exact same emulator configuration
+  const adminDb = getAdminFirestore();
+  verifyFirebaseAdminBinding(adminDb, {
+    projectId: activeProjectId,
+    databaseId: activeDatabaseId,
+    emulatorHost: isolation.emulatorHost!,
+  });
+
+  // 1.4 Verify live emulator reachability before any fixture creation
+  const reachability = await probeFirestoreConnectivity(adminDb);
+  if (!reachability.reachable) {
+    throw new Error(
+      `CRITICAL FAIL-CLOSED: Local Firestore emulator at ${isolation.emulatorHost} is unreachable: ${reachability.error}`
+    );
+  }
+
+  console.log('✓ Suite 1 Passed: Datastore isolation and live emulator binding verified. Zero production exposure.\n');
 
   // =========================================================================
   // Server Setup (Mounting production apiRouter on dynamic port)
@@ -731,5 +741,5 @@ export async function runPersistenceAuthorizationWorkflowIntegrationTests(): Pro
 
 runPersistenceAuthorizationWorkflowIntegrationTests().catch((err) => {
   console.error('S9-T18 TEST EXECUTION FAILED:', err);
-  process.exitCode = 1;
+  process.exit(1);
 });

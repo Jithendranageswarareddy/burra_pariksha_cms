@@ -17,6 +17,7 @@
  */
 
 import assert from 'node:assert';
+import http from 'node:http';
 import { QuestionDraftsRepository } from '../../database/firestore/repositories/question-drafts.repository';
 import { auditLogRepository } from '../../database/firestore/repositories/audit-log.repository';
 import { workflowInstancesRepository } from '../../backend/domain/workflow';
@@ -66,6 +67,12 @@ export const KNOWN_PRODUCTION_TARGETS = [
   },
 ];
 
+export const APPROVED_SYNTHETIC_TEST_PROJECTS: readonly string[] = [
+  'burra-pariksha-test',
+  'burra-pariksha-emulator',
+  'demo-burra-pariksha',
+];
+
 export interface IsolationVerification {
   isApproved: boolean;
   isolationMode: 'LOCAL_FIRESTORE_EMULATOR' | 'APPROVED_REMOTE_NON_PRODUCTION' | 'NONE';
@@ -92,9 +99,13 @@ export function evaluateDatastoreIsolation(
   const isProduction = KNOWN_PRODUCTION_TARGETS.some(
     (prod) =>
       prod.projectId === activeProjectId &&
-      (prod.databaseId === activeDatabaseId || prod.databaseId === '(default)')
+      (prod.databaseId === activeDatabaseId || prod.databaseId === '(default)' || activeDatabaseId === '(default)')
   );
-  if (isProduction) {
+  if (
+    isProduction ||
+    activeProjectId === 'burra-pariksha-cms' ||
+    activeDatabaseId === 'ai-studio-burraparikshacon-f592ca42-39af-4d83-aff2-6870ba939b0e'
+  ) {
     rejectionReasons.push(
       `Active datastore (project="${activeProjectId}", database="${activeDatabaseId}") matches canonical production infrastructure. Under AGENTS.md Rule 14, persistent mutation tests against production are strictly prohibited.`
     );
@@ -107,8 +118,26 @@ export function evaluateDatastoreIsolation(
       rejectionReasons.push(
         `Configured FIRESTORE_EMULATOR_HOST ("${emulatorHost}") is malformed. Expected valid host:port format (e.g. 127.0.0.1:8080).`
       );
-    } else {
-      approvalEvidence.push(`Configured for local Firestore Emulator at ${emulatorHost}`);
+    }
+
+    // A non-empty emulator-host variable must NOT independently authorize test fixture creation, writes, or cleanup!
+    const isApprovedSynthetic = APPROVED_SYNTHETIC_TEST_PROJECTS.includes(activeProjectId);
+    if (!isApprovedSynthetic) {
+      rejectionReasons.push(
+        `Project "${activeProjectId}" is not an approved synthetic test project for emulator execution. Allowed projects: ${APPROVED_SYNTHETIC_TEST_PROJECTS.join(', ')}.`
+      );
+    }
+
+    if (activeDatabaseId === 'ai-studio-burraparikshacon-f592ca42-39af-4d83-aff2-6870ba939b0e') {
+      rejectionReasons.push(
+        `Database "${activeDatabaseId}" matches canonical production database and is prohibited for emulator test execution.`
+      );
+    }
+
+    if (rejectionReasons.length === 0) {
+      approvalEvidence.push(
+        `Configured for local Firestore Emulator at ${emulatorHost} with approved synthetic project "${activeProjectId}" and database "${activeDatabaseId}"`
+      );
       return {
         isApproved: true,
         isolationMode: 'LOCAL_FIRESTORE_EMULATOR',
@@ -119,6 +148,20 @@ export function evaluateDatastoreIsolation(
         approvalEvidence,
       };
     }
+
+    return {
+      isApproved: false,
+      isolationMode: 'LOCAL_FIRESTORE_EMULATOR',
+      projectId: activeProjectId,
+      databaseId: activeDatabaseId,
+      emulatorHost,
+      rejectionReasons,
+      approvalEvidence: [],
+    };
+  } else {
+    rejectionReasons.push(
+      'Missing emulator configuration: FIRESTORE_EMULATOR_HOST is required for local emulator execution.'
+    );
   }
 
   // Rule 3: Reject missing database approval (both project and database are mandatory)
@@ -184,6 +227,76 @@ export function evaluateDatastoreIsolation(
     rejectionReasons,
     approvalEvidence: [],
   };
+}
+
+export function verifyFirebaseAdminBinding(
+  db: any,
+  expected: { projectId: string; databaseId: string; emulatorHost: string }
+): void {
+  const actualProjectId = db.projectId || db._settings?.projectId;
+  const actualDatabaseId = db.databaseId || db._settings?.databaseId;
+  const settings = db._settings || {};
+  const [expectedHost, expectedPortStr] = expected.emulatorHost.split(':');
+  const expectedPort = parseInt(expectedPortStr, 10);
+
+  if (actualProjectId !== expected.projectId) {
+    throw new Error(
+      `Firebase Admin client misconfigured: bound to project "${actualProjectId}", expected approved synthetic project "${expected.projectId}".`
+    );
+  }
+
+  if (actualDatabaseId !== expected.databaseId) {
+    throw new Error(
+      `Firebase Admin client misconfigured: bound to database "${actualDatabaseId}", expected approved test database "${expected.databaseId}".`
+    );
+  }
+
+  if (settings.servicePath !== expectedHost || settings.port !== expectedPort) {
+    throw new Error(
+      `Firebase Admin client is not connected to emulator host: bound to "${settings.servicePath}:${settings.port}", expected "${expected.emulatorHost}".`
+    );
+  }
+
+  if (settings.ssl === true) {
+    throw new Error('Firebase Admin client has SSL enabled; local emulator requires plaintext HTTP (ssl: false).');
+  }
+}
+
+export async function probeFirestoreConnectivity(
+  db: any,
+  timeoutMs: number = 3000
+): Promise<{ reachable: boolean; error?: string }> {
+  const settings = db?._settings || {};
+  const host = settings.servicePath || '127.0.0.1';
+  const port = settings.port || 8080;
+
+  // First check fast TCP reachability via HTTP socket
+  const isTcpReachable = await new Promise<boolean>((resolve) => {
+    const req = http.get(`http://${host}:${port}`, () => resolve(true));
+    req.on('error', () => resolve(false));
+    req.setTimeout(timeoutMs, () => {
+      req.destroy();
+      resolve(false);
+    });
+  });
+
+  if (!isTcpReachable) {
+    return {
+      reachable: false,
+      error: `Connection refused to emulator at ${host}:${port}. Is the local emulator running?`,
+    };
+  }
+
+  try {
+    const probePromise = db.collection('_isolation_probe').limit(1).get();
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`Connection probe timed out after ${timeoutMs}ms`)), timeoutMs)
+    );
+    await Promise.race([probePromise, timeoutPromise]);
+    return { reachable: true };
+  } catch (err: any) {
+    return { reachable: false, error: err?.message || String(err) };
+  }
 }
 
 async function runS8T18FirestorePersistenceIntegrationTest() {

@@ -42,9 +42,12 @@
   - `isolationMode`: `LOCAL_FIRESTORE_EMULATOR`
   - `isApproved`: `true`
   - `details`: Verified local emulator endpoint at `127.0.0.1:8080` under project `burra-pariksha-test`.
-- **Fail-Closed Enforcement**:
-  - Isolation guard positively verified emulator presence before allowing any test fixtures, writes, or teardown.
-  - Zero writes, updates, resets, or deletions were performed against canonical production Cloud Firestore or production audit history.
+- **Hardened Fail-Closed Isolation Guards**:
+  - `evaluateDatastoreIsolation()` strictly requires both an approved synthetic project (`burra-pariksha-test`, `burra-pariksha-emulator`, `demo-burra-pariksha`) and non-production database (`(default)`). A non-empty `FIRESTORE_EMULATOR_HOST` does **not** independently authorize test execution against canonical production targets (`burra-pariksha-cms` or `ai-studio-burraparikshacon-...`).
+  - S9-T18 and S9-T19 guards abort immediately (`throw new Error(...)`) whenever `isolation.isApproved === false`, eliminating any bypass logic.
+  - Added `verifyFirebaseAdminBinding()` to verify runtime Firebase Admin SDK instance configuration (`db.projectId`, `db.databaseId`, `servicePath`, `port`, `ssl: false`) before executing any queries.
+  - Added `probeFirestoreConnectivity()` to verify live emulator reachability with fast TCP pre-check before any test fixture creation or mutation.
+  - Dedicated regression suite `npm run test:isolation` executes 8 deterministic negative and positive tests covering missing config, production project, unapproved project, production database, malformed endpoint, unreachable port, approved synthetic emulator session, and Firebase Admin client binding.
   - Teardown strictly scoped to test-created synthetic records (`trackedSyntheticDraftIds`, `trackedSyntheticQuestionIds`, `trackedSyntheticUserIds`). Audit logs remained append-only and zero audit entries were purged.
 
 ---
@@ -61,14 +64,15 @@ All commands listed below were executed on the real system. Actual exit codes an
 | 4 | `$env:PERSISTENCE_MODE='IN_MEMORY_TEST_ONLY'; npx tsx tests/unit/question-generation/s9-t15-verification-handoff.unit.test.ts` | S9-T15 Verification Handoff & Revision Handling | 0 | **PASS** | 15/15 scenarios passed (Save Draft != Submit, Stage 01 -> 02 transition, reviewer revision routing 02 -> 01, feedback preservation, GAR-02 anti-self-approval). |
 | 5 | `$env:PERSISTENCE_MODE='IN_MEMORY_TEST_ONLY'; npx tsx tests/unit/question-generation/s9-t16-generation-batch-completeness.unit.test.ts` | S9-T16 Generation & Batch Completeness | 0 | **PASS** | 26/26 scenarios passed (Batch counts N in {5, 10, 15, 20}, response normalization, retries, regeneration, protected slots, OCC). |
 | 6 | `$env:PERSISTENCE_MODE='IN_MEMORY_TEST_ONLY'; npx tsx tests/unit/question-generation/s9-t17-editing-validation-preview.unit.test.ts` | S9-T17 Editing, Validation, & Preview Consistency | 0 | **PASS** | 34/34 scenarios passed (Field edits, validation rules, slot reordering, deletion, replacement, 0% audience leakage in rendered HTML). |
-| 7 | `npm run test:s9-t18` | S9-T18 Persistence, Authorization & Workflow Integration (Local Firestore Emulator) | 0 | **PASS** | 5 suites / 21 scenarios passed against verified local emulator on `127.0.0.1:8080`. Complete persistence lifecycle, OCC atomic locking, RBAC boundaries, Stage 01/02 transitions, revision return, GAR-02 anti-self-approval, and scoped teardown. |
-| 8 | `npm run test:s9-t19:browser` | S9-T19 Dedicated Browser End-to-End Automation (Google Chrome via Puppeteer-Core) | 0 | **PASS** | Complete 9-step real browser user journey passed 100%: Topic/subtopic selection, batch size 5 configuration, candidate generation, in-place editing, 9:16 audience preview with zero answer leak, in-place draft saving, refresh/reopen hydration, verification submission, GAR-02 anti-self-approval, reviewer revision cycle, and approval. |
-| 9 | `$env:PERSISTENCE_MODE='IN_MEMORY_TEST_ONLY'; npm run test:question-generation` | Existing Question Studio & Submission Route Integration Tests | 0 | **PASS** | 5 full suites passed: `topic-subtopic-validation` (16/16), `save-draft-vs-verify` (8/8), `submission-route-registration` (5/5), `question-generation-slice` (5/5), `question-generation-workflow.e2e` (8/8). |
-| 10 | `npm run test:architecture` | Architectural Boundary Verification | 0 | **PASS** | 5 architecture gates passed: frontend/backend decoupling (0 leaks across 134 frontend, 166 backend, 47 database files), S7-T11 API boundary (8/8 gates), FC-005 shared contracts (6/6), S7-T16 dependency boundaries, S7-T01 inventory reconciliation (713 S7 baseline + 65 post-S7 additions = 778 files). |
-| 11 | `npm run lint` (`node --max-old-space-size=4096 ./node_modules/typescript/bin/tsc --noEmit`) | Full TypeScript Static Compilation | 0 | **PASS** | Zero type errors across the entire codebase. |
-| 12 | `npm run build` (`vite build && esbuild ...`) | Production Bundling & Packaging | 0 | **PASS** | Built client bundle (1.3 kB HTML, 183.9 kB CSS, 3.3 MB JS) and backend bundle (`dist/server.cjs` 2.5 MB). |
-| 13 | `$env:PERSISTENCE_MODE='IN_MEMORY_TEST_ONLY'; npm run test:workflow` | Canonical 15-Step Workflow Engine Verification | 0 | **PASS** | 5/5 test cases passed: N -> N+1 sequential transitions, illegal jump rejection (HTTP 422), rejection routing, 5 orthogonal state dimensions, OCC and GAR-02. |
-| 14 | `$env:PERSISTENCE_MODE='IN_MEMORY_TEST_ONLY'; npm run test:rbac` | Role & Capability Authorization Matrix | 0 | **PASS** | 12/12 test cases passed: 401 unauthenticated, 403 lacks capability, privilege escalation defense, GAR-02 anti-self-approval enforcement, admin override limits. |
+| 7 | `npm run test:isolation` | S9 Datastore Isolation Guard Regression Suite | 0 | **PASS** | 8/8 tests passed: Missing emulator config, unapproved production project, unapproved arbitrary project, unapproved production database, malformed endpoint, unreachable port pre-probe abort, approved synthetic emulator validation, and Firebase Admin SDK binding verification. |
+| 8 | `npm run test:s9-t18` | S9-T18 Persistence, Authorization & Workflow Integration (Local Firestore Emulator) | 0 | **PASS** | 5 suites / 21 scenarios passed against verified local emulator on `127.0.0.1:8080`. Complete persistence lifecycle, OCC atomic locking, RBAC boundaries, Stage 01/02 transitions, revision return, GAR-02 anti-self-approval, and scoped teardown. Verified fail-closed abort on unreachable emulator. |
+| 9 | `npm run test:s9-t19:browser` | S9-T19 Dedicated Browser End-to-End Automation (Google Chrome via Puppeteer-Core) | 0 | **PASS** | Complete 9-step real browser user journey passed 100%: Topic/subtopic selection, batch size 5 configuration, candidate generation, in-place editing, 9:16 audience preview with zero answer leak, in-place draft saving, refresh/reopen hydration, verification submission, GAR-02 anti-self-approval, reviewer revision cycle, and approval. Verified fail-closed abort on unreachable emulator. |
+| 10 | `$env:PERSISTENCE_MODE='IN_MEMORY_TEST_ONLY'; npm run test:question-generation` | Existing Question Studio & Submission Route Integration Tests | 0 | **PASS** | 5 full suites passed: `topic-subtopic-validation` (16/16), `save-draft-vs-verify` (8/8), `submission-route-registration` (5/5), `question-generation-slice` (5/5), `question-generation-workflow.e2e` (8/8). |
+| 11 | `npm run test:architecture` | Architectural Boundary Verification | 0 | **PASS** | 5 architecture gates passed: frontend/backend decoupling (0 leaks across 134 frontend, 166 backend, 47 database files), S7-T11 API boundary (8/8 gates), FC-005 shared contracts (6/6), S7-T16 dependency boundaries, S7-T01 inventory reconciliation (713 S7 baseline + 66 post-S7 additions = 779 files). |
+| 12 | `npm run lint` (`node --max-old-space-size=4096 ./node_modules/typescript/bin/tsc --noEmit`) | Full TypeScript Static Compilation | 0 | **PASS** | Zero type errors across the entire codebase. |
+| 13 | `npm run build` (`vite build && esbuild ...`) | Production Bundling & Packaging | 0 | **PASS** | Built client bundle (1.3 kB HTML, 183.9 kB CSS, 3.3 MB JS) and backend bundle (`dist/server.cjs` 2.5 MB). |
+| 14 | `$env:PERSISTENCE_MODE='IN_MEMORY_TEST_ONLY'; npm run test:workflow` | Canonical 15-Step Workflow Engine Verification | 0 | **PASS** | 5/5 test cases passed: N -> N+1 sequential transitions, illegal jump rejection (HTTP 422), rejection routing, 5 orthogonal state dimensions, OCC and GAR-02. |
+| 15 | `$env:PERSISTENCE_MODE='IN_MEMORY_TEST_ONLY'; npm run test:rbac` | Role & Capability Authorization Matrix | 0 | **PASS** | 12/12 test cases passed: 401 unauthenticated, 403 lacks capability, privilege escalation defense, GAR-02 anti-self-approval enforcement, admin override limits. |
 
 ---
 
@@ -157,6 +161,16 @@ During the execution of S9-T19 Follow-up, the two Gate D blockers were fully res
    - *Symptom*: Save Draft button disabled with error `Mode 1 batch requires 5 slots (currently has 0)`.
    - *Root Cause*: `evaluateStep01CandidateState` expected `candidate.batchAssembly` and `candidate.slots` to evaluate batch completeness, but `useQuestionGeneration` was only passing individual candidate fields.
    - *Fix*: Attached `batchAssembly` and `slots: batchAssembly?.slots` to the candidate evaluation payload and updated contract types accordingly.
+
+6. **Datastore Isolation Guard Review & Fail-Closed Hardening**:
+   - *Symptom*: Inspection revealed that `!isolation.isApproved && !process.env.FIRESTORE_EMULATOR_HOST` in S9-T18 and S9-T19 allowed a non-empty `FIRESTORE_EMULATOR_HOST` to bypass `isolation.isApproved === false`. Furthermore, `admin.ts` resolved canonical production project/database unless explicit overrides were passed, and `evaluateDatastoreIsolation()` lacked synthetic project whitelist enforcement for emulator mode.
+   - *Fix*:
+     - Hardened `evaluateDatastoreIsolation()` to require `APPROVED_SYNTHETIC_TEST_PROJECTS` (`burra-pariksha-test`, etc.) and explicitly prohibit canonical production targets (`burra-pariksha-cms` and `ai-studio-burraparikshacon-...`) regardless of emulator host settings.
+     - Hardened both S9-T18 and S9-T19 guards to fail closed immediately (`throw new Error(...)`) whenever `isolation.isApproved === false`.
+     - Updated `admin.ts` to prioritize environment variables (`GCP_PROJECT`, `GCLOUD_PROJECT`, `FIRESTORE_DATABASE_ID`) and default emulator sessions to synthetic project `burra-pariksha-test` and database `(default)`.
+     - Added runtime Firebase Admin SDK binding verification (`verifyFirebaseAdminBinding()`) to ensure repository clients share the exact emulator endpoint, synthetic project, database, and plaintext HTTP (`ssl: false`).
+     - Added live emulator connection probe with fast TCP check (`probeFirestoreConnectivity()`) to abort execution before any fixture creation if the emulator is unreachable.
+     - Added dedicated deterministic regression suite `tests/integration/s9-isolation-guard.test.ts` (`npm run test:isolation`) with 8 deterministic negative and positive tests (100% passing).
 
 ---
 

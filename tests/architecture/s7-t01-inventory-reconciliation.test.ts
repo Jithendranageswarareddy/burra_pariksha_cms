@@ -92,6 +92,7 @@ export const AUTHORITATIVE_APPROVED_POST_S7_ADDITIONS: readonly string[] = [
   'tests/unit/system-admin-workflow-permissions.unit.test.ts',
   'tests/e2e/question-generation/s9-t19-question-challenge-short-browser.e2e.test.ts',
   'docs/testing/sprint-9-gate-d-verification.md',
+  'tests/integration/s9-isolation-guard.test.ts',
 ];
 
 const EXPECTED_HISTORICAL_S7_COUNT = 713;
