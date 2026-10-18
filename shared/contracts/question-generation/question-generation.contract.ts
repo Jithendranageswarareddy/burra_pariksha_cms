@@ -18,6 +18,13 @@ import {
   QuestionStyle,
 } from '../../constants/enums';
 import { ExplainedQuestionItem, QuestionCandidate } from '../../types/question';
+import {
+  QuestionQualityIssue,
+  QuestionQualityValidationResult,
+} from './question-quality.contract';
+import { validateQuestionQuality } from '../../lib/question-quality-validator';
+
+export * from './question-quality.contract';
 
 export type QuestionBatchStatus =
   | 'EMPTY'
@@ -206,6 +213,7 @@ export interface Step01StateEvaluation {
   reason?: string;
   errors: string[];
   warnings: string[];
+  qualityReport?: QuestionQualityValidationResult;
 }
 
 /**
@@ -244,21 +252,15 @@ export function evaluateStep01CandidateState({
       };
     }
 
-    const errors: string[] = [];
-    if (conceptText.length < 15) {
-      errors.push('Introductory concept text must be at least 15 characters.');
-    }
-    if (candidate.aspectRatio && candidate.aspectRatio !== '9:16' && candidate.aspectRatio !== '16:9') {
-      errors.push('Topic Introduction aspect ratio must be either 9:16 or 16:9.');
-    }
-
-    if (errors.length > 0) {
+    const qualityReport = validateQuestionQuality(candidate);
+    if (!qualityReport.isValid) {
       return {
         state: 'INCOMPLETE',
         canContinue: false,
-        reason: errors[0],
-        errors,
-        warnings: [],
+        reason: qualityReport.errorMessages[0],
+        errors: qualityReport.errorMessages,
+        warnings: qualityReport.warningMessages,
+        qualityReport,
       };
     }
 
@@ -266,7 +268,8 @@ export function evaluateStep01CandidateState({
       state: 'VALID',
       canContinue: true,
       errors: [],
-      warnings: [],
+      warnings: qualityReport.warningMessages,
+      qualityReport,
     };
   }
 
@@ -283,51 +286,15 @@ export function evaluateStep01CandidateState({
       };
     }
 
-    const targetCount = candidate.targetQuestionCount || 5;
-    const errors: string[] = [];
-
-    if (!introText || introText.length < 15) {
-      errors.push('Introductory concept/overview must be at least 15 characters.');
-    }
-
-    if (candidate.aspectRatio && candidate.aspectRatio !== '16:9') {
-      errors.push('Explained Questions Video must use 16:9 aspect ratio.');
-    }
-
-    const questions = candidate.questions || [];
-    if (questions.length < targetCount) {
-      errors.push(`Requires ${targetCount} explained questions (currently has ${questions.length}).`);
-    }
-
-    for (let i = 0; i < Math.min(questions.length, targetCount); i++) {
-      const q = questions[i];
-      const qIdx = q.questionNumber || i + 1;
-      const qText = (q.questionText || '').trim();
-      const a = (q.optionA || q.options?.a || '').trim();
-      const b = (q.optionB || q.options?.b || '').trim();
-      const c = (q.optionC || q.options?.c || '').trim();
-      const d = (q.optionD || q.options?.d || '').trim();
-      const ans = (q.correctAnswer || '').trim().toUpperCase();
-
-      if (!qText || qText.length < 5) {
-        errors.push(`Question #${qIdx}: Question statement must be at least 5 characters.`);
-      }
-      if (!a) errors.push(`Question #${qIdx}: Option A is required.`);
-      if (!b) errors.push(`Question #${qIdx}: Option B is required.`);
-      if (!c) errors.push(`Question #${qIdx}: Option C is required.`);
-      if (!d) errors.push(`Question #${qIdx}: Option D is required.`);
-      if (!['A', 'B', 'C', 'D'].includes(ans)) {
-        errors.push(`Question #${qIdx}: Correct answer must be A, B, C, or D.`);
-      }
-    }
-
-    if (errors.length > 0) {
+    const qualityReport = validateQuestionQuality(candidate);
+    if (!qualityReport.isValid) {
       return {
         state: 'INCOMPLETE',
         canContinue: false,
-        reason: errors[0],
-        errors,
-        warnings: [],
+        reason: qualityReport.errorMessages[0],
+        errors: qualityReport.errorMessages,
+        warnings: qualityReport.warningMessages,
+        qualityReport,
       };
     }
 
@@ -335,56 +302,36 @@ export function evaluateStep01CandidateState({
       state: 'VALID',
       canContinue: true,
       errors: [],
-      warnings: [],
+      warnings: qualityReport.warningMessages,
+      qualityReport,
     };
   }
 
   // --- MODE 1: QUESTION_CHALLENGE_SHORT (Default) ---
   const candidateBatchSlots = (candidate as any).batchAssembly?.slots || (candidate as any).slots;
   if (candidate.targetQuestionCount && candidate.targetQuestionCount > 1 && Array.isArray(candidateBatchSlots) && candidateBatchSlots.length > 0) {
-    const targetCount = candidate.targetQuestionCount;
-    const errors: string[] = [];
-    if (candidateBatchSlots.length < targetCount) {
-      errors.push(`Batch requires ${targetCount} slots (currently has ${candidateBatchSlots.length}).`);
+    const hasAnySlotContent = candidateBatchSlots.some(
+      (s: any) => s && (s.questionText?.trim() || (s.status && s.status !== 'EMPTY'))
+    );
+    if (!hasCandidate && !hasAnySlotContent) {
+      return {
+        state: 'EMPTY',
+        canContinue: false,
+        reason: 'Question workspace is empty. Generate a candidate or draft manually.',
+        errors: [],
+        warnings: [],
+      };
     }
-    const seenBatchQuestions = new Set<string>();
-    candidateBatchSlots.forEach((slot: QuestionBatchSlot) => {
-      const sIdx = slot.slotNumber;
-      const sText = (slot.questionText || '').trim();
-      const a = (slot.options?.a || '').trim();
-      const b = (slot.options?.b || '').trim();
-      const c = (slot.options?.c || '').trim();
-      const d = (slot.options?.d || '').trim();
-      const ans = (slot.correctAnswer || '').trim().toUpperCase();
 
-      if (slot.status === 'EMPTY' || !sText) {
-        errors.push(`Slot #${sIdx}: Slot is empty.`);
-      } else if (sText.length < 5) {
-        errors.push(`Slot #${sIdx}: Statement must be at least 5 characters.`);
-      }
-      if (!a) errors.push(`Slot #${sIdx}: Option A is required.`);
-      if (!b) errors.push(`Slot #${sIdx}: Option B is required.`);
-      if (!c) errors.push(`Slot #${sIdx}: Option C is required.`);
-      if (!d) errors.push(`Slot #${sIdx}: Option D is required.`);
-      if (!['A', 'B', 'C', 'D'].includes(ans)) {
-        errors.push(`Slot #${sIdx}: Correct answer must be A, B, C, or D.`);
-      }
-      if (sText) {
-        const lower = sText.toLowerCase();
-        if (seenBatchQuestions.has(lower)) {
-          errors.push(`Slot #${sIdx}: Duplicate question within batch.`);
-        }
-        seenBatchQuestions.add(lower);
-      }
-    });
-
-    if (errors.length > 0) {
+    const qualityReport = validateQuestionQuality(candidate);
+    if (!qualityReport.isValid) {
       return {
         state: 'INCOMPLETE',
         canContinue: false,
-        reason: errors[0],
-        errors,
-        warnings: [],
+        reason: qualityReport.errorMessages[0],
+        errors: qualityReport.errorMessages,
+        warnings: qualityReport.warningMessages,
+        qualityReport,
       };
     }
 
@@ -392,7 +339,8 @@ export function evaluateStep01CandidateState({
       state: 'VALID',
       canContinue: true,
       errors: [],
-      warnings: [],
+      warnings: qualityReport.warningMessages,
+      qualityReport,
     };
   }
 
@@ -407,77 +355,30 @@ export function evaluateStep01CandidateState({
     };
   }
 
-  const optA = (candidate.optionA || '').trim();
-  const optB = (candidate.optionB || '').trim();
-  const optC = (candidate.optionC || '').trim();
-  const optD = (candidate.optionD || '').trim();
-  const declaredAnswer = (candidate.correctAnswer || '').trim().toUpperCase();
-  const challengeType = candidate.challengeType || 'ABCD';
-
-  const missingFieldErrors: string[] = [];
-  if (qText.length < 5) {
-    missingFieldErrors.push('Question statement must be at least 5 characters.');
-  }
-  if (!optA) missingFieldErrors.push('Option A is required.');
-  if (!optB) missingFieldErrors.push('Option B is required.');
-  if (challengeType === 'ABCD') {
-    if (!optC) missingFieldErrors.push('Option C is required.');
-    if (!optD) missingFieldErrors.push('Option D is required.');
-  }
-
-  if (missingFieldErrors.length > 0) {
+  const qualityReport = validateQuestionQuality(candidate);
+  if (!qualityReport.isValid) {
+    const isHardInvalid = qualityReport.errors.some(
+      (e) => e.code === 'ERR_INVALID_ANSWER_KEY' || e.code === 'ERR_OPTION_DUPLICATE'
+    );
     return {
-      state: 'INCOMPLETE',
+      state: isHardInvalid ? 'INVALID' : 'INCOMPLETE',
       canContinue: false,
-      reason: missingFieldErrors[0],
-      errors: missingFieldErrors,
-      warnings: [],
+      reason: qualityReport.errorMessages[0],
+      errors: qualityReport.errorMessages,
+      warnings: qualityReport.warningMessages,
+      qualityReport,
     };
-  }
-
-  if (!['A', 'B', 'C', 'D'].includes(declaredAnswer)) {
-    return {
-      state: 'INVALID',
-      canContinue: false,
-      reason: `Invalid correct answer choice '${declaredAnswer}'. Must be A, B, C, or D.`,
-      errors: [`Invalid correct answer choice '${declaredAnswer}'.`],
-      warnings: [],
-    };
-  }
-
-  // Check for duplicate options
-  const rawOptions = [
-    { key: 'A', text: optA.toLowerCase() },
-    { key: 'B', text: optB.toLowerCase() },
-    ...(challengeType === 'ABCD'
-      ? [
-          { key: 'C', text: optC.toLowerCase() },
-          { key: 'D', text: optD.toLowerCase() },
-        ]
-      : []),
-  ];
-
-  for (let i = 0; i < rawOptions.length; i++) {
-    for (let j = i + 1; j < rawOptions.length; j++) {
-      if (rawOptions[i].text && rawOptions[i].text === rawOptions[j].text) {
-        return {
-          state: 'INVALID',
-          canContinue: false,
-          reason: `Duplicate options: Option ${rawOptions[i].key} and Option ${rawOptions[j].key} are identical.`,
-          errors: [`Duplicate options: Option ${rawOptions[i].key} and Option ${rawOptions[j].key} are identical.`],
-          warnings: [],
-        };
-      }
-    }
   }
 
   return {
     state: 'VALID',
     canContinue: true,
     errors: [],
-    warnings: [],
+    warnings: qualityReport.warningMessages,
+    qualityReport,
   };
 }
+
 
 /**
  * Payload for persisting a question draft (Stage 01 only).

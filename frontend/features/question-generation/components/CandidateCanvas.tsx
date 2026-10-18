@@ -24,8 +24,9 @@ import {
   Check,
   Trash2,
   Eye,
+  AlertTriangle,
 } from 'lucide-react';
-import { AiRefinementAction, QuestionLanguage, validateStudioCandidate } from '../../../../shared';
+import { AiRefinementAction, QuestionLanguage, validateStudioCandidate, validateQuestionQuality } from '../../../../shared';
 import { StudioCandidate, QuestionBatchAssembly } from '../../../../shared/contracts/question-generation';
 
 interface CandidateCanvasProps {
@@ -62,6 +63,7 @@ export const CandidateCanvas: React.FC<CandidateCanvasProps> = ({
   onManualDraft,
 }) => {
   const validationErrors = validateStudioCandidate(candidate);
+  const qualityResult = validateQuestionQuality(candidate);
 
   return (
     <div className="space-y-3">
@@ -254,6 +256,21 @@ export const CandidateCanvas: React.FC<CandidateCanvasProps> = ({
               </button>
             </div>
           </div>
+
+          {/* QUALITY WARNINGS BANNER (S9-T04 / S9-T12) */}
+          {qualityResult.hasWarnings && (
+            <div data-testid="quality-warnings-banner" className="p-2 bg-amber-50 border border-amber-200 rounded-lg space-y-1">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-amber-800">
+                <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+                <span>Pedagogical Warnings ({qualityResult.warnings.length}):</span>
+              </div>
+              <ul className="text-[11px] text-amber-700 list-disc list-inside space-y-0.5">
+                {qualityResult.warnings.map((w, idx) => (
+                  <li key={idx}>{w.message}</li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {/* PROBLEM STATEMENT */}
           <div>

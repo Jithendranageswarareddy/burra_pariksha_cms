@@ -7,3 +7,4 @@ export * from './id.service';
 export * from './workflow-resolver';
 export * from './question-batch-assembly';
 export * from './question-editor';
+export * from './question-quality-validator';

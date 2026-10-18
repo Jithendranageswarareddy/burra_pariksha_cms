@@ -4,6 +4,7 @@ import {
   QuestionBatchRejectedItem,
   QuestionBatchSlot,
 } from '../contracts/question-generation/question-generation.contract';
+import { validateQuestionQuality } from './question-quality-validator';
 
 function readCandidate(candidate: any) {
   return {
@@ -23,18 +24,13 @@ function readCandidate(candidate: any) {
 
 function validateCandidate(candidate: any): string[] {
   const value = readCandidate(candidate);
-  const errors: string[] = [];
-  const options = Object.values(value.options);
-  if (value.questionText.length < 5) errors.push('Question text must contain at least 5 characters.');
-  if (options.some((option) => option.length === 0)) errors.push('Exactly four non-empty options are required.');
-  if (new Set(options.map((option) => option.toLowerCase())).size !== 4) errors.push('Options must be distinct.');
-  if (!value.correctAnswer) errors.push('Correct answer must be A, B, C, or D.');
-  if (value.explanation.length < 5) errors.push('Explanation must contain at least 5 characters.');
-  if (/(TODO|N\/A|\{\{|\}\})/i.test(`${value.questionText} ${options.join(' ')} ${value.explanation}`)) {
-    errors.push('Placeholder content is not allowed.');
-  }
-
-  return errors;
+  const result = validateQuestionQuality({
+    questionText: value.questionText,
+    options: value.options,
+    correctAnswer: value.correctAnswer,
+    explanation: value.explanation,
+  }, { requireExplanation: true });
+  return result.errorMessages;
 }
 
 function validateSlot(slot: QuestionBatchSlot): string[] {

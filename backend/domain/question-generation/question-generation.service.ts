@@ -24,6 +24,7 @@ import {
   validateProductionModeConfig,
   WorkflowStepNumber,
   recalculateQuestionBatchState,
+  validateQuestionQuality,
 } from '../../../shared';
 import {
   GenerateCandidateInput,
@@ -37,6 +38,9 @@ import {
   QuestionBatchAssembly,
   QuestionBatchRejectedItem,
   QuestionBatchSlot,
+  QuestionQualityIssue,
+  QuestionQualityValidationOptions,
+  QuestionQualityValidationResult,
 } from '../../../shared/contracts/question-generation';
 import { questionDraftsRepository } from '../../../database/firestore/repositories/question-drafts.repository';
 import { taxonomyService } from '../taxonomy/services/taxonomy.service';
@@ -700,104 +704,19 @@ export class QuestionGenerationService {
   }
 
   /**
-   * Validates a candidate in memory before saving as draft.
+   * Authoritative deterministic validation for a candidate in memory, batch assembly, or draft payload.
+   * Leverages canonical validateQuestionQuality (S9-T04 / S9-T12).
    */
-  public validateCandidate(candidate: Partial<StudioCandidate>): { isValid: boolean; errors: string[] } {
-    const errors: string[] = [];
-    const mode = (candidate.productionMode as ContentProductionMode) || 'QUESTION_CHALLENGE_SHORT';
-
-    if (mode === 'TOPIC_INTRODUCTION') {
-      const conceptText = (candidate.introductoryConcept || candidate.questionText || '').trim();
-      if (!conceptText || conceptText.length < 15) {
-        errors.push('Introductory concept statement must be at least 15 characters.');
-      }
-      return { isValid: errors.length === 0, errors };
-    }
-
-    if (mode === 'EXPLAINED_QUESTIONS_VIDEO') {
-      const introText = (candidate.introductoryConcept || candidate.questionText || '').trim();
-      if (!introText || introText.length < 15) {
-        errors.push('Introductory concept overview must be at least 15 characters.');
-      }
-      const targetCount = candidate.targetQuestionCount || 5;
-      const questions = candidate.questions || [];
-      if (questions.length < targetCount) {
-        errors.push(`Requires ${targetCount} explained questions (currently has ${questions.length}).`);
-      }
-      for (let i = 0; i < Math.min(questions.length, targetCount); i++) {
-        const q = questions[i];
-        const qIdx = q.questionNumber || i + 1;
-        const qText = (q.questionText || '').trim();
-        const a = (q.optionA || q.options?.a || '').trim();
-        const b = (q.optionB || q.options?.b || '').trim();
-        const c = (q.optionC || q.options?.c || '').trim();
-        const d = (q.optionD || q.options?.d || '').trim();
-        const ans = (q.correctAnswer || '').trim().toUpperCase();
-
-        if (!qText || qText.length < 5) errors.push(`Question #${qIdx}: Statement must be at least 5 characters.`);
-        if (!a) errors.push(`Question #${qIdx}: Option A is required.`);
-        if (!b) errors.push(`Question #${qIdx}: Option B is required.`);
-        if (!c) errors.push(`Question #${qIdx}: Option C is required.`);
-        if (!d) errors.push(`Question #${qIdx}: Option D is required.`);
-        if (!['A', 'B', 'C', 'D'].includes(ans)) errors.push(`Question #${qIdx}: Correct answer must be A, B, C, or D.`);
-      }
-      return { isValid: errors.length === 0, errors };
-    }
-
-    // Default Mode 1: QUESTION_CHALLENGE_SHORT
-    const targetCount = candidate.targetQuestionCount || 1;
-    if (targetCount > 1) {
-      const slots = (candidate as any).slots as QuestionBatchSlot[] | undefined;
-      if (!slots || slots.length < targetCount) {
-        errors.push(`Mode 1 batch requires ${targetCount} slots (currently has ${slots?.length || 0}).`);
-      } else {
-        const emptyCount = slots.filter((s) => s.status === 'EMPTY' || !s.questionText?.trim()).length;
-        if (emptyCount > 0) {
-          errors.push(`Batch has ${emptyCount} unfilled/empty slots. All ${targetCount} slots must be complete.`);
-        }
-        const invalidCount = slots.filter((s) => s.status === 'INVALID' || (s.validationErrors && s.validationErrors.length > 0)).length;
-        if (invalidCount > 0) {
-          errors.push(`Batch has ${invalidCount} invalid slots.`);
-        }
-        const statements = slots.map((s) => (s.questionText || '').trim().toLowerCase()).filter(Boolean);
-        if (new Set(statements).size < statements.length) {
-          errors.push('Batch contains duplicate question statements.');
-        }
-        for (const slot of slots) {
-          if (slot.status !== 'EMPTY' && slot.questionText?.trim()) {
-            const opts = slot.options || { a: '', b: '', c: '', d: '' };
-            if (!opts.a?.trim() || !opts.b?.trim() || !opts.c?.trim() || !opts.d?.trim()) {
-              errors.push(`Slot #${slot.slotNumber}: Options A, B, C, and D are required.`);
-            }
-            if (!slot.correctAnswer || !['A', 'B', 'C', 'D'].includes(slot.correctAnswer)) {
-              errors.push(`Slot #${slot.slotNumber}: Correct answer must be A, B, C, or D.`);
-            }
-            const optVals = [opts.a?.trim(), opts.b?.trim(), opts.c?.trim(), opts.d?.trim()].filter(Boolean);
-            if (new Set(optVals).size !== 4) {
-              errors.push(`Slot #${slot.slotNumber}: Options must be distinct.`);
-            }
-          }
-        }
-      }
-      return { isValid: errors.length === 0, errors };
-    }
-
-    const text = (candidate.questionText || '').trim();
-    if (!text || text.length < 5) {
-      errors.push('Question problem statement must be at least 5 characters.');
-    }
-    if (!candidate.optionA?.trim()) errors.push('Option A is required.');
-    if (!candidate.optionB?.trim()) errors.push('Option B is required.');
-    if (!candidate.optionC?.trim() && candidate.challengeType !== 'TRUE_FALSE' && candidate.challengeType !== 'YES_NO') {
-      errors.push('Option C is required.');
-    }
-    if (!candidate.optionD?.trim() && candidate.challengeType !== 'TRUE_FALSE' && candidate.challengeType !== 'YES_NO') {
-      errors.push('Option D is required.');
-    }
-    if (!candidate.correctAnswer || !['A', 'B', 'C', 'D'].includes(candidate.correctAnswer)) {
-      errors.push('Correct answer must be specified (A, B, C, or D).');
-    }
-    return { isValid: errors.length === 0, errors };
+  public validateCandidate(
+    candidate: Partial<StudioCandidate>,
+    options?: QuestionQualityValidationOptions
+  ): { isValid: boolean; errors: string[]; qualityReport?: QuestionQualityValidationResult } {
+    const result = validateQuestionQuality(candidate, options);
+    return {
+      isValid: result.isValid,
+      errors: result.errorMessages,
+      qualityReport: result,
+    };
   }
 
   /**
@@ -1138,7 +1057,7 @@ export class QuestionGenerationService {
       throw conflictErr;
     }
 
-    // Validate completeness before allowing submission
+    // Validate completeness before allowing submission (VAL-Q-01 through VAL-Q-12)
     const validation = this.validateCandidate({
       questionText: draft.questionText || draft.question,
       introductoryConcept: draft.introductoryConcept,
@@ -1155,13 +1074,20 @@ export class QuestionGenerationService {
       correctAnswer: draft.correctAnswer as any,
       challengeType: draft.challengeType,
       slots: draft.slots,
-    } as any);
+      explanation: draft.explanation,
+    } as any, { requireExplanation: true });
 
     if (!validation.isValid) {
-      throw new QuestionGenerationDomainError(
+      const firstError = validation.qualityReport?.errors[0];
+      const errorCode = firstError?.code || 'ERR_INCOMPLETE_BATCH';
+      const domainErr = new QuestionGenerationDomainError(
         `Draft cannot be submitted for verification: ${validation.errors.join(' ')}`,
-        422
+        422,
+        errorCode
       );
+      (domainErr as any).validationErrors = validation.errors;
+      (domainErr as any).qualityReport = validation.qualityReport;
+      throw domainErr;
     }
 
     const now = new Date().toISOString();

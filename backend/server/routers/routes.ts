@@ -1576,7 +1576,10 @@ apiRouter.post(
       const statusCode = err?.statusCode || (err?.name === 'ConcurrencyConflictError' ? 409 : 400);
       res.status(statusCode).json({
         error: err?.name || 'Submission Failed',
+        code: err?.code,
         message: err?.message || 'Failed to submit draft for verification',
+        validationErrors: err?.validationErrors,
+        qualityReport: err?.qualityReport,
       });
     }
   }
