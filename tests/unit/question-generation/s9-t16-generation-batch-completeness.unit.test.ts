@@ -353,7 +353,7 @@ export async function runGenerationBatchCompletenessUnitTests(): Promise<void> {
   const failingOrchestrator = {
     async generateQuestionCandidate() {
       exhaustionAttempts += 1;
-      throw new AIProviderError('Upstream model overloaded', 'gemini', 'gemini-1.5-pro', 'MODEL_OVERLOADED', true, 503);
+      throw new AIProviderError('Upstream model overloaded', 'gemini', 'gemini-1.5-pro', 'TRANSIENT_ERROR', true, 503);
     },
   };
 
@@ -761,6 +761,7 @@ export async function runGenerationBatchCompletenessUnitTests(): Promise<void> {
   try {
     await questionGenerationService.saveDraft({
       id: updatedRegenDraft.id,
+      difficulty: 'Intermediate',
       topicId: '', // Invalid topic throws error
       subtopicId: 'SUB-01',
       questionText: memoryWorkingCopy.questionText,

@@ -338,7 +338,7 @@ export const QuestionVerifyApprovePage: React.FC = () => {
         await apiClient.rejectQuestionDraft(
           activeQuestionId,
           feedbackText,
-          question.version
+          (question as any)?.version
         );
         setShowRejectModal(false);
         setRejectReason('');
