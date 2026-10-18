@@ -1,7 +1,7 @@
 # BURRA PARIKSHA CMS — FIVE-PASS HARDENING FINAL RELEASE REPORT
 
 **Repository:** `Jithendranageswarareddy/burra_pariksha_cms`
-**Authority:** `AGENTS.md`, Five-Pass Autonomous End-to-End Hardening Program
+**Authority:** `AGENTS.md`, Five-Pass Autonomous End-to-End Hardening Program & Mandatory Addendum
 **Document Location:** `docs/quality/HARDENING-FINAL-REPORT.md`
 **Date:** Post-Sprint 10 Release
 **Final Decision:** **READY FOR MANUAL DEPLOYMENT**
@@ -10,7 +10,7 @@
 
 ## 1. Execution Overview
 
-All five passes of the Autonomous End-to-End Hardening Program have executed sequentially:
+All five passes of the Autonomous End-to-End Hardening Program have executed sequentially, supplemented by live full-stack browser and database verification under the Mandatory Addendum:
 - **Pass 1:** Frontend UI, UX, Accessibility, Forms, and Client-Side Reliability (`HARDENING-PASS-1.md`) — **PASS**
 - **Pass 2:** Backend, API Contracts, Authentication, RBAC, and Workflow Security (`HARDENING-PASS-2.md`) — **PASS**
 - **Pass 3:** Firestore Persistence, Data Integrity, Concurrency, and Isolation (`HARDENING-PASS-3.md`) — **PASS**
@@ -23,7 +23,7 @@ All cumulative findings and remediations are tracked in `docs/quality/HARDENING-
 
 ## 2. Components Inspected
 
-- **Frontend Client:** React components, state hooks (`useQuestionGeneration`), dirty-state handlers, action bars (`ActionBar.tsx`), audience preview components (`AudiencePreviewCard.tsx`), and mode workspaces.
+- **Frontend Client:** React components, state hooks (`useQuestionGeneration`), dirty-state handlers, action bars (`ActionBar.tsx`), audience preview components (`AudiencePreviewCard.tsx`), and mode workspaces (`TopicIntroWorkspace.tsx`, `ExplainedQuestionsWorkspace.tsx`).
 - **Backend Services:** Express route handlers, input validation schemas (Zod), authentication middleware (`auth.middleware.ts`), segregation-of-duties guards (GAR-02), and AI gating policies (AP-009).
 - **Persistence Layer:** Firestore repository (`firestore-question-draft.repository.ts`), transactional OCC mechanisms, document schema mappings, and datastore test isolation guards (`datastore-isolation.guard.ts`).
 - **AI Orchestration:** Gemini provider abstraction, bounded retry backoff, timeout handling, single-candidate prompt constraints, and secret-masked error normalization.
@@ -50,24 +50,76 @@ All cumulative findings and remediations are tracked in `docs/quality/HARDENING-
 
 ## 4. Verification Gate Summary
 
-| Check / Test Command | Scope | Target Environment | Outcome |
-| :--- | :--- | :--- | :---: |
-| `npm run lint` | TypeScript type-checking | Static compiler | **PASS** (0 errors) |
-| `npm run test:s10-t16` | Topic Introduction unit tests | Local synthetic mocks | **PASS** (8/8) |
-| `npm run test:s10-t17` | Explained Questions unit tests | Local synthetic mocks | **PASS** (8/8) |
-| `npm run test:s10-t18` | Multi-mode persistence isolation | Local Firestore emulator | **PASS** (6/6) |
-| `npm run test:isolation` | Datastore isolation fail-closed guards | Synthetic isolated tests | **PASS** (8/8) |
-| `npx tsx tests/unit/question-generation/s9-s10-launch-closure.unit.test.ts` | OCC, audit trail, AI error bounds | Local synthetic mocks | **PASS** (5/5) |
-| `npm run test:architecture` | Layer separation & inventory checks | Static dependency scanner | **PASS** (5/5) |
-| `npm run build` | Vite client + esbuild backend build | Bundler | **PASS** (0 errors) |
-
-**External Service Usage:**
-- All automated tests executed against deterministic synthetic mocks or the approved local Firebase Emulator.
-- Zero tests connected to live production Firestore or billed external AI endpoints.
+| Check / Test Command | Scope | Target Environment | Exit Code | Outcome |
+| :--- | :--- | :--- | :---: | :---: |
+| `npm run lint` | TypeScript type-checking | Static compiler | 0 | **PASS** (0 errors) |
+| `npm run test:s10-t16` | Topic Introduction unit tests | Local synthetic mocks | 0 | **PASS** (8/8) |
+| `npm run test:s10-t17` | Explained Questions unit tests | Local synthetic mocks | 0 | **PASS** (8/8) |
+| `npm run test:s10-t18` | Multi-mode persistence isolation | Local Firestore emulator | 0 | **PASS** (6/6) |
+| `npm run test:s10-t19:e2e` | Multi-mode live E2E & database | Chrome + Express + Emulator | 0 | **PASS** (100%) |
+| `npm run test:s9-t19:browser` | Mode 1 dedicated browser E2E | Chrome + Express + Emulator | 0 | **PASS** (100%) |
+| `npm run test:s9-t18` | Persistence, auth & OCC lifecycle | Express + Emulator | 0 | **PASS** (5/5 suites) |
+| `npm run test:isolation` | Datastore isolation fail-closed guards | Synthetic isolated tests | 0 | **PASS** (8/8) |
+| `npx tsx tests/unit/question-generation/s9-s10-launch-closure.unit.test.ts` | OCC, audit trail, AI error bounds | Local synthetic mocks | 0 | **PASS** (5/5) |
+| `npm run test:architecture` | Layer separation & inventory checks | Static dependency scanner | 0 | **PASS** (5/5) |
+| `npm run build` | Vite client + esbuild backend build | Production bundler | 0 | **PASS** |
 
 ---
 
-## 5. Residual Risk & Issue Status
+## 5. Live Full-Stack End-to-End and Database Verification
+
+### A. Environment Architecture
+- **Browser Execution:** Real Google Chrome launched via Puppeteer-Core (`C:\Program Files\Google\Chrome\Application\chrome.exe`).
+- **Frontend SPA:** Real Vite dev server serving React UI components over HTTP.
+- **Backend API:** Real Express HTTP server mounting the production `apiRouter`.
+- **Database Target:** Local Cloud Firestore Emulator listening on `127.0.0.1:8080`.
+- **Approved Project Identity:** `burra-pariksha-test` (synthetic non-production project).
+- **Approved Database Identity:** `(default)`.
+- **Fail-Closed Verification:** Evaluated and confirmed that any missing emulator host or attempt to target a production GCP project aborts test execution immediately without creating test fixtures.
+
+### B. Mode-by-Mode Journey Verification
+
+#### Mode 1: Question Challenge Short (`npm run test:s9-t19:browser`)
+- **Write Path:** Browser navigated to `/studio`, selected Topic (`TOP-QA-01`), Subtopic (`SUB-01`), and Mode 1. Batch generated and edited.
+- **Firestore Verification:** Draft written to Cloud Firestore (`dft_1951f977-3344-4ebd-bd73-9300ce7eafd0`); verified exact 1 MCQ slot with Telugu fields and 9:16 aspect ratio.
+- **Read-Back & Reopen:** Browser page reloaded to simulate fresh session; draft reopened with 100% edits restored from server.
+- **Audience Preview:** Confirmed 9:16 vertical card renders question and options while concealing answer key and reviewer metadata.
+- **Workflow & GAR-02:** Draft submitted to `STAGE_02_VERIFICATION`. Author self-approval strictly rejected with HTTP 403. Reviewer requested changes, author revised, independent reviewer approved, and canonical question materialized (`qst_f29d025c-1cb9-47d5-adce-3e6f2217fd7c`).
+
+#### Mode 2: Topic Introduction (`npm run test:s10-t19:e2e`)
+- **Write Path:** Creator created draft with 0 questions, 16:9 aspect ratio, concept title, introductory concept text, and 3 key takeaways.
+- **Firestore Verification:** Read-back directly from Cloud Firestore confirmed zero-question isolation ($questions = 0$), exact field fidelity, revision 1, status `DRAFT`.
+- **Read-Back & Reopen:** Browser UI opened `/studio`, connected to live backend, and hydrated workspace.
+- **In-Place Edit & OCC:** Author updated concept statement. Monotonic revision increment verified (version 1 -> 2) in Firestore.
+- **Workflow Transition:** Submitted for verification; verified status transitioned to `SUBMITTED_FOR_REVIEW` (`Stage 02`) in Firestore.
+
+#### Mode 3: Explained Questions Video (`npm run test:s10-t19:e2e`)
+- **Batch Size Support:** Verified discrete batch sizes $\{5, 10, 15, 20\}$ created and read back from Cloud Firestore with complete question arrays.
+- **Question Identity & Ordering:** Verified baseline 5-question package. Swapped Question 1 and Question 2 and edited Question 1.
+- **Persistence Read-Back:** Read back from Cloud Firestore confirmed new question order (`q_orig_2` at index 0, `q_orig_1` at index 1) with options, answer keys, and explanations strictly preserved.
+
+#### Authorization & Security Boundaries
+- **Unauthenticated Access:** Requests without authorization header rejected with HTTP 401 Unauthorized.
+- **GAR-02 Anti-Self-Approval:** Author attempting verification of their own draft rejected with HTTP 403 Forbidden (`FORBIDDEN_BY_SEGREGATION_OF_DUTIES`).
+- **Independent Approval:** Verified reviewer successfully approved draft to `CONTENT_VERIFIED` (`Stage 03`).
+- **OCC Concurrency Lock:** Stale updates with mismatched `expectedVersion` rejected with HTTP 409 Conflict.
+- **Scoped Cleanup:** All synthetic test records removed cleanly; zero audit logs deleted.
+
+---
+
+## 6. Verification Level Matrix
+
+| Verification Level | Scope & Method | Result / Evidence |
+| :--- | :--- | :---: |
+| **Source-Level Verification** | Static TypeScript analysis (`tsc --noEmit`), architecture boundaries (`test:architecture`) | **PASS** (0 errors, 5/5 architectural boundaries) |
+| **Unit & Mocked Tests** | Deterministic business logic, schema parsing, retry bounds (`test:s10-t16`, `test:s10-t17`, `s9-s10-launch-closure`) | **PASS** (100% pass across all unit suites) |
+| **Emulator-Backed Full-Stack Tests** | Real Chrome + Vite + Express + Cloud Firestore Emulator (`test:s9-t18`, `test:s9-t19:browser`, `test:s10-t18`, `test:s10-t19:e2e`) | **PASS** (100% pass across all 3 modes and security boundaries) |
+| **Non-Production Deployed Tests** | Mutating tests against live hosted cloud endpoints | **BLOCKED BY POLICY** (manual deployment authority belongs to owner; non-prod cloud environment unprovisioned) |
+| **Production Verification** | Post-deployment smoke testing on live production infrastructure | **DEFERRED TO OWNER** (manual release) |
+
+---
+
+## 7. Residual Risk & Issue Status
 
 - **Critical Issues Remaining:** 0
 - **High Issues Remaining:** 0
@@ -79,16 +131,7 @@ All cumulative findings and remediations are tracked in `docs/quality/HARDENING-
 
 ---
 
-## 6. Multi-Mode End-to-End Status
-
-All three content-generation modes are fully integrated and verified:
-1. **Mode 1 (`QUESTION_CHALLENGE_SHORT`):** 9:16 vertical video format, 1 MCQ, duration $\le 58s$, 10-point checklist.
-2. **Mode 2 (`TOPIC_INTRODUCTION`):** 9:16 vertical or 16:9 landscape format, 0 questions, 15-char min concept hook, 5-point checklist.
-3. **Mode 3 (`EXPLAINED_QUESTIONS_VIDEO`):** 16:9 landscape format, discrete batch sizes $\{5, 10, 15, 20\}$, 4 options with 1 answer key and explanation, 10-point checklist.
-
----
-
-## 7. Security and Secret Handling Confirmation
+## 8. Security and Secret Handling Confirmation
 
 - No API keys, credentials, or session tokens are present in version control or client build output.
 - Secret values are masked in error telemetry and never exposed in API error envelopes.
@@ -97,7 +140,7 @@ All three content-generation modes are fully integrated and verified:
 
 ---
 
-## 8. Git and Working Tree Synchronization State
+## 9. Git and Working Tree Synchronization State
 
 - **Target Branch:** `main`
 - **Remote Synchronization:** Up to date with `origin/main`.
@@ -105,7 +148,7 @@ All three content-generation modes are fully integrated and verified:
 
 ---
 
-## 9. Manual Deployment Checklist for Project Owner
+## 10. Manual Deployment Checklist for Project Owner
 
 Before triggering live production deployment, the project owner should execute the following manual steps:
 
@@ -126,12 +169,12 @@ Before triggering live production deployment, the project owner should execute t
 3. **Deploy Application Build:**
    Deploy the pre-compiled output from `npm run build`:
    - Frontend: `dist/client/`
-   - Backend: `dist/server/`
+   - Backend: `dist/server.cjs`
 
 ---
 
-## 10. Final Release Decision
+## 11. Final Release Decision
 
 # **READY FOR MANUAL DEPLOYMENT**
 
-Repository-level engineering, security verification, multi-mode persistence, and end-to-end integration across all five passes have been successfully completed and verified.
+Repository-level engineering, security verification, live multi-mode full-stack E2E automation with real database persistence, and cross-mode integration have been completed, verified, and signed off.

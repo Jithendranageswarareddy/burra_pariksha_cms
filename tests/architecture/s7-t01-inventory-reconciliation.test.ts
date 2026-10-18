@@ -115,6 +115,7 @@ export const AUTHORITATIVE_APPROVED_POST_S7_ADDITIONS: readonly string[] = [
   'docs/quality/HARDENING-PASS-4.md',
   'docs/quality/HARDENING-PASS-5.md',
   'docs/quality/HARDENING-FINAL-REPORT.md',
+  'tests/e2e/question-generation/s10-t19-multimode-live-e2e.test.ts',
 ];
 
 const EXPECTED_HISTORICAL_S7_COUNT = 713;
