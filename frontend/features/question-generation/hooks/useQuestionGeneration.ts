@@ -15,6 +15,8 @@ import {
   QuestionLanguage,
   ContentProductionMode,
   validateProductionModeConfig,
+  canonicalIdService,
+  reorderExplainedQuestions,
 } from '../../../../shared';
 import {
   GenerateCandidateInput,
@@ -1043,6 +1045,7 @@ export function useQuestionGeneration() {
           };
         } else {
           currentList.push({
+            slotId: canonicalIdService.generateCanonicalId('slt_'),
             questionNumber: index,
             questionText: '',
             options: { a: '', b: '', c: '', d: '' },
@@ -1066,6 +1069,16 @@ export function useQuestionGeneration() {
     },
     []
   );
+
+  const reorderExplainedQuestion = useCallback((fromIndex: number, toIndex: number) => {
+    setIsDirty(true);
+    setSaveSuccessMessage(null);
+    setCandidate((prev) => ({
+      ...prev,
+      questions: reorderExplainedQuestions(prev.questions || [], fromIndex, toIndex),
+    }));
+    setHasCandidate(true);
+  }, []);
 
   // Evaluated workflow state
   const workflowState: Step01StateEvaluation = useMemo(() => {
@@ -1512,6 +1525,7 @@ export function useQuestionGeneration() {
     workflowState,
     updateCandidateField,
     updateExplainedQuestion,
+    reorderExplainedQuestion,
     setHasCandidate,
     setIsDirty,
 

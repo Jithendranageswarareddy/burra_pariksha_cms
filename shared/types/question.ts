@@ -18,6 +18,7 @@ import {
 } from '../contracts/question-generation/question-generation.contract';
 
 export interface ExplainedQuestionItem {
+  slotId?: string;
   questionNumber: number;
   questionText: string;
   options: {

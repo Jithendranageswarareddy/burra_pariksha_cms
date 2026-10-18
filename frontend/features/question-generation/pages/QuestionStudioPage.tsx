@@ -71,6 +71,7 @@ export const QuestionStudioPage: React.FC = () => {
     workflowState,
     updateCandidateField,
     updateExplainedQuestion,
+    reorderExplainedQuestion,
     setHasCandidate,
     setIsDirty,
     isGenerating,
@@ -283,6 +284,7 @@ export const QuestionStudioPage: React.FC = () => {
               onSelectTab={setActiveQuestionIndex}
               onUpdateField={updateCandidateField}
               onUpdateQuestion={updateExplainedQuestion}
+              onReorderQuestion={reorderExplainedQuestion}
               onManualDraft={() => {
                 setHasCandidate(true);
                 setIsDirty(true);

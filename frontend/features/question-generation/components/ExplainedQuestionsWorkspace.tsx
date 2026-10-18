@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { StudioCandidate } from '../../../../shared/contracts/question-generation';
 import { ExplainedQuestionItem } from '../../../../shared/types/question';
+import { validateExplainedQuestion } from '../../../../shared';
 
 interface ExplainedQuestionsWorkspaceProps {
   candidate: StudioCandidate;
@@ -35,6 +36,7 @@ interface ExplainedQuestionsWorkspaceProps {
   onSelectTab: (index: number) => void;
   onUpdateField: (field: keyof StudioCandidate, value: any) => void;
   onUpdateQuestion: (index: number, updatedItem: Partial<ExplainedQuestionItem>) => void;
+  onReorderQuestion?: (fromIndex: number, toIndex: number) => void;
   onManualDraft: () => void;
 }
 
@@ -47,6 +49,7 @@ export const ExplainedQuestionsWorkspace: React.FC<ExplainedQuestionsWorkspacePr
   onSelectTab,
   onUpdateField,
   onUpdateQuestion,
+  onReorderQuestion = () => undefined,
   onManualDraft,
 }) => {
   const introText = candidate.introductoryConcept || candidate.questionText || '';
@@ -77,13 +80,7 @@ export const ExplainedQuestionsWorkspace: React.FC<ExplainedQuestionsWorkspacePr
 
   const isQuestionComplete = (idx: number): boolean => {
     const q = getQuestionAt(idx);
-    const qText = (q.questionText || '').trim();
-    const a = (q.optionA || q.options?.a || '').trim();
-    const b = (q.optionB || q.options?.b || '').trim();
-    const c = (q.optionC || q.options?.c || '').trim();
-    const d = (q.optionD || q.options?.d || '').trim();
-    const ans = (q.correctAnswer || '').trim();
-    return Boolean(qText.length >= 5 && a && b && c && d && ans && q.explanation?.trim());
+    return Object.keys(validateExplainedQuestion(q)).length === 0;
   };
 
   return (
@@ -269,6 +266,10 @@ export const ExplainedQuestionsWorkspace: React.FC<ExplainedQuestionsWorkspacePr
                 Practice Question #{activeQuestionIndex} Authoring
               </h4>
             </div>
+            <div className="flex items-center gap-1">
+              <button type="button" disabled={activeQuestionIndex <= 1} onClick={() => onReorderQuestion(activeQuestionIndex - 1, activeQuestionIndex - 2)} className="px-2 py-1 text-[10px] rounded border border-slate-200 disabled:opacity-40">Move up</button>
+              <button type="button" disabled={activeQuestionIndex >= targetQuestionCount} onClick={() => onReorderQuestion(activeQuestionIndex - 1, activeQuestionIndex)} className="px-2 py-1 text-[10px] rounded border border-slate-200 disabled:opacity-40">Move down</button>
+            </div>
             <div className="flex items-center gap-2 text-xs">
               <button
                 type="button"
@@ -309,6 +310,9 @@ export const ExplainedQuestionsWorkspace: React.FC<ExplainedQuestionsWorkspacePr
               placeholder={`ప్రశ్న ${activeQuestionIndex}: ఒక రైలు 180 మీటర్ల పొడవు కలిగి 54 కి.మీ/గం వేగంతో ప్రయాణిస్తూ ఒక స్తంభాన్ని ఎన్ని సెకన్లలో దాటుతుంది?`}
               className="w-full p-2.5 bg-slate-50/70 border border-slate-200 rounded-lg font-telugu text-xs text-slate-900 focus:bg-white focus:outline-hidden focus:border-indigo-500"
             />
+            {validateExplainedQuestion(currentQ || {}).questionText && (
+              <p className="text-[10px] text-rose-600">{validateExplainedQuestion(currentQ || {}).questionText}</p>
+            )}
           </div>
 
           {/* 4 Options Grid with Correct Answer Selector */}
@@ -366,6 +370,9 @@ export const ExplainedQuestionsWorkspace: React.FC<ExplainedQuestionsWorkspacePr
                 );
               })}
             </div>
+            {validateExplainedQuestion(currentQ || {}).options && (
+              <p className="text-[10px] text-rose-600">{validateExplainedQuestion(currentQ || {}).options}</p>
+            )}
           </div>
 
           {/* Explanation */}
@@ -384,6 +391,9 @@ export const ExplainedQuestionsWorkspace: React.FC<ExplainedQuestionsWorkspacePr
               placeholder="వివరణ: వేగం = 54 × (5/18) = 15 మీ/సె. కాలం = దూరం / వేగం = 180 / 15 = 12 సెకన్లు. సరైన సమాధానం A."
               className="w-full p-2.5 bg-slate-50/70 border border-slate-200 rounded-lg font-telugu text-xs text-slate-900 focus:bg-white focus:outline-hidden focus:border-indigo-500"
             />
+            {validateExplainedQuestion(currentQ || {}).explanation && (
+              <p className="text-[10px] text-rose-600">{validateExplainedQuestion(currentQ || {}).explanation}</p>
+            )}
           </div>
 
           {/* Shortcut / Trap To Avoid */}
