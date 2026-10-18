@@ -588,7 +588,12 @@ export const GenerationConfigPanel: React.FC<GenerationConfigPanelProps> = ({
             <span>{batchAssembly.batchStatus}</span>
           </div>
           <div className="mt-1 flex gap-3">
-            <span>Valid: {batchAssembly.persistedValidCount}/{batchAssembly.requestedCount}</span>
+            <span>
+              Persisted valid: {batchAssembly.persistedValidCount === null
+                ? 'Not saved'
+                : `${batchAssembly.persistedValidCount}/${batchAssembly.requestedCount}`}
+            </span>
+            <span>In memory: {batchAssembly.inMemoryValidCount}/{batchAssembly.requestedCount}</span>
             <span>Rejected: {batchAssembly.rejectedCount}</span>
             {batchAssembly.overflowCount > 0 && <span>Overflow: {batchAssembly.overflowCount}</span>}
           </div>

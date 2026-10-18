@@ -142,7 +142,8 @@ export interface QuestionBatchRejectedItem {
 
 export interface QuestionBatchAssembly {
   requestedCount: 5 | 10 | 15 | 20;
-  persistedValidCount: number;
+  inMemoryValidCount: number;
+  persistedValidCount: number | null;
   rejectedCount: number;
   overflowCount: number;
   batchStatus: QuestionBatchStatus;

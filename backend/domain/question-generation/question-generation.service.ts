@@ -22,6 +22,7 @@ import {
   ContentProductionMode,
   validateProductionModeConfig,
   WorkflowStepNumber,
+  recalculateQuestionBatchState,
 } from '../../../shared';
 import {
   GenerateCandidateInput,
@@ -262,6 +263,7 @@ export function assembleQuestionBatch(
         : 'EMPTY';
   return {
     requestedCount,
+    inMemoryValidCount: persistedValidCount,
     persistedValidCount,
     rejectedCount: rejectedItems.length,
     overflowCount,
@@ -680,6 +682,18 @@ export class QuestionGenerationService {
     const resolvedExplanation = (input.explanation || '').trim() ||
       (firstInputQ?.explanation || '').trim() ||
       (input.introductoryConcept || '').trim();
+    const batchCount = input.targetQuestionCount as 5 | 10 | 15 | 20;
+    const persistedBatchState =
+      input.productionMode === 'QUESTION_CHALLENGE_SHORT' &&
+      [5, 10, 15, 20].includes(batchCount) &&
+      Array.isArray(input.slots)
+        ? recalculateQuestionBatchState(
+            batchCount,
+            input.slots,
+            input.rejectedItems || [],
+            input.overflowCount || 0
+          )
+        : null;
 
     const draft: QuestionDraft = {
       id: draftId,
@@ -715,10 +729,10 @@ export class QuestionGenerationService {
       conceptTitle: input.conceptTitle,
       syllabusScopeNotes: input.syllabusScopeNotes,
       questions: input.questions || [],
-      batchStatus: input.batchStatus,
-      persistedValidCount: input.persistedValidCount,
-      rejectedCount: input.rejectedCount,
-      overflowCount: input.overflowCount,
+      batchStatus: persistedBatchState?.batchStatus || input.batchStatus,
+      persistedValidCount: persistedBatchState?.persistedValidCount ?? input.persistedValidCount,
+      rejectedCount: persistedBatchState?.rejectedCount ?? input.rejectedCount,
+      overflowCount: persistedBatchState?.overflowCount ?? input.overflowCount,
       slots: input.slots,
       rejectedItems: input.rejectedItems,
       source: input.source || 'AI Question Studio',

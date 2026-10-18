@@ -26,7 +26,7 @@ import {
   QuestionBatchAssembly,
 } from '../../../../shared/contracts/question-generation';
 import { ExplainedQuestionItem } from '../../../../shared/types/question';
-import { assembleQuestionBatch } from '../../../../shared';
+import { assembleQuestionBatch, recalculateQuestionBatchState } from '../../../../shared';
 import { questionsApi } from '../../../api/questions.api';
 import { taxonomyApi } from '../../../api/taxonomy.api';
 import { ProductionJourneyContext } from '../../../contexts/ProductionJourneyContext';
@@ -760,6 +760,7 @@ export function useQuestionGeneration() {
         if (draft.batchStatus && draft.slots) {
           setBatchAssembly({
             requestedCount: (draft.targetQuestionCount || 5) as 5 | 10 | 15 | 20,
+            inMemoryValidCount: draft.persistedValidCount || 0,
             persistedValidCount: draft.persistedValidCount || 0,
             rejectedCount: draft.rejectedCount || 0,
             overflowCount: draft.overflowCount || 0,
@@ -1007,7 +1008,13 @@ export function useQuestionGeneration() {
           if (field === 'explanation') updated.explanation = String(value);
           return updated;
         });
-        return { ...current, slots, batchStatus: current.persistedValidCount === current.requestedCount ? 'COMPLETE' : 'PARTIAL' };
+        const counts = recalculateQuestionBatchState(
+          current.requestedCount,
+          slots,
+          current.rejectedItems,
+          current.overflowCount
+        );
+        return { ...current, slots, ...counts, persistedValidCount: current.persistedValidCount };
       });
     }
 
@@ -1171,13 +1178,19 @@ export function useQuestionGeneration() {
 
       setCandidate(newCandidate);
       if (productionMode === 'QUESTION_CHALLENGE_SHORT' && targetQuestionCount > 1) {
-        setBatchAssembly(assembleQuestionBatch(targetQuestionCount as 5 | 10 | 15 | 20, [generated]));
+        setBatchAssembly((current) => assembleQuestionBatch(
+          targetQuestionCount as 5 | 10 | 15 | 20,
+          [generated],
+          current?.slots || []
+        ));
       } else {
         setBatchAssembly(null);
       }
       setHasCandidate(true);
       setIsDirty(true);
-      setSavedDraftId(null); // Fresh candidate not yet saved
+      if (!batchAssembly || productionMode !== 'QUESTION_CHALLENGE_SHORT' || targetQuestionCount <= 1) {
+        setSavedDraftId(null); // Fresh single candidate is not yet saved
+      }
       setGenerationDuration(res.metadata?.generationDurationMs || Date.now() - startTime);
 
       triggerDuplicateCheck(generated.content);
@@ -1297,7 +1310,7 @@ export function useQuestionGeneration() {
         isFallback: candidate.isFallback,
         mathematicalVerification: candidate.mathematicalVerification,
         batchStatus: batchAssembly?.batchStatus,
-        persistedValidCount: batchAssembly?.persistedValidCount,
+        persistedValidCount: batchAssembly?.persistedValidCount ?? undefined,
         rejectedCount: batchAssembly?.rejectedCount,
         overflowCount: batchAssembly?.overflowCount,
         slots: batchAssembly?.slots,
@@ -1305,6 +1318,15 @@ export function useQuestionGeneration() {
       });
 
       setSavedDraftId(savedDraft.id);
+      if (batchAssembly) {
+        setBatchAssembly((current) => current ? {
+          ...current,
+          persistedValidCount: savedDraft.persistedValidCount ?? current.inMemoryValidCount,
+          inMemoryValidCount: savedDraft.persistedValidCount ?? current.inMemoryValidCount,
+          batchStatus: savedDraft.batchStatus ?? current.batchStatus,
+          rejectedCount: savedDraft.rejectedCount ?? current.rejectedCount,
+        } : current);
+      }
       setDraftVersion(savedDraft.version);
       setIsDirty(false);
       draftLoadedRef.current = savedDraft.id;

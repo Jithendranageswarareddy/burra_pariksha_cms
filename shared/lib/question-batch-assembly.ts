@@ -102,11 +102,36 @@ export function assembleQuestionBatch(
         : 'EMPTY';
   return {
     requestedCount,
-    persistedValidCount,
+    inMemoryValidCount: persistedValidCount,
+    persistedValidCount: null,
     rejectedCount: rejectedItems.length,
     overflowCount,
     batchStatus,
     slots,
     rejectedItems,
+  };
+}
+
+export function recalculateQuestionBatchState(
+  requestedCount: 5 | 10 | 15 | 20,
+  slots: QuestionBatchSlot[],
+  rejectedItems: QuestionBatchRejectedItem[],
+  overflowCount = 0
+): Pick<QuestionBatchAssembly, 'inMemoryValidCount' | 'persistedValidCount' | 'rejectedCount' | 'overflowCount' | 'batchStatus'> {
+  const inMemoryValidCount = slots.filter((slot) =>
+    slot.status === 'VALID' || slot.status === 'MANUALLY_EDITED' || slot.status === 'ACCEPTED'
+  ).length;
+  return {
+    inMemoryValidCount,
+    persistedValidCount: inMemoryValidCount,
+    rejectedCount: rejectedItems.length,
+    overflowCount,
+    batchStatus: inMemoryValidCount === requestedCount
+      ? 'COMPLETE'
+      : inMemoryValidCount > 0
+        ? 'PARTIAL'
+        : rejectedItems.length > 0
+          ? 'FAILED'
+          : 'EMPTY',
   };
 }
