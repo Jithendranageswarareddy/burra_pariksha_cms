@@ -435,6 +435,12 @@ export interface SaveQuestionDraftInput {
   overflowCount?: number;
   slots?: QuestionBatchSlot[];
   rejectedItems?: QuestionBatchRejectedItem[];
+  reviewerFeedback?: string;
+  reviewerId?: string;
+  reviewerName?: string;
+  returnedAt?: string;
+  returnReason?: string;
+  revisionCount?: number;
 }
 
 /**
@@ -460,4 +466,29 @@ export interface SubmitForVerificationResult {
   currentStep?: number;
   message: string;
   submittedAt: string;
+}
+
+/**
+ * Reviewer command payload to return a submitted draft for revision (Stage 02 reviewer decision).
+ */
+export interface ReturnDraftForRevisionInput {
+  draftId: string;
+  feedback: string;
+  expectedVersion?: number;
+  action?: 'QUESTION_REQUEST_CHANGES' | 'QUESTION_REJECT';
+}
+
+/**
+ * Result of returning a draft for revision back to Question Studio (Step 01).
+ */
+export interface ReturnDraftForRevisionResult {
+  success: boolean;
+  draftId: string;
+  workflowInstanceId?: string;
+  currentStep: number;
+  status: 'DRAFT';
+  workflowStage: 'QUESTION_STUDIO';
+  reviewerFeedback: string;
+  returnedAt: string;
+  message: string;
 }

@@ -72,6 +72,19 @@ export class QuestionDraftService {
   }
 
   /**
+   * Returns a submitted question draft for revision (Stage 02 reviewer decision).
+   */
+  public async returnDraftForRevision(
+    draftId: string,
+    actor: { id: string; name: string; role?: any; roles?: string[] } = { id: 'USR-001', name: 'Reviewer / Admin' },
+    feedback: string,
+    options?: { expectedVersion?: number; action?: 'QUESTION_REQUEST_CHANGES' | 'QUESTION_REJECT' }
+  ) {
+    const { questionGenerationService } = await import('../../../domain/question-generation/question-generation.service');
+    return questionGenerationService.returnDraftForRevision(draftId, actor, feedback, options);
+  }
+
+  /**
    * Materializes a verified Draft into a permanent production Question.
    * Invoked ONLY at Stage 02 approval gate.
    * Enforces NEG-01 Anti-Self-Approval constraint (Author cannot verify own draft).

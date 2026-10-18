@@ -88,6 +88,9 @@ export const QuestionStudioPage: React.FC = () => {
     errorMessage,
     saveSuccessMessage,
     submitSuccessResult,
+    reviewerFeedback,
+    reviewerName,
+    returnedAt,
     setErrorMessage,
     setSaveSuccessMessage,
     setSubmitSuccessResult,
@@ -201,6 +204,28 @@ export const QuestionStudioPage: React.FC = () => {
             >
               Dismiss
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* REVIEWER FEEDBACK BANNER (Returned for Revision) */}
+      {reviewerFeedback && !submitSuccessResult && (
+        <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 flex items-start gap-3 text-xs shadow-2xs">
+          <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <h4 className="font-bold flex items-center gap-1.5">
+              <span>Changes Requested by Reviewer</span>
+              {reviewerName && <span className="font-normal text-amber-700">({reviewerName})</span>}
+              {returnedAt && (
+                <span className="text-[10px] text-amber-600 font-normal">
+                  — {new Date(returnedAt).toLocaleDateString()}
+                </span>
+              )}
+            </h4>
+            <p className="text-amber-800 mt-1 whitespace-pre-wrap">{reviewerFeedback}</p>
+            <p className="text-[10px] text-amber-700 mt-1.5 font-medium">
+              Please address the reviewer feedback above, make required adjustments to questions or options, save your draft, and click &quot;Submit for Verification →&quot; when ready.
+            </p>
           </div>
         </div>
       )}

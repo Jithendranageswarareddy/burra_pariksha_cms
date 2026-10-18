@@ -13,6 +13,7 @@ import {
   QuestionStudioConfigResponse,
   SaveQuestionDraftInput,
   ValidationResult,
+  ReturnDraftForRevisionResult,
 } from '../../shared';
 import { CreateQuestionInput, QuestionFilterInput, QuestionSimilarityMatch } from './contracts';
 import { apiClient } from './api-client';
@@ -104,6 +105,18 @@ export const questionsApi = {
     overrideReason?: string
   ): Promise<Question> {
     return apiClient.approveQuestionDraft(id, overrideReason);
+  },
+
+  /**
+   * Rejects / returns a question draft for revision (Stage 02 reviewer decision).
+   */
+  async rejectDraft(
+    id: string,
+    feedback: string,
+    expectedVersion?: number,
+    action?: 'QUESTION_REQUEST_CHANGES' | 'QUESTION_REJECT'
+  ): Promise<ReturnDraftForRevisionResult> {
+    return apiClient.rejectQuestionDraft(id, feedback, expectedVersion, action);
   },
 
   /**

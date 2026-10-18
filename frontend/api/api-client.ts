@@ -465,6 +465,18 @@ export class ApiClient {
     });
   }
 
+  public async rejectQuestionDraft(
+    id: string,
+    feedback: string,
+    expectedVersion?: number,
+    action?: 'QUESTION_REQUEST_CHANGES' | 'QUESTION_REJECT'
+  ): Promise<import('../../shared/contracts/question-generation').ReturnDraftForRevisionResult> {
+    return this.request(`/questions/draft/${encodeURIComponent(id)}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ feedback, expectedVersion, action }),
+    });
+  }
+
   public async reconcileDraftAuthor(
     id: string,
     authorUserId: string,

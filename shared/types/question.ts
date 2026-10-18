@@ -148,6 +148,12 @@ export interface QuestionDraft {
   overflowCount?: number;
   slots?: QuestionBatchSlot[];
   rejectedItems?: QuestionBatchRejectedItem[];
+  reviewerFeedback?: string;
+  reviewerId?: string;
+  reviewerName?: string;
+  returnedAt?: string;
+  returnReason?: string;
+  revisionCount?: number;
 }
 
 export interface QuestionCandidate {

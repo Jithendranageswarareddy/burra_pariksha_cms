@@ -498,6 +498,9 @@ export function useQuestionGeneration() {
   const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null);
   const [submitSuccessResult, setSubmitSuccessResult] = useState<SubmitForVerificationResult | null>(null);
   const [draftVersion, setDraftVersion] = useState<number | undefined>(undefined);
+  const [reviewerFeedback, setReviewerFeedback] = useState<string | null>(null);
+  const [reviewerName, setReviewerName] = useState<string | null>(null);
+  const [returnedAt, setReturnedAt] = useState<string | null>(null);
 
   // Validation & Duplicate tracking
   const [clientReport, setClientReport] = useState<any | null>(null);
@@ -813,6 +816,17 @@ export function useQuestionGeneration() {
             message: 'Draft has been submitted for Stage 02 Verification.',
             submittedAt: draft.updatedAt || new Date().toISOString(),
           });
+        }
+
+        // Restore reviewer feedback if returned for revision
+        if (draft.reviewerFeedback) {
+          setReviewerFeedback(draft.reviewerFeedback);
+          setReviewerName(draft.reviewerName || null);
+          setReturnedAt(draft.returnedAt || null);
+        } else {
+          setReviewerFeedback(null);
+          setReviewerName(null);
+          setReturnedAt(null);
         }
 
         // 2. Options and Taxonomy Restoration (persisted draft strictly takes precedence over URL defaults)
@@ -1502,6 +1516,9 @@ export function useQuestionGeneration() {
         generationLatencyMs: candidate.generationLatencyMs,
         isFallback: candidate.isFallback,
         mathematicalVerification: candidate.mathematicalVerification,
+        reviewerFeedback: reviewerFeedback || undefined,
+        reviewerName: reviewerName || undefined,
+        returnedAt: returnedAt || undefined,
         batchStatus: batchAssembly?.batchStatus,
         persistedValidCount: batchAssembly?.persistedValidCount ?? undefined,
         rejectedCount: batchAssembly?.rejectedCount,
@@ -1635,6 +1652,17 @@ export function useQuestionGeneration() {
       setSavedDraftId(draft.id);
       setSavedDraftRecord(draft);
       setDraftVersion(draft.version);
+
+      if (draft.reviewerFeedback) {
+        setReviewerFeedback(draft.reviewerFeedback);
+        setReviewerName(draft.reviewerName || null);
+        setReturnedAt(draft.returnedAt || null);
+      } else {
+        setReviewerFeedback(null);
+        setReviewerName(null);
+        setReturnedAt(null);
+      }
+
       setSaveSuccessMessage(`Draft ${draft.id} successfully reloaded from server (version ${draft.version}).`);
       return draft;
     } catch (err: any) {
@@ -1696,6 +1724,7 @@ export function useQuestionGeneration() {
 
       setSubmitSuccessResult(result);
       setSaveSuccessMessage(null);
+      setReviewerFeedback(null);
       return result;
     } catch (err: any) {
       setErrorMessage(err?.message || 'Failed to submit draft for verification.');
@@ -1830,6 +1859,9 @@ export function useQuestionGeneration() {
     errorMessage,
     saveSuccessMessage,
     submitSuccessResult,
+    reviewerFeedback,
+    reviewerName,
+    returnedAt,
     setErrorMessage,
     setSaveSuccessMessage,
     setSubmitSuccessResult,

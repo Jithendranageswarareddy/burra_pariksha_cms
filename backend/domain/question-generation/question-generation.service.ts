@@ -35,6 +35,8 @@ import {
   StudioCandidate,
   SubmitForVerificationInput,
   SubmitForVerificationResult,
+  ReturnDraftForRevisionInput,
+  ReturnDraftForRevisionResult,
   QuestionBatchAssembly,
   QuestionBatchRejectedItem,
   QuestionBatchSlot,
@@ -873,6 +875,12 @@ export class QuestionGenerationService {
       author: actor.name,
       workflowStage: 'QUESTION_STUDIO',
       status: QuestionStatus.DRAFT,
+      reviewerFeedback: input.reviewerFeedback,
+      reviewerId: input.reviewerId,
+      reviewerName: input.reviewerName,
+      returnedAt: input.returnedAt,
+      returnReason: input.returnReason,
+      revisionCount: input.revisionCount,
       createdAt: now,
       updatedAt: now,
     };
@@ -917,6 +925,12 @@ export class QuestionGenerationService {
         authorId: existing.authorId || actor.id,
         authorName: existing.authorName || actor.name,
         author: existing.author || actor.name,
+        reviewerFeedback: input.reviewerFeedback !== undefined ? input.reviewerFeedback : existing.reviewerFeedback,
+        reviewerName: existing.reviewerName,
+        reviewerId: existing.reviewerId,
+        returnedAt: existing.returnedAt,
+        returnReason: existing.returnReason,
+        revisionCount: existing.revisionCount,
         createdAt: existing.createdAt,
         updatedAt: now,
         version: existing.version,
@@ -1456,6 +1470,203 @@ export class QuestionGenerationService {
     }
 
     return updated;
+  }
+
+  /**
+   * Returns a submitted question draft for revision (Stage 02 reviewer decision).
+   *
+   * Transitions draft from STAGE_02_VERIFICATION back to Step 01 (QUESTION_STUDIO / DRAFT).
+   * Persists reviewer feedback, reviewer identity, return timestamp, and increments revisionCount.
+   * Enforces GAR-02 anti-self-approval constraints (author cannot act as reviewer on their own draft).
+   */
+  public async returnDraftForRevision(
+    draftId: string,
+    actor: { id: string; name: string; role?: any; roles?: string[] },
+    feedback: string,
+    options?: { expectedVersion?: number; action?: 'QUESTION_REQUEST_CHANGES' | 'QUESTION_REJECT' }
+  ): Promise<ReturnDraftForRevisionResult> {
+    if (!draftId || typeof draftId !== 'string') {
+      throw new QuestionGenerationDomainError('draftId is required to return draft for revision.', 400);
+    }
+    const trimmedDraftId = draftId.trim();
+    if (!canonicalIdService.validateCanonicalId(trimmedDraftId, 'dft_') && !isLegacyDraftId(trimmedDraftId)) {
+      throw new QuestionGenerationDomainError(`Invalid draft ID "${trimmedDraftId}". Expected canonical draft ID format (dft_<uuid_v4>).`, 400);
+    }
+
+    if (!feedback || typeof feedback !== 'string' || !feedback.trim()) {
+      throw new QuestionGenerationDomainError('Reviewer feedback or reason is required when returning draft for revision.', 400);
+    }
+
+    const draft = await questionDraftsRepository.findById(trimmedDraftId);
+    if (!draft) {
+      throw new QuestionGenerationDomainError(`Draft with ID "${trimmedDraftId}" not found for revision return.`, 404);
+    }
+
+    // Authorization & Reviewer Role Check
+    const { resolveBrownfieldRole } = await import('../../../src/types/rbac-models');
+    const actorRole = (actor as any).role ? resolveBrownfieldRole((actor as any).role) : null;
+    const actorRoles = (((actor as any).roles || []) as string[]).map((r) => resolveBrownfieldRole(r));
+    const isAuthorizedReviewer =
+      actorRole === CanonicalRbacRole.ADMIN ||
+      actorRoles.includes(CanonicalRbacRole.ADMIN) ||
+      actorRole === CanonicalRbacRole.CONTENT_LEAD ||
+      actorRoles.includes(CanonicalRbacRole.CONTENT_LEAD) ||
+      actorRole === CanonicalRbacRole.QA_REVIEWER ||
+      actorRoles.includes(CanonicalRbacRole.QA_REVIEWER) ||
+      actorRole === CanonicalRbacRole.CONTENT_MANAGER ||
+      actorRoles.includes(CanonicalRbacRole.CONTENT_MANAGER) ||
+      actorRole === CanonicalRbacRole.QUESTION_EDITOR ||
+      actorRoles.includes(CanonicalRbacRole.QUESTION_EDITOR);
+
+    if (!isAuthorizedReviewer) {
+      const forbiddenErr = new Error(`Unauthorized: User "${actor.id}" lacks required review capability to return draft for revision.`);
+      (forbiddenErr as any).statusCode = 403;
+      (forbiddenErr as any).name = 'ForbiddenError';
+      throw forbiddenErr;
+    }
+
+    // GAR-02: Anti-Self-Approval / Anti-Self-Review
+    // An author who created the draft cannot act as the reviewer to approve or reject their own content
+    const canonicalAuthorId = draft.authorId?.trim() || (draft as any).createdBy?.trim();
+    if (canonicalAuthorId && actor.id && canonicalAuthorId === actor.id.trim()) {
+      const selfReviewErr = new QuestionGenerationDomainError(
+        'Self-review strictly prohibited (GAR-02): The author cannot perform reviewer decisions or return their own draft for revision. An independent reviewer must evaluate this item.',
+        403,
+        'GAR-02'
+      );
+      throw selfReviewErr;
+    }
+
+    // Lifecycle Eligibility:
+    // Can only return if currently submitted / in review
+    if (
+      draft.status === QuestionStatus.APPROVED ||
+      draft.status === 'APPROVED' ||
+      draft.status === 'PUBLISHED'
+    ) {
+      throw new QuestionGenerationDomainError(`Draft "${trimmedDraftId}" has already been approved/published and cannot be returned for revision.`, 400);
+    }
+
+    if (
+      draft.status !== 'SUBMITTED_FOR_REVIEW' &&
+      draft.workflowStage !== 'STAGE_02_VERIFICATION'
+    ) {
+      throw new QuestionGenerationDomainError(
+        `Draft "${trimmedDraftId}" is in status "${draft.status}" / stage "${draft.workflowStage}" and is not currently pending verification.`,
+        400
+      );
+    }
+
+    // OCC Check
+    const expectedVersionToUse = options?.expectedVersion ?? draft.version;
+    if (draft.version !== undefined && expectedVersionToUse !== draft.version) {
+      const conflictErr = new Error(
+        `Draft "${draft.id}" concurrency conflict: expected version ${expectedVersionToUse}, but current version is ${draft.version}.`
+      );
+      (conflictErr as any).statusCode = 409;
+      (conflictErr as any).name = 'ConcurrencyConflictError';
+      throw conflictErr;
+    }
+
+    const now = new Date().toISOString();
+    const { workflowService, workflowInstancesRepository } = await import('../workflow');
+
+    // Coordinate with Workflow Service to transition from Step 2 to Step 1
+    let workflowInstanceId: string | undefined = draft.workflowInstanceId;
+    let existingWf: any = null;
+    let resultingStep = 1;
+
+    if (workflowInstanceId) {
+      existingWf = await workflowInstancesRepository.findById(workflowInstanceId).catch(() => null);
+    }
+    if (!existingWf) {
+      const found = await workflowInstancesRepository.findMany({
+        where: { entityId: draft.id },
+        limit: 1,
+      }).catch(() => []);
+      if (found && found.length > 0) {
+        existingWf = found[0];
+        workflowInstanceId = existingWf.id;
+      }
+    }
+
+    const actorContext = {
+      id: actor.id,
+      name: actor.name,
+      role: (actor as any).role || UserRole.REVIEWER,
+    };
+
+    if (existingWf && existingWf.currentStep === 2) {
+      try {
+        const transitionResult = await workflowService.transition(
+          existingWf.id,
+          {
+            action: options?.action || 'QUESTION_REQUEST_CHANGES',
+            targetStep: 1,
+            reason: feedback.trim(),
+            expectedVersion: existingWf.version,
+          },
+          actorContext
+        );
+        resultingStep = transitionResult.workflow?.currentStep || 1;
+      } catch (wfErr: any) {
+        throw new QuestionGenerationDomainError(
+          `Workflow transition failed during return for revision: ${wfErr?.message || 'Workflow transition error'}`,
+          wfErr?.statusCode || 500
+        );
+      }
+    }
+
+    const returnedDraft: QuestionDraft = {
+      ...draft,
+      status: QuestionStatus.DRAFT,
+      workflowStage: 'QUESTION_STUDIO',
+      reviewerFeedback: feedback.trim(),
+      returnReason: feedback.trim(),
+      reviewerId: actor.id,
+      reviewerName: actor.name,
+      returnedAt: now,
+      revisionCount: (draft.revisionCount || 0) + 1,
+      updatedAt: now,
+    };
+
+    await questionDraftsRepository.update(draft.id, returnedDraft, {
+      expectedVersion: expectedVersionToUse,
+    });
+
+    try {
+      await auditService.log(
+        actor.id,
+        actor.name,
+        'QUESTION_DRAFT_RETURNED_FOR_REVISION',
+        'QUESTION_DRAFT',
+        draft.id,
+        {
+          reviewerId: actor.id,
+          reviewerName: actor.name,
+          feedback: feedback.trim(),
+          returnedToStep: 1,
+          previousStage: draft.workflowStage,
+          revisionCount: returnedDraft.revisionCount,
+          workflowInstanceId,
+          timestamp: now,
+        }
+      );
+    } catch {
+      // Safe fallback
+    }
+
+    return {
+      success: true,
+      draftId: draft.id,
+      workflowInstanceId,
+      currentStep: resultingStep,
+      status: 'DRAFT',
+      workflowStage: 'QUESTION_STUDIO',
+      reviewerFeedback: feedback.trim(),
+      returnedAt: now,
+      message: `Question draft returned for revision: ${feedback.trim()}`,
+    };
   }
 
   public getCanonicalQuestionIdForDraft(draftId: string): string | undefined {

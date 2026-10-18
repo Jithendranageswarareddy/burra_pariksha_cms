@@ -334,6 +334,12 @@ export const QuestionVerifyApprovePage: React.FC = () => {
     setNotification(null);
     try {
       if (activeQuestionId.startsWith('dft_') || activeQuestionId.startsWith('BP-DFT-')) {
+        const feedbackText = rejectReason.trim() || `Revision requested by ${user?.name || 'Reviewer'} in Step 02 verification audit.`;
+        await apiClient.rejectQuestionDraft(
+          activeQuestionId,
+          feedbackText,
+          question.version
+        );
         setShowRejectModal(false);
         setRejectReason('');
         setNotification({

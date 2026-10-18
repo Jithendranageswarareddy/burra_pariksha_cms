@@ -1494,6 +1494,51 @@ apiRouter.post(
 );
 
 apiRouter.post(
+  [
+    '/questions/draft/:id/reject',
+    '/v1/questions/draft/:id/reject',
+    '/questions/draft/:id/request-changes',
+    '/v1/questions/draft/:id/request-changes',
+  ],
+  requireCapability('QUESTION:REJECT', async (req) => {
+    const draft = await questionDraftService.getDraftById(req.params.id);
+    if (!draft) return undefined;
+    return {
+      resourceType: AuthorizationResource.QUESTION,
+      resourceId: draft.id,
+      authorUserId: draft.authorId,
+      createdBy: draft.authorId,
+      stageNumber: 2,
+    };
+  }),
+  async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const actor = getRequestActor(req);
+      const feedback = req.body?.feedback || req.body?.reason || req.body?.remarks || req.body?.notes;
+      const rawExpectedVersion = req.body?.expectedVersion;
+      const expectedVersion = typeof rawExpectedVersion === 'number' ? rawExpectedVersion : undefined;
+      const action = req.body?.action || (req.path.includes('reject') ? 'QUESTION_REJECT' : 'QUESTION_REQUEST_CHANGES');
+      const result = await questionDraftService.returnDraftForRevision(
+        id,
+        actor,
+        feedback,
+        { expectedVersion, action }
+      );
+      res.status(200).json(result);
+    } catch (err: any) {
+      const statusCode = err?.statusCode || (err?.name === 'ConcurrencyConflictError' ? 409 : (err?.code === 'GAR-02' ? 403 : 400));
+      res.status(statusCode).json({
+        error: err?.name || 'ReturnForRevisionFailed',
+        code: err?.code,
+        message: err?.message || 'Failed to return draft for revision',
+        details: err?.details,
+      });
+    }
+  }
+);
+
+apiRouter.post(
   ['/questions/draft/:id/reconcile-author', '/v1/questions/draft/:id/reconcile-author'],
   requireRole([UserRole.ADMIN]),
   async (req: Request, res: Response) => {
