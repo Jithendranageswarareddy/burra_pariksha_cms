@@ -95,6 +95,7 @@ export const AUTHORITATIVE_APPROVED_POST_S7_ADDITIONS: readonly string[] = [
   'tests/integration/s9-isolation-guard.test.ts',
   'docs/sprints/sprint-10/S10-FINAL-RELEASE-GATE.md',
   'docs/sprints/sprint-10/S10-GATE-CLOSURE-REPORT.md',
+  'docs/sprints/sprint-10/S10-HUMAN-TESTING-CHECKLIST.md',
   'docs/sprints/sprint-10/S10-INDEPENDENT-AUDIT-AND-REMEDIATION.md',
   'docs/sprints/sprint-10/S10-MASTER-EXECUTION-PROGRESS.md',
   'docs/sprints/sprint-10/S10-T01-DEPENDENCY-AUDIT.md',
