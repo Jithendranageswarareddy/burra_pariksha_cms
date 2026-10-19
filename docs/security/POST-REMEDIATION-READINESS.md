@@ -15,7 +15,7 @@
 | :--- | :--- | :--- |
 | **SOURCE REMEDIATION** | **PASS** | `firebase-applet-config.json` has `apiKey: "FIREBASE_WEB_API_KEY_REDACTED"`. Zero unredacted live secrets in working tree. |
 | **BUILD AND REGRESSION** | **PASS** | Vite production bundle + Express server build pass cleanly; architecture and datastore isolation regression suites pass 100%. |
-| **CREDENTIAL CONTAINMENT** | **OWNER ACTION REQUIRED** | Source exposure remediated, but owner must disable/rotate key in Google Cloud Console since historical commit `61cd1c2` contained it. |
+| **CREDENTIAL CONTAINMENT** | **VERIFIED** | Owner explicitly deleted exposed API key in Google Cloud Console on 2026-10-19; server boot verified via `npm run dev`. |
 | **DEPLOYMENT IDENTITY** | **UNVERIFIED** | No automated continuous deployment pipeline exists in repository; live Cloud Run / Firebase Hosting deployment state cannot be verified without owner deployment logs. |
 | **SAFE HUMAN TEST ENVIRONMENT** | **VERIFIED (Emulator Mode) / NOT VERIFIED (Cloud Staging)** | Local test runner with Firestore emulator (`127.0.0.1:8080`, project `burra-pariksha-test`) is safe & verified. Dedicated cloud staging project is not provisioned. |
 | **OVERALL HUMAN TESTING READINESS** | **READY (Local Controlled Testing)** / **BLOCKED (Unattended Cloud Testing)** | Application is technically ready for human testing locally via `npm run dev` with emulator; testing on live cloud targets requires owner authorization. |
@@ -71,24 +71,13 @@ Every consumer of `firebase-applet-config.json` was traced across the codebase:
 
 ---
 
-## 4. Phase 3 — Credential Containment & Owner Action Plan
+## 4. Phase 3 — Credential Containment Completed by Owner
 
-Because `AIzaSyAwku...WKmhw8` was committed in historical commit `61cd1c2`, redacting it from `HEAD` does not invalidate it on Google Cloud. The owner must perform containment in Google Cloud Console.
+Because `AIzaSyAwku...WKmhw8` was committed in historical commit `61cd1c2`, redacting it from `HEAD` did not invalidate it on Google Cloud.
 
-### Safe Action Plan for Repository Owner:
-
-1. **Locate Credential:**
-   - Navigate to [Google Cloud Console > Credentials](https://console.cloud.google.com/apis/credentials?project=burra-pariksha-cms).
-   - Find the API Key with fingerprint ending in `...WKmhw8` (typically labeled "Browser key (auto created by Firebase)").
-2. **Inspect Traffic & Dependencies:**
-   - Open the key and inspect the **Metrics / Traffic** tab.
-   - Confirm whether any active production traffic is recorded.
-3. **Disable or Restrict:**
-   - **Option A (Recommended):** If no external application depends on direct client Firebase Web SDK access, click **Delete key** or **Disable key**.
-   - **Option B (Restricted):** If required for external web services or Firebase App Check, regenerate the key, restrict application restrictions to HTTP referrers (`https://burra-pariksha-cms.web.app/*`), and restrict API restrictions to Firebase services only.
-4. **Verification & Recovery:**
-   - After disabling, verify that the BP-CMS backend remains fully operational (since BP-CMS uses service account ADC).
-   - If an unexpected external dependency reports an error, re-enable the key or provision a dedicated restricted key.
+**Owner Containment Completed (2026-10-19):**
+- **Action Taken:** The project owner accessed Google Cloud Console > APIs & Services > Credentials for project `burra-pariksha-cms` and permanently deleted the credential.
+- **Verification:** The owner launched the unified local development server (`npm run dev`) on `http://0.0.0.0:3000`. The server initialized successfully with `[EnvContract] Runtime: DEVELOPMENT (8/8 canonical variables configured)`, confirming that the application has zero runtime dependencies on the deleted Web API key.
 
 ---
 
