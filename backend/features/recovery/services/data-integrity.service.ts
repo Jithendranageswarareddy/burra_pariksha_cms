@@ -98,6 +98,9 @@ export const ALL_SHEET_TABS = ALL_FIRESTORE_COLLECTIONS as unknown as string[];
 
 export class DataIntegrityService {
   private static instance: DataIntegrityService | null = null;
+  private cachedReport: SystemHealthReport | null = null;
+  private cacheExpiresAt = 0;
+  private inFlightCheck: Promise<SystemHealthReport> | null = null;
 
   private constructor() {}
 
@@ -106,6 +109,11 @@ export class DataIntegrityService {
       DataIntegrityService.instance = new DataIntegrityService();
     }
     return DataIntegrityService.instance;
+  }
+
+  public clearCache(): void {
+    this.cachedReport = null;
+    this.cacheExpiresAt = 0;
   }
 
   /**
@@ -126,8 +134,29 @@ export class DataIntegrityService {
 
   /**
    * Executes a full, read-only data integrity and operational health check across all worksheets.
+   * Cached for 60 seconds with in-flight deduplication to prevent probe storms.
    */
-  public async runFullIntegrityCheck(): Promise<SystemHealthReport> {
+  public async runFullIntegrityCheck(options?: { forceFresh?: boolean }): Promise<SystemHealthReport> {
+    if (!options?.forceFresh && this.cachedReport && Date.now() < this.cacheExpiresAt) {
+      return this.cachedReport;
+    }
+
+    if (this.inFlightCheck) {
+      return this.inFlightCheck;
+    }
+
+    this.inFlightCheck = this.executeFullIntegrityCheck();
+    try {
+      const report = await this.inFlightCheck;
+      this.cachedReport = report;
+      this.cacheExpiresAt = Date.now() + 60000;
+      return report;
+    } finally {
+      this.inFlightCheck = null;
+    }
+  }
+
+  private async executeFullIntegrityCheck(): Promise<SystemHealthReport> {
     const issues: IntegrityIssue[] = [];
     let issueCounter = 1;
 
@@ -164,12 +193,20 @@ export class DataIntegrityService {
       } catch (err: any) {
         const error = err instanceof Error ? err : new Error(String(err));
         queryErrors.set(collectionName, error);
+        const isQuotaExhausted =
+          error.message.includes('RESOURCE_EXHAUSTED') ||
+          error.message.includes('Quota exceeded') ||
+          (err as any)?.code === 8;
         addIssue(
-          'ERROR',
+          isQuotaExhausted ? 'WARNING' : 'ERROR',
           'ID_INTEGRITY',
           collectionName,
-          `Firestore query failure on collection "${collectionName}": ${error.message}`,
-          `Verify Firestore connectivity, collection permissions, or security rules for collection "${collectionName}".`,
+          isQuotaExhausted
+            ? `Firestore read quota exceeded on collection "${collectionName}": ${error.message}`
+            : `Firestore query failure on collection "${collectionName}": ${error.message}`,
+          isQuotaExhausted
+            ? `Cloud Firestore daily read limit reached. Quota resets daily at midnight US Pacific Time.`
+            : `Verify Firestore connectivity, collection permissions, or security rules for collection "${collectionName}".`,
           'COLLECTION',
           collectionName
         );

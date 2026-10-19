@@ -26,7 +26,7 @@ const STEP_ICONS: Record<number, React.ElementType> = {
   2: ShieldCheck,
 };
 
-export const QUESTION_STEPS: QuestionStepMeta[] = CANONICAL_15_STEPS.slice(0, 2).map((s) => ({
+const QUESTION_STEPS: QuestionStepMeta[] = CANONICAL_15_STEPS.slice(0, 2).map((s) => ({
   stepNumber: s.stepNumber,
   stepCode: String(s.stepNumber).padStart(2, '0'),
   label: s.label,

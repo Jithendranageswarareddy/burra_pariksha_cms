@@ -604,7 +604,8 @@ apiRouter.use('/social-enhancement/*', aiRateLimiter);
 // System Health & Diagnostics (Protected by requireAuth)
 apiRouter.get('/system/health/integrity', async (req: Request, res: Response) => {
   try {
-    const report = await dataIntegrityService.runFullIntegrityCheck();
+    const forceFresh = req.query.fresh === 'true';
+    const report = await dataIntegrityService.runFullIntegrityCheck({ forceFresh });
     res.json(report);
   } catch (err: any) {
     res.status(500).json({
@@ -616,7 +617,8 @@ apiRouter.get('/system/health/integrity', async (req: Request, res: Response) =>
 
 apiRouter.get('/system/health', async (req: Request, res: Response) => {
   try {
-    const report = await dataIntegrityService.runFullIntegrityCheck();
+    const forceFresh = req.query.fresh === 'true';
+    const report = await dataIntegrityService.runFullIntegrityCheck({ forceFresh });
     res.json(report);
   } catch (err: any) {
     res.status(500).json({

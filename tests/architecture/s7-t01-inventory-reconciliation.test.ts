@@ -141,6 +141,7 @@ export const AUTHORITATIVE_APPROVED_POST_S7_ADDITIONS: readonly string[] = [
   'tests/e2e/mode1-draft-stage02-acceptance.test.ts',
   'docs/security/ADMIN-AUTHORITY-AND-RBAC-REMEDIATION.md',
   'docs/security/ADMIN-OVERRIDE-POST-COMMIT-VERIFICATION.md',
+  'docs/diagnostics/FIRESTORE-RESOURCE-EXHAUSTED-INVESTIGATION.md',
 ];
 
 const EXPECTED_HISTORICAL_S7_COUNT = 713;

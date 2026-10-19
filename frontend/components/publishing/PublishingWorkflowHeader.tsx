@@ -36,7 +36,7 @@ const STEP_ICONS: Record<number, React.ElementType> = {
   12: Share2,
 };
 
-export const PUBLISHING_STEPS: PublishingStepMeta[] = CANONICAL_15_STEPS.filter(
+const PUBLISHING_STEPS: PublishingStepMeta[] = CANONICAL_15_STEPS.filter(
   (s) => s.stepNumber >= 10 && s.stepNumber <= 12
 ).map((s) => ({
   stepNumber: s.stepNumber,

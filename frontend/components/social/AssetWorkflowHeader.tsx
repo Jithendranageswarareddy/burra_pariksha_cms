@@ -36,7 +36,7 @@ const STEP_ICONS: Record<number, React.ElementType> = {
   10: Calendar,
 };
 
-export const ASSET_STEPS: AssetStepMeta[] = CANONICAL_15_STEPS.filter(
+const ASSET_STEPS: AssetStepMeta[] = CANONICAL_15_STEPS.filter(
   (s) => s.stepNumber >= 8 && s.stepNumber <= 10
 ).map((s) => ({
   stepNumber: s.stepNumber,

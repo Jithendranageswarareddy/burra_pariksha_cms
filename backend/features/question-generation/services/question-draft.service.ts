@@ -97,6 +97,13 @@ export class QuestionDraftService {
   ) {
     const draft = await questionDraftsRepository.findById(draftId);
     if (!draft) {
+      const canonicalId = this.draftToCanonicalMap.get(draftId);
+      if (canonicalId) {
+        const existingQuestion = await questionService.getQuestionById(canonicalId);
+        if (existingQuestion) {
+          return existingQuestion;
+        }
+      }
       const err = new Error(`Draft with ID "${draftId}" not found for approval.`);
       (err as any).statusCode = 404;
       throw err;

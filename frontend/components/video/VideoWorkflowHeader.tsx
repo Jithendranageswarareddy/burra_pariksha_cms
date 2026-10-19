@@ -44,7 +44,7 @@ const STEP_ICONS: Record<number, React.ElementType> = {
   9: Share2,
 };
 
-export const VIDEO_STEPS: VideoStepMeta[] = CANONICAL_15_STEPS.filter(
+const VIDEO_STEPS: VideoStepMeta[] = CANONICAL_15_STEPS.filter(
   (s) => s.stepNumber >= 3 && s.stepNumber <= 9
 ).map((s) => ({
   stepNumber: s.stepNumber,
