@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
 import {
   ShieldCheck,
+  ShieldAlert,
   CheckCircle2,
   AlertCircle,
   ArrowLeft,
@@ -150,6 +151,11 @@ export const QuestionVerifyApprovePage: React.FC = () => {
   const [showRejectModal, setShowRejectModal] = useState<boolean>(false);
   const [rejectReason, setRejectReason] = useState<string>('');
 
+  // Admin Override Modal
+  const [showAdminOverrideModal, setShowAdminOverrideModal] = useState<boolean>(false);
+  const [overrideReason, setOverrideReason] = useState<string>('');
+  const [overrideConfirmed, setOverrideConfirmed] = useState<boolean>(false);
+
 
 
   const canonicalAuthorId = question?.authorId || (question as any)?.createdBy;
@@ -253,7 +259,7 @@ export const QuestionVerifyApprovePage: React.FC = () => {
   };
 
   // Approve Question & Bridge directly into Video Production
-  const handleApprove = async () => {
+  const handleApprove = async (overrideParams?: { isOverride: boolean; confirmedByAdmin: boolean; reason: string; overrideActionType?: string }) => {
     if (!activeQuestionId || !question) return;
 
     if (isMissingAuthor) {
@@ -265,11 +271,17 @@ export const QuestionVerifyApprovePage: React.FC = () => {
       return;
     }
 
-    if (isSelfAuthor) {
+    if (isSelfAuthor && !overrideParams) {
+      if (isAdmin) {
+        setOverrideReason('');
+        setOverrideConfirmed(false);
+        setShowAdminOverrideModal(true);
+        return;
+      }
       setNotification({
         type: 'error',
         title: 'Anti-Self-Approval Restriction (GAR-02)',
-        message: 'You authored this question. Under strict segregation of duties (GAR-02), authors (including System Administrators) cannot approve their own work. Please assign an independent reviewer.',
+        message: 'You authored this question. Under strict segregation of duties (GAR-02), authors cannot approve their own work. Please assign an independent reviewer.',
       });
       return;
     }
@@ -282,8 +294,9 @@ export const QuestionVerifyApprovePage: React.FC = () => {
       if (activeQuestionId.startsWith('dft_') || activeQuestionId.startsWith('BP-DFT-')) {
         updatedQuestion = await apiClient.approveQuestionDraft(
           activeQuestionId,
-          `Approved by ${user?.name || 'Reviewer'} in Step 02 verification audit.`,
-          );
+          `Approved by ${user?.name || 'Reviewer'} in Step 02 verification audit${overrideParams ? ' (Admin Override)' : ''}.`,
+          overrideParams
+        );
         finalQuestionId = updatedQuestion.id;
         setQuestion(updatedQuestion);
       } else {
@@ -291,7 +304,8 @@ export const QuestionVerifyApprovePage: React.FC = () => {
           updatedQuestion = await apiClient.updateQuestionStatus(
             activeQuestionId,
             QuestionStatus.APPROVED,
-            `Approved by ${user?.name || 'Reviewer'} in Step 02 verification audit.`
+            `Approved by ${user?.name || 'Reviewer'} in Step 02 verification audit${overrideParams ? ' (Admin Override)' : ''}.`,
+            overrideParams
           );
           setQuestion(updatedQuestion);
         } else {
@@ -313,9 +327,12 @@ export const QuestionVerifyApprovePage: React.FC = () => {
 
       setNotification({
         type: 'success',
-        title: 'Question Approved & Queued',
-        message: `Question ${finalQuestionId} approved and connected to Video Production (${video.id}).`,
+        title: overrideParams ? 'Approved via Admin Override' : 'Question Approved & Queued',
+        message: overrideParams
+          ? `Question ${finalQuestionId} approved via authenticated administrative override and queued for video production.`
+          : `Question ${finalQuestionId} approved and connected to Video Production (${video.id}).`,
       });
+      setShowAdminOverrideModal(false);
     } catch (err: any) {
       setNotification({
         type: 'error',
@@ -1131,10 +1148,12 @@ export const QuestionVerifyApprovePage: React.FC = () => {
                     <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-1.5 text-xs">
                       <div className="flex items-center gap-1.5 font-bold text-amber-900">
                         <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
-                        <span>Anti-Self-Approval Active (GAR-02)</span>
+                        <span>{isAdmin ? 'Administrative Override Available (GAR-02)' : 'Anti-Self-Approval Active (GAR-02)'}</span>
                       </div>
                       <p className="text-amber-800 text-[11px] leading-relaxed">
-                        You created this question. Under strict segregation-of-duties rules (GAR-02), authors (including System Administrators) cannot approve or verify their own work. Please assign an independent QA Reviewer or peer reviewer to verify this item.
+                        {isAdmin
+                          ? 'You created this content. You are overriding the normal independent-review safeguard. Explicit confirmation and a meaningful reason (at least 10 characters) are required to accept accountability.'
+                          : 'You created this question. Under strict segregation-of-duties rules (GAR-02), authors cannot approve or verify their own work. Please assign an independent QA Reviewer or peer reviewer to verify this item.'}
                       </p>
                     </div>
                   )}
@@ -1158,15 +1177,32 @@ export const QuestionVerifyApprovePage: React.FC = () => {
 
                   <div className="flex items-center gap-2.5">
                     {isSelfAuthor ? (
-                      <Button
-                        variant="primary"
-                        size="md"
-                        disabled={true}
-                        icon={ShieldCheck}
-                        className="flex-1 justify-center font-bold py-2.5 bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed shadow-none"
-                      >
-                        Self-Approval Prohibited (GAR-02)
-                      </Button>
+                      isAdmin ? (
+                        <Button
+                          variant="primary"
+                          size="md"
+                          onClick={() => {
+                            setOverrideReason('');
+                            setOverrideConfirmed(false);
+                            setShowAdminOverrideModal(true);
+                          }}
+                          disabled={actionInProgress || !isApprovable}
+                          icon={ShieldAlert}
+                          className="flex-1 justify-center font-bold py-2.5 bg-amber-600 hover:bg-amber-700 text-white shadow-sm"
+                        >
+                          Approve via Admin Override
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="primary"
+                          size="md"
+                          disabled={true}
+                          icon={ShieldCheck}
+                          className="flex-1 justify-center font-bold py-2.5 bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed shadow-none"
+                        >
+                          Self-Approval Prohibited (GAR-02)
+                        </Button>
+                      )
                     ) : isMissingAuthor ? (
                       <Button
                         variant="primary"
@@ -1531,6 +1567,86 @@ export const QuestionVerifyApprovePage: React.FC = () => {
                 className="bg-rose-600 hover:bg-rose-700 text-white"
               >
                 {actionInProgress ? 'Submitting...' : 'Submit Revision Request'}
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Admin Override Modal */}
+      {showAdminOverrideModal && (
+        <Modal
+          isOpen={showAdminOverrideModal}
+          onClose={() => setShowAdminOverrideModal(false)}
+          title="Administrative Override Approval (GAR-02)"
+        >
+          <div className="space-y-4">
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-1.5 text-xs">
+              <div className="flex items-center gap-1.5 font-bold text-amber-900">
+                <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>Explicit Accountability Required</span>
+              </div>
+              <p className="text-amber-800 text-[11px] leading-relaxed">
+                You created this content. You are overriding the normal independent-review safeguard. Confirm that you accept responsibility for this decision.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Override Justification Reason <span className="text-red-500">*</span> (min 10 characters)
+              </label>
+              <textarea
+                value={overrideReason}
+                onChange={(e) => setOverrideReason(e.target.value)}
+                rows={3}
+                placeholder="Explain why an administrative override is justified for this item..."
+                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:bg-white focus:outline-hidden focus:border-indigo-500"
+              />
+              <div className="flex justify-between items-center mt-1 text-[11px] text-slate-500">
+                <span>{overrideReason.trim().length} / 10 characters minimum</span>
+                {overrideReason.trim().length < 10 && overrideReason.length > 0 && (
+                  <span className="text-amber-600">Need at least {10 - overrideReason.trim().length} more characters</span>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-start gap-2 pt-2">
+              <input
+                type="checkbox"
+                id="confirmOverrideCheckbox"
+                checked={overrideConfirmed}
+                onChange={(e) => setOverrideConfirmed(e.target.checked)}
+                className="mt-0.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              <label htmlFor="confirmOverrideCheckbox" className="text-xs text-slate-700 leading-snug cursor-pointer select-none">
+                I confirm that I am executing an audited administrative override and accept personal responsibility for this verification decision.
+              </label>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowAdminOverrideModal(false)}
+                disabled={actionInProgress}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() =>
+                  handleApprove({
+                    isOverride: true,
+                    confirmedByAdmin: true,
+                    reason: overrideReason.trim(),
+                    overrideActionType: 'ADMIN_APPROVAL_OVERRIDE',
+                  })
+                }
+                disabled={actionInProgress || !overrideConfirmed || overrideReason.trim().length < 10}
+                className="bg-amber-600 hover:bg-amber-700 text-white"
+              >
+                {actionInProgress ? 'Approving via Override...' : 'Confirm & Execute Override'}
               </Button>
             </div>
           </div>

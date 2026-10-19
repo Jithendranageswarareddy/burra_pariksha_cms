@@ -413,6 +413,7 @@ export function resolveDynamicWorkflow(input: WorkflowResolutionInput): Resolved
   // 7. Resolve Permitted Actions & Next Permitted Action
   const actorId = actor?.id?.trim() || '';
   const actorRoles = actor?.roles || (actor?.role ? [actor.role] : []);
+  const isAdmin = actorRoles.some((r) => r.toUpperCase() === 'ADMIN' || r.toUpperCase() === 'SYSTEM_ADMINISTRATOR');
   const isAuthor = Boolean(ownerId && actorId && ownerId.trim() === actorId);
 
   const candidateActions: ResolvedWorkflowAction[] = [];
@@ -456,20 +457,24 @@ export function resolveDynamicWorkflow(input: WorkflowResolutionInput): Resolved
       const canApprove = actorHasCapability(actorRoles, 'QUESTION:APPROVE');
       const canReject = actorHasCapability(actorRoles, 'QUESTION:REJECT');
 
-      // GAR-02 Rule: authorId !== approverId
-      if (isAuthor) {
+      // GAR-02 Rule: authorId !== approverId (unless authenticated System Administrator with audited override)
+      if (isAuthor && !isAdmin) {
         isGar02Restricted = true;
       }
 
+      const isOverrideRequired = isAuthor && isAdmin;
+
       candidateActions.push({
         actionId: 'QUESTION_APPROVE',
-        label: 'Approve & Unlock Production',
+        label: isOverrideRequired ? 'Approve via Admin Override' : 'Approve & Unlock Production',
         actionType: 'FORWARD',
         targetStep: 3,
-        isAvailable: canApprove && !isAuthor,
+        isAvailable: canApprove && (!isAuthor || isAdmin),
         requiredCapability: 'QUESTION:APPROVE',
-        isGar02Restricted: isAuthor,
-        blockedReason: isAuthor
+        isGar02Restricted: isAuthor && !isAdmin,
+        isOverrideEligible: isAdmin,
+        isOverrideRequired,
+        blockedReason: isAuthor && !isAdmin
           ? 'Self-approval strictly prohibited under GAR-02 segregation of duties: Author cannot approve own work.'
           : !canApprove
             ? 'Requires capability QUESTION:APPROVE'
@@ -579,19 +584,23 @@ export function resolveDynamicWorkflow(input: WorkflowResolutionInput): Resolved
       const canApprove = actorHasCapability(actorRoles, 'VIDEO:APPROVE');
       const canReject = actorHasCapability(actorRoles, 'VIDEO_EDIT:REJECT') || canApprove;
 
-      if (isAuthor) {
+      if (isAuthor && !isAdmin) {
         isGar02Restricted = true;
       }
 
+      const isOverrideRequired = isAuthor && isAdmin;
+
       candidateActions.push({
         actionId: 'VIDEO_QC_VERIFY',
-        label: 'Approve Master Cut (Final QC Certified)',
+        label: isOverrideRequired ? 'Approve Master Cut (Admin Override)' : 'Approve Master Cut (Final QC Certified)',
         actionType: 'FORWARD',
         targetStep: 8,
-        isAvailable: canApprove && !isAuthor,
+        isAvailable: canApprove && (!isAuthor || isAdmin),
         requiredCapability: 'VIDEO:APPROVE',
-        isGar02Restricted: isAuthor,
-        blockedReason: isAuthor
+        isGar02Restricted: isAuthor && !isAdmin,
+        isOverrideEligible: isAdmin,
+        isOverrideRequired,
+        blockedReason: isAuthor && !isAdmin
           ? 'Self-approval strictly prohibited under GAR-02 segregation of duties: Author cannot approve own work at Final QC.'
           : !canApprove
             ? 'Requires capability VIDEO:APPROVE'
@@ -625,18 +634,22 @@ export function resolveDynamicWorkflow(input: WorkflowResolutionInput): Resolved
       // Step 09 Social Review Gate
       const canApprove = actorHasCapability(actorRoles, 'CONTENT:APPROVE');
 
-      if (isAuthor) {
+      if (isAuthor && !isAdmin) {
         isGar02Restricted = true;
       }
 
+      const isOverrideRequired = isAuthor && isAdmin;
+
       candidateActions.push({
         actionId: 'SOCIAL_REVIEW_APPROVE',
-        label: 'Approve Social Package & Lock Publishing',
+        label: isOverrideRequired ? 'Approve Social Package (Admin Override)' : 'Approve Social Package & Lock Publishing',
         actionType: 'FORWARD',
         targetStep: 10,
-        isAvailable: canApprove && !isAuthor,
+        isAvailable: canApprove && (!isAuthor || isAdmin),
         requiredCapability: 'CONTENT:APPROVE',
-        isGar02Restricted: isAuthor,
+        isGar02Restricted: isAuthor && !isAdmin,
+        isOverrideEligible: isAdmin,
+        isOverrideRequired,
         blockedReason: isAuthor
           ? 'Self-approval prohibited under GAR-02: Author cannot approve social package.'
           : !canApprove

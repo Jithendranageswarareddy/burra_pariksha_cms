@@ -158,6 +158,8 @@ export interface ResolvedWorkflowAction {
   requiredCapability: string;
   blockedReason?: string;
   isGar02Restricted?: boolean;
+  isOverrideEligible?: boolean;
+  isOverrideRequired?: boolean;
   route?: string;
 }
 

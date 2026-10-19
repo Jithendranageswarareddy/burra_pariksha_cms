@@ -440,27 +440,39 @@ export class QuestionService {
 
     // Validate explicit non-random realLifeContext against inactive entries in QUESTION_CONFIG
     if (requestPayload.realLifeContext && !isRandomContext) {
-      const allContexts = await questionConfigService.getRealLifeContexts(false, false);
-      const match = allContexts.find(
-        (c) =>
-          c.code.toUpperCase() === requestPayload.realLifeContext!.toUpperCase() ||
-          c.displayLabel.toLowerCase() === requestPayload.realLifeContext!.toLowerCase()
-      );
-      if (match && !match.isActive) {
-        throw new ValidationError(`Selected Real-Life Context "${requestPayload.realLifeContext}" is inactive in QUESTION_CONFIG.`);
+      try {
+        const allContexts = await questionConfigService.getRealLifeContexts(false, false);
+        const match = allContexts.find(
+          (c) =>
+            c.code.toUpperCase() === requestPayload.realLifeContext!.toUpperCase() ||
+            c.displayLabel.toLowerCase() === requestPayload.realLifeContext!.toLowerCase()
+        );
+        if (match && !match.isActive) {
+          throw new ValidationError(`Selected Real-Life Context "${requestPayload.realLifeContext}" is inactive in QUESTION_CONFIG.`);
+        }
+      } catch (err: any) {
+        if (err?.code !== 'EMPTY_CONFIGURATION') {
+          throw err;
+        }
       }
     }
 
     // Validate explicit questionStyle against inactive entries in QUESTION_CONFIG
     if (requestPayload.questionStyle) {
-      const allStyles = await questionConfigService.getQuestionStyles(false, false);
-      const match = allStyles.find(
-        (s) =>
-          s.code.toUpperCase() === requestPayload.questionStyle!.toUpperCase() ||
-          s.displayLabel.toLowerCase() === requestPayload.questionStyle!.toLowerCase()
-      );
-      if (match && !match.isActive) {
-        throw new ValidationError(`Selected Question Style "${requestPayload.questionStyle}" is inactive in QUESTION_CONFIG.`);
+      try {
+        const allStyles = await questionConfigService.getQuestionStyles(false, false);
+        const match = allStyles.find(
+          (s) =>
+            s.code.toUpperCase() === requestPayload.questionStyle!.toUpperCase() ||
+            s.displayLabel.toLowerCase() === requestPayload.questionStyle!.toLowerCase()
+        );
+        if (match && !match.isActive) {
+          throw new ValidationError(`Selected Question Style "${requestPayload.questionStyle}" is inactive in QUESTION_CONFIG.`);
+        }
+      } catch (err: any) {
+        if (err?.code !== 'EMPTY_CONFIGURATION') {
+          throw err;
+        }
       }
     }
 
@@ -779,7 +791,7 @@ export class QuestionService {
 
     const existing = await questionsRepository.findById(id);
     if (!existing) {
-      throw new ReferenceIntegrityError(`Question with ID "${id}" does not exist in the QUESTIONS sheet.`);
+      throw new ReferenceIntegrityError(`Question with ID "${id}" does not exist in the questions repository.`);
     }
 
     // 1. Zod update validation
@@ -1027,7 +1039,7 @@ export class QuestionService {
 
     const existing = await questionsRepository.findById(id);
     if (!existing) {
-      throw new ReferenceIntegrityError(`Question with ID "${id}" does not exist in the QUESTIONS sheet.`);
+      throw new ReferenceIntegrityError(`Question with ID "${id}" does not exist in the questions repository.`);
     }
 
     const previousStatus = existing.status;

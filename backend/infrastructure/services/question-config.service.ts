@@ -203,7 +203,7 @@ export class QuestionConfigService {
 
     if (!rawRecords || rawRecords.length === 0) {
       throw new QuestionConfigError(
-        'QUESTION_CONFIG worksheet is empty or contains no records. Real-time production configuration cannot be loaded.',
+        'QUESTION_CONFIG collection is empty or contains no records. Real-time production configuration cannot be loaded.',
         'EMPTY_CONFIGURATION',
         404
       );

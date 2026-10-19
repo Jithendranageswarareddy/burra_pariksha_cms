@@ -147,10 +147,37 @@ export function evaluateSegregationOfDuties(
   }
 
   if (actor.id === authorId.trim()) {
+    // Check if actor is an authenticated System Administrator performing an explicit, confirmed override
+    const canonicalRole = resolveBrownfieldRole(actor.role);
+    const actorRoles = (actor.roles || [actor.role]).map((r) => resolveBrownfieldRole(r));
+    const isAdmin = canonicalRole === CanonicalRbacRole.ADMIN || actorRoles.includes(CanonicalRbacRole.ADMIN);
+
+    const override = targetContext.override;
+    if (isAdmin && override?.isOverride) {
+      if (!override.confirmedByAdmin) {
+        return {
+          allowed: false,
+          errorCode: AuthorizationErrorCode.FORBIDDEN_BY_SEGREGATION_OF_DUTIES,
+          errorMessage: 'Administrative override requires explicit confirmation (confirmedByAdmin).',
+        };
+      }
+      const reason = (override.reason || '').trim();
+      if (reason.length < 10) {
+        return {
+          allowed: false,
+          errorCode: AuthorizationErrorCode.FORBIDDEN_BY_SEGREGATION_OF_DUTIES,
+          errorMessage: 'Administrative override requires a meaningful justification of at least 10 characters.',
+        };
+      }
+      return { allowed: true, isOverride: true };
+    }
+
     return {
       allowed: false,
       errorCode: AuthorizationErrorCode.FORBIDDEN_BY_SEGREGATION_OF_DUTIES,
-      errorMessage: 'Self-approval strictly prohibited: Author/creator cannot approve or verify their own artifact (GAR-02). System Administrators must assign an independent reviewer.',
+      errorMessage: isAdmin
+        ? 'Self-approval strictly prohibited under GAR-02: Author cannot approve their own work without an explicit confirmed administrative override and meaningful justification.'
+        : 'Self-approval strictly prohibited: Author/creator cannot approve or verify their own artifact (GAR-02). System Administrators must assign an independent reviewer.',
     };
   }
 

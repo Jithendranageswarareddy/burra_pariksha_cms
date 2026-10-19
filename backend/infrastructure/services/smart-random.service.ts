@@ -135,12 +135,21 @@ export class SmartRandomService {
     const isRandomContext = !realLifeContext || realLifeContext.toUpperCase() === 'RANDOM' || realLifeContext.toUpperCase() === 'SMART_RANDOM';
 
     if (isRandomContext) {
-      const configuredContexts = await questionConfigService.getRealLifeContexts(true);
-      if (!configuredContexts || configuredContexts.length === 0) {
-        throw new ValidationError('QUESTION_CONFIG contains no active Real-Life Contexts for RANDOM resolution.');
+      try {
+        const configuredContexts = await questionConfigService.getRealLifeContexts(true);
+        if (!configuredContexts || configuredContexts.length === 0) {
+          realLifeContext = 'General Knowledge';
+        } else {
+          const randomIndex = Math.floor(Math.random() * configuredContexts.length);
+          realLifeContext = configuredContexts[randomIndex].displayLabel || configuredContexts[randomIndex].code;
+        }
+      } catch (err: any) {
+        if (err?.code === 'EMPTY_CONFIGURATION') {
+          realLifeContext = 'General Knowledge';
+        } else {
+          throw err;
+        }
       }
-      const randomIndex = Math.floor(Math.random() * configuredContexts.length);
-      realLifeContext = configuredContexts[randomIndex].displayLabel || configuredContexts[randomIndex].code;
     } else {
       // Explicit context was passed; check for inactive status in QUESTION_CONFIG
       try {

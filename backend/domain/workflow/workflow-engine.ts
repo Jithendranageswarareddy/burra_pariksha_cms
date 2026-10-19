@@ -98,9 +98,31 @@ export class WorkflowEngine implements IWorkflowEngine {
         );
       }
       if (authorId.trim() === actorContext.id.trim()) {
-        throw new ForbiddenError(
-          `Self-approval strictly prohibited under GAR-02 segregation of duties: Author (${authorId}) cannot approve their own work at Step ${currentStep}.`
-        );
+        const canonicalRole = resolveBrownfieldRole(actorContext.role);
+        const isAdmin = canonicalRole === CanonicalRbacRole.ADMIN;
+        const override = contentPayload?.override as any;
+        const isOverrideValid =
+          isAdmin &&
+          override?.isOverride === true &&
+          override?.confirmedByAdmin === true &&
+          typeof override?.reason === 'string' &&
+          override.reason.trim().length >= 10;
+
+        if (!isOverrideValid) {
+          if (!isAdmin) {
+            throw new ForbiddenError(
+              `Self-approval strictly prohibited under GAR-02 segregation of duties: Author (${authorId}) cannot approve their own work at Step ${currentStep}.`
+            );
+          }
+          if (!override?.confirmedByAdmin) {
+            throw new ForbiddenError(
+              `Self-approval requires explicit administrative override confirmation (GAR-02) at Step ${currentStep}.`
+            );
+          }
+          throw new ForbiddenError(
+            `Administrative override requires a meaningful justification of at least 10 characters at Step ${currentStep}.`
+          );
+        }
       }
     }
 

@@ -224,7 +224,7 @@ async function runSystemAdminWorkflowOperationsIntegrationTests() {
     // ------------------------------------------------------------------------
     let approvedQuestionId = '';
 
-    await test('Stage 02: Admin CANNOT self-approve own draft (strict zero-bypass GAR-02)', async () => {
+    await test('Stage 02: Admin self-approval without override is rejected (strict GAR-02 for un-overridden requests)', async () => {
       const approveRes = await fetch(`${baseUrl}/v1/questions/draft/${adminDraftId}/approve`, {
         method: 'POST',
         headers: {
@@ -232,17 +232,11 @@ async function runSystemAdminWorkflowOperationsIntegrationTests() {
           Authorization: `Bearer ${adminToken}`,
         },
         body: JSON.stringify({
-          notes: 'Attempting admin self-approval override',
-          override: {
-            isOverride: true,
-            confirmedByAdmin: true,
-            reason: 'Emergency self-approval attempt should fail unconditionally',
-            overrideActionType: 'ADMIN_APPROVAL_OVERRIDE',
-          },
+          notes: 'Attempting admin self-approval without override',
         }),
       });
 
-      assert.strictEqual(approveRes.status, 403, 'Self-approval must return HTTP 403 Forbidden');
+      assert.strictEqual(approveRes.status, 403, 'Self-approval without override must return HTTP 403 Forbidden');
       const body = await approveRes.json();
       const message = String(body.message || body.error || '');
       assert.ok(
@@ -253,6 +247,29 @@ async function runSystemAdminWorkflowOperationsIntegrationTests() {
         message.includes('Self-approval'),
         'Rejection must be classified as Segregation of Duties / GAR-02'
       );
+    });
+
+    await test('Stage 02: Admin CAN self-approve own draft via explicit confirmed administrative override', async () => {
+      const approveRes = await fetch(`${baseUrl}/v1/questions/draft/${adminDraftId}/approve`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${adminToken}`,
+        },
+        body: JSON.stringify({
+          notes: 'Attempting admin self-approval override',
+          isOverride: true,
+          confirmedByAdmin: true,
+          overrideReason: 'Valid administrative self-approval override by primary operator',
+          overrideActionType: 'ADMIN_APPROVAL_OVERRIDE',
+        }),
+      });
+
+      assert.strictEqual(approveRes.status, 201, 'Valid administrative override must return HTTP 201');
+      const approvedQuestion = await approveRes.json();
+      assert.strictEqual(approvedQuestion.authorId, adminUserId, 'Approved question authorId must remain admin');
+      assert.strictEqual(approvedQuestion.status, QuestionStatus.APPROVED, 'Status must be APPROVED');
+      approvedQuestionId = approvedQuestion.id;
     });
 
     await test('Stage 02: Independent reviewer CAN approve Admin-authored draft', async () => {

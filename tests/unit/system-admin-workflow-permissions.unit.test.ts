@@ -135,15 +135,16 @@ async function runSystemAdminWorkflowPermissionsTests() {
   });
 
   // --------------------------------------------------------------------------
-  // 2. Strict GAR-02 Invariant: Admin CANNOT Self-Approve (Zero-Bypass)
+  // 2. Strict GAR-02 Invariant: Employee Zero-Bypass vs Admin Audited Override
   // --------------------------------------------------------------------------
-  await test('2. System Admin who authored an item CANNOT approve or verify it under any circumstances', () => {
+  await test('2. System Admin self-approval requires explicit confirmed override with >= 10 char reason; non-admins are strictly blocked', () => {
     const adminActor = {
       id: 'USR-ADMIN-01',
       role: CanonicalRbacRole.ADMIN,
       roles: [CanonicalRbacRole.ADMIN],
     };
 
+    // 2.1 Without explicit override, self-approval is forbidden under GAR-02
     const sodResult = evaluateSegregationOfDuties(
       adminActor,
       {
@@ -157,8 +158,52 @@ async function runSystemAdminWorkflowPermissionsTests() {
     assert.strictEqual(sodResult.errorCode, AuthorizationErrorCode.FORBIDDEN_BY_SEGREGATION_OF_DUTIES);
     assert.ok(sodResult.errorMessage?.includes('GAR-02'));
 
-    // Also via full evaluateAuthorization
-    const fullAuth = evaluateAuthorization({
+    // 2.2 Non-admin employee CANNOT self-approve even with override payload
+    const nonAdminActor = {
+      id: 'USR-WRITER-01',
+      role: CanonicalRbacRole.QUESTION_AUTHOR,
+      roles: [CanonicalRbacRole.QUESTION_AUTHOR],
+    };
+    const nonAdminOverride = evaluateAuthorization({
+      actor: nonAdminActor,
+      resource: AuthorizationResource.QUESTION,
+      action: AuthorizationAction.APPROVE,
+      targetContext: {
+        resourceId: 'dft_123',
+        authorUserId: 'USR-WRITER-01',
+        stageNumber: 2,
+        override: {
+          isOverride: true,
+          confirmedByAdmin: true,
+          reason: 'Valid looking override reason text',
+          overrideActionType: 'ADMIN_APPROVAL_OVERRIDE',
+        },
+      },
+    });
+    assert.strictEqual(nonAdminOverride.allowed, false);
+
+    // 2.3 Admin with override but missing confirmation (confirmedByAdmin: false) is rejected
+    const unconfirmedAuth = evaluateAuthorization({
+      actor: adminActor,
+      resource: AuthorizationResource.QUESTION,
+      action: AuthorizationAction.APPROVE,
+      targetContext: {
+        resourceId: 'dft_123',
+        authorUserId: 'USR-ADMIN-01',
+        stageNumber: 2,
+        override: {
+          isOverride: true,
+          confirmedByAdmin: false,
+          reason: 'Valid looking override reason text',
+          overrideActionType: 'ADMIN_APPROVAL_OVERRIDE',
+        },
+      },
+    });
+    assert.strictEqual(unconfirmedAuth.allowed, false);
+    assert.ok(unconfirmedAuth.errorMessage?.includes('confirmedByAdmin'));
+
+    // 2.4 Admin with override but reason length < 10 characters is rejected
+    const shortReasonAuth = evaluateAuthorization({
       actor: adminActor,
       resource: AuthorizationResource.QUESTION,
       action: AuthorizationAction.APPROVE,
@@ -169,15 +214,35 @@ async function runSystemAdminWorkflowPermissionsTests() {
         override: {
           isOverride: true,
           confirmedByAdmin: true,
-          reason: 'Emergency self approval attempt',
+          reason: 'Too short',
           overrideActionType: 'ADMIN_APPROVAL_OVERRIDE',
         },
       },
     });
+    assert.strictEqual(shortReasonAuth.allowed, false);
+    assert.ok(shortReasonAuth.errorMessage?.includes('10 characters'));
 
-    assert.strictEqual(fullAuth.allowed, false);
-    assert.strictEqual(fullAuth.errorCode, AuthorizationErrorCode.FORBIDDEN_BY_SEGREGATION_OF_DUTIES);
-    assert.ok(fullAuth.errorMessage?.includes('GAR-02'));
+    // 2.5 Admin with valid explicit override is ALLOWED and creates audited event
+    const validOverrideAuth = evaluateAuthorization({
+      actor: adminActor,
+      resource: AuthorizationResource.QUESTION,
+      action: AuthorizationAction.APPROVE,
+      targetContext: {
+        resourceId: 'dft_123',
+        authorUserId: 'USR-ADMIN-01',
+        stageNumber: 2,
+        override: {
+          isOverride: true,
+          confirmedByAdmin: true,
+          reason: 'Audited administrative override by system owner',
+          overrideActionType: 'ADMIN_APPROVAL_OVERRIDE',
+        },
+      },
+    });
+    assert.strictEqual(validOverrideAuth.allowed, true);
+    assert.strictEqual(validOverrideAuth.isOverride, true);
+    assert.strictEqual(validOverrideAuth.auditEvent?.verdict, 'ALLOWED_BY_ADMIN_OVERRIDE');
+    assert.strictEqual(validOverrideAuth.auditEvent?.isOverride, true);
   });
 
   // --------------------------------------------------------------------------
@@ -315,7 +380,7 @@ async function runSystemAdminWorkflowPermissionsTests() {
       name: 'Admin User',
     };
 
-    // Self-approval transition attempt (Admin is author)
+    // Self-approval transition attempt without override (Admin is author)
     assert.throws(
       () => {
         workflowEngine.evaluateTransition(
@@ -329,6 +394,22 @@ async function runSystemAdminWorkflowPermissionsTests() {
         return err.name === 'ForbiddenError' && err.message.includes('GAR-02');
       }
     );
+
+    // Self-approval transition attempt with valid override (Admin is author) -> SUCCEEDS
+    const overrideTransitionResult = workflowEngine.evaluateTransition(
+      mockItem,
+      3,
+      'QUESTION_VERIFY',
+      adminActorContext,
+      {
+        override: {
+          isOverride: true,
+          confirmedByAdmin: true,
+          reason: 'Emergency self-approval transition override',
+        },
+      }
+    );
+    assert.strictEqual(overrideTransitionResult.resultingDimensions.workflowStep, 3);
 
     // Missing authorId transition attempt
     const itemMissingAuthor: WorkflowInstanceDocument = {
@@ -416,14 +497,15 @@ async function runSystemAdminWorkflowPermissionsTests() {
   // --------------------------------------------------------------------------
   await test('8. Canonical author ID is strictly enforced: display names are not identity keys, and Admin can reconcile legacy drafts', async () => {
     const draftPayload = {
-      topicId: 'TOP-QA-01',
-      subtopicId: 'SUB-01',
+      topicId: 'top_10000000-0000-4000-8000-000000000001',
+      subtopicId: 'sub_10000000-0000-4000-8000-000000000113',
       difficulty: 'Medium',
       language: 'TELUGU',
       questionText: 'What is the sum of angles in a triangle?',
       options: { a: '180°', b: '90°', c: '360°', d: '270°' },
       correctAnswer: 'A',
       explanation: 'Sum of angles in any Euclidean triangle is 180 degrees.',
+      realLifeContext: 'Daily Life',
     };
 
     // 8.1 Draft missing authorId and createdBy fails closed (throws 403 / MissingAuthorIdentityError)
@@ -462,13 +544,13 @@ async function runSystemAdminWorkflowPermissionsTests() {
     });
     assert.ok(approvedItem, 'Independent Admin with matching display name must be permitted to approve because user IDs differ');
 
-    // 8.3 Admin author self-approval is strictly blocked (zero-bypass GAR-02)
+    // 8.3 Admin author self-approval without override is strictly blocked
     const adminAuthoredDraft = await questionDraftService.saveDraft(
       draftPayload,
       { id: 'USR-ADMIN-01', name: 'Admin User' }
     );
 
-    let threwSelfApproval = false;
+    let threwSelfApprovalWithoutOverride = false;
     try {
       await questionDraftService.approveDraft(
         adminAuthoredDraft.id,
@@ -477,20 +559,32 @@ async function runSystemAdminWorkflowPermissionsTests() {
           name: 'Admin User',
           role: UserRole.ADMIN,
         },
-        'Emergency approval notes',
-        {
-          isOverride: true,
-          confirmedByAdmin: true,
-          reason: 'Emergency attempt to approve own draft',
-          overrideActionType: 'ADMIN_APPROVAL_OVERRIDE',
-        }
+        'Attempt without override'
       );
     } catch (err: any) {
-      threwSelfApproval = true;
+      threwSelfApprovalWithoutOverride = true;
       assert.strictEqual(err.statusCode, 403);
       assert.strictEqual(err.name, 'AntiSelfApprovalViolation');
     }
-    assert.ok(threwSelfApproval, 'Admin cannot self-approve own draft even with override payload');
+    assert.ok(threwSelfApprovalWithoutOverride, 'Admin cannot self-approve own draft without override payload');
+
+    // 8.3b Admin author self-approval WITH valid override SUCCEEDS
+    const approvedWithOverride = await questionDraftService.approveDraft(
+      adminAuthoredDraft.id,
+      {
+        id: 'USR-ADMIN-01',
+        name: 'Admin User',
+        role: UserRole.ADMIN,
+      },
+      'Audited override approval notes',
+      {
+        isOverride: true,
+        confirmedByAdmin: true,
+        reason: 'Legitimate administrative self-approval override justification',
+        overrideActionType: 'ADMIN_APPROVAL_OVERRIDE',
+      }
+    );
+    assert.ok(approvedWithOverride, 'Admin can self-approve own draft when valid override is provided');
 
     // 8.4 Administrative Reconciliation Recovery Path
     // Reconcile the legacy draft missing authorId

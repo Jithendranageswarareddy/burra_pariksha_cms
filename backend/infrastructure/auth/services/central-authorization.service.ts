@@ -153,10 +153,11 @@ export class CentralAuthorizationService {
     // 2. Evaluate Segregation of Duties / Anti-Self-Approval (GAR-02)
     const sodResult = evaluateSegregationOfDuties(actor, targetContext, action);
     if (!sodResult.allowed) {
+      const isOverrideEligible = this.isAdmin(actor);
       return {
-        state: UiActionState.DISABLED,
+        state: isOverrideEligible ? UiActionState.ENABLED : UiActionState.DISABLED,
         capability,
-        isOverrideEligible: false,
+        isOverrideEligible,
         reason: sodResult.errorMessage || 'Self-approval strictly prohibited: Author/creator cannot approve their own artifact (GAR-02).',
       };
     }

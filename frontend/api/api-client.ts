@@ -502,10 +502,25 @@ export class ApiClient {
     });
   }
 
-  public async updateQuestionStatus(id: string, status: QuestionStatus, remarks?: string): Promise<Question> {
+  public async updateQuestionStatus(
+    id: string,
+    status: QuestionStatus,
+    remarks?: string,
+    override?: { isOverride?: boolean; confirmedByAdmin?: boolean; reason?: string; overrideActionType?: string }
+  ): Promise<Question> {
     return this.request(`/questions/${encodeURIComponent(id)}/status`, {
       method: 'PATCH',
-      body: JSON.stringify({ status, remarks }),
+      body: JSON.stringify({
+        status,
+        remarks,
+        ...(override?.isOverride ? {
+          isOverride: true,
+          confirmedByAdmin: override.confirmedByAdmin ?? true,
+          reason: override.reason,
+          overrideReason: override.reason,
+          overrideActionType: override.overrideActionType || 'ADMIN_APPROVAL_OVERRIDE',
+        } : {}),
+      }),
     });
   }
 

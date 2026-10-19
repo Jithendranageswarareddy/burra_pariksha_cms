@@ -100,8 +100,8 @@ async function runSprint3AuthorizationTests() {
     assert.ok(decision.errorMessage?.includes('GAR-02'));
   });
 
-  // --- Test 3: Admin Self-Approval is BLOCKED under strict GAR-02 (Zero-Bypass) ---
-  test('3. Admin CANNOT approve own artifact even with override attempt (strict GAR-02)', () => {
+  // --- Test 3: Admin Self-Approval requires explicit confirmed override ---
+  test('3. Admin CAN approve own artifact with valid confirmed override and reason >= 10 chars', () => {
     const adminActor = {
       id: 'USR-ADMIN-01',
       role: CanonicalRbacRole.ADMIN,
@@ -126,9 +126,9 @@ async function runSprint3AuthorizationTests() {
       },
     });
 
-    assert.strictEqual(decision.allowed, false);
-    assert.strictEqual(decision.errorCode, AuthorizationErrorCode.FORBIDDEN_BY_SEGREGATION_OF_DUTIES);
-    assert.ok(decision.errorMessage?.includes('GAR-02'));
+    assert.strictEqual(decision.allowed, true);
+    assert.strictEqual(decision.isOverride, true);
+    assert.strictEqual(decision.auditEvent?.verdict, 'ALLOWED_BY_ADMIN_OVERRIDE');
   });
 
   // --- Test 4: Missing authorId Fails Closed (Cannot Enable Silent Self-Approval) ---
@@ -247,8 +247,8 @@ async function runSprint3AuthorizationTests() {
       }
     );
 
-    assert.strictEqual(adminUiDecision.state, UiActionState.DISABLED);
-    assert.strictEqual(adminUiDecision.isOverrideEligible, false);
+    assert.strictEqual(adminUiDecision.state, UiActionState.ENABLED);
+    assert.strictEqual(adminUiDecision.isOverrideEligible, true);
     assert.ok(adminUiDecision.reason?.includes('GAR-02'));
 
     // Normal author looking at approval button for their own question
