@@ -5,6 +5,7 @@
 
 import { BaseRepository } from './base.repository';
 import { AuditLog, User } from '../../../shared';
+import { ValidationError } from '../../../src/lib/errors';
 
 export class AuditLogRepository extends BaseRepository<AuditLog> {
   private static instance: AuditLogRepository | null = null;
@@ -18,6 +19,17 @@ export class AuditLogRepository extends BaseRepository<AuditLog> {
       AuditLogRepository.instance = new AuditLogRepository();
     }
     return AuditLogRepository.instance;
+  }
+
+  public override async appendRecord(record: AuditLog): Promise<AuditLog> {
+    const actionOrEvent = (record.action || record.eventType || '').trim();
+    if (!actionOrEvent) {
+      throw new ValidationError('AuditLog append rejected: action or eventType is required and cannot be empty.');
+    }
+    if (!record.action) record.action = actionOrEvent;
+    if (!record.eventType) record.eventType = actionOrEvent;
+    if (!record.entityType) record.entityType = 'SYSTEM';
+    return super.appendRecord(record);
   }
 
   public async findByEntity(entityTypeOrId: string, entityId?: string): Promise<AuditLog[]> {

@@ -253,6 +253,56 @@ async function runUnitTests() {
     assert.strictEqual(overallStatus, 'ERROR');
   });
 
+  // --------------------------------------------------------------------------
+  // TEST 12: Whitespace-Only Action and EventType Rejection
+  // --------------------------------------------------------------------------
+  await test('12. Whitespace-only action and eventType are treated as empty and fail', () => {
+    const whitespaceRecord = {
+      id: 'aud_whitespace_01',
+      action: '   ',
+      eventType: '  \t  ',
+    };
+    const actionName = (whitespaceRecord.action || whitespaceRecord.eventType || '').trim();
+    assert.strictEqual(actionName, '', 'Whitespace-only strings must resolve to empty string');
+  });
+
+  // --------------------------------------------------------------------------
+  // TEST 13: AuditLogRepository Append Server-Side Validation Guard
+  // --------------------------------------------------------------------------
+  await test('13. AuditLogRepository.appendRecord rejects missing action/eventType with ValidationError', async () => {
+    const { auditLogRepository } = await import('../../database/firestore/repositories/audit-log.repository');
+    let threw = false;
+    try {
+      await auditLogRepository.appendRecord({
+        id: 'aud_invalid_no_action',
+        action: '',
+        eventType: '',
+        actorId: 'usr_test',
+        actorName: 'Test',
+        entityId: 'SYSTEM',
+        entityType: 'SYSTEM',
+        details: '',
+        timestamp: new Date().toISOString(),
+      });
+    } catch (err: any) {
+      threw = true;
+      assert.ok(err.message.includes('action or eventType is required'));
+    }
+    assert.strictEqual(threw, true, 'AuditLog append without action or eventType must throw ValidationError');
+  });
+
+  // --------------------------------------------------------------------------
+  // TEST 14: Live Database Diagnostic Smoke Status is PASS with 0 Errors
+  // --------------------------------------------------------------------------
+  await test('14. Live diagnostic returns overallStatus PASS with 0 audit_logs errors', async () => {
+    const report = await dataIntegrityService.runFullIntegrityCheck();
+    assert.strictEqual(report.overallStatus, 'PASS');
+    assert.strictEqual(report.issueCounts.error, 0);
+    assert.strictEqual(report.issueCounts.critical, 0);
+    const auditLogIssues = report.issues.filter((i: any) => i.category === 'AUDIT_LOG_INTEGRITY' && i.severity === 'ERROR');
+    assert.strictEqual(auditLogIssues.length, 0);
+  });
+
   console.log('\n------------------------------------------------------------');
   console.log(`Unit Test Results: ${passed} passed, ${failed} failed`);
   console.log('------------------------------------------------------------');
