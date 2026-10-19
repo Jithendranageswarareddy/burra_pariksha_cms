@@ -118,6 +118,23 @@ export async function runAdminReset(reseedBaseline = true): Promise<void> {
     let totalPurgedDocuments = 0;
 
     for (const colName of targetCollectionNames) {
+      if (colName === 'users') {
+        const usersSnap = await db.collection('users').get();
+        let deleted = 0;
+        for (const doc of usersSnap.docs) {
+          const data = doc.data();
+          if (data.email === 'jithendrareddy629@gmail.com') {
+            console.log(`Preserving authorized admin user '${doc.id}' (${data.email}).`);
+          } else {
+            await doc.ref.delete();
+            deleted++;
+            totalPurgedDocuments++;
+          }
+        }
+        console.log(`✓ Processed 'users' collection (preserved 'jithendrareddy629@gmail.com', deleted ${deleted} user(s)).`);
+        continue;
+      }
+
       const colRef = db.collection(colName);
       const countSnapshot = await colRef.count().get();
       const count = countSnapshot.data().count;
