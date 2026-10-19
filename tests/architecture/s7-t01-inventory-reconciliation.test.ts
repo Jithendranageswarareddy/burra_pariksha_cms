@@ -120,6 +120,7 @@ export const AUTHORITATIVE_APPROVED_POST_S7_ADDITIONS: readonly string[] = [
   'docs/quality/FULL-STACK-TEST-DEFECTS.md',
   'tests/e2e/question-generation/s10-t19-multimode-live-e2e.test.ts',
   'scripts/zerodown-database.ts',
+  'docs/security/SECRET-EXPOSURE-AUDIT.md',
 ];
 
 const EXPECTED_HISTORICAL_S7_COUNT = 713;
