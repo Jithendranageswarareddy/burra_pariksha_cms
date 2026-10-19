@@ -603,10 +603,10 @@ export const SettingsPage: React.FC = () => {
               <div>
                 <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
                   <ShieldCheck className="w-5 h-5 text-indigo-600" />
-                  Authoritative Google Sheets Data Integrity Engine
+                  Firebase / Firestore Data Integrity Diagnostics
                 </h3>
                 <p className="text-xs text-slate-500 mt-1">
-                  Strictly READ-ONLY diagnostic audit covering all 18 Google Sheets worksheets, foreign-key relationships, and workflow state machines.
+                  Strictly READ-ONLY diagnostic audit covering Cloud Firestore collections, referential schema invariants, and workflow state machines.
                 </p>
               </div>
             </div>
@@ -667,7 +667,7 @@ export const SettingsPage: React.FC = () => {
                   <div className="bg-white/80 border border-slate-200 px-3 py-1.5 rounded-lg text-center shadow-2xs">
                     <div className="text-[10px] uppercase font-bold text-slate-500">Passed Checks</div>
                     <div className="text-sm font-bold text-emerald-600 font-mono">
-                      {integrityReport.issueCounts.passedChecks}/10
+                      {integrityReport.issueCounts.passedChecks}/{integrityReport.integrityChecks?.length || 11}
                     </div>
                   </div>
                   <div className="bg-white/80 border border-slate-200 px-3 py-1.5 rounded-lg text-center shadow-2xs">
@@ -761,15 +761,15 @@ export const SettingsPage: React.FC = () => {
               </div>
             </div>
 
-            {/* 18 Authoritative Worksheets Health Matrix */}
+            {/* Authoritative Firestore Collections Health Matrix */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
                   <Table className="w-3.5 h-3.5 text-indigo-600" />
-                  18 Authoritative Worksheets Health Matrix
+                  Authoritative Firestore Collections Health Matrix
                 </h4>
                 <span className="text-xs text-slate-400 font-mono">
-                  {integrityReport?.worksheetHealth.length || 18} Worksheets Analyzed
+                  {integrityReport?.worksheetHealth.length || 0} Collections Analyzed
                 </span>
               </div>
 
@@ -777,8 +777,8 @@ export const SettingsPage: React.FC = () => {
                 <table className="w-full text-left text-xs border-collapse">
                   <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase text-[10px] tracking-wider">
                     <tr>
-                      <th className="py-2.5 px-4">Worksheet Name</th>
-                      <th className="py-2.5 px-4 text-center">Total Rows</th>
+                      <th className="py-2.5 px-4">Collection / Domain</th>
+                      <th className="py-2.5 px-4 text-center">Total Documents</th>
                       <th className="py-2.5 px-4 text-center">Valid Records</th>
                       <th className="py-2.5 px-4 text-center">Issues</th>
                       <th className="py-2.5 px-4 text-right">Status</th>
@@ -788,7 +788,7 @@ export const SettingsPage: React.FC = () => {
                     {integrityReport?.worksheetHealth.map((sheet) => (
                       <tr key={sheet.worksheet} className="hover:bg-slate-50/80 transition-colors">
                         <td className="py-2.5 px-4 font-mono font-medium text-slate-900">
-                          {sheet.worksheet}
+                          {sheet.collection || sheet.worksheet}
                         </td>
                         <td className="py-2.5 px-4 text-center font-mono text-slate-600">
                           {sheet.totalRecords}
@@ -808,6 +808,8 @@ export const SettingsPage: React.FC = () => {
                             className={`font-mono text-[10px] px-2 py-0.5 rounded font-semibold ${
                               sheet.status === 'PASS'
                                 ? 'bg-emerald-100 text-emerald-800'
+                                : sheet.status === 'EMPTY'
+                                ? 'bg-sky-100 text-sky-800'
                                 : sheet.status === 'WARNING'
                                 ? 'bg-amber-100 text-amber-800'
                                 : 'bg-rose-100 text-rose-800'

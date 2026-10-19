@@ -2,13 +2,13 @@
  * BURRA PARIKSHA CMS - Data Integrity & Operational Diagnostics Service
  * Phase 8A: Data Integrity & Operational Intelligence Foundation
  * 
- * Provides comprehensive, strictly READ-ONLY diagnostics over all 18 Google Sheets worksheets.
+ * Provides comprehensive, strictly READ-ONLY diagnostics over Cloud Firestore authoritative collections.
  * Detects broken references, invalid statuses, taxonomy hierarchy violations, ID collisions,
  * sequence anomalies, and lifecycle state inconsistencies.
  * 
  * CRITICAL SAFETY GUARANTEE:
- * This service is strictly READ-ONLY. It never mutates records, modifies SEQUENCES, deletes rows,
- * or alters worksheet data in any way.
+ * This service is strictly READ-ONLY. It never mutates records, modifies SEQUENCES, deletes documents,
+ * or alters Firestore collections in any way.
  */
 
 import { AuditLog, IntegrityCategory, IntegrityCheckSummary, IntegrityIssue, IntegritySeverity, PinnedComment, PinnedCommentVersion, PriorityLevel, Publishing, Question, QuestionStatus, QuestionVideo, Script, ScriptVersion, SocialPublishStatus, Subtopic, SystemHealthReport, Thumbnail, ThumbnailVersion, Topic, User, Video, VideoProductionStatus, Workflow, WorksheetHealthSummary } from '../../../../shared';
@@ -16,23 +16,85 @@ import { AuditLog, IntegrityCategory, IntegrityCheckSummary, IntegrityIssue, Int
 import {
   assignmentsRepository,
   auditLogRepository,
+  contentBatchesRepository,
+  contentMastersRepository,
+  contentPlansRepository,
+  mediaAssetsRepository,
   pinnedCommentsRepository,
   pinnedCommentVersionsRepository,
   publishingRepository,
+  questionConfigRepository,
   questionsRepository,
   questionVideosRepository,
   scriptsRepository,
   scriptVersionsRepository,
+  socialReviewsRepository,
   subtopicsRepository,
   thumbnailsRepository,
   thumbnailVersionsRepository,
   topicsRepository,
   usersRepository,
+  validationsRepository,
   videosRepository,
   workflowRepository,
 } from '../../../../database/firestore/repositories';
 
-import { ALL_SHEET_TABS, SHEET_TABS } from '../../../../src/lib/schemas/secondary-sheet-schema';
+export const FIRESTORE_COLLECTIONS = {
+  USERS: 'users',
+  TOPICS: 'topics',
+  SUBTOPICS: 'subtopics',
+  QUESTIONS: 'questions',
+  QUESTION_VIDEOS: 'question_videos',
+  VIDEOS: 'videos',
+  SCRIPT: 'scripts',
+  SCRIPT_VERSIONS: 'script_versions',
+  THUMBNAILS: 'thumbnails',
+  THUMBNAIL_VERSIONS: 'thumbnail_versions',
+  PINNED_COMMENTS: 'pinned_comments',
+  PINNED_COMMENT_VERSIONS: 'pinned_comment_versions',
+  WORKFLOW: 'workflow_instances',
+  ASSIGNMENTS: 'assignments',
+  PUBLISHING: 'publishing_packages',
+  AUDIT_LOG: 'audit_logs',
+  CONTENT_MASTERS: 'content_masters',
+  SOCIAL_REVIEWS: 'social_reviews',
+  QUESTION_VALIDATIONS: 'validations',
+  QUESTION_CONFIG: 'question_config',
+  MEDIA_ASSETS: 'media_assets',
+  CONTENT_PLANS: 'content_plans',
+  CONTENT_BATCHES: 'content_batches',
+} as const;
+
+// Backward-compatible alias for existing checks targeting collections
+export const SHEET_TABS = FIRESTORE_COLLECTIONS;
+
+export const ALL_FIRESTORE_COLLECTIONS = [
+  'users',
+  'topics',
+  'subtopics',
+  'questions',
+  'question_videos',
+  'videos',
+  'scripts',
+  'script_versions',
+  'thumbnails',
+  'thumbnail_versions',
+  'pinned_comments',
+  'pinned_comment_versions',
+  'workflow_instances',
+  'assignments',
+  'publishing_packages',
+  'audit_logs',
+  'content_masters',
+  'social_reviews',
+  'validations',
+  'question_config',
+  'media_assets',
+  'content_plans',
+  'content_batches',
+] as const;
+
+export const ALL_SHEET_TABS = ALL_FIRESTORE_COLLECTIONS as unknown as string[];
 
 export class DataIntegrityService {
   private static instance: DataIntegrityService | null = null;
@@ -92,7 +154,29 @@ export class DataIntegrityService {
       });
     };
 
-    // Parallel fetch of all 18 authoritative datasets (single pass per worksheet)
+    // Track individual query errors to distinguish query failures from empty collections
+    const queryErrors = new Map<string, Error>();
+
+    const safeFetch = async <T>(collectionName: string, fetchFn: () => Promise<T[]>): Promise<T[]> => {
+      try {
+        return await fetchFn();
+      } catch (err: any) {
+        const error = err instanceof Error ? err : new Error(String(err));
+        queryErrors.set(collectionName, error);
+        addIssue(
+          'ERROR',
+          'ID_INTEGRITY',
+          collectionName,
+          `Firestore query failure on collection "${collectionName}": ${error.message}`,
+          `Verify Firestore connectivity, collection permissions, or security rules for collection "${collectionName}".`,
+          'COLLECTION',
+          collectionName
+        );
+        return [];
+      }
+    };
+
+    // Parallel fetch of all authoritative Firestore collections (single pass per collection)
     const [
       users,
       topics,
@@ -110,23 +194,37 @@ export class DataIntegrityService {
       assignments,
       publishingRecords,
       auditLogs,
+      contentMasters,
+      socialReviews,
+      validations,
+      questionConfig,
+      mediaAssets,
+      contentPlans,
+      contentBatches,
     ] = await Promise.all([
-      usersRepository.findAll().catch(() => [] as User[]),
-      topicsRepository.findAll().catch(() => [] as Topic[]),
-      subtopicsRepository.findAll().catch(() => [] as Subtopic[]),
-      questionsRepository.findAll().catch(() => [] as Question[]),
-      questionVideosRepository.findAll().catch(() => [] as QuestionVideo[]),
-      videosRepository.findAll().catch(() => [] as Video[]),
-      scriptsRepository.findAll().catch(() => [] as Script[]),
-      scriptVersionsRepository.findAll().catch(() => [] as ScriptVersion[]),
-      thumbnailsRepository.findAll().catch(() => [] as Thumbnail[]),
-      thumbnailVersionsRepository.findAll().catch(() => [] as ThumbnailVersion[]),
-      pinnedCommentsRepository.findAll().catch(() => [] as PinnedComment[]),
-      pinnedCommentVersionsRepository.findAll().catch(() => [] as PinnedCommentVersion[]),
-      workflowRepository.findAll().catch(() => [] as Workflow[]),
-      assignmentsRepository.findAll().catch(() => [] as any[]),
-      publishingRepository.findAll().catch(() => [] as Publishing[]),
-      auditLogRepository.findAll().catch(() => [] as AuditLog[]),
+      safeFetch(FIRESTORE_COLLECTIONS.USERS, () => usersRepository.findAll()),
+      safeFetch(FIRESTORE_COLLECTIONS.TOPICS, () => topicsRepository.findAll()),
+      safeFetch(FIRESTORE_COLLECTIONS.SUBTOPICS, () => subtopicsRepository.findAll()),
+      safeFetch(FIRESTORE_COLLECTIONS.QUESTIONS, () => questionsRepository.findAll()),
+      safeFetch(FIRESTORE_COLLECTIONS.QUESTION_VIDEOS, () => questionVideosRepository.findAll()),
+      safeFetch(FIRESTORE_COLLECTIONS.VIDEOS, () => videosRepository.findAll()),
+      safeFetch(FIRESTORE_COLLECTIONS.SCRIPT, () => scriptsRepository.findAll()),
+      safeFetch(FIRESTORE_COLLECTIONS.SCRIPT_VERSIONS, () => scriptVersionsRepository.findAll()),
+      safeFetch(FIRESTORE_COLLECTIONS.THUMBNAILS, () => thumbnailsRepository.findAll()),
+      safeFetch(FIRESTORE_COLLECTIONS.THUMBNAIL_VERSIONS, () => thumbnailVersionsRepository.findAll()),
+      safeFetch(FIRESTORE_COLLECTIONS.PINNED_COMMENTS, () => pinnedCommentsRepository.findAll()),
+      safeFetch(FIRESTORE_COLLECTIONS.PINNED_COMMENT_VERSIONS, () => pinnedCommentVersionsRepository.findAll()),
+      safeFetch(FIRESTORE_COLLECTIONS.WORKFLOW, () => workflowRepository.findAll()),
+      safeFetch(FIRESTORE_COLLECTIONS.ASSIGNMENTS, () => assignmentsRepository.findAll()),
+      safeFetch(FIRESTORE_COLLECTIONS.PUBLISHING, () => publishingRepository.findAll()),
+      safeFetch(FIRESTORE_COLLECTIONS.AUDIT_LOG, () => auditLogRepository.findAll()),
+      safeFetch(FIRESTORE_COLLECTIONS.CONTENT_MASTERS, () => contentMastersRepository.findAll()),
+      safeFetch(FIRESTORE_COLLECTIONS.SOCIAL_REVIEWS, () => socialReviewsRepository.findAll()),
+      safeFetch(FIRESTORE_COLLECTIONS.QUESTION_VALIDATIONS, () => validationsRepository.findAll()),
+      safeFetch(FIRESTORE_COLLECTIONS.QUESTION_CONFIG, () => questionConfigRepository.findAll()),
+      safeFetch(FIRESTORE_COLLECTIONS.MEDIA_ASSETS, () => mediaAssetsRepository.findAll()),
+      safeFetch(FIRESTORE_COLLECTIONS.CONTENT_PLANS, () => contentPlansRepository.findAll()),
+      safeFetch(FIRESTORE_COLLECTIONS.CONTENT_BATCHES, () => contentBatchesRepository.findAll()),
     ]);
 
     // Fast lookup maps
@@ -141,10 +239,10 @@ export class DataIntegrityService {
     const publishingMap = new Map<string, Publishing>(publishingRecords.map((p) => [p.id, p]));
 
     // =========================================================================
-    // A. ID INTEGRITY CHECKS ACROSS ALL WORKSHEETS
+    // A. ID INTEGRITY CHECKS ACROSS ALL FIRESTORE COLLECTIONS
     // =========================================================================
-    const checkWorksheetIds = (
-      sheetName: string,
+    const checkCollectionIds = (
+      collectionName: string,
       items: any[],
       idField: string = 'id',
       expectedPrefix?: string,
@@ -154,17 +252,17 @@ export class DataIntegrityService {
 
       items.forEach((item, index) => {
         const id = item ? item[idField] : undefined;
-        const rowNum = index + 2;
+        const recIndex = index + 1;
 
         if (id === undefined || id === null || String(id).trim() === '') {
           addIssue(
             'CRITICAL',
             'ID_INTEGRITY',
-            sheetName,
-            `Record at row ${rowNum} is missing its primary identifier (${idField}).`,
-            `Manually assign a unique primary ID to row ${rowNum} in worksheet "${sheetName}".`,
-            sheetName,
-            `ROW-${rowNum}`,
+            collectionName,
+            `Document at index ${recIndex} in collection "${collectionName}" is missing primary identifier (${idField}).`,
+            `Manually assign a unique primary ID to document at index ${recIndex} in collection "${collectionName}".`,
+            collectionName,
+            `DOC-${recIndex}`,
             idField
           );
           return;
@@ -177,10 +275,10 @@ export class DataIntegrityService {
           addIssue(
             'ERROR',
             'ID_INTEGRITY',
-            sheetName,
-            `Duplicate primary ID "${idStr}" detected in worksheet "${sheetName}".`,
-            `Locate duplicated ID "${idStr}" in "${sheetName}" and manually reassign a unique canonical ID.`,
-            sheetName,
+            collectionName,
+            `Duplicate primary ID "${idStr}" detected in collection "${collectionName}".`,
+            `Locate duplicated ID "${idStr}" in "${collectionName}" and manually reassign a unique canonical ID.`,
+            collectionName,
             idStr,
             idField
           );
@@ -200,10 +298,10 @@ export class DataIntegrityService {
             addIssue(
               'INFO',
               'ID_INTEGRITY',
-              sheetName,
+              collectionName,
               `Record "${idStr}" is an automated test artifact and does not use standard prefix "${expectedPrefix}".`,
               `Automated test artifact record recognized. No production remediation required.`,
-              sheetName,
+              collectionName,
               idStr,
               idField
             );
@@ -213,10 +311,10 @@ export class DataIntegrityService {
           addIssue(
             'WARNING',
             'ID_INTEGRITY',
-            sheetName,
+            collectionName,
             `ID "${idStr}" does not start with standard prefix "${expectedPrefix}".`,
-            `Ensure IDs in worksheet "${sheetName}" follow standard nomenclature starting with "${expectedPrefix}".`,
-            sheetName,
+            `Ensure IDs in collection "${collectionName}" follow standard nomenclature starting with "${expectedPrefix}".`,
+            collectionName,
             idStr,
             idField
           );
@@ -224,22 +322,67 @@ export class DataIntegrityService {
       });
     };
 
-    checkWorksheetIds(SHEET_TABS.USERS, users, 'id', 'USR-');
-    checkWorksheetIds(SHEET_TABS.TOPICS, topics, 'id', 'BP-TOP-');
-    checkWorksheetIds(SHEET_TABS.SUBTOPICS, subtopics, 'id', 'BP-SUB-');
-    checkWorksheetIds(SHEET_TABS.QUESTIONS, questions, 'id', 'BP-Q-');
-    checkWorksheetIds(SHEET_TABS.QUESTION_VIDEOS, questionVideos, 'id', 'QV-');
-    checkWorksheetIds(SHEET_TABS.VIDEOS, videos, 'id', 'BP-V-');
-    checkWorksheetIds(SHEET_TABS.SCRIPT, scripts, 'id');
-    checkWorksheetIds(SHEET_TABS.SCRIPT_VERSIONS, scriptVersions, 'id');
-    checkWorksheetIds(SHEET_TABS.THUMBNAILS, thumbnails, 'id');
-    checkWorksheetIds(SHEET_TABS.THUMBNAIL_VERSIONS, thumbnailVersions, 'id');
-    checkWorksheetIds(SHEET_TABS.PINNED_COMMENTS, pinnedComments, 'id');
-    checkWorksheetIds(SHEET_TABS.PINNED_COMMENT_VERSIONS, pinnedCommentVersions, 'id');
-    checkWorksheetIds(SHEET_TABS.WORKFLOW, workflows, 'id', 'WF-');
-    checkWorksheetIds(SHEET_TABS.ASSIGNMENTS, assignments, 'id', 'ASG-');
-    checkWorksheetIds(SHEET_TABS.PUBLISHING, publishingRecords, 'id', 'PUB-');
-    checkWorksheetIds(SHEET_TABS.AUDIT_LOG, auditLogs, 'id', 'LOG-', ['AUD-']);
+    checkCollectionIds(SHEET_TABS.USERS, users, 'id', 'usr_', ['USR-']);
+    checkCollectionIds(SHEET_TABS.TOPICS, topics, 'id', 'top_', ['BP-TOP-']);
+    checkCollectionIds(SHEET_TABS.SUBTOPICS, subtopics, 'id', 'sub_', ['BP-SUB-']);
+    checkCollectionIds(SHEET_TABS.QUESTIONS, questions, 'id', 'qst_', ['BP-Q-', 'dft_']);
+    checkCollectionIds(SHEET_TABS.QUESTION_VIDEOS, questionVideos, 'id', 'qv_', ['QV-']);
+    checkCollectionIds(SHEET_TABS.VIDEOS, videos, 'id', 'vid_', ['BP-V-']);
+    checkCollectionIds(SHEET_TABS.SCRIPT, scripts, 'id', 'scr_', ['BP-S-']);
+    checkCollectionIds(SHEET_TABS.SCRIPT_VERSIONS, scriptVersions, 'id', 'scv_', ['BP-SCV-']);
+    checkCollectionIds(SHEET_TABS.THUMBNAILS, thumbnails, 'id', 'thm_', ['BP-T-']);
+    checkCollectionIds(SHEET_TABS.THUMBNAIL_VERSIONS, thumbnailVersions, 'id', 'thv_', ['BP-THV-']);
+    checkCollectionIds(SHEET_TABS.PINNED_COMMENTS, pinnedComments, 'id', 'pin_', ['BP-PIN-']);
+    checkCollectionIds(SHEET_TABS.PINNED_COMMENT_VERSIONS, pinnedCommentVersions, 'id', 'pcv_', ['BP-PCV-']);
+    checkCollectionIds(SHEET_TABS.WORKFLOW, workflows, 'id', 'wfl_', ['WF-']);
+    checkCollectionIds(SHEET_TABS.ASSIGNMENTS, assignments, 'id', 'asn_', ['ASG-', 'BP-ASN-']);
+    checkCollectionIds(SHEET_TABS.PUBLISHING, publishingRecords, 'id', 'pub_', ['PUB-', 'BP-PUB-']);
+    checkCollectionIds(SHEET_TABS.AUDIT_LOG, auditLogs, 'id', 'aud_', ['AUD-', 'LOG-']);
+    checkCollectionIds(SHEET_TABS.CONTENT_MASTERS, contentMasters, 'id', 'cnt_', ['BP-CNT-']);
+    checkCollectionIds(SHEET_TABS.SOCIAL_REVIEWS, socialReviews, 'id', 'rev_', ['BP-REV-']);
+    checkCollectionIds(SHEET_TABS.CONTENT_PLANS, contentPlans, 'id', 'pln_', ['BP-PLN-']);
+    checkCollectionIds(SHEET_TABS.CONTENT_BATCHES, contentBatches, 'id', 'bch_', ['BP-BCH-']);
+
+    // =========================================================================
+    // TAXONOMY INTEGRITY CHECKS (Topics & Subtopics Referential Integrity)
+    // =========================================================================
+    if (topics.length === 0 && subtopics.length === 0) {
+      addIssue(
+        'INFO',
+        'QUESTION_INTEGRITY',
+        SHEET_TABS.TOPICS,
+        'Taxonomy is currently empty. No topics or subtopics configured.',
+        'Initialize syllabus taxonomy via Management & System -> Topics & Taxonomy (/settings?tab=taxonomy).',
+        'TAXONOMY',
+        'EMPTY'
+      );
+    } else {
+      subtopics.forEach((sub) => {
+        if (!sub.topicId || sub.topicId.trim() === '') {
+          addIssue(
+            'ERROR',
+            'QUESTION_INTEGRITY',
+            SHEET_TABS.SUBTOPICS,
+            `Subtopic "${sub.id}" (${sub.name || 'unnamed'}) is missing required topicId.`,
+            `Assign a valid topicId to subtopic "${sub.id}".`,
+            'SUBTOPIC',
+            sub.id,
+            'topicId'
+          );
+        } else if (!topicMap.has(sub.topicId)) {
+          addIssue(
+            'ERROR',
+            'QUESTION_INTEGRITY',
+            SHEET_TABS.SUBTOPICS,
+            `Subtopic "${sub.id}" (${sub.name || 'unnamed'}) references non-existent topic "${sub.topicId}".`,
+            `Update topicId for subtopic "${sub.id}" to a valid topic ID, or create topic "${sub.topicId}".`,
+            'SUBTOPIC',
+            sub.id,
+            'topicId'
+          );
+        }
+      });
+    }
 
     // =========================================================================
     // B. QUESTION INTEGRITY CHECKS
@@ -1364,13 +1507,14 @@ export class DataIntegrityService {
         );
       }
 
-      if (!log.action || log.action.trim() === '') {
+      const actionName = (log.action || log.eventType || '').trim();
+      if (!actionName) {
         addIssue(
           'ERROR',
           'AUDIT_LOG_INTEGRITY',
           SHEET_TABS.AUDIT_LOG,
           `Audit log "${log.id}" has empty action name.`,
-          `Specify administrative action in AUDIT_LOG row "${log.id}".`,
+          `Specify administrative action in audit log "${log.id}".`,
           'AUDIT_LOG',
           log.id,
           'action'
@@ -1569,7 +1713,7 @@ export class DataIntegrityService {
     // =========================================================================
     // WORKSHEET HEALTH & CATEGORY AGGREGATION
     // =========================================================================
-    const countBySheet = (name: string) => {
+    const countByCollection = (name: string) => {
       switch (name) {
         case SHEET_TABS.USERS: return users.length;
         case SHEET_TABS.TOPICS: return topics.length;
@@ -1587,21 +1731,43 @@ export class DataIntegrityService {
         case SHEET_TABS.ASSIGNMENTS: return assignments.length;
         case SHEET_TABS.PUBLISHING: return publishingRecords.length;
         case SHEET_TABS.AUDIT_LOG: return auditLogs.length;
+        case SHEET_TABS.CONTENT_MASTERS: return contentMasters.length;
+        case SHEET_TABS.SOCIAL_REVIEWS: return socialReviews.length;
+        case SHEET_TABS.QUESTION_VALIDATIONS: return validations.length;
+        case SHEET_TABS.QUESTION_CONFIG: return questionConfig.length;
+        case SHEET_TABS.MEDIA_ASSETS: return mediaAssets.length;
+        case SHEET_TABS.CONTENT_PLANS: return contentPlans.length;
+        case SHEET_TABS.CONTENT_BATCHES: return contentBatches.length;
         default: return 0;
       }
     };
 
-    const worksheetHealth: WorksheetHealthSummary[] = ALL_SHEET_TABS.map((tab) => {
-      const sheetIssues = issues.filter((i) => i.worksheet === tab);
+    const worksheetHealth: WorksheetHealthSummary[] = ALL_FIRESTORE_COLLECTIONS.map((colName) => {
+      const sheetIssues = issues.filter((i) => i.worksheet === colName);
       const criticalOrErrors = sheetIssues.filter((i) => i.severity === 'CRITICAL' || i.severity === 'ERROR').length;
-      const totalRecs = countBySheet(tab);
+      const totalRecs = countByCollection(colName);
+      const queryError = queryErrors.get(colName);
+
+      let status: 'PASS' | 'EMPTY' | 'WARNING' | 'ERROR' = 'PASS';
+      if (queryError) {
+        status = 'ERROR';
+      } else if (criticalOrErrors > 0) {
+        status = 'ERROR';
+      } else if (sheetIssues.some((i) => i.severity === 'WARNING')) {
+        status = 'WARNING';
+      } else if (totalRecs === 0) {
+        status = 'EMPTY';
+      } else {
+        status = 'PASS';
+      }
 
       return {
-        worksheet: tab,
+        worksheet: colName,
+        collection: colName,
         totalRecords: totalRecs,
         validRecords: Math.max(0, totalRecs - criticalOrErrors),
         issuesCount: sheetIssues.length,
-        status: criticalOrErrors > 0 ? 'ERROR' : sheetIssues.some((i) => i.severity === 'WARNING') ? 'WARNING' : 'PASS',
+        status,
       };
     });
 
@@ -1652,14 +1818,18 @@ export class DataIntegrityService {
     else if (warningCount > 0) overallStatus = 'WARNING';
 
     const passedChecks = integrityChecks.filter((c) => c.status === 'PASS').length;
+    const emptyCount = worksheetHealth.filter((w) => w.status === 'EMPTY').length;
 
-    let summary = 'All 18 authoritative Google Sheets worksheets passed data integrity and referential checks.';
+    let summary = `All ${worksheetHealth.length} authoritative Cloud Firestore collections passed data integrity and referential checks.`;
+    if (emptyCount > 0) {
+      summary += ` (${emptyCount} unpopulated collection(s) valid for initial/reset environment).`;
+    }
     if (overallStatus === 'CRITICAL') {
-      summary = `Critical database integrity failure: ${criticalCount} critical schema/identifier errors require immediate manual intervention in Google Sheets.`;
+      summary = `Critical Firestore integrity failure: ${criticalCount} critical schema/identifier errors require administrative attention.`;
     } else if (overallStatus === 'ERROR') {
-      summary = `Operational referential errors detected: ${errorCount} data integrity error(s) found across worksheets. Review diagnostic guidance.`;
+      summary = `Operational referential errors detected: ${errorCount} data integrity error(s) found across collections. Review diagnostic guidance.`;
     } else if (overallStatus === 'WARNING') {
-      summary = `Data integrity check passed with ${warningCount} operational warning(s). Stale or incomplete records detected.`;
+      summary = `Firestore data integrity check passed with ${warningCount} operational warning(s). Stale or incomplete records detected.`;
     }
 
     return {

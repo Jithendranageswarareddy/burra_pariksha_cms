@@ -1209,10 +1209,11 @@ export interface IntegrityIssue {
 
 export interface WorksheetHealthSummary {
   worksheet: string;
+  collection?: string;
   totalRecords: number;
   validRecords: number;
   issuesCount: number;
-  status: 'PASS' | 'WARNING' | 'ERROR';
+  status: 'PASS' | 'WARNING' | 'ERROR' | 'EMPTY';
 }
 
 export interface IntegrityCheckSummary {

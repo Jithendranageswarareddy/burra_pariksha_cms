@@ -132,6 +132,8 @@ export const AUTHORITATIVE_APPROVED_POST_S7_ADDITIONS: readonly string[] = [
   'frontend/components/dashboard/RecentActivityPanel.tsx',
   'docs/sprints/sprint-10/DASHBOARD-ISSUE-CLOSURE.md',
   'docs/sprints/sprint-10/MODE1-QUESTION-STUDIO-UX-AND-DATA-SOURCE-AUDIT.md',
+  'docs/security/FIRESTORE-DATA-INTEGRITY-DIAGNOSTICS-AUDIT.md',
+  'tests/unit/firestore-data-integrity.unit.test.ts',
 ];
 
 const EXPECTED_HISTORICAL_S7_COUNT = 713;

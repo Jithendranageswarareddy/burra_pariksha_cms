@@ -37,13 +37,16 @@ export class AuditLogRepository extends BaseRepository<AuditLog> {
     actorId: string,
     actorName: string,
     details?: string,
-    stageNumber?: number
+    stageNumber?: number,
+    entityType?: string
   ): Promise<AuditLog> {
     const id = `AUD-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const log: Partial<AuditLog> = {
       id,
       timestamp: new Date().toISOString(),
+      action: eventType,
       eventType,
+      entityType: entityType || 'SYSTEM',
       entityId,
       actorId: actorId || 'SYSTEM',
       actorName: actorName || 'System',
