@@ -20,6 +20,7 @@ import {
   Publishing,
   Topic,
   UserRole,
+  VideoProductionStatus,
 } from '../../shared';
 import { CANONICAL_15_STEPS } from '../../shared/constants/workflow';
 
@@ -180,11 +181,15 @@ export const DashboardPage: React.FC = () => {
   // Build Unified Work Queue Items across drafts, questions, and videos
   const workQueueItems: ActionQueueItem[] = useMemo(() => {
     const items: ActionQueueItem[] = [];
-    const isUserAdminOrReviewer = user?.role === UserRole.ADMIN || user?.role === UserRole.QA_REVIEWER || user?.role === UserRole.CONTENT_MANAGER;
+    const isUserAdminOrReviewer =
+      user?.role === UserRole.ADMIN ||
+      user?.role === UserRole.REVIEWER ||
+      user?.role === UserRole.CONTENT_MANAGER ||
+      (user?.role as string) === 'QA_REVIEWER';
 
     // 1. Ingest Question Drafts (Studio Phase)
     for (const d of drafts) {
-      const mode = (d.contentMode as any) || 'QUESTION_CHALLENGE_SHORT';
+      const mode = ((d as any).contentMode || d.productionMode || 'QUESTION_CHALLENGE_SHORT') as 'QUESTION_CHALLENGE_SHORT' | 'TOPIC_INTRODUCTION' | 'EXPLAINED_QUESTIONS_VIDEO';
       const isSubmitted = d.status === 'SUBMITTED_FOR_REVIEW' || d.workflowStage === 'STAGE_02_VERIFICATION';
       const isChangesRequested = d.status === 'CHANGES_REQUESTED';
       const isDraft = !isSubmitted && !isChangesRequested && d.status !== 'APPROVED';
@@ -221,10 +226,17 @@ export const DashboardPage: React.FC = () => {
       }
 
       const ageH = getAgeInHours(d.updatedAt || (d as any).createdAt);
+      const draftTitle =
+        (d as any).topicPrompt ||
+        d.conceptTitle ||
+        d.questionText ||
+        (d as any).questionData?.questionText ||
+        d.question ||
+        `Draft ${d.id}`;
 
       items.push({
         id: d.id,
-        title: d.topicPrompt || (d.questionData as any)?.questionText || `Draft ${d.id}`,
+        title: draftTitle,
         contentMode: mode,
         topicId: d.topicId,
         topicName: topicMap.get(d.topicId) || d.topicName || 'Quantitative Aptitude',
@@ -275,7 +287,8 @@ export const DashboardPage: React.FC = () => {
 
     // 3. Ingest Videos across stages 03 to 11
     for (const v of videos) {
-      if (v.status === 'CANCELLED' || v.status === 'ARCHIVED') continue;
+      const vStatus = v.status as string;
+      if (v.status === VideoProductionStatus.CANCELLED || vStatus === 'ARCHIVED') continue;
 
       let stageNum = 3;
       let stageName = 'Audience Script';
@@ -283,7 +296,7 @@ export const DashboardPage: React.FC = () => {
       let targetUrl = `/videos/${v.id}?tab=script`;
       let priority: ActionQueueItem['priority'] = 'MEDIUM';
 
-      switch (v.status) {
+      switch (vStatus) {
         case 'QUEUED':
         case 'SCRIPT_REQUIRED':
           stageNum = 3;
@@ -351,7 +364,7 @@ export const DashboardPage: React.FC = () => {
       }
 
       const ageH = getAgeInHours(v.updatedAt || v.createdAt);
-      const isBlocked = v.status === 'ON_HOLD' || v.status === 'REVISION_REQUESTED';
+      const isBlocked = v.status === VideoProductionStatus.ON_HOLD || vStatus === 'REVISION_REQUESTED';
       if (isBlocked) priority = 'CRITICAL';
 
       items.push({
@@ -367,8 +380,8 @@ export const DashboardPage: React.FC = () => {
         isBlocked,
         isOverdue: ageH > 48,
         needsMyAction: (stageNum === 7 || stageNum === 9) ? isUserAdminOrReviewer : false,
-        assigneeName: v.editorId || v.presenterId || undefined,
-        assignedRole: v.status === 'EDITING' ? 'Video Editor' : v.status === 'SCRIPT_READY' ? 'Presenter' : 'Production Lead',
+        assigneeName: v.assignedEditor || v.assignedHost || (v as any).editorId || (v as any).presenterId || undefined,
+        assignedRole: v.status === VideoProductionStatus.EDITING ? 'Video Editor' : v.status === VideoProductionStatus.SCRIPT_READY ? 'Presenter' : 'Production Lead',
         waitingHours: ageH,
         updatedAt: v.updatedAt || v.createdAt || new Date().toISOString(),
         targetUrl,
@@ -378,8 +391,10 @@ export const DashboardPage: React.FC = () => {
 
     // 4. Ingest Publishing Records
     for (const p of publishingList) {
-      if (p.status === 'SCHEDULED' || p.status === 'DRAFT') {
-        const ageH = getAgeInHours(p.updatedAt || p.scheduledTime);
+      const pubStatus = (p as any).status || p.finalVideoStatus || 'DRAFT';
+      if (pubStatus === 'SCHEDULED' || pubStatus === 'DRAFT' || pubStatus === 'READY') {
+        const scheduledTime = (p as any).scheduledTime || p.youtubeScheduledAt || p.instagramScheduledAt || p.facebookScheduledAt;
+        const ageH = getAgeInHours(p.updatedAt || scheduledTime);
         items.push({
           id: p.id,
           title: `Publishing Package ${p.videoId || p.id}`,
@@ -387,7 +402,7 @@ export const DashboardPage: React.FC = () => {
           topicName: 'Distribution Pipeline',
           stageNumber: 10,
           stageName: 'Publishing Setup',
-          status: p.status,
+          status: pubStatus,
           priority: 'MEDIUM',
           isBlocked: false,
           isOverdue: ageH > 24,
@@ -446,8 +461,9 @@ export const DashboardPage: React.FC = () => {
     const todayStr = new Date().toDateString();
     const publishedToday = videos.filter(
       (v) =>
-        (v.status === 'PUBLISHED' || v.status === 'UPLOADED') &&
-        ((v.publishedAt && new Date(v.publishedAt).toDateString() === todayStr) ||
+        ((v.status as string) === 'PUBLISHED' || v.status === VideoProductionStatus.UPLOADED) &&
+        (((v as any).publishedAt && new Date((v as any).publishedAt).toDateString() === todayStr) ||
+          (v.scheduledPublishDate && new Date(v.scheduledPublishDate).toDateString() === todayStr) ||
           (v.updatedAt && new Date(v.updatedAt).toDateString() === todayStr))
     ).length;
 
@@ -456,7 +472,7 @@ export const DashboardPage: React.FC = () => {
     const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
     const published7Days = videos.filter(
       (v) =>
-        (v.status === 'PUBLISHED' || v.status === 'UPLOADED') &&
+        ((v.status as string) === 'PUBLISHED' || v.status === VideoProductionStatus.UPLOADED) &&
         v.updatedAt &&
         new Date(v.updatedAt).getTime() >= sevenDaysAgo
     ).length;

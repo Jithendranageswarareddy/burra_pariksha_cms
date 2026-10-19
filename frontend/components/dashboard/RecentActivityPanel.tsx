@@ -16,7 +16,7 @@ import { AuditLog, UserRole } from '../../../shared';
 
 interface RecentActivityPanelProps {
   logs: AuditLog[];
-  userRole?: UserRole;
+  userRole?: UserRole | string;
   continueItemUrl?: string;
   continueItemTitle?: string;
   isLoading?: boolean;
