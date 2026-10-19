@@ -88,8 +88,8 @@ export const ThroughputAndHealthRow: React.FC<ThroughputAndHealthRowProps> = ({
         );
       default:
         return (
-          <span className="text-[10px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
-            UNCHECKED
+          <span className="text-[10px] font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+            IDLE / ON-DEMAND
           </span>
         );
     }
@@ -104,7 +104,7 @@ export const ThroughputAndHealthRow: React.FC<ThroughputAndHealthRowProps> = ({
             <div className="flex items-center gap-2">
               <PieChart className="w-4 h-4 text-indigo-600" />
               <h3 className="text-sm font-bold text-slate-900 tracking-tight">
-                Throughput & Lifecycle Phase Distribution
+                Throughput &amp; Lifecycle Phase Distribution
               </h3>
             </div>
             <span className="text-xs font-mono font-medium text-slate-500">
@@ -144,30 +144,36 @@ export const ThroughputAndHealthRow: React.FC<ThroughputAndHealthRowProps> = ({
           <div className="space-y-1.5 mb-3">
             <div className="flex justify-between text-xs text-slate-600 font-medium">
               <span>WIP Distribution Across Pipeline Phases</span>
-              <span>100% Total</span>
+              <span>{distribution.totalInFlight > 0 ? '100% Total' : '0 in-flight'}</span>
             </div>
-            <div className="w-full h-3 rounded-full bg-slate-100 overflow-hidden flex">
-              <div
-                style={{ width: `${Math.max(distribution.totalInFlight > 0 ? 3 : 0, pctConception)}%` }}
-                className="bg-indigo-500 h-full"
-                title={`Conception (Stages 01-02): ${distribution.conceptionCount}`}
-              />
-              <div
-                style={{ width: `${Math.max(distribution.totalInFlight > 0 ? 3 : 0, pctProduction)}%` }}
-                className="bg-blue-500 h-full"
-                title={`Production (Stages 03-05): ${distribution.productionCount}`}
-              />
-              <div
-                style={{ width: `${Math.max(distribution.totalInFlight > 0 ? 3 : 0, pctPostQc)}%` }}
-                className="bg-violet-500 h-full"
-                title={`Post & QC (Stages 06-09): ${distribution.postQcCount}`}
-              />
-              <div
-                style={{ width: `${Math.max(distribution.totalInFlight > 0 ? 3 : 0, pctDistribution)}%` }}
-                className="bg-emerald-500 h-full"
-                title={`Distribution (Stages 10-15): ${distribution.distributionCount}`}
-              />
-            </div>
+            {distribution.totalInFlight > 0 ? (
+              <div className="w-full h-3 rounded-full bg-slate-100 overflow-hidden flex">
+                <div
+                  style={{ width: `${Math.max(3, pctConception)}%` }}
+                  className="bg-indigo-500 h-full"
+                  title={`Conception (Stages 01-02): ${distribution.conceptionCount}`}
+                />
+                <div
+                  style={{ width: `${Math.max(3, pctProduction)}%` }}
+                  className="bg-blue-500 h-full"
+                  title={`Production (Stages 03-05): ${distribution.productionCount}`}
+                />
+                <div
+                  style={{ width: `${Math.max(3, pctPostQc)}%` }}
+                  className="bg-violet-500 h-full"
+                  title={`Post & QC (Stages 06-09): ${distribution.postQcCount}`}
+                />
+                <div
+                  style={{ width: `${Math.max(3, pctDistribution)}%` }}
+                  className="bg-emerald-500 h-full"
+                  title={`Distribution (Stages 10-15): ${distribution.distributionCount}`}
+                />
+              </div>
+            ) : (
+              <div className="w-full py-1.5 px-3 rounded-lg bg-slate-50 border border-slate-200/80 text-center text-xs text-slate-500 italic">
+                Production queue is clear — all 15 workflow stages idle
+              </div>
+            )}
           </div>
 
           {/* Phase Legend */}
@@ -191,8 +197,9 @@ export const ThroughputAndHealthRow: React.FC<ThroughputAndHealthRowProps> = ({
           </div>
         </div>
 
-        <div className="mt-3 pt-2 border-t border-slate-100 text-[11px] text-slate-400 font-mono">
-          Timezone: Local System • Rejection rate: 0% in current cohort
+        <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400 font-mono">
+          <span>Timezone: Local System</span>
+          <span>{distribution.totalInFlight > 0 ? 'WIP In Flow' : 'Queue Clear • All Stages Ready'}</span>
         </div>
       </div>
 

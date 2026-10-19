@@ -130,6 +130,7 @@ export const AUTHORITATIVE_APPROVED_POST_S7_ADDITIONS: readonly string[] = [
   'frontend/components/dashboard/ContentModeBreakdown.tsx',
   'frontend/components/dashboard/ThroughputAndHealthRow.tsx',
   'frontend/components/dashboard/RecentActivityPanel.tsx',
+  'docs/sprints/sprint-10/DASHBOARD-ISSUE-CLOSURE.md',
 ];
 
 const EXPECTED_HISTORICAL_S7_COUNT = 713;

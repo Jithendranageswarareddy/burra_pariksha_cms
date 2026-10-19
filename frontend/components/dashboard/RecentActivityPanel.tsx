@@ -46,6 +46,46 @@ export const RecentActivityPanel: React.FC<RecentActivityPanelProps> = ({
     }
   };
 
+  const formatAction = (action: string) => {
+    if (!action) return 'Action';
+    const clean = action.replace(/_/g, ' ').toLowerCase();
+    return clean.charAt(0).toUpperCase() + clean.slice(1);
+  };
+
+  const getActionBadgeClass = (action: string) => {
+    const act = (action || '').toUpperCase();
+    if (act.includes('APPROVE') || act.includes('VERIFIED')) {
+      return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+    }
+    if (act.includes('TRANSITION') || act.includes('ADVANCE') || act.includes('STAGE')) {
+      return 'bg-indigo-50 text-indigo-700 border-indigo-200';
+    }
+    if (act.includes('REJECT') || act.includes('CHANGE')) {
+      return 'bg-rose-50 text-rose-700 border-rose-200';
+    }
+    if (act.includes('CREATE') || act.includes('GENERATE')) {
+      return 'bg-blue-50 text-blue-700 border-blue-200';
+    }
+    return 'bg-slate-100 text-slate-700 border-slate-200';
+  };
+
+  const formatDetails = (rawDetails?: string) => {
+    if (!rawDetails) return '—';
+    if (rawDetails.startsWith('{') || rawDetails.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(rawDetails);
+        if (parsed.message) return parsed.message;
+        if (parsed.reason) return parsed.reason;
+        if (parsed.note) return parsed.note;
+        if (parsed.stage) return `Stage updated to ${parsed.stage}`;
+        return 'Workflow mutation logged';
+      } catch {
+        return rawDetails;
+      }
+    }
+    return rawDetails;
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
       {/* Left 8 cols: Recent Activity & Audit Trail Table */}
@@ -68,7 +108,7 @@ export const RecentActivityPanel: React.FC<RecentActivityPanelProps> = ({
               <thead>
                 <tr className="bg-slate-50/70 border-b border-slate-200 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
                   <th className="py-2 px-2.5 w-24">Time</th>
-                  <th className="py-2 px-2.5 w-28">Action</th>
+                  <th className="py-2 px-2.5 w-32">Action</th>
                   <th className="py-2 px-2.5 w-32">Entity</th>
                   <th className="py-2 px-2.5 w-36">Actor</th>
                   <th className="py-2 px-2.5">Details</th>
@@ -92,27 +132,31 @@ export const RecentActivityPanel: React.FC<RecentActivityPanelProps> = ({
                     </td>
                   </tr>
                 ) : (
-                  logs.slice(0, 6).map((log) => (
-                    <tr key={log.id} className="hover:bg-slate-50/60 transition-colors text-xs">
-                      <td className="py-2 px-2.5 text-slate-500 font-mono whitespace-nowrap">
-                        {formatTime(log.timestamp)}
-                      </td>
-                      <td className="py-2 px-2.5 font-semibold text-slate-800">
-                        <span className="px-1.5 py-0.5 rounded text-[10px] bg-slate-100 text-slate-700 font-mono">
-                          {log.action}
-                        </span>
-                      </td>
-                      <td className="py-2 px-2.5 text-slate-700 font-mono text-[11px] truncate max-w-[120px]">
-                        {log.entityType ? `${log.entityType}:${log.entityId?.substring(0, 8) || ''}` : log.entityId || '—'}
-                      </td>
-                      <td className="py-2 px-2.5 text-slate-600 truncate max-w-[130px]">
-                        {log.actor?.name || log.actor?.id || 'System'}
-                      </td>
-                      <td className="py-2 px-2.5 text-slate-500 truncate max-w-[200px]" title={log.details}>
-                        {log.details || '—'}
-                      </td>
-                    </tr>
-                  ))
+                  logs.slice(0, 6).map((log) => {
+                    const actorDisplay = log.actorName || log.actorId || (log as any).actor?.name || 'System';
+                    const displayDetails = formatDetails(log.details);
+                    return (
+                      <tr key={log.id} className="hover:bg-slate-50/60 transition-colors text-xs">
+                        <td className="py-2 px-2.5 text-slate-500 font-mono whitespace-nowrap">
+                          {formatTime(log.timestamp)}
+                        </td>
+                        <td className="py-2 px-2.5 font-semibold text-slate-800">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-medium border ${getActionBadgeClass(log.action)}`}>
+                            {formatAction(log.action)}
+                          </span>
+                        </td>
+                        <td className="py-2 px-2.5 text-slate-700 font-mono text-[11px] truncate max-w-[120px]">
+                          {log.entityType ? `${log.entityType}:${log.entityId?.substring(0, 8) || ''}` : log.entityId || '—'}
+                        </td>
+                        <td className="py-2 px-2.5 text-slate-600 truncate max-w-[130px]">
+                          {actorDisplay}
+                        </td>
+                        <td className="py-2 px-2.5 text-slate-500 truncate max-w-[200px]" title={log.details}>
+                          {displayDetails}
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>

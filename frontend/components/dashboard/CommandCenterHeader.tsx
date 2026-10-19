@@ -1,5 +1,5 @@
 import React from 'react';
-import { RefreshCw, Search, Shield, User as UserIcon } from 'lucide-react';
+import { RefreshCw, Shield, User as UserIcon } from 'lucide-react';
 import { Button } from '../../design-system/components/Button';
 import { User } from '../../../shared';
 
@@ -8,8 +8,8 @@ interface CommandCenterHeaderProps {
   lastUpdated: Date | null;
   isRefreshing: boolean;
   onRefresh: () => void;
-  searchQuery: string;
-  onSearchChange: (q: string) => void;
+  searchQuery?: string;
+  onSearchChange?: (q: string) => void;
   totalInFlightCount: number;
 }
 
@@ -18,8 +18,6 @@ export const CommandCenterHeader: React.FC<CommandCenterHeaderProps> = ({
   lastUpdated,
   isRefreshing,
   onRefresh,
-  searchQuery,
-  onSearchChange,
   totalInFlightCount,
 }) => {
   const formatTime = (d: Date | null) => {
@@ -54,16 +52,13 @@ export const CommandCenterHeader: React.FC<CommandCenterHeaderProps> = ({
         </div>
       </div>
 
-      {/* Center Search Input */}
-      <div className="flex-1 max-w-md min-w-[200px] relative hidden md:block">
-        <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => onSearchChange(e.target.value)}
-          placeholder="Global search across Content IDs, Topics, Subtopics..."
-          className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800/90 text-xs text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400"
-        />
+      {/* Center Operational Indicator: Clear, non-redundant metadata */}
+      <div className="hidden md:flex items-center gap-3 text-xs text-slate-400 bg-slate-800/60 px-3.5 py-1.5 rounded-lg border border-slate-700/60">
+        <span className="font-semibold text-slate-200">15-Stage Lifecycle</span>
+        <span className="text-slate-600">•</span>
+        <span>Authoritative Firestore Engine</span>
+        <span className="text-slate-600">•</span>
+        <span className="text-emerald-400 font-mono text-[11px]">Synchronized</span>
       </div>
 
       {/* Right Controls: User info & Refresh Button */}
