@@ -374,7 +374,11 @@ async function runIsolationGuardTests() {
   console.log('========================================================================\n');
 }
 
-runIsolationGuardTests().catch((err) => {
-  console.error('ISOLATION GUARD REGRESSION TEST FAILED:', err);
-  process.exitCode = 1;
-});
+runIsolationGuardTests()
+  .then(() => {
+    process.exit(0);
+  })
+  .catch((err) => {
+    console.error('ISOLATION GUARD REGRESSION TEST FAILED:', err);
+    process.exit(1);
+  });
