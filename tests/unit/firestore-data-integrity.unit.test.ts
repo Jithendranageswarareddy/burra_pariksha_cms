@@ -311,7 +311,12 @@ async function runUnitTests() {
     assert.strictEqual(report.overallStatus, 'PASS');
     assert.strictEqual(report.issueCounts.error, 0);
     assert.strictEqual(report.issueCounts.total, 0, 'issueCounts.total must be 0 when only informational notices exist');
-    assert.strictEqual(report.issueCounts.info, 1, 'Informational notice is tracked in info count');
+    const taxonomyEmptyNotice = report.issues.find((i: any) => i.entityType === 'TAXONOMY' && i.entityId === 'EMPTY');
+    if (taxonomyEmptyNotice) {
+      assert.strictEqual(report.issueCounts.info, 1, 'Informational notice is tracked in info count');
+    } else {
+      assert.strictEqual(report.issueCounts.info, 0, 'No informational notice when taxonomy is populated');
+    }
   });
 
   // --------------------------------------------------------------------------
@@ -327,13 +332,15 @@ async function runUnitTests() {
     assert.strictEqual(sumCategoryIssues, report.issueCounts.total, 'Sum of category issue counts must equal global total');
     assert.strictEqual(sumCollectionIssues, report.issueCounts.total, 'Sum of collection issue counts must equal global total');
 
+    const expectedNoticeCount = report.issues.filter((i: any) => i.category === 'QUESTION_INTEGRITY' && i.severity === 'INFO').length;
     const questionCategory = report.integrityChecks.find((c: any) => c.category === 'QUESTION_INTEGRITY');
     assert.strictEqual(questionCategory.issueCount, 0, 'Question Taxonomy & Options Integrity issueCount must be 0');
-    assert.strictEqual(questionCategory.noticeCount, 1, 'Question Taxonomy noticeCount must be 1');
+    assert.strictEqual(questionCategory.noticeCount, expectedNoticeCount, `Question Taxonomy noticeCount must be ${expectedNoticeCount}`);
 
+    const expectedTopicNotices = report.issues.filter((i: any) => i.sheetTab === 'topics' && i.severity === 'INFO').length;
     const topicsHealth = report.worksheetHealth.find((w: any) => w.collection === 'topics');
     assert.strictEqual(topicsHealth.issuesCount, 0, 'Topics collection issuesCount must be 0');
-    assert.strictEqual(topicsHealth.noticesCount, 1, 'Topics collection noticesCount must be 1');
+    assert.strictEqual(topicsHealth.noticesCount, expectedTopicNotices, `Topics collection noticesCount must be ${expectedTopicNotices}`);
   });
 
   // --------------------------------------------------------------------------

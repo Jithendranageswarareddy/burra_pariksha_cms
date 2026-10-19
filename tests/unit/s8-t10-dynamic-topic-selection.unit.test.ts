@@ -144,29 +144,33 @@ async function runS8T10UnitTests() {
   // 1c. Empty State: banner rendered and generation disabled
   console.log('\n[Test 3] Production UI: Empty State in GenerationConfigPanel');
   const emptyHtml = renderToString(
-    React.createElement(GenerationConfigPanel, {
-      taxonomyTree: [],
-      loadingTaxonomy: false,
-      taxonomyError: null,
-      selectedTopic: '',
-      selectedSubtopic: '',
-      currentSubtopics: [],
-      difficulty: 'Intermediate',
-      language: QuestionLanguage.TELUGU,
-      realLifeContext: '',
-      questionStyle: 'STANDARD',
-      customInstructions: '',
-      isGenerating: false,
-      aiStatus: defaultAiStatus,
-      onTopicChange: () => {},
-      onSubtopicChange: () => {},
-      onDifficultyChange: () => {},
-      onLanguageChange: () => {},
-      onContextChange: () => {},
-      onStyleChange: () => {},
-      onCustomInstructionsChange: () => {},
-      onGenerate: () => {},
-    })
+    React.createElement(
+      MemoryRouter,
+      null,
+      React.createElement(GenerationConfigPanel, {
+        taxonomyTree: [],
+        loadingTaxonomy: false,
+        taxonomyError: null,
+        selectedTopic: '',
+        selectedSubtopic: '',
+        currentSubtopics: [],
+        difficulty: 'Intermediate',
+        language: QuestionLanguage.TELUGU,
+        realLifeContext: '',
+        questionStyle: 'STANDARD',
+        customInstructions: '',
+        isGenerating: false,
+        aiStatus: defaultAiStatus,
+        onTopicChange: () => {},
+        onSubtopicChange: () => {},
+        onDifficultyChange: () => {},
+        onLanguageChange: () => {},
+        onContextChange: () => {},
+        onStyleChange: () => {},
+        onCustomInstructionsChange: () => {},
+        onGenerate: () => {},
+      })
+    )
   );
   assert(emptyHtml.includes('data-testid="taxonomy-empty-banner"'), 'Must render empty state banner');
   assert(emptyHtml.includes('No topics available'), 'Empty state must explain no topics available');
