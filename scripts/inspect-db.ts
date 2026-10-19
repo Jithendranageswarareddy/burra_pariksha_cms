@@ -25,10 +25,10 @@ async function inspect(): Promise<void> {
     const count = snap.data().count;
     console.log(`- ${col.id}: ${count} document(s)`);
 
-    if (count > 0 && (col.id === 'topics' || col.id === 'subtopics' || col.id === 'users')) {
+    if (count > 0 && (col.id === 'topics' || col.id === 'subtopics' || col.id === 'users' || col.id === 'question_drafts')) {
       const sampleDocs = await col.limit(5).get();
       for (const d of sampleDocs.docs) {
-        console.log(`  [${col.id}] ${d.id}:`, JSON.stringify(d.data()).substring(0, 100));
+        console.log(`  [${col.id}] ${d.id}:`, JSON.stringify(d.data(), null, 2));
       }
     }
   }

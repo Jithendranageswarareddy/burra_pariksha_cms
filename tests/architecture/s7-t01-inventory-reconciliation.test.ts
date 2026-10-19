@@ -138,6 +138,7 @@ export const AUTHORITATIVE_APPROVED_POST_S7_ADDITIONS: readonly string[] = [
   'tests/unit/launch-taxonomy-setup.unit.test.ts',
   'docs/security/DATABASE-ONLY-TAXONOMY-AUDIT.md',
   'tests/architecture/strict-database-taxonomy.test.ts',
+  'tests/e2e/mode1-draft-stage02-acceptance.test.ts',
 ];
 
 const EXPECTED_HISTORICAL_S7_COUNT = 713;
