@@ -442,7 +442,7 @@ export function useQuestionGeneration() {
     const [selectedSubtopic, setSelectedSubtopic] = useState<string>(
       querySubtopic || prodContext?.taxonomy?.subtopicId || ''
     );
-    const [difficulty, setDifficulty] = useState<string>(queryDifficulty || 'Intermediate');
+    const [difficulty, setDifficulty] = useState<string>(queryDifficulty || DifficultyLevel.MEDIUM);
     const [challengeType, setChallengeType] = useState<string>('ABCD');
     const [presentationType, setPresentationType] = useState<string>('Text');
     const [language, setLanguage] = useState<QuestionLanguage>(

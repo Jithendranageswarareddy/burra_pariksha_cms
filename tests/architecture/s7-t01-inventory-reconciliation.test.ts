@@ -131,6 +131,7 @@ export const AUTHORITATIVE_APPROVED_POST_S7_ADDITIONS: readonly string[] = [
   'frontend/components/dashboard/ThroughputAndHealthRow.tsx',
   'frontend/components/dashboard/RecentActivityPanel.tsx',
   'docs/sprints/sprint-10/DASHBOARD-ISSUE-CLOSURE.md',
+  'docs/sprints/sprint-10/MODE1-QUESTION-STUDIO-UX-AND-DATA-SOURCE-AUDIT.md',
 ];
 
 const EXPECTED_HISTORICAL_S7_COUNT = 713;

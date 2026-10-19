@@ -117,15 +117,33 @@ export const QuestionStudioPage: React.FC = () => {
 
   return (
     <div className="space-y-3 pb-6 animate-in fade-in duration-200">
-      {/* 1. PAGE HEADER */}
-      <PageHeader
-        title="AI Question Studio"
-        description="Generate, refine, and draft high-yield bilingual multiple-choice question candidates."
-      />
+      {/* 1. COMPACT WORKFLOW HEADER */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-white/95 backdrop-blur-xs border border-slate-200/90 rounded-xl px-3.5 py-2 shadow-2xs">
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-1.5 font-bold text-sm text-slate-900">
+            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+            <span>Mode 1: Question Challenge Short</span>
+          </div>
+          <span className="text-[10px] font-semibold bg-amber-100 text-amber-900 px-2 py-0.5 rounded-full uppercase tracking-wider">
+            9:16 Vertical • ≤ 58s
+          </span>
+          <span className="text-slate-300 hidden md:inline">•</span>
+          <span className="text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md">
+            Stage 01: Question Generation (Step 01 / 15)
+          </span>
+        </div>
 
-      {/* 2. CANONICAL 15-STAGE TIMELINE ANCHOR */}
-      <div id="permanent-timeline-anchor" className="w-full">
-        <ProductionJourneyBar activeStage="QUESTION_STUDIO" showDetails />
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <span className="text-[11px] text-slate-500 bg-slate-50 border border-slate-200/80 px-2 py-0.5 rounded font-medium flex items-center gap-1">
+            <span className="text-slate-400">Next:</span>
+            <span className="text-slate-700 font-semibold">Stage 02 Question Verification</span>
+          </span>
+        </div>
+      </div>
+
+      {/* 2. CANONICAL 15-STAGE PROGRESS STRIP (COMPACT HORIZONTAL SCROLLER) */}
+      <div id="permanent-timeline-anchor" className="w-full overflow-x-auto">
+        <ProductionJourneyBar activeStage="QUESTION_STUDIO" showDetails={false} />
       </div>
 
       {/* 3. PRODUCTION MODE SELECTION MODAL */}
