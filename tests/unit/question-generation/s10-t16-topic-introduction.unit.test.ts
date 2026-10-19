@@ -135,8 +135,8 @@ async function runTopicIntroductionUnitTests(): Promise<void> {
   // Test 6: Valid Topic Introduction Candidate evaluates to VALID state
   console.log('\n[Test 6] Valid Topic Introduction evaluates to VALID state...');
   const validCandidate: Partial<StudioCandidate> = {
-    topicId: 'TOP-QA-01',
-    subtopicId: 'SUB-01',
+    topicId: 'top_10000000-0000-4000-8000-000000000001',
+    subtopicId: 'sub_10000000-0000-4000-8000-000000000101',
     productionMode: 'TOPIC_INTRODUCTION',
     targetQuestionCount: 0,
     aspectRatio: '16:9',
@@ -160,8 +160,8 @@ async function runTopicIntroductionUnitTests(): Promise<void> {
   const authorActor = { id: 'USR-M2-TEST-AUTHOR', name: 'Mode 2 Author' };
   const savedDraft = await questionGenerationService.saveDraft(
     {
-      topicId: 'TOP-QA-01',
-      subtopicId: 'SUB-01',
+      topicId: 'top_10000000-0000-4000-8000-000000000001',
+      subtopicId: 'sub_10000000-0000-4000-8000-000000000101',
       productionMode: 'TOPIC_INTRODUCTION',
       targetQuestionCount: 0,
       aspectRatio: '16:9',
@@ -193,8 +193,8 @@ async function runTopicIntroductionUnitTests(): Promise<void> {
   console.log('\n[Test 8] Submission gate rejects incomplete draft with 422...');
   const incompleteDraft = await questionGenerationService.saveDraft(
     {
-      topicId: 'TOP-QA-01',
-      subtopicId: 'SUB-01',
+      topicId: 'top_10000000-0000-4000-8000-000000000001',
+      subtopicId: 'sub_10000000-0000-4000-8000-000000000101',
       productionMode: 'TOPIC_INTRODUCTION',
       targetQuestionCount: 0,
       aspectRatio: '9:16',

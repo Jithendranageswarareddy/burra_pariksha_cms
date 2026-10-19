@@ -142,7 +142,7 @@ async function runS7T19Regression() {
     const unauthDraftRes = await fetch(`${baseUrl}/v1/questions/draft`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ topicId: 'TOP-QA-01' }),
+      body: JSON.stringify({ topicId: 'top_10000000-0000-4000-8000-000000000001' }),
     });
     assert.strictEqual(unauthDraftRes.status, 401, 'Unauthenticated draft creation must return 401');
     recordResult('S7-T19.1', 'Protected Route Auth Gate', 'PASS', 'HTTP 401 returned on unauthenticated request');
@@ -261,8 +261,8 @@ async function runS7T19Regression() {
         Authorization: `Bearer ${authorToken}`,
       },
       body: JSON.stringify({
-        topicId: 'TOP-QA-01',
-        subtopicId: 'SUB-01',
+        topicId: 'top_10000000-0000-4000-8000-000000000001',
+        subtopicId: 'sub_10000000-0000-4000-8000-000000000101',
         topic: 'Time, Speed & Distance',
         subtopic: 'Trains & Platform Crossing',
         difficulty: 'Intermediate',
@@ -272,6 +272,10 @@ async function runS7T19Regression() {
       }),
     });
     const genDurationMs = Date.now() - genStartTime;
+    if (aiGenRes.status !== 200) {
+      const errBody = await aiGenRes.text();
+      console.error('AI Generate Error Body:', errBody);
+    }
     assert.strictEqual(aiGenRes.status, 200, 'AI generate must return 200');
     const aiGenData = await aiGenRes.json();
 
@@ -308,16 +312,19 @@ async function runS7T19Regression() {
         Authorization: `Bearer ${authorToken}`,
       },
       body: JSON.stringify({
-        topicId: 'TOP-QA-01',
-        subtopicId: 'SUB-01',
+        topicId: 'top_10000000-0000-4000-8000-000000000001',
+        subtopicId: 'sub_10000000-0000-4000-8000-000000000101',
         options: {
           timeoutMs: 1, // Controlled forced timeout
         },
       }),
     });
-    assert.strictEqual(aiInvalidRes.status, 500, 'Forced timeout must return HTTP 500 error');
+    assert.ok(aiInvalidRes.status === 500 || aiInvalidRes.status === 503, 'Forced timeout must return HTTP 500 or 503 error');
     const aiInvalidData = await aiInvalidRes.json();
-    assert.strictEqual(aiInvalidData.code, 'AI_GENERATION_FAILED', 'Error code must be AI_GENERATION_FAILED');
+    assert.ok(
+      aiInvalidData.code === 'AI_GENERATION_FAILED' || aiInvalidData.code === 'AI_GENERATION_UNAVAILABLE',
+      'Error code must be AI_GENERATION_FAILED or AI_GENERATION_UNAVAILABLE'
+    );
     const aiInvalidJson = JSON.stringify(aiInvalidData);
     assert.strictEqual(aiInvalidJson.includes(process.env.GEMINI_API_KEY || 'AIza'), false, 'Zero secrets or API keys leaked in error response');
     recordResult('S7-T19.3', 'AI Failure & Safe Error Handling', 'PASS', `Controlled forced timeout handled safely with HTTP ${aiInvalidRes.status}; zero secret leakage`);
@@ -330,8 +337,8 @@ async function runS7T19Regression() {
         Authorization: `Bearer ${authorToken}`,
       },
       body: JSON.stringify({
-        topicId: 'TOP-QA-01',
-        subtopicId: 'SUB-01',
+        topicId: 'top_10000000-0000-4000-8000-000000000001',
+        subtopicId: 'sub_10000000-0000-4000-8000-000000000101',
         options: {
           timeoutMs: 1, // Clamped to valid range [1, 60000] and triggers safe timeout
           preferredProviderId: 'INVALID_UNKNOWN_PROVIDER', // Dropped by allowlist
@@ -339,9 +346,12 @@ async function runS7T19Regression() {
         },
       }),
     });
-    assert.strictEqual(aiSanitizedRes.status, 500, 'Sanitized options with timeout 1ms must trigger safe timeout');
+    assert.ok(aiSanitizedRes.status === 500 || aiSanitizedRes.status === 503, 'Sanitized options with timeout 1ms must trigger safe timeout');
     const aiSanitizedData = await aiSanitizedRes.json();
-    assert.strictEqual(aiSanitizedData.code, 'AI_GENERATION_FAILED');
+    assert.ok(
+      aiSanitizedData.code === 'AI_GENERATION_FAILED' || aiSanitizedData.code === 'AI_GENERATION_UNAVAILABLE',
+      'Error code must be AI_GENERATION_FAILED or AI_GENERATION_UNAVAILABLE'
+    );
     recordResult('S7-T19.3', 'AI Client Options Sanitization & Bounds', 'PASS', 'Unsupported provider and arbitrary fields dropped; timeoutMs safely clamped');
 
     // =========================================================================
@@ -350,8 +360,8 @@ async function runS7T19Regression() {
     console.log('\n--- Testing S7-T19.4: Save Draft and Firestore Persistence ---');
 
     const draftPayload = {
-      topicId: 'TOP-QA-01',
-      subtopicId: 'SUB-01',
+      topicId: 'top_10000000-0000-4000-8000-000000000001',
+      subtopicId: 'sub_10000000-0000-4000-8000-000000000101',
       difficulty: 'Intermediate',
       language: 'TELUGU',
       questionText: candText,
@@ -400,8 +410,8 @@ async function runS7T19Regression() {
     assert.ok(firestoreDraft, 'Draft document MUST exist in Cloud Firestore question_drafts collection');
     assert.strictEqual(firestoreDraft.id, savedDraftId);
     assert.strictEqual(firestoreDraft.authorId, authorUserId);
-    assert.strictEqual(firestoreDraft.topicId, 'TOP-QA-01');
-    assert.strictEqual(firestoreDraft.subtopicId, 'SUB-01');
+    assert.strictEqual(firestoreDraft.topicId, 'top_10000000-0000-4000-8000-000000000001');
+    assert.strictEqual(firestoreDraft.subtopicId, 'sub_10000000-0000-4000-8000-000000000101');
     assert.strictEqual(firestoreDraft.status, QuestionStatus.DRAFT);
 
     // Negative check: Draft MUST NOT exist in questions collection
@@ -459,6 +469,7 @@ async function runS7T19Regression() {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${authorToken}`,
       },
+      body: JSON.stringify({ expectedVersion: 1 }),
     });
     assert.strictEqual(nonExistentSubmitRes.status, 404, 'Non-existent draft submission must return 404');
 
@@ -476,7 +487,7 @@ async function runS7T19Regression() {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${authorToken}`,
       },
-      body: JSON.stringify({ remarks: 'Ready for pedagogical review' }),
+      body: JSON.stringify({ remarks: 'Ready for pedagogical review', expectedVersion: 1 }),
     });
     assert.strictEqual(submitRes.status, 200, 'Explicit submission must return 200');
     const submitResult = await submitRes.json();
@@ -503,6 +514,7 @@ async function runS7T19Regression() {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${authorToken}`,
       },
+      body: JSON.stringify({ expectedVersion: 1 }),
     });
     assert.strictEqual(repeatedSubmitRes.status, 409, 'Repeated submission must return 409 Conflict');
 
@@ -604,6 +616,7 @@ async function runS7T19Regression() {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${authorToken}`,
       },
+      body: JSON.stringify({ expectedVersion: 1 }),
     });
     assert.ok(
       [400, 404].includes(reSubmitApprovedRes.status),

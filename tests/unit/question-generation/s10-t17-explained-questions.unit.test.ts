@@ -162,8 +162,8 @@ async function runExplainedQuestionsUnitTests(): Promise<void> {
   console.log('\n[Test 6] Valid packages of 5, 10, 15, 20 questions evaluate to VALID state...');
   for (const count of [5, 10, 15, 20]) {
     const validCandidate: Partial<StudioCandidate> = {
-      topicId: 'TOP-QA-01',
-      subtopicId: 'SUB-01',
+      topicId: 'top_10000000-0000-4000-8000-000000000001',
+      subtopicId: 'sub_10000000-0000-4000-8000-000000000101',
       productionMode: 'EXPLAINED_QUESTIONS_VIDEO',
       targetQuestionCount: count,
       aspectRatio: '16:9',
@@ -188,8 +188,8 @@ async function runExplainedQuestionsUnitTests(): Promise<void> {
   const sample10 = createSampleExplainedQuestions(10);
   const savedDraft = await questionGenerationService.saveDraft(
     {
-      topicId: 'TOP-QA-01',
-      subtopicId: 'SUB-01',
+      topicId: 'top_10000000-0000-4000-8000-000000000001',
+      subtopicId: 'sub_10000000-0000-4000-8000-000000000101',
       productionMode: 'EXPLAINED_QUESTIONS_VIDEO',
       targetQuestionCount: 10,
       aspectRatio: '16:9',
@@ -217,8 +217,8 @@ async function runExplainedQuestionsUnitTests(): Promise<void> {
   console.log('\n[Test 8] Submission gate rejects incomplete batch with 422...');
   const incompleteDraft = await questionGenerationService.saveDraft(
     {
-      topicId: 'TOP-QA-01',
-      subtopicId: 'SUB-01',
+      topicId: 'top_10000000-0000-4000-8000-000000000001',
+      subtopicId: 'sub_10000000-0000-4000-8000-000000000101',
       productionMode: 'EXPLAINED_QUESTIONS_VIDEO',
       targetQuestionCount: 5,
       aspectRatio: '16:9',

@@ -34,8 +34,8 @@ async function runS8T08UnitTests() {
   // -------------------------------------------------------------------------
   console.log('[Test 1] Mode 2 (TOPIC_INTRODUCTION): Authoring & Draft Persistence');
   const mode2DraftPayload = {
-    topicId: 'TOP-QA-01',
-    subtopicId: 'SUB-01',
+    topicId: 'top_10000000-0000-4000-8000-000000000001',
+    subtopicId: 'sub_10000000-0000-4000-8000-000000000101',
     difficulty: 'Intermediate',
     language: 'TELUGU',
     productionMode: 'TOPIC_INTRODUCTION',
@@ -197,8 +197,8 @@ async function runS8T08UnitTests() {
   ];
 
   const mode3DraftPayload = {
-    topicId: 'TOP-QA-01',
-    subtopicId: 'SUB-01',
+    topicId: 'top_10000000-0000-4000-8000-000000000001',
+    subtopicId: 'sub_10000000-0000-4000-8000-000000000101',
     difficulty: 'Hard',
     language: 'TELUGU',
     productionMode: 'EXPLAINED_QUESTIONS_VIDEO',
@@ -258,8 +258,8 @@ async function runS8T08UnitTests() {
   // Mode 1 with aspect ratio 16:9 must be rejected
   try {
     await questionGenerationService.saveDraft({
-      topicId: 'TOP-QA-01',
-      subtopicId: 'SUB-01',
+      topicId: 'top_10000000-0000-4000-8000-000000000001',
+      subtopicId: 'sub_10000000-0000-4000-8000-000000000101',
       difficulty: 'Intermediate',
       productionMode: 'QUESTION_CHALLENGE_SHORT',
       targetQuestionCount: 1,

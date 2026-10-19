@@ -82,7 +82,8 @@ export function validateGenerationResult(
     'TOPIC_INTRODUCTION',
     'EXPLAINED_QUESTIONS_VIDEO',
   ];
-  if (!input.productionMode || !supportedModes.includes(input.productionMode)) {
+  const effectiveMode = input.productionMode || 'QUESTION_CHALLENGE_SHORT';
+  if (!supportedModes.includes(effectiveMode)) {
     return { isValid: false, error: 'The AI provider request has an unsupported production mode.' };
   }
 
@@ -108,7 +109,7 @@ export function validateGenerationResult(
     return { isValid: false, error: 'The AI provider returned empty candidate content.' };
   }
 
-  if (input.productionMode === 'QUESTION_CHALLENGE_SHORT') {
+  if (effectiveMode === 'QUESTION_CHALLENGE_SHORT') {
     const optionKeys = ['option_a', 'option_b', 'option_c', 'option_d'];
     const options = optionKeys.map((key) => candidate[key]);
     if (options.some((value) => typeof value !== 'string' || value.trim().length === 0)) {
@@ -123,11 +124,11 @@ export function validateGenerationResult(
     if (typeof candidate.explanation !== 'string' || candidate.explanation.trim().length === 0) {
       return { isValid: false, error: 'The AI provider returned an empty explanation.' };
     }
-  } else if (input.productionMode === 'TOPIC_INTRODUCTION') {
+  } else if (effectiveMode === 'TOPIC_INTRODUCTION') {
     if (content.length < 15) {
       return { isValid: false, error: 'The AI provider returned an incomplete topic introduction.' };
     }
-  } else if (input.productionMode === 'EXPLAINED_QUESTIONS_VIDEO') {
+  } else if (effectiveMode === 'EXPLAINED_QUESTIONS_VIDEO') {
     if (content.length < 15) {
       return { isValid: false, error: 'The AI provider returned an incomplete explained-questions overview.' };
     }
@@ -613,14 +614,20 @@ export class QuestionGenerationService {
       throw new QuestionGenerationDomainError(validation.error || 'Invalid generation request parameters.');
     }
 
+    const effectiveMode = input.productionMode || 'QUESTION_CHALLENGE_SHORT';
+    const normalizedInput: GenerateCandidateInput = {
+      ...input,
+      productionMode: effectiveMode,
+    };
+
     const isMode1Batch =
-      (input.productionMode === 'QUESTION_CHALLENGE_SHORT' || !input.productionMode) &&
+      effectiveMode === 'QUESTION_CHALLENGE_SHORT' &&
       input.targetQuestionCount !== undefined &&
       input.targetQuestionCount > 1 &&
       [5, 10, 15, 20].includes(input.targetQuestionCount);
 
     if (isMode1Batch) {
-      return this.generateBatch(input, options, orchestrator);
+      return this.generateBatch(normalizedInput, options, orchestrator);
     }
 
     const maxRetries = Math.min(Math.max(options?.maxRetries ?? 2, 0), 2);
@@ -629,8 +636,8 @@ export class QuestionGenerationService {
     while (true) {
       try {
         // Delegate to server-side AI orchestrator (AP-009 Human-in-the-Loop).
-        const result = await orchestrator.generateQuestionCandidate(input, options);
-        const resultValidation = validateGenerationResult(result as GenerationResult, input);
+        const result = await orchestrator.generateQuestionCandidate(normalizedInput, options);
+        const resultValidation = validateGenerationResult(result as GenerationResult, normalizedInput);
         if (!resultValidation.isValid) {
           throw new QuestionGenerationDomainError(
             resultValidation.error || 'The AI provider returned an invalid candidate.',
@@ -640,15 +647,15 @@ export class QuestionGenerationService {
         }
 
         const candidateObj = (result as GenerationResult).candidate as any;
-        if (input.productionMode === 'TOPIC_INTRODUCTION') {
+        if (normalizedInput.productionMode === 'TOPIC_INTRODUCTION') {
           if (!candidateObj.introductoryConcept) {
             candidateObj.introductoryConcept = candidateObj.content || candidateObj.questionText || '';
           }
-          if (!candidateObj.conceptTitle && input.conceptTitle) {
-            candidateObj.conceptTitle = input.conceptTitle;
+          if (!candidateObj.conceptTitle && normalizedInput.conceptTitle) {
+            candidateObj.conceptTitle = normalizedInput.conceptTitle;
           }
           candidateObj.questions = [];
-        } else if (input.productionMode === 'EXPLAINED_QUESTIONS_VIDEO') {
+        } else if (normalizedInput.productionMode === 'EXPLAINED_QUESTIONS_VIDEO') {
           if (!candidateObj.introductoryConcept) {
             candidateObj.introductoryConcept = candidateObj.content || candidateObj.questionText || '';
           }

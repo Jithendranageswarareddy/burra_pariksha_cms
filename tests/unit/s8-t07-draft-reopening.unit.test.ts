@@ -28,8 +28,8 @@ async function runS8T07UnitTests() {
   // Test 1: Draft Hydration & Restoration
   console.log('[Test 1] Draft Hydration: Persisting and reopening draft restores all candidate fields and state...');
   const initialDraftPayload = {
-    topicId: 'TOP-QA-01',
-    subtopicId: 'SUB-01',
+    topicId: 'top_10000000-0000-4000-8000-000000000001',
+    subtopicId: 'sub_10000000-0000-4000-8000-000000000101',
     difficulty: 'Hard',
     language: 'TELUGU',
     questionText: 'ఒక రైలు 60 కిమీ/గం వేగంతో 120 మీటర్ల ప్లాట్‌ఫారమ్‌ను ఎంత సమయంలో దాటుతుంది?',
@@ -112,8 +112,8 @@ async function runS8T07UnitTests() {
   const resolvedDifficulty = hydratedDraft?.difficulty || conflictingUrlParams.difficulty;
   const resolvedLanguage = hydratedDraft?.language || conflictingUrlParams.language;
 
-  assert.strictEqual(resolvedTopicId, 'TOP-QA-01', 'Persisted draft topicId must take precedence over URL param');
-  assert.strictEqual(resolvedSubtopicId, 'SUB-01', 'Persisted draft subtopicId must take precedence over URL param');
+  assert.strictEqual(resolvedTopicId, 'top_10000000-0000-4000-8000-000000000001', 'Persisted draft topicId must take precedence over URL param');
+  assert.strictEqual(resolvedSubtopicId, 'sub_10000000-0000-4000-8000-000000000101', 'Persisted draft subtopicId must take precedence over URL param');
   assert.strictEqual(resolvedDifficulty, 'Hard', 'Persisted draft difficulty must take precedence over URL param');
   assert.strictEqual(resolvedLanguage, 'TELUGU', 'Persisted draft language must take precedence over URL param');
   console.log('  PASS: Persisted draft data strictly overrides conflicting URL search parameters.\n');
