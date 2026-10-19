@@ -18,6 +18,9 @@ import { questionGenerationService } from '../../../backend/domain/question-gene
 import { QuestionStatus, canonicalIdService } from '../../../shared';
 
 async function runSaveDraftVsVerifyUnitTests() {
+  const VALID_TOPIC_ID = 'top_10000000-0000-4000-8000-000000000001';
+  const VALID_SUBTOPIC_ID = 'sub_10000000-0000-4000-8000-000000000101';
+
   console.log('============================================================');
   console.log('UNIT TEST: Save Draft vs. Verify Isolation & Invariants');
   console.log('============================================================\n');
@@ -25,8 +28,8 @@ async function runSaveDraftVsVerifyUnitTests() {
   // Test 1: Save Draft persistence behavior
   console.log('[Test 1] Saving a draft persists working candidate in status DRAFT...');
   const testDraftPayload = {
-    topicId: 'TOP-QA-01',
-    subtopicId: 'SUB-01',
+    topicId: VALID_TOPIC_ID,
+    subtopicId: VALID_SUBTOPIC_ID,
     difficulty: 'Intermediate',
     language: 'TELUGU',
     questionText: 'రైలు వేగం లెక్కించే సూత్రం ఏమిటి?',
@@ -99,8 +102,8 @@ async function runSaveDraftVsVerifyUnitTests() {
   // Test 4: Submitting an incomplete draft throws 422
   console.log('[Test 4] Submitting incomplete draft throws validation error...');
   const incompleteDraft = await questionGenerationService.saveDraft({
-    topicId: 'TOP-QA-01',
-    subtopicId: 'SUB-01',
+    topicId: VALID_TOPIC_ID,
+    subtopicId: VALID_SUBTOPIC_ID,
     difficulty: 'Basic',
     language: 'TELUGU',
     questionText: 'Test', // too short (< 5 chars)
@@ -163,8 +166,8 @@ async function runSaveDraftVsVerifyUnitTests() {
   // Test 7: Submitting an already approved/published draft throws 400
   console.log('[Test 7] Submitting an already approved draft throws 400...');
   const approvedDraft = await questionGenerationService.saveDraft({
-    topicId: 'TOP-QA-01',
-    subtopicId: 'SUB-01',
+    topicId: VALID_TOPIC_ID,
+    subtopicId: VALID_SUBTOPIC_ID,
     difficulty: 'Intermediate',
     language: 'TELUGU',
     questionText: 'ఆమోదించబడిన ప్రశ్న పత్రం...',

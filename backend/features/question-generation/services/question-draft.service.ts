@@ -125,12 +125,12 @@ export class QuestionDraftService {
       const actorRoles = (actor.roles || [actor.role]).map((r: any) => resolveBrownfieldRole(r));
       const isAdmin = canonicalRole === CanonicalRbacRole.ADMIN || actorRoles.includes(CanonicalRbacRole.ADMIN);
 
+      const reason = String(overrideContext?.reason || (overrideContext as any)?.overrideReason || '').trim();
       const isOverrideValid =
         isAdmin &&
         overrideContext?.isOverride === true &&
         overrideContext?.confirmedByAdmin === true &&
-        typeof overrideContext?.reason === 'string' &&
-        overrideContext.reason.trim().length >= 10;
+        reason.length >= 10;
 
       if (!isOverrideValid) {
         // Record rejected audit event in authoritative audit ledger
@@ -179,7 +179,7 @@ export class QuestionDraftService {
           'QUESTION_DRAFT',
           draftId,
           {
-            reason: overrideContext!.reason.trim(),
+            reason: reason,
             authorId: canonicalAuthorId,
             authorName: draft.authorName || draft.author,
             approverId: actor.id,

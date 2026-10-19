@@ -1311,32 +1311,80 @@ export class QuestionGenerationService {
       throw err;
     }
 
-    // An author who created or drafted the question is strictly prohibited from approving/verifying their own draft into production.
-    // Zero administrative override bypass: even an ADMIN cannot self-approve their own authored content.
+    // An author who created or drafted the question is strictly prohibited from approving/verifying their own draft into production
+    // unless an authenticated System Administrator executes an explicit, confirmed administrative override with valid justification.
     const isSelfApproval = Boolean(actor.id && canonicalAuthorId === actor.id.trim());
 
     if (isSelfApproval) {
+      const canonicalRole = resolveBrownfieldRole(actor.role || (actor.roles && actor.roles[0]));
+      const actorRoles = (actor.roles || [actor.role]).map((r: any) => resolveBrownfieldRole(r));
+      const isAdmin = canonicalRole === CanonicalRbacRole.ADMIN || actorRoles.includes(CanonicalRbacRole.ADMIN);
+
+      const reason = String(overrideContext?.reason || (overrideContext as any)?.overrideReason || '').trim();
+      const isOverrideValid =
+        isAdmin &&
+        overrideContext?.isOverride === true &&
+        overrideContext?.confirmedByAdmin === true &&
+        reason.length >= 10;
+
+      if (!isOverrideValid) {
+        try {
+          await auditService.log(
+            actor.id,
+            actor.name,
+            'QUESTION_DRAFT_APPROVAL_REJECTED',
+            'QUESTION_DRAFT',
+            draftId,
+            {
+              reason: !isAdmin
+                ? 'GAR-02: Anti-Self-Approval constraint violation (strict zero-bypass for non-administrators)'
+                : !overrideContext?.confirmedByAdmin
+                  ? 'GAR-02: Missing administrative override confirmation'
+                  : 'GAR-02: Override reason must be at least 10 characters',
+              authorId: canonicalAuthorId,
+              authorName: draft.authorName || draft.author,
+              reviewerId: actor.id,
+              reviewerName: actor.name,
+            }
+          );
+        } catch {
+          // Safe fallback
+        }
+
+        const msg = !isAdmin
+          ? 'Self-approval strictly prohibited (GAR-02): The author cannot verify or approve their own question draft into Step 02 production. An independent reviewer or administrator must verify this item.'
+          : !overrideContext?.confirmedByAdmin
+            ? 'Self-approval requires explicit administrative override confirmation (GAR-02).'
+            : 'Administrative override requires a meaningful justification of at least 10 characters.';
+
+        const err = new QuestionGenerationDomainError(msg, 403, 'GAR-02');
+        throw err;
+      }
+
+      // Record successful administrative override audit event
       try {
         await auditService.log(
           actor.id,
           actor.name,
-          'QUESTION_DRAFT_APPROVAL_REJECTED',
+          'ADMIN_APPROVAL_OVERRIDE',
           'QUESTION_DRAFT',
           draftId,
           {
-            reason: 'GAR-02: Anti-Self-Approval constraint violation (strict zero-bypass)',
+            reason: reason,
             authorId: canonicalAuthorId,
             authorName: draft.authorName || draft.author,
-            reviewerId: actor.id,
-            reviewerName: actor.name,
+            approverId: actor.id,
+            approverName: actor.name,
+            isOverride: true,
+            confirmedByAdmin: true,
+            overrideActionType: overrideContext?.overrideActionType || 'ADMIN_APPROVAL_OVERRIDE',
+            previousState: draft.status || 'SUBMITTED_FOR_REVIEW',
+            resultingState: 'APPROVED',
           }
         );
       } catch {
         // Safe fallback
       }
-
-      const err = new QuestionGenerationDomainError('Self-approval strictly prohibited (GAR-02): The author cannot verify or approve their own question draft into Step 02 production. An independent reviewer or administrator must verify this item.', 403, 'GAR-02');
-      throw err;
     }
     const firstQuestion = draft.questions && draft.questions.length > 0 ? draft.questions[0] : null;
     const resolvedQuestionText = draft.questionText || draft.introductoryConcept || firstQuestion?.questionText || '';

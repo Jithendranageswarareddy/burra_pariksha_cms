@@ -100,13 +100,13 @@ export class WorkflowEngine implements IWorkflowEngine {
       if (authorId.trim() === actorContext.id.trim()) {
         const canonicalRole = resolveBrownfieldRole(actorContext.role);
         const isAdmin = canonicalRole === CanonicalRbacRole.ADMIN;
-        const override = contentPayload?.override as any;
+        const override = (contentPayload?.override as any) || (contentPayload?.isOverride ? contentPayload : undefined);
+        const reason = String(override?.reason || override?.overrideReason || '').trim();
         const isOverrideValid =
           isAdmin &&
           override?.isOverride === true &&
           override?.confirmedByAdmin === true &&
-          typeof override?.reason === 'string' &&
-          override.reason.trim().length >= 10;
+          reason.length >= 10;
 
         if (!isOverrideValid) {
           if (!isAdmin) {

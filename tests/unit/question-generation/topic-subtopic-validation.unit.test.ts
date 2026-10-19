@@ -18,6 +18,10 @@ import { questionGenerationService } from '../../../backend/domain/question-gene
 import { DifficultyLevel, QuestionLanguage, canonicalIdService } from '../../../shared';
 
 async function runTopicSubtopicValidationTests() {
+  const VALID_TOPIC_ID = 'top_10000000-0000-4000-8000-000000000001';
+  const VALID_SUBTOPIC_ID = 'sub_10000000-0000-4000-8000-000000000101';
+  const MISMATCHED_TOPIC_ID = 'top_20000000-0000-4000-8000-000000000002';
+
   console.log('============================================================');
   console.log('UNIT TEST: Topic/Subtopic & Candidate Validation');
   console.log('============================================================\n');
@@ -137,7 +141,7 @@ async function runTopicSubtopicValidationTests() {
   // Test 8: Reject a supplied Subtopic that cannot be resolved from authoritative taxonomy
   console.log('[Test 8] Rejecting supplied unresolvable Subtopic...');
   const unresolvableSubReq = await questionGenerationService.validateGenerationRequest({
-    topicId: 'TOP-QA-01',
+    topicId: VALID_TOPIC_ID,
     subtopicId: 'SUB-NON-EXISTENT-999',
     difficulty: DifficultyLevel.MEDIUM,
     language: QuestionLanguage.TELUGU,
@@ -149,8 +153,8 @@ async function runTopicSubtopicValidationTests() {
   // Test 9: Reject a Subtopic that does not belong to the selected Topic
   console.log('[Test 9] Rejecting Subtopic that does not belong to selected Topic...');
   const mismatchedSubReq = await questionGenerationService.validateGenerationRequest({
-    topicId: 'TOP-QA-02', // Time & Work
-    subtopicId: 'SUB-01',   // Belongs to TOP-QA-01 (Trains)
+    topicId: MISMATCHED_TOPIC_ID, // Reasoning
+    subtopicId: VALID_SUBTOPIC_ID, // Belongs to Aptitude
     difficulty: DifficultyLevel.MEDIUM,
     language: QuestionLanguage.TELUGU,
   });
@@ -162,7 +166,7 @@ async function runTopicSubtopicValidationTests() {
   console.log('[Test 10] Rejecting unresolvable Topic...');
   const unresolvableTopReq = await questionGenerationService.validateGenerationRequest({
     topicId: 'TOP-INVALID-999',
-    subtopicId: 'SUB-01',
+    subtopicId: VALID_SUBTOPIC_ID,
     difficulty: DifficultyLevel.MEDIUM,
     language: QuestionLanguage.TELUGU,
   });
@@ -173,7 +177,7 @@ async function runTopicSubtopicValidationTests() {
   // Test 11: Preserve documented RANDOM mode exception without requiring explicit subtopic
   console.log('[Test 11] Preserving RANDOM mode generation without specific subtopic...');
   const randomModeReq = await questionGenerationService.validateGenerationRequest({
-    topicId: 'TOP-QA-01',
+    topicId: VALID_TOPIC_ID,
     subtopicId: 'RANDOM',
     generationMode: 'RANDOM',
     difficulty: DifficultyLevel.MEDIUM,
@@ -186,7 +190,7 @@ async function runTopicSubtopicValidationTests() {
   console.log('[Test 12] Regression: Nonexistent ID beginning with BP-TOP- is rejected...');
   const bpTopGenReq = await questionGenerationService.validateGenerationRequest({
     topicId: 'BP-TOP-999',
-    subtopicId: 'SUB-01',
+    subtopicId: VALID_SUBTOPIC_ID,
     difficulty: DifficultyLevel.MEDIUM,
     language: QuestionLanguage.TELUGU,
   });
@@ -197,7 +201,7 @@ async function runTopicSubtopicValidationTests() {
   try {
     await questionGenerationService.saveDraft({
       topicId: 'BP-TOP-999',
-      subtopicId: 'SUB-01',
+      subtopicId: VALID_SUBTOPIC_ID,
       difficulty: 'Intermediate',
       language: 'TELUGU',
       questionText: 'ప్రశ్న వివరాలు...',
@@ -215,7 +219,7 @@ async function runTopicSubtopicValidationTests() {
   // Test 13: Regression — Nonexistent ID beginning with BP-SUB- is rejected
   console.log('[Test 13] Regression: Nonexistent ID beginning with BP-SUB- is rejected...');
   const bpSubGenReq = await questionGenerationService.validateGenerationRequest({
-    topicId: 'TOP-QA-01',
+    topicId: VALID_TOPIC_ID,
     subtopicId: 'BP-SUB-999',
     difficulty: DifficultyLevel.MEDIUM,
     language: QuestionLanguage.TELUGU,
@@ -226,7 +230,7 @@ async function runTopicSubtopicValidationTests() {
   let bpSubDraftError = false;
   try {
     await questionGenerationService.saveDraft({
-      topicId: 'TOP-QA-01',
+      topicId: VALID_TOPIC_ID,
       subtopicId: 'BP-SUB-999',
       difficulty: 'Intermediate',
       language: 'TELUGU',
@@ -245,16 +249,16 @@ async function runTopicSubtopicValidationTests() {
   // Test 14: Regression — Valid canonical Topic/Subtopic pair succeeds
   console.log('[Test 14] Regression: Valid canonical Topic/Subtopic pair succeeds...');
   const canonicalGenReq = await questionGenerationService.validateGenerationRequest({
-    topicId: 'TOP-QA-01',
-    subtopicId: 'SUB-01',
+    topicId: VALID_TOPIC_ID,
+    subtopicId: VALID_SUBTOPIC_ID,
     difficulty: DifficultyLevel.MEDIUM,
     language: QuestionLanguage.TELUGU,
   });
   assert.strictEqual(canonicalGenReq.isValid, true, 'Valid canonical pair must pass validation');
 
   const canonicalDraft = await questionGenerationService.saveDraft({
-    topicId: 'TOP-QA-01',
-    subtopicId: 'SUB-01',
+    topicId: VALID_TOPIC_ID,
+    subtopicId: VALID_SUBTOPIC_ID,
     difficulty: 'Intermediate',
     language: 'TELUGU',
     questionText: 'రైలు మరియు ప్లాట్‌ఫామ్ సమస్య...',
@@ -263,17 +267,16 @@ async function runTopicSubtopicValidationTests() {
   });
   assert(canonicalIdService.validateCanonicalId(canonicalDraft.id, 'dft_'), 'Draft must be saved with canonical UUID ID (dft_<uuid>)');
   assert(canonicalDraft.id.startsWith('dft_'), 'Draft must receive a canonical draft ID starting with dft_');
-  assert.strictEqual(canonicalDraft.topicId, 'TOP-QA-01');
-  assert.strictEqual(canonicalDraft.subtopicId, 'SUB-01');
+  assert.strictEqual(canonicalDraft.topicId, VALID_TOPIC_ID);
+  assert.strictEqual(canonicalDraft.subtopicId, VALID_SUBTOPIC_ID);
   await questionGenerationService.deleteDraft(canonicalDraft.id);
   console.log('  PASS: Valid canonical Topic/Subtopic pair succeeds for generation and draft saving.');
 
   // Test 15: Regression — Real Subtopic assigned to wrong Topic is rejected
   console.log('[Test 15] Regression: Real Subtopic assigned to wrong Topic is rejected...');
-  // SUB-01 belongs to TOP-QA-01, but we pass TOP-QA-02
   const mismatchedPairGenReq = await questionGenerationService.validateGenerationRequest({
-    topicId: 'TOP-QA-02',
-    subtopicId: 'SUB-01',
+    topicId: MISMATCHED_TOPIC_ID,
+    subtopicId: VALID_SUBTOPIC_ID,
     difficulty: DifficultyLevel.MEDIUM,
     language: QuestionLanguage.TELUGU,
   });
@@ -283,8 +286,8 @@ async function runTopicSubtopicValidationTests() {
   let mismatchedDraftError = false;
   try {
     await questionGenerationService.saveDraft({
-      topicId: 'TOP-QA-02',
-      subtopicId: 'SUB-01',
+      topicId: MISMATCHED_TOPIC_ID,
+      subtopicId: VALID_SUBTOPIC_ID,
       difficulty: 'Intermediate',
       language: 'TELUGU',
       questionText: 'తప్పు సంబంధిత టాపిక్ డ్రాఫ్ట్...',
@@ -302,7 +305,7 @@ async function runTopicSubtopicValidationTests() {
   // Test 16: Regression — RANDOM mode continues to work according to existing contract
   console.log('[Test 16] Regression: RANDOM mode continues to work according to contract...');
   const randomGenReq = await questionGenerationService.validateGenerationRequest({
-    topicId: 'TOP-QA-01',
+    topicId: VALID_TOPIC_ID,
     subtopicId: 'RANDOM',
     generationMode: 'RANDOM',
     difficulty: DifficultyLevel.MEDIUM,
@@ -311,7 +314,7 @@ async function runTopicSubtopicValidationTests() {
   assert.strictEqual(randomGenReq.isValid, true, 'Random mode generation request must be valid');
 
   const randomDraft = await questionGenerationService.saveDraft({
-    topicId: 'TOP-QA-01',
+    topicId: VALID_TOPIC_ID,
     subtopicId: 'RANDOM',
     generationMode: 'RANDOM',
     difficulty: 'Intermediate',

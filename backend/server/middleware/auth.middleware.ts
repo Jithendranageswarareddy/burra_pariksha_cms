@@ -379,13 +379,18 @@ export function requireCapability(
       if (!targetContext) targetContext = {};
       targetContext.override = {
         isOverride: true,
-        confirmedByAdmin: Boolean(overridePayload?.confirmedByAdmin ?? req.body?.confirmedByAdmin ?? true),
+        confirmedByAdmin: Boolean(overridePayload?.confirmedByAdmin ?? req.body?.confirmedByAdmin ?? false),
         reason: String(overridePayload?.reason || req.body?.overrideReason || req.body?.reason || '').trim(),
-        overrideActionType: String(overridePayload?.overrideActionType || req.body?.overrideActionType || 'ADMIN_OVERRIDE').trim(),
+        overrideActionType: String(overridePayload?.overrideActionType || req.body?.overrideActionType || 'ADMIN_APPROVAL_OVERRIDE').trim(),
         originalAuthorId: targetContext.authorUserId || targetContext.createdBy,
         previousState: targetContext.status,
         newState: req.body?.newState || req.body?.targetStatus,
       };
+      (targetContext as any).isOverride = true;
+      (targetContext as any).confirmedByAdmin = targetContext.override.confirmedByAdmin;
+      (targetContext as any).overrideReason = targetContext.override.reason;
+      (targetContext as any).reason = targetContext.override.reason;
+      (targetContext as any).overrideActionType = targetContext.override.overrideActionType;
     }
 
     // 4. Parse capability

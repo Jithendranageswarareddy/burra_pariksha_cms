@@ -49,7 +49,7 @@ async function runAcceptanceTest() {
   const userData = userDoc.data() || {};
   const token = authService.generateSessionToken({
     userId: 'USR-001',
-    userName: userData.name || 'System Admin',
+    name: userData.name || 'System Admin',
     role: UserRole.ADMIN,
     roles: [UserRole.ADMIN],
     sessionVersion: userData.sessionVersion ?? 1,

@@ -456,10 +456,16 @@ export class ApiClient {
         notes,
         ...(override?.isOverride ? {
           isOverride: true,
-          confirmedByAdmin: override.confirmedByAdmin ?? true,
+          confirmedByAdmin: override.confirmedByAdmin ?? false,
           reason: override.reason,
           overrideReason: override.reason,
           overrideActionType: override.overrideActionType || 'ADMIN_APPROVAL_OVERRIDE',
+          override: {
+            isOverride: true,
+            confirmedByAdmin: override.confirmedByAdmin ?? false,
+            reason: override.reason,
+            overrideActionType: override.overrideActionType || 'ADMIN_APPROVAL_OVERRIDE',
+          },
         } : {}),
       }),
     });

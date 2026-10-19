@@ -4,7 +4,7 @@
  * Validates:
  * 1. System Admin has operational capabilities across all 15 workflow stages.
  * 2. System Admin can view, edit, transition, and reassign tasks across all stages.
- * 3. Strict GAR-02 Invariant: Admin cannot approve or verify items they authored (zero override bypass).
+ * 3. Strict GAR-02 Invariant: Admin self-approval requires explicit audited override; non-admin employees are strictly blocked.
  * 4. Non-Author Admin can approve/verify another user's authored item as an independent reviewer.
  * 5. Independent peer reviewer (QA Reviewer, Content Lead) can approve Admin-authored items.
  * 6. Missing legacy authorId fails closed (throws 403 / denied, preventing silent self-approval).

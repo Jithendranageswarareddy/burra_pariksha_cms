@@ -1473,7 +1473,7 @@ apiRouter.post(
       const overridePayload = req.body?.override;
       const overrideContext = (req.body?.isOverride || overridePayload?.isOverride) ? {
         isOverride: true,
-        confirmedByAdmin: Boolean(overridePayload?.confirmedByAdmin ?? req.body?.confirmedByAdmin ?? true),
+        confirmedByAdmin: Boolean(overridePayload?.confirmedByAdmin ?? req.body?.confirmedByAdmin ?? false),
         reason: String(overridePayload?.reason || req.body?.overrideReason || req.body?.reason || '').trim(),
         overrideActionType: String(overridePayload?.overrideActionType || req.body?.overrideActionType || 'ADMIN_APPROVAL_OVERRIDE').trim(),
         originalAuthorId: req.body?.originalAuthorId,

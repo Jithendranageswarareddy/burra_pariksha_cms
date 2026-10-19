@@ -57,6 +57,8 @@ async function runSystemAdminWorkflowOperationsIntegrationTests() {
 
   try {
     const timestamp = Date.now();
+    const VALID_TOPIC_ID = 'top_10000000-0000-4000-8000-000000000001';
+    const VALID_SUBTOPIC_ID = 'sub_10000000-0000-4000-8000-000000000101';
 
     // 2. Setup authenticated users: Admin, Author (QUESTION_CREATOR), Reviewer
     const adminUserId = `usr_admin_${timestamp}`;
@@ -138,8 +140,8 @@ async function runSystemAdminWorkflowOperationsIntegrationTests() {
           Authorization: `Bearer ${adminToken}`,
         },
         body: JSON.stringify({
-          topicId: 'TOP-QA-01',
-          subtopicId: 'SUB-01',
+          topicId: VALID_TOPIC_ID,
+          subtopicId: VALID_SUBTOPIC_ID,
           difficulty: 'Medium',
           language: 'TELUGU',
           productionMode: 'QUESTION_CHALLENGE_SHORT',
@@ -164,8 +166,8 @@ async function runSystemAdminWorkflowOperationsIntegrationTests() {
           Authorization: `Bearer ${adminToken}`,
         },
         body: JSON.stringify({
-          topicId: 'TOP-QA-01',
-          subtopicId: 'SUB-01',
+          topicId: VALID_TOPIC_ID,
+          subtopicId: VALID_SUBTOPIC_ID,
           difficulty: 'Medium',
           language: 'TELUGU',
           questionText: 'What is the sum of all interior angles in any Euclidean triangle?',
@@ -202,8 +204,8 @@ async function runSystemAdminWorkflowOperationsIntegrationTests() {
           Authorization: `Bearer ${authorToken}`,
         },
         body: JSON.stringify({
-          topicId: 'TOP-QA-01',
-          subtopicId: 'SUB-01',
+          topicId: VALID_TOPIC_ID,
+          subtopicId: VALID_SUBTOPIC_ID,
           difficulty: 'Hard',
           language: 'TELUGU',
           productionMode: 'QUESTION_CHALLENGE_SHORT',
@@ -273,7 +275,29 @@ async function runSystemAdminWorkflowOperationsIntegrationTests() {
     });
 
     await test('Stage 02: Independent reviewer CAN approve Admin-authored draft', async () => {
-      const peerApproveRes = await fetch(`${baseUrl}/v1/questions/draft/${adminDraftId}/approve`, {
+      // Create a draft authored by Admin for peer review
+      const peerDraftRes = await fetch(`${baseUrl}/v1/questions/draft`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${adminToken}`,
+        },
+        body: JSON.stringify({
+          topicId: VALID_TOPIC_ID,
+          subtopicId: VALID_SUBTOPIC_ID,
+          difficulty: 'Medium',
+          language: 'TELUGU',
+          productionMode: 'QUESTION_CHALLENGE_SHORT',
+          questionText: 'What is the unit of electric current?',
+          options: { a: 'Ampere', b: 'Volt', c: 'Watt', d: 'Ohm' },
+          correctAnswer: 'A',
+          explanation: 'The SI unit of electric current is the ampere (A).',
+        }),
+      });
+      assert.strictEqual(peerDraftRes.status, 201, 'Peer review draft creation must succeed');
+      const peerDraft = await peerDraftRes.json();
+
+      const peerApproveRes = await fetch(`${baseUrl}/v1/questions/draft/${peerDraft.id}/approve`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -312,8 +336,8 @@ async function runSystemAdminWorkflowOperationsIntegrationTests() {
     await test('Stage 02: Legacy draft missing authorId fails closed (HTTP 403) and Admin reconciles it', async () => {
       // Create draft in repository directly lacking authorId and createdBy
       const legacyDraft = await questionDraftsRepository.create({
-        topicId: 'TOP-QA-01',
-        subtopicId: 'SUB-01',
+        topicId: VALID_TOPIC_ID,
+        subtopicId: VALID_SUBTOPIC_ID,
         difficulty: 'Easy',
         language: 'TELUGU',
         questionText: 'What is the capital of Andhra Pradesh?',

@@ -152,7 +152,7 @@ export function evaluateSegregationOfDuties(
     const actorRoles = (actor.roles || [actor.role]).map((r) => resolveBrownfieldRole(r));
     const isAdmin = canonicalRole === CanonicalRbacRole.ADMIN || actorRoles.includes(CanonicalRbacRole.ADMIN);
 
-    const override = targetContext.override;
+    const override = targetContext.override || ((targetContext as any)?.isOverride ? (targetContext as any) : undefined);
     if (isAdmin && override?.isOverride) {
       if (!override.confirmedByAdmin) {
         return {
@@ -161,7 +161,7 @@ export function evaluateSegregationOfDuties(
           errorMessage: 'Administrative override requires explicit confirmation (confirmedByAdmin).',
         };
       }
-      const reason = (override.reason || '').trim();
+      const reason = String(override.reason || (override as any).overrideReason || '').trim();
       if (reason.length < 10) {
         return {
           allowed: false,
@@ -434,7 +434,7 @@ export function evaluateAuthorization(request: AuthorizationRequest): Authorizat
 
   // Step 8: Authorization Succeeded — Return Allowed Decision with Audit Event (AP-014)
   const isOverride = Boolean(sodResult.isOverride);
-  const overrideReason = isOverride ? request.targetContext?.override?.reason : undefined;
+  const overrideReason = isOverride ? (request.targetContext?.override?.reason || (request.targetContext as any)?.overrideReason || (request.targetContext as any)?.reason) : undefined;
   const overrideActionType = isOverride ? request.targetContext?.override?.overrideActionType || 'ADMIN_APPROVAL_OVERRIDE' : undefined;
 
   return {
