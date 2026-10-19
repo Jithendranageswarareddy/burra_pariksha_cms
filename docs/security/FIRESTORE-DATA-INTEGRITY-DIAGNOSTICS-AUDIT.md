@@ -118,8 +118,9 @@ Direct read-only inspection of document `AUD-1792405140207-k0rif` in Cloud Fires
 
 ---
 
-## 5. Empty Database & Taxonomy Classification Semantics
+## 5. Empty Database, Taxonomy Semantics & Counting Rules
 
+### Semantic Classifications
 A clean or newly reset database legitimately starts with 0 documents in content collections. The diagnostic engine classifies collection status into distinct semantic categories:
 
 - **`PASS`:** The collection contains records, and all documents satisfy schema, referential, and lifecycle invariants.
@@ -127,6 +128,13 @@ A clean or newly reset database legitimately starts with 0 documents in content 
 - **`WARNING`:** Non-critical operational anomalies (e.g. missing optional timestamps, stale assignments).
 - **`ERROR`:** Critical broken foreign keys, missing required fields, primary key duplicates, or Firestore query failures.
 - **Taxonomy Guidance:** When `topics` and `subtopics` have 0 records, an `INFO` notice is emitted with remediation guidance linking to `/settings?tab=taxonomy` (`Initialize syllabus taxonomy via Management & System -> Topics & Taxonomy`).
+
+### Shared Diagnostic Counting Semantics (`computeDiagnosticCounts`)
+To guarantee that global totals, category cards, collection rows, and issue explorers never disagree:
+1. **Actionable Integrity Issues:** Only anomalies with severity `CRITICAL`, `ERROR`, or `WARNING` increment the `issueCount` and `total` count.
+2. **Informational Guidance Notices:** Severity `INFO` items are tracked as `noticeCount` / `noticesCount` and never penalize collection health, trigger false `ERROR` badges, or increment `issueCounts.total`.
+3. **Consistency Invariant:**
+   `globalTotal = sum(category.issueCount) = sum(collection.issuesCount) = issues.filter(i => i.severity !== 'INFO').length`
 
 ---
 
@@ -159,20 +167,25 @@ The dedicated test suite `tests/unit/firestore-data-integrity.unit.test.ts` was 
 | **Test 12** | Whitespace-only action and eventType fail validation | **PASS** |
 | **Test 13** | `AuditLogRepository.appendRecord` rejects missing action/eventType with `ValidationError` | **PASS** |
 | **Test 14** | Live diagnostic returns overallStatus PASS with 0 audit_logs errors | **PASS** |
+| **Test 15** | Informational empty-taxonomy notice produces zero integrity errors and issueCount of 0 | **PASS** |
+| **Test 16** | Global totals, category counts, and collection matrix rows agree consistently | **PASS** |
+| **Test 17** | Genuine taxonomy reference error increments the correct issue count | **PASS** |
+| **Test 18** | Legacy worksheet terminology eradicated from diagnostic messages/recommendations | **PASS** |
 
-**Summary: 14 tests executed, 14 passed, 0 failed.**
+**Summary: 18 tests executed, 18 passed, 0 failed.**
 
 ---
 
 ## 8. Changed Files
 
-1. `database/firestore/repositories/audit-log.repository.ts` — Updated `logEvent()` and added `appendRecord()` server-side validation guard enforcing non-empty action/eventType.
-2. `shared/types/content.ts` — Updated `WorksheetHealthSummary` status union to include `'EMPTY'` and optional `collection` identifier.
-3. `backend/features/recovery/services/data-integrity.service.ts` — Refactored to monitor 23 Firestore collections, distinguish query errors from empty states, validate Topic -> Subtopic references, accept `log.action || log.eventType`, and update summary messaging.
-4. `frontend/pages/SettingsPage.tsx` — Replaced Google Sheets branding with "Firebase / Firestore Data Integrity Diagnostics", updated matrix headers to "Collection / Domain" and "Total Documents", added `EMPTY` status badge styling.
-5. `tests/unit/firestore-data-integrity.unit.test.ts` — Added comprehensive unit test suite covering all 14 regression scenarios.
-6. `tests/architecture/s7-t01-inventory-reconciliation.test.ts` — Registered new test and documentation files in `AUTHORITATIVE_APPROVED_POST_S7_ADDITIONS`.
-7. `docs/security/FIRESTORE-DATA-INTEGRITY-DIAGNOSTICS-AUDIT.md` — Authoritative audit deliverable.
+1. `shared/contracts/system.ts` — Added `DiagnosticCountSummary` contract and canonical `computeDiagnosticCounts` shared helper.
+2. `shared/types/content.ts` — Updated `IntegrityIssue` with `collection?`, `IntegrityCheckSummary` with `noticeCount?`, and `WorksheetHealthSummary` with `noticesCount?`.
+3. `src/types/index.ts` — Synchronized legacy compatibility types with updated shared definitions.
+4. `database/firestore/repositories/audit-log.repository.ts` — Updated `logEvent()` and added `appendRecord()` server-side validation guard enforcing non-empty action/eventType.
+5. `backend/features/recovery/services/data-integrity.service.ts` — Applied canonical `computeDiagnosticCounts` across collections, categories, and global report; eradicated legacy worksheet/row terminology from all diagnostic messages.
+6. `frontend/pages/SettingsPage.tsx` — Replaced `Worksheet: {issue.worksheet}` with `Collection: {issue.collection || issue.worksheet}`, added dedicated `Notices` badge, updated category card notice count rendering, and aligned empty state messaging.
+7. `tests/unit/firestore-data-integrity.unit.test.ts` — Added comprehensive unit test suite covering all 18 regression scenarios.
+8. `docs/security/FIRESTORE-DATA-INTEGRITY-DIAGNOSTICS-AUDIT.md` — Authoritative audit deliverable.
 
 ---
 
@@ -181,7 +194,10 @@ The dedicated test suite `tests/unit/firestore-data-integrity.unit.test.ts` was 
 Live HTTP verification against `http://localhost:3000/api/system/health/integrity`:
 - **Overall Status:** `PASS`
 - **Passed Checks:** `11/11`
-- **Total Issues:** `1` (`Errors: 0, Critical: 0, Warnings: 0, Info: 1`)
+- **Total Issues:** `0` (Actionable integrity defects)
+- **Informational Notices:** `1` (`Taxonomy is currently empty`)
+- **Question Taxonomy Category:** `0 issues`, `1 notice`, `status: PASS`
+- **Topics Collection Health:** `totalRecords: 0, validRecords: 0, issuesCount: 0, noticesCount: 1, status: EMPTY`
 - **Audit Logs Health:** `totalRecords: 1, validRecords: 1, issuesCount: 0, status: PASS`
 - **Active Errors:** `0`
 - **Status:** **CLOSED**

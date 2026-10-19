@@ -700,6 +700,14 @@ export const SettingsPage: React.FC = () => {
                       </div>
                     </div>
                   )}
+                  {integrityReport.issueCounts.info > 0 && (
+                    <div className="bg-sky-100 border border-sky-200 px-3 py-1.5 rounded-lg text-center shadow-2xs">
+                      <div className="text-[10px] uppercase font-bold text-sky-700">Notices</div>
+                      <div className="text-sm font-bold text-sky-900 font-mono">
+                        {integrityReport.issueCounts.info}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -752,7 +760,11 @@ export const SettingsPage: React.FC = () => {
                       <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono pt-1 border-t border-slate-200/60">
                         <span>Category: {check.category}</span>
                         <span className={check.issueCount > 0 ? 'font-bold text-amber-700' : 'text-slate-500'}>
-                          {check.issueCount} issue{check.issueCount !== 1 ? 's' : ''}
+                          {check.issueCount > 0
+                            ? `${check.issueCount} issue${check.issueCount !== 1 ? 's' : ''}`
+                            : (check as any).noticeCount > 0
+                            ? `${(check as any).noticeCount} notice${(check as any).noticeCount !== 1 ? 's' : ''}`
+                            : '0 issues'}
                         </span>
                       </div>
                     </div>
@@ -894,7 +906,7 @@ export const SettingsPage: React.FC = () => {
                       : 'No issues match the selected filter criteria.'}
                   </div>
                   <p className="text-[11px] text-slate-500 max-w-md mx-auto">
-                    All authoritative Google Sheets records conform to relational schemas and workflow invariants.
+                    All authoritative Cloud Firestore records conform to relational schemas and workflow invariants.
                   </p>
                 </div>
               ) : (
@@ -937,7 +949,7 @@ export const SettingsPage: React.FC = () => {
                             </span>
                             <span className="text-xs text-slate-400">•</span>
                             <span className="font-mono text-xs font-medium text-slate-900 bg-white/80 px-2 py-0.5 rounded border border-slate-200">
-                              Worksheet: {issue.worksheet}
+                              Collection: {issue.collection || issue.worksheet}
                             </span>
                             {issue.entityId && (
                               <span className="font-mono text-xs text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">

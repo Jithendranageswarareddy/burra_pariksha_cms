@@ -11,7 +11,7 @@
  * or alters Firestore collections in any way.
  */
 
-import { AuditLog, IntegrityCategory, IntegrityCheckSummary, IntegrityIssue, IntegritySeverity, PinnedComment, PinnedCommentVersion, PriorityLevel, Publishing, Question, QuestionStatus, QuestionVideo, Script, ScriptVersion, SocialPublishStatus, Subtopic, SystemHealthReport, Thumbnail, ThumbnailVersion, Topic, User, Video, VideoProductionStatus, Workflow, WorksheetHealthSummary } from '../../../../shared';
+import { AuditLog, computeDiagnosticCounts, IntegrityCategory, IntegrityCheckSummary, IntegrityIssue, IntegritySeverity, PinnedComment, PinnedCommentVersion, PriorityLevel, Publishing, Question, QuestionStatus, QuestionVideo, Script, ScriptVersion, SocialPublishStatus, Subtopic, SystemHealthReport, Thumbnail, ThumbnailVersion, Topic, User, Video, VideoProductionStatus, Workflow, WorksheetHealthSummary } from '../../../../shared';
 
 import {
   assignmentsRepository,
@@ -146,6 +146,7 @@ export class DataIntegrityService {
         severity,
         category,
         worksheet,
+        collection: worksheet,
         message,
         recommendedAction,
         entityType,
@@ -411,7 +412,7 @@ export class DataIntegrityService {
             'QUESTION_INTEGRITY',
             SHEET_TABS.QUESTIONS,
             `Question "${q.id}" is missing required topic_id.`,
-            `Set a valid Topic ID for question "${q.id}" in the QUESTIONS worksheet.`,
+            `Set a valid Topic ID for question "${q.id}" in collection "questions".`,
             'QUESTION',
             q.id,
             'topicId'
@@ -437,7 +438,7 @@ export class DataIntegrityService {
               'QUESTION_INTEGRITY',
               SHEET_TABS.QUESTIONS,
               `Question "${q.id}" references non-existent topic_id "${q.topicId}".`,
-              `Update topic_id for question "${q.id}" to an existing topic in the TOPICS tab.`,
+              `Update topic_id for question "${q.id}" to an existing topic in collection "topics".`,
               'QUESTION',
               q.id,
               'topicId'
@@ -464,7 +465,7 @@ export class DataIntegrityService {
             'QUESTION_INTEGRITY',
             SHEET_TABS.QUESTIONS,
             `Question "${q.id}" is missing required subtopic_id.`,
-            `Set a valid Subtopic ID for question "${q.id}" in the QUESTIONS worksheet.`,
+            `Set a valid Subtopic ID for question "${q.id}" in collection "questions".`,
             'QUESTION',
             q.id,
             'subtopicId'
@@ -490,7 +491,7 @@ export class DataIntegrityService {
               'QUESTION_INTEGRITY',
               SHEET_TABS.QUESTIONS,
               `Question "${q.id}" references non-existent subtopic_id "${q.subtopicId}".`,
-              `Update subtopic_id for question "${q.id}" to an existing subtopic in the SUBTOPICS tab.`,
+              `Update subtopic_id for question "${q.id}" to an existing subtopic in collection "subtopics".`,
               'QUESTION',
               q.id,
               'subtopicId'
@@ -515,7 +516,7 @@ export class DataIntegrityService {
               'QUESTION_INTEGRITY',
               SHEET_TABS.QUESTIONS,
               `Hierarchy mismatch: Subtopic "${q.subtopicId}" belongs to Topic "${subtopic.topicId}", but question "${q.id}" is assigned to Topic "${q.topicId}".`,
-              `Align topic_id and subtopic_id for question "${q.id}" in the QUESTIONS worksheet.`,
+              `Align topic_id and subtopic_id for question "${q.id}" in collection "questions".`,
               'QUESTION',
               q.id,
               'subtopicId'
@@ -531,7 +532,7 @@ export class DataIntegrityService {
           'QUESTION_INTEGRITY',
           SHEET_TABS.QUESTIONS,
           `Question "${q.id}" has empty or missing question text.`,
-          `Provide full question text content for "${q.id}" in the QUESTIONS worksheet.`,
+          `Provide full question text content for "${q.id}" in collection "questions".`,
           'QUESTION',
           q.id,
           'questionText'
@@ -703,7 +704,7 @@ export class DataIntegrityService {
             'VIDEO_INTEGRITY',
             SHEET_TABS.VIDEOS,
             `Video "${v.id}" has missing question_id.`,
-            `Link video "${v.id}" to an authoritative Question ID in the VIDEOS worksheet.`,
+            `Link video "${v.id}" to an authoritative Question ID in collection "videos".`,
             'VIDEO',
             v.id,
             'questionId'
@@ -727,7 +728,7 @@ export class DataIntegrityService {
             'VIDEO_INTEGRITY',
             SHEET_TABS.VIDEOS,
             `Video "${v.id}" points to non-existent question_id "${v.questionId}".`,
-            `Update question_id for video "${v.id}" to an existing question in the QUESTIONS worksheet.`,
+            `Update question_id for video "${v.id}" to an existing question in collection "questions".`,
             'VIDEO',
             v.id,
             'questionId'
@@ -763,7 +764,7 @@ export class DataIntegrityService {
           'VIDEO_INTEGRITY',
           SHEET_TABS.VIDEOS,
           `Video "${v.id}" is missing a title.`,
-          `Provide a video title for "${v.id}" in the VIDEOS worksheet.`,
+          `Provide a video title for "${v.id}" in collection "videos".`,
           'VIDEO',
           v.id,
           'title'
@@ -791,7 +792,7 @@ export class DataIntegrityService {
             'INFO',
             'VIDEO_INTEGRITY',
             SHEET_TABS.QUESTION_VIDEOS,
-            `Test artifact video "${v.id}" does not have a corresponding mapping row in QUESTION_VIDEOS.`,
+            `Test artifact video "${v.id}" does not have a corresponding mapping document in collection "question_videos".`,
             `No production remediation required for test artifact records.`,
             'VIDEO',
             v.id,
@@ -802,8 +803,8 @@ export class DataIntegrityService {
             'WARNING',
             'VIDEO_INTEGRITY',
             SHEET_TABS.QUESTION_VIDEOS,
-            `Video "${v.id}" does not have a corresponding mapping row in QUESTION_VIDEOS.`,
-            `Add relationship row (question_id="${v.questionId}", video_id="${v.id}") to QUESTION_VIDEOS.`,
+            `Video "${v.id}" does not have a corresponding mapping document in collection "question_videos".`,
+            `Add relationship document (questionId: "${v.questionId}", videoId: "${v.id}") to collection "question_videos".`,
             'VIDEO',
             v.id,
             'id'
@@ -836,8 +837,8 @@ export class DataIntegrityService {
             'WARNING',
             'VIDEO_INTEGRITY',
             SHEET_TABS.PUBLISHING,
-            `Video "${v.id}" is in UPLOADED status but has no publishing tracking record in PUBLISHING worksheet.`,
-            `Create publishing record for video "${v.id}" in the PUBLISHING worksheet.`,
+            `Video "${v.id}" is in UPLOADED status but has no publishing tracking record in collection "publishing_packages".`,
+            `Create publishing record for video "${v.id}" in collection "publishing_packages".`,
             'VIDEO',
             v.id,
             'status'
@@ -943,7 +944,7 @@ export class DataIntegrityService {
             'SCRIPT_INTEGRITY',
             SHEET_TABS.SCRIPT,
             `Script "${s.id}" is missing video_id reference.`,
-            `Link script "${s.id}" to an existing video in the SCRIPT worksheet.`,
+            `Link script "${s.id}" to an existing video in collection "scripts".`,
             'SCRIPT',
             s.id,
             'videoId'
@@ -967,7 +968,7 @@ export class DataIntegrityService {
             'SCRIPT_INTEGRITY',
             SHEET_TABS.SCRIPT,
             `Script "${s.id}" points to non-existent video_id "${s.videoId}".`,
-            `Update video_id for script "${s.id}" to a valid video in the VIDEOS worksheet.`,
+            `Update video_id for script "${s.id}" to a valid video in collection "videos".`,
             'SCRIPT',
             s.id,
             'videoId'
@@ -1161,7 +1162,7 @@ export class DataIntegrityService {
             'PINNED_COMMENT_INTEGRITY',
             SHEET_TABS.PINNED_COMMENT_VERSIONS,
             `Pinned comment version "${pv.id}" is missing pinned_comment_id.`,
-            `Set pinned_comment_id for version row "${pv.id}".`,
+            `Set pinned_comment_id for version document "${pv.id}".`,
             'PINNED_COMMENT_VERSION',
             pv.id,
             'pinnedCommentId'
@@ -1285,7 +1286,7 @@ export class DataIntegrityService {
             'PUBLISHING_INTEGRITY',
             SHEET_TABS.PUBLISHING,
             `Publishing record "${pub.id}" has missing video_id.`,
-            `Set video_id for publishing row "${pub.id}" in the PUBLISHING worksheet.`,
+            `Set video_id for publishing document "${pub.id}" in collection "publishing_packages".`,
             'PUBLISHING',
             pub.id,
             'videoId'
@@ -1469,7 +1470,7 @@ export class DataIntegrityService {
           'WORKFLOW_INTEGRITY',
           SHEET_TABS.WORKFLOW,
           `Workflow record "${wf.id}" represents an illegal transition from terminal state UPLOADED to "${wf.toStatus}".`,
-          `Review workflow history in WORKFLOW worksheet for entity "${wf.entityId}".`,
+          `Review workflow history in collection "workflow_instances" for entity "${wf.entityId}".`,
           'WORKFLOW',
           wf.id,
           'toStatus'
@@ -1482,7 +1483,7 @@ export class DataIntegrityService {
           'WORKFLOW_INTEGRITY',
           SHEET_TABS.WORKFLOW,
           `Workflow record "${wf.id}" represents an illegal transition from terminal state CANCELLED to "${wf.toStatus}".`,
-          `Review workflow history in WORKFLOW worksheet for entity "${wf.entityId}".`,
+          `Review workflow history in collection "workflow_instances" for entity "${wf.entityId}".`,
           'WORKFLOW',
           wf.id,
           'toStatus'
@@ -1549,7 +1550,7 @@ export class DataIntegrityService {
           'USER_INTEGRITY',
           SHEET_TABS.USERS,
           `User record "${user.id}" is missing required name.`,
-          `Specify user full name in USERS tab for "${user.id}".`,
+          `Specify user full name in collection "users" for "${user.id}".`,
           'USER',
           user.id,
           'name'
@@ -1743,17 +1744,17 @@ export class DataIntegrityService {
     };
 
     const worksheetHealth: WorksheetHealthSummary[] = ALL_FIRESTORE_COLLECTIONS.map((colName) => {
-      const sheetIssues = issues.filter((i) => i.worksheet === colName);
-      const criticalOrErrors = sheetIssues.filter((i) => i.severity === 'CRITICAL' || i.severity === 'ERROR').length;
+      const sheetIssues = issues.filter((i) => i.worksheet === colName || i.collection === colName);
       const totalRecs = countByCollection(colName);
       const queryError = queryErrors.get(colName);
+      const counts = computeDiagnosticCounts(sheetIssues);
 
       let status: 'PASS' | 'EMPTY' | 'WARNING' | 'ERROR' = 'PASS';
       if (queryError) {
         status = 'ERROR';
-      } else if (criticalOrErrors > 0) {
+      } else if (counts.critical > 0 || counts.error > 0) {
         status = 'ERROR';
-      } else if (sheetIssues.some((i) => i.severity === 'WARNING')) {
+      } else if (counts.warning > 0) {
         status = 'WARNING';
       } else if (totalRecs === 0) {
         status = 'EMPTY';
@@ -1765,8 +1766,9 @@ export class DataIntegrityService {
         worksheet: colName,
         collection: colName,
         totalRecords: totalRecs,
-        validRecords: Math.max(0, totalRecs - criticalOrErrors),
-        issuesCount: sheetIssues.length,
+        validRecords: Math.max(0, totalRecs - (counts.critical + counts.error)),
+        issuesCount: counts.total,
+        noticesCount: counts.info,
         status,
       };
     });
@@ -1787,14 +1789,12 @@ export class DataIntegrityService {
 
     const integrityChecks: IntegrityCheckSummary[] = categoriesList.map((c) => {
       const catIssues = issues.filter((i) => i.category === c.category);
-      const hasCritical = catIssues.some((i) => i.severity === 'CRITICAL');
-      const hasError = catIssues.some((i) => i.severity === 'ERROR');
-      const hasWarning = catIssues.some((i) => i.severity === 'WARNING');
+      const counts = computeDiagnosticCounts(catIssues);
 
       let status: 'PASS' | 'WARNING' | 'ERROR' | 'CRITICAL' = 'PASS';
-      if (hasCritical) status = 'CRITICAL';
-      else if (hasError) status = 'ERROR';
-      else if (hasWarning) status = 'WARNING';
+      if (counts.critical > 0) status = 'CRITICAL';
+      else if (counts.error > 0) status = 'ERROR';
+      else if (counts.warning > 0) status = 'WARNING';
 
       return {
         category: c.category,
@@ -1803,19 +1803,17 @@ export class DataIntegrityService {
         status,
         totalChecked: 1,
         passedCount: status === 'PASS' ? 1 : 0,
-        issueCount: catIssues.length,
+        issueCount: counts.total,
+        noticeCount: counts.info,
       };
     });
 
-    const criticalCount = issues.filter((i) => i.severity === 'CRITICAL').length;
-    const errorCount = issues.filter((i) => i.severity === 'ERROR').length;
-    const warningCount = issues.filter((i) => i.severity === 'WARNING').length;
-    const infoCount = issues.filter((i) => i.severity === 'INFO').length;
+    const globalCounts = computeDiagnosticCounts(issues);
 
     let overallStatus: 'PASS' | 'WARNING' | 'ERROR' | 'CRITICAL' = 'PASS';
-    if (criticalCount > 0) overallStatus = 'CRITICAL';
-    else if (errorCount > 0) overallStatus = 'ERROR';
-    else if (warningCount > 0) overallStatus = 'WARNING';
+    if (globalCounts.critical > 0) overallStatus = 'CRITICAL';
+    else if (globalCounts.error > 0) overallStatus = 'ERROR';
+    else if (globalCounts.warning > 0) overallStatus = 'WARNING';
 
     const passedChecks = integrityChecks.filter((c) => c.status === 'PASS').length;
     const emptyCount = worksheetHealth.filter((w) => w.status === 'EMPTY').length;
@@ -1825,11 +1823,11 @@ export class DataIntegrityService {
       summary += ` (${emptyCount} unpopulated collection(s) valid for initial/reset environment).`;
     }
     if (overallStatus === 'CRITICAL') {
-      summary = `Critical Firestore integrity failure: ${criticalCount} critical schema/identifier errors require administrative attention.`;
+      summary = `Critical Firestore integrity failure: ${globalCounts.critical} critical schema/identifier errors require administrative attention.`;
     } else if (overallStatus === 'ERROR') {
-      summary = `Operational referential errors detected: ${errorCount} data integrity error(s) found across collections. Review diagnostic guidance.`;
+      summary = `Operational referential errors detected: ${globalCounts.error} data integrity error(s) found across collections. Review diagnostic guidance.`;
     } else if (overallStatus === 'WARNING') {
-      summary = `Firestore data integrity check passed with ${warningCount} operational warning(s). Stale or incomplete records detected.`;
+      summary = `Firestore data integrity check passed with ${globalCounts.warning} operational warning(s). Stale or incomplete records detected.`;
     }
 
     return {
@@ -1839,12 +1837,13 @@ export class DataIntegrityService {
       worksheetHealth,
       integrityChecks,
       issueCounts: {
-        critical: criticalCount,
-        error: errorCount,
-        warning: warningCount,
-        info: infoCount,
-        total: issues.length,
+        critical: globalCounts.critical,
+        error: globalCounts.error,
+        warning: globalCounts.warning,
+        info: globalCounts.info,
+        total: globalCounts.total,
         passedChecks,
+        totalNotices: globalCounts.info,
       },
       issues,
       isReadOnly: true,

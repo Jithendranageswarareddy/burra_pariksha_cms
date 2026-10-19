@@ -1135,6 +1135,7 @@ export interface IntegrityIssue {
   entityType?: string;
   entityId?: string;
   worksheet: string;
+  collection?: string;
   field?: string;
   message: string;
   recommendedAction: string;
@@ -1145,7 +1146,9 @@ export interface WorksheetHealthSummary {
   totalRecords: number;
   validRecords: number;
   issuesCount: number;
-  status: 'PASS' | 'WARNING' | 'ERROR';
+  status: 'PASS' | 'WARNING' | 'ERROR' | 'EMPTY';
+  collection?: string;
+  noticesCount?: number;
 }
 
 export interface IntegrityCheckSummary {
@@ -1156,6 +1159,7 @@ export interface IntegrityCheckSummary {
   totalChecked: number;
   passedCount: number;
   issueCount: number;
+  noticeCount?: number;
 }
 
 export interface SystemHealthReport {

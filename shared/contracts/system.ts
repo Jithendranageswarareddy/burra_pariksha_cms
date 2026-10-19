@@ -85,6 +85,45 @@ export interface SpreadsheetHealthReport {
   diagnosticActionItems: string[];
 }
 
+export interface DiagnosticCountSummary {
+  critical: number;
+  error: number;
+  warning: number;
+  info: number;
+  /** Actionable integrity issues (critical + error + warning) */
+  total: number;
+  /** Informational notices that provide guidance without failing health */
+  totalNotices: number;
+}
+
+/**
+ * Authoritative diagnostic counting rules ensuring global totals,
+ * category cards, and collection matrix rows agree.
+ * Informational notices (INFO) are tracked separately and do not increment issue counts.
+ */
+export function computeDiagnosticCounts(issues: Array<{ severity: string }>): DiagnosticCountSummary {
+  let critical = 0;
+  let error = 0;
+  let warning = 0;
+  let info = 0;
+
+  for (const issue of issues) {
+    if (issue.severity === 'CRITICAL') critical++;
+    else if (issue.severity === 'ERROR') error++;
+    else if (issue.severity === 'WARNING') warning++;
+    else if (issue.severity === 'INFO') info++;
+  }
+
+  return {
+    critical,
+    error,
+    warning,
+    info,
+    total: critical + error + warning,
+    totalNotices: info,
+  };
+}
+
 export interface SystemHealthReport {
   generatedAt?: string;
   overallStatus?: 'PASS' | 'WARNING' | 'ERROR' | 'CRITICAL' | string;
@@ -98,6 +137,7 @@ export interface SystemHealthReport {
     info: number;
     total: number;
     passedChecks?: number;
+    totalNotices?: number;
   };
   issues?: any[];
   isReadOnly?: boolean;
@@ -108,4 +148,3 @@ export interface SystemHealthReport {
   uptimeSeconds?: number;
   components?: Record<string, { status: string; message?: string }>;
 }
-

@@ -303,6 +303,80 @@ async function runUnitTests() {
     assert.strictEqual(auditLogIssues.length, 0);
   });
 
+  // --------------------------------------------------------------------------
+  // TEST 15: Informational empty-taxonomy notice produces zero integrity errors
+  // --------------------------------------------------------------------------
+  await test('15. Informational empty-taxonomy notice produces zero integrity errors and issueCount of 0', async () => {
+    const report = await dataIntegrityService.runFullIntegrityCheck();
+    assert.strictEqual(report.overallStatus, 'PASS');
+    assert.strictEqual(report.issueCounts.error, 0);
+    assert.strictEqual(report.issueCounts.total, 0, 'issueCounts.total must be 0 when only informational notices exist');
+    assert.strictEqual(report.issueCounts.info, 1, 'Informational notice is tracked in info count');
+  });
+
+  // --------------------------------------------------------------------------
+  // TEST 16: Consistency: Global totals, category counts, and collection rows agree
+  // --------------------------------------------------------------------------
+  await test('16. Global totals, category counts, and collection matrix rows agree consistently', async () => {
+    const report = await dataIntegrityService.runFullIntegrityCheck();
+    const sumCategoryIssues = report.integrityChecks.reduce((sum: number, c: any) => sum + c.issueCount, 0);
+    const sumCollectionIssues = report.worksheetHealth.reduce((sum: number, w: any) => sum + w.issuesCount, 0);
+    const actionableIssuesCount = report.issues.filter((i: any) => i.severity !== 'INFO').length;
+
+    assert.strictEqual(report.issueCounts.total, actionableIssuesCount, 'Global total must equal actionable issues count');
+    assert.strictEqual(sumCategoryIssues, report.issueCounts.total, 'Sum of category issue counts must equal global total');
+    assert.strictEqual(sumCollectionIssues, report.issueCounts.total, 'Sum of collection issue counts must equal global total');
+
+    const questionCategory = report.integrityChecks.find((c: any) => c.category === 'QUESTION_INTEGRITY');
+    assert.strictEqual(questionCategory.issueCount, 0, 'Question Taxonomy & Options Integrity issueCount must be 0');
+    assert.strictEqual(questionCategory.noticeCount, 1, 'Question Taxonomy noticeCount must be 1');
+
+    const topicsHealth = report.worksheetHealth.find((w: any) => w.collection === 'topics');
+    assert.strictEqual(topicsHealth.issuesCount, 0, 'Topics collection issuesCount must be 0');
+    assert.strictEqual(topicsHealth.noticesCount, 1, 'Topics collection noticesCount must be 1');
+  });
+
+  // --------------------------------------------------------------------------
+  // TEST 17: Genuine taxonomy reference error increments the correct issue count
+  // --------------------------------------------------------------------------
+  await test('17. A genuine taxonomy reference error increments the correct issue count and sets ERROR status', async () => {
+    const { computeDiagnosticCounts } = await import('../../shared');
+    const mockIssues = [
+      {
+        id: 'DI-ISSUE-00001',
+        severity: 'INFO',
+        category: 'QUESTION_INTEGRITY',
+        message: 'Empty taxonomy notice',
+      },
+      {
+        id: 'DI-ISSUE-00002',
+        severity: 'ERROR',
+        category: 'QUESTION_INTEGRITY',
+        message: 'Subtopic references non-existent topic',
+      },
+    ];
+
+    const counts = computeDiagnosticCounts(mockIssues);
+    assert.strictEqual(counts.error, 1);
+    assert.strictEqual(counts.info, 1);
+    assert.strictEqual(counts.total, 1, 'Total must count only actionable issues (1 error), excluding info');
+  });
+
+  // --------------------------------------------------------------------------
+  // TEST 18: Legacy worksheet terminology does not appear in rendered diagnostic items
+  // --------------------------------------------------------------------------
+  await test('18. Legacy worksheet terminology does not appear in diagnostic item messages or recommendations', async () => {
+    const report = await dataIntegrityService.runFullIntegrityCheck();
+    for (const issue of report.issues) {
+      assert.ok(issue.collection, `Issue ${issue.id} must define collection property`);
+      assert.ok(!issue.message.includes('mapping row'), `Issue message should not mention mapping row: ${issue.message}`);
+      assert.ok(!issue.recommendedAction.includes('in the QUESTIONS worksheet'), `Action must not mention QUESTIONS worksheet: ${issue.recommendedAction}`);
+      assert.ok(!issue.recommendedAction.includes('in the VIDEOS worksheet'), `Action must not mention VIDEOS worksheet: ${issue.recommendedAction}`);
+      assert.ok(!issue.recommendedAction.includes('in WORKFLOW worksheet'), `Action must not mention WORKFLOW worksheet: ${issue.recommendedAction}`);
+      assert.ok(!issue.recommendedAction.includes('in USERS tab'), `Action must not mention USERS tab: ${issue.recommendedAction}`);
+    }
+  });
+
   console.log('\n------------------------------------------------------------');
   console.log(`Unit Test Results: ${passed} passed, ${failed} failed`);
   console.log('------------------------------------------------------------');
