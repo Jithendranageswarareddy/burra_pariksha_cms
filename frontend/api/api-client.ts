@@ -1805,6 +1805,10 @@ export class ApiClient {
   public getThumbnailDownloadUrl(thumbnailId: string): string {
     return `/api/thumbnails/${encodeURIComponent(thumbnailId)}/download`;
   }
+
+  public async checkHealth(): Promise<{ status: string }> {
+    return this.request('/health');
+  }
 }
 
 export const apiClient = new ApiClient();

@@ -123,6 +123,13 @@ export const AUTHORITATIVE_APPROVED_POST_S7_ADDITIONS: readonly string[] = [
   'scripts/inspect-db.ts',
   'docs/security/SECRET-EXPOSURE-AUDIT.md',
   'docs/security/POST-REMEDIATION-READINESS.md',
+  'frontend/components/dashboard/CommandCenterHeader.tsx',
+  'frontend/components/dashboard/WorkflowKpiStrip.tsx',
+  'frontend/components/dashboard/ProductionPipelineBoard.tsx',
+  'frontend/components/dashboard/ActionRequiredQueue.tsx',
+  'frontend/components/dashboard/ContentModeBreakdown.tsx',
+  'frontend/components/dashboard/ThroughputAndHealthRow.tsx',
+  'frontend/components/dashboard/RecentActivityPanel.tsx',
 ];
 
 const EXPECTED_HISTORICAL_S7_COUNT = 713;
