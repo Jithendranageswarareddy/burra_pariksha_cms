@@ -618,7 +618,8 @@ export class TaxonomyService {
     const incompleteTopicIds: string[] = [];
 
     for (const t of allTopics) {
-      if (subtopicsByTopic[t.id] === 100) {
+      const expectedCount = (t.subtopicsCount && t.subtopicsCount > 0) ? t.subtopicsCount : 1;
+      if (subtopicsByTopic[t.id] >= expectedCount) {
         completeTopicIds.push(t.id);
       } else {
         incompleteTopicIds.push(t.id);

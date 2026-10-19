@@ -314,15 +314,6 @@ export class QuestionGenerationService {
           subtopics.push({ id: sub.id, name: sub.name, topicId: top.id });
         }
       }
-    } else {
-      // Fallback to canonical production taxonomy
-      const { PRODUCTION_TOPICS, PRODUCTION_SUBTOPICS } = await import('../../../src/lib/data/production-taxonomy');
-      for (const top of PRODUCTION_TOPICS) {
-        topics.push({ id: top.id, name: top.name });
-      }
-      for (const sub of PRODUCTION_SUBTOPICS) {
-        subtopics.push({ id: sub.id, name: sub.name, topicId: sub.topicId });
-      }
     }
 
     return {
@@ -357,7 +348,8 @@ export class QuestionGenerationService {
   }
 
   /**
-   * Resolves a topic against the authoritative taxonomy with fallback to canonical production seeds.
+   * Resolves a topic strictly against the authoritative Firestore database.
+   * Zero silent fallbacks to static datasets.
    */
   public async resolveTaxonomyTopic(topicId: string): Promise<{ id: string; name: string } | null> {
     if (!topicId || typeof topicId !== 'string') return null;
@@ -365,18 +357,15 @@ export class QuestionGenerationService {
       const top = await taxonomyService.getTopicById(topicId);
       if (top) return { id: top.id, name: top.name };
     } catch {
-      // Fallback below
+      // Non-existent or unresolvable in database
     }
-
-    const { PRODUCTION_TOPICS } = await import('../../../src/lib/data/production-taxonomy');
-    const fallback = (PRODUCTION_TOPICS as any[]).find((t) => t.id === topicId);
-    if (fallback) return { id: fallback.id, name: fallback.name };
 
     return null;
   }
 
   /**
-   * Resolves a subtopic against the authoritative taxonomy with fallback to canonical production seeds.
+   * Resolves a subtopic strictly against the authoritative Firestore database.
+   * Zero silent fallbacks to static datasets.
    */
   public async resolveTaxonomySubtopic(subtopicId: string): Promise<{ id: string; name: string; topicId: string } | null> {
     if (!subtopicId || typeof subtopicId !== 'string') return null;
@@ -384,12 +373,8 @@ export class QuestionGenerationService {
       const sub = await taxonomyService.getSubtopicById(subtopicId);
       if (sub) return { id: sub.id, name: sub.name, topicId: sub.topicId };
     } catch {
-      // Fallback below
+      // Non-existent or unresolvable in database
     }
-
-    const { PRODUCTION_SUBTOPICS } = await import('../../../src/lib/data/production-taxonomy');
-    const fallback = (PRODUCTION_SUBTOPICS as any[]).find((s) => s.id === subtopicId);
-    if (fallback) return { id: fallback.id, name: fallback.name, topicId: fallback.topicId };
 
     return null;
   }

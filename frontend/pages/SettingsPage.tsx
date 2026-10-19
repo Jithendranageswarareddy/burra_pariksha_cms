@@ -92,7 +92,7 @@ export const SettingsPage: React.FC = () => {
   const [isSavingTaxonomy, setIsSavingTaxonomy] = useState(false);
 
   const [topicForm, setTopicForm] = useState({ name: '', slug: '', description: '', displayOrder: 101, isActive: true });
-  const [subtopicForm, setSubtopicForm] = useState({ topicId: 'BP-TOP-001', name: '', slug: '', description: '', notes: '', displayOrder: 101, isActive: true });
+  const [subtopicForm, setSubtopicForm] = useState({ topicId: '', name: '', slug: '', description: '', notes: '', displayOrder: 101, isActive: true });
 
   const canAdministerTaxonomy = user?.role === UserRole.ADMIN || user?.role === UserRole.CONTENT_MANAGER;
 
@@ -188,7 +188,7 @@ export const SettingsPage: React.FC = () => {
       });
       setNotification({ text: `Subtopic "${subtopicForm.name}" created under Topic ${subtopicForm.topicId}.`, type: 'success' });
       setIsCreateSubtopicModalOpen(false);
-      setSubtopicForm({ topicId: 'BP-TOP-001', name: '', slug: '', description: '', notes: '', displayOrder: 101, isActive: true });
+      setSubtopicForm({ topicId: '', name: '', slug: '', description: '', notes: '', displayOrder: 101, isActive: true });
       await fetchLiveTaxonomy();
     } catch (err: any) {
       setNotification({ text: `Failed to create Subtopic: ${err?.message || 'Error'}`, type: 'error' });
@@ -1181,50 +1181,49 @@ export const SettingsPage: React.FC = () => {
                 <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
                   <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">Approved Topics</span>
                   <div className="flex items-baseline gap-1 mt-1">
-                    <span className="text-xl font-bold text-slate-900">{taxonomyMetrics?.totalTopics ?? 100}</span>
-                    <span className="text-xs text-slate-400">/ 100 Target</span>
+                    <span className="text-xl font-bold text-slate-900">{taxonomyMetrics?.totalTopics ?? liveTaxonomyTree.length}</span>
+                    <span className="text-xs text-slate-400">Database Topics</span>
                   </div>
-                  <span className="text-[10px] text-emerald-600 font-semibold block mt-0.5">&check; 100% Present</span>
+                  <span className="text-[10px] text-emerald-600 font-semibold block mt-0.5">&check; 100% Database-Backed</span>
                 </div>
 
                 <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
                   <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">Approved Subtopics</span>
                   <div className="flex items-baseline gap-1 mt-1">
-                    <span className="text-xl font-bold text-indigo-700">{taxonomyMetrics?.totalSubtopics ?? 100}</span>
-                    <span className="text-xs text-slate-400">/ 10,000 Target</span>
+                    <span className="text-xl font-bold text-indigo-700">{taxonomyMetrics?.totalSubtopics ?? 0}</span>
+                    <span className="text-xs text-slate-400">Database Subtopics</span>
                   </div>
-                  <span className="text-[10px] text-amber-600 font-semibold block mt-0.5">1% Present (99 Topics Pending)</span>
+                  <span className="text-[10px] text-indigo-600 font-semibold block mt-0.5">{taxonomyMetrics?.activeSubtopics ?? 0} Active</span>
                 </div>
 
                 <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
                   <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">Complete Topics</span>
                   <div className="flex items-baseline gap-1 mt-1">
-                    <span className="text-xl font-bold text-emerald-700">{taxonomyMetrics?.completeTopicsCount ?? 1}</span>
-                    <span className="text-xs text-slate-400">/ 100</span>
+                    <span className="text-xl font-bold text-emerald-700">{taxonomyMetrics?.completeTopicsCount ?? 0}</span>
+                    <span className="text-xs text-slate-400">/ {taxonomyMetrics?.totalTopics ?? liveTaxonomyTree.length}</span>
                   </div>
-                  <span className="text-[10px] text-slate-500 block mt-0.5">BP-TOP-001 has 100 Subtopics</span>
+                  <span className="text-[10px] text-slate-500 block mt-0.5">Configured Topics</span>
                 </div>
 
                 <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
-                  <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">Identified Data Gap</span>
+                  <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">Active Topics</span>
                   <div className="flex items-baseline gap-1 mt-1">
-                    <span className="text-xl font-bold text-rose-600">{taxonomyMetrics?.missingSubtopics ?? 9900}</span>
-                    <span className="text-xs text-slate-400">Subtopics Missing</span>
+                    <span className="text-xl font-bold text-slate-900">{taxonomyMetrics?.activeTopics ?? 0}</span>
+                    <span className="text-xs text-slate-400">Active</span>
                   </div>
-                  <span className="text-[10px] text-slate-500 block mt-0.5">Across Topics BP-TOP-002..100</span>
+                  <span className="text-[10px] text-slate-500 block mt-0.5">Ready for Authoring</span>
                 </div>
               </div>
 
-              <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-start gap-2.5">
-                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+              <div className="p-3 bg-indigo-50/80 border border-indigo-200 rounded-xl text-xs text-indigo-900 flex items-start gap-2.5">
+                <Info className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
                 <div className="space-y-1">
-                  <p className="font-semibold text-amber-950">
-                    Taxonomy Integrity Rule 3 &amp; 6 Strict Enforcement:
+                  <p className="font-semibold text-indigo-950">
+                    Authoritative Cloud Firestore Database Grounding:
                   </p>
-                  <p className="text-amber-800 text-[11px] leading-relaxed">
-                    Production taxonomy contains exactly 100 approved Topics (BP-TOP-001 through BP-TOP-100) and exactly 100 approved Subtopics (under BP-TOP-001).
-                    The remaining 9,900 Subtopics across Topics BP-TOP-002 through BP-TOP-100 do not yet exist in any authoritative source.
-                    In accordance with strict system rules, <strong>no synthetic or auto-filled records have been manufactured</strong>. The taxonomy gate remains intentionally blocked on authoritative business data availability.
+                  <p className="text-indigo-800 text-[11px] leading-relaxed">
+                    Taxonomy is strictly retrieved from and persisted in Cloud Firestore.
+                    All active subjects and subtopics in Question Studio are rendered directly from the authoritative database with zero hardcoded defaults or client-side fallbacks.
                   </p>
                 </div>
               </div>
@@ -1237,7 +1236,7 @@ export const SettingsPage: React.FC = () => {
                   <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
                   <input
                     type="text"
-                    placeholder="Search topics by name, ID (e.g. BP-TOP-001), or slug..."
+                    placeholder="Search topics by name, ID (e.g. top_...), or slug..."
                     value={taxonomySearchQuery}
                     onChange={(e) => setTaxonomySearchQuery(e.target.value)}
                     className="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:outline-hidden focus:border-indigo-500"

@@ -131,8 +131,8 @@ export const QuestionDetailPage: React.FC = () => {
   };
 
   const initEditForm = (q: Question) => {
-    setEditTopicId(q.topicId || 'BP-TOP-001');
-    setEditSubtopicId(q.subtopicId || 'BP-SUB-0001');
+    setEditTopicId(q.topicId || '');
+    setEditSubtopicId(q.subtopicId || '');
     setEditDifficulty(q.difficulty as DifficultyLevel);
     setEditQuestionStyle(q.questionStyle || QuestionStyle.SPEED_MATH_TRICK);
     setEditLanguage((q.language as QuestionLanguage) || QuestionLanguage.TELUGU);
@@ -503,7 +503,7 @@ export const QuestionDetailPage: React.FC = () => {
             <span>{isEditing ? 'Cancel Edit' : 'Edit Question'}</span>
           </button>
 
-          <Link to={`/studio?topicId=${question.topicId || 'BP-TOP-001'}&subtopicId=${question.subtopicId || 'BP-SUB-0001'}`}>
+          <Link to={question.topicId ? `/studio?topicId=${encodeURIComponent(question.topicId)}${question.subtopicId ? `&subtopicId=${encodeURIComponent(question.subtopicId)}` : ''}` : '/studio'}>
             <Button variant="outline" size="sm" icon={Zap}>
               Open in Studio
             </Button>
@@ -542,12 +542,12 @@ export const QuestionDetailPage: React.FC = () => {
 
       {/* Page Header */}
       <PageHeader
-        title={`${question.id} • ${question.topicId || 'BP-TOP-001'}`}
-        description={`${question.topicName || question.topicId} → ${question.subtopicName || question.subtopicId}`}
+        title={`${question.id}${question.topicId ? ` • ${question.topicId}` : ''}`}
+        description={`${question.topicName || question.topicId || 'Unassigned Topic'} → ${question.subtopicName || question.subtopicId || 'Unassigned Subtopic'}`}
         badge={
           <div className="flex items-center gap-2">
             <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded text-xs font-mono font-bold">
-              {question.topicId || 'BP-TOP-001'} &bull; {question.subtopicId || 'BP-SUB-0001'}
+              {question.topicId || 'No Topic'} &bull; {question.subtopicId || 'No Subtopic'}
             </span>
             <QuestionStatusBadge status={question.status} />
             <DifficultyBadge difficulty={question.difficulty as DifficultyLevel} />
@@ -576,7 +576,7 @@ export const QuestionDetailPage: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                    Tier 1: Topic (BP-TOP-001) <span className="text-rose-500">*</span>
+                    Tier 1: Topic <span className="text-rose-500">*</span>
                   </label>
                   <select
                     value={editTopicId}
@@ -1236,11 +1236,11 @@ export const QuestionDetailPage: React.FC = () => {
             <div className="space-y-2 text-slate-600">
               <div className="flex items-center justify-between">
                 <span className="text-slate-400">Topic ID:</span>
-                <span className="font-mono font-bold text-indigo-700">{question.topicId || 'BP-TOP-001'}</span>
+                <span className="font-mono font-bold text-indigo-700">{question.topicId || '—'}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-400">Subtopic ID:</span>
-                <span className="font-mono font-bold text-indigo-700">{question.subtopicId || 'BP-SUB-0001'}</span>
+                <span className="font-mono font-bold text-indigo-700">{question.subtopicId || '—'}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-400">Permanent ID:</span>

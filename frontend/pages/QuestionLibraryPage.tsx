@@ -322,7 +322,7 @@ export const QuestionLibraryPage: React.FC = () => {
               }}
               className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-indigo-500"
             >
-              <option value="">All Topics (BP-TOP-001...)</option>
+              <option value="">All Topics</option>
               {topics.map((t: any) => (
                 <option key={t.id} value={t.id}>
                   {t.id}: {t.name}

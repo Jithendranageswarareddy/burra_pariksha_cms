@@ -1,9 +1,14 @@
 /**
- * BURRA PARIKSHA CMS — Production Launch Taxonomy Seed Data
- * Initial Launch: Text-based Question Challenge Short (Mode 1: Aptitude + Reasoning)
+ * BURRA PARIKSHA CMS — Baseline Taxonomy Seed Data
+ * INITIALIZATION TOOLING & ARCHITECTURAL TEST FIXTURES ONLY.
  *
- * Authoritative taxonomy definitions for topics and subtopics (2-tier: TOPIC -> SUBTOPIC).
- * Exactly 2 top-level subjects and 36 child subtopics (18 per topic).
+ * NOTE: Cloud Firestore is the sole authoritative transactional datastore at runtime.
+ * Production frontend and backend services MUST NEVER import, read from, or fall back
+ * to this dataset during normal runtime operations.
+ *
+ * Used exclusively by:
+ * - scripts/seed-launch-taxonomy.ts (CLI database bootstrapping tool)
+ * - tests/architecture/s5-two-tier-taxonomy.test.ts (2-tier structural invariants)
  */
 
 import { Subtopic, Topic } from '../../types';

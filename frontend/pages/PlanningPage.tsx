@@ -1378,23 +1378,20 @@ export const PlanningPage: React.FC = () => {
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40">
-                  100 Topics &times; 100 Subtopics Master Matrix
-                </span>
-                <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> 100 Subtopics Active
+                  Target Curriculum Model: 100 Topics &times; 100 Subtopics
                 </span>
               </div>
               <h3 className="text-lg font-bold text-white">
-                Comprehensive Syllabus Taxonomy Capacity: 10,000 Subtopics Planned
+                Comprehensive Syllabus Taxonomy Capacity: 10,000 Subtopics Planned Target
               </h3>
               <p className="text-xs text-slate-400 max-w-2xl">
-                Topic 1 (<code>BP-TOP-001</code>) active with 100 loaded subtopics (<code>BP-SUB-0001</code> to <code>BP-SUB-0100</code>). Direct deep-linking allows instant question drafting in Question Studio.
+                Planning matrix targets 10,000 total subtopics across competitive examination syllabi. Authoritative Topics and Subtopics are retrieved dynamically from Cloud Firestore.
               </p>
             </div>
 
             <div className="flex items-center gap-3 shrink-0">
               <button
-                onClick={() => navigate('/studio?topicId=BP-TOP-001&subtopicId=BP-SUB-0001')}
+                onClick={() => navigate('/studio')}
                 className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl flex items-center gap-2 shadow-sm transition cursor-pointer"
               >
                 <Wand2 className="w-3.5 h-3.5" />

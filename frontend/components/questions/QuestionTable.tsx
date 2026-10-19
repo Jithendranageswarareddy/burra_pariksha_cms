@@ -132,7 +132,7 @@ export const QuestionTable: React.FC<QuestionTableProps> = ({
 
                     {/* Topic & Subtopic */}
                     <td className="py-3 px-4 whitespace-nowrap">
-                      <div className="font-semibold text-slate-900 font-mono text-[11px]">{q.topicId || 'BP-TOP-001'}</div>
+                      <div className="font-semibold text-slate-900 font-mono text-[11px]">{q.topicId || '—'}</div>
                       <div className="text-[11px] text-slate-500 flex items-center gap-1 font-mono">
                         {q.subtopicId ? (
                           <span className="text-slate-600 font-medium">{q.subtopicId}</span>
@@ -200,7 +200,7 @@ export const QuestionTable: React.FC<QuestionTableProps> = ({
                         </Link>
 
                         <Link
-                          to={`/studio?topicId=${q.topicId || 'BP-TOP-001'}&subtopicId=${q.subtopicId || 'BP-SUB-0001'}`}
+                          to={q.topicId ? `/studio?topicId=${encodeURIComponent(q.topicId)}${q.subtopicId ? `&subtopicId=${encodeURIComponent(q.subtopicId)}` : ''}` : '/studio'}
                           className="p-1.5 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition"
                           title="Open Studio Editor"
                         >

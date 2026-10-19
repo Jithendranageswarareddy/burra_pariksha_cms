@@ -61,33 +61,16 @@ export class SmartRandomService {
    * then resolving RANDOM / SMART_RANDOM requests.
    */
   public async resolveParameters(input: SmartRandomInput): Promise<ResolvedCreationParameters> {
-    // 1. Resolve Taxonomy (Topic & Subtopic) directly
-    let pureTopics = await taxonomyService.getPureTopicTree();
+    // 1. Resolve Taxonomy (Topic & Subtopic) directly from Firestore
+    const pureTopics = await taxonomyService.getPureTopicTree();
     if (!pureTopics || pureTopics.length === 0) {
-      const { PRODUCTION_TOPICS, PRODUCTION_SUBTOPICS } = await import('../../../src/lib/data/production-taxonomy');
-      pureTopics = PRODUCTION_TOPICS.map((top) => ({
-        ...top,
-        subtopics: PRODUCTION_SUBTOPICS.filter((sub) => sub.topicId === top.id),
-      })) as any;
-    }
-    if (!pureTopics || pureTopics.length === 0) {
-      throw new Error('Taxonomy is empty. Cannot resolve parameters.');
+      throw new Error('Taxonomy is empty in database. Cannot resolve parameters.');
     }
 
     let topicObj: any = null;
 
     if (input.topicId && input.topicId !== 'RANDOM' && input.topicId !== 'SMART_RANDOM') {
       topicObj = pureTopics.find((t) => t.id === input.topicId);
-      if (!topicObj) {
-        const { PRODUCTION_TOPICS, PRODUCTION_SUBTOPICS } = await import('../../../src/lib/data/production-taxonomy');
-        const fallbackTopic = PRODUCTION_TOPICS.find((t) => t.id === input.topicId);
-        if (fallbackTopic) {
-          topicObj = {
-            ...fallbackTopic,
-            subtopics: PRODUCTION_SUBTOPICS.filter((sub) => sub.topicId === fallbackTopic.id),
-          };
-        }
-      }
     }
 
     // Handle RANDOM / SMART_RANDOM or missing Topic

@@ -280,7 +280,7 @@ export const OperationalDispatch: React.FC<OperationalDispatchProps> = ({
 
                   {/* Sprint Action 3: Exam Target Sprint */}
                   <Link
-                    to="/studio?topicId=BP-TOP-001"
+                    to="/studio"
                     className="p-4 rounded-xl bg-white border border-slate-200/90 shadow-2xs hover:shadow-md hover:border-indigo-400 transition-all flex flex-col justify-between space-y-3 group"
                   >
                     <div className="space-y-1">
@@ -340,7 +340,7 @@ export const OperationalDispatch: React.FC<OperationalDispatchProps> = ({
 
           {/* One-Click Action Button */}
           <Link
-            to="/studio?topicId=BP-TOP-001&subtopicId=BP-SUB-0002"
+            to="/studio"
             className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs text-slate-900 bg-amber-400 hover:bg-amber-300 transition-all shadow-md shadow-amber-400/20"
           >
             <span>✦ Auto-Draft in Studio</span>
