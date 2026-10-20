@@ -319,12 +319,9 @@ async function runS7T19Regression() {
         },
       }),
     });
-    assert.ok(aiInvalidRes.status === 500 || aiInvalidRes.status === 503, 'Forced timeout must return HTTP 500 or 503 error');
+    assert.strictEqual(aiInvalidRes.status, 503, 'Forced timeout must return HTTP 503 Service Unavailable');
     const aiInvalidData = await aiInvalidRes.json();
-    assert.ok(
-      aiInvalidData.code === 'AI_GENERATION_FAILED' || aiInvalidData.code === 'AI_GENERATION_UNAVAILABLE',
-      'Error code must be AI_GENERATION_FAILED or AI_GENERATION_UNAVAILABLE'
-    );
+    assert.strictEqual(aiInvalidData.code, 'AI_GENERATION_UNAVAILABLE', 'Error code must be AI_GENERATION_UNAVAILABLE');
     const aiInvalidJson = JSON.stringify(aiInvalidData);
     assert.strictEqual(aiInvalidJson.includes(process.env.GEMINI_API_KEY || 'AIza'), false, 'Zero secrets or API keys leaked in error response');
     recordResult('S7-T19.3', 'AI Failure & Safe Error Handling', 'PASS', `Controlled forced timeout handled safely with HTTP ${aiInvalidRes.status}; zero secret leakage`);
@@ -346,12 +343,9 @@ async function runS7T19Regression() {
         },
       }),
     });
-    assert.ok(aiSanitizedRes.status === 500 || aiSanitizedRes.status === 503, 'Sanitized options with timeout 1ms must trigger safe timeout');
+    assert.strictEqual(aiSanitizedRes.status, 503, 'Sanitized options with timeout 1ms must trigger safe timeout with HTTP 503');
     const aiSanitizedData = await aiSanitizedRes.json();
-    assert.ok(
-      aiSanitizedData.code === 'AI_GENERATION_FAILED' || aiSanitizedData.code === 'AI_GENERATION_UNAVAILABLE',
-      'Error code must be AI_GENERATION_FAILED or AI_GENERATION_UNAVAILABLE'
-    );
+    assert.strictEqual(aiSanitizedData.code, 'AI_GENERATION_UNAVAILABLE', 'Error code must be AI_GENERATION_UNAVAILABLE');
     recordResult('S7-T19.3', 'AI Client Options Sanitization & Bounds', 'PASS', 'Unsupported provider and arbitrary fields dropped; timeoutMs safely clamped');
 
     // =========================================================================
