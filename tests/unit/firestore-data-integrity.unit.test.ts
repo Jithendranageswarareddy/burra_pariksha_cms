@@ -474,28 +474,52 @@ async function runUnitTests() {
   // --------------------------------------------------------------------------
   // TEST 20: isValidVersionId Validator Negative Cases (Strict Error Detection)
   // --------------------------------------------------------------------------
-  await test('20. isValidVersionId strictly rejects malformed, invalid, or mismatched version IDs', () => {
+  await test('20. isValidVersionId strictly rejects malformed, invalid, bare prefixes, or mismatched version IDs', () => {
     const scriptConfig = { canonicalPrefix: 'scv_', allowedParentPrefixes: ['scr_', 'BP-S-'], allowedLegacyPrefixes: ['BP-SCV-'] };
+    const thumbConfig = { canonicalPrefix: 'thv_', allowedParentPrefixes: ['thm_', 'BP-T-'], allowedLegacyPrefixes: ['BP-THV-'] };
+    const pinConfig = { canonicalPrefix: 'pcv_', allowedParentPrefixes: ['pin_', 'BP-PIN-'], allowedLegacyPrefixes: ['BP-PCV-'] };
 
-    // Empty or non-string
+    // 1. Bare canonical prefixes (must NOT be treated as valid)
+    assert.strictEqual(isValidVersionId('scv_', scriptConfig), false, 'Bare scv_ rejected');
+    assert.strictEqual(isValidVersionId('thv_', thumbConfig), false, 'Bare thv_ rejected');
+    assert.strictEqual(isValidVersionId('pcv_', pinConfig), false, 'Bare pcv_ rejected');
+
+    // 2. Bare legacy prefixes (must NOT be treated as valid)
+    assert.strictEqual(isValidVersionId('BP-SCV-', scriptConfig), false, 'Bare BP-SCV- rejected');
+    assert.strictEqual(isValidVersionId('BP-THV-', thumbConfig), false, 'Bare BP-THV- rejected');
+    assert.strictEqual(isValidVersionId('BP-PCV-', pinConfig), false, 'Bare BP-PCV- rejected');
+
+    // 3. Malformed canonical standalone IDs (must be valid UUID v4)
+    assert.strictEqual(isValidVersionId('scv_invalid_not_uuid', scriptConfig), false, 'Malformed scv_ UUID rejected');
+    assert.strictEqual(isValidVersionId('thv_123', thumbConfig), false, 'Malformed thv_ UUID rejected');
+    assert.strictEqual(isValidVersionId('pcv_xyz', pinConfig), false, 'Malformed pcv_ UUID rejected');
+    assert.strictEqual(isValidVersionId('scv_3fa85f64-5717-4562-b3fc', scriptConfig), false, 'Truncated scv_ UUID rejected');
+    assert.strictEqual(isValidVersionId('scv_3fa85f64-5717-4562-b3fc-2c963f66afa6-extra', scriptConfig), false, 'Oversized scv_ UUID rejected');
+
+    // 4. Empty or whitespace-only
     assert.strictEqual(isValidVersionId('', scriptConfig), false, 'Empty string rejected');
     assert.strictEqual(isValidVersionId('   ', scriptConfig), false, 'Whitespace rejected');
 
-    // Missing parent UUID
+    // 5. Malformed composite parent IDs
     assert.strictEqual(isValidVersionId('scr_-V1', scriptConfig), false, 'scr_-V1 with empty parent ID rejected');
+    assert.strictEqual(isValidVersionId('scr_invalid_uuid-V1', scriptConfig), false, 'scr_ with malformed UUID in composite rejected');
+    assert.strictEqual(isValidVersionId('thm_not_a_uuid-V1', thumbConfig), false, 'thm_ with malformed UUID in composite rejected');
+    assert.strictEqual(isValidVersionId('pin_bad_uuid-V1', pinConfig), false, 'pin_ with malformed UUID in composite rejected');
+    assert.strictEqual(isValidVersionId('BP-S--V1', scriptConfig), false, 'BP-S--V1 with empty parent suffix rejected');
 
-    // Invalid version numbers
-    assert.strictEqual(isValidVersionId('scr_123-V0', scriptConfig), false, 'Version 0 rejected');
-    assert.strictEqual(isValidVersionId('scr_123-V-1', scriptConfig), false, 'Negative version rejected');
-    assert.strictEqual(isValidVersionId('scr_123-Va', scriptConfig), false, 'Non-numeric version suffix rejected');
-    assert.strictEqual(isValidVersionId('scr_123-V', scriptConfig), false, 'Missing version number rejected');
+    // 6. Invalid version numbers in composite
+    assert.strictEqual(isValidVersionId('scr_3fa85f64-5717-4562-b3fc-2c963f66afa6-V0', scriptConfig), false, 'Version 0 rejected');
+    assert.strictEqual(isValidVersionId('scr_3fa85f64-5717-4562-b3fc-2c963f66afa6-V01', scriptConfig), false, 'Version with leading zero rejected');
+    assert.strictEqual(isValidVersionId('scr_3fa85f64-5717-4562-b3fc-2c963f66afa6-V-1', scriptConfig), false, 'Negative version rejected');
+    assert.strictEqual(isValidVersionId('scr_3fa85f64-5717-4562-b3fc-2c963f66afa6-Va', scriptConfig), false, 'Non-numeric version suffix rejected');
+    assert.strictEqual(isValidVersionId('scr_3fa85f64-5717-4562-b3fc-2c963f66afa6-V', scriptConfig), false, 'Missing version number rejected');
 
-    // Wrong parent prefix
+    // 7. Wrong parent prefix
     assert.strictEqual(isValidVersionId('pin_3fa85f64-5717-4562-b3fc-2c963f66afa6-V1', scriptConfig), false, 'Pin ID in script version rejected');
     assert.strictEqual(isValidVersionId('thm_3fa85f64-5717-4562-b3fc-2c963f66afa6-V1', scriptConfig), false, 'Thumbnail ID in script version rejected');
     assert.strictEqual(isValidVersionId('random_parent-V1', scriptConfig), false, 'Arbitrary prefix rejected');
 
-    // Bare ID without version suffix
+    // 8. Bare parent ID without version suffix in version collection
     assert.strictEqual(isValidVersionId('scr_3fa85f64-5717-4562-b3fc-2c963f66afa6', scriptConfig), false, 'Bare script ID in version collection rejected');
   });
 
@@ -554,6 +578,28 @@ async function runUnitTests() {
     );
     assert.ok(warning, 'Must flag malformed script version ID');
     assert.strictEqual(warning.severity, 'WARNING');
+  });
+
+  // --------------------------------------------------------------------------
+  // TEST 22b: Diagnostic Engine Flags Bare and Malformed Standalone Version IDs with WARNING
+  // --------------------------------------------------------------------------
+  await test('22b. Diagnostic engine flags bare prefixes (scv_, BP-SCV-) and malformed UUIDs with ID_INTEGRITY WARNING', async () => {
+    const snapshot = createCleanSyntheticSnapshot();
+
+    snapshot.scriptVersions = [
+      { id: 'scv_', scriptId: 'scr_001', versionNumber: 1 } as any,
+      { id: 'BP-SCV-', scriptId: 'scr_001', versionNumber: 2 } as any,
+      { id: 'scv_not-a-valid-uuid', scriptId: 'scr_001', versionNumber: 3 } as any,
+    ];
+
+    const report = await dataIntegrityService.runFullIntegrityCheck({ snapshot });
+    const warnings = report.issues.filter(
+      (i: any) => i.category === 'ID_INTEGRITY' && i.worksheet === 'script_versions'
+    );
+    assert.strictEqual(warnings.length, 3, `Expected 3 warnings for bare/malformed version IDs, got ${warnings.length}`);
+    assert.ok(warnings.some((w: any) => w.entityId === 'scv_'));
+    assert.ok(warnings.some((w: any) => w.entityId === 'BP-SCV-'));
+    assert.ok(warnings.some((w: any) => w.entityId === 'scv_not-a-valid-uuid'));
   });
 
   // --------------------------------------------------------------------------

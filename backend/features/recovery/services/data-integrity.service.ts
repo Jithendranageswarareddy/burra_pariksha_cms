@@ -132,6 +132,9 @@ export interface VersionIdValidationConfig {
   allowedLegacyPrefixes?: string[];
 }
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const LEGACY_ID_SUFFIX_REGEX = /^[A-Za-z0-9]+(-[A-Za-z0-9]+)*$/;
+
 /**
  * Validates version identifiers against canonical standalone, supported legacy standalone,
  * or composite version formats (${parentId}-V${versionNumber}).
@@ -141,25 +144,55 @@ export function isValidVersionId(id: string, config: VersionIdValidationConfig):
   const trimmed = id.trim();
   if (!trimmed) return false;
 
-  // 1. Standalone canonical format (e.g. scv_uuid, thv_uuid, pcv_uuid)
+  // 1. Standalone canonical format (e.g. scv_<uuid>, thv_<uuid>, pcv_<uuid>)
+  // Requires standard canonical prefix followed by a valid UUID v4
   if (trimmed.startsWith(config.canonicalPrefix)) {
-    return true;
+    const suffix = trimmed.slice(config.canonicalPrefix.length);
+    return UUID_REGEX.test(suffix);
   }
 
-  // 2. Standalone legacy format (e.g. BP-SCV-..., BP-THV-..., BP-PCV-...)
-  if (config.allowedLegacyPrefixes && config.allowedLegacyPrefixes.some((p) => trimmed.startsWith(p))) {
-    return true;
+  // 2. Standalone legacy format (e.g. BP-SCV-0001, BP-THV-0001, BP-PCV-0001)
+  // Requires allowed legacy prefix followed by non-empty valid alphanumeric sequence
+  if (config.allowedLegacyPrefixes) {
+    for (const legacyPrefix of config.allowedLegacyPrefixes) {
+      if (trimmed.startsWith(legacyPrefix)) {
+        const suffix = trimmed.slice(legacyPrefix.length);
+        if (LEGACY_ID_SUFFIX_REGEX.test(suffix)) {
+          return true;
+        }
+      }
+    }
   }
 
   // 3. Composite version ID format: ${parentId}-V${versionNumber}
-  // e.g. scr_8e9455f6-7bfa-4c4c-88e9-cb2bf88e9999-V1, BP-S-0001-V1
+  // e.g. scr_<uuid>-V1, BP-S-0001-V1, thm_<uuid>-V1, pin_<uuid>-V1
   const match = trimmed.match(/^(.+)-V(\d+)$/);
   if (match) {
     const parentId = match[1];
-    const versionNum = parseInt(match[2], 10);
-    if (versionNum >= 1 && config.allowedParentPrefixes.some((p) => parentId.startsWith(p) && parentId.length > p.length)) {
-      return true;
+    const versionNumStr = match[2];
+
+    // Version number must be a positive integer without leading zeros (e.g. 1, 2, 12)
+    if (!/^[1-9]\d*$/.test(versionNumStr)) {
+      return false;
     }
+
+    const matchedParentPrefix = config.allowedParentPrefixes.find((p) => parentId.startsWith(p));
+    if (!matchedParentPrefix) {
+      return false;
+    }
+
+    const parentSuffix = parentId.slice(matchedParentPrefix.length);
+    if (!parentSuffix) {
+      return false;
+    }
+
+    // Canonical parent (scr_, thm_, pin_) requires a valid UUID
+    if (matchedParentPrefix.endsWith('_')) {
+      return UUID_REGEX.test(parentSuffix);
+    }
+
+    // Legacy parent (BP-S-, BP-T-, BP-PIN-) requires valid alphanumeric suffix
+    return LEGACY_ID_SUFFIX_REGEX.test(parentSuffix);
   }
 
   return false;
