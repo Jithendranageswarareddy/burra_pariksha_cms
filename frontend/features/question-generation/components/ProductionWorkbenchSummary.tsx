@@ -208,11 +208,15 @@ export function resolveWorkbenchSummary(input: ResolveWorkbenchSummaryInput): Wo
   let statusLabel = 'Not Started';
   let badgeVariant: 'slate' | 'amber' | 'blue' | 'indigo' | 'emerald' = 'slate';
 
-  if (isApproved) {
+  if (isApproved && (hasCandidate || savedDraftId)) {
     statusCode = 'APPROVED';
     statusLabel = 'Approved (Locked)';
     badgeVariant = 'emerald';
-  } else if (submitSuccessResult || currentStage > 1) {
+  } else if (submitSuccessResult) {
+    statusCode = 'SUBMITTED';
+    statusLabel = 'Submitted for Verification';
+    badgeVariant = 'indigo';
+  } else if (currentStage > 1 && (hasCandidate || savedDraftId)) {
     statusCode = 'SUBMITTED';
     statusLabel = 'Submitted for Verification';
     badgeVariant = 'indigo';
@@ -242,12 +246,19 @@ export function resolveWorkbenchSummary(input: ResolveWorkbenchSummaryInput): Wo
   const currentStageObj = stages.find((s) => s.stageNumber === currentStage);
   let currentStageLabel = currentStageObj?.label || `Stage ${String(currentStage).padStart(2, '0')}`;
 
-  if (resolvedWorkflow && resolvedWorkflow.progress) {
+  if (resolvedWorkflow && resolvedWorkflow.progress && (hasCandidate || savedDraftId)) {
     effectiveStageNumber = resolvedWorkflow.progress.currentStage || currentStage;
     totalStagesCount = resolvedWorkflow.progress.totalApplicableSteps || 15;
     completedStagesCount = resolvedWorkflow.progress.completedApplicableSteps || 0;
     percentComplete = resolvedWorkflow.progress.percentage || 0;
     currentStageLabel = resolvedWorkflow.progress.currentStageName || currentStageLabel;
+  } else if (!hasCandidate && !savedDraftId && !submitSuccessResult) {
+    effectiveStageNumber = 1;
+    totalStagesCount = 15;
+    completedStagesCount = 0;
+    percentComplete = 0;
+    const stage1Obj = stages.find((s) => s.stageNumber === 1);
+    currentStageLabel = stage1Obj?.label || 'Stage 01: Question Generation';
   } else {
     totalStagesCount = 15;
     completedStagesCount = stages.filter((s) => s.isCompleted).length;
@@ -307,7 +318,7 @@ export function resolveWorkbenchSummary(input: ResolveWorkbenchSummaryInput): Wo
       actionType: 'NAVIGATE',
       route: targetDraftId ? `/questions/${targetDraftId}/verify` : '/questions/verify',
     };
-  } else if (statusCode === 'APPROVED' || currentStage > 1) {
+  } else if ((statusCode === 'APPROVED' || currentStage > 1) && (hasCandidate || savedDraftId)) {
     if (journeyNextAction) {
       nextAction = {
         label: journeyNextAction.label,

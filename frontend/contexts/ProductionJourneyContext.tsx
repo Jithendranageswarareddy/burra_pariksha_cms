@@ -1404,6 +1404,7 @@ export const ProductionJourneyProvider: React.FC<ProductionJourneyProviderProps>
     setLastTransitionBy('');
     setRejectionNotes(undefined);
     setAllowedActions([]);
+    setServerResolvedWorkflow(null);
     setIsDirty(false);
     setIsLoading(false);
     setError(null);

@@ -122,10 +122,16 @@ export const QuestionStudioPage: React.FC = () => {
         <div className="flex items-center gap-2 flex-wrap">
           <div className="flex items-center gap-1.5 font-bold text-sm text-slate-900">
             <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-            <span>Mode 1: Question Challenge Short</span>
+            <span>
+              {productionMode === 'TOPIC_INTRODUCTION'
+                ? 'Mode 2: Topic Introduction'
+                : productionMode === 'EXPLAINED_QUESTIONS_VIDEO'
+                ? 'Mode 3: Explained Questions Video'
+                : 'Mode 1: Question Challenge Short'}
+            </span>
           </div>
           <span className="text-[10px] font-semibold bg-amber-100 text-amber-900 px-2 py-0.5 rounded-full uppercase tracking-wider">
-            9:16 Vertical • ≤ 58s
+            {productionMode === 'EXPLAINED_QUESTIONS_VIDEO' ? '16:9 Horizontal • Multi-Question' : '9:16 Vertical • ≤ 58s'}
           </span>
           <span className="text-slate-300 hidden md:inline">•</span>
           <span className="text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md">

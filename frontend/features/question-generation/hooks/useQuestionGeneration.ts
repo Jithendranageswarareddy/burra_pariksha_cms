@@ -360,7 +360,27 @@ export function useQuestionGeneration() {
   const [searchParams] = useSearchParams();
 
   // Deep-linking query params
-  const queryDraftId = searchParams.get('draftId') || searchParams.get('id');
+  const rawDraftId = searchParams.get('draftId');
+  const rawQuestionId = searchParams.get('questionId');
+  const rawId = searchParams.get('id');
+
+  let explicitDraftId: string | null = null;
+  let explicitQuestionId: string | null = null;
+
+  if (rawDraftId) {
+    explicitDraftId = rawDraftId;
+  } else if (rawQuestionId) {
+    explicitQuestionId = rawQuestionId;
+  } else if (rawId) {
+    if (rawId.startsWith('qst_') || rawId.startsWith('BP-Q-')) {
+      explicitQuestionId = rawId;
+    } else {
+      explicitDraftId = rawId;
+    }
+  }
+
+  const isNewQuestionWorkspace = !explicitDraftId && !explicitQuestionId;
+
   const queryTopic = searchParams.get('topicId') || searchParams.get('topic');
   const querySubtopic = searchParams.get('subtopicId') || searchParams.get('subtopic');
   const queryDifficulty = searchParams.get('difficulty');
@@ -384,21 +404,27 @@ export function useQuestionGeneration() {
 
   const effectiveMode: ContentProductionMode | null = isValidQueryMode
     ? queryMode!
-    : (hasValidContextMode ? contextMode! : null);
+    : (isNewQuestionWorkspace
+        ? 'QUESTION_CHALLENGE_SHORT'
+        : (hasValidContextMode ? contextMode! : 'QUESTION_CHALLENGE_SHORT'));
 
   const effectiveCount = isValidQueryMode
     ? (queryCount !== undefined
         ? queryCount
         : (queryMode === 'EXPLAINED_QUESTIONS_VIDEO' ? 10 : (queryMode === 'TOPIC_INTRODUCTION' ? 0 : 1)))
-    : (hasValidContextMode && prodContext?.modeConfig?.questionCount !== undefined
-        ? prodContext.modeConfig.questionCount
-        : (effectiveMode === 'EXPLAINED_QUESTIONS_VIDEO' ? 10 : (effectiveMode === 'TOPIC_INTRODUCTION' ? 0 : 1)));
+    : (isNewQuestionWorkspace
+        ? (effectiveMode === 'EXPLAINED_QUESTIONS_VIDEO' ? 10 : (effectiveMode === 'TOPIC_INTRODUCTION' ? 0 : 1))
+        : (hasValidContextMode && prodContext?.modeConfig?.questionCount !== undefined
+            ? prodContext.modeConfig.questionCount
+            : (effectiveMode === 'EXPLAINED_QUESTIONS_VIDEO' ? 10 : (effectiveMode === 'TOPIC_INTRODUCTION' ? 0 : 1))));
 
   const effectiveAspect: '9:16' | '16:9' = isValidQueryMode
     ? (queryAspect || (queryMode === 'EXPLAINED_QUESTIONS_VIDEO' ? '16:9' : '9:16'))
-    : (hasValidContextMode && prodContext?.modeConfig?.aspectRatio
-        ? prodContext.modeConfig.aspectRatio
-        : (effectiveMode === 'EXPLAINED_QUESTIONS_VIDEO' ? '16:9' : '9:16'));
+    : (isNewQuestionWorkspace
+        ? (effectiveMode === 'EXPLAINED_QUESTIONS_VIDEO' ? '16:9' : '9:16')
+        : (hasValidContextMode && prodContext?.modeConfig?.aspectRatio
+            ? prodContext.modeConfig.aspectRatio
+            : (effectiveMode === 'EXPLAINED_QUESTIONS_VIDEO' ? '16:9' : '9:16')));
 
   // Production Mode Configuration State
   const [productionMode, setProductionMode] = useState<ContentProductionMode | null>(
@@ -410,14 +436,13 @@ export function useQuestionGeneration() {
   const [aspectRatio, setAspectRatio] = useState<'9:16' | '16:9'>(
     effectiveAspect
   );
-  const [isModeModalOpen, setIsModeModalOpen] = useState<boolean>(
-    !effectiveMode && !queryDraftId
-  );
+  const [isModeModalOpen, setIsModeModalOpen] = useState<boolean>(false);
   const [activeQuestionIndex, setActiveQuestionIndex] = useState<number>(0);
 
-  // Draft loading state & deduplication ref
-  const [isLoadingDraft, setIsLoadingDraft] = useState<boolean>(Boolean(queryDraftId));
+  // Draft loading state, deduplication ref, and active request counter for stale response cancellation
+  const [isLoadingDraft, setIsLoadingDraft] = useState<boolean>(Boolean(explicitDraftId || explicitQuestionId));
   const draftLoadedRef = useRef<string | null>(null);
+  const loadRequestIdRef = useRef<number>(0);
 
   // 1. Taxonomy & Options State
   const [taxonomyTree, setTaxonomyTree] = useState<any[]>([]);
@@ -437,10 +462,10 @@ export function useQuestionGeneration() {
 
     // Configuration options selection: derive from deep link or shared production context
     const [selectedTopic, setSelectedTopic] = useState<string>(
-      queryTopic || prodContext?.taxonomy?.topicId || ''
+      queryTopic || (!isNewQuestionWorkspace ? prodContext?.taxonomy?.topicId : '') || ''
     );
     const [selectedSubtopic, setSelectedSubtopic] = useState<string>(
-      querySubtopic || prodContext?.taxonomy?.subtopicId || ''
+      querySubtopic || (!isNewQuestionWorkspace ? prodContext?.taxonomy?.subtopicId : '') || ''
     );
     const [difficulty, setDifficulty] = useState<string>(queryDifficulty || DifficultyLevel.MEDIUM);
     const [challengeType, setChallengeType] = useState<string>('ABCD');
@@ -463,8 +488,8 @@ export function useQuestionGeneration() {
       optionD: '',
       correctAnswer: 'A',
       explanation: '',
-      topicId: queryTopic || prodContext?.taxonomy?.topicId || '',
-      subtopicId: querySubtopic || prodContext?.taxonomy?.subtopicId || '',
+      topicId: queryTopic || (!isNewQuestionWorkspace ? prodContext?.taxonomy?.topicId : '') || '',
+      subtopicId: querySubtopic || (!isNewQuestionWorkspace ? prodContext?.taxonomy?.subtopicId : '') || '',
       difficulty,
       challengeType,
       presentationType,
@@ -659,10 +684,10 @@ export function useQuestionGeneration() {
         return;
       }
 
-      // If not reopening a draft, initialize from deep-link, shared production context, or first available topic
-      if (!queryDraftId) {
-        const initialTopicId = queryTopic || prodContext?.taxonomy?.topicId;
-        const initialSubtopicId = querySubtopic || prodContext?.taxonomy?.subtopicId;
+      // If not reopening an entity, initialize from deep-link, or first available topic
+      if (isNewQuestionWorkspace) {
+        const initialTopicId = queryTopic || '';
+        const initialSubtopicId = querySubtopic || '';
         if (initialTopicId) {
           const matchedTopic = topicsList.find((t) => t.id === initialTopicId);
           if (matchedTopic) {
@@ -696,7 +721,7 @@ export function useQuestionGeneration() {
     } finally {
       setLoadingTaxonomy(false);
     }
-  }, [queryDraftId, queryTopic, querySubtopic, loadSubtopicsForTopic]);
+  }, [isNewQuestionWorkspace, queryTopic, querySubtopic, loadSubtopicsForTopic]);
 
   useEffect(() => {
     loadTaxonomyOptions();
@@ -711,14 +736,68 @@ export function useQuestionGeneration() {
   }, []);
 
 
-  // Reopen saved draft from deep link parameter
+  // Load existing entity (draft or question) or reset workspace on fresh navigation
   useEffect(() => {
-    if (!queryDraftId) {
+    const currentRequestId = ++loadRequestIdRef.current;
+    const activeEntityId = explicitDraftId || explicitQuestionId;
+
+    if (!activeEntityId) {
       setIsLoadingDraft(false);
+      draftLoadedRef.current = null;
+
+      // Reset ProductionJourneyContext to clean stage 01
+      prodContextRef.current?.resetContext();
+      prodContextRef.current?.setModeConfig({
+        productionMode: effectiveMode || 'QUESTION_CHALLENGE_SHORT',
+        questionCount: effectiveCount,
+        aspectRatio: effectiveAspect,
+      });
+
+      // Reset transient editor state to clean defaults
+      setCandidate({
+        questionText: '',
+        optionA: '',
+        optionB: '',
+        optionC: '',
+        optionD: '',
+        correctAnswer: 'A',
+        explanation: '',
+        topicId: queryTopic || selectedTopicRef.current || '',
+        subtopicId: querySubtopic || '',
+        difficulty: queryDifficulty || DifficultyLevel.MEDIUM,
+        challengeType: 'ABCD',
+        presentationType: 'Text',
+        language: (queryLanguage as QuestionLanguage) || QuestionLanguage.TELUGU,
+        realLifeContext: queryContext || '',
+        questionStyle: queryQuestionStyle || 'STORY_BASED',
+        generationMode: 'SUBTOPIC',
+        productionMode: effectiveMode || 'QUESTION_CHALLENGE_SHORT',
+        targetQuestionCount: effectiveCount,
+        aspectRatio: effectiveAspect,
+        tags: ['Aptitude', 'Telugu'],
+      });
+      setBatchAssembly(null);
+      setHasCandidate(false);
+      setIsDirty(false);
+      setSavedDraftId(null);
+      setSavedDraftRecord(null);
+      setPreviewSourceVersion('UNSAVED_EDITS');
+      setPreviewViewMode('EDITOR');
+      setDraftVersion(undefined);
+      setSubmitSuccessResult(null);
+      setReviewerFeedback(null);
+      setReviewerName(null);
+      setReturnedAt(null);
+      setErrorMessage(null);
+      setSaveSuccessMessage(null);
+      setClientReport(null);
+      setServerValidationResult(null);
+      setDuplicateMatches([]);
       return;
     }
 
-    if (draftLoadedRef.current === queryDraftId) {
+    if (draftLoadedRef.current === activeEntityId) {
+      setIsLoadingDraft(false);
       return;
     }
 
@@ -726,183 +805,231 @@ export function useQuestionGeneration() {
     setIsLoadingDraft(true);
     setErrorMessage(null);
 
-    async function loadExistingDraft() {
+    async function loadEntity() {
       try {
-        const draft = await questionsApi.getDraft(queryDraftId!);
-        if (!isMounted) return;
+        if (explicitDraftId) {
+          const draft = await questionsApi.getDraft(explicitDraftId);
+          if (!isMounted || loadRequestIdRef.current !== currentRequestId) return;
 
-        draftLoadedRef.current = queryDraftId!;
+          draftLoadedRef.current = explicitDraftId;
 
-        // 1. Candidate Fields Restoration
-        const optionsObj = draft.options || {
-          a: draft.optionA || '',
-          b: draft.optionB || '',
-          c: draft.optionC || '',
-          d: draft.optionD || '',
-        };
+          // 1. Candidate Fields Restoration
+          const optionsObj = draft.options || {
+            a: draft.optionA || '',
+            b: draft.optionB || '',
+            c: draft.optionC || '',
+            d: draft.optionD || '',
+          };
 
-        const loadedCandidate: StudioCandidate = {
-          questionText: draft.questionText || draft.question || draft.introductoryConcept || '',
-          optionA: optionsObj.a || draft.optionA || '',
-          optionB: optionsObj.b || draft.optionB || '',
-          optionC: optionsObj.c || draft.optionC || '',
-          optionD: optionsObj.d || draft.optionD || '',
-          correctAnswer: draft.correctAnswer || 'A',
-          explanation: draft.explanation || '',
-          topicId: draft.topicId,
-          subtopicId: draft.subtopicId,
-          difficulty: draft.difficulty || difficulty,
-          challengeType: draft.challengeType || challengeType,
-          presentationType: draft.presentationType || presentationType,
-          language: (draft.language as QuestionLanguage) || language,
-          realLifeContext: draft.realLifeContext || draft.realWorldContext || realLifeContext,
-          questionStyle: (draft.questionStyle as string) || questionStyle,
-          generationMode: (draft.generationMode as any) || 'SUBTOPIC',
-          productionMode: draft.productionMode,
-          targetQuestionCount: draft.targetQuestionCount,
-          aspectRatio: draft.aspectRatio,
-          introductoryConcept: draft.introductoryConcept || (draft.productionMode === 'TOPIC_INTRODUCTION' ? draft.questionText : ''),
-          conceptTitle: draft.conceptTitle || '',
-          syllabusScopeNotes: draft.syllabusScopeNotes || '',
-          questions: draft.questions || [],
-          tags: draft.tags || ['Aptitude', 'Telugu'],
-          sourceModel: draft.sourceModel,
-          generationLatencyMs: draft.generationLatencyMs,
-          isFallback: draft.isFallback,
-          mathematicalVerification: draft.mathematicalVerification,
-        };
-
-        setCandidate(loadedCandidate);
-        if (draft.slots && draft.slots.length > 0) {
-          const reqCount = (draft.targetQuestionCount || draft.slots.length || 5) as 5 | 10 | 15 | 20;
-          const validSlotsCount = draft.slots.filter(
-            (s) => s.status === 'VALID' || s.status === 'MANUALLY_EDITED' || s.status === 'ACCEPTED'
-          ).length;
-          setBatchAssembly({
-            requestedCount: reqCount,
-            inMemoryValidCount: draft.persistedValidCount ?? validSlotsCount,
-            persistedValidCount: draft.persistedValidCount ?? validSlotsCount,
-            rejectedCount: draft.rejectedCount || 0,
-            overflowCount: draft.overflowCount || 0,
-            batchStatus: draft.batchStatus || (validSlotsCount === reqCount ? 'COMPLETE' : validSlotsCount > 0 ? 'PARTIAL' : 'EMPTY'),
-            slots: draft.slots,
-            rejectedItems: draft.rejectedItems || [],
-          });
-
-          // Ensure slot 0 is reflected into candidate if candidate statement was empty
-          if (!loadedCandidate.questionText.trim() && draft.slots[0]?.questionText) {
-            const slot0 = draft.slots[0];
-            loadedCandidate.questionText = slot0.questionText;
-            loadedCandidate.optionA = slot0.options?.a || (slot0 as any).optionA || '';
-            loadedCandidate.optionB = slot0.options?.b || (slot0 as any).optionB || '';
-            loadedCandidate.optionC = slot0.options?.c || (slot0 as any).optionC || '';
-            loadedCandidate.optionD = slot0.options?.d || (slot0 as any).optionD || '';
-            loadedCandidate.correctAnswer = (slot0.correctAnswer as any) || 'A';
-            loadedCandidate.explanation = slot0.explanation || '';
-            setCandidate({ ...loadedCandidate });
-          }
-        }
-        setHasCandidate(true);
-        setIsDirty(false); // Clean saved state!
-        setSavedDraftId(draft.id);
-        setSavedDraftRecord(draft);
-        setDraftVersion(draft.version);
-
-        // If the draft is in submitted stage, restore submission state
-        if (draft.status === 'SUBMITTED_FOR_REVIEW' || draft.workflowStage === 'STAGE_02_VERIFICATION') {
-          setSubmitSuccessResult({
-            success: true,
-            draftId: draft.id,
-            status: 'SUBMITTED_FOR_REVIEW',
-            workflowStage: 'STAGE_02_VERIFICATION',
-            workflowInstanceId: draft.workflowInstanceId,
-            currentStep: 2,
-            message: 'Draft has been submitted for Stage 02 Verification.',
-            submittedAt: draft.updatedAt || new Date().toISOString(),
-          });
-        }
-
-        // Restore reviewer feedback if returned for revision
-        if (draft.reviewerFeedback) {
-          setReviewerFeedback(draft.reviewerFeedback);
-          setReviewerName(draft.reviewerName || null);
-          setReturnedAt(draft.returnedAt || null);
-        } else {
-          setReviewerFeedback(null);
-          setReviewerName(null);
-          setReturnedAt(null);
-        }
-
-        // 2. Options and Taxonomy Restoration (persisted draft strictly takes precedence over URL defaults)
-        if (draft.topicId) {
-          setSelectedTopic(draft.topicId);
-          loadSubtopicsForTopic(draft.topicId, draft.subtopicId);
-        }
-        if (draft.subtopicId) setSelectedSubtopic(draft.subtopicId);
-        if (draft.difficulty) setDifficulty(draft.difficulty);
-        if (draft.language) setLanguage(draft.language as QuestionLanguage);
-        if (draft.questionStyle) setQuestionStyle(draft.questionStyle as string);
-        if (draft.realLifeContext || draft.realWorldContext) {
-          setRealLifeContext(draft.realLifeContext || draft.realWorldContext || '');
-        }
-        if (draft.challengeType) setChallengeType(draft.challengeType);
-        if (draft.presentationType) setPresentationType(draft.presentationType);
-
-        // 3. Mode Configuration Restoration
-        if (draft.productionMode && VALID_MODES.includes(draft.productionMode as ContentProductionMode)) {
-          const loadedMode = draft.productionMode as ContentProductionMode;
-          setProductionMode(loadedMode);
-          if (draft.targetQuestionCount !== undefined) {
-            setTargetQuestionCount(draft.targetQuestionCount);
-          }
-          if (draft.aspectRatio) {
-            setAspectRatio(draft.aspectRatio as '9:16' | '16:9');
-          }
-          setIsModeModalOpen(false);
-
-          prodContext?.setModeConfig({
-            productionMode: loadedMode,
-            questionCount: draft.targetQuestionCount,
-            aspectRatio: draft.aspectRatio as '9:16' | '16:9',
-          });
-        } else if (!isValidQueryMode) {
-          setIsModeModalOpen(true);
-        }
-
-        // 4. Shared Production Context Synchronization
-        prodContext?.setEntityIds({ draftId: draft.id });
-        if (draft.topicId || draft.subtopicId) {
-          prodContext?.setTaxonomy({
+          const loadedCandidate: StudioCandidate = {
+            questionText: draft.questionText || draft.question || draft.introductoryConcept || '',
+            optionA: optionsObj.a || draft.optionA || '',
+            optionB: optionsObj.b || draft.optionB || '',
+            optionC: optionsObj.c || draft.optionC || '',
+            optionD: optionsObj.d || draft.optionD || '',
+            correctAnswer: draft.correctAnswer || 'A',
+            explanation: draft.explanation || '',
             topicId: draft.topicId,
             subtopicId: draft.subtopicId,
-          });
+            difficulty: draft.difficulty || difficulty,
+            challengeType: draft.challengeType || challengeType,
+            presentationType: draft.presentationType || presentationType,
+            language: (draft.language as QuestionLanguage) || language,
+            realLifeContext: draft.realLifeContext || draft.realWorldContext || realLifeContext,
+            questionStyle: (draft.questionStyle as string) || questionStyle,
+            generationMode: (draft.generationMode as any) || 'SUBTOPIC',
+            productionMode: draft.productionMode,
+            targetQuestionCount: draft.targetQuestionCount,
+            aspectRatio: draft.aspectRatio,
+            introductoryConcept: draft.introductoryConcept || (draft.productionMode === 'TOPIC_INTRODUCTION' ? draft.questionText : ''),
+            conceptTitle: draft.conceptTitle || '',
+            syllabusScopeNotes: draft.syllabusScopeNotes || '',
+            questions: draft.questions || [],
+            tags: draft.tags || ['Aptitude', 'Telugu'],
+            sourceModel: draft.sourceModel,
+            generationLatencyMs: draft.generationLatencyMs,
+            isFallback: draft.isFallback,
+            mathematicalVerification: draft.mathematicalVerification,
+          };
+
+          setCandidate(loadedCandidate);
+          if (draft.slots && draft.slots.length > 0) {
+            const reqCount = (draft.targetQuestionCount || draft.slots.length || 5) as 5 | 10 | 15 | 20;
+            const validSlotsCount = draft.slots.filter(
+              (s) => s.status === 'VALID' || s.status === 'MANUALLY_EDITED' || s.status === 'ACCEPTED'
+            ).length;
+            setBatchAssembly({
+              requestedCount: reqCount,
+              inMemoryValidCount: draft.persistedValidCount ?? validSlotsCount,
+              persistedValidCount: draft.persistedValidCount ?? validSlotsCount,
+              rejectedCount: draft.rejectedCount || 0,
+              overflowCount: draft.overflowCount || 0,
+              batchStatus: draft.batchStatus || (validSlotsCount === reqCount ? 'COMPLETE' : validSlotsCount > 0 ? 'PARTIAL' : 'EMPTY'),
+              slots: draft.slots,
+              rejectedItems: draft.rejectedItems || [],
+            });
+
+            if (!loadedCandidate.questionText.trim() && draft.slots[0]?.questionText) {
+              const slot0 = draft.slots[0];
+              loadedCandidate.questionText = slot0.questionText;
+              loadedCandidate.optionA = slot0.options?.a || (slot0 as any).optionA || '';
+              loadedCandidate.optionB = slot0.options?.b || (slot0 as any).optionB || '';
+              loadedCandidate.optionC = slot0.options?.c || (slot0 as any).optionC || '';
+              loadedCandidate.optionD = slot0.options?.d || (slot0 as any).optionD || '';
+              loadedCandidate.correctAnswer = (slot0.correctAnswer as any) || 'A';
+              loadedCandidate.explanation = slot0.explanation || '';
+              setCandidate({ ...loadedCandidate });
+            }
+          }
+          setHasCandidate(true);
+          setIsDirty(false);
+          setSavedDraftId(draft.id);
+          setSavedDraftRecord(draft);
+          setDraftVersion(draft.version);
+
+          if (draft.status === 'SUBMITTED_FOR_REVIEW' || draft.workflowStage === 'STAGE_02_VERIFICATION') {
+            setSubmitSuccessResult({
+              success: true,
+              draftId: draft.id,
+              status: 'SUBMITTED_FOR_REVIEW',
+              workflowStage: 'STAGE_02_VERIFICATION',
+              workflowInstanceId: draft.workflowInstanceId,
+              currentStep: 2,
+              message: 'Draft has been submitted for Stage 02 Verification.',
+              submittedAt: draft.updatedAt || new Date().toISOString(),
+            });
+          }
+
+          if (draft.reviewerFeedback) {
+            setReviewerFeedback(draft.reviewerFeedback);
+            setReviewerName(draft.reviewerName || null);
+            setReturnedAt(draft.returnedAt || null);
+          } else {
+            setReviewerFeedback(null);
+            setReviewerName(null);
+            setReturnedAt(null);
+          }
+
+          if (draft.topicId) {
+            setSelectedTopic(draft.topicId);
+            loadSubtopicsForTopic(draft.topicId, draft.subtopicId);
+          }
+          if (draft.subtopicId) setSelectedSubtopic(draft.subtopicId);
+          if (draft.difficulty) setDifficulty(draft.difficulty);
+          if (draft.language) setLanguage(draft.language as QuestionLanguage);
+          if (draft.questionStyle) setQuestionStyle(draft.questionStyle as string);
+          if (draft.realLifeContext || draft.realWorldContext) {
+            setRealLifeContext(draft.realLifeContext || draft.realWorldContext || '');
+          }
+          if (draft.challengeType) setChallengeType(draft.challengeType);
+          if (draft.presentationType) setPresentationType(draft.presentationType);
+
+          if (draft.productionMode && VALID_MODES.includes(draft.productionMode as ContentProductionMode)) {
+            const loadedMode = draft.productionMode as ContentProductionMode;
+            setProductionMode(loadedMode);
+            if (draft.targetQuestionCount !== undefined) {
+              setTargetQuestionCount(draft.targetQuestionCount);
+            }
+            if (draft.aspectRatio) {
+              setAspectRatio(draft.aspectRatio as '9:16' | '16:9');
+            }
+            setIsModeModalOpen(false);
+
+            prodContextRef.current?.setModeConfig({
+              productionMode: loadedMode,
+              questionCount: draft.targetQuestionCount,
+              aspectRatio: draft.aspectRatio as '9:16' | '16:9',
+            });
+          }
+
+          prodContextRef.current?.setEntityIds({ draftId: draft.id, workflowInstanceId: draft.workflowInstanceId });
+          if (draft.topicId || draft.subtopicId) {
+            prodContextRef.current?.setTaxonomy({
+              topicId: draft.topicId,
+              subtopicId: draft.subtopicId,
+            });
+          }
+          prodContextRef.current?.setIsDirty(false);
+        } else if (explicitQuestionId) {
+          const question = await questionsApi.getQuestionById(explicitQuestionId);
+          if (!isMounted || loadRequestIdRef.current !== currentRequestId) return;
+
+          draftLoadedRef.current = explicitQuestionId;
+
+          const optionsObj = question.options || {
+            a: question.optionA || '',
+            b: question.optionB || '',
+            c: question.optionC || '',
+            d: question.optionD || '',
+          };
+
+          const loadedCandidate: StudioCandidate = {
+            questionText: question.questionText || question.question || question.introductoryConcept || '',
+            optionA: optionsObj.a || question.optionA || '',
+            optionB: optionsObj.b || question.optionB || '',
+            optionC: optionsObj.c || question.optionC || '',
+            optionD: optionsObj.d || question.optionD || '',
+            correctAnswer: question.correctAnswer || 'A',
+            explanation: question.explanation || '',
+            topicId: question.topicId,
+            subtopicId: question.subtopicId,
+            difficulty: (question.difficulty as string) || difficulty,
+            challengeType: question.challengeType || challengeType,
+            presentationType: question.presentationType || presentationType,
+            language: (question.language as QuestionLanguage) || language,
+            realLifeContext: question.realWorldContext || question.realLifeContext || realLifeContext,
+            questionStyle: (question.questionStyle as string) || questionStyle,
+            generationMode: (question.generationMode as any) || 'SUBTOPIC',
+            productionMode: (question.productionMode as ContentProductionMode) || 'QUESTION_CHALLENGE_SHORT',
+            targetQuestionCount: question.targetQuestionCount || 1,
+            aspectRatio: (question.aspectRatio as '9:16' | '16:9') || '9:16',
+            introductoryConcept: question.introductoryConcept || '',
+            conceptTitle: question.conceptTitle || '',
+            syllabusScopeNotes: question.syllabusScopeNotes || '',
+            questions: question.questions || [],
+            tags: question.tags || ['Aptitude', 'Telugu'],
+            sourceModel: question.aiModel,
+          };
+
+          setCandidate(loadedCandidate);
+          setHasCandidate(true);
+          setIsDirty(false);
+          setSavedDraftId(null);
+          setSavedDraftRecord(null);
+
+          if (question.topicId) {
+            setSelectedTopic(question.topicId);
+            loadSubtopicsForTopic(question.topicId, question.subtopicId);
+          }
+          if (question.subtopicId) setSelectedSubtopic(question.subtopicId);
+          if (question.difficulty) setDifficulty(question.difficulty as string);
+          if (question.language) setLanguage(question.language as QuestionLanguage);
+
+          await prodContextRef.current?.loadJourneyForQuestion(explicitQuestionId, question);
         }
-        prodContext?.setIsDirty(false);
       } catch (err: any) {
-        if (!isMounted) return;
-        console.error('Failed to reopen draft:', err);
+        if (!isMounted || loadRequestIdRef.current !== currentRequestId) return;
+        console.error('Failed to reopen entity in studio:', err);
+        const entityLabel = explicitDraftId ? `Question draft "${explicitDraftId}"` : `Question "${explicitQuestionId}"`;
         const isNotFound = err?.status === 404 || err?.statusCode === 404 || err?.message?.toLowerCase().includes('not found');
         setErrorMessage(
           isNotFound
-            ? `Question draft "${queryDraftId}" could not be found or has been removed.`
-            : err?.message || `Failed to load question draft "${queryDraftId}".`
+            ? `${entityLabel} could not be found or has been removed.`
+            : err?.message || `Failed to load ${entityLabel}.`
         );
-        if (!isValidQueryMode) {
-          setIsModeModalOpen(true);
-        }
       } finally {
-        if (isMounted) {
+        if (isMounted && loadRequestIdRef.current === currentRequestId) {
           setIsLoadingDraft(false);
         }
       }
     }
 
-    loadExistingDraft();
+    loadEntity();
 
     return () => {
       isMounted = false;
     };
-  }, [queryDraftId, isValidQueryMode, prodContext]);
+  }, [explicitDraftId, explicitQuestionId, queryTopic, querySubtopic, queryDifficulty, queryLanguage, queryQuestionStyle, queryContext, effectiveMode, effectiveCount, effectiveAspect]);
 
   // Synchronize initial URL mode config with ProductionContext
   useEffect(() => {
@@ -1782,17 +1909,17 @@ export function useQuestionGeneration() {
     setSaveSuccessMessage(null);
     setSubmitSuccessResult(null);
 
-    // Clear draftId from deep-link parameters
+    // Clear entity IDs from deep-link parameters
     const currentParams = new URLSearchParams(window.location.search);
     currentParams.delete('draftId');
+    currentParams.delete('questionId');
     currentParams.delete('id');
     const paramStr = currentParams.toString();
     const newRelativePathQuery = window.location.pathname + (paramStr ? '?' + paramStr : '');
     window.history.replaceState(null, '', newRelativePathQuery);
 
     // Sync reset with shared production context
-    prodContext?.setEntityIds({ draftId: undefined });
-    prodContext?.setIsDirty(false);
+    prodContext?.resetContext();
   }, [hasCandidate, candidate.questionText, isDirty, selectedTopic, selectedSubtopic, difficulty, challengeType, presentationType, language, realLifeContext, prodContext]);
 
   return {
@@ -1836,6 +1963,9 @@ export function useQuestionGeneration() {
     isLoadingDraft,
     activeQuestionIndex,
     setActiveQuestionIndex,
+    isNewQuestionWorkspace,
+    explicitDraftId,
+    explicitQuestionId,
 
     // Candidate
     candidate,
