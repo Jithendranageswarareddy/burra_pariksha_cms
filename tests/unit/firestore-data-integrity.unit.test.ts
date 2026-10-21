@@ -715,6 +715,35 @@ async function runUnitTests() {
   });
 
   // --------------------------------------------------------------------------
+  // TEST 24d: Workflow Entity Resolution Flags Missing Question Draft with Conversion Guidance
+  // --------------------------------------------------------------------------
+  await test('24d. Workflow entity resolution flags missing question draft with conversion/archival guidance', async () => {
+    const snapshot = createCleanSyntheticSnapshot();
+
+    // Production case: workflow references a draft that was deleted upon question approval or discarded
+    snapshot.workflows = [
+      {
+        id: 'wfl_48d6e33c-d54c-42a4-9063-a71b74952fcb',
+        entityId: 'dft_48d6e3cb-a5f1-42ea-a486-4d39541a9191',
+        entityType: 'QUESTION',
+        currentStep: 2,
+        contentStatus: 'IN_REVIEW',
+        jobStatus: 'PROCESSING',
+      },
+    ];
+
+    const report = await dataIntegrityService.runFullIntegrityCheck({ snapshot });
+    const draftRefWarning = report.issues.find(
+      (i: any) => i.category === 'WORKFLOW_INTEGRITY' && i.field === 'entityId' && i.entityId === 'wfl_48d6e33c-d54c-42a4-9063-a71b74952fcb'
+    );
+    assert.ok(draftRefWarning, 'Must flag missing draft reference in workflow');
+    assert.strictEqual(draftRefWarning.severity, 'WARNING');
+    assert.ok(draftRefWarning.message.includes('question draft'), 'Message must identify question draft');
+    assert.ok(draftRefWarning.recommendedAction.includes('approved into an active Question'), 'Guidance must mention question approval path');
+    assert.ok(draftRefWarning.recommendedAction.includes('soft-archive'), 'Guidance must advise safe soft-archiving instead of hasty deletion');
+  });
+
+  // --------------------------------------------------------------------------
   // TEST 25: Canonical 15-Stage Workflow Instance Validates currentStep and contentStatus
   // --------------------------------------------------------------------------
   await test('25. Canonical 15-stage workflow instance validates currentStep (1..15) and contentStatus without requiring legacy toStatus', async () => {

@@ -1707,6 +1707,17 @@ export class DataIntegrityService {
               wf.id,
               'entityId'
             );
+          } else if (wf.entityId.startsWith('dft_') || wf.entityId.startsWith('BP-DFT-')) {
+            addIssue(
+              'WARNING',
+              'WORKFLOW_INTEGRITY',
+              SHEET_TABS.WORKFLOW,
+              `Workflow record "${wf.id}" refers to question draft "${wf.entityId}" that is no longer present in collection "question_drafts".`,
+              `Draft "${wf.entityId}" may have been approved into an active Question (qst_...) or discarded during editing. If the draft was approved, reassign entity_id on workflow record "${wf.id}" to the active Question ID. If discarded, soft-archive (set contentStatus: "ARCHIVED") or clean up this orphan workflow record after checking audit logs.`,
+              'WORKFLOW',
+              wf.id,
+              'entityId'
+            );
           } else {
             addIssue(
               'WARNING',
