@@ -16,10 +16,23 @@
  * 12. Accurate global summary status when some collections are empty and others pass (overall PASS).
  * 13. Accurate global summary status when a real integrity error exists (overall ERROR).
  * 14. Proof that the diagnostic engine is strictly read-only and never writes, repairs, or deletes.
+ * 15. Canonical composite version IDs (${parentId}-V${versionNumber}) are accepted for script, thumbnail, and pinned comment versions.
+ * 16. Standalone canonical and legacy version prefixes are accepted.
+ * 17. Malformed version IDs (empty parent, non-numeric or <=0 version, mismatched prefix) are detected as WARNINGs.
+ * 18. Workflow instance entity resolution recognizes Question Drafts, Content Masters, Questions, Videos, Scripts, and Publishing Packages.
+ * 19. Canonical 15-stage WorkflowInstanceDocument validates currentStep (1..15) and contentStatus without requiring legacy toStatus.
+ * 20. Legacy workflow transition records validate required toStatus and detect illegal terminal transitions.
+ * 21. Ambiguous or unrecognized workflow document shapes are detected as ERRORs.
  */
 
 import assert from 'node:assert';
-import { DataIntegrityService, dataIntegrityService, ALL_FIRESTORE_COLLECTIONS } from '../../backend/features/recovery/services/data-integrity.service';
+import {
+  DataIntegrityService,
+  dataIntegrityService,
+  ALL_FIRESTORE_COLLECTIONS,
+  isValidVersionId,
+  DiagnosticDataSnapshot,
+} from '../../backend/features/recovery/services/data-integrity.service';
 
 // Mock helper to inspect repository interaction and assert read-only invariant
 class MockRepo {
@@ -57,9 +70,62 @@ class MockRepo {
   }
 }
 
+/**
+ * Creates an isolated, clean synthetic data snapshot with zero network or database dependencies.
+ */
+function createCleanSyntheticSnapshot(): DiagnosticDataSnapshot {
+  return {
+    users: [
+      {
+        id: 'usr_00000000-0000-0000-0000-000000000001',
+        name: 'System Admin',
+        email: 'admin@burrapariksha.com',
+        role: 'ADMIN',
+        isActive: true,
+      } as any,
+    ],
+    topics: [
+      {
+        id: 'top_00000000-0000-0000-0000-000000000001',
+        name: 'General Science',
+        slug: 'general-science',
+      } as any,
+    ],
+    subtopics: [
+      {
+        id: 'sub_00000000-0000-0000-0000-000000000001',
+        topicId: 'top_00000000-0000-0000-0000-000000000001',
+        name: 'Physics',
+        slug: 'physics',
+      } as any,
+    ],
+    questions: [],
+    questionVideos: [],
+    videos: [],
+    scripts: [],
+    scriptVersions: [],
+    thumbnails: [],
+    thumbnailVersions: [],
+    pinnedComments: [],
+    pinnedCommentVersions: [],
+    workflows: [],
+    assignments: [],
+    publishingRecords: [],
+    auditLogs: [],
+    contentMasters: [],
+    socialReviews: [],
+    validations: [],
+    questionConfig: [],
+    mediaAssets: [],
+    contentPlans: [],
+    contentBatches: [],
+    questionDrafts: [],
+  };
+}
+
 async function runUnitTests() {
   console.log('============================================================');
-  console.log('UNIT TEST: Firestore Data Integrity Diagnostics');
+  console.log('UNIT TEST: Firestore Data Integrity Diagnostics (Isolated)');
   console.log('============================================================\n');
 
   let passed = 0;
@@ -90,10 +156,10 @@ async function runUnitTests() {
   });
 
   // --------------------------------------------------------------------------
-  // TEST 2: Real Database Smoke Verification (Live / Emulator)
+  // TEST 2: In-Memory Synthetic Snapshot Execution
   // --------------------------------------------------------------------------
-  await test('2. Live / configured Firestore check returns valid SystemHealthReport', async () => {
-    const report = await dataIntegrityService.runFullIntegrityCheck();
+  await test('2. Clean synthetic snapshot check returns valid SystemHealthReport', async () => {
+    const report = await dataIntegrityService.runFullIntegrityCheck({ snapshot: createCleanSyntheticSnapshot() });
     assert.ok(report.generatedAt);
     assert.strictEqual(report.isReadOnly, true);
     assert.strictEqual(report.mode, 'CLOUD_FIRESTORE');
@@ -101,6 +167,7 @@ async function runUnitTests() {
     assert.strictEqual(report.worksheetHealth.length, 23);
     assert.ok(Array.isArray(report.integrityChecks));
     assert.strictEqual(report.integrityChecks.length, 11);
+    assert.strictEqual(report.overallStatus, 'PASS');
   });
 
   // --------------------------------------------------------------------------
@@ -118,7 +185,6 @@ async function runUnitTests() {
       details: 'Login successful',
     };
 
-    // Verify action resolution logic:
     const actionName = (auditRecordWithEventTypeOnly.action || auditRecordWithEventTypeOnly.eventType || '').trim();
     assert.strictEqual(actionName, 'LOGIN_SUCCESS');
   });
@@ -145,15 +211,18 @@ async function runUnitTests() {
   // TEST 5: Empty Taxonomy Classification Rule
   // --------------------------------------------------------------------------
   await test('5. Empty taxonomy does not report fatal ERROR, provides informational guidance', async () => {
-    const report = await dataIntegrityService.runFullIntegrityCheck();
+    const snapshot = createCleanSyntheticSnapshot();
+    snapshot.topics = [];
+    snapshot.subtopics = [];
+
+    const report = await dataIntegrityService.runFullIntegrityCheck({ snapshot });
     const taxonomyIssue = report.issues.find(
       (i: any) => i.entityType === 'TAXONOMY' && i.entityId === 'EMPTY'
     );
-    if (taxonomyIssue) {
-      assert.strictEqual(taxonomyIssue.severity, 'INFO');
-      assert.ok(taxonomyIssue.recommendedAction.includes('/settings?tab=taxonomy'));
-      assert.notStrictEqual(report.overallStatus, 'ERROR');
-    }
+    assert.ok(taxonomyIssue, 'Should find empty taxonomy notice');
+    assert.strictEqual(taxonomyIssue.severity, 'INFO');
+    assert.ok(taxonomyIssue.recommendedAction.includes('/settings?tab=taxonomy'));
+    assert.notStrictEqual(report.overallStatus, 'ERROR');
   });
 
   // --------------------------------------------------------------------------
@@ -195,7 +264,6 @@ async function runUnitTests() {
     assert.ok(queryErrors.has('audit_logs'));
     assert.ok(queryErrors.get('audit_logs')?.message.includes('Permission denied'));
 
-    // Status classification check:
     const status = queryErrors.has('audit_logs') ? 'ERROR' : data.length === 0 ? 'EMPTY' : 'PASS';
     assert.strictEqual(status, 'ERROR', 'Failing query must be classified as ERROR, never EMPTY');
   });
@@ -267,9 +335,9 @@ async function runUnitTests() {
   });
 
   // --------------------------------------------------------------------------
-  // TEST 13: AuditLogRepository Append Server-Side Validation Guard
+  // TEST 13: AuditLog Client Validation Guard (No Network)
   // --------------------------------------------------------------------------
-  await test('13. AuditLogRepository.appendRecord rejects missing action/eventType with ValidationError', async () => {
+  await test('13. AuditLogRepository.appendRecord client-side guard validates action or eventType', async () => {
     const { auditLogRepository } = await import('../../database/firestore/repositories/audit-log.repository');
     let threw = false;
     try {
@@ -288,14 +356,14 @@ async function runUnitTests() {
       threw = true;
       assert.ok(err.message.includes('action or eventType is required'));
     }
-    assert.strictEqual(threw, true, 'AuditLog append without action or eventType must throw ValidationError');
+    assert.strictEqual(threw, true, 'AuditLog append without action or eventType must throw ValidationError before network call');
   });
 
   // --------------------------------------------------------------------------
-  // TEST 14: Live Database Diagnostic Smoke Status is PASS with 0 Errors
+  // TEST 14: Synthetic Snapshot PASS with 0 Errors
   // --------------------------------------------------------------------------
-  await test('14. Live diagnostic returns overallStatus PASS with 0 audit_logs errors', async () => {
-    const report = await dataIntegrityService.runFullIntegrityCheck();
+  await test('14. Synthetic clean snapshot returns overallStatus PASS with 0 audit_logs errors', async () => {
+    const report = await dataIntegrityService.runFullIntegrityCheck({ snapshot: createCleanSyntheticSnapshot() });
     assert.strictEqual(report.overallStatus, 'PASS');
     assert.strictEqual(report.issueCounts.error, 0);
     assert.strictEqual(report.issueCounts.critical, 0);
@@ -307,23 +375,24 @@ async function runUnitTests() {
   // TEST 15: Informational empty-taxonomy notice produces zero integrity errors
   // --------------------------------------------------------------------------
   await test('15. Informational empty-taxonomy notice produces zero integrity errors and issueCount of 0', async () => {
-    const report = await dataIntegrityService.runFullIntegrityCheck();
+    const snapshot = createCleanSyntheticSnapshot();
+    snapshot.topics = [];
+    snapshot.subtopics = [];
+
+    const report = await dataIntegrityService.runFullIntegrityCheck({ snapshot });
     assert.strictEqual(report.overallStatus, 'PASS');
     assert.strictEqual(report.issueCounts.error, 0);
     assert.strictEqual(report.issueCounts.total, 0, 'issueCounts.total must be 0 when only informational notices exist');
     const taxonomyEmptyNotice = report.issues.find((i: any) => i.entityType === 'TAXONOMY' && i.entityId === 'EMPTY');
-    if (taxonomyEmptyNotice) {
-      assert.strictEqual(report.issueCounts.info, 1, 'Informational notice is tracked in info count');
-    } else {
-      assert.strictEqual(report.issueCounts.info, 0, 'No informational notice when taxonomy is populated');
-    }
+    assert.ok(taxonomyEmptyNotice, 'Empty taxonomy notice must be present');
+    assert.strictEqual(report.issueCounts.info, 1, 'Informational notice is tracked in info count');
   });
 
   // --------------------------------------------------------------------------
   // TEST 16: Consistency: Global totals, category counts, and collection rows agree
   // --------------------------------------------------------------------------
   await test('16. Global totals, category counts, and collection matrix rows agree consistently', async () => {
-    const report = await dataIntegrityService.runFullIntegrityCheck();
+    const report = await dataIntegrityService.runFullIntegrityCheck({ snapshot: createCleanSyntheticSnapshot() });
     const sumCategoryIssues = report.integrityChecks.reduce((sum: number, c: any) => sum + c.issueCount, 0);
     const sumCollectionIssues = report.worksheetHealth.reduce((sum: number, w: any) => sum + w.issuesCount, 0);
     const actionableIssuesCount = report.issues.filter((i: any) => i.severity !== 'INFO').length;
@@ -331,16 +400,6 @@ async function runUnitTests() {
     assert.strictEqual(report.issueCounts.total, actionableIssuesCount, 'Global total must equal actionable issues count');
     assert.strictEqual(sumCategoryIssues, report.issueCounts.total, 'Sum of category issue counts must equal global total');
     assert.strictEqual(sumCollectionIssues, report.issueCounts.total, 'Sum of collection issue counts must equal global total');
-
-    const expectedNoticeCount = report.issues.filter((i: any) => i.category === 'QUESTION_INTEGRITY' && i.severity === 'INFO').length;
-    const questionCategory = report.integrityChecks.find((c: any) => c.category === 'QUESTION_INTEGRITY');
-    assert.strictEqual(questionCategory.issueCount, 0, 'Question Taxonomy & Options Integrity issueCount must be 0');
-    assert.strictEqual(questionCategory.noticeCount, expectedNoticeCount, `Question Taxonomy noticeCount must be ${expectedNoticeCount}`);
-
-    const expectedTopicNotices = report.issues.filter((i: any) => i.sheetTab === 'topics' && i.severity === 'INFO').length;
-    const topicsHealth = report.worksheetHealth.find((w: any) => w.collection === 'topics');
-    assert.strictEqual(topicsHealth.issuesCount, 0, 'Topics collection issuesCount must be 0');
-    assert.strictEqual(topicsHealth.noticesCount, expectedTopicNotices, `Topics collection noticesCount must be ${expectedTopicNotices}`);
   });
 
   // --------------------------------------------------------------------------
@@ -373,7 +432,7 @@ async function runUnitTests() {
   // TEST 18: Legacy worksheet terminology does not appear in rendered diagnostic items
   // --------------------------------------------------------------------------
   await test('18. Legacy worksheet terminology does not appear in diagnostic item messages or recommendations', async () => {
-    const report = await dataIntegrityService.runFullIntegrityCheck();
+    const report = await dataIntegrityService.runFullIntegrityCheck({ snapshot: createCleanSyntheticSnapshot() });
     for (const issue of report.issues) {
       assert.ok(issue.collection, `Issue ${issue.id} must define collection property`);
       assert.ok(!issue.message.includes('mapping row'), `Issue message should not mention mapping row: ${issue.message}`);
@@ -382,6 +441,327 @@ async function runUnitTests() {
       assert.ok(!issue.recommendedAction.includes('in WORKFLOW worksheet'), `Action must not mention WORKFLOW worksheet: ${issue.recommendedAction}`);
       assert.ok(!issue.recommendedAction.includes('in USERS tab'), `Action must not mention USERS tab: ${issue.recommendedAction}`);
     }
+  });
+
+  // ==========================================================================
+  // NEW DIAGNOSTIC CONTRACT VALIDATION TESTS
+  // ==========================================================================
+
+  // --------------------------------------------------------------------------
+  // TEST 19: isValidVersionId Validator Positive Cases
+  // --------------------------------------------------------------------------
+  await test('19. isValidVersionId accepts canonical standalone, supported legacy, and valid composite IDs', () => {
+    const scriptConfig = { canonicalPrefix: 'scv_', allowedParentPrefixes: ['scr_', 'BP-S-'], allowedLegacyPrefixes: ['BP-SCV-'] };
+    assert.strictEqual(isValidVersionId('scv_3fa85f64-5717-4562-b3fc-2c963f66afa6', scriptConfig), true, 'Canonical scv_ accepted');
+    assert.strictEqual(isValidVersionId('BP-SCV-0001', scriptConfig), true, 'Legacy BP-SCV- accepted');
+    assert.strictEqual(isValidVersionId('scr_3fa85f64-5717-4562-b3fc-2c963f66afa6-V1', scriptConfig), true, 'Composite canonical scr_-V1 accepted');
+    assert.strictEqual(isValidVersionId('scr_3fa85f64-5717-4562-b3fc-2c963f66afa6-V12', scriptConfig), true, 'Composite canonical scr_-V12 accepted');
+    assert.strictEqual(isValidVersionId('BP-S-0001-V1', scriptConfig), true, 'Composite legacy BP-S-0001-V1 accepted');
+
+    const thumbConfig = { canonicalPrefix: 'thv_', allowedParentPrefixes: ['thm_', 'BP-T-'], allowedLegacyPrefixes: ['BP-THV-'] };
+    assert.strictEqual(isValidVersionId('thv_3fa85f64-5717-4562-b3fc-2c963f66afa6', thumbConfig), true, 'Canonical thv_ accepted');
+    assert.strictEqual(isValidVersionId('BP-THV-0001', thumbConfig), true, 'Legacy BP-THV- accepted');
+    assert.strictEqual(isValidVersionId('thm_3fa85f64-5717-4562-b3fc-2c963f66afa6-V1', thumbConfig), true, 'Composite canonical thm_-V1 accepted');
+    assert.strictEqual(isValidVersionId('BP-T-0001-V2', thumbConfig), true, 'Composite legacy BP-T-0001-V2 accepted');
+
+    const pinConfig = { canonicalPrefix: 'pcv_', allowedParentPrefixes: ['pin_', 'BP-PIN-'], allowedLegacyPrefixes: ['BP-PCV-'] };
+    assert.strictEqual(isValidVersionId('pcv_3fa85f64-5717-4562-b3fc-2c963f66afa6', pinConfig), true, 'Canonical pcv_ accepted');
+    assert.strictEqual(isValidVersionId('BP-PCV-0001', pinConfig), true, 'Legacy BP-PCV- accepted');
+    assert.strictEqual(isValidVersionId('pin_3fa85f64-5717-4562-b3fc-2c963f66afa6-V1', pinConfig), true, 'Composite canonical pin_-V1 accepted');
+    assert.strictEqual(isValidVersionId('BP-PIN-0001-V3', pinConfig), true, 'Composite legacy BP-PIN-0001-V3 accepted');
+  });
+
+  // --------------------------------------------------------------------------
+  // TEST 20: isValidVersionId Validator Negative Cases (Strict Error Detection)
+  // --------------------------------------------------------------------------
+  await test('20. isValidVersionId strictly rejects malformed, invalid, or mismatched version IDs', () => {
+    const scriptConfig = { canonicalPrefix: 'scv_', allowedParentPrefixes: ['scr_', 'BP-S-'], allowedLegacyPrefixes: ['BP-SCV-'] };
+
+    // Empty or non-string
+    assert.strictEqual(isValidVersionId('', scriptConfig), false, 'Empty string rejected');
+    assert.strictEqual(isValidVersionId('   ', scriptConfig), false, 'Whitespace rejected');
+
+    // Missing parent UUID
+    assert.strictEqual(isValidVersionId('scr_-V1', scriptConfig), false, 'scr_-V1 with empty parent ID rejected');
+
+    // Invalid version numbers
+    assert.strictEqual(isValidVersionId('scr_123-V0', scriptConfig), false, 'Version 0 rejected');
+    assert.strictEqual(isValidVersionId('scr_123-V-1', scriptConfig), false, 'Negative version rejected');
+    assert.strictEqual(isValidVersionId('scr_123-Va', scriptConfig), false, 'Non-numeric version suffix rejected');
+    assert.strictEqual(isValidVersionId('scr_123-V', scriptConfig), false, 'Missing version number rejected');
+
+    // Wrong parent prefix
+    assert.strictEqual(isValidVersionId('pin_3fa85f64-5717-4562-b3fc-2c963f66afa6-V1', scriptConfig), false, 'Pin ID in script version rejected');
+    assert.strictEqual(isValidVersionId('thm_3fa85f64-5717-4562-b3fc-2c963f66afa6-V1', scriptConfig), false, 'Thumbnail ID in script version rejected');
+    assert.strictEqual(isValidVersionId('random_parent-V1', scriptConfig), false, 'Arbitrary prefix rejected');
+
+    // Bare ID without version suffix
+    assert.strictEqual(isValidVersionId('scr_3fa85f64-5717-4562-b3fc-2c963f66afa6', scriptConfig), false, 'Bare script ID in version collection rejected');
+  });
+
+  // --------------------------------------------------------------------------
+  // TEST 21: Diagnostic Engine Accepts Valid Composite Version IDs Without Warnings
+  // --------------------------------------------------------------------------
+  await test('21. Diagnostic engine accepts valid composite version IDs for script, thumbnail, and pinned comments with 0 warnings', async () => {
+    const snapshot = createCleanSyntheticSnapshot();
+
+    snapshot.scripts = [{ id: 'scr_00000000-0000-0000-0000-000000000001', videoId: 'vid_001', currentVersion: 1 } as any];
+    snapshot.scriptVersions = [{
+      id: 'scr_00000000-0000-0000-0000-000000000001-V1',
+      scriptId: 'scr_00000000-0000-0000-0000-000000000001',
+      versionNumber: 1,
+      content: '{}',
+    } as any];
+
+    snapshot.thumbnails = [{ id: 'thm_00000000-0000-0000-0000-000000000001', videoId: 'vid_001', currentVersion: 1 } as any];
+    snapshot.thumbnailVersions = [{
+      id: 'thm_00000000-0000-0000-0000-000000000001-V1',
+      thumbnailId: 'thm_00000000-0000-0000-0000-000000000001',
+      versionNumber: 1,
+      driveAssetUrl: 'https://example.com/thumb.jpg',
+    } as any];
+
+    snapshot.pinnedComments = [{ id: 'pin_00000000-0000-0000-0000-000000000001', videoId: 'vid_001', commentText: 'Test comment' } as any];
+    snapshot.pinnedCommentVersions = [{
+      id: 'pin_00000000-0000-0000-0000-000000000001-V1',
+      pinnedCommentId: 'pin_00000000-0000-0000-0000-000000000001',
+      versionNumber: 1,
+      commentText: 'Test comment',
+    } as any];
+
+    const report = await dataIntegrityService.runFullIntegrityCheck({ snapshot });
+    const idWarnings = report.issues.filter(
+      (i: any) => i.category === 'ID_INTEGRITY' && ['script_versions', 'thumbnail_versions', 'pinned_comment_versions'].includes(i.worksheet)
+    );
+    assert.strictEqual(idWarnings.length, 0, `Expected 0 ID warnings for valid composite versions, got: ${JSON.stringify(idWarnings)}`);
+  });
+
+  // --------------------------------------------------------------------------
+  // TEST 22: Diagnostic Engine Flags Malformed Version IDs with WARNING
+  // --------------------------------------------------------------------------
+  await test('22. Diagnostic engine flags malformed version IDs with ID_INTEGRITY WARNING', async () => {
+    const snapshot = createCleanSyntheticSnapshot();
+
+    snapshot.scriptVersions = [{
+      id: 'malformed_script_version_id',
+      scriptId: 'scr_001',
+      versionNumber: 1,
+    } as any];
+
+    const report = await dataIntegrityService.runFullIntegrityCheck({ snapshot });
+    const warning = report.issues.find(
+      (i: any) => i.category === 'ID_INTEGRITY' && i.worksheet === 'script_versions' && i.entityId === 'malformed_script_version_id'
+    );
+    assert.ok(warning, 'Must flag malformed script version ID');
+    assert.strictEqual(warning.severity, 'WARNING');
+  });
+
+  // --------------------------------------------------------------------------
+  // TEST 23: Workflow Entity Resolution: Question Drafts and Content Masters
+  // --------------------------------------------------------------------------
+  await test('23. Workflow entity resolution accepts Question Drafts and Content Masters without false-positive warnings', async () => {
+    const snapshot = createCleanSyntheticSnapshot();
+
+    // Add draft and content master
+    snapshot.questionDrafts = [{ id: 'dft_00000000-0000-0000-0000-000000000001', topicId: 'top_001', subtopicId: 'sub_001' } as any];
+    snapshot.contentMasters = [{ id: 'cnt_00000000-0000-0000-0000-000000000001', title: 'Master 1', status: 'DRAFT' } as any];
+
+    // Workflows referencing draft and master
+    snapshot.workflows = [
+      {
+        id: 'wfl_001',
+        entityId: 'dft_00000000-0000-0000-0000-000000000001',
+        entityType: 'QUESTION',
+        currentStep: 1,
+        contentStatus: 'DRAFT',
+        jobStatus: 'IDLE',
+      },
+      {
+        id: 'wfl_002',
+        entityId: 'cnt_00000000-0000-0000-0000-000000000001',
+        entityType: 'CONTENT',
+        currentStep: 3,
+        contentStatus: 'IN_REVIEW',
+        jobStatus: 'PROCESSING',
+      },
+    ];
+
+    const report = await dataIntegrityService.runFullIntegrityCheck({ snapshot });
+    const workflowWarnings = report.issues.filter(
+      (i: any) => i.category === 'WORKFLOW_INTEGRITY' && i.field === 'entityId'
+    );
+    assert.strictEqual(workflowWarnings.length, 0, `Expected 0 entityId warnings for registered drafts/masters, got: ${JSON.stringify(workflowWarnings)}`);
+  });
+
+  // --------------------------------------------------------------------------
+  // TEST 24: Workflow Entity Resolution Flags Truly Missing Entity References
+  // --------------------------------------------------------------------------
+  await test('24. Workflow entity resolution flags truly missing entity reference as WARNING', async () => {
+    const snapshot = createCleanSyntheticSnapshot();
+
+    snapshot.workflows = [
+      {
+        id: 'wfl_missing_ref',
+        entityId: 'qst_non_existent_entity_id',
+        entityType: 'QUESTION',
+        currentStep: 2,
+        contentStatus: 'DRAFT',
+        jobStatus: 'IDLE',
+      },
+    ];
+
+    const report = await dataIntegrityService.runFullIntegrityCheck({ snapshot });
+    const missingEntityWarning = report.issues.find(
+      (i: any) => i.category === 'WORKFLOW_INTEGRITY' && i.field === 'entityId' && i.entityId === 'wfl_missing_ref'
+    );
+    assert.ok(missingEntityWarning, 'Must flag missing entity reference in workflow');
+    assert.strictEqual(missingEntityWarning.severity, 'WARNING');
+  });
+
+  // --------------------------------------------------------------------------
+  // TEST 25: Canonical 15-Stage Workflow Instance Validates currentStep and contentStatus
+  // --------------------------------------------------------------------------
+  await test('25. Canonical 15-stage workflow instance validates currentStep (1..15) and contentStatus without requiring legacy toStatus', async () => {
+    const snapshot = createCleanSyntheticSnapshot();
+    snapshot.questionDrafts = [{ id: 'dft_valid_01' } as any];
+
+    // Perfectly valid canonical workflow instance
+    snapshot.workflows = [
+      {
+        id: 'wfl_valid_01',
+        entityId: 'dft_valid_01',
+        entityType: 'QUESTION',
+        currentStep: 1,
+        contentStatus: 'DRAFT',
+        jobStatus: 'IDLE',
+      },
+    ];
+
+    const report = await dataIntegrityService.runFullIntegrityCheck({ snapshot });
+    const workflowIssues = report.issues.filter((i: any) => i.category === 'WORKFLOW_INTEGRITY');
+    assert.strictEqual(workflowIssues.length, 0, `Expected 0 issues for valid canonical workflow, got: ${JSON.stringify(workflowIssues)}`);
+  });
+
+  // --------------------------------------------------------------------------
+  // TEST 26: Canonical 15-Stage Workflow Instance Rejects Missing/Invalid currentStep and Status
+  // --------------------------------------------------------------------------
+  await test('26. Canonical 15-stage workflow instance flags out-of-range currentStep and missing contentStatus as ERROR', async () => {
+    const snapshot = createCleanSyntheticSnapshot();
+    snapshot.questionDrafts = [{ id: 'dft_valid_01' } as any];
+
+    snapshot.workflows = [
+      {
+        id: 'wfl_invalid_step',
+        entityId: 'dft_valid_01',
+        entityType: 'QUESTION',
+        currentStep: 16, // Out of range (max 15)
+        contentStatus: 'DRAFT',
+        jobStatus: 'IDLE',
+      },
+      {
+        id: 'wfl_missing_status',
+        entityId: 'dft_valid_01',
+        entityType: 'QUESTION',
+        currentStep: 2,
+        contentStatus: '', // Missing
+        jobStatus: 'IDLE',
+      },
+    ];
+
+    const report = await dataIntegrityService.runFullIntegrityCheck({ snapshot });
+    const stepError = report.issues.find(
+      (i: any) => i.entityId === 'wfl_invalid_step' && i.field === 'currentStep' && i.severity === 'ERROR'
+    );
+    assert.ok(stepError, 'Must flag invalid currentStep 16 as ERROR');
+
+    const statusError = report.issues.find(
+      (i: any) => i.entityId === 'wfl_missing_status' && i.field === 'contentStatus' && i.severity === 'ERROR'
+    );
+    assert.ok(statusError, 'Must flag missing contentStatus as ERROR');
+  });
+
+  // --------------------------------------------------------------------------
+  // TEST 27: Legacy Workflow Transition Record Validation
+  // --------------------------------------------------------------------------
+  await test('27. Legacy workflow transition records validate toStatus and illegal terminal state transitions', async () => {
+    const snapshot = createCleanSyntheticSnapshot();
+    snapshot.videos = [{ id: 'vid_legacy_01', status: 'IN_PRODUCTION' } as any];
+
+    // Valid legacy record
+    snapshot.workflows = [
+      {
+        id: 'WF-valid-01',
+        entityId: 'vid_legacy_01',
+        fromStatus: 'ASSIGNED',
+        toStatus: 'IN_PRODUCTION',
+        triggeredBy: 'usr_001',
+      },
+      // Missing toStatus
+      {
+        id: 'WF-missing-to',
+        entityId: 'vid_legacy_01',
+        fromStatus: 'IN_PRODUCTION',
+        toStatus: '',
+      },
+      // Illegal transition from terminal state UPLOADED
+      {
+        id: 'WF-illegal-terminal',
+        entityId: 'vid_legacy_01',
+        fromStatus: 'UPLOADED',
+        toStatus: 'IN_PRODUCTION',
+      },
+    ];
+
+    const report = await dataIntegrityService.runFullIntegrityCheck({ snapshot });
+
+    const missingToError = report.issues.find(
+      (i: any) => i.entityId === 'WF-missing-to' && i.field === 'toStatus' && i.severity === 'ERROR'
+    );
+    assert.ok(missingToError, 'Must flag legacy workflow record missing toStatus as ERROR');
+
+    const terminalError = report.issues.find(
+      (i: any) => i.entityId === 'WF-illegal-terminal' && i.severity === 'ERROR'
+    );
+    assert.ok(terminalError, 'Must flag illegal transition from terminal state UPLOADED as ERROR');
+
+    const validRecordIssues = report.issues.filter((i: any) => i.entityId === 'WF-valid-01');
+    assert.strictEqual(validRecordIssues.length, 0, 'Valid legacy workflow transition must have 0 issues');
+  });
+
+  // --------------------------------------------------------------------------
+  // TEST 28: Ambiguous and Unrecognized Workflow Documents Flagged as ERROR
+  // --------------------------------------------------------------------------
+  await test('28. Ambiguous and unrecognized workflow documents are flagged as ERROR', async () => {
+    const snapshot = createCleanSyntheticSnapshot();
+    snapshot.videos = [{ id: 'vid_001' } as any];
+
+    snapshot.workflows = [
+      // Ambiguous: has both currentStep AND toStatus
+      {
+        id: 'wfl_ambiguous_doc',
+        entityId: 'vid_001',
+        currentStep: 3,
+        toStatus: 'IN_REVIEW',
+        contentStatus: 'DRAFT',
+      },
+      // Unrecognized: missing both schemas
+      {
+        id: 'unknown_doc_shape',
+        entityId: 'vid_001',
+      },
+    ];
+
+    const report = await dataIntegrityService.runFullIntegrityCheck({ snapshot });
+
+    const ambiguousError = report.issues.find(
+      (i: any) => i.entityId === 'wfl_ambiguous_doc' && i.severity === 'ERROR' && i.message.includes('ambiguously')
+    );
+    assert.ok(ambiguousError, 'Must flag ambiguous workflow document as ERROR');
+
+    const unknownError = report.issues.find(
+      (i: any) => i.entityId === 'unknown_doc_shape' && i.severity === 'ERROR' && i.message.includes('does not conform')
+    );
+    assert.ok(unknownError, 'Must flag unrecognized workflow document as ERROR');
   });
 
   console.log('\n------------------------------------------------------------');

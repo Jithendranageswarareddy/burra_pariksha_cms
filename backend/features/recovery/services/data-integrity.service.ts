@@ -11,7 +11,36 @@
  * or alters Firestore collections in any way.
  */
 
-import { AuditLog, computeDiagnosticCounts, IntegrityCategory, IntegrityCheckSummary, IntegrityIssue, IntegritySeverity, PinnedComment, PinnedCommentVersion, PriorityLevel, Publishing, Question, QuestionStatus, QuestionVideo, Script, ScriptVersion, SocialPublishStatus, Subtopic, SystemHealthReport, Thumbnail, ThumbnailVersion, Topic, User, Video, VideoProductionStatus, Workflow, WorksheetHealthSummary } from '../../../../shared';
+import {
+  AuditLog,
+  computeDiagnosticCounts,
+  ContentMaster,
+  IntegrityCategory,
+  IntegrityCheckSummary,
+  IntegrityIssue,
+  IntegritySeverity,
+  PinnedComment,
+  PinnedCommentVersion,
+  PriorityLevel,
+  Publishing,
+  Question,
+  QuestionDraft,
+  QuestionStatus,
+  QuestionVideo,
+  Script,
+  ScriptVersion,
+  SocialPublishStatus,
+  Subtopic,
+  SystemHealthReport,
+  Thumbnail,
+  ThumbnailVersion,
+  Topic,
+  User,
+  Video,
+  VideoProductionStatus,
+  Workflow,
+  WorksheetHealthSummary,
+} from '../../../../shared';
 
 import {
   assignmentsRepository,
@@ -24,6 +53,7 @@ import {
   pinnedCommentVersionsRepository,
   publishingRepository,
   questionConfigRepository,
+  questionDraftsRepository,
   questionsRepository,
   questionVideosRepository,
   scriptsRepository,
@@ -96,6 +126,77 @@ export const ALL_FIRESTORE_COLLECTIONS = [
 
 export const ALL_SHEET_TABS = ALL_FIRESTORE_COLLECTIONS as unknown as string[];
 
+export interface VersionIdValidationConfig {
+  canonicalPrefix: string;
+  allowedParentPrefixes: string[];
+  allowedLegacyPrefixes?: string[];
+}
+
+/**
+ * Validates version identifiers against canonical standalone, supported legacy standalone,
+ * or composite version formats (${parentId}-V${versionNumber}).
+ */
+export function isValidVersionId(id: string, config: VersionIdValidationConfig): boolean {
+  if (!id || typeof id !== 'string') return false;
+  const trimmed = id.trim();
+  if (!trimmed) return false;
+
+  // 1. Standalone canonical format (e.g. scv_uuid, thv_uuid, pcv_uuid)
+  if (trimmed.startsWith(config.canonicalPrefix)) {
+    return true;
+  }
+
+  // 2. Standalone legacy format (e.g. BP-SCV-..., BP-THV-..., BP-PCV-...)
+  if (config.allowedLegacyPrefixes && config.allowedLegacyPrefixes.some((p) => trimmed.startsWith(p))) {
+    return true;
+  }
+
+  // 3. Composite version ID format: ${parentId}-V${versionNumber}
+  // e.g. scr_8e9455f6-7bfa-4c4c-88e9-cb2bf88e9999-V1, BP-S-0001-V1
+  const match = trimmed.match(/^(.+)-V(\d+)$/);
+  if (match) {
+    const parentId = match[1];
+    const versionNum = parseInt(match[2], 10);
+    if (versionNum >= 1 && config.allowedParentPrefixes.some((p) => parentId.startsWith(p) && parentId.length > p.length)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+export interface DiagnosticDataSnapshot {
+  users?: User[];
+  topics?: Topic[];
+  subtopics?: Subtopic[];
+  questions?: Question[];
+  questionVideos?: QuestionVideo[];
+  videos?: Video[];
+  scripts?: Script[];
+  scriptVersions?: ScriptVersion[];
+  thumbnails?: Thumbnail[];
+  thumbnailVersions?: ThumbnailVersion[];
+  pinnedComments?: PinnedComment[];
+  pinnedCommentVersions?: PinnedCommentVersion[];
+  workflows?: any[];
+  assignments?: any[];
+  publishingRecords?: Publishing[];
+  auditLogs?: AuditLog[];
+  contentMasters?: ContentMaster[];
+  socialReviews?: any[];
+  validations?: any[];
+  questionConfig?: any[];
+  mediaAssets?: any[];
+  contentPlans?: any[];
+  contentBatches?: any[];
+  questionDrafts?: QuestionDraft[];
+}
+
+export interface DiagnosticRunOptions {
+  forceFresh?: boolean;
+  snapshot?: DiagnosticDataSnapshot;
+}
+
 export class DataIntegrityService {
   private static instance: DataIntegrityService | null = null;
   private cachedReport: SystemHealthReport | null = null;
@@ -135,8 +236,13 @@ export class DataIntegrityService {
   /**
    * Executes a full, read-only data integrity and operational health check across all worksheets.
    * Cached for 60 seconds with in-flight deduplication to prevent probe storms.
+   * If a synthetic snapshot is passed in options, executes directly in-memory without contacting Firestore.
    */
-  public async runFullIntegrityCheck(options?: { forceFresh?: boolean }): Promise<SystemHealthReport> {
+  public async runFullIntegrityCheck(options?: DiagnosticRunOptions): Promise<SystemHealthReport> {
+    if (options?.snapshot) {
+      return this.executeFullIntegrityCheck(options.snapshot);
+    }
+
     if (!options?.forceFresh && this.cachedReport && Date.now() < this.cacheExpiresAt) {
       return this.cachedReport;
     }
@@ -156,7 +262,7 @@ export class DataIntegrityService {
     }
   }
 
-  private async executeFullIntegrityCheck(): Promise<SystemHealthReport> {
+  private async executeFullIntegrityCheck(snapshot?: DiagnosticDataSnapshot): Promise<SystemHealthReport> {
     const issues: IntegrityIssue[] = [];
     let issueCounter = 1;
 
@@ -239,31 +345,60 @@ export class DataIntegrityService {
       mediaAssets,
       contentPlans,
       contentBatches,
-    ] = await Promise.all([
-      safeFetch(FIRESTORE_COLLECTIONS.USERS, () => usersRepository.findAll()),
-      safeFetch(FIRESTORE_COLLECTIONS.TOPICS, () => topicsRepository.findAll()),
-      safeFetch(FIRESTORE_COLLECTIONS.SUBTOPICS, () => subtopicsRepository.findAll()),
-      safeFetch(FIRESTORE_COLLECTIONS.QUESTIONS, () => questionsRepository.findAll()),
-      safeFetch(FIRESTORE_COLLECTIONS.QUESTION_VIDEOS, () => questionVideosRepository.findAll()),
-      safeFetch(FIRESTORE_COLLECTIONS.VIDEOS, () => videosRepository.findAll()),
-      safeFetch(FIRESTORE_COLLECTIONS.SCRIPT, () => scriptsRepository.findAll()),
-      safeFetch(FIRESTORE_COLLECTIONS.SCRIPT_VERSIONS, () => scriptVersionsRepository.findAll()),
-      safeFetch(FIRESTORE_COLLECTIONS.THUMBNAILS, () => thumbnailsRepository.findAll()),
-      safeFetch(FIRESTORE_COLLECTIONS.THUMBNAIL_VERSIONS, () => thumbnailVersionsRepository.findAll()),
-      safeFetch(FIRESTORE_COLLECTIONS.PINNED_COMMENTS, () => pinnedCommentsRepository.findAll()),
-      safeFetch(FIRESTORE_COLLECTIONS.PINNED_COMMENT_VERSIONS, () => pinnedCommentVersionsRepository.findAll()),
-      safeFetch(FIRESTORE_COLLECTIONS.WORKFLOW, () => workflowRepository.findAll()),
-      safeFetch(FIRESTORE_COLLECTIONS.ASSIGNMENTS, () => assignmentsRepository.findAll()),
-      safeFetch(FIRESTORE_COLLECTIONS.PUBLISHING, () => publishingRepository.findAll()),
-      safeFetch(FIRESTORE_COLLECTIONS.AUDIT_LOG, () => auditLogRepository.findAll()),
-      safeFetch(FIRESTORE_COLLECTIONS.CONTENT_MASTERS, () => contentMastersRepository.findAll()),
-      safeFetch(FIRESTORE_COLLECTIONS.SOCIAL_REVIEWS, () => socialReviewsRepository.findAll()),
-      safeFetch(FIRESTORE_COLLECTIONS.QUESTION_VALIDATIONS, () => validationsRepository.findAll()),
-      safeFetch(FIRESTORE_COLLECTIONS.QUESTION_CONFIG, () => questionConfigRepository.findAll()),
-      safeFetch(FIRESTORE_COLLECTIONS.MEDIA_ASSETS, () => mediaAssetsRepository.findAll()),
-      safeFetch(FIRESTORE_COLLECTIONS.CONTENT_PLANS, () => contentPlansRepository.findAll()),
-      safeFetch(FIRESTORE_COLLECTIONS.CONTENT_BATCHES, () => contentBatchesRepository.findAll()),
-    ]);
+      questionDrafts,
+    ] = snapshot
+      ? [
+          snapshot.users || [],
+          snapshot.topics || [],
+          snapshot.subtopics || [],
+          snapshot.questions || [],
+          snapshot.questionVideos || [],
+          snapshot.videos || [],
+          snapshot.scripts || [],
+          snapshot.scriptVersions || [],
+          snapshot.thumbnails || [],
+          snapshot.thumbnailVersions || [],
+          snapshot.pinnedComments || [],
+          snapshot.pinnedCommentVersions || [],
+          snapshot.workflows || [],
+          snapshot.assignments || [],
+          snapshot.publishingRecords || [],
+          snapshot.auditLogs || [],
+          snapshot.contentMasters || [],
+          snapshot.socialReviews || [],
+          snapshot.validations || [],
+          snapshot.questionConfig || [],
+          snapshot.mediaAssets || [],
+          snapshot.contentPlans || [],
+          snapshot.contentBatches || [],
+          snapshot.questionDrafts || [],
+        ]
+      : await Promise.all([
+          safeFetch(FIRESTORE_COLLECTIONS.USERS, () => usersRepository.findAll()),
+          safeFetch(FIRESTORE_COLLECTIONS.TOPICS, () => topicsRepository.findAll()),
+          safeFetch(FIRESTORE_COLLECTIONS.SUBTOPICS, () => subtopicsRepository.findAll()),
+          safeFetch(FIRESTORE_COLLECTIONS.QUESTIONS, () => questionsRepository.findAll()),
+          safeFetch(FIRESTORE_COLLECTIONS.QUESTION_VIDEOS, () => questionVideosRepository.findAll()),
+          safeFetch(FIRESTORE_COLLECTIONS.VIDEOS, () => videosRepository.findAll()),
+          safeFetch(FIRESTORE_COLLECTIONS.SCRIPT, () => scriptsRepository.findAll()),
+          safeFetch(FIRESTORE_COLLECTIONS.SCRIPT_VERSIONS, () => scriptVersionsRepository.findAll()),
+          safeFetch(FIRESTORE_COLLECTIONS.THUMBNAILS, () => thumbnailsRepository.findAll()),
+          safeFetch(FIRESTORE_COLLECTIONS.THUMBNAIL_VERSIONS, () => thumbnailVersionsRepository.findAll()),
+          safeFetch(FIRESTORE_COLLECTIONS.PINNED_COMMENTS, () => pinnedCommentsRepository.findAll()),
+          safeFetch(FIRESTORE_COLLECTIONS.PINNED_COMMENT_VERSIONS, () => pinnedCommentVersionsRepository.findAll()),
+          safeFetch(FIRESTORE_COLLECTIONS.WORKFLOW, () => workflowRepository.findAll()),
+          safeFetch(FIRESTORE_COLLECTIONS.ASSIGNMENTS, () => assignmentsRepository.findAll()),
+          safeFetch(FIRESTORE_COLLECTIONS.PUBLISHING, () => publishingRepository.findAll()),
+          safeFetch(FIRESTORE_COLLECTIONS.AUDIT_LOG, () => auditLogRepository.findAll()),
+          safeFetch(FIRESTORE_COLLECTIONS.CONTENT_MASTERS, () => contentMastersRepository.findAll()),
+          safeFetch(FIRESTORE_COLLECTIONS.SOCIAL_REVIEWS, () => socialReviewsRepository.findAll()),
+          safeFetch(FIRESTORE_COLLECTIONS.QUESTION_VALIDATIONS, () => validationsRepository.findAll()),
+          safeFetch(FIRESTORE_COLLECTIONS.QUESTION_CONFIG, () => questionConfigRepository.findAll()),
+          safeFetch(FIRESTORE_COLLECTIONS.MEDIA_ASSETS, () => mediaAssetsRepository.findAll()),
+          safeFetch(FIRESTORE_COLLECTIONS.CONTENT_PLANS, () => contentPlansRepository.findAll()),
+          safeFetch(FIRESTORE_COLLECTIONS.CONTENT_BATCHES, () => contentBatchesRepository.findAll()),
+          safeFetch('question_drafts', () => questionDraftsRepository.findAll()),
+        ]);
 
     // Fast lookup maps
     const topicMap = new Map<string, Topic>(topics.map((t) => [t.id, t]));
@@ -275,6 +410,8 @@ export class DataIntegrityService {
     const pinnedCommentMap = new Map<string, PinnedComment>(pinnedComments.map((p) => [p.id, p]));
     const userMap = new Map<string, User>(users.map((u) => [u.id, u]));
     const publishingMap = new Map<string, Publishing>(publishingRecords.map((p) => [p.id, p]));
+    const contentMasterMap = new Map<string, ContentMaster>(contentMasters.map((c: any) => [c.id, c]));
+    const draftMap = new Map<string, QuestionDraft>(questionDrafts.map((d: any) => [d.id, d]));
 
     // =========================================================================
     // A. ID INTEGRITY CHECKS ACROSS ALL FIRESTORE COLLECTIONS
@@ -284,7 +421,8 @@ export class DataIntegrityService {
       items: any[],
       idField: string = 'id',
       expectedPrefix?: string,
-      allowedLegacyPrefixes?: string[]
+      allowedLegacyPrefixes?: string[],
+      customValidator?: (id: string) => boolean
     ) => {
       const seenIds = new Set<string>();
 
@@ -324,26 +462,39 @@ export class DataIntegrityService {
           seenIds.add(idStr.toLowerCase());
         }
 
-        // Prefix validation
-        if (expectedPrefix && !idStr.startsWith(expectedPrefix)) {
-          // Check if this is a recognized legacy historical prefix
-          if (allowedLegacyPrefixes && allowedLegacyPrefixes.some((p) => idStr.startsWith(p))) {
-            return; // Preserved immutable historical ID; valid legacy format
-          }
+        // Test artifacts classified as informational notice
+        if (idStr.startsWith('TEST-')) {
+          addIssue(
+            'INFO',
+            'ID_INTEGRITY',
+            collectionName,
+            `Record "${idStr}" is an automated test artifact and does not use standard prefix "${expectedPrefix}".`,
+            `Automated test artifact record recognized. No production remediation required.`,
+            collectionName,
+            idStr,
+            idField
+          );
+          return;
+        }
 
-          // Test artifacts classified as informational notice
-          if (idStr.startsWith('TEST-')) {
+        // Validation: use customValidator if provided, else check standard and legacy prefixes
+        if (customValidator) {
+          if (!customValidator(idStr)) {
             addIssue(
-              'INFO',
+              'WARNING',
               'ID_INTEGRITY',
               collectionName,
-              `Record "${idStr}" is an automated test artifact and does not use standard prefix "${expectedPrefix}".`,
-              `Automated test artifact record recognized. No production remediation required.`,
+              `ID "${idStr}" does not follow valid canonical or composite version format for "${collectionName}".`,
+              `Ensure IDs in collection "${collectionName}" follow standard nomenclature starting with "${expectedPrefix}" or composite format "${expectedPrefix ? expectedPrefix.slice(0, 2) : ''}...-V#".`,
               collectionName,
               idStr,
               idField
             );
-            return;
+          }
+        } else if (expectedPrefix && !idStr.startsWith(expectedPrefix)) {
+          // Check if this is a recognized legacy historical prefix
+          if (allowedLegacyPrefixes && allowedLegacyPrefixes.some((p) => idStr.startsWith(p))) {
+            return; // Preserved immutable historical ID; valid legacy format
           }
 
           addIssue(
@@ -367,11 +518,32 @@ export class DataIntegrityService {
     checkCollectionIds(SHEET_TABS.QUESTION_VIDEOS, questionVideos, 'id', 'qv_', ['QV-']);
     checkCollectionIds(SHEET_TABS.VIDEOS, videos, 'id', 'vid_', ['BP-V-']);
     checkCollectionIds(SHEET_TABS.SCRIPT, scripts, 'id', 'scr_', ['BP-S-']);
-    checkCollectionIds(SHEET_TABS.SCRIPT_VERSIONS, scriptVersions, 'id', 'scv_', ['BP-SCV-']);
+    checkCollectionIds(
+      SHEET_TABS.SCRIPT_VERSIONS,
+      scriptVersions,
+      'id',
+      'scv_',
+      ['BP-SCV-'],
+      (id) => isValidVersionId(id, { canonicalPrefix: 'scv_', allowedParentPrefixes: ['scr_', 'BP-S-'], allowedLegacyPrefixes: ['BP-SCV-'] })
+    );
     checkCollectionIds(SHEET_TABS.THUMBNAILS, thumbnails, 'id', 'thm_', ['BP-T-']);
-    checkCollectionIds(SHEET_TABS.THUMBNAIL_VERSIONS, thumbnailVersions, 'id', 'thv_', ['BP-THV-']);
+    checkCollectionIds(
+      SHEET_TABS.THUMBNAIL_VERSIONS,
+      thumbnailVersions,
+      'id',
+      'thv_',
+      ['BP-THV-'],
+      (id) => isValidVersionId(id, { canonicalPrefix: 'thv_', allowedParentPrefixes: ['thm_', 'BP-T-'], allowedLegacyPrefixes: ['BP-THV-'] })
+    );
     checkCollectionIds(SHEET_TABS.PINNED_COMMENTS, pinnedComments, 'id', 'pin_', ['BP-PIN-']);
-    checkCollectionIds(SHEET_TABS.PINNED_COMMENT_VERSIONS, pinnedCommentVersions, 'id', 'pcv_', ['BP-PCV-']);
+    checkCollectionIds(
+      SHEET_TABS.PINNED_COMMENT_VERSIONS,
+      pinnedCommentVersions,
+      'id',
+      'pcv_',
+      ['BP-PCV-'],
+      (id) => isValidVersionId(id, { canonicalPrefix: 'pcv_', allowedParentPrefixes: ['pin_', 'BP-PIN-'], allowedLegacyPrefixes: ['BP-PCV-'] })
+    );
     checkCollectionIds(SHEET_TABS.WORKFLOW, workflows, 'id', 'wfl_', ['WF-']);
     checkCollectionIds(SHEET_TABS.ASSIGNMENTS, assignments, 'id', 'asn_', ['ASG-', 'BP-ASN-']);
     checkCollectionIds(SHEET_TABS.PUBLISHING, publishingRecords, 'id', 'pub_', ['PUB-', 'BP-PUB-']);
@@ -1458,28 +1630,35 @@ export class DataIntegrityService {
     // =========================================================================
     // H. WORKFLOW INTEGRITY CHECKS
     // =========================================================================
-    workflows.forEach((wf) => {
-      if (!wf.entityId) {
+    workflows.forEach((wf: any) => {
+      // 1. Entity Reference Resolution
+      if (!wf.entityId || typeof wf.entityId !== 'string' || wf.entityId.trim() === '') {
         addIssue(
           'ERROR',
           'WORKFLOW_INTEGRITY',
           SHEET_TABS.WORKFLOW,
           `Workflow record "${wf.id}" is missing entity_id.`,
-          `Link workflow transition "${wf.id}" to an entity_id.`,
+          `Link workflow record "${wf.id}" to an entity_id.`,
           'WORKFLOW',
           wf.id,
           'entityId'
         );
       } else {
-        const isQuestion = questionMap.has(wf.entityId);
-        const isVideo = videoMap.has(wf.entityId);
-        if (!isQuestion && !isVideo) {
+        const isResolved =
+          questionMap.has(wf.entityId) ||
+          videoMap.has(wf.entityId) ||
+          draftMap.has(wf.entityId) ||
+          contentMasterMap.has(wf.entityId) ||
+          scriptMap.has(wf.entityId) ||
+          publishingMap.has(wf.entityId);
+
+        if (!isResolved) {
           addIssue(
             'WARNING',
             'WORKFLOW_INTEGRITY',
             SHEET_TABS.WORKFLOW,
-            `Workflow record "${wf.id}" refers to entity_id "${wf.entityId}" not found in active Questions or Videos.`,
-            `Verify entity_id for workflow event "${wf.id}".`,
+            `Workflow record "${wf.id}" refers to entity_id "${wf.entityId}" not found in registered entities (Questions, Drafts, Videos, Content Masters, Scripts, or Publishing Packages).`,
+            `Verify entity_id for workflow record "${wf.id}".`,
             'WORKFLOW',
             wf.id,
             'entityId'
@@ -1487,43 +1666,125 @@ export class DataIntegrityService {
         }
       }
 
-      if (!wf.toStatus) {
-        addIssue(
-          'ERROR',
-          'WORKFLOW_INTEGRITY',
-          SHEET_TABS.WORKFLOW,
-          `Workflow record "${wf.id}" is missing to_status.`,
-          `Provide to_status for workflow transition "${wf.id}".`,
-          'WORKFLOW',
-          wf.id,
-          'toStatus'
-        );
-      }
+      // 2. Discriminator & Status Validation: Canonical 15-stage instance vs. Legacy transition record
+      const isCanonicalCandidate =
+        typeof wf.currentStep === 'number' ||
+        (typeof wf.id === 'string' && wf.id.startsWith('wfl_')) ||
+        (typeof wf.contentStatus === 'string' && !wf.toStatus);
 
-      // Check terminal state violations (e.g. attempting transition away from CANCELLED or UPLOADED)
-      if (wf.fromStatus === VideoProductionStatus.UPLOADED && wf.toStatus !== VideoProductionStatus.UPLOADED) {
-        addIssue(
-          'ERROR',
-          'WORKFLOW_INTEGRITY',
-          SHEET_TABS.WORKFLOW,
-          `Workflow record "${wf.id}" represents an illegal transition from terminal state UPLOADED to "${wf.toStatus}".`,
-          `Review workflow history in collection "workflow_instances" for entity "${wf.entityId}".`,
-          'WORKFLOW',
-          wf.id,
-          'toStatus'
-        );
-      }
+      const isLegacyCandidate =
+        typeof wf.toStatus === 'string' ||
+        (typeof wf.id === 'string' && wf.id.startsWith('WF-')) ||
+        (typeof wf.fromStatus === 'string' && !wf.currentStep);
 
-      if (wf.fromStatus === VideoProductionStatus.CANCELLED && wf.toStatus !== VideoProductionStatus.CANCELLED) {
+      if (isCanonicalCandidate && isLegacyCandidate && typeof wf.currentStep === 'number' && typeof wf.toStatus === 'string') {
         addIssue(
           'ERROR',
           'WORKFLOW_INTEGRITY',
           SHEET_TABS.WORKFLOW,
-          `Workflow record "${wf.id}" represents an illegal transition from terminal state CANCELLED to "${wf.toStatus}".`,
-          `Review workflow history in collection "workflow_instances" for entity "${wf.entityId}".`,
+          `Workflow record "${wf.id}" ambiguously contains both canonical 15-stage instance fields (currentStep) and legacy transition fields (toStatus).`,
+          `Normalize workflow document to either canonical WorkflowInstanceDocument or legacy transition record.`,
           'WORKFLOW',
           wf.id,
-          'toStatus'
+          'id'
+        );
+      } else if (isCanonicalCandidate) {
+        // Canonical 15-stage instance validation
+        if (
+          wf.currentStep === undefined ||
+          wf.currentStep === null ||
+          !Number.isInteger(wf.currentStep) ||
+          wf.currentStep < 1 ||
+          wf.currentStep > 15
+        ) {
+          addIssue(
+            'ERROR',
+            'WORKFLOW_INTEGRITY',
+            SHEET_TABS.WORKFLOW,
+            `Canonical workflow instance "${wf.id}" has invalid or out-of-range currentStep (${wf.currentStep}). Must be an integer between 1 and 15.`,
+            `Set currentStep between 1 and 15 on workflow instance "${wf.id}".`,
+            'WORKFLOW',
+            wf.id,
+            'currentStep'
+          );
+        }
+
+        if (!wf.contentStatus || typeof wf.contentStatus !== 'string' || wf.contentStatus.trim() === '') {
+          addIssue(
+            'ERROR',
+            'WORKFLOW_INTEGRITY',
+            SHEET_TABS.WORKFLOW,
+            `Canonical workflow instance "${wf.id}" is missing required contentStatus.`,
+            `Provide contentStatus (e.g. DRAFT, IN_REVIEW, APPROVED) for workflow instance "${wf.id}".`,
+            'WORKFLOW',
+            wf.id,
+            'contentStatus'
+          );
+        }
+
+        if (!wf.jobStatus || typeof wf.jobStatus !== 'string' || wf.jobStatus.trim() === '') {
+          addIssue(
+            'WARNING',
+            'WORKFLOW_INTEGRITY',
+            SHEET_TABS.WORKFLOW,
+            `Canonical workflow instance "${wf.id}" is missing required jobStatus.`,
+            `Set jobStatus (IDLE, QUEUED, PROCESSING, COMPLETED, FAILED) for workflow instance "${wf.id}".`,
+            'WORKFLOW',
+            wf.id,
+            'jobStatus'
+          );
+        }
+      } else if (isLegacyCandidate) {
+        // Legacy transition record validation
+        if (!wf.toStatus || typeof wf.toStatus !== 'string' || wf.toStatus.trim() === '') {
+          addIssue(
+            'ERROR',
+            'WORKFLOW_INTEGRITY',
+            SHEET_TABS.WORKFLOW,
+            `Legacy workflow record "${wf.id}" is missing to_status.`,
+            `Provide to_status for workflow transition "${wf.id}".`,
+            'WORKFLOW',
+            wf.id,
+            'toStatus'
+          );
+        }
+
+        // Terminal state transition violations
+        if (wf.fromStatus === VideoProductionStatus.UPLOADED && wf.toStatus !== VideoProductionStatus.UPLOADED) {
+          addIssue(
+            'ERROR',
+            'WORKFLOW_INTEGRITY',
+            SHEET_TABS.WORKFLOW,
+            `Workflow record "${wf.id}" represents an illegal transition from terminal state UPLOADED to "${wf.toStatus}".`,
+            `Review workflow history in collection "workflow_instances" for entity "${wf.entityId}".`,
+            'WORKFLOW',
+            wf.id,
+            'toStatus'
+          );
+        }
+
+        if (wf.fromStatus === VideoProductionStatus.CANCELLED && wf.toStatus !== VideoProductionStatus.CANCELLED) {
+          addIssue(
+            'ERROR',
+            'WORKFLOW_INTEGRITY',
+            SHEET_TABS.WORKFLOW,
+            `Workflow record "${wf.id}" represents an illegal transition from terminal state CANCELLED to "${wf.toStatus}".`,
+            `Review workflow history in collection "workflow_instances" for entity "${wf.entityId}".`,
+            'WORKFLOW',
+            wf.id,
+            'toStatus'
+          );
+        }
+      } else {
+        addIssue(
+          'ERROR',
+          'WORKFLOW_INTEGRITY',
+          SHEET_TABS.WORKFLOW,
+          `Workflow document "${wf.id}" does not conform to either canonical 15-stage WorkflowInstanceDocument or legacy transition record schema.`,
+          `Ensure document in collection "workflow_instances" adheres to canonical WorkflowInstanceDocument or legacy transition record.`,
+          'WORKFLOW',
+          wf.id,
+          'id'
         );
       }
     });
