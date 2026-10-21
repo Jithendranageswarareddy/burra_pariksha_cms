@@ -293,6 +293,16 @@ export class FirestoreRepository<T extends BaseEntity> implements IRepository<T>
       const db = await this.getDb();
       let q: Query = db.collection(this.collectionName);
 
+      // Apply equality filters directly at the Firestore query level so that
+      // limit() operates on matching documents rather than truncating the collection before filtering.
+      if (options?.where) {
+        for (const [k, v] of Object.entries(options.where)) {
+          if (v !== undefined) {
+            q = q.where(k, '==', v);
+          }
+        }
+      }
+
       if (options?.limit) {
         q = q.limit(options.limit);
       }

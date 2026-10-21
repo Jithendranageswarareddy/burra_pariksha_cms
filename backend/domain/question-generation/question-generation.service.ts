@@ -980,12 +980,26 @@ export class QuestionGenerationService {
     // Reconcile any orphan workflow instance associated with this discarded draft
     try {
       const { workflowInstancesRepository } = await import('../workflow');
-      const found = await workflowInstancesRepository.findMany({
-        where: { entityId: trimmed },
-        limit: 1,
-      }).catch(() => []);
-      if (found && found.length > 0) {
-        const wf = found[0];
+      let wf: any = null;
+
+      // 1. Direct lookup by draft.workflowInstanceId if draft is still persisted
+      const draft = await questionDraftsRepository.findById(trimmed).catch(() => null);
+      if (draft?.workflowInstanceId) {
+        wf = await workflowInstancesRepository.findById(draft.workflowInstanceId).catch(() => null);
+      }
+
+      // 2. Query lookup by entityId fallback
+      if (!wf) {
+        const found = await workflowInstancesRepository.findMany({
+          where: { entityId: trimmed },
+          limit: 1,
+        }).catch(() => []);
+        if (found && found.length > 0) {
+          wf = found[0];
+        }
+      }
+
+      if (wf && wf.entityId === trimmed) {
         await workflowInstancesRepository.update(
           wf.id,
           wf.version,

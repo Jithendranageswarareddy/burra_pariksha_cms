@@ -389,8 +389,62 @@ async function runWorkflowDraftLifecycleUnitTests() {
   assert.strictEqual(draft3Final, null, 'Draft must only be deleted after successful workflow reconciliation');
   console.log('  PASS: Draft protected from premature deletion; safe retry confirmed.');
 
+  // --------------------------------------------------------------------------
+  // TEST 10: Multi-Workflow Isolation & deleteDraft Archival Under Distractors
+  // --------------------------------------------------------------------------
+  console.log('[Test 10] deleteDraft reliably identifies and archives target workflow among multiple records...');
+  
+  // Seed distractor workflows
+  await workflowInstancesRepository.create({
+    entityId: 'qst_distractor_001',
+    entityType: 'QUESTION',
+    currentStep: 3,
+    contentStatus: 'APPROVED',
+    jobStatus: 'COMPLETED',
+    version: 1,
+  } as any);
+
+  const draft4 = await questionGenerationService.saveDraft(
+    { ...draftPayload, questionText: 'Multi-Workflow Isolation Test' },
+    authorActor
+  );
+  await questionGenerationService.submitForVerification(
+    { draftId: draft4.id, expectedVersion: draft4.version || 1 },
+    authorActor
+  );
+
+  // Seed another distractor workflow after draft4
+  await workflowInstancesRepository.create({
+    entityId: 'vid_distractor_002',
+    entityType: 'VIDEO',
+    currentStep: 5,
+    contentStatus: 'IN_REVIEW',
+    jobStatus: 'PROCESSING',
+    version: 1,
+  } as any);
+
+  const wf4List = await workflowInstancesRepository.findMany({
+    where: { entityId: draft4.id },
+    limit: 1,
+  });
+  assert.strictEqual(wf4List.length, 1, 'findMany must reliably locate draft4 workflow despite distractors');
+  const wf4 = wf4List[0];
+  assert.strictEqual(wf4.entityId, draft4.id);
+
+  // Discard/delete draft4: must find and archive wf4
+  const deleteSuccess = await questionGenerationService.deleteDraft(draft4.id, authorActor);
+  assert.strictEqual(deleteSuccess, true);
+
+  const wf4Archived = await workflowInstancesRepository.findById(wf4.id);
+  assert.strictEqual(wf4Archived?.contentStatus, 'ARCHIVED');
+  assert.strictEqual(wf4Archived?.lastTransitionBy, authorActor.id);
+
+  const draft4Deleted = await questionDraftsRepository.findById(draft4.id);
+  assert.strictEqual(draft4Deleted, null, 'Draft 4 must be deleted after archival');
+  console.log('  PASS: Multi-workflow isolation and deleteDraft archival verified.');
+
   console.log('\n============================================================');
-  console.log('ALL 9 WORKFLOW-DRAFT APPROVAL LIFECYCLE TESTS PASSED CLEANLY');
+  console.log('ALL 10 WORKFLOW-DRAFT APPROVAL LIFECYCLE TESTS PASSED CLEANLY');
   console.log('============================================================\n');
 }
 
