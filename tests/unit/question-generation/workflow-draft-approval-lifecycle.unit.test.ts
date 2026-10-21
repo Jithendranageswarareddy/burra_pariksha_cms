@@ -255,8 +255,142 @@ async function runWorkflowDraftLifecycleUnitTests() {
   assert.strictEqual(wf2Reconciled.contentStatus, 'APPROVED');
   console.log('  PASS: QuestionDraftService workflow reconciliation confirmed.');
 
+  // --------------------------------------------------------------------------
+  // TEST 7: Repeated Approval / Retry Idempotency (Zero Duplicate Questions)
+  // --------------------------------------------------------------------------
+  console.log('[Test 7] Repeated approval / retry returns existing question with zero duplicate creations...');
+  const questionsBeforeRetry = await questionsRepository.findAll();
+  const retryResult = await questionDraftService.approveDraft(
+    draft2.id,
+    reviewerActor,
+    'Retried approval attempt'
+  );
+  assert.strictEqual(retryResult.id, approvedQ2.id, 'Must return identical question on repeated approval');
+
+  const questionsAfterRetry = await questionsRepository.findAll();
+  assert.strictEqual(
+    questionsAfterRetry.length,
+    questionsBeforeRetry.length,
+    'Repeated approval must not create duplicate question records'
+  );
+
+  const wf2AfterRetry = await workflowInstancesRepository.findById(wf2.id);
+  assert.strictEqual(wf2AfterRetry?.version, wf2Reconciled.version, 'Workflow version must not change on duplicate retry');
+  console.log('  PASS: Idempotent approval verified; zero duplicates created.');
+
+  // --------------------------------------------------------------------------
+  // TEST 8: Historical Unreconciled Draft Reference Produces Data Diagnostics Warning
+  // --------------------------------------------------------------------------
+  console.log('[Test 8] Historical unreconciled draft reference remains detectable by Data Diagnostics...');
+  const unreconciledWf = {
+    id: 'wfl_48d6e33c-d54c-42a4-9063-a71b74952fcb',
+    entityId: 'dft_48d6e3cb-a5f1-42ea-a486-4d39541a9191',
+    entityType: 'QUESTION',
+    currentStep: 2,
+    contentStatus: 'IN_REVIEW',
+    jobStatus: 'PROCESSING',
+  };
+
+  const orphanReport = await dataIntegrityService.runFullIntegrityCheck({
+    snapshot: {
+      workflows: [unreconciledWf],
+      questions: [],
+      questionDrafts: [],
+      videos: [],
+      contentMasters: [],
+      scripts: [],
+      publishingRecords: [],
+      users: [],
+      topics: [],
+      subtopics: [],
+      thumbnails: [],
+      pinnedComments: [],
+      scriptVersions: [],
+      thumbnailVersions: [],
+      pinnedCommentVersions: [],
+      assignments: [],
+      auditLogs: [],
+      socialReviews: [],
+      validations: [],
+      questionConfig: [],
+      mediaAssets: [],
+      contentPlans: [],
+      contentBatches: [],
+    },
+  });
+
+  const orphanWarning = orphanReport.issues.find(
+    (i: any) => i.category === 'WORKFLOW_INTEGRITY' && i.entityId === unreconciledWf.id
+  );
+  assert.ok(orphanWarning, 'Data Diagnostics must flag unreconciled workflow pointing to missing draft');
+  assert.strictEqual(orphanWarning.severity, 'WARNING');
+  assert.ok(orphanWarning.message.includes('question draft'));
+  console.log('  PASS: Data Diagnostics cleanly detects historical unreconciled workflow reference.');
+
+  // --------------------------------------------------------------------------
+  // TEST 9: OCC Failure During Workflow Reconciliation Protects Draft From Deletion
+  // --------------------------------------------------------------------------
+  console.log('[Test 9] Workflow OCC conflict aborts approval and prevents premature draft deletion...');
+  const draft3 = await questionGenerationService.saveDraft(
+    { ...draftPayload, questionText: 'OCC Concurrency Guard Test' },
+    authorActor
+  );
+  await questionGenerationService.submitForVerification(
+    { draftId: draft3.id, expectedVersion: draft3.version || 1 },
+    authorActor
+  );
+
+  const wf3 = (await workflowInstancesRepository.findMany({
+    where: { entityId: draft3.id },
+    limit: 1,
+  }))[0];
+  assert.ok(wf3);
+
+  // Simulate a concurrent actor mutating the workflow behind the scenes (advancing version)
+  await workflowInstancesRepository.update(
+    wf3.id,
+    wf3.version,
+    { contentStatus: 'IN_REVIEW', lastTransitionBy: 'USR-CONCURRENT' },
+    { actorId: 'USR-CONCURRENT', timestamp: new Date().toISOString() }
+  );
+
+  // Spy / intercept workflowInstancesRepository.update to simulate an OCC or database update failure
+  const originalUpdate = workflowInstancesRepository.update.bind(workflowInstancesRepository);
+  let failedAsExpected = false;
+  (workflowInstancesRepository as any).update = async (...args: any[]) => {
+    throw new Error('Simulated transient OCC/concurrency failure during workflow update');
+  };
+
+  try {
+    await questionGenerationService.approveDraft(draft3.id, reviewerActor);
+  } catch (err: any) {
+    if (err.message?.includes('Simulated transient OCC/concurrency failure')) {
+      failedAsExpected = true;
+    }
+  } finally {
+    (workflowInstancesRepository as any).update = originalUpdate;
+  }
+
+  assert.strictEqual(failedAsExpected, true, 'Approval must throw when workflow reconciliation fails');
+
+  // CRITICAL INVARIANT: Draft 3 must NOT be deleted if workflow reconciliation failed!
+  const draft3AfterFailure = await questionDraftsRepository.findById(draft3.id);
+  assert.ok(draft3AfterFailure, 'Draft must remain persisted in questionDraftsRepository if workflow update failed');
+
+  // Now retry approval after resolving the failure: must succeed and finalize reconciliation
+  const approvedQ3 = await questionGenerationService.approveDraft(draft3.id, reviewerActor);
+  assert.ok(approvedQ3.id.startsWith('qst_'));
+
+  const wf3Final = await workflowInstancesRepository.findById(wf3.id);
+  assert.strictEqual(wf3Final?.entityId, approvedQ3.id, 'Workflow must be reconciled on successful retry');
+  assert.strictEqual(wf3Final?.contentStatus, 'APPROVED');
+
+  const draft3Final = await questionDraftsRepository.findById(draft3.id);
+  assert.strictEqual(draft3Final, null, 'Draft must only be deleted after successful workflow reconciliation');
+  console.log('  PASS: Draft protected from premature deletion; safe retry confirmed.');
+
   console.log('\n============================================================');
-  console.log('ALL 6 WORKFLOW-DRAFT APPROVAL LIFECYCLE TESTS PASSED CLEANLY');
+  console.log('ALL 9 WORKFLOW-DRAFT APPROVAL LIFECYCLE TESTS PASSED CLEANLY');
   console.log('============================================================\n');
 }
 

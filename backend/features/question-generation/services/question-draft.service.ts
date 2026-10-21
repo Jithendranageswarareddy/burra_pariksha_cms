@@ -55,9 +55,9 @@ export class QuestionDraftService {
     return questionGenerationService.getAllDrafts();
   }
 
-  public async deleteDraft(id: string): Promise<boolean> {
+  public async deleteDraft(id: string, actor?: { id: string; name?: string }): Promise<boolean> {
     const { questionGenerationService } = await import('../../../domain/question-generation/question-generation.service');
-    return questionGenerationService.deleteDraft(id);
+    return questionGenerationService.deleteDraft(id, actor);
   }
 
   /**
@@ -206,6 +206,7 @@ export class QuestionDraftService {
     const createdQuestion = await questionService.createQuestionFromRequest(
       {
         creationMode: 'ai',
+        idempotencyKey: `draft-approval-${draft.id}`,
         topicId: draft.topicId,
         subtopicId: draft.subtopicId,
         difficulty: draft.difficulty as any,
@@ -248,44 +249,41 @@ export class QuestionDraftService {
     // When a draft is approved into a canonical Question, any workflow instance tracking this draft
     // must have its entityId updated to the approved Question ID (and contentStatus to 'APPROVED')
     // so that the workflow points to the materialized canonical Question rather than dangling.
-    try {
-      const { workflowInstancesRepository } = await import('../../../domain/workflow');
-      let wfToReconcile: any = null;
-      if (draft.workflowInstanceId) {
-        wfToReconcile = await workflowInstancesRepository.findById(draft.workflowInstanceId).catch(() => null);
+    const { workflowInstancesRepository } = await import('../../../domain/workflow');
+    let wfToReconcile: any = null;
+    if (draft.workflowInstanceId) {
+      wfToReconcile = await workflowInstancesRepository.findById(draft.workflowInstanceId).catch(() => null);
+    }
+    if (!wfToReconcile) {
+      const found = await workflowInstancesRepository.findMany({
+        where: { entityId: draftId },
+        limit: 1,
+      }).catch(() => []);
+      if (found && found.length > 0) {
+        wfToReconcile = found[0];
       }
-      if (!wfToReconcile) {
-        const found = await workflowInstancesRepository.findMany({
-          where: { entityId: draftId },
-          limit: 1,
-        }).catch(() => []);
-        if (found && found.length > 0) {
-          wfToReconcile = found[0];
-        }
-      }
-
-      if (wfToReconcile) {
-        await workflowInstancesRepository.update(
-          wfToReconcile.id,
-          wfToReconcile.version,
-          {
-            entityId: approvedQuestion.id,
-            entityType: 'QUESTION',
-            contentStatus: 'APPROVED',
-            lastTransitionAt: new Date().toISOString(),
-            lastTransitionBy: actor.id,
-          },
-          {
-            actorId: actor.id,
-            timestamp: new Date().toISOString(),
-          }
-        );
-      }
-    } catch (wfErr: any) {
-      console.warn(`[QuestionDraftService:approveDraft] Could not update workflow entityId to ${approvedQuestion.id}:`, wfErr?.message);
     }
 
-    // Remove draft once materialized
+    if (wfToReconcile) {
+      // Must not swallow workflow reconciliation errors. If OCC or update fails, abort before deleting draft!
+      await workflowInstancesRepository.update(
+        wfToReconcile.id,
+        wfToReconcile.version,
+        {
+          entityId: approvedQuestion.id,
+          entityType: 'QUESTION',
+          contentStatus: 'APPROVED',
+          lastTransitionAt: new Date().toISOString(),
+          lastTransitionBy: actor.id,
+        },
+        {
+          actorId: actor.id,
+          timestamp: new Date().toISOString(),
+        }
+      );
+    }
+
+    // Remove draft only AFTER workflow instance has been successfully reconciled
     await questionDraftsRepository.delete(draftId);
 
     // Maintain draft-to-canonical ID alias for seamless continuity

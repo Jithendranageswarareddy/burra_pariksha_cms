@@ -1580,7 +1580,8 @@ apiRouter.delete(
           message: `Question draft ID "${id}" is not a valid canonical identifier format (dft_<uuid_v4>).`,
         });
       }
-      const deleted = await questionDraftService.deleteDraft(id);
+      const actor = getRequestActor(req);
+      const deleted = await questionDraftService.deleteDraft(id, actor);
       res.json({ success: deleted });
     } catch (err: any) {
       res.status(500).json({ error: err?.message || 'Failed to delete draft' });
