@@ -896,7 +896,8 @@ export class DashboardService {
       const matchingScripts = scripts.filter((s) => {
         const matchId = (s.id || '').toLowerCase().includes(q);
         const matchVId = (s.videoId || '').toLowerCase().includes(q);
-        const matchContent = (s.content || s.hook || '').toLowerCase().includes(q);
+        const scriptText = (s.hookText || (s as any).hook || (s as any).content || s.problemStatement || '').toLowerCase();
+        const matchContent = scriptText.includes(q);
         return matchId || matchVId || matchContent;
       });
 
@@ -909,7 +910,7 @@ export class DashboardService {
             results.push({
               id: s.id,
               type: 'SCRIPT',
-              title: safeTruncate(s.hook || s.content || v?.title || `Script for ${s.videoId}`, 60, `Script ${s.id}`),
+              title: safeTruncate(s.hookText || (s as any).hook || (s as any).content || v?.title || `Script for ${s.videoId}`, 60, `Script ${s.id}`),
               subtitle: `Script • ${s.status || 'DRAFT'} • Video: ${s.videoId}`,
               topic: topName,
               status: s.status || 'DRAFT',
@@ -930,7 +931,7 @@ export class DashboardService {
               results.push({
                 id: s.id,
                 type: 'SCRIPT',
-                title: safeTruncate(s.hook || s.content || v?.title || `Script for ${s.videoId}`, 60, `Script ${s.id}`),
+                title: safeTruncate(s.hookText || (s as any).hook || (s as any).content || v?.title || `Script for ${s.videoId}`, 60, `Script ${s.id}`),
                 subtitle: `Script • ${s.status || 'DRAFT'} • Video: ${s.videoId}`,
                 topic: topName,
                 status: s.status || 'DRAFT',
@@ -948,7 +949,8 @@ export class DashboardService {
       const matchingThumbnails = thumbnails.filter((t) => {
         const matchId = (t.id || '').toLowerCase().includes(q);
         const matchVId = (t.videoId || '').toLowerCase().includes(q);
-        const matchConcept = (t.conceptTitle || t.prompt || '').toLowerCase().includes(q);
+        const thumbText = (t.hookHeadline || (t as any).conceptTitle || (t as any).prompt || '').toLowerCase();
+        const matchConcept = thumbText.includes(q);
         return matchId || matchVId || matchConcept;
       });
 
@@ -961,7 +963,7 @@ export class DashboardService {
             results.push({
               id: t.id,
               type: 'THUMBNAIL',
-              title: safeTruncate(t.conceptTitle || t.prompt || `Thumbnail for ${t.videoId}`, 60, `Thumbnail ${t.id}`),
+              title: safeTruncate(t.hookHeadline || (t as any).conceptTitle || (t as any).prompt || `Thumbnail for ${t.videoId}`, 60, `Thumbnail ${t.id}`),
               subtitle: `Thumbnail • ${t.status || 'PENDING'} • Video: ${t.videoId}`,
               topic: topName,
               status: t.status || 'PENDING',
@@ -982,7 +984,7 @@ export class DashboardService {
               results.push({
                 id: t.id,
                 type: 'THUMBNAIL',
-                title: safeTruncate(t.conceptTitle || t.prompt || `Thumbnail for ${t.videoId}`, 60, `Thumbnail ${t.id}`),
+                title: safeTruncate(t.hookHeadline || (t as any).conceptTitle || (t as any).prompt || `Thumbnail for ${t.videoId}`, 60, `Thumbnail ${t.id}`),
                 subtitle: `Thumbnail • ${t.status || 'PENDING'} • Video: ${t.videoId}`,
                 topic: topName,
                 status: t.status || 'PENDING',
