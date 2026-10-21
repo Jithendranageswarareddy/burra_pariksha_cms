@@ -665,6 +665,56 @@ async function runUnitTests() {
   });
 
   // --------------------------------------------------------------------------
+  // TEST 24b: Workflow Entity Resolution: Content Plans, Batches, and Thumbnails
+  // --------------------------------------------------------------------------
+  await test('24b. Workflow entity resolution accepts Content Plans, Content Batches, and Thumbnails without false-positive warnings', async () => {
+    const snapshot = createCleanSyntheticSnapshot();
+    snapshot.contentPlans = [{ id: 'pln_00000000-0000-0000-0000-000000000001', name: 'Plan 1' } as any];
+    snapshot.contentBatches = [{ id: 'bch_00000000-0000-0000-0000-000000000001', name: 'Batch 1' } as any];
+    snapshot.thumbnails = [{ id: 'thm_00000000-0000-0000-0000-000000000001', videoId: 'vid_001' } as any];
+
+    snapshot.workflows = [
+      { id: 'wfl_plan_01', entityId: 'pln_00000000-0000-0000-0000-000000000001', entityType: 'CONTENT', currentStep: 1, contentStatus: 'DRAFT', jobStatus: 'IDLE' },
+      { id: 'wfl_batch_01', entityId: 'bch_00000000-0000-0000-0000-000000000001', entityType: 'CONTENT', currentStep: 1, contentStatus: 'DRAFT', jobStatus: 'IDLE' },
+      { id: 'wfl_thumb_01', entityId: 'thm_00000000-0000-0000-0000-000000000001', entityType: 'CONTENT', currentStep: 8, contentStatus: 'DRAFT', jobStatus: 'IDLE' },
+    ];
+
+    const report = await dataIntegrityService.runFullIntegrityCheck({ snapshot });
+    const warnings = report.issues.filter(
+      (i: any) => i.category === 'WORKFLOW_INTEGRITY' && i.field === 'entityId'
+    );
+    assert.strictEqual(warnings.length, 0, `Expected 0 warnings for plan/batch/thumb links, got: ${JSON.stringify(warnings)}`);
+  });
+
+  // --------------------------------------------------------------------------
+  // TEST 24c: Workflow Entity Resolution Flags Circular/Self-Referential Entity IDs
+  // --------------------------------------------------------------------------
+  await test('24c. Workflow entity resolution flags circular/self-referential entity IDs with pinpoint diagnosis', async () => {
+    const snapshot = createCleanSyntheticSnapshot();
+
+    snapshot.workflows = [
+      {
+        id: 'wfl_48d6e33c-d54c-42a4-9063-a71b74952fcb',
+        entityId: 'wfl_48d6e33c-d54c-42a4-9063-a71b74952fcb',
+        entityType: 'QUESTION',
+        currentStep: 1,
+        contentStatus: 'DRAFT',
+        jobStatus: 'IDLE',
+      },
+    ];
+
+    const report = await dataIntegrityService.runFullIntegrityCheck({ snapshot });
+    const selfRefWarning = report.issues.find(
+      (i: any) => i.category === 'WORKFLOW_INTEGRITY' && i.field === 'entityId' && i.entityId === 'wfl_48d6e33c-d54c-42a4-9063-a71b74952fcb'
+    );
+    assert.ok(selfRefWarning, 'Must flag self-referential workflow entity reference');
+    assert.strictEqual(selfRefWarning.severity, 'WARNING');
+    assert.ok(selfRefWarning.message.includes('circular/invalid entity_id'), 'Message must identify circular/invalid reference');
+    assert.ok(selfRefWarning.message.includes('self-reference'), 'Message must note self-reference');
+    assert.ok(selfRefWarning.recommendedAction.includes('workflow_instances'), 'Guidance must mention workflow_instances collection');
+  });
+
+  // --------------------------------------------------------------------------
   // TEST 25: Canonical 15-Stage Workflow Instance Validates currentStep and contentStatus
   // --------------------------------------------------------------------------
   await test('25. Canonical 15-stage workflow instance validates currentStep (1..15) and contentStatus without requiring legacy toStatus', async () => {

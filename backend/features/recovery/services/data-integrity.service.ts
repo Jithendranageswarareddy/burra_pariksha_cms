@@ -445,6 +445,9 @@ export class DataIntegrityService {
     const publishingMap = new Map<string, Publishing>(publishingRecords.map((p) => [p.id, p]));
     const contentMasterMap = new Map<string, ContentMaster>(contentMasters.map((c: any) => [c.id, c]));
     const draftMap = new Map<string, QuestionDraft>(questionDrafts.map((d: any) => [d.id, d]));
+    const contentPlanMap = new Map<string, any>(contentPlans.map((cp: any) => [cp.id, cp]));
+    const contentBatchMap = new Map<string, any>(contentBatches.map((cb: any) => [cb.id, cb]));
+    const socialReviewMap = new Map<string, any>(socialReviews.map((sr: any) => [sr.id, sr]));
 
     // =========================================================================
     // A. ID INTEGRITY CHECKS ACROSS ALL FIRESTORE COLLECTIONS
@@ -1683,19 +1686,39 @@ export class DataIntegrityService {
           draftMap.has(wf.entityId) ||
           contentMasterMap.has(wf.entityId) ||
           scriptMap.has(wf.entityId) ||
-          publishingMap.has(wf.entityId);
+          publishingMap.has(wf.entityId) ||
+          thumbnailMap.has(wf.entityId) ||
+          contentPlanMap.has(wf.entityId) ||
+          contentBatchMap.has(wf.entityId) ||
+          socialReviewMap.has(wf.entityId);
 
         if (!isResolved) {
-          addIssue(
-            'WARNING',
-            'WORKFLOW_INTEGRITY',
-            SHEET_TABS.WORKFLOW,
-            `Workflow record "${wf.id}" refers to entity_id "${wf.entityId}" not found in registered entities (Questions, Drafts, Videos, Content Masters, Scripts, or Publishing Packages).`,
-            `Verify entity_id for workflow record "${wf.id}".`,
-            'WORKFLOW',
-            wf.id,
-            'entityId'
-          );
+          const isSelfReferentialOrWorkflowId =
+            wf.entityId === wf.id || wf.entityId.startsWith('wfl_') || wf.entityId.startsWith('WF-');
+
+          if (isSelfReferentialOrWorkflowId) {
+            addIssue(
+              'WARNING',
+              'WORKFLOW_INTEGRITY',
+              SHEET_TABS.WORKFLOW,
+              `Workflow record "${wf.id}" has a circular/invalid entity_id "${wf.entityId}" that references a workflow instance (${wf.entityId === wf.id ? 'self-reference' : 'wfl_ prefix'}) instead of a content entity (Question, Draft, Video, Script, Content Master, Plan, Batch, or Publishing Package).`,
+              `In Firestore collection "workflow_instances", inspect document "${wf.id}". Either reassign entity_id to the target content entity (e.g. qst_..., vid_..., scr_...) or remove this placeholder/orphan workflow record if no content exists.`,
+              'WORKFLOW',
+              wf.id,
+              'entityId'
+            );
+          } else {
+            addIssue(
+              'WARNING',
+              'WORKFLOW_INTEGRITY',
+              SHEET_TABS.WORKFLOW,
+              `Workflow record "${wf.id}" refers to entity_id "${wf.entityId}" (entityType: "${wf.entityType || 'UNSPECIFIED'}") not found in registered entities (Questions, Drafts, Videos, Content Masters, Scripts, Publishing Packages, Content Plans, or Content Batches).`,
+              `Verify whether entity "${wf.entityId}" was archived, deleted, or never persisted in Firestore. Reassign entity_id to a valid entity or clean up orphan workflow record "${wf.id}".`,
+              'WORKFLOW',
+              wf.id,
+              'entityId'
+            );
+          }
         }
       }
 
