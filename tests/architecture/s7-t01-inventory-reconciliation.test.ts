@@ -144,6 +144,8 @@ export const AUTHORITATIVE_APPROVED_POST_S7_ADDITIONS: readonly string[] = [
   'docs/diagnostics/FIRESTORE-RESOURCE-EXHAUSTED-INVESTIGATION.md',
   'docs/diagnostics/POST-UPGRADE-FIRESTORE-READINESS.md',
   'docs/diagnostics/AUTONOMOUS-HUMAN-E2E-TEST-REPORT.md',
+  'tests/unit/question-generation/workflow-draft-approval-lifecycle.unit.test.ts',
+  'tests/unit/dashboard-wip-aggregation.unit.test.ts',
 ];
 
 const EXPECTED_HISTORICAL_S7_COUNT = 713;

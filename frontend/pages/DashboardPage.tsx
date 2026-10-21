@@ -21,6 +21,7 @@ import {
   Topic,
   UserRole,
   VideoProductionStatus,
+  SocialPublishStatus,
 } from '../../shared';
 import { CANONICAL_15_STEPS } from '../../shared/constants/workflow';
 
@@ -178,7 +179,7 @@ export const DashboardPage: React.FC = () => {
     return Math.max(0, (Date.now() - time) / (1000 * 60 * 60));
   };
 
-  // Build Unified Work Queue Items across drafts, questions, and videos
+  // Build Unified Work Queue Items across drafts, questions, and videos with strict cross-collection deduplication
   const workQueueItems: ActionQueueItem[] = useMemo(() => {
     const items: ActionQueueItem[] = [];
     const isUserAdminOrReviewer =
@@ -187,12 +188,21 @@ export const DashboardPage: React.FC = () => {
       user?.role === UserRole.CONTENT_MANAGER ||
       (user?.role as string) === 'QA_REVIEWER';
 
+    // Map publishing packages by videoId for rapid, authoritative lookup
+    const publishingByVideoId = new Map<string, Publishing>();
+    for (const p of publishingList) {
+      if (p.videoId) publishingByVideoId.set(p.videoId, p);
+    }
+
+    const seenVideoIds = new Set<string>();
+
     // 1. Ingest Question Drafts (Studio Phase)
     for (const d of drafts) {
+      if (d.status === 'APPROVED' || (d as any).isDeleted) continue;
       const mode = ((d as any).contentMode || d.productionMode || 'QUESTION_CHALLENGE_SHORT') as 'QUESTION_CHALLENGE_SHORT' | 'TOPIC_INTRODUCTION' | 'EXPLAINED_QUESTIONS_VIDEO';
       const isSubmitted = d.status === 'SUBMITTED_FOR_REVIEW' || d.workflowStage === 'STAGE_02_VERIFICATION';
       const isChangesRequested = d.status === 'CHANGES_REQUESTED';
-      const isDraft = !isSubmitted && !isChangesRequested && d.status !== 'APPROVED';
+      const isDraft = !isSubmitted && !isChangesRequested;
 
       let stageNum = 1;
       let stageName = 'Question Generation';
@@ -259,13 +269,14 @@ export const DashboardPage: React.FC = () => {
 
     // 2. Ingest Questions (Pending QA)
     for (const q of questions) {
+      if ((q as any).isDeleted || q.status === 'ARCHIVED' || q.status === 'APPROVED') continue;
       if (q.status === 'GENERATED' || q.status === 'DRAFT') {
         const ageH = getAgeInHours(q.updatedAt || q.createdAt);
         const stageNum = q.status === 'GENERATED' ? 2 : 1;
         items.push({
           id: q.id,
           title: q.questionText || `Question ${q.id}`,
-          contentMode: 'QUESTION_CHALLENGE_SHORT',
+          contentMode: ((q as any).contentMode || (q as any).productionMode || 'QUESTION_CHALLENGE_SHORT') as any,
           topicId: q.topicId,
           topicName: topicMap.get(q.topicId) || 'Aptitude',
           stageNumber: stageNum,
@@ -288,7 +299,20 @@ export const DashboardPage: React.FC = () => {
     // 3. Ingest Videos across stages 03 to 11
     for (const v of videos) {
       const vStatus = v.status as string;
-      if (v.status === VideoProductionStatus.CANCELLED || vStatus === 'ARCHIVED') continue;
+      if (v.status === VideoProductionStatus.CANCELLED || vStatus === 'ARCHIVED' || (v as any).isDeleted) continue;
+      seenVideoIds.add(v.id);
+
+      const pub = publishingByVideoId.get(v.id);
+      const isPubScheduled = pub && (
+        (pub as any).status === 'SCHEDULED' ||
+        pub.youtube?.status === SocialPublishStatus.SCHEDULED ||
+        pub.instagram?.status === SocialPublishStatus.SCHEDULED ||
+        pub.facebook?.status === SocialPublishStatus.SCHEDULED
+      );
+      const isPubLive = (pub && (
+        pub.youtube?.status === SocialPublishStatus.PUBLISHED ||
+        (pub.completedPlatformsCount || 0) >= (pub.totalPlatformsCount || 3)
+      )) || vStatus === 'UPLOADED' || vStatus === 'PUBLISHED';
 
       let stageNum = 3;
       let stageName = 'Audience Script';
@@ -342,11 +366,25 @@ export const DashboardPage: React.FC = () => {
           targetUrl = `/videos/${v.id}?tab=thumbnail`;
           break;
         case 'READY_TO_UPLOAD':
-          stageNum = 9;
-          stageName = 'Social Review';
-          actionLabel = 'Social QC';
-          targetUrl = `/videos/${v.id}?tab=social`;
-          priority = 'HIGH';
+          if (isPubLive) {
+            stageNum = 11;
+            stageName = 'Published';
+            actionLabel = 'View Live';
+            targetUrl = `/videos/${v.id}?tab=analytics`;
+            priority = 'LOW';
+          } else if (isPubScheduled) {
+            stageNum = 10;
+            stageName = 'Publishing Setup';
+            actionLabel = 'Release Manager';
+            targetUrl = `/publishing?videoId=${v.id}`;
+            priority = 'MEDIUM';
+          } else {
+            stageNum = 9;
+            stageName = 'Social Review';
+            actionLabel = 'Social QC';
+            targetUrl = `/videos/${v.id}?tab=social`;
+            priority = 'HIGH';
+          }
           break;
         case 'UPLOADED':
         case 'PUBLISHED':
@@ -367,10 +405,12 @@ export const DashboardPage: React.FC = () => {
       const isBlocked = v.status === VideoProductionStatus.ON_HOLD || vStatus === 'REVISION_REQUESTED';
       if (isBlocked) priority = 'CRITICAL';
 
+      const mode = ((v as any).contentMode || (v as any).productionMode || 'QUESTION_CHALLENGE_SHORT') as 'QUESTION_CHALLENGE_SHORT' | 'TOPIC_INTRODUCTION' | 'EXPLAINED_QUESTIONS_VIDEO';
+
       items.push({
         id: v.id,
         title: v.title || `Video Production: ${v.id}`,
-        contentMode: 'QUESTION_CHALLENGE_SHORT',
+        contentMode: mode,
         topicId: v.question?.topicId,
         topicName: v.question?.topicId ? (topicMap.get(v.question.topicId) || 'Quantitative Aptitude') : 'Aptitude Video',
         stageNumber: stageNum,
@@ -389,10 +429,23 @@ export const DashboardPage: React.FC = () => {
       });
     }
 
-    // 4. Ingest Publishing Records
+    // 4. Ingest Standalone Publishing Records (Stage 10 - Publishing Setup)
+    // De-duplicate across collections: Do not duplicate if this content piece is already tracked via its Video entity
     for (const p of publishingList) {
-      const pubStatus = (p as any).status || p.finalVideoStatus || 'DRAFT';
-      if (pubStatus === 'SCHEDULED' || pubStatus === 'DRAFT' || pubStatus === 'READY') {
+      if ((p as any).isDeleted || (p as any).status === 'ARCHIVED') continue;
+      if (p.videoId && seenVideoIds.has(p.videoId)) continue;
+
+      const isScheduled =
+        (p as any).status === 'SCHEDULED' ||
+        p.youtube?.status === SocialPublishStatus.SCHEDULED ||
+        p.instagram?.status === SocialPublishStatus.SCHEDULED ||
+        p.facebook?.status === SocialPublishStatus.SCHEDULED;
+      const isInSetup =
+        (p as any).status === 'IN_SETUP' ||
+        (p as any).status === 'READY_TO_PUBLISH';
+
+      // Only standalone packages that have legitimately reached distribution/scheduling
+      if (isScheduled || isInSetup) {
         const scheduledTime = (p as any).scheduledTime || p.youtubeScheduledAt || p.instagramScheduledAt || p.facebookScheduledAt;
         const ageH = getAgeInHours(p.updatedAt || scheduledTime);
         items.push({
@@ -402,7 +455,7 @@ export const DashboardPage: React.FC = () => {
           topicName: 'Distribution Pipeline',
           stageNumber: 10,
           stageName: 'Publishing Setup',
-          status: pubStatus,
+          status: isScheduled ? 'SCHEDULED' : 'READY',
           priority: 'MEDIUM',
           isBlocked: false,
           isOverdue: ageH > 24,
