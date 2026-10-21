@@ -158,7 +158,7 @@ export const PublishingWorkspace: React.FC<PublishingWorkspaceProps> = ({
 
       const updated = await apiClient.updatePublishing(publishing.id, updates);
       setPublishing(updated);
-      setSuccessMessage('Publishing distribution tracking records saved successfully to Google Sheets!');
+      setSuccessMessage('Publishing distribution tracking records saved successfully to Cloud Firestore!');
       if (onStatusChange) onStatusChange();
       setTimeout(() => setSuccessMessage(null), 4000);
     } catch (err: any) {

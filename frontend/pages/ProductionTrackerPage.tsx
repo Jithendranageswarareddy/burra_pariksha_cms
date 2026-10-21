@@ -454,7 +454,7 @@ export const ProductionTrackerPage: React.FC = () => {
       {isLoading ? (
         <div className="text-center py-20 bg-white rounded-xl border border-slate-200 space-y-3">
           <RefreshCw className="w-6 h-6 animate-spin text-indigo-600 mx-auto" />
-          <p className="text-xs text-slate-500 font-mono">Loading production pipeline from Google Sheets...</p>
+          <p className="text-xs text-slate-500 font-mono">Loading production pipeline from Cloud Firestore...</p>
         </div>
       ) : filteredVideos.length === 0 ? (
         <EmptyState

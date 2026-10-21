@@ -1,6 +1,6 @@
 /**
  * BURRA PARIKSHA CMS - Users Repository Export
- * Phase 2: Google Sheets Database Architecture & Persistence
+ * Authoritative Cloud Firestore persistence
  */
 
 export { UsersRepository, usersRepository, type UserSessionState } from './audit-log.repository';

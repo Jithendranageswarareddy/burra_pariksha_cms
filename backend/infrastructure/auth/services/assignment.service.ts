@@ -4,7 +4,7 @@
  * Provides centralized assignment lifecycle management, deterministic state machine
  * transitions, workload intelligence, overdue tracking, and unassigned work detection.
  * 
- * Backed solely by Google Sheets authoritative repositories.
+ * Backed solely by Cloud Firestore authoritative repositories.
  */
 
 import {

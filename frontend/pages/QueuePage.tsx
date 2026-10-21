@@ -410,7 +410,7 @@ export const QueuePage: React.FC = () => {
       {isLoading ? (
         <div className="text-center py-16 bg-white rounded-xl border border-slate-200 space-y-3">
           <RefreshCw className="w-6 h-6 animate-spin text-indigo-600 mx-auto" />
-          <p className="text-xs text-slate-500">Loading videos from Google Sheets database...</p>
+          <p className="text-xs text-slate-500">Loading videos from Cloud Firestore...</p>
         </div>
       ) : filteredAndSortedVideos.length === 0 ? (
         <EmptyState

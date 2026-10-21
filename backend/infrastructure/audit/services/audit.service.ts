@@ -1,6 +1,6 @@
 /**
  * BURRA PARIKSHA CMS - Audit & Workflow Services
- * Phase 2: Google Sheets Database Architecture & Persistence
+ * Cloud Firestore Database Architecture & Persistence
  */
 
 import { auditLogRepository, workflowRepository } from '../../../../database/firestore/repositories';

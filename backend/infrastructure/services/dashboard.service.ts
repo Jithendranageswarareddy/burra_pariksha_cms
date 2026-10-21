@@ -5,7 +5,7 @@
  * aging/stale content tracking, today's priority work queue,
  * publishing readiness verification, and global search.
  * 
- * Backed solely by Google Sheets authoritative repositories.
+ * Backed solely by Cloud Firestore authoritative repositories.
  */
 
 import {

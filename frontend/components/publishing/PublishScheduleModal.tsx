@@ -227,7 +227,7 @@ export const PublishScheduleModal: React.FC<PublishScheduleModalProps> = ({
             required
           />
           <p className="text-[11px] text-slate-500">
-            Scheduling requires a future time. The time is preserved as authoritative UTC in Google Sheets.
+            Scheduling requires a future time. The time is preserved as authoritative UTC in Cloud Firestore.
           </p>
         </div>
 

@@ -1,6 +1,6 @@
 /**
  * BURRA PARIKSHA CMS - Express & Vite Full-Stack Entrypoint
- * Phase 2: Google Sheets Database Architecture & Persistence
+ * Cloud Firestore Database Architecture & Persistence
  */
 import '../../src/config/env';
 import express from 'express';
@@ -56,7 +56,7 @@ async function startServer() {
   // Initialize server-side snapshot scheduler (starts if GCS_SNAPSHOT_SCHEDULE_ENABLED=true)
   snapshotSchedulerService.startScheduler();
 
-  // Preload authoritative users and persistent session versions from Google Sheets
+  // Warm up authoritative users repository and initialize Firestore connection
   usersRepository.findAll().catch((err) => {
     console.warn('Initial users preload warning:', err?.message);
   });

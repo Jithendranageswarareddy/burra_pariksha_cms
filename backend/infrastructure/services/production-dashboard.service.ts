@@ -2,7 +2,7 @@
  * BURRA PARIKSHA CMS - Phase 23 Production Search, Queues & Dashboard Service
  * 
  * Provides centralized production management operating directly on existing
- * authoritative Google Sheets repositories and canonical lifecycle state.
+ * authoritative Cloud Firestore repositories and canonical lifecycle state.
  * 
  * NO DUPLICATION OF TRUTH.
  * ALL STATUSES AND QUEUES DERIVED FROM EXISTING AUTHORITATIVE DATA.

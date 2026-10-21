@@ -744,6 +744,33 @@ async function runUnitTests() {
   });
 
   // --------------------------------------------------------------------------
+  // TEST 24e: Reconciled Workflow to Materialized Question Passes Integrity Check Cleanly
+  // --------------------------------------------------------------------------
+  await test('24e. Reconciled workflow pointing to materialized canonical question passes integrity check with zero issues', async () => {
+    const snapshot = createCleanSyntheticSnapshot();
+    const approvedQstId = 'qst_48d6e3cb-a5f1-42ea-a486-4d39541a9191';
+    snapshot.questions = [{ id: approvedQstId } as any];
+
+    // Reconciled workflow: entityId was updated from dft_... to qst_... upon approval
+    snapshot.workflows = [
+      {
+        id: 'wfl_48d6e33c-d54c-42a4-9063-a71b74952fcb',
+        entityId: approvedQstId,
+        entityType: 'QUESTION',
+        currentStep: 2,
+        contentStatus: 'APPROVED',
+        jobStatus: 'PROCESSING',
+      },
+    ];
+
+    const report = await dataIntegrityService.runFullIntegrityCheck({ snapshot });
+    const draftRefWarning = report.issues.find(
+      (i: any) => i.category === 'WORKFLOW_INTEGRITY' && i.field === 'entityId' && i.entityId === 'wfl_48d6e33c-d54c-42a4-9063-a71b74952fcb'
+    );
+    assert.strictEqual(draftRefWarning, undefined, 'Reconciled workflow must produce zero integrity warnings');
+  });
+
+  // --------------------------------------------------------------------------
   // TEST 25: Canonical 15-Stage Workflow Instance Validates currentStep and contentStatus
   // --------------------------------------------------------------------------
   await test('25. Canonical 15-stage workflow instance validates currentStep (1..15) and contentStatus without requiring legacy toStatus', async () => {

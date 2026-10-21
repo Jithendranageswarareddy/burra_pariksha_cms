@@ -976,6 +976,35 @@ export class QuestionGenerationService {
     if (!canonicalIdService.validateCanonicalId(trimmed, 'dft_') && !isLegacyDraftId(trimmed)) {
       throw new QuestionGenerationDomainError(`Invalid draft ID "${trimmed}". Expected canonical draft ID format (dft_<uuid_v4>).`, 400);
     }
+
+    // Reconcile any orphan workflow instance associated with this discarded draft
+    try {
+      const { workflowInstancesRepository } = await import('../workflow');
+      const found = await workflowInstancesRepository.findMany({
+        where: { entityId: trimmed },
+        limit: 1,
+      }).catch(() => []);
+      if (found && found.length > 0) {
+        const wf = found[0];
+        await workflowInstancesRepository.update(
+          wf.id,
+          wf.version,
+          {
+            contentStatus: 'ARCHIVED',
+            jobStatus: 'COMPLETED',
+            lastTransitionAt: new Date().toISOString(),
+            lastTransitionBy: 'SYSTEM',
+          },
+          {
+            actorId: 'SYSTEM',
+            timestamp: new Date().toISOString(),
+          }
+        );
+      }
+    } catch (wfErr: any) {
+      console.warn(`[deleteDraft:WorkflowArchive] Could not archive associated workflow for draft ${trimmed}:`, wfErr?.message);
+    }
+
     return questionDraftsRepository.delete(trimmed);
   }
 
@@ -1449,6 +1478,47 @@ export class QuestionGenerationService {
       },
       approvalNotes || 'Approved from draft in Stage 02'
     );
+
+    // Reconcile associated workflow instance:
+    // When a draft is approved into a canonical Question, any workflow instance tracking this draft
+    // must have its entityId updated to the approved Question ID (and contentStatus to 'APPROVED')
+    // so that the workflow points to the materialized canonical Question rather than dangling.
+    try {
+      const { workflowInstancesRepository } = await import('../workflow');
+      let wfToReconcile: any = null;
+      if (draft.workflowInstanceId) {
+        wfToReconcile = await workflowInstancesRepository.findById(draft.workflowInstanceId).catch(() => null);
+      }
+      if (!wfToReconcile) {
+        const found = await workflowInstancesRepository.findMany({
+          where: { entityId: draftId },
+          limit: 1,
+        }).catch(() => []);
+        if (found && found.length > 0) {
+          wfToReconcile = found[0];
+        }
+      }
+
+      if (wfToReconcile) {
+        await workflowInstancesRepository.update(
+          wfToReconcile.id,
+          wfToReconcile.version,
+          {
+            entityId: approvedQuestion.id,
+            entityType: 'QUESTION',
+            contentStatus: 'APPROVED',
+            lastTransitionAt: new Date().toISOString(),
+            lastTransitionBy: actor.id,
+          },
+          {
+            actorId: actor.id,
+            timestamp: new Date().toISOString(),
+          }
+        );
+      }
+    } catch (wfErr: any) {
+      console.warn(`[approveDraft:WorkflowReconciliation] Could not update workflow entityId to ${approvedQuestion.id}:`, wfErr?.message);
+    }
 
     await questionDraftsRepository.delete(draftId);
     this.draftToCanonicalMap.set(draftId, approvedQuestion.id);

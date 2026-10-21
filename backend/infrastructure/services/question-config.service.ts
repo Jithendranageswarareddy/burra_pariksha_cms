@@ -82,7 +82,7 @@ export class QuestionConfigService {
   }
 
   /**
-   * Validates a single configuration entry from Google Sheets.
+   * Validates a single configuration entry from Cloud Firestore.
    * Throws QuestionConfigError if any required field is missing or malformed.
    */
   public validateEntry(raw: unknown, index?: number): QuestionConfigEntry {
@@ -187,7 +187,7 @@ export class QuestionConfigService {
   }
 
   /**
-   * Loads all configuration rows from Google Sheets, applies schema validation,
+   * Loads all configuration records from Cloud Firestore, applies schema validation,
    * and caches the result for 60 seconds.
    * 
    * Throws a QuestionConfigError if the worksheet is empty or malformed.

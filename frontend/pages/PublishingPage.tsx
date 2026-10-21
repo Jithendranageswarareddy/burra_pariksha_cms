@@ -489,7 +489,7 @@ export const PublishingPage: React.FC = () => {
       {isLoading ? (
         <div className="bg-white rounded-2xl border border-slate-200 p-16 text-center text-slate-500 space-y-3 shadow-xs">
           <div className="animate-spin rounded-full h-8 w-8 border-3 border-indigo-600 border-t-transparent mx-auto" />
-          <p className="text-xs font-medium">Loading release station data from Google Sheets...</p>
+          <p className="text-xs font-medium">Loading release station data from Cloud Firestore...</p>
         </div>
       ) : filteredRecords.length === 0 ? (
         <div className="bg-white rounded-2xl border border-slate-200 p-16 text-center text-slate-500 space-y-2 shadow-xs">

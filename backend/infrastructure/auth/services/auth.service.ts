@@ -402,7 +402,7 @@ export class AuthService {
       this.revokeSession(token);
     }
     if (actorId) {
-      // Invalidate persistent session version in Google Sheets (restart-safe)
+      // Invalidate persistent session version in Cloud Firestore (restart-safe)
       await usersRepository.incrementSessionVersionPersistent(actorId);
     }
     if (actorId && actorName) {

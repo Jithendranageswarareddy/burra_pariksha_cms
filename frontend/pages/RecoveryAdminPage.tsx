@@ -493,7 +493,7 @@ export const RecoveryAdminPage: React.FC = () => {
           <div className="p-4 bg-slate-950/60 rounded-lg border border-slate-800/80 flex items-center justify-between">
             <div>
               <span className="text-sm font-medium text-slate-200 block">Snapshot Exporter Availability</span>
-              <span className="text-xs text-slate-400">Generates full system Google Sheets snapshots</span>
+              <span className="text-xs text-slate-400">Generates full system backup snapshots</span>
             </div>
             {status?.backupCapability?.snapshotExporterAvailable ? (
               <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
@@ -775,7 +775,7 @@ export const RecoveryAdminPage: React.FC = () => {
             <FileCheck className="w-10 h-10 text-slate-600 mb-2" />
             <p className="text-sm font-semibold text-slate-300">No Snapshots Found</p>
             <p className="text-xs text-slate-500 max-w-sm mt-0.5">
-              No historical Google Sheets snapshots have been registered or exported yet.
+              No historical system backup snapshots have been registered or exported yet.
             </p>
           </div>
         ) : (
