@@ -35,7 +35,209 @@ The following rules remain mandatory:
   content during normal development. Tests must use mocks, emulators, or
   isolated synthetic records.
 
-## 2. Scope-first execution
+## 2. Production safety and code-level-only testing
+
+### 2.1 Live environment is not an IDE test environment
+
+- The production website, production API, production Firestore database
+  (`ai-studio-burraparikshacon-f592ca42-39af-4d83-aff2-6870ba939b0e`),
+  production Google Sheets, production Google Drive, production Google Cloud
+  Storage, and all connected external services are strictly owner-controlled
+  resources operating under free-tier constraints.
+- The IDE agent (including Antigravity, subagents, and any coding/testing agents)
+  must not use the live environment for exploratory testing, automated browser
+  testing, routine verification, or repeated health checks.
+- The IDE agent must not log in to the live website, navigate through production
+  workflows, submit forms, generate questions, create drafts, edit records,
+  approve content, delete records, upload files, or trigger workflow
+  transitions as part of testing.
+- Do not perform CRUD operations against production data for convenience, test
+  coverage, debugging, demonstrations, or regression tests.
+- Do not run tests that create temporary production users, questions, drafts,
+  videos, audit records, analytics, or other entities.
+- Do not run repeated health checks or integrity scans that consume production
+  database reads or API quotas.
+- Do not call production AI generation endpoints (`@google/genai` Gemini API)
+  merely to prove that generation works.
+- Do not publish, synchronize, or upload content to real external platforms as
+  part of testing.
+- The owner will manually verify the live website and will report observations,
+  screenshots, logs, error messages, or network traces for code-level diagnosis.
+
+### 2.2 Explicit authorization is required for live tests
+
+- A live test may be performed only when the owner explicitly authorizes the
+  particular operation.
+- Authorization must specifically identify the intended environment, the action
+  or test, and the permitted scope. A general request to improve the
+  application, test the workflow, fix defects, or prepare for launch does not
+  authorize live testing.
+- Even when authorized:
+  - Perform only the specifically approved action.
+  - Do not expand the test to other production operations.
+  - Avoid destructive operations unless separately and explicitly authorized.
+  - Confirm likely resource usage and external side effects before proceeding.
+  - Stop immediately if the actual target differs from the approved target.
+  - Report what was performed and what was not performed.
+- Do not interpret approval for a code change or a local test as approval for
+  production operations.
+
+### 2.3 Allowed code-level verification
+
+Prefer the following methods, in order of suitability:
+
+1. Static code inspection and repository searches.
+2. TypeScript type checking, linting, and production builds (`npm run lint`,
+   `npm run build`).
+3. Unit tests with deterministic mocks and fixtures.
+4. Domain-service and workflow-state tests with mocked repositories.
+5. API contract tests against an isolated test server and in-memory or mocked
+   dependencies.
+6. Component tests that do not contact production services.
+7. Architecture, authorization, RBAC, taxonomy, workflow-transition,
+   concurrency, and regression tests using isolated fixtures.
+8. Emulator-based integration tests only after confirming that all writes are
+   confined to the intended emulator.
+9. Local end-to-end tests against a dedicated local environment using synthetic
+   data, mocked external services, and explicit database-target safeguards.
+
+Prefer existing scripts that are known to be safe. Inspect a test's setup,
+teardown, fixtures, environment variables, and external dependencies before
+executing it. A test is not safe merely because its filename includes `unit`,
+`integration`, `E2E`, `test`, or `isolation`.
+
+### 2.4 Mandatory test-environment isolation checks
+
+Before running any test that could write data or call external services:
+
+- Inspect the test command and its transitive setup scripts.
+- Determine the effective database project and database ID.
+- Determine whether the test uses an emulator, mocks, a local database, a
+  remote test project, or production.
+- Inspect initialization and cleanup code, including `beforeAll`, `afterAll`,
+  `beforeEach`, `afterEach`, and `finally` blocks.
+- Check whether the test sends real AI requests, emails, notifications,
+  storage operations, analytics events, or publishing requests.
+- Confirm that environment variables and credentials cannot silently redirect a
+  test to production.
+- Confirm that missing emulator configuration or an unrecognized target causes
+  the test to fail closed before any mutation.
+- Prefer disabling network access or mocking outbound integrations when
+  practical.
+- If the effective target cannot be established, do not execute the test.
+  Inspect the code and report the uncertainty instead.
+- Never assume that a test project is isolated simply because its name contains
+  `test`.
+
+### 2.5 Resource and free-tier conservation
+
+- Minimize database reads and writes, external API requests, build repetitions,
+  and long-running processes.
+- Do not run the same expensive suite repeatedly without a concrete reason.
+- Avoid live AI inference, bulk generation, repeated polling, recursive
+  collection scans, and unnecessary integrity checks.
+- Reuse test fixtures and local results where appropriate.
+- Prefer targeted tests for a changed module, followed by the minimum required
+  regression suites.
+- Do not add paid services, enable billing, change quotas, or incur new
+  recurring costs without the owner's explicit approval.
+- Do not claim that a budget alert imposes a hard spending limit.
+- Report when a test would consume an external API quota or incur a possible
+  charge, and choose a mocked alternative by default.
+
+### 2.6 No destructive data maintenance by default
+
+- Never wipe collections, reset production data, delete production records,
+  remove production files, or clean production spreadsheets as part of routine
+  testing.
+- Do not delete backups, snapshots, audit history, administrator records,
+  taxonomy, configuration, or operational records without explicit
+  authorization.
+- Do not perform migrations, bulk updates, credential rotation, project
+  changes, database recreation, or production cleanup merely because they seem
+  useful.
+- Data cleanup and production maintenance must be treated as separate,
+  explicitly authorized tasks with a verified target, reviewed manifest, and
+  recovery plan.
+
+### 2.7 No automatic deployment or publication
+
+- Do not deploy the application, modify DNS, change production environment
+  variables, alter production security rules, or publish content as a side
+  effect of tests.
+- Do not run production migrations or infrastructure changes without separate
+  explicit authorization.
+- A successful build or passing test suite is not permission to deploy.
+- Preserve the existing production deployment unless the owner explicitly asks
+  for a deployment operation.
+
+### 2.8 Evidence-based reporting
+
+Every test report must distinguish:
+
+- `PASS` — the exact test ran and its assertions passed.
+- `FAIL` — the test ran and one or more assertions failed.
+- `BLOCKED` — the test could not safely run because a prerequisite or safe
+  target was unavailable.
+- `NOT TESTED` — the test was not executed.
+- `NOT VERIFIED` — the available evidence does not establish the claim.
+
+Reports must identify the exact command, environment, scope, and result.
+Never claim to have manually tested the live UI if no browser interaction
+occurred. Never infer UI correctness from API tests, component tests, source
+inspection, or a successful build. Never claim production persistence or live
+integrations work based solely on mocks. Clearly distinguish code-level
+confidence from owner-verified production behavior.
+
+### 2.9 Application to the BP-CMS 15-stage workflow
+
+The canonical workflow remains:
+
+1. Question Generation
+2. Question Verification
+3. Audience Script
+4. Teleprompter & Filming
+5. Raw Video
+6. Editing Bay
+7. Final QC
+8. Thumbnail
+9. Social Review
+10. Publishing Setup
+11. Published
+12. Platform Sync
+13. Analytics
+14. Performance Review
+15. Intelligence Loop
+
+Across all three content modes:
+- Question Challenge Short
+- Topic Introduction
+- Explained Questions Video
+
+Apply these invariants:
+- Test workflow rules, state transitions, validation, authorization,
+  concurrency, and persistence contracts strictly at the code level.
+- Use synthetic fixtures and mocked repositories or isolated emulators.
+- Verify that Save Draft remains distinct from Submit for Verification.
+- Preserve GAR-02 anti-self-approval (`authorId !== approverId`).
+- Preserve backend-owned authorization and workflow enforcement.
+- Preserve optimistic concurrency controls and audit invariants.
+- Preserve Topic -> Subtopic taxonomy.
+- Ensure internal reviewer notes and operational metadata cannot leak into
+  audience-facing output.
+- Preserve regression coverage across all three modes.
+- Use mocked or sandboxed publishing, synchronization, and analytics
+  integrations.
+- Do not create a new question or perform any of the 15 workflow stages on the
+  production website.
+- Do not call the live production website merely to confirm a stage's
+  functionality.
+- The owner will manually run the live 15-stage journey using a new question
+  and report issues. The IDE agent diagnoses issues from supplied screenshots,
+  logs, error messages, network traces, and relevant source code, then
+  implements and tests code fixes in isolation.
+
+## 3. Scope-first execution
 
 Before editing:
 
@@ -53,10 +255,15 @@ Implement the smallest correct change. Reuse existing components, services,
 contracts, and tests. Do not refactor unrelated code, rewrite historical
 documentation, or add speculative compatibility layers.
 
-## 3. Verification policy
+## 4. Verification policy
 
 State a short pre-test decision before running checks: changed scope, selected
 commands, rationale, and intentionally omitted broader checks.
+
+All verification must strictly adhere to Section 2 (Production safety and
+code-level-only testing). Before running any test that could write data or call
+external services, execute the mandatory isolation checks in Section 2.4. If
+safe isolation cannot be verified, the test must not run.
 
 | Scope | Required verification |
 | --- | --- |
@@ -72,7 +279,7 @@ environment are unchanged. Never report a check, CI result, or runtime behavior
 without evidence. Do not weaken assertions or make every routine task run the
 full suite.
 
-## 4. Task closure
+## 5. Task closure
 
 Use this lightweight checklist:
 
