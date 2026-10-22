@@ -25,6 +25,7 @@ import { thumbnailCandidatesRepository } from '../../../../database/firestore/re
 import { pinnedCommentPackagesRepository } from '../../../../database/firestore/repositories/pinned-comment-packages.repository';
 import { mediaAssetsRepository } from '../../../../database/firestore/repositories/media-assets.repository';
 import { socialReviewsRepository } from '../../../../database/firestore/repositories/social-reviews.repository';
+import { canonicalIdService } from '../../../../src/lib/id.service';
 import { auditService } from '../../../infrastructure/audit/services/audit.service';
 import { SocialQualityGateValidator } from '../../../ai/validators';
 import { aiOrchestrator } from '../../../ai/orchestrator';
@@ -433,7 +434,7 @@ export class SocialQualityGateService {
     const report = SocialQualityGateValidator.validate(pkg);
 
     const now = new Date().toISOString();
-    const recordId = `BP-SRV-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const recordId = canonicalIdService.generateReviewId();
 
     const reviewRecord: SocialReviewRecord = {
       id: recordId,

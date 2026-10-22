@@ -2272,7 +2272,7 @@ apiRouter.patch('/videos/:id/status', requireRole([UserRole.ADMIN, UserRole.CONT
               driveFileId: video.driveFileId,
               rawFootagePath: video.rawFootagePath,
               fileName: video.fileName,
-            });
+            } as any);
           }
         }
       }

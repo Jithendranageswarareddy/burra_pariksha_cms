@@ -3,12 +3,10 @@
  * Phase 21: Multi-Platform Content Adaptation
  * 
  * Manages storage and version history of platform adaptations (YouTube, Instagram, Facebook).
- * Guarantees:
- * - One current adaptation record per (Content ID, Platform)
- * - Immutable version snapshots preserved per adaptation
- * - Querying by Content ID, Platform, Status, Version, CreatedBy, UpdatedAt
+ * Authoritative Firestore persistence.
  */
 
+import { BaseRepository, GenericFirestoreRepository } from './base.repository';
 import {
   PlatformType,
   PlatformAdaptationRecord,
@@ -16,14 +14,24 @@ import {
   PlatformAdaptationSearchFilters,
   PlatformAdaptationAuditEntry,
 } from '../../../shared';
+import { canonicalIdService } from '../../../src/lib/id.service';
 
-export class PlatformAdaptationsRepository {
+export class PlatformAdaptationsRepository extends BaseRepository<PlatformAdaptationRecord> {
   private static instance: PlatformAdaptationsRepository | null = null;
-  private adaptationStore = new Map<string, PlatformAdaptationRecord>();
-  private versionStore = new Map<string, PlatformAdaptationVersion[]>();
-  private auditStore: PlatformAdaptationAuditEntry[] = [];
+  private versionRepo: GenericFirestoreRepository<PlatformAdaptationVersion>;
+  private auditRepo: GenericFirestoreRepository<PlatformAdaptationAuditEntry>;
 
-  private constructor() {}
+  private constructor() {
+    super('platform_adaptations', 'adp_');
+    this.versionRepo = new GenericFirestoreRepository<PlatformAdaptationVersion>(
+      'platform_adaptation_versions',
+      'adp_ver_'
+    );
+    this.auditRepo = new GenericFirestoreRepository<PlatformAdaptationAuditEntry>(
+      'platform_adaptation_audits',
+      'aud_'
+    );
+  }
 
   public static getInstance(): PlatformAdaptationsRepository {
     if (!PlatformAdaptationsRepository.instance) {
@@ -32,8 +40,11 @@ export class PlatformAdaptationsRepository {
     return PlatformAdaptationsRepository.instance;
   }
 
-  public async create(adaptation: PlatformAdaptationRecord): Promise<PlatformAdaptationRecord> {
-    this.adaptationStore.set(adaptation.id, { ...adaptation });
+  public override async create(adaptation: PlatformAdaptationRecord): Promise<PlatformAdaptationRecord> {
+    const existing = await this.findById(adaptation.id);
+    const saved = existing
+      ? (await this.updateRecord(adaptation.id, adaptation)) || adaptation
+      : await this.appendRecord(adaptation);
 
     // Initial version 1 snapshot
     const initialVersion: PlatformAdaptationVersion = {
@@ -61,38 +72,25 @@ export class PlatformAdaptationsRepository {
       changesRequiredRecord: adaptation.changesRequiredRecord ? { ...adaptation.changesRequiredRecord } : undefined,
     };
 
-    const existingVersions = this.versionStore.get(adaptation.id) || [];
-    this.versionStore.set(adaptation.id, [...existingVersions, initialVersion]);
-
-    return { ...adaptation };
-  }
-
-  public async findById(id: string): Promise<PlatformAdaptationRecord | null> {
-    const found = this.adaptationStore.get(id);
-    return found ? { ...found } : null;
+    await this.versionRepo.appendRecord(initialVersion);
+    return saved;
   }
 
   public async findByContentIdAndPlatform(
     contentId: string,
     platform: PlatformType
   ): Promise<PlatformAdaptationRecord | null> {
-    const all = Array.from(this.adaptationStore.values());
-    const match = all.find((a) => a.contentId === contentId && a.platform === platform);
-    return match ? { ...match } : null;
+    const all = await this.findAll();
+    return all.find((a) => a.contentId === contentId && a.platform === platform) || null;
   }
 
   public async findByContentId(contentId: string): Promise<PlatformAdaptationRecord[]> {
-    return Array.from(this.adaptationStore.values())
-      .filter((a) => a.contentId === contentId)
-      .map((a) => ({ ...a }));
-  }
-
-  public async findAll(): Promise<PlatformAdaptationRecord[]> {
-    return Array.from(this.adaptationStore.values()).map((a) => ({ ...a }));
+    const all = await this.findAll();
+    return all.filter((a) => a.contentId === contentId);
   }
 
   public async search(filters: PlatformAdaptationSearchFilters): Promise<PlatformAdaptationRecord[]> {
-    let list = Array.from(this.adaptationStore.values());
+    let list = await this.findAll();
 
     if (filters.contentId) {
       list = list.filter((a) => a.contentId === filters.contentId);
@@ -118,15 +116,18 @@ export class PlatformAdaptationsRepository {
       list = list.filter((a) => new Date(a.updatedAt).getTime() <= beforeTime);
     }
 
-    return list.map((a) => ({ ...a }));
+    return list;
   }
 
-  public async update(
-    id: string,
-    updates: Partial<PlatformAdaptationRecord>,
-    options?: { createNewVersion?: boolean }
+  public override async update(
+    idOrRecord: string | PlatformAdaptationRecord,
+    updates?: Partial<PlatformAdaptationRecord>,
+    options?: { createNewVersion?: boolean; expectedVersion?: number }
   ): Promise<PlatformAdaptationRecord> {
-    const existing = this.adaptationStore.get(id);
+    const id = typeof idOrRecord === 'string' ? idOrRecord : idOrRecord.id;
+    const patch = typeof idOrRecord === 'string' ? (updates || {}) : (updates || idOrRecord);
+
+    const existing = await this.findById(id);
     if (!existing) {
       throw new Error(`Platform adaptation with ID "${id}" does not exist.`);
     }
@@ -135,70 +136,69 @@ export class PlatformAdaptationsRepository {
     const shouldNewVersion = options?.createNewVersion ?? false;
     const newVersionNumber = shouldNewVersion ? existing.currentVersion + 1 : existing.currentVersion;
 
-    const updated: PlatformAdaptationRecord = {
-      ...existing,
-      ...updates,
+    const payload: Partial<PlatformAdaptationRecord> = {
+      ...patch,
       currentVersion: newVersionNumber,
       updatedAt: now,
     };
 
-    this.adaptationStore.set(id, updated);
+    const updated = await this.updateRecord(id, payload, { expectedVersion: options?.expectedVersion });
+    const fullUpdated = updated || ({ ...existing, ...payload } as PlatformAdaptationRecord);
 
     if (shouldNewVersion) {
       const versionSnapshot: PlatformAdaptationVersion = {
         versionNumber: newVersionNumber,
-        adaptationId: updated.id,
-        contentId: updated.contentId,
-        platform: updated.platform,
-        title: updated.title,
-        description: updated.description,
-        caption: updated.caption,
-        hashtags: [...updated.hashtags],
-        callToAction: updated.callToAction,
-        platformSpecificWording: { ...updated.platformSpecificWording },
-        thumbnailConsiderations: { ...updated.thumbnailConsiderations },
-        status: updated.status,
-        canonicalSourceVersionLock: { ...updated.canonicalSourceVersionLock },
-        generationSource: updated.generationSource,
-        aiProvenance: updated.aiProvenance ? { ...updated.aiProvenance } : undefined,
-        createdBy: updated.createdBy,
-        createdByName: updated.createdByName,
-        createdByRole: updated.createdByRole,
+        adaptationId: fullUpdated.id,
+        contentId: fullUpdated.contentId,
+        platform: fullUpdated.platform,
+        title: fullUpdated.title,
+        description: fullUpdated.description,
+        caption: fullUpdated.caption,
+        hashtags: [...fullUpdated.hashtags],
+        callToAction: fullUpdated.callToAction,
+        platformSpecificWording: { ...fullUpdated.platformSpecificWording },
+        thumbnailConsiderations: { ...fullUpdated.thumbnailConsiderations },
+        status: fullUpdated.status,
+        canonicalSourceVersionLock: { ...fullUpdated.canonicalSourceVersionLock },
+        generationSource: fullUpdated.generationSource,
+        aiProvenance: fullUpdated.aiProvenance ? { ...fullUpdated.aiProvenance } : undefined,
+        createdBy: fullUpdated.createdBy,
+        createdByName: fullUpdated.createdByName,
+        createdByRole: fullUpdated.createdByRole,
         createdAt: now,
-        approvalRecord: updated.approvalRecord ? { ...updated.approvalRecord } : undefined,
-        rejectionRecord: updated.rejectionRecord ? { ...updated.rejectionRecord } : undefined,
-        changesRequiredRecord: updated.changesRequiredRecord ? { ...updated.changesRequiredRecord } : undefined,
+        approvalRecord: fullUpdated.approvalRecord ? { ...fullUpdated.approvalRecord } : undefined,
+        rejectionRecord: fullUpdated.rejectionRecord ? { ...fullUpdated.rejectionRecord } : undefined,
+        changesRequiredRecord: fullUpdated.changesRequiredRecord ? { ...fullUpdated.changesRequiredRecord } : undefined,
       };
 
-      const existingVersions = this.versionStore.get(id) || [];
-      this.versionStore.set(id, [...existingVersions, versionSnapshot]);
+      await this.versionRepo.appendRecord(versionSnapshot);
     }
 
-    return { ...updated };
+    return fullUpdated;
   }
 
   public async getVersions(adaptationId: string): Promise<PlatformAdaptationVersion[]> {
-    const versions = this.versionStore.get(adaptationId) || [];
-    return versions.map((v) => ({ ...v }));
+    const all = await this.versionRepo.findAll();
+    return all
+      .filter((v) => v.adaptationId === adaptationId)
+      .sort((a, b) => a.versionNumber - b.versionNumber);
   }
 
   public async getVersion(adaptationId: string, versionNumber: number): Promise<PlatformAdaptationVersion | null> {
-    const versions = this.versionStore.get(adaptationId) || [];
-    const match = versions.find((v) => v.versionNumber === versionNumber);
-    return match ? { ...match } : null;
+    const versions = await this.getVersions(adaptationId);
+    return versions.find((v) => v.versionNumber === versionNumber) || null;
   }
 
   public async logAudit(entry: Omit<PlatformAdaptationAuditEntry, 'id'>): Promise<PlatformAdaptationAuditEntry> {
     const fullEntry: PlatformAdaptationAuditEntry = {
-      id: `ADP-AUD-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      id: canonicalIdService.generateAuditLogId(),
       ...entry,
     };
-    this.auditStore.push(fullEntry);
-    return fullEntry;
+    return this.auditRepo.appendRecord(fullEntry);
   }
 
   public async getAuditHistory(adaptationId?: string, contentId?: string): Promise<PlatformAdaptationAuditEntry[]> {
-    let list = [...this.auditStore];
+    let list = await this.auditRepo.findAll();
     if (adaptationId) {
       list = list.filter((a) => a.adaptationId === adaptationId);
     }
@@ -209,9 +209,12 @@ export class PlatformAdaptationsRepository {
   }
 
   public async clear(): Promise<void> {
-    this.adaptationStore.clear();
-    this.versionStore.clear();
-    this.auditStore = [];
+    const adaptations = await this.findAll();
+    await Promise.all(adaptations.map((a) => this.deleteRecord(a.id)));
+    const versions = await this.versionRepo.findAll();
+    await Promise.all(versions.map((v) => this.versionRepo.deleteRecord((v as any).id)));
+    const audits = await this.auditRepo.findAll();
+    await Promise.all(audits.map((a) => this.auditRepo.deleteRecord(a.id)));
   }
 }
 

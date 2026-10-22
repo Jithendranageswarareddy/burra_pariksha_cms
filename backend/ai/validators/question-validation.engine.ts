@@ -8,6 +8,7 @@
  */
 
 import { Question, ValidationResult, ValidationCheckItem, QuestionValidationStatus, ValidationSource, QuestionValidatorProvider } from '../../../shared';
+import { canonicalIdService } from '../../../src/lib/id.service';
 import { QuestionCreationValidator } from './question-creation.validator';
 import { OptionsValidator } from './options.validator';
 import { MathematicalLogicalEngine } from './mathematical-logical.engine';
@@ -69,7 +70,7 @@ export class QuestionValidationEngine {
     const warnings: string[] = [];
     const recommendations: string[] = [];
 
-    const validationId = `VAL-${question.id || 'CANDIDATE'}-${Date.now()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+    const validationId = canonicalIdService.generateValidationId();
     const questionId = question.id || 'TEMP-QUESTION';
     const challengeType = question.challengeType || 'ABCD';
     const opts = question.options || { a: '', b: '', c: '', d: '' };

@@ -20,6 +20,7 @@
 
 import { AuthorizationResource, AuthorizationAction, CanonicalRbacRole, CapabilityString, formatCapability, parseCapability } from '../../../shared';
 import { resolveBrownfieldRole, roleHasCapability, isHumanGatedCapability, isHumanGatedStage, HUMAN_GATED_STAGES, DataScope, ROLE_DEFAULT_DATA_SCOPES, type AdministrativeOverrideContext } from '../../../src/types/rbac-models';
+import { canonicalIdService } from '../../../src/lib/id.service';
 
 // ============================================================================
 // 1. AUTHORIZATION ERROR CODES (Section 15.2)
@@ -228,7 +229,7 @@ export function evaluateAuthorization(request: AuthorizationRequest): Authorizat
       resolvedRole: CanonicalRbacRole.QUESTION_AUTHOR,
       timestamp,
       auditEvent: {
-        eventId: `AUD-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+        eventId: canonicalIdService.generateAuditLogId(),
         actorUserId: actorId,
         actorRole: 'UNAUTHENTICATED',
         actionVerb: request.action,
@@ -257,7 +258,7 @@ export function evaluateAuthorization(request: AuthorizationRequest): Authorizat
       resolvedRole: canonicalRole,
       timestamp,
       auditEvent: {
-        eventId: `AUD-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+        eventId: canonicalIdService.generateAuditLogId(),
         actorUserId: actorId,
         actorRole: canonicalRole,
         actionVerb: request.action,
@@ -288,7 +289,7 @@ export function evaluateAuthorization(request: AuthorizationRequest): Authorizat
       resolvedRole: canonicalRole,
       timestamp,
       auditEvent: {
-        eventId: `AUD-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+        eventId: canonicalIdService.generateAuditLogId(),
         actorUserId: actorId,
         actorRole: canonicalRole,
         actionVerb: request.action,
@@ -325,7 +326,7 @@ export function evaluateAuthorization(request: AuthorizationRequest): Authorizat
       resolvedRole: canonicalRole,
       timestamp,
       auditEvent: {
-        eventId: `AUD-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+        eventId: canonicalIdService.generateAuditLogId(),
         actorUserId: actorId,
         actorRole: canonicalRole,
         actionVerb: request.action,
@@ -354,7 +355,7 @@ export function evaluateAuthorization(request: AuthorizationRequest): Authorizat
       resolvedRole: canonicalRole,
       timestamp,
       auditEvent: {
-        eventId: `AUD-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+        eventId: canonicalIdService.generateAuditLogId(),
         actorUserId: actorId,
         actorRole: canonicalRole,
         actionVerb: request.action,
@@ -381,7 +382,7 @@ export function evaluateAuthorization(request: AuthorizationRequest): Authorizat
       resolvedRole: canonicalRole,
       timestamp,
       auditEvent: {
-        eventId: `AUD-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+        eventId: canonicalIdService.generateAuditLogId(),
         actorUserId: actorId,
         actorRole: canonicalRole,
         actionVerb: request.action,
@@ -406,7 +407,7 @@ export function evaluateAuthorization(request: AuthorizationRequest): Authorizat
       resolvedRole: canonicalRole,
       timestamp,
       auditEvent: {
-        eventId: `AUD-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+        eventId: canonicalIdService.generateAuditLogId(),
         actorUserId: actorId,
         actorRole: canonicalRole,
         actionVerb: request.action,
@@ -434,7 +435,7 @@ export function evaluateAuthorization(request: AuthorizationRequest): Authorizat
     isOverride,
     overrideReason,
     auditEvent: {
-      eventId: `AUD-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+      eventId: canonicalIdService.generateAuditLogId(),
       actorUserId: actorId,
       actorRole: effectiveRole,
       actionVerb: request.action,

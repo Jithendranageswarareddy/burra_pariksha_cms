@@ -6,6 +6,7 @@
 import { auditLogRepository, workflowRepository } from '../../../../database/firestore/repositories';
 import { AuditLog, Workflow } from '../../../../shared';
 import { sanitizeErrorMessage } from '../../../../src/lib/errors';
+import { canonicalIdService } from '../../../../src/lib/id.service';
 
 export class AuditService {
   private static instance: AuditService | null = null;
@@ -98,7 +99,6 @@ export class AuditService {
 
 export class WorkflowService {
   private static instance: WorkflowService | null = null;
-  private static workflowSeq = 0;
 
   private constructor() {}
 
@@ -119,10 +119,7 @@ export class WorkflowService {
     remarks?: string
   ): Promise<Workflow> {
     const timestamp = new Date().toISOString();
-    WorkflowService.workflowSeq += 1;
-    const seq = String(WorkflowService.workflowSeq).padStart(5, '0');
-    const randomSuffix = Math.random().toString(36).substring(2, 6);
-    const id = `WF-${Date.now()}-${seq}-${randomSuffix}-${entityId}`;
+    const id = canonicalIdService.generateWorkflowInstanceId();
 
     const actorName = remarks !== undefined ? actorNameOrRemarks : undefined;
     const finalRemarks = remarks !== undefined ? remarks : (actorNameOrRemarks || '');

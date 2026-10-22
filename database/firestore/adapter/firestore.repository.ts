@@ -106,7 +106,7 @@ export class FirestoreRepository<T extends BaseEntity> implements IRepository<T>
       entity.id ||
       (this.defaultPrefix
         ? canonicalIdService.generateCanonicalId(this.defaultPrefix)
-        : `ent_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`);
+        : canonicalIdService.generateCanonicalId('ent_'));
 
     const cleanEntity: any = {};
     for (const [k, v] of Object.entries(entity as any)) {

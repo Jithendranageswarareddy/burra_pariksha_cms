@@ -66,7 +66,7 @@ export class InMemoryRepository<T extends BaseEntity> implements IRepository<T> 
     context?: MutationContext
   ): Promise<T> {
     const now = context?.timestamp || new Date().toISOString();
-    const id = entity.id || (this.defaultPrefix ? canonicalIdService.generateCanonicalId(this.defaultPrefix) : `ent_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`);
+    const id = entity.id || (this.defaultPrefix ? canonicalIdService.generateCanonicalId(this.defaultPrefix) : canonicalIdService.generateCanonicalId('ent_'));
 
     const newRecord = {
       ...(entity as any),

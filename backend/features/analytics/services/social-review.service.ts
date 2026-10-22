@@ -20,6 +20,7 @@ import { videosRepository } from '../../../../database/firestore/repositories/vi
 import { scriptsRepository } from '../../../../database/firestore/repositories/scripts.repository';
 import { SocialEnhancementService } from './social-enhancement.service';
 import { PlatformAdaptationService } from '../../publishing/services/platform-adaptation.service';
+import { canonicalIdService } from '../../../../src/lib/id.service';
 
 export class SocialReviewService {
   private static draftCache: Map<string, any> = new Map();
@@ -491,7 +492,7 @@ export class SocialReviewService {
       const isAdmin =
         actor.role === UserRole.ADMIN ||
         String(actor.role).toUpperCase() === 'ADMIN' ||
-        (Array.isArray(actor.roles) && actor.roles.some((r) => String(r).toUpperCase() === 'ADMIN'));
+        (Array.isArray((actor as any).roles) && (actor as any).roles.some((r: any) => String(r).toUpperCase() === 'ADMIN'));
 
       if (!isAdmin) {
         if (!authorId || !String(authorId).trim()) {
@@ -511,7 +512,7 @@ export class SocialReviewService {
           throw err;
         }
       } else {
-        const assignedTo = (liveBundle as any).assigneeId || (liveBundle.video as any)?.assignedEditor || (liveBundle.video as any)?.assignedHost;
+        const assignedTo = (liveBundle as any).assigneeId || (liveBundle as any).video?.assignedEditor || (liveBundle as any).video?.assignedHost;
         if (assignedTo && String(assignedTo).trim() !== String(actor.id).trim()) {
           console.warn(`[SocialReviewService] Warning: Social package approved by Admin (${actor.id}), but video was assigned to ${assignedTo}.`);
         }
@@ -529,7 +530,7 @@ export class SocialReviewService {
 
     // 7. Construct SocialReviewRecord
     const reviewedAt = new Date().toISOString();
-    const recordId = `BP-REV-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const recordId = canonicalIdService.generateReviewId();
 
     const reviewRecord: SocialReviewRecord = {
       id: recordId,
@@ -581,7 +582,7 @@ export class SocialReviewService {
 
     // 10. Record Workflow Transition
     await workflowRepository.create({
-      id: `WF-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      id: canonicalIdService.generateWorkflowInstanceId(),
       entityType: 'QUESTION',
       entityId: questionId,
       fromStatus: liveBundle.currentReviewStatus,

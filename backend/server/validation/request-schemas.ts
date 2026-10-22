@@ -582,7 +582,7 @@ export const SocialCommentStatusSchema = z.enum([
 export const CreateSocialCommentInputSchema = z.object({
   contentId: z.string().regex(/^BP-CNT-\d{6}$/, 'Invalid content ID format (must be BP-CNT-######)'),
   videoId: z.string().regex(/^BP-V-\d{6}$/, 'Invalid video ID format (must be BP-V-######)').optional(),
-  publishingId: z.string().regex(/^(PUB|BP-PUB)-\d{6}$/, 'Invalid publishing ID format (must be PUB-###### or BP-PUB-######)').optional(),
+  publishingId: z.string().regex(/^(PUB|BP-PUB)-\d{6}$|^pub_[0-9a-f-]{36}$/i, 'Invalid publishing ID format (must be PUB-######, BP-PUB-######, or pub_<uuid>)').optional(),
   platform: z.enum(['youtube', 'instagram', 'facebook']),
   platformPostId: z.string().min(1, 'Platform post ID must be non-empty when supplied').optional(),
   platformCommentId: z.string().min(1, 'Platform comment ID must be non-empty when supplied').optional(),

@@ -38,6 +38,7 @@ export function getAdminApp(): App {
   const target = assertDatastoreSafe();
   activeTargetConfig = target;
 
+  let credential: any;
   if (target.mode === 'LOCAL_FIRESTORE_EMULATOR') {
     // Under emulator execution, ensure the emulator host environment variable is set for the SDK.
     // Zero secret exposure: Do not pass credentials to local emulator.

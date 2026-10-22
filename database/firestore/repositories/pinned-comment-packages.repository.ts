@@ -3,16 +3,23 @@
  * Phase 19: Pinned Comment & Conversation Intelligence
  * 
  * Manages structured engagement packages, revision histories, and workflow state.
+ * Authoritative Firestore persistence.
  */
 
+import { BaseRepository, GenericFirestoreRepository } from './base.repository';
 import { PinnedCommentPackage, PinnedCommentPackageVersion } from '../../../shared';
 
-export class PinnedCommentPackagesRepository {
+export class PinnedCommentPackagesRepository extends BaseRepository<PinnedCommentPackage> {
   private static instance: PinnedCommentPackagesRepository | null = null;
-  private packageStore = new Map<string, PinnedCommentPackage>();
-  private versionStore = new Map<string, PinnedCommentPackageVersion[]>();
+  private versionRepo: GenericFirestoreRepository<PinnedCommentPackageVersion>;
 
-  private constructor() {}
+  private constructor() {
+    super('pinned_comment_packages', 'pin_');
+    this.versionRepo = new GenericFirestoreRepository<PinnedCommentPackageVersion>(
+      'pinned_comment_package_versions',
+      'pin_ver_'
+    );
+  }
 
   public static getInstance(): PinnedCommentPackagesRepository {
     if (!PinnedCommentPackagesRepository.instance) {
@@ -21,68 +28,72 @@ export class PinnedCommentPackagesRepository {
     return PinnedCommentPackagesRepository.instance;
   }
 
-  public async create(pkg: PinnedCommentPackage): Promise<PinnedCommentPackage> {
-    this.packageStore.set(pkg.id, { ...pkg });
-    return { ...pkg };
-  }
-
-  public async findById(id: string): Promise<PinnedCommentPackage | null> {
-    const found = this.packageStore.get(id);
-    return found ? { ...found } : null;
+  public override async create(pkg: PinnedCommentPackage): Promise<PinnedCommentPackage> {
+    const existing = await this.findById(pkg.id);
+    if (existing) {
+      const updated = await this.updateRecord(pkg.id, pkg);
+      return updated || pkg;
+    }
+    return this.appendRecord(pkg);
   }
 
   public async findByContentId(contentId: string): Promise<PinnedCommentPackage | null> {
-    const all = Array.from(this.packageStore.values());
-    const match = all.find((p) => p.contentId === contentId);
-    return match ? { ...match } : null;
+    const all = await this.findAll();
+    return all.find((p) => p.contentId === contentId) || null;
   }
 
   public async findByQuestionId(questionId: string): Promise<PinnedCommentPackage[]> {
-    return Array.from(this.packageStore.values())
-      .filter((p) => p.questionId === questionId)
-      .map((p) => ({ ...p }));
+    const all = await this.findAll();
+    return all.filter((p) => p.questionId === questionId);
   }
 
-  public async update(id: string, updates: Partial<PinnedCommentPackage>): Promise<PinnedCommentPackage> {
-    const existing = this.packageStore.get(id);
+  public override async update(
+    idOrRecord: string | PinnedCommentPackage,
+    updates?: Partial<PinnedCommentPackage>,
+    options?: { expectedVersion?: number }
+  ): Promise<PinnedCommentPackage> {
+    const id = typeof idOrRecord === 'string' ? idOrRecord : idOrRecord.id;
+    const patch = typeof idOrRecord === 'string' ? (updates || {}) : (updates || idOrRecord);
+
+    const existing = await this.findById(id);
     if (!existing) {
       throw new Error(`Pinned comment package with ID "${id}" does not exist.`);
     }
 
-    const updated: PinnedCommentPackage = {
-      ...existing,
-      ...updates,
-      updatedAt: new Date().toISOString(),
-    };
+    const updated = await this.updateRecord(
+      id,
+      {
+        ...patch,
+        updatedAt: new Date().toISOString(),
+      },
+      options
+    );
 
-    this.packageStore.set(id, updated);
-    return { ...updated };
+    return updated || ({ ...existing, ...patch } as PinnedCommentPackage);
   }
 
   public async recordVersion(version: PinnedCommentPackageVersion): Promise<PinnedCommentPackageVersion> {
-    const list = this.versionStore.get(version.packageId) || [];
-    list.push({ ...version });
-    this.versionStore.set(version.packageId, list);
-    return { ...version };
+    return this.versionRepo.appendRecord(version);
   }
 
   public async getPackageVersions(packageId: string): Promise<PinnedCommentPackageVersion[]> {
-    const list = this.versionStore.get(packageId) || [];
-    return list.map((v) => ({ ...v }));
+    const all = await this.versionRepo.findAll();
+    return all
+      .filter((v) => v.packageId === packageId)
+      .sort((a, b) => a.versionNumber - b.versionNumber);
   }
 
-  public async findAll(): Promise<PinnedCommentPackage[]> {
-    return Array.from(this.packageStore.values()).map((p) => ({ ...p }));
+  public override async delete(id: string): Promise<boolean> {
+    const versions = await this.getPackageVersions(id);
+    await Promise.all(versions.map((v) => this.versionRepo.deleteRecord((v as any).id)));
+    return this.deleteRecord(id);
   }
 
-  public async delete(id: string): Promise<boolean> {
-    this.versionStore.delete(id);
-    return this.packageStore.delete(id);
-  }
-
-  public clearAll(): void {
-    this.packageStore.clear();
-    this.versionStore.clear();
+  public async clearAll(): Promise<void> {
+    const packages = await this.findAll();
+    await Promise.all(packages.map((p) => this.deleteRecord(p.id)));
+    const versions = await this.versionRepo.findAll();
+    await Promise.all(versions.map((v) => this.versionRepo.deleteRecord((v as any).id)));
   }
 }
 

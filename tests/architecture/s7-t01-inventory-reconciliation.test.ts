@@ -146,6 +146,11 @@ export const AUTHORITATIVE_APPROVED_POST_S7_ADDITIONS: readonly string[] = [
   'docs/diagnostics/AUTONOMOUS-HUMAN-E2E-TEST-REPORT.md',
   'tests/unit/question-generation/workflow-draft-approval-lifecycle.unit.test.ts',
   'tests/unit/dashboard-wip-aggregation.unit.test.ts',
+  'data/taxonomy/topics-and-subtopics-backup.json',
+  'src/config/datastore-guard.ts',
+  'tests/unit/datastore-isolation-guard.unit.test.ts',
+  'tests/unit/question-studio-navigation.unit.test.ts',
+  'tests/unit/firestore-native-id-and-persistence.unit.test.ts',
 ];
 
 const EXPECTED_HISTORICAL_S7_COUNT = 713;

@@ -141,3 +141,9 @@ export abstract class BaseRepository<T extends Record<string, any>> {
     return this.deleteRecord(id);
   }
 }
+
+export class GenericFirestoreRepository<T extends Record<string, any>> extends BaseRepository<T> {
+  constructor(collectionName: string, defaultPrefix?: CanonicalPrefix | string) {
+    super(collectionName, defaultPrefix as any);
+  }
+}

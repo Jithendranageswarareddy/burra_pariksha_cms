@@ -16,6 +16,7 @@ import {
 } from '../../../src/types/consensus';
 import { QuestionCandidate, multiAIProviderRegistry, aiOrchestrator } from '../../ai/orchestrator';
 import { AIProviderId, AIRequest } from '../../../src/types/ai';
+import { canonicalIdService } from '../../../src/lib/id.service';
 
 export class AuthorizationError extends Error {
   constructor(message: string) {
@@ -109,7 +110,7 @@ export class ConsensusService {
       // Zero provider scenario (e.g. ₹0 / no configured providers or all degraded)
       const reconciliation = this.reconcileVerifierResults([], minCoverage);
       const provenance: ConsensusProvenance = {
-        consensusId: `BP-CNS-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+        consensusId: canonicalIdService.generateCanonicalId('cns_'),
         contentId,
         candidateHash,
         version,
@@ -150,7 +151,7 @@ export class ConsensusService {
     const reconciliation = this.reconcileVerifierResults(verifierResults, minCoverage);
 
     // 6. Assemble Consensus Provenance Record
-    const consensusId = `BP-CNS-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+    const consensusId = canonicalIdService.generateCanonicalId('cns_');
     const provenance: ConsensusProvenance = {
       consensusId,
       contentId,
@@ -195,7 +196,7 @@ export class ConsensusService {
     timeoutMs: number
   ): Promise<VerifierResult> {
     const startTime = Date.now();
-    const verifierId = `VRF-${providerAdapter.providerId.toUpperCase()}-${Math.floor(Math.random() * 1000)}`;
+    const verifierId = canonicalIdService.generateCanonicalId('vrf_');
 
     const prompt = `You are a strict, pedantic competitive exam quality auditor.
 Analyze the following multiple-choice question candidate for mathematical accuracy, logical reasoning, single correct answer uniqueness, language naturalness, and clarity.

@@ -6,6 +6,7 @@
 import { BaseRepository } from './base.repository';
 import { AuditLog, User } from '../../../shared';
 import { ValidationError } from '../../../src/lib/errors';
+import { canonicalIdService } from '../../../src/lib/id.service';
 
 export class AuditLogRepository extends BaseRepository<AuditLog> {
   private static instance: AuditLogRepository | null = null;
@@ -52,7 +53,7 @@ export class AuditLogRepository extends BaseRepository<AuditLog> {
     stageNumber?: number,
     entityType?: string
   ): Promise<AuditLog> {
-    const id = `AUD-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const id = canonicalIdService.generateAuditLogId();
     const log: Partial<AuditLog> = {
       id,
       timestamp: new Date().toISOString(),

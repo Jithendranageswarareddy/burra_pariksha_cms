@@ -3,17 +3,23 @@
  * Phase 18: AI Thumbnail Intelligence
  * 
  * Manages thumbnail candidate proposals, A/B concept variants, and revision history.
- * Decouples AI generation from human-approved assets.
+ * Authoritative Firestore persistence.
  */
 
+import { BaseRepository, GenericFirestoreRepository } from './base.repository';
 import { ThumbnailCandidate, ThumbnailCandidateVersion } from '../../../shared';
 
-export class ThumbnailCandidatesRepository {
+export class ThumbnailCandidatesRepository extends BaseRepository<ThumbnailCandidate> {
   private static instance: ThumbnailCandidatesRepository | null = null;
-  private candidateStore = new Map<string, ThumbnailCandidate>();
-  private versionStore = new Map<string, ThumbnailCandidateVersion[]>();
+  private versionRepo: GenericFirestoreRepository<ThumbnailCandidateVersion>;
 
-  private constructor() {}
+  private constructor() {
+    super('thumbnail_candidates', 'thm_');
+    this.versionRepo = new GenericFirestoreRepository<ThumbnailCandidateVersion>(
+      'thumbnail_candidate_versions',
+      'thm_ver_'
+    );
+  }
 
   public static getInstance(): ThumbnailCandidatesRepository {
     if (!ThumbnailCandidatesRepository.instance) {
@@ -22,63 +28,72 @@ export class ThumbnailCandidatesRepository {
     return ThumbnailCandidatesRepository.instance;
   }
 
-  public async create(candidate: ThumbnailCandidate): Promise<ThumbnailCandidate> {
-    this.candidateStore.set(candidate.id, { ...candidate });
-    return { ...candidate };
-  }
-
-  public async findById(id: string): Promise<ThumbnailCandidate | null> {
-    const found = this.candidateStore.get(id);
-    return found ? { ...found } : null;
+  public override async create(candidate: ThumbnailCandidate): Promise<ThumbnailCandidate> {
+    const existing = await this.findById(candidate.id);
+    if (existing) {
+      const updated = await this.updateRecord(candidate.id, candidate);
+      return updated || candidate;
+    }
+    return this.appendRecord(candidate);
   }
 
   public async findByContentId(contentId: string): Promise<ThumbnailCandidate[]> {
-    return Array.from(this.candidateStore.values())
-      .filter((c) => c.contentId === contentId)
-      .map((c) => ({ ...c }));
+    const all = await this.findAll();
+    return all.filter((c) => c.contentId === contentId);
   }
 
   public async findByQuestionId(questionId: string): Promise<ThumbnailCandidate[]> {
-    return Array.from(this.candidateStore.values())
-      .filter((c) => c.questionId === questionId)
-      .map((c) => ({ ...c }));
+    const all = await this.findAll();
+    return all.filter((c) => c.questionId === questionId);
   }
 
-  public async update(id: string, updates: Partial<ThumbnailCandidate>): Promise<ThumbnailCandidate> {
-    const existing = this.candidateStore.get(id);
+  public override async update(
+    idOrRecord: string | ThumbnailCandidate,
+    updates?: Partial<ThumbnailCandidate>,
+    options?: { expectedVersion?: number }
+  ): Promise<ThumbnailCandidate> {
+    const id = typeof idOrRecord === 'string' ? idOrRecord : idOrRecord.id;
+    const patch = typeof idOrRecord === 'string' ? (updates || {}) : (updates || idOrRecord);
+
+    const existing = await this.findById(id);
     if (!existing) {
       throw new Error(`Thumbnail candidate with ID "${id}" does not exist.`);
     }
 
-    const updated: ThumbnailCandidate = {
-      ...existing,
-      ...updates,
-      updatedAt: new Date().toISOString(),
-    };
+    const updated = await this.updateRecord(
+      id,
+      {
+        ...patch,
+        updatedAt: new Date().toISOString(),
+      },
+      options
+    );
 
-    this.candidateStore.set(id, updated);
-    return { ...updated };
+    return updated || ({ ...existing, ...patch } as ThumbnailCandidate);
   }
 
   public async recordVersion(version: ThumbnailCandidateVersion): Promise<ThumbnailCandidateVersion> {
-    const list = this.versionStore.get(version.candidateId) || [];
-    list.push({ ...version });
-    this.versionStore.set(version.candidateId, list);
-    return { ...version };
+    return this.versionRepo.appendRecord(version);
   }
 
   public async getCandidateVersions(candidateId: string): Promise<ThumbnailCandidateVersion[]> {
-    const list = this.versionStore.get(candidateId) || [];
-    return list.map((v) => ({ ...v }));
+    const all = await this.versionRepo.findAll();
+    return all
+      .filter((v) => v.candidateId === candidateId)
+      .sort((a, b) => a.versionNumber - b.versionNumber);
   }
 
-  public async findAll(): Promise<ThumbnailCandidate[]> {
-    return Array.from(this.candidateStore.values()).map((c) => ({ ...c }));
+  public override async delete(id: string): Promise<boolean> {
+    const versions = await this.getCandidateVersions(id);
+    await Promise.all(versions.map((v) => this.versionRepo.deleteRecord((v as any).id)));
+    return this.deleteRecord(id);
   }
 
-  public async delete(id: string): Promise<boolean> {
-    this.versionStore.delete(id);
-    return this.candidateStore.delete(id);
+  public async clear(): Promise<void> {
+    const candidates = await this.findAll();
+    await Promise.all(candidates.map((c) => this.deleteRecord(c.id)));
+    const versions = await this.versionRepo.findAll();
+    await Promise.all(versions.map((v) => this.versionRepo.deleteRecord((v as any).id)));
   }
 }
 

@@ -16,6 +16,7 @@ import {
 } from '../../../database/firestore/repositories';
 import { ContentMaster, ContentMasterStatus, UserRole, Assignment, AssignmentStatus, Workflow, AuditLog } from '../../../shared';
 import { ValidationError, ReferenceIntegrityError } from '../../../src/lib/errors';
+import { canonicalIdService } from '../../../src/lib/id.service';
 
 export interface WorkflowTransitionInput {
   contentMasterId: string;
@@ -248,7 +249,7 @@ export class ContentWorkflowService {
       }
     }
 
-    const assignmentId = `BP-ASN-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const assignmentId = canonicalIdService.generateAssignmentId();
     const now = new Date().toISOString();
 
     const assignment: Assignment = {
@@ -518,7 +519,7 @@ export class ContentWorkflowService {
     );
 
     await workflowRepository.create({
-      id: `WF-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      id: canonicalIdService.generateWorkflowInstanceId(),
       contentId: contentMasterId,
       contentMasterId: contentMasterId,
       entityType: 'QUESTION', // For backward compatibility / schema enforcement

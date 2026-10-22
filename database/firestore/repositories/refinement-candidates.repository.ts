@@ -1,12 +1,15 @@
 /**
  * BURRA PARIKSHA CMS - Refinement Candidates Repository
  * Phase 13: AI Question Refinement & Improvement
+ * Authoritative Firestore persistence.
  */
 
+import { BaseRepository } from './base.repository';
+
 export interface RefinementCandidate {
-  id: string; // e.g. BP-RC-###### (Refinement Candidate ID)
-  contentMasterId: string; // references ContentMaster.id (BP-CNT-######)
-  questionId: string; // references Question.id (BP-Q-######)
+  id: string; // e.g. ref_<uuid> or BP-RC-######
+  contentMasterId: string; // references ContentMaster.id
+  questionId: string; // references Question.id
   originalVersion: number;
   candidateVersion: number;
   intent: string;
@@ -33,47 +36,55 @@ export interface RefinementCandidate {
   rejectedAt?: string;
 }
 
-class RefinementCandidatesRepository {
-  private store = new Map<string, RefinementCandidate>();
+export class RefinementCandidatesRepository extends BaseRepository<RefinementCandidate> {
+  private static instance: RefinementCandidatesRepository | null = null;
 
-  public async create(candidate: RefinementCandidate): Promise<RefinementCandidate> {
-    this.store.set(candidate.id, { ...candidate });
-    return candidate;
+  private constructor() {
+    super('refinement_candidates', 'ref_');
   }
 
-  public async findById(id: string): Promise<RefinementCandidate | null> {
-    const item = this.store.get(id);
-    if (!item) return null;
-    return { ...item };
+  public static getInstance(): RefinementCandidatesRepository {
+    if (!RefinementCandidatesRepository.instance) {
+      RefinementCandidatesRepository.instance = new RefinementCandidatesRepository();
+    }
+    return RefinementCandidatesRepository.instance;
+  }
+
+  public override async create(candidate: RefinementCandidate): Promise<RefinementCandidate> {
+    const existing = await this.findById(candidate.id);
+    if (existing) {
+      const updated = await this.updateRecord(candidate.id, candidate);
+      return updated || candidate;
+    }
+    return this.appendRecord(candidate);
   }
 
   public async findByContentMasterId(contentMasterId: string): Promise<RefinementCandidate[]> {
-    return Array.from(this.store.values())
-      .filter((c) => c.contentMasterId === contentMasterId)
-      .map((c) => ({ ...c }));
+    const all = await this.findAll();
+    return all.filter((c) => c.contentMasterId === contentMasterId);
   }
 
-  public async update(id: string, updates: Partial<RefinementCandidate>): Promise<RefinementCandidate> {
-    const existing = this.store.get(id);
+  public override async update(
+    idOrRecord: string | RefinementCandidate,
+    updates?: Partial<RefinementCandidate>,
+    options?: { expectedVersion?: number }
+  ): Promise<RefinementCandidate> {
+    const id = typeof idOrRecord === 'string' ? idOrRecord : idOrRecord.id;
+    const patch = typeof idOrRecord === 'string' ? (updates || {}) : (updates || idOrRecord);
+
+    const existing = await this.findById(id);
     if (!existing) {
       throw new Error(`RefinementCandidate with ID ${id} not found`);
     }
-    const updated = { ...existing, ...updates };
-    this.store.set(id, updated);
-    return updated;
+
+    const updated = await this.updateRecord(id, patch, options);
+    return updated || ({ ...existing, ...patch } as RefinementCandidate);
   }
 
-  public async delete(id: string): Promise<boolean> {
-    return this.store.delete(id);
-  }
-
-  public async findAll(): Promise<RefinementCandidate[]> {
-    return Array.from(this.store.values()).map((c) => ({ ...c }));
-  }
-
-  public clearFallbackData(): void {
-    this.store.clear();
+  public async clearFallbackData(): Promise<void> {
+    const all = await this.findAll();
+    await Promise.all(all.map((c) => this.deleteRecord(c.id)));
   }
 }
 
-export const refinementCandidatesRepository = new RefinementCandidatesRepository();
+export const refinementCandidatesRepository = RefinementCandidatesRepository.getInstance();

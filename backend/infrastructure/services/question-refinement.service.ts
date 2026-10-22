@@ -14,6 +14,7 @@ import {
   RefinementCandidate,
 } from '../../../database/firestore/repositories';
 import { ValidationError } from '../../../src/lib/errors';
+import { canonicalIdService } from '../../../src/lib/id.service';
 import { MathematicalValidator, MathVerificationResult } from '../../ai/validators';
 import { aiOrchestrator } from '../../ai/orchestrator';
 import { AIProviderError } from '../../ai/errors';
@@ -286,7 +287,7 @@ export class QuestionRefinementService {
     const phase10Evaluation = this.evaluatePhase10Quality(rawCandidate, intent);
 
     // F. Setup Revision Information & Save Candidate record
-    const candidateId = `BP-RC-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const candidateId = canonicalIdService.generateCanonicalId('ref_');
     const candidate: RefinementCandidate = {
       id: candidateId,
       contentMasterId: contentMasterId,
@@ -319,7 +320,7 @@ export class QuestionRefinementService {
 
     // Audit logs of candidate creation
     await auditLogRepository.create({
-      id: `BP-AUD-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      id: canonicalIdService.generateAuditLogId(),
       entityType: 'REFINEMENT_CANDIDATE',
       entityId: contentMasterId,
       action: 'REFINEMENT_CANDIDATE_CREATED',
@@ -354,7 +355,7 @@ export class QuestionRefinementService {
     if (!isApproved) {
       await refinementCandidatesRepository.update(candidateId, { rejectedAt: new Date().toISOString() });
       await auditLogRepository.create({
-        id: `BP-AUD-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        id: canonicalIdService.generateAuditLogId(),
         entityType: 'REFINEMENT_CANDIDATE',
         entityId: candidate.contentMasterId,
         action: 'REFINEMENT_CANDIDATE_REJECTED',
@@ -417,7 +418,7 @@ export class QuestionRefinementService {
 
     // Create Audit Log of completion
     await auditLogRepository.create({
-      id: `BP-AUD-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      id: canonicalIdService.generateAuditLogId(),
       entityType: 'CONTENT_MASTER',
       entityId: candidate.contentMasterId,
       action: 'REFINEMENT_APPLIED',

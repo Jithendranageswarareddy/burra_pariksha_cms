@@ -4,6 +4,7 @@
  */
 
 import { SHEET_TABS, SheetTabName } from '../../../src/lib/schemas/secondary-sheet-schema';
+import { canonicalIdService } from '../../../src/lib/id.service';
 
 // ============================================================================
 // 1. SEMANTIC FIELD ROLE CLASSIFICATION
@@ -48,6 +49,7 @@ export function isCanonicalDomainId(id: string, prefix?: string): boolean {
   if (prefix) {
     return id.startsWith(prefix);
   }
+  if (canonicalIdService.isValidCanonicalId(id)) return true;
   return /^(BP-CNT-\d{6}|BP-Q-\d{6}|BP-V-\d{6}|BP-S-\d{6}|BP-T-\d{6}|BP-PIN-\d{6}|BP-REV-\d{6}|BP-ADP-\d{6}|BP-PUB-\d{6}|USR-\d{3}|BP-CAT-\d{3}|BP-TOP-\d{4}|BP-SUB-\d{6}|BP-ASN-\d{6}|BP-PLN-\d{4}|BP-BCH-\d{4})$/.test(id);
 }
 

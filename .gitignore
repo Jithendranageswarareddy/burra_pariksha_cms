@@ -12,3 +12,4 @@ backups/
 .vscode/
 .dev.env.json
 .dev.pid
+cookies.txt

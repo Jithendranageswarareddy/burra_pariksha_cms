@@ -22,6 +22,7 @@
  */
 
 import { Question, QuestionValidationStatus, QuestionLanguage, normalizeText, calculateJaccardSimilarity } from '../../../shared';
+import { canonicalIdService } from '../../../src/lib/id.service';
 import { QuestionCreationValidator } from './question-creation.validator';
 import { MathematicalLogicalEngine } from './mathematical-logical.engine';
 import { OptionsValidator } from './options.validator';
@@ -130,7 +131,7 @@ export class MultiLayerVerificationEngine {
   ): Promise<MultiLayerVerificationReport> {
     const timestamp = new Date().toISOString();
     const questionId = questionInput.id || 'CANDIDATE';
-    const validationId = `VAL-${questionId}-${Date.now()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+    const validationId = canonicalIdService.generateValidationId();
     const actorName = options.actor || 'SYSTEM_VERIFIER';
 
     const layers: Record<string, VerificationLayerResult> = {};

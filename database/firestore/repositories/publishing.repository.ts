@@ -3,16 +3,20 @@
  * Authoritative Firestore persistence
  */
 
-import { BaseRepository } from './base.repository';
+import { BaseRepository, GenericFirestoreRepository } from './base.repository';
 import { Publishing, PublishingPlatformRecord, PlatformType } from '../../../shared';
+import { canonicalIdService } from '../../../src/lib/id.service';
 
 export class PublishingRepository extends BaseRepository<Publishing> {
   private static instance: PublishingRepository | null = null;
-  private publishingPlatformStore = new Map<string, PublishingPlatformRecord>();
-  private idCounter = 1;
+  private platformRepo: GenericFirestoreRepository<PublishingPlatformRecord>;
 
   private constructor() {
-    super('publishing_packages', 'BP-PUB-');
+    super('publishing_packages', 'pub_');
+    this.platformRepo = new GenericFirestoreRepository<PublishingPlatformRecord>(
+      'publishing_platforms',
+      'pub_'
+    );
   }
 
   public static getInstance(): PublishingRepository {
@@ -46,21 +50,24 @@ export class PublishingRepository extends BaseRepository<Publishing> {
     return this.create(record);
   }
 
-  // Canonical Phase 22 publishing hub support integrated into canonical repo
+  /**
+   * Generates a collision-resistant UUID-based canonical publishing identifier.
+   */
   public generateId(): string {
-    const num = this.idCounter++;
-    return `BP-PUB-${num.toString().padStart(6, '0')}`;
+    return canonicalIdService.generatePublishingId();
   }
 
   public async savePublishingPlatformRecord(record: PublishingPlatformRecord): Promise<PublishingPlatformRecord> {
-    const clone = JSON.parse(JSON.stringify(record));
-    this.publishingPlatformStore.set(clone.id, clone);
-    return JSON.parse(JSON.stringify(clone));
+    const existing = await this.platformRepo.findById(record.id);
+    if (existing) {
+      const updated = await this.platformRepo.updateRecord(record.id, record);
+      if (updated) return updated;
+    }
+    return this.platformRepo.appendRecord(record);
   }
 
   public async findPublishingPlatformById(id: string): Promise<PublishingPlatformRecord | null> {
-    const rec = this.publishingPlatformStore.get(id);
-    return rec ? JSON.parse(JSON.stringify(rec)) : null;
+    return this.platformRepo.findById(id);
   }
 
   public async findPublishingPlatformByContentIdAndPlatform(
@@ -68,12 +75,12 @@ export class PublishingRepository extends BaseRepository<Publishing> {
     platform: PlatformType | string
   ): Promise<PublishingPlatformRecord | null> {
     const normalizedPlatform = String(platform).toUpperCase();
-    for (const rec of this.publishingPlatformStore.values()) {
-      if (rec.contentId === contentId && String(rec.platform).toUpperCase() === normalizedPlatform) {
-        return JSON.parse(JSON.stringify(rec));
-      }
-    }
-    return null;
+    const all = await this.platformRepo.findAll();
+    return (
+      all.find(
+        (rec) => rec.contentId === contentId && String(rec.platform).toUpperCase() === normalizedPlatform
+      ) || null
+    );
   }
 
   public async findPublishingPlatformByContentIdPlatformAndVersion(
@@ -82,30 +89,24 @@ export class PublishingRepository extends BaseRepository<Publishing> {
     version: number
   ): Promise<PublishingPlatformRecord | null> {
     const normalizedPlatform = String(platform).toUpperCase();
-    for (const rec of this.publishingPlatformStore.values()) {
-      if (
-        rec.contentId === contentId &&
-        String(rec.platform).toUpperCase() === normalizedPlatform &&
-        rec.adaptationVersion === version
-      ) {
-        return JSON.parse(JSON.stringify(rec));
-      }
-    }
-    return null;
+    const all = await this.platformRepo.findAll();
+    return (
+      all.find(
+        (rec) =>
+          rec.contentId === contentId &&
+          String(rec.platform).toUpperCase() === normalizedPlatform &&
+          rec.adaptationVersion === version
+      ) || null
+    );
   }
 
   public async findPublishingPlatformByContentId(contentId: string): Promise<PublishingPlatformRecord[]> {
-    const results: PublishingPlatformRecord[] = [];
-    for (const rec of this.publishingPlatformStore.values()) {
-      if (rec.contentId === contentId) {
-        results.push(JSON.parse(JSON.stringify(rec)));
-      }
-    }
-    return results;
+    const all = await this.platformRepo.findAll();
+    return all.filter((rec) => rec.contentId === contentId);
   }
 
   public async findAllPublishingPlatforms(): Promise<PublishingPlatformRecord[]> {
-    return Array.from(this.publishingPlatformStore.values()).map((r) => JSON.parse(JSON.stringify(r)));
+    return this.platformRepo.findAll();
   }
 
   public async searchPublishingPlatforms(filters: {
@@ -113,7 +114,7 @@ export class PublishingRepository extends BaseRepository<Publishing> {
     platform?: string;
     status?: string;
   }): Promise<PublishingPlatformRecord[]> {
-    let list = Array.from(this.publishingPlatformStore.values());
+    let list = await this.platformRepo.findAll();
 
     if (filters.contentId) {
       list = list.filter((r) => r.contentId === filters.contentId);
@@ -126,11 +127,12 @@ export class PublishingRepository extends BaseRepository<Publishing> {
       list = list.filter((r) => r.status === filters.status);
     }
 
-    return list.map((r) => JSON.parse(JSON.stringify(r)));
+    return list;
   }
 
   public async clearPublishingPlatformStore(): Promise<void> {
-    this.publishingPlatformStore.clear();
+    const all = await this.platformRepo.findAll();
+    await Promise.all(all.map((r) => this.platformRepo.deleteRecord(r.id)));
   }
 }
 
