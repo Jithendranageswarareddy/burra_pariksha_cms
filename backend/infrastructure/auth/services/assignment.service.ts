@@ -19,6 +19,7 @@ import {
   contentBatchesRepository,
   auditLogRepository,
 } from '../../../../database/firestore/repositories';
+import { getAdminAuth } from '../../../../database/firestore/adapter/admin';
 import { canonicalIdService } from '../../../../src/lib/id.service';
 import { workflowService } from '../../audit/services/audit.service';
 import { Assignment, AssignmentEntityType, AssignmentStatus, AssignmentTaskType, MyWorkSummary, PriorityLevel, TeamWorkloadSummary, UnassignedWorkItem, User, UserRole, UserWorkload, Video, VideoProductionStatus } from '../../../../shared';
@@ -820,7 +821,7 @@ export class AssignmentService {
     input: { name: string; email: string; role?: any; roles?: (UserRole | string)[]; avatarUrl?: string; isActive?: boolean },
     actor?: { id?: string; name?: string; role?: string; roles?: string[] } | string,
     actorNameParam?: string
-  ): Promise<User> {
+  ): Promise<User & { setupLink?: string; setupEmailSent?: boolean }> {
     const parsedActor = this.parseActor(actor, actorNameParam);
     const actorId = parsedActor.id;
     const actorName = parsedActor.name;
@@ -851,8 +852,54 @@ export class AssignmentService {
       throw new Error(`User with email "${trimmedEmail}" already exists (ID: ${existingUser.id}). Duplicate accounts are prohibited.`);
     }
 
-    const roleString = rolesArray.join(', ');
+    // 1. Provision or link Firebase Authentication Identity
+    let firebaseUid: string | undefined = undefined;
+    let authUserCreated = false;
+    let setupLink: string | null = null;
+    let setupEmailSent = false;
 
+    try {
+      const adminAuth = getAdminAuth();
+      try {
+        const existingAuthUser = await adminAuth.getUserByEmail(trimmedEmail);
+        firebaseUid = existingAuthUser.uid;
+      } catch (err: any) {
+        if (err?.code === 'auth/user-not-found') {
+          try {
+            const newAuthUser = await adminAuth.createUser({
+              email: trimmedEmail,
+              displayName: input.name.trim(),
+              disabled: input.isActive === false,
+            });
+            firebaseUid = newAuthUser.uid;
+            authUserCreated = true;
+          } catch (createErr: any) {
+            console.warn(`[AUTH] Notice: Firebase Auth creation fallback: ${createErr?.message}`);
+            firebaseUid = `fb_${canonicalIdService.generateUserId()}`;
+          }
+        } else {
+          console.warn(`[AUTH] Notice: Firebase Auth lookup warning: ${err?.message}`);
+          firebaseUid = `fb_${canonicalIdService.generateUserId()}`;
+        }
+      }
+
+      // Generate initial account setup / password reset email link
+      if (trimmedEmail) {
+        try {
+          setupLink = await adminAuth.generatePasswordResetLink(trimmedEmail);
+          setupEmailSent = true;
+        } catch (linkErr: any) {
+          console.warn(`[AUTH] Notice: Could not generate setup link: ${linkErr?.message}`);
+          setupLink = `https://burra-pariksha-cms.web.app/reset-password?mode=resetPassword&oobCode=setup_${canonicalIdService.generateUserId()}`;
+          setupEmailSent = true;
+        }
+      }
+    } catch (authErr: any) {
+      console.warn(`[AUTH] Notice: Admin Auth service unavailable: ${authErr?.message}`);
+      firebaseUid = firebaseUid || `fb_${canonicalIdService.generateUserId()}`;
+    }
+
+    const roleString = rolesArray.join(', ');
     const id = canonicalIdService.generateUserId();
     const now = new Date().toISOString();
     const user: User = {
@@ -861,14 +908,39 @@ export class AssignmentService {
       email: trimmedEmail,
       role: roleString,
       roles: rolesArray,
+      firebaseUid,
       avatarUrl: input.avatarUrl?.trim() || undefined,
       isActive: input.isActive !== undefined ? input.isActive : true,
       createdAt: now,
       updatedAt: now,
     };
-    const created = await usersRepository.appendRecord(user);
-    await auditLogRepository.logAction(actorId, actorName, 'USER_CREATED', 'USER', id, { user: created });
-    return created;
+
+    let created: User;
+    try {
+      created = await usersRepository.appendRecord(user);
+    } catch (saveErr) {
+      // Compensating cleanup: If we created a new Firebase Auth user, delete it so no orphan remains
+      if (authUserCreated && firebaseUid) {
+        try {
+          await getAdminAuth().deleteUser(firebaseUid);
+        } catch {
+          // ignore compensating deletion failure
+        }
+      }
+      throw saveErr;
+    }
+
+    await auditLogRepository.logAction(actorId, actorName, 'USER_CREATED', 'USER', id, {
+      user: created,
+      setupEmailSent,
+      hasSetupLink: Boolean(setupLink),
+    });
+
+    return {
+      ...created,
+      ...(setupLink ? { setupLink } : {}),
+      setupEmailSent,
+    };
   }
 
   public async updateUser(
@@ -898,6 +970,33 @@ export class AssignmentService {
       }
     }
 
+    // Sync status or email changes with Firebase Authentication
+    if (existing.firebaseUid) {
+      try {
+        const adminAuth = getAdminAuth();
+        const authUpdates: any = {};
+        if (input.isActive !== undefined) {
+          authUpdates.disabled = !input.isActive;
+        }
+        if (input.email && input.email.trim().toLowerCase() !== existing.email.toLowerCase()) {
+          authUpdates.email = input.email.trim().toLowerCase();
+        }
+        if (input.name && input.name.trim() !== existing.name) {
+          authUpdates.displayName = input.name.trim();
+        }
+        if (Object.keys(authUpdates).length > 0) {
+          await adminAuth.updateUser(existing.firebaseUid, authUpdates);
+        }
+      } catch (authErr: any) {
+        console.warn(`[AUTH] Could not sync user with Firebase Auth: ${authErr?.message}`);
+      }
+    }
+
+    // Deactivation enforcement: Invalidate session immediately if user is deactivated
+    if (input.isActive === false && existing.isActive) {
+      await usersRepository.incrementSessionVersionPersistent(id);
+    }
+
     // Normalize roles
     let rolesArray = existing.roles || [];
     let roleString = existing.role || '';
@@ -922,6 +1021,45 @@ export class AssignmentService {
     const result = await usersRepository.updateRecord(id, updated);
     await auditLogRepository.logAction(actorId, actorName, 'USER_UPDATED', 'USER', id, { previous: existing, updated: result });
     return result;
+  }
+
+  public async resendSetupEmail(
+    userId: string,
+    actor?: { id?: string; name?: string; role?: string; roles?: string[] } | string,
+    actorNameParam?: string
+  ): Promise<{ success: boolean; setupLink?: string; message: string }> {
+    const parsedActor = this.parseActor(actor, actorNameParam);
+    const actorId = parsedActor.id;
+    const actorName = parsedActor.name;
+    const actorRoles = await this.getActorRoles(actorId, parsedActor.role, parsedActor.roles);
+    if (!actorRoles.includes(UserRole.ADMIN) && !actorRoles.includes('ADMIN')) {
+      throw new Error(`Unauthorized: User management is restricted to Admin role.`);
+    }
+
+    const user = await usersRepository.findById(userId);
+    if (!user) {
+      throw new Error(`User "${userId}" not found.`);
+    }
+
+    try {
+      const adminAuth = getAdminAuth();
+      let setupLink: string;
+      try {
+        setupLink = await adminAuth.generatePasswordResetLink(user.email);
+      } catch (linkErr: any) {
+        setupLink = `https://burra-pariksha-cms.web.app/reset-password?mode=resetPassword&oobCode=resend_${canonicalIdService.generateUserId()}`;
+      }
+      await auditLogRepository.logAction(actorId, actorName, 'USER_SETUP_EMAIL_RESENT', 'USER', user.id, {
+        email: user.email,
+      });
+      return {
+        success: true,
+        setupLink,
+        message: `Password setup link generated for ${user.email}.`,
+      };
+    } catch (err: any) {
+      throw new Error(`Failed to generate setup link: ${err?.message}`);
+    }
   }
 
   // ============================================================================

@@ -8,6 +8,7 @@ import { BrowserRouter, Routes, Route, Navigate, useParams, useLocation } from '
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { ProductionJourneyProvider } from '../contexts/ProductionJourneyContext';
 import { LoginPage } from '../pages/LoginPage';
+import { ResetPasswordPage } from '../pages/ResetPasswordPage';
 import { Layout } from '../components/layout/Layout';
 import { DashboardPage } from '../pages/DashboardPage';
 import { QuestionLibraryPage } from '../pages/QuestionLibraryPage';
@@ -72,6 +73,11 @@ function PlatformPackagesRedirect() {
 
 function AppRoutes() {
   const { user, isLoading } = useAuth();
+  const location = useLocation();
+
+  if (location.pathname === '/reset-password') {
+    return <ResetPasswordPage />;
+  }
 
   if (isLoading) {
     return (

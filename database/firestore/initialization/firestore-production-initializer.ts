@@ -51,38 +51,34 @@ export class FirestoreProductionInitializerService {
     let subtopicsSeeded = 0;
     let questionConfigsSeeded = 0;
 
-    // 1. Seed foundational system admin idempotently (only USR-001; all other users managed manually via CRUD)
-    const bootstrapPassword = process.env.INITIAL_ADMIN_PASSWORD || process.env.ADMIN_INITIAL_PASSWORD;
-    const initialPasswordHash = bootstrapPassword ? await authService.hashPassword(bootstrapPassword) : undefined;
+    // 1. Seed foundational system admin idempotently if configured (or in test environment)
+    const adminEmail = process.env.INITIAL_ADMIN_EMAIL || (process.env.NODE_ENV === 'test' ? 'admin@burrapariksha.com' : undefined);
+    if (adminEmail) {
+      const defaultUsers: Partial<User>[] = [
+        {
+          id: 'USR-001',
+          name: process.env.INITIAL_ADMIN_NAME || 'System Admin',
+          email: adminEmail,
+          role: UserRole.ADMIN,
+          roles: [UserRole.ADMIN],
+          isActive: true,
+          dataScope: 'ALL',
+        },
+      ];
 
-    const defaultUsers: Partial<User>[] = [
-      {
-        id: 'USR-001',
-        name: 'System Admin',
-        email: 'jithendrareddy629@gmail.com',
-        role: UserRole.ADMIN,
-        roles: [UserRole.ADMIN],
-        isActive: true,
-        dataScope: 'ALL',
-      },
-    ];
-
-    for (const u of defaultUsers) {
-      const existingUser = await usersRepo.findById(u.id!);
-      if (!existingUser) {
-        await usersRepo.create({
-          ...u,
-          ...(initialPasswordHash ? { password_hash: initialPasswordHash } : {}),
-        } as any);
-        usersSeeded++;
-      } else {
-        // Idempotent reconciliation: ensure canonical email and role are synced
-        const updates: Record<string, any> = {};
-        if (existingUser.email !== u.email) updates.email = u.email;
-        if (existingUser.role !== u.role) updates.role = u.role;
-        if (initialPasswordHash && !existingUser.password_hash) updates.password_hash = initialPasswordHash;
-        if (Object.keys(updates).length > 0) {
-          await usersRepo.update(u.id!, existingUser.version, updates);
+      for (const u of defaultUsers) {
+        const existingUser = await usersRepo.findById(u.id!);
+        if (!existingUser) {
+          await usersRepo.create(u as any);
+          usersSeeded++;
+        } else {
+          // Idempotent reconciliation: ensure canonical email and role are synced
+          const updates: Record<string, any> = {};
+          if (existingUser.email !== u.email) updates.email = u.email;
+          if (existingUser.role !== u.role) updates.role = u.role;
+          if (Object.keys(updates).length > 0) {
+            await usersRepo.update(u.id!, existingUser.version, updates);
+          }
         }
       }
     }

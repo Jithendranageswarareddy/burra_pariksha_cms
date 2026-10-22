@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { authService } from '../../infrastructure/auth/services/auth.service';
 import { usersRepository, UserSessionState } from '../../../database/firestore/repositories/users.repository';
+import { getAdminAuth } from '../../../database/firestore/adapter/admin';
 import { UserRole } from '../../../shared';
 import { createErrorResponse, ApiErrorCode } from '../../../shared';
 import {
@@ -70,99 +71,164 @@ export function requireAuth(req: AuthenticatedRequest, res: Response, next: Next
     return;
   }
 
-  const payload = authService.verifySessionToken(token);
-  if (!payload) {
-    const errEnvelope = createErrorResponse(
-      ApiErrorCode.UNAUTHENTICATED,
-      'Invalid or expired session.',
-      requestId
-    );
-    res.status(401).json({
-      ...errEnvelope,
-      message: 'Invalid or expired session.',
-    });
-    return;
-  }
+  const fallbackToSessionVerification = () => {
+    const payload = authService.verifySessionToken(token);
+    if (!payload) {
+      const errEnvelope = createErrorResponse(
+        ApiErrorCode.UNAUTHENTICATED,
+        'Invalid or expired session.',
+        requestId
+      );
+      res.status(401).json({
+        ...errEnvelope,
+        message: 'Invalid or expired session.',
+      });
+      return;
+    }
 
-  const completeAuth = (userState: UserSessionState | null) => {
-    if (userState) {
-      if (!userState.isActive) {
-        const errEnvelope = createErrorResponse(
-          ApiErrorCode.UNAUTHENTICATED,
-          'Invalid or expired session.',
-          requestId
-        );
-        res.status(401).json({
-          ...errEnvelope,
-          message: 'Invalid or expired session.',
-        });
-        return;
+    const completeAuth = (userState: UserSessionState | null) => {
+      if (userState) {
+        if (!userState.isActive) {
+          const errEnvelope = createErrorResponse(
+            ApiErrorCode.UNAUTHENTICATED,
+            'Account is inactive. Please contact administrator.',
+            requestId
+          );
+          res.status(401).json({
+            ...errEnvelope,
+            message: 'Account is inactive. Please contact administrator.',
+          });
+          return;
+        }
+
+        // Persistent session version check: token version must match or exceed current persistent session version
+        const tokenVersion = payload.sessionVersion ?? 1;
+        if (tokenVersion < userState.sessionVersion) {
+          const errEnvelope = createErrorResponse(
+            ApiErrorCode.UNAUTHENTICATED,
+            'Invalid or expired session.',
+            requestId
+          );
+          res.status(401).json({
+            ...errEnvelope,
+            message: 'Invalid or expired session.',
+          });
+          return;
+        }
       }
 
-      // Persistent session version check: token version must match or exceed current persistent session version
-      const tokenVersion = payload.sessionVersion ?? 1;
-      if (tokenVersion < userState.sessionVersion) {
-        const errEnvelope = createErrorResponse(
-          ApiErrorCode.UNAUTHENTICATED,
-          'Invalid or expired session.',
-          requestId
-        );
-        res.status(401).json({
-          ...errEnvelope,
-          message: 'Invalid or expired session.',
-        });
-        return;
+      const rolesList: string[] = [];
+      if (Array.isArray((payload as any).roles)) {
+        (payload as any).roles.forEach((r: any) => r && rolesList.push(String(r).trim()));
       }
-    }
+      if (rolesList.length === 0 && payload.role) {
+        String(payload.role).split(',').forEach((r) => r.trim() && rolesList.push(r.trim()));
+      }
 
-    const rolesList: string[] = [];
-    if (Array.isArray((payload as any).roles)) {
-      (payload as any).roles.forEach((r: any) => r && rolesList.push(String(r).trim()));
-    }
-    if (rolesList.length === 0 && payload.role) {
-      String(payload.role).split(',').forEach((r) => r.trim() && rolesList.push(r.trim()));
-    }
+      const authoritativeRoles = userState?.roles && userState.roles.length > 0 ? userState.roles : rolesList;
+      const authoritativeRole = userState?.role || payload.role || authoritativeRoles[0] || UserRole.ADMIN;
 
-    const authoritativeRoles = userState?.roles && userState.roles.length > 0 ? userState.roles : rolesList;
-    const authoritativeRole = userState?.role || payload.role || authoritativeRoles[0] || UserRole.ADMIN;
-
-    req.user = {
-      id: payload.userId,
-      name: payload.name,
-      role: authoritativeRole,
-      roles: authoritativeRoles.length > 0 ? authoritativeRoles : [authoritativeRole],
-      isAiAgent: Boolean(
-        (payload as any).isAiAgent ||
-        payload.userId.startsWith('AI-') ||
-        payload.userId.startsWith('AGENT-') ||
-        payload.role === 'AI_AGENT' ||
-        payload.role === 'AI_BOT'
-      ),
+      req.user = {
+        id: payload.userId,
+        name: payload.name,
+        role: authoritativeRole,
+        roles: authoritativeRoles.length > 0 ? authoritativeRoles : [authoritativeRole],
+        isAiAgent: Boolean(
+          (payload as any).isAiAgent ||
+          payload.userId.startsWith('AI-') ||
+          payload.userId.startsWith('AGENT-') ||
+          payload.role === 'AI_AGENT' ||
+          payload.role === 'AI_BOT'
+        ),
+      };
+      next();
     };
-    next();
+
+    const cachedState = usersRepository.getUserSessionState(payload.userId);
+    if (cachedState) {
+      completeAuth(cachedState);
+      return;
+    }
+
+    // When cache is cold (e.g. after server restart), fetch authoritative state from persistent repository
+    usersRepository.getAuthoritativeUserSessionState(payload.userId).then((authoritativeState) => {
+      completeAuth(authoritativeState);
+    }).catch(() => {
+      const errEnvelope = createErrorResponse(
+        ApiErrorCode.UNAUTHENTICATED,
+        'Invalid or expired session.',
+        requestId
+      );
+      res.status(401).json({
+        ...errEnvelope,
+        error: 'Invalid or expired session.',
+        message: 'Invalid or expired session.',
+      });
+    });
   };
 
-  const cachedState = usersRepository.getUserSessionState(payload.userId);
-  if (cachedState) {
-    completeAuth(cachedState);
+  // 1. If token is a Firebase ID token (JWT format: 3 segments), verify with Firebase Admin SDK
+  if (token.split('.').length === 3) {
+    getAdminAuth()
+      .verifyIdToken(token)
+      .then(async (decoded) => {
+        let user = await usersRepository.findByFirebaseUid(decoded.uid);
+        if (!user && decoded.email) {
+          user = await usersRepository.findByEmail(decoded.email);
+          if (user && !user.firebaseUid) {
+            await usersRepository.updateRecord(user.id, { firebaseUid: decoded.uid });
+            user.firebaseUid = decoded.uid;
+          }
+        }
+
+        if (!user) {
+          const errEnvelope = createErrorResponse(
+            ApiErrorCode.UNAUTHENTICATED,
+            'User account not found for verified credentials.',
+            requestId
+          );
+          res.status(401).json({
+            ...errEnvelope,
+            message: 'User account not found for verified credentials.',
+          });
+          return;
+        }
+
+        if (!user.isActive) {
+          const errEnvelope = createErrorResponse(
+            ApiErrorCode.UNAUTHENTICATED,
+            'Account is inactive. Please contact administrator.',
+            requestId
+          );
+          res.status(401).json({
+            ...errEnvelope,
+            message: 'Account is inactive. Please contact administrator.',
+          });
+          return;
+        }
+
+        const authoritativeRoles = Array.isArray(user.roles) && user.roles.length > 0
+          ? user.roles
+          : [user.role || UserRole.ADMIN];
+        const authoritativeRole = user.role || authoritativeRoles[0] || UserRole.ADMIN;
+
+        req.user = {
+          id: user.id,
+          name: user.name,
+          role: authoritativeRole,
+          roles: authoritativeRoles,
+          isAiAgent: false,
+        };
+        next();
+      })
+      .catch(() => {
+        fallbackToSessionVerification();
+      });
     return;
   }
 
-  // When cache is cold (e.g. after server restart), fetch authoritative state from persistent repository
-  usersRepository.getAuthoritativeUserSessionState(payload.userId).then((authoritativeState) => {
-    completeAuth(authoritativeState);
-  }).catch(() => {
-    const errEnvelope = createErrorResponse(
-      ApiErrorCode.UNAUTHENTICATED,
-      'Invalid or expired session.',
-      requestId
-    );
-    res.status(401).json({
-      ...errEnvelope,
-      error: 'Invalid or expired session.',
-      message: 'Invalid or expired session.',
-    });
-  });
+  // 2. Synchronous/Fast fallback for 2-part internal session tokens
+  fallbackToSessionVerification();
 }
 
 /**

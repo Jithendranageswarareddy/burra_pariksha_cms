@@ -196,6 +196,12 @@ export class UsersRepository extends BaseRepository<User> {
     const all = await this.findAll();
     return all.find((u) => u.email.toLowerCase() === email.toLowerCase()) || null;
   }
+
+  public async findByFirebaseUid(firebaseUid: string): Promise<User | null> {
+    if (!firebaseUid) return null;
+    const all = await this.findAll();
+    return all.find((u) => u.firebaseUid === firebaseUid) || null;
+  }
 }
 
 export const auditLogRepository = AuditLogRepository.getInstance();

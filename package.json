@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "env:check": "tsx scripts/check-env.ts",
+    "bootstrap:admin": "tsx scripts/bootstrap-initial-admin.ts",
     "dev": "tsx backend/server/server.ts",
     "build": "vite build && esbuild backend/server/server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
     "start": "node dist/server.cjs",
@@ -13,6 +14,7 @@
     "lint": "node --max-old-space-size=4096 ./node_modules/typescript/bin/tsc --noEmit",
     "test": "tsx tests/integration/fc-001-auth.test.ts && tsx tests/integration/fc-002-rbac.test.ts && tsx tests/integration/fc-003-db-api.test.ts && tsx tests/integration/fc-004-audit.test.ts && tsx tests/integration/fc-005-workflow.test.ts",
     "test:auth": "tsx tests/integration/fc-001-auth.test.ts",
+    "test:auth:migration": "tsx tests/unit/firebase-auth-migration.test.ts",
     "test:rbac": "tsx tests/integration/fc-002-rbac.test.ts",
     "test:db-api": "tsx tests/integration/fc-003-db-api.test.ts",
     "test:audit": "tsx tests/integration/fc-004-audit.test.ts",

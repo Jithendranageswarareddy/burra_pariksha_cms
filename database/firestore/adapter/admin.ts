@@ -14,6 +14,7 @@
 import '../../../src/config/env';
 import { initializeApp, getApps, App, cert, applicationDefault, deleteApp } from 'firebase-admin/app';
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
+import { getAuth, Auth } from 'firebase-admin/auth';
 import {
   assertDatastoreSafe,
   DatastoreResolution,
@@ -21,6 +22,7 @@ import {
 
 let adminAppInstance: App | null = null;
 let adminFirestoreInstance: Firestore | null = null;
+let adminAuthInstance: Auth | null = null;
 let activeTargetConfig: DatastoreResolution | null = null;
 
 export function getAdminApp(): App {
@@ -87,12 +89,26 @@ export function getAdminFirestore(): Firestore {
   return adminFirestoreInstance;
 }
 
+export function getAdminAuth(): Auth {
+  if (adminAuthInstance) {
+    return adminAuthInstance;
+  }
+  const app = getAdminApp();
+  adminAuthInstance = getAuth(app);
+  return adminAuthInstance;
+}
+
+export function setAdminAuth(mockAuth: Auth | any | null): void {
+  adminAuthInstance = mockAuth;
+}
+
 export function getActiveDatastoreTarget(): DatastoreResolution | null {
   return activeTargetConfig;
 }
 
 export async function resetAdminApp(): Promise<void> {
   activeTargetConfig = null;
+  adminAuthInstance = null;
   if (adminFirestoreInstance) {
     try {
       await adminFirestoreInstance.terminate();

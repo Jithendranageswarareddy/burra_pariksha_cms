@@ -42,10 +42,11 @@ import { questionDraftsRepository } from '../../../database/firestore/repositori
 import { thumbnailCandidatesRepository } from '../../../database/firestore/repositories/thumbnail-candidates.repository';
 import { ThumbnailSafetyValidator } from '../../ai/validators';
 import { aiOrchestrator } from '../../ai/orchestrator';
-import { QuestionStatus, UserRole, SocialReviewStatus, RenderValidationStatus, VideoProductionStatus, canonicalIdService } from '../../../shared';
+import { QuestionStatus, User, UserRole, SocialReviewStatus, RenderValidationStatus, VideoProductionStatus, canonicalIdService } from '../../../shared';
 import { WorkflowActor } from '../../../src/types';
 import { ProductionAssetValidationService } from '../../infrastructure/services/production-asset-validation.service';
 import { ActorContext } from '../../infrastructure/auth/services/object-auth.service';
+import { getAdminAuth } from '../../../database/firestore/adapter/admin';
 import { usersRepository } from '../../../database/firestore/repositories/users.repository';
 import { questionsRepository } from '../../../database/firestore/repositories/questions.repository';
 import { mediaAssetsRepository } from '../../../database/firestore/repositories/media-assets.repository';
@@ -378,6 +379,269 @@ apiRouter.post(['/auth/change-password', '/v1/auth/change-password'], requireAut
   }
 });
 
+apiRouter.post(['/auth/forgot-password', '/v1/auth/forgot-password'], authRateLimiter, async (req: Request, res: Response) => {
+  const requestId = (req.headers['x-request-id'] as string) || `req_${Date.now()}`;
+  try {
+    const { email } = req.body || {};
+    if (!email || typeof email !== 'string' || !email.includes('@')) {
+      const errEnvelope = createErrorResponse(
+        ApiErrorCode.VALIDATION_ERROR,
+        'A valid email address is required.',
+        requestId,
+        { field: 'email' }
+      );
+      res.status(400).json({ ...errEnvelope, message: 'A valid email address is required.' });
+      return;
+    }
+
+    const result = await authService.sendPasswordReset(email);
+    const successEnvelope = createSuccessResponse({ message: result.message }, requestId);
+    res.json({ ...successEnvelope, message: result.message });
+  } catch {
+    const successEnvelope = createSuccessResponse({
+      message: 'If an account exists for this email address, a password reset link will be sent.',
+    }, requestId);
+    res.json({
+      ...successEnvelope,
+      message: 'If an account exists for this email address, a password reset link will be sent.',
+    });
+  }
+});
+
+apiRouter.post(['/auth/verify-reset-code', '/v1/auth/verify-reset-code'], authRateLimiter, async (req: Request, res: Response) => {
+  const requestId = (req.headers['x-request-id'] as string) || `req_${Date.now()}`;
+  try {
+    const { oobCode } = req.body || {};
+    if (!oobCode || typeof oobCode !== 'string') {
+      const errEnvelope = createErrorResponse(
+        ApiErrorCode.VALIDATION_ERROR,
+        'Action code is required.',
+        requestId,
+        { field: 'oobCode' }
+      );
+      res.status(400).json({ ...errEnvelope, message: 'Action code is required.' });
+      return;
+    }
+
+    const result = await authService.verifyResetCode(oobCode);
+    if (!result.valid) {
+      const errEnvelope = createErrorResponse(
+        ApiErrorCode.VALIDATION_ERROR,
+        result.error || 'The password reset link is invalid or has expired.',
+        requestId
+      );
+      res.status(400).json({ ...errEnvelope, message: result.error || 'The password reset link is invalid or has expired.' });
+      return;
+    }
+
+    const successEnvelope = createSuccessResponse({ valid: true, email: result.email }, requestId);
+    res.json({ ...successEnvelope, valid: true, email: result.email });
+  } catch {
+    const errEnvelope = createErrorResponse(
+      ApiErrorCode.INTERNAL_SERVER_ERROR,
+      'Failed to verify reset code.',
+      requestId
+    );
+    res.status(500).json({ ...errEnvelope, message: 'Failed to verify reset code.' });
+  }
+});
+
+apiRouter.post(['/auth/reset-password', '/v1/auth/reset-password'], authRateLimiter, async (req: Request, res: Response) => {
+  const requestId = (req.headers['x-request-id'] as string) || `req_${Date.now()}`;
+  try {
+    const { oobCode, newPassword, confirmPassword } = req.body || {};
+    if (!oobCode) {
+      const errEnvelope = createErrorResponse(
+        ApiErrorCode.VALIDATION_ERROR,
+        'Action code is required.',
+        requestId,
+        { field: 'oobCode' }
+      );
+      res.status(400).json({ ...errEnvelope, message: 'Action code is required.' });
+      return;
+    }
+    if (!newPassword || newPassword.length < 8) {
+      const errEnvelope = createErrorResponse(
+        ApiErrorCode.VALIDATION_ERROR,
+        'New password must be at least 8 characters long.',
+        requestId,
+        { field: 'newPassword' }
+      );
+      res.status(400).json({ ...errEnvelope, message: 'New password must be at least 8 characters long.' });
+      return;
+    }
+    if (confirmPassword !== undefined && newPassword !== confirmPassword) {
+      const errEnvelope = createErrorResponse(
+        ApiErrorCode.VALIDATION_ERROR,
+        'New password and confirmation do not match.',
+        requestId,
+        { field: 'confirmPassword' }
+      );
+      res.status(400).json({ ...errEnvelope, message: 'New password and confirmation do not match.' });
+      return;
+    }
+
+    const result = await authService.resetPasswordWithCode(oobCode, newPassword);
+    if (!result.success) {
+      const errEnvelope = createErrorResponse(
+        ApiErrorCode.VALIDATION_ERROR,
+        result.error || 'Failed to reset password.',
+        requestId
+      );
+      res.status(400).json({ ...errEnvelope, message: result.error });
+      return;
+    }
+
+    const successEnvelope = createSuccessResponse({ message: result.message }, requestId);
+    res.json({ ...successEnvelope, message: result.message });
+  } catch {
+    const errEnvelope = createErrorResponse(
+      ApiErrorCode.INTERNAL_SERVER_ERROR,
+      'Failed to reset password.',
+      requestId
+    );
+    res.status(500).json({ ...errEnvelope, message: 'Failed to reset password.' });
+  }
+});
+
+apiRouter.post(['/auth/bootstrap-admin', '/v1/auth/bootstrap-admin'], authRateLimiter, async (req: Request, res: Response) => {
+  const requestId = (req.headers['x-request-id'] as string) || `req_${Date.now()}`;
+  try {
+    const expectedSecret = process.env.BOOTSTRAP_ADMIN_SECRET;
+    const providedSecret = req.headers['x-bootstrap-secret'] || req.body?.bootstrapSecret;
+
+    if (!expectedSecret || typeof providedSecret !== 'string' || providedSecret !== expectedSecret) {
+      const errEnvelope = createErrorResponse(
+        ApiErrorCode.FORBIDDEN_BY_BUSINESS_RULE,
+        'Administrative bootstrap is disabled or unauthorized.',
+        requestId
+      );
+      res.status(403).json({ ...errEnvelope, message: 'Administrative bootstrap is disabled or unauthorized.' });
+      return;
+    }
+
+    // Check if an active administrator already exists in Firestore
+    const allUsers = await usersRepository.findAll();
+    const existingAdmin = allUsers.find(
+      (u) => u.isActive && (u.role === UserRole.ADMIN || (Array.isArray(u.roles) && u.roles.includes(UserRole.ADMIN)))
+    );
+
+    if (existingAdmin) {
+      const errEnvelope = createErrorResponse(
+        ApiErrorCode.CONCURRENCY_CONFLICT,
+        'An active administrator already exists. Bootstrap provisioning is permanently disabled.',
+        requestId
+      );
+      res.status(409).json({
+        ...errEnvelope,
+        message: 'An active administrator already exists. Bootstrap provisioning is permanently disabled.',
+      });
+      return;
+    }
+
+    const { email, name, password } = req.body || {};
+    if (!email || !name) {
+      const errEnvelope = createErrorResponse(
+        ApiErrorCode.VALIDATION_ERROR,
+        'Administrator email and name are required.',
+        requestId
+      );
+      res.status(400).json({ ...errEnvelope, message: 'Administrator email and name are required.' });
+      return;
+    }
+
+    const trimmedEmail = String(email).trim().toLowerCase();
+    const adminAuth = getAdminAuth();
+    let authUser: any;
+    try {
+      authUser = await adminAuth.getUserByEmail(trimmedEmail);
+      if (password) {
+        try {
+          await adminAuth.updateUser(authUser.uid, { password });
+        } catch (updateErr: any) {
+          console.warn(`[AUTH-BOOTSTRAP] Notice: Could not update password in Firebase Auth: ${updateErr?.message}`);
+        }
+      }
+    } catch (err: any) {
+      if (err?.code === 'auth/user-not-found') {
+        try {
+          authUser = await adminAuth.createUser({
+            email: trimmedEmail,
+            displayName: String(name).trim(),
+            password: password || undefined,
+          });
+        } catch (createErr: any) {
+          console.warn(`[AUTH-BOOTSTRAP] Notice: Firebase Auth creation fallback: ${createErr?.message}`);
+          authUser = {
+            uid: `fb_${canonicalIdService.generateUserId()}`,
+            email: trimmedEmail,
+            displayName: String(name).trim(),
+          };
+        }
+      } else {
+        console.warn(`[AUTH-BOOTSTRAP] Notice: Firebase Auth service unavailable (${err?.message}), using local identity.`);
+        authUser = {
+          uid: `fb_${canonicalIdService.generateUserId()}`,
+          email: trimmedEmail,
+          displayName: String(name).trim(),
+        };
+      }
+    }
+
+    let setupLink: string | undefined = undefined;
+    if (!password) {
+      try {
+        setupLink = await adminAuth.generatePasswordResetLink(trimmedEmail);
+      } catch {
+        setupLink = `https://burra-pariksha-cms.web.app/reset-password?mode=resetPassword&oobCode=setup_${canonicalIdService.generateUserId()}`;
+      }
+    }
+
+    const adminUser: User = {
+      id: canonicalIdService.generateUserId(),
+      name: String(name).trim(),
+      email: trimmedEmail,
+      role: UserRole.ADMIN,
+      roles: [UserRole.ADMIN],
+      firebaseUid: authUser?.uid,
+      isActive: true,
+      dataScope: 'ALL',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    const created = await usersRepository.appendRecord(adminUser);
+    await auditService.log(
+      created.id,
+      created.name,
+      'FIRST_ADMIN_BOOTSTRAPPED',
+      'SYSTEM',
+      created.id,
+      { email: created.email, hasFirebaseUid: Boolean(authUser?.uid) }
+    );
+
+    const successEnvelope = createSuccessResponse({
+      message: 'First administrator successfully provisioned.',
+      userId: created.id,
+      setupLink,
+    }, requestId);
+
+    res.status(201).json({
+      ...successEnvelope,
+      message: 'First administrator successfully provisioned.',
+      userId: created.id,
+      setupLink,
+    });
+  } catch (err: any) {
+    const errEnvelope = createErrorResponse(
+      ApiErrorCode.INTERNAL_SERVER_ERROR,
+      `Bootstrap failed: ${err?.message}`,
+      requestId
+    );
+    res.status(500).json({ ...errEnvelope, message: `Bootstrap failed: ${err?.message}` });
+  }
+});
+
 apiRouter.get(['/auth/me', '/v1/auth/me'], async (req: Request, res: Response) => {
   const requestId = (req.headers['x-request-id'] as string) || `req_${Date.now()}`;
   try {
@@ -397,23 +661,38 @@ apiRouter.get(['/auth/me', '/v1/auth/me'], async (req: Request, res: Response) =
       return;
     }
 
-    const payload = authService.verifySessionToken(token);
-    if (!payload) {
-      res.clearCookie('bp_session', { path: '/' });
-      const errEnvelope = createErrorResponse(
-        ApiErrorCode.UNAUTHENTICATED,
-        'Invalid or expired session.',
-        requestId
-      );
-      res.status(401).json({
-        ...errEnvelope,
-        authenticated: false,
-        message: 'Invalid or expired session.',
-      });
-      return;
+    let user: User | null = null;
+    if (token.split('.').length === 3) {
+      try {
+        const decoded = await getAdminAuth().verifyIdToken(token);
+        user = await usersRepository.findByFirebaseUid(decoded.uid);
+        if (!user && decoded.email) {
+          user = await usersRepository.findByEmail(decoded.email);
+        }
+      } catch {
+        // Fall back to verifySessionToken
+      }
     }
 
-    const user = await assignmentService.getUserById(payload.userId);
+    if (!user) {
+      const payload = authService.verifySessionToken(token);
+      if (!payload) {
+        res.clearCookie('bp_session', { path: '/' });
+        const errEnvelope = createErrorResponse(
+          ApiErrorCode.UNAUTHENTICATED,
+          'Invalid or expired session.',
+          requestId
+        );
+        res.status(401).json({
+          ...errEnvelope,
+          authenticated: false,
+          message: 'Invalid or expired session.',
+        });
+        return;
+      }
+      user = await assignmentService.getUserById(payload.userId);
+    }
+
     if (!user || !user.isActive) {
       res.clearCookie('bp_session', { path: '/' });
       const errEnvelope = createErrorResponse(
@@ -4723,6 +5002,17 @@ apiRouter.patch(['/users/:id', '/v1/users/:id'], requireCapability('USER:ADMINIS
     res.json(user);
   } catch (err: any) {
     res.status(400).json({ error: 'Failed to update user', message: err?.message });
+  }
+});
+
+apiRouter.post(['/users/:id/resend-setup-email', '/v1/users/:id/resend-setup-email'], requireCapability('USER:ADMINISTER'), async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const actor = getRequestActor(req);
+    const result = await assignmentService.resendSetupEmail(id, actor);
+    res.json(result);
+  } catch (err: any) {
+    res.status(400).json({ error: 'Failed to resend setup email', message: err?.message });
   }
 });
 

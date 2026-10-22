@@ -1532,6 +1532,52 @@ export class ApiClient {
     return res;
   }
 
+  public async forgotPassword(email: string): Promise<{ success: boolean; message: string }> {
+    return this.request<{ success: boolean; message: string }>('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+  }
+
+  public async verifyResetCode(oobCode: string): Promise<{ success: boolean; valid?: boolean; email?: string; error?: string }> {
+    return this.request<{ success: boolean; valid?: boolean; email?: string; error?: string }>('/auth/verify-reset-code', {
+      method: 'POST',
+      body: JSON.stringify({ oobCode }),
+    });
+  }
+
+  public async resetPassword(
+    oobCode: string,
+    newPassword: string,
+    confirmPassword?: string
+  ): Promise<{ success: boolean; message?: string; error?: string }> {
+    return this.request<{ success: boolean; message?: string; error?: string }>('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ oobCode, newPassword, confirmPassword }),
+    });
+  }
+
+  public async resendSetupEmail(userId: string): Promise<{ success: boolean; setupLink?: string; message: string }> {
+    return this.request<{ success: boolean; setupLink?: string; message: string }>(`/users/${encodeURIComponent(userId)}/resend-setup-email`, {
+      method: 'POST',
+    });
+  }
+
+  public async bootstrapAdmin(data: {
+    email: string;
+    name: string;
+    password?: string;
+    bootstrapSecret: string;
+  }): Promise<{ success: boolean; message: string; userId?: string; setupLink?: string }> {
+    return this.request<{ success: boolean; message: string; userId?: string; setupLink?: string }>('/auth/bootstrap-admin', {
+      method: 'POST',
+      headers: {
+        'x-bootstrap-secret': data.bootstrapSecret,
+      },
+      body: JSON.stringify(data),
+    });
+  }
+
   public async getProductionBoard(): Promise<import('../../shared').ProductionBoardItem[]> {
     return this.request('/production-board');
   }

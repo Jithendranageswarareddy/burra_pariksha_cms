@@ -20,6 +20,7 @@ export interface User {
   roles?: (UserRole | string)[];
   avatarUrl?: string;
   isActive: boolean;
+  firebaseUid?: string;
   password_hash?: string;
   sessionVersion?: number;
   dataScope?: string;
