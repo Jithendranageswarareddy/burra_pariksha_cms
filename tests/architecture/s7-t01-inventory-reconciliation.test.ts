@@ -151,6 +151,9 @@ export const AUTHORITATIVE_APPROVED_POST_S7_ADDITIONS: readonly string[] = [
   'tests/unit/datastore-isolation-guard.unit.test.ts',
   'tests/unit/question-studio-navigation.unit.test.ts',
   'tests/unit/firestore-native-id-and-persistence.unit.test.ts',
+  'docs/architecture/FIRESTORE-COLLECTION-CONTRACT.md',
+  'docs/diagnostics/FIRESTORE-AND-SHEETS-MIGRATION-AUDIT.md',
+  'docs/diagnostics/FIRESTORE-PERSISTENCE-VERIFICATION.md',
 ];
 
 const EXPECTED_HISTORICAL_S7_COUNT = 713;
