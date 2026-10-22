@@ -40,6 +40,12 @@ export function loadLocalEnv(): void {
       'burraparikshacon'
     );
   }
+
+  // 4. Default emulator host if USE_FIRESTORE_EMULATOR is enabled
+  const useEmulator = process.env.USE_FIRESTORE_EMULATOR?.trim().toLowerCase();
+  if ((useEmulator === 'true' || useEmulator === '1') && !process.env.FIRESTORE_EMULATOR_HOST) {
+    process.env.FIRESTORE_EMULATOR_HOST = '127.0.0.1:8080';
+  }
 }
 
 // Auto-execute on module import in Node runtime

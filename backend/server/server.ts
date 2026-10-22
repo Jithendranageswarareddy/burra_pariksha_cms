@@ -14,6 +14,7 @@ import { usersRepository } from '../../database/firestore/repositories/users.rep
 import { googleDriveService } from '../infrastructure/services/google-drive.service';
 
 import { validateEnvironmentRuntime } from '../../src/config/env.contract';
+import { assertDatastoreSafe } from '../../src/config/datastore-guard';
 
 async function startServer() {
   const app = express();
@@ -36,6 +37,16 @@ async function startServer() {
 
   // Mount Health & System Probes (FC-004)
   app.use(healthRouter);
+
+  // Enforce authoritative datastore safety guard before warming up repositories
+  const datastoreTarget = assertDatastoreSafe();
+  console.log('Cloud Firestore datastore configuration:');
+  console.log(`  mode: ${datastoreTarget.mode}`);
+  console.log(`  project ID: ${datastoreTarget.projectId}`);
+  console.log(`  database ID: ${datastoreTarget.databaseId}`);
+  console.log(`  emulator host: ${datastoreTarget.emulatorHost || 'none (cloud)'}`);
+  console.log(`  production target: ${datastoreTarget.isProductionTarget ? 'YES' : 'NO'}`);
+
   // Determine port and host from CLI args or environment variables
   const portArgIndex = process.argv.indexOf('--port');
   const portFromArg = portArgIndex !== -1 && process.argv[portArgIndex + 1] ? parseInt(process.argv[portArgIndex + 1], 10) : NaN;

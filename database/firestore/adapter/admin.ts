@@ -3,19 +3,25 @@
  * Single authoritative backend initialization module for Cloud Firestore access.
  *
  * Supports:
+ * - Local Emulator: FIRESTORE_EMULATOR_HOST / USE_FIRESTORE_EMULATOR with synthetic project
  * - Local Antigravity: GOOGLE_SERVICE_ACCOUNT_EMAIL + GOOGLE_PRIVATE_KEY via inline cert
  * - Production Cloud Run / GCP: Application Default Credentials (ADC) fallback
  * - Configured named database: FIRESTORE_DATABASE_ID (ai-studio-burraparikshacon-...)
+ * - Strict Datastore Isolation Guard: Fails closed if test or unapproved local runtime targets production
  * - Zero secret logging
  */
 
 import '../../../src/config/env';
 import { initializeApp, getApps, App, cert, applicationDefault, deleteApp } from 'firebase-admin/app';
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
-import firebaseConfig from '../../../firebase-applet-config.json';
+import {
+  assertDatastoreSafe,
+  DatastoreResolution,
+} from '../../../src/config/datastore-guard';
 
 let adminAppInstance: App | null = null;
 let adminFirestoreInstance: Firestore | null = null;
+let activeTargetConfig: DatastoreResolution | null = null;
 
 export function getAdminApp(): App {
   if (adminAppInstance) {
@@ -28,33 +34,43 @@ export function getAdminApp(): App {
     return adminAppInstance;
   }
 
-  const projectId =
-    process.env.GCP_PROJECT ||
-    process.env.GCP_PROJECT_ID ||
-    process.env.GOOGLE_CLOUD_PROJECT ||
-    process.env.GCLOUD_PROJECT ||
-    (process.env.FIRESTORE_EMULATOR_HOST ? 'burra-pariksha-test' : firebaseConfig.projectId) ||
-    'burra-pariksha-cms';
-
-  const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-  let privateKey = process.env.GOOGLE_PRIVATE_KEY;
+  // 1. Enforce Datastore Isolation Guard (fails closed if target is unsafe or unapproved)
+  const target = assertDatastoreSafe();
+  activeTargetConfig = target;
 
   let credential;
-  if (email && privateKey) {
-    privateKey = privateKey.replace(/\\n/g, '\n');
-    credential = cert({
-      projectId,
-      clientEmail: email,
-      privateKey,
-    });
+  if (target.mode === 'LOCAL_FIRESTORE_EMULATOR') {
+    // Under emulator execution, ensure the emulator host environment variable is set for the SDK.
+    // Zero secret exposure: Never load or pass production service account private keys to the emulator.
+    if (target.emulatorHost) {
+      process.env.FIRESTORE_EMULATOR_HOST = target.emulatorHost;
+    }
+    credential = {
+      getAccessToken: async () => ({
+        access_token: 'synthetic-emulator-token',
+        expires_in: 3600,
+      }),
+    };
   } else {
-    // Fall back to Application Default Credentials (Cloud Run / GCP environments)
-    credential = applicationDefault();
+    const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+    let privateKey = process.env.GOOGLE_PRIVATE_KEY;
+
+    if (email && privateKey) {
+      privateKey = privateKey.replace(/\\n/g, '\n');
+      credential = cert({
+        projectId: target.projectId,
+        clientEmail: email,
+        privateKey,
+      });
+    } else {
+      // Fall back to Application Default Credentials (Cloud Run / GCP environments)
+      credential = applicationDefault();
+    }
   }
 
   adminAppInstance = initializeApp({
     credential,
-    projectId,
+    projectId: target.projectId,
   });
 
   return adminAppInstance;
@@ -65,21 +81,20 @@ export function getAdminFirestore(): Firestore {
     return adminFirestoreInstance;
   }
 
+  // Enforce datastore safety guard before acquiring Firestore client
+  const target = activeTargetConfig || assertDatastoreSafe();
   const app = getAdminApp();
-  let databaseId =
-    process.env.FIRESTORE_DATABASE_ID ||
-    (process.env.FIRESTORE_EMULATOR_HOST ? '(default)' : (firebaseConfig as any).firestoreDatabaseId) ||
-    '(default)';
 
-  if (databaseId.includes('burraparishacon')) {
-    databaseId = databaseId.replace('burraparishacon', 'burraparikshacon');
-  }
-
-  adminFirestoreInstance = getFirestore(app, databaseId);
+  adminFirestoreInstance = getFirestore(app, target.databaseId);
   return adminFirestoreInstance;
 }
 
+export function getActiveDatastoreTarget(): DatastoreResolution | null {
+  return activeTargetConfig;
+}
+
 export async function resetAdminApp(): Promise<void> {
+  activeTargetConfig = null;
   if (adminFirestoreInstance) {
     try {
       await adminFirestoreInstance.terminate();

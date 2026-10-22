@@ -174,6 +174,30 @@ export const OPTIONAL_RUNTIME_VARS: EnvVariableDef[] = [
     description: 'Video take max file size in bytes (defaults to 104857600)',
     safePlaceholder: '104857600',
   },
+  {
+    name: 'USE_FIRESTORE_EMULATOR',
+    isSecret: false,
+    requiredInProduction: false,
+    featureScope: 'RUNTIME_OPTIONAL',
+    description: 'Toggle to enforce local Firestore Emulator binding in development and testing',
+    safePlaceholder: 'true',
+  },
+  {
+    name: 'FIRESTORE_EMULATOR_HOST',
+    isSecret: false,
+    requiredInProduction: false,
+    featureScope: 'RUNTIME_OPTIONAL',
+    description: 'Firestore Emulator network endpoint (defaults to 127.0.0.1:8080 when USE_FIRESTORE_EMULATOR=true)',
+    safePlaceholder: '127.0.0.1:8080',
+  },
+  {
+    name: 'ALLOW_PRODUCTION_FIRESTORE_IN_DEV',
+    isSecret: false,
+    requiredInProduction: false,
+    featureScope: 'RUNTIME_OPTIONAL',
+    description: 'Explicit operator override to allow local development to target live production Firestore',
+    safePlaceholder: 'false',
+  },
 ];
 
 export interface ValidationReport {
