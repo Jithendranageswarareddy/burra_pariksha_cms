@@ -113,8 +113,8 @@ export class DriveSyncService {
     const { contentId, mediaStage, fileName, mimeType, bodyStreamOrBuffer } = params;
 
     // 1. Content ID Authorization
-    if (!contentId || !contentId.startsWith('BP-CNT-')) {
-      throw new ValidationError(`Invalid Content ID: "${contentId}". Must match "BP-CNT-######" form.`);
+    if (!contentId) {
+      throw new ValidationError(`Invalid Content ID: "${contentId}".`);
     }
 
     // Verify content item exists

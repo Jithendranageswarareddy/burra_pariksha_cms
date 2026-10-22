@@ -117,6 +117,9 @@ export class ObjectAuthorizationService {
     if (this.isManagerOrAdmin(actor)) return true;
     if (!question) return false;
 
+    // Reviewers evaluating content
+    if (this.hasAnyRole(actor, [UserRole.REVIEWER, 'REVIEWER'])) return true;
+
     // Author/Creator access
     if (question.authorId === actor.id || (question as any).createdBy === actor.id) return true;
 
@@ -140,6 +143,9 @@ export class ObjectAuthorizationService {
     if (this.isManagerOrAdmin(actor)) return true;
     if (!question) return false;
 
+    // Reviewers approving or queueing questions
+    if (this.hasAnyRole(actor, [UserRole.REVIEWER, 'REVIEWER'])) return true;
+
     const allowedRoles = [
       UserRole.QUESTION_EDITOR,
       UserRole.QUESTION_CREATOR,
@@ -147,6 +153,7 @@ export class ObjectAuthorizationService {
       UserRole.CREATOR,
       UserRole.CONTENT_WRITER,
       UserRole.EDITOR,
+      UserRole.REVIEWER,
     ];
     if (!this.hasAnyRole(actor, allowedRoles)) return false;
 
@@ -412,6 +419,8 @@ export class ObjectAuthorizationService {
   ): Promise<boolean> {
     if (this.isManagerOrAdmin(actor)) return true;
     if (!cm) return false;
+
+    if (this.hasAnyRole(actor, [UserRole.REVIEWER, 'REVIEWER'])) return true;
 
     if (cm.createdBy === actor.id) return true;
 

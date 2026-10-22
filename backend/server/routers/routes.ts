@@ -1823,7 +1823,7 @@ apiRouter.post('/questions/check-duplicate', async (req: Request, res: Response)
   }
 });
 
-apiRouter.post('/questions/:id/queue', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER]), async (req: Request, res: Response) => {
+apiRouter.post('/questions/:id/queue', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.REVIEWER]), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { remarks } = req.body || {};
@@ -1978,7 +1978,7 @@ apiRouter.get('/questions/:id/validation-history', async (req: Request, res: Res
 // Videos & Production Endpoints (Phase 5)
 // ----------------------------------------------------
 
-apiRouter.post('/videos/queue', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER]), async (req: Request, res: Response) => {
+apiRouter.post('/videos/queue', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.REVIEWER]), async (req: Request, res: Response) => {
   try {
     const { questionId, notes } = req.body || {};
     if (!questionId) {
@@ -2227,7 +2227,7 @@ apiRouter.get('/videos/:id/stream', requireAuth, async (req: Request, res: Respo
   }
 });
 
-apiRouter.post('/videos/queue', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER]), async (req: Request, res: Response) => {
+apiRouter.post('/videos/queue', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.REVIEWER]), async (req: Request, res: Response) => {
   try {
     const actor = getRequestActor(req);
     const video = await videoService.queueApprovedQuestion(req.body, actor);
@@ -2256,6 +2256,26 @@ apiRouter.patch('/videos/:id/status', requireRole([UserRole.ADMIN, UserRole.CONT
     const canModify = await objectAuthService.canModifyVideo(currentActor, video);
     if (!canModify) {
       return res.status(403).json({ error: 'Forbidden: You do not have permission to update this video status.' });
+    }
+
+    if (status === VideoProductionStatus.RECORDED || status === VideoProductionStatus.EDITING) {
+      if (!video.driveFileId && !video.rawFootagePath) {
+        const cId = video.contentId || video.contentMasterId;
+        if (cId) {
+          const rawAssets = await driveSyncService.listAssetsByStage(cId, 'RAW');
+          if (rawAssets && rawAssets.length > 0) {
+            const latestRaw = rawAssets[rawAssets.length - 1];
+            video.driveFileId = latestRaw.driveFileId;
+            video.rawFootagePath = `https://drive.google.com/file/d/${latestRaw.driveFileId}/view`;
+            video.fileName = latestRaw.fileName;
+            await videoService.updateVideoMetadata(video.id, {
+              driveFileId: video.driveFileId,
+              rawFootagePath: video.rawFootagePath,
+              fileName: video.fileName,
+            });
+          }
+        }
+      }
     }
 
     if (status === VideoProductionStatus.RECORDED && !video.driveFileId && !video.rawFootagePath) {
@@ -4044,7 +4064,10 @@ apiRouter.get(
       }
 
       // 3. Authorization verification
-      const isManagerOrAdmin = actor.role === UserRole.ADMIN || actor.role === UserRole.CONTENT_MANAGER;
+      const isManagerOrAdmin =
+        objectAuthService.isManagerOrAdmin(actor as any) ||
+        actor.role === UserRole.ADMIN ||
+        String(actor.role).toUpperCase() === 'ADMIN';
       if (!isManagerOrAdmin) {
         if (actor.role === UserRole.REVIEWER) {
           // Reviewer can access if review is assigned to them or question is assigned to them

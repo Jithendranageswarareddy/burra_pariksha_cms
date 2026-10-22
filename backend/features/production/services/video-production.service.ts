@@ -130,9 +130,9 @@ export class VideoProductionService {
 
     // 4. Content ID Correlation & Invariants
     const canonicalContentId = script.contentId || this.resolveQuestionContentId(question);
-    if (!canonicalContentId || !canonicalContentId.startsWith('BP-CNT-')) {
+    if (!canonicalContentId) {
       throw new ValidationError(
-        `Invalid canonical Content ID "${canonicalContentId}" on script "${scriptId}". Must follow BP-CNT-###### pattern.`
+        `Invalid canonical Content ID "${canonicalContentId}" on script "${scriptId}".`
       );
     }
 
@@ -180,7 +180,6 @@ export class VideoProductionService {
         fileName: mediaAsset.fileName,
         mimeType: mediaAsset.mimeType,
         fileSize: mediaAsset.fileSize,
-        version: mediaAsset.version,
         rawFootagePath: `drive:${mediaAsset.driveFileId}`,
         assignedHost: actor.id,
         createdAt: now,
@@ -356,8 +355,8 @@ export class VideoProductionService {
       throw new ValidationError(`Video with ID "${videoId}" does not exist.`);
     }
 
-    const canonicalContentId = video.contentId;
-    if (!canonicalContentId || !canonicalContentId.startsWith('BP-CNT-')) {
+    const canonicalContentId = video.contentId || video.contentMasterId;
+    if (!canonicalContentId) {
       throw new ValidationError(`Invalid or missing Content ID on video "${videoId}".`);
     }
 
@@ -471,8 +470,8 @@ export class VideoProductionService {
       throw new ValidationError(`Video with ID "${videoId}" does not exist.`);
     }
 
-    const canonicalContentId = video.contentId;
-    if (!canonicalContentId || !canonicalContentId.startsWith('BP-CNT-')) {
+    const canonicalContentId = video.contentId || video.contentMasterId;
+    if (!canonicalContentId) {
       throw new ValidationError(`Invalid or missing Content ID on video "${videoId}".`);
     }
 
@@ -539,7 +538,6 @@ export class VideoProductionService {
       fileName: finalMediaAsset.fileName,
       mimeType: finalMediaAsset.mimeType,
       fileSize: finalMediaAsset.fileSize,
-      version: finalMediaAsset.version,
       finalRenderPath: `drive:${finalMediaAsset.driveFileId}`,
       updatedAt: now,
     });

@@ -91,6 +91,7 @@ export interface AuthorizationDecision {
   allowed: boolean;
   errorCode?: AuthorizationErrorCode;
   errorMessage?: string;
+  warning?: string;
   evaluatedCapability: CapabilityString;
   actorId: string;
   resolvedRole: CanonicalRbacRole;
@@ -109,24 +110,34 @@ export interface AuthorizationDecision {
  * An actor who authored an artifact cannot approve or verify that artifact under normal operation.
  * 
  * SPRINT 3 ENHANCEMENT:
- * System Administrator can perform an explicit, audited administrative override approval.
- * Mandatory requirements:
- * 1. Actor is CanonicalRbacRole.ADMIN (or holds ADMIN in roles)
- * 2. Override context is provided:
- *    - isOverride === true
- *    - confirmedByAdmin === true
- *    - reason is non-empty string of at least 10 characters
- * 
- * Without an explicit confirmed override + valid reason, even an ADMIN is blocked by GAR-02.
+ * System Administrator can perform direct end-to-end approvals without requiring an override.
+ * An admin can access anything on the website; optionally warns if task was assigned to another person.
  */
 export function evaluateSegregationOfDuties(
   actor: AuthorizationActor,
   targetContext?: TargetResourceContext,
   action?: AuthorizationAction
-): { allowed: boolean; errorCode?: AuthorizationErrorCode; errorMessage?: string; isOverride?: boolean } {
+): { allowed: boolean; errorCode?: AuthorizationErrorCode; errorMessage?: string; isOverride?: boolean; warning?: string } {
   // Only approval and verification actions trigger anti-self-approval checks
   if (action !== AuthorizationAction.APPROVE && action !== AuthorizationAction.VERIFY) {
     return { allowed: true };
+  }
+
+  const canonicalRole = resolveBrownfieldRole(actor.role);
+  const actorRoles = (actor.roles || [actor.role]).map((r) => resolveBrownfieldRole(r));
+  const isAdmin = canonicalRole === CanonicalRbacRole.ADMIN || actorRoles.includes(CanonicalRbacRole.ADMIN);
+
+  // Administrator Authority:
+  // An admin can access anything in a website.
+  // If an admin is working on that end to end, even no override is needed.
+  // Optionally warns if a task was assigned to another person.
+  if (isAdmin) {
+    let warning: string | undefined;
+    const assigneeId = (targetContext as any)?.assigneeId || (targetContext as any)?.assignedTo;
+    if (assigneeId && String(assigneeId).trim() !== String(actor.id).trim()) {
+      warning = `Note: Task was assigned to user ${assigneeId}. Administrator is acting directly.`;
+    }
+    return { allowed: true, isOverride: false, warning };
   }
 
   if (!targetContext) {
@@ -147,37 +158,10 @@ export function evaluateSegregationOfDuties(
   }
 
   if (actor.id === authorId.trim()) {
-    // Check if actor is an authenticated System Administrator performing an explicit, confirmed override
-    const canonicalRole = resolveBrownfieldRole(actor.role);
-    const actorRoles = (actor.roles || [actor.role]).map((r) => resolveBrownfieldRole(r));
-    const isAdmin = canonicalRole === CanonicalRbacRole.ADMIN || actorRoles.includes(CanonicalRbacRole.ADMIN);
-
-    const override = targetContext.override || ((targetContext as any)?.isOverride ? (targetContext as any) : undefined);
-    if (isAdmin && override?.isOverride) {
-      if (!override.confirmedByAdmin) {
-        return {
-          allowed: false,
-          errorCode: AuthorizationErrorCode.FORBIDDEN_BY_SEGREGATION_OF_DUTIES,
-          errorMessage: 'Administrative override requires explicit confirmation (confirmedByAdmin).',
-        };
-      }
-      const reason = String(override.reason || (override as any).overrideReason || '').trim();
-      if (reason.length < 10) {
-        return {
-          allowed: false,
-          errorCode: AuthorizationErrorCode.FORBIDDEN_BY_SEGREGATION_OF_DUTIES,
-          errorMessage: 'Administrative override requires a meaningful justification of at least 10 characters.',
-        };
-      }
-      return { allowed: true, isOverride: true };
-    }
-
     return {
       allowed: false,
       errorCode: AuthorizationErrorCode.FORBIDDEN_BY_SEGREGATION_OF_DUTIES,
-      errorMessage: isAdmin
-        ? 'Self-approval strictly prohibited under GAR-02: Author cannot approve their own work without an explicit confirmed administrative override and meaningful justification.'
-        : 'Self-approval strictly prohibited: Author/creator cannot approve or verify their own artifact (GAR-02). System Administrators must assign an independent reviewer.',
+      errorMessage: 'Self-approval strictly prohibited: Author/creator cannot approve or verify their own artifact (GAR-02). System Administrators must assign an independent reviewer.',
     };
   }
 
@@ -324,9 +308,12 @@ export function evaluateAuthorization(request: AuthorizationRequest): Authorizat
       ...((request.actor.roles || []).map((r) => resolveBrownfieldRole(r))),
     ])
   );
+  const isAdmin = canonicalRole === CanonicalRbacRole.ADMIN || allCanonicalRoles.includes(CanonicalRbacRole.ADMIN);
+
   const grantingRole = allCanonicalRoles.find((r) => roleHasCapability(r, capability));
-  const hasCap = Boolean(grantingRole);
-  const effectiveRole = grantingRole || canonicalRole;
+  // An admin can access anything on the website
+  const hasCap = isAdmin || Boolean(grantingRole);
+  const effectiveRole = grantingRole || (isAdmin ? CanonicalRbacRole.ADMIN : canonicalRole);
 
   if (!hasCap) {
     return {
@@ -439,6 +426,7 @@ export function evaluateAuthorization(request: AuthorizationRequest): Authorizat
 
   return {
     allowed: true,
+    warning: sodResult.warning,
     evaluatedCapability: capability,
     actorId,
     resolvedRole: effectiveRole,

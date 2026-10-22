@@ -102,11 +102,6 @@ export class QuestionValidationService {
         validationScore: result.confidenceScore,
         updatedAt: new Date().toISOString(),
       });
-    } else {
-      await questionDraftsRepository.update(questionId, {
-        status: QuestionStatus.DRAFT,
-        updatedAt: new Date().toISOString(),
-      });
     }
 
     await auditService.log(

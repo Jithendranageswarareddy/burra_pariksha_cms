@@ -59,6 +59,7 @@ export const VALID_VIDEO_TRANSITIONS: Record<VideoProductionStatus, VideoProduct
   [VideoProductionStatus.SCRIPT_READY]: [
     VideoProductionStatus.RECORDING,
     VideoProductionStatus.RECORDED,
+    VideoProductionStatus.EDITING,
     VideoProductionStatus.ON_HOLD,
     VideoProductionStatus.CANCELLED,
   ],
@@ -179,7 +180,7 @@ export class VideoService {
       : (actor.role ? [String(actor.role).toUpperCase()] : []);
 
     if (actorRoles.length > 0) {
-      const allowed = [UserRole.ADMIN, UserRole.CONTENT_MANAGER, 'CONTENT_LEAD'];
+      const allowed = [UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.REVIEWER, 'CONTENT_LEAD', 'REVIEWER'];
       const isAllowed = actorRoles.some((r: any) => allowed.includes(r as any));
       if (!isAllowed) {
         throw new Error(`Unauthorized: Role "${actor.role}" is not allowed to queue questions.`);
@@ -360,6 +361,24 @@ export class VideoService {
 
     if (video.status === newStatus) {
       return video;
+    }
+
+    if ((newStatus === VideoProductionStatus.RECORDED || newStatus === VideoProductionStatus.EDITING) && !video.driveFileId && !video.rawFootagePath) {
+      const cId = video.contentId || video.contentMasterId;
+      if (cId) {
+        const rawAssets = await mediaAssetsRepository.findByContentIdAndStage(cId, 'RAW');
+        if (rawAssets && rawAssets.length > 0) {
+          const latestRaw = rawAssets[rawAssets.length - 1];
+          video.driveFileId = latestRaw.driveFileId;
+          video.rawFootagePath = `https://drive.google.com/file/d/${latestRaw.driveFileId}/view`;
+          video.fileName = latestRaw.fileName;
+          await videosRepository.updateRecord(video.id, {
+            driveFileId: video.driveFileId,
+            rawFootagePath: video.rawFootagePath,
+            fileName: video.fileName,
+          });
+        }
+      }
     }
 
     if (newStatus === VideoProductionStatus.RECORDED && !video.driveFileId && !video.rawFootagePath && !bypassRawCheck) {
@@ -936,7 +955,6 @@ export class VideoService {
           fileName: sanitizedFileName,
           mimeType,
           fileSize: driveFile.size || size,
-          version: mediaAsset.version || nextVersion,
           rawFootagePath: driveFile.webViewLink || `https://drive.google.com/file/d/${driveFile.fileId}/view`,
           finalRenderFormat: mimeType.split('/')[1] || 'mp4',
           updatedAt: now,
@@ -983,7 +1001,7 @@ export class VideoService {
           fileName: sanitizedFileName,
           mimeType,
           fileSize: driveFile.size || size,
-          version: mediaAsset.version || nextVersion,
+          version: 1,
           rawFootagePath: driveFile.webViewLink || `https://drive.google.com/file/d/${driveFile.fileId}/view`,
           finalRenderFormat: mimeType.split('/')[1] || 'mp4',
           createdAt: now,

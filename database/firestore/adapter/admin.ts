@@ -38,19 +38,16 @@ export function getAdminApp(): App {
   const target = assertDatastoreSafe();
   activeTargetConfig = target;
 
-  let credential;
   if (target.mode === 'LOCAL_FIRESTORE_EMULATOR') {
     // Under emulator execution, ensure the emulator host environment variable is set for the SDK.
-    // Zero secret exposure: Never load or pass production service account private keys to the emulator.
+    // Zero secret exposure: Do not pass credentials to local emulator.
     if (target.emulatorHost) {
       process.env.FIRESTORE_EMULATOR_HOST = target.emulatorHost;
     }
-    credential = {
-      getAccessToken: async () => ({
-        access_token: 'synthetic-emulator-token',
-        expires_in: 3600,
-      }),
-    };
+    adminAppInstance = initializeApp({
+      projectId: target.projectId,
+    });
+    return adminAppInstance;
   } else {
     const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
     let privateKey = process.env.GOOGLE_PRIVATE_KEY;

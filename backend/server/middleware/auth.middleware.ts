@@ -507,6 +507,11 @@ export function requireNotAuthor(
       authorId = req.body?.authorUserId || req.body?.authorId || req.body?.createdBy || req.body?._authorId;
     }
 
+    const isAdmin = req.user?.role === UserRole.ADMIN || String(req.user?.role).toUpperCase() === 'ADMIN';
+    if (isAdmin) {
+      next();
+      return;
+    }
     if (authorId && req.user.id === authorId) {
       const errEnvelope = createErrorResponse(
         ApiErrorCode.FORBIDDEN_BY_BUSINESS_RULE,

@@ -488,25 +488,36 @@ export class SocialReviewService {
 
       // Gate: Self-approval policy (GAR-02)
       const authorId = (liveBundle.question as any).createdBy || (liveBundle.question as any).authorId || (liveBundle.question as any).userId;
-      if (!authorId || !String(authorId).trim()) {
-        const err = new Error('Author identity cannot be verified (missing authorId). Segregation of duties (GAR-02) requires an identifiable author before final review.');
-        (err as any).statusCode = 403;
-        throw err;
-      }
-      if (String(authorId).trim() === String(actor.id).trim()) {
-        const err = new Error('Self-approval is forbidden (GAR-02). Final review must be performed by an independent reviewer or Content Manager.');
-        (err as any).statusCode = 403;
-        throw err;
-      }
-      const scriptAuthorId = (liveBundle.teleprompterScript as any)?.authorId || (liveBundle.teleprompterScript as any)?.createdBy;
-      if (scriptAuthorId && String(scriptAuthorId).trim() === String(actor.id).trim()) {
-        const err = new Error('Self-approval is forbidden (GAR-02). Teleprompter script author cannot approve social package.');
-        (err as any).statusCode = 403;
-        throw err;
+      const isAdmin =
+        actor.role === UserRole.ADMIN ||
+        String(actor.role).toUpperCase() === 'ADMIN' ||
+        (Array.isArray(actor.roles) && actor.roles.some((r) => String(r).toUpperCase() === 'ADMIN'));
+
+      if (!isAdmin) {
+        if (!authorId || !String(authorId).trim()) {
+          const err = new Error('Author identity cannot be verified (missing authorId). Segregation of duties (GAR-02) requires an identifiable author before final review.');
+          (err as any).statusCode = 403;
+          throw err;
+        }
+        if (String(authorId).trim() === String(actor.id).trim()) {
+          const err = new Error('Self-approval is forbidden (GAR-02). Final review must be performed by an independent reviewer or Content Manager.');
+          (err as any).statusCode = 403;
+          throw err;
+        }
+        const scriptAuthorId = (liveBundle.teleprompterScript as any)?.authorId || (liveBundle.teleprompterScript as any)?.createdBy;
+        if (scriptAuthorId && String(scriptAuthorId).trim() === String(actor.id).trim()) {
+          const err = new Error('Self-approval is forbidden (GAR-02). Teleprompter script author cannot approve social package.');
+          (err as any).statusCode = 403;
+          throw err;
+        }
+      } else {
+        const assignedTo = (liveBundle as any).assigneeId || (liveBundle.video as any)?.assignedEditor || (liveBundle.video as any)?.assignedHost;
+        if (assignedTo && String(assignedTo).trim() !== String(actor.id).trim()) {
+          console.warn(`[SocialReviewService] Warning: Social package approved by Admin (${actor.id}), but video was assigned to ${assignedTo}.`);
+        }
       }
     }
-
-    // 6. Gate checks for CHANGES_REQUESTED and REJECTED
+// 6. Gate checks for CHANGES_REQUESTED and REJECTED
     if (input.decision === SocialReviewStatus.CHANGES_REQUESTED || input.decision === SocialReviewStatus.REJECTED) {
       const reasonText = (input.reason || '').trim();
       if (!reasonText || reasonText.length < 10) {

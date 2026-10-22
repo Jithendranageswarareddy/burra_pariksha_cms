@@ -104,11 +104,14 @@ export abstract class BaseRepository<T extends Record<string, any>> {
     }
 
     const expectedVer =
-      options?.expectedVersion ??
-      (updates as any)?.version ??
-      existing.version;
+      options?.expectedVersion !== undefined
+        ? options.expectedVersion
+        : existing.version;
 
-    const updated = await r.update(id, expectedVer, updates as any);
+    const cleanUpdates = { ...updates };
+    delete (cleanUpdates as any).version;
+
+    const updated = await r.update(id, expectedVer, cleanUpdates as any);
     return updated as unknown as T;
   }
 

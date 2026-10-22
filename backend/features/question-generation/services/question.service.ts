@@ -1095,7 +1095,7 @@ export class QuestionService {
       : (actor.role ? [String(actor.role).toUpperCase()] : []);
 
     if (actorRoles.length > 0) {
-      const allowed = [UserRole.ADMIN, UserRole.CONTENT_MANAGER, 'CONTENT_LEAD'];
+      const allowed = [UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.REVIEWER, 'CONTENT_LEAD', 'REVIEWER'];
       const isAllowed = actorRoles.some((r: any) => allowed.includes(r as any));
       if (!isAllowed) {
         throw new Error(`Unauthorized: Role "${actor.role}" is not allowed to queue questions.`);
