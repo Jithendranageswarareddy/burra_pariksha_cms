@@ -211,6 +211,7 @@ export class QuestionDraftService {
         tags: draft.tags,
         source: draft.source || 'AI Question Studio',
         mathematicalVerification: draft.mathematicalVerification,
+        productionMode: (draft as any).productionMode || 'QUESTION_CHALLENGE_SHORT',
         skipDuplicateCheck: true, // reviewed by human verifier
       },
       {

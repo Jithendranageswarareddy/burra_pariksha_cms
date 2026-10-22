@@ -403,7 +403,9 @@ export const QuestionVerifyApprovePage: React.FC = () => {
 
     return (
       <div className="space-y-6 pb-12 animate-in fade-in duration-200">
-        <ProductionJourneyBar activeStage="QUESTION_VERIFICATION" showDetails />
+        <div id="permanent-timeline-anchor" className="w-full">
+          <ProductionJourneyBar activeStage="QUESTION_VERIFICATION" showDetails />
+        </div>
 
         <PageHeader
           title="Verify & Approve Question"
@@ -519,7 +521,9 @@ export const QuestionVerifyApprovePage: React.FC = () => {
   return (
     <div className="space-y-5 pb-12 animate-in fade-in duration-200 max-w-7xl mx-auto">
       {/* 1. Permanent 15-Stage Timeline Anchor */}
-      <ProductionJourneyBar activeStage="QUESTION_VERIFICATION" showDetails />
+      <div id="permanent-timeline-anchor" className="w-full">
+        <ProductionJourneyBar activeStage="QUESTION_VERIFICATION" showDetails />
+      </div>
 
       {/* 2. Unified Page Header with Direct Navigation Actions */}
       <PageHeader
@@ -1074,6 +1078,7 @@ export const QuestionVerifyApprovePage: React.FC = () => {
                   <Button
                     variant="primary"
                     size="lg"
+                    data-testid="proceed-to-stage03-btn"
                     onClick={() => navigate(`/videos/${targetVideoId}?tab=script`)}
                     icon={ArrowRight}
                     className="w-full justify-center bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-bold py-3.5 shadow-md hover:shadow-lg transition-all text-sm group"
@@ -1217,6 +1222,7 @@ export const QuestionVerifyApprovePage: React.FC = () => {
                       <Button
                         variant="primary"
                         size="md"
+                        data-testid="approve-question-btn"
                         onClick={() => handleApprove()}
                         disabled={actionInProgress || !isApprovable}
                         icon={Check}

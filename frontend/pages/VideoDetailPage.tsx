@@ -99,9 +99,11 @@ export const VideoDetailPage: React.FC = () => {
   const [assigneeRole, setAssigneeRole] = useState<'SCRIPTING' | 'RECORDING' | 'EDITING' | 'THUMBNAIL' | 'REVIEW'>('RECORDING');
   const [assignNotes, setAssignNotes] = useState('');
 
-  const fetchVideoDetails = async () => {
+  const fetchVideoDetails = async (showLoadingSpinner: boolean = false) => {
     if (!videoId) return;
-    setIsLoading(true);
+    if (showLoadingSpinner || !video) {
+      setIsLoading(true);
+    }
     setErrorMessage(null);
     try {
       const data = await apiClient.getVideoById(videoId);
@@ -121,7 +123,7 @@ export const VideoDetailPage: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchVideoDetails();
+    fetchVideoDetails(true);
   }, [videoId]);
 
   const handleStatusTransition = async (nextStatus: VideoProductionStatus) => {
@@ -407,7 +409,7 @@ export const VideoDetailPage: React.FC = () => {
               questionId={video.questionId}
               videoId={video.id}
               driveFolderUrl={video.driveFolderUrl}
-              onReviewSubmitted={fetchVideoDetails}
+              onReviewSubmitted={() => { fetchVideoDetails(); }}
               onNavigateTab={(tab) => handleTabChange(tab as any)}
             />
           </div>

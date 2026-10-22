@@ -807,6 +807,7 @@ export const ScriptWorkspace: React.FC<ScriptWorkspaceProps> = ({
                     disabled={isSaving}
                     onClick={handleSaveDraft}
                     icon={Save}
+                    data-testid="save-script-btn"
                     className="text-[11px] py-1 px-2.5 h-7 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold"
                   >
                     {isSaving ? 'Saving...' : 'Save'}
@@ -1243,10 +1244,14 @@ export const ScriptWorkspace: React.FC<ScriptWorkspaceProps> = ({
                         </div>
                         <textarea
                           ref={autoResizeTextarea}
-                          onInput={(e) => autoResizeTextarea(e.currentTarget)}
+                          onInput={(e) => {
+                            autoResizeTextarea(e.currentTarget);
+                            setViralHook(e.currentTarget.value);
+                          }}
                           value={viralHook}
                           onChange={(e) => setViralHook(e.target.value)}
                           placeholder="e.g. ఈ లెక్కని 5 సెకన్లలో సాల్వ్ చేస్తే నువ్వు నిజంగా జీనియస్!"
+                          data-testid="script-viral-hook"
                           className="w-full text-sm font-telugu text-slate-900 leading-relaxed p-2.5 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:border-amber-500 focus:outline-hidden resize-none overflow-hidden min-h-[56px] transition-[height] duration-100"
                         />
                       </div>
@@ -1264,10 +1269,14 @@ export const ScriptWorkspace: React.FC<ScriptWorkspaceProps> = ({
                         </div>
                         <textarea
                           ref={autoResizeTextarea}
-                          onInput={(e) => autoResizeTextarea(e.currentTarget)}
+                          onInput={(e) => {
+                            autoResizeTextarea(e.currentTarget);
+                            setViralQuestion(e.currentTarget.value);
+                          }}
                           value={viralQuestion}
                           onChange={(e) => setViralQuestion(e.target.value)}
                           placeholder="Clear Telugu problem statement to be read aloud..."
+                          data-testid="script-viral-question"
                           className="w-full text-sm font-telugu text-slate-900 leading-relaxed p-2.5 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:border-amber-500 focus:outline-hidden resize-none overflow-hidden min-h-[56px] transition-[height] duration-100"
                         />
                       </div>
@@ -1309,10 +1318,14 @@ export const ScriptWorkspace: React.FC<ScriptWorkspaceProps> = ({
                         {includeOptionsInVideo ? (
                           <textarea
                             ref={autoResizeTextarea}
-                            onInput={(e) => autoResizeTextarea(e.currentTarget)}
+                            onInput={(e) => {
+                              autoResizeTextarea(e.currentTarget);
+                              setViralOptions(e.currentTarget.value);
+                            }}
                             value={viralOptions}
                             onChange={(e) => setViralOptions(e.target.value)}
                             placeholder="Option A: ...&#10;Option B: ...&#10;Option C: ...&#10;Option D: ..."
+                            data-testid="script-viral-options"
                             className="w-full text-sm font-telugu text-slate-900 leading-relaxed p-2.5 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:border-amber-500 focus:outline-hidden resize-none overflow-hidden min-h-[56px] transition-[height] duration-100"
                           />
                         ) : (
@@ -1336,10 +1349,14 @@ export const ScriptWorkspace: React.FC<ScriptWorkspaceProps> = ({
                         </div>
                         <textarea
                           ref={autoResizeTextarea}
-                          onInput={(e) => autoResizeTextarea(e.currentTarget)}
+                          onInput={(e) => {
+                            autoResizeTextarea(e.currentTarget);
+                            setViralCta(e.currentTarget.value);
+                          }}
                           value={viralCta}
                           onChange={(e) => setViralCta(e.target.value)}
                           placeholder="మీ ఆన్సర్ ఏంటో వెంటనే కామెంట్ చేయండి! సరైన సమాధానం పిన్డ్ కామెంట్లో ఉంది."
+                          data-testid="script-viral-cta"
                           className="w-full text-sm font-telugu text-slate-900 leading-relaxed p-2.5 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:border-amber-500 focus:outline-hidden resize-none overflow-hidden min-h-[56px] transition-[height] duration-100"
                         />
                       </div>

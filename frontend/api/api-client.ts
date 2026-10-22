@@ -165,8 +165,8 @@ export class ApiClient {
     };
 
     const activeToken =
-      this.sessionToken ||
-      (typeof window !== 'undefined' ? localStorage.getItem('bp_session_token') : null);
+      (typeof window !== 'undefined' ? localStorage.getItem('bp_session_token') : null) ||
+      this.sessionToken;
 
     if (activeToken && !headers['Authorization'] && !headers['authorization']) {
       headers['Authorization'] = `Bearer ${activeToken}`;
