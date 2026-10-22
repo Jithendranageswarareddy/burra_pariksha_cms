@@ -275,12 +275,24 @@ export class QuestionDraftService {
           contentStatus: 'APPROVED',
           lastTransitionAt: new Date().toISOString(),
           lastTransitionBy: actor.id,
+          metadata: {
+            ...(wfToReconcile.metadata || {}),
+            originalDraftId: draftId,
+          },
         },
         {
           actorId: actor.id,
           timestamp: new Date().toISOString(),
         }
       );
+    } else if (draft.workflowInstanceId) {
+      // A workflow was explicitly associated with this draft, but could not be resolved for reconciliation.
+      // Fail closed to prevent creating an orphan workflow record!
+      const err = new Error(
+        `Cannot approve draft "${draftId}": Associated workflow instance "${draft.workflowInstanceId}" could not be resolved for reconciliation.`
+      );
+      (err as any).statusCode = 500;
+      throw err;
     }
 
     // Remove draft only AFTER workflow instance has been successfully reconciled

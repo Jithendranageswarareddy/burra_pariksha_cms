@@ -217,11 +217,45 @@ async function runWorkflowDraftLifecycleUnitTests() {
   assert.strictEqual(deleteResult, true);
 
   // Workflow must be soft-archived to prevent active orphan warning
-  const wfAfterDiscard = await workflowInstancesRepository.findById(wfForDiscarded.id);
+  const wfAfterDiscard = await workflowInstancesRepository.findById(wfForDiscarded.id, { includeDeleted: true });
   assert.ok(wfAfterDiscard);
   assert.strictEqual(wfAfterDiscard.contentStatus, 'ARCHIVED', 'Discarded draft workflow must be ARCHIVED');
   assert.strictEqual(wfAfterDiscard.jobStatus, 'COMPLETED');
-  console.log('  PASS: Discarded draft workflow correctly soft-archived.');
+  assert.strictEqual(wfAfterDiscard.isDeleted, true, 'Discarded draft workflow must be soft-deleted (isDeleted: true)');
+
+  // Verify Data Diagnostics treats the soft-archived workflow as clean terminal state (0 issues)
+  const discardReport = await dataIntegrityService.runFullIntegrityCheck({
+    snapshot: {
+      workflows: [wfAfterDiscard],
+      questionDrafts: [],
+      questions: [],
+      videos: [],
+      contentMasters: [],
+      scripts: [],
+      publishingRecords: [],
+      users: [],
+      topics: [],
+      subtopics: [],
+      thumbnails: [],
+      pinnedComments: [],
+      scriptVersions: [],
+      thumbnailVersions: [],
+      pinnedCommentVersions: [],
+      assignments: [],
+      auditLogs: [],
+      socialReviews: [],
+      validations: [],
+      questionConfig: [],
+      mediaAssets: [],
+      contentPlans: [],
+      contentBatches: [],
+    },
+  });
+  const discardIssues = discardReport.issues.filter(
+    (i: any) => i.category === 'WORKFLOW_INTEGRITY' && i.entityId === wfAfterDiscard.id
+  );
+  assert.strictEqual(discardIssues.length, 0, `Archived workflow must not trigger WORKFLOW_INTEGRITY warning, got: ${JSON.stringify(discardIssues)}`);
+  console.log('  PASS: Discarded draft workflow correctly soft-archived and clean in Data Diagnostics.');
 
   // --------------------------------------------------------------------------
   // TEST 6: QuestionDraftService.approveDraft Also Reconciles Workflow
@@ -435,16 +469,95 @@ async function runWorkflowDraftLifecycleUnitTests() {
   const deleteSuccess = await questionGenerationService.deleteDraft(draft4.id, authorActor);
   assert.strictEqual(deleteSuccess, true);
 
-  const wf4Archived = await workflowInstancesRepository.findById(wf4.id);
+  const wf4Archived = await workflowInstancesRepository.findById(wf4.id, { includeDeleted: true });
   assert.strictEqual(wf4Archived?.contentStatus, 'ARCHIVED');
+  assert.strictEqual(wf4Archived?.isDeleted, true, 'Discarded workflow must have isDeleted: true');
   assert.strictEqual(wf4Archived?.lastTransitionBy, authorActor.id);
 
   const draft4Deleted = await questionDraftsRepository.findById(draft4.id);
   assert.strictEqual(draft4Deleted, null, 'Draft 4 must be deleted after archival');
   console.log('  PASS: Multi-workflow isolation and deleteDraft archival verified.');
 
+  // --------------------------------------------------------------------------
+  // TEST 11: Fail-Closed Draft Discard: Workflow Update Failure Preserves Draft
+  // --------------------------------------------------------------------------
+  console.log('[Test 11] Failed workflow archival during deleteDraft aborts and preserves draft...');
+  const draft5 = await questionGenerationService.saveDraft(
+    { ...draftPayload, questionText: 'Fail-Closed Discard Test' },
+    authorActor
+  );
+  await questionGenerationService.submitForVerification(
+    { draftId: draft5.id, expectedVersion: draft5.version || 1 },
+    authorActor
+  );
+
+  const wf5List = await workflowInstancesRepository.findMany({
+    where: { entityId: draft5.id },
+    limit: 1,
+  });
+  assert.strictEqual(wf5List.length, 1);
+  const wf5 = wf5List[0];
+
+  // Intercept workflow update to simulate persistence failure during archival
+  const origUpdate2 = workflowInstancesRepository.update.bind(workflowInstancesRepository);
+  (workflowInstancesRepository as any).update = async (...args: any[]) => {
+    throw new Error('Simulated database failure during workflow archival');
+  };
+
+  let discardFailedAsExpected = false;
+  try {
+    await questionGenerationService.deleteDraft(draft5.id, authorActor);
+  } catch (err: any) {
+    if (err.message?.includes('Simulated database failure')) {
+      discardFailedAsExpected = true;
+    }
+  } finally {
+    (workflowInstancesRepository as any).update = origUpdate2;
+  }
+
+  assert.strictEqual(discardFailedAsExpected, true, 'deleteDraft must fail closed when workflow archival fails');
+
+  // CRITICAL: Draft 5 must remain intact because workflow archival failed!
+  const draft5Preserved = await questionDraftsRepository.findById(draft5.id);
+  assert.ok(draft5Preserved, 'Draft must NOT be deleted if workflow archival failed');
+
+  // Clean up draft 5 with real update restored
+  await questionGenerationService.deleteDraft(draft5.id, authorActor);
+  console.log('  PASS: Fail-closed draft discard verified; draft protected from dangling orphan state.');
+
+  // --------------------------------------------------------------------------
+  // TEST 12: Fail-Closed Draft Approval: Unresolvable workflowInstanceId Aborts
+  // --------------------------------------------------------------------------
+  console.log('[Test 12] Draft approval with unresolvable workflowInstanceId fails closed...');
+  const draft6 = await questionGenerationService.saveDraft(
+    { ...draftPayload, questionText: 'Unresolvable Workflow Approval Test' },
+    authorActor
+  );
+  // Spoof a corrupted workflowInstanceId pointing to a non-existent workflow
+  await questionDraftsRepository.update(
+    draft6.id,
+    { ...draft6, workflowInstanceId: 'wfl_non_existent_corrupted_id', status: 'SUBMITTED_FOR_REVIEW' as any, workflowStage: 'STAGE_02_VERIFICATION' },
+    { expectedVersion: draft6.version }
+  );
+
+  let approvalFailedClosed = false;
+  try {
+    await questionGenerationService.approveDraft(draft6.id, reviewerActor);
+  } catch (err: any) {
+    if (err.message?.includes('could not be resolved for reconciliation')) {
+      approvalFailedClosed = true;
+    }
+  }
+
+  assert.strictEqual(approvalFailedClosed, true, 'approveDraft must abort when workflow cannot be resolved');
+
+  // Draft 6 must NOT be deleted
+  const draft6Preserved = await questionDraftsRepository.findById(draft6.id);
+  assert.ok(draft6Preserved, 'Draft must not be deleted if workflow reconciliation failed');
+  console.log('  PASS: Fail-closed draft approval verified; no orphan workflow created.');
+
   console.log('\n============================================================');
-  console.log('ALL 10 WORKFLOW-DRAFT APPROVAL LIFECYCLE TESTS PASSED CLEANLY');
+  console.log('ALL 12 WORKFLOW-DRAFT APPROVAL LIFECYCLE TESTS PASSED CLEANLY');
   console.log('============================================================\n');
 }
 

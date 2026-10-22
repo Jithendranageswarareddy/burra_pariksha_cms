@@ -1708,6 +1708,17 @@ export class DataIntegrityService {
               'entityId'
             );
           } else if (wf.entityId.startsWith('dft_') || wf.entityId.startsWith('BP-DFT-')) {
+            const isTerminalOrArchived =
+              wf.contentStatus === 'ARCHIVED' ||
+              wf.status === 'ARCHIVED' ||
+              Boolean(wf.isDeleted) ||
+              Boolean(wf.isArchived);
+
+            if (isTerminalOrArchived) {
+              // Terminal/archived workflow referencing a discarded draft: valid historical state, not an active defect
+              return;
+            }
+
             addIssue(
               'WARNING',
               'WORKFLOW_INTEGRITY',
@@ -1719,6 +1730,17 @@ export class DataIntegrityService {
               'entityId'
             );
           } else {
+            const isTerminalOrArchived =
+              wf.contentStatus === 'ARCHIVED' ||
+              wf.status === 'ARCHIVED' ||
+              Boolean(wf.isDeleted) ||
+              Boolean(wf.isArchived);
+
+            if (isTerminalOrArchived) {
+              // Terminal/archived workflow referencing an archived/deleted entity: valid historical state
+              return;
+            }
+
             addIssue(
               'WARNING',
               'WORKFLOW_INTEGRITY',

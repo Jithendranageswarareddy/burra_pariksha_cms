@@ -977,46 +977,49 @@ export class QuestionGenerationService {
       throw new QuestionGenerationDomainError(`Invalid draft ID "${trimmed}". Expected canonical draft ID format (dft_<uuid_v4>).`, 400);
     }
 
-    // Reconcile any orphan workflow instance associated with this discarded draft
-    try {
-      const { workflowInstancesRepository } = await import('../workflow');
-      let wf: any = null;
+    const now = new Date().toISOString();
+    const actorId = actor?.id || 'SYSTEM';
 
-      // 1. Direct lookup by draft.workflowInstanceId if draft is still persisted
-      const draft = await questionDraftsRepository.findById(trimmed).catch(() => null);
-      if (draft?.workflowInstanceId) {
-        wf = await workflowInstancesRepository.findById(draft.workflowInstanceId).catch(() => null);
+    // Reconcile any workflow instance associated with this discarded draft
+    const { workflowInstancesRepository } = await import('../workflow');
+    let wf: any = null;
+
+    // 1. Direct lookup by draft.workflowInstanceId if draft is still persisted
+    const draft = await questionDraftsRepository.findById(trimmed).catch(() => null);
+    if (draft?.workflowInstanceId) {
+      wf = await workflowInstancesRepository.findById(draft.workflowInstanceId).catch(() => null);
+    }
+
+    // 2. Query lookup by entityId fallback
+    if (!wf) {
+      const found = await workflowInstancesRepository.findMany({
+        where: { entityId: trimmed },
+        limit: 1,
+      }).catch(() => []);
+      if (found && found.length > 0) {
+        wf = found[0];
       }
+    }
 
-      // 2. Query lookup by entityId fallback
-      if (!wf) {
-        const found = await workflowInstancesRepository.findMany({
-          where: { entityId: trimmed },
-          limit: 1,
-        }).catch(() => []);
-        if (found && found.length > 0) {
-          wf = found[0];
+    // 3. Atomically reconcile workflow if found: MUST NOT swallow OCC/persistence errors.
+    // Setting contentStatus: 'ARCHIVED', jobStatus: 'COMPLETED', and isDeleted: true ensures
+    // the workflow is marked terminal, soft-deleted, and excluded from active queries and diagnostics.
+    if (wf && wf.entityId === trimmed) {
+      await workflowInstancesRepository.update(
+        wf.id,
+        wf.version,
+        {
+          contentStatus: 'ARCHIVED',
+          jobStatus: 'COMPLETED',
+          isDeleted: true,
+          lastTransitionAt: now,
+          lastTransitionBy: actorId,
+        },
+        {
+          actorId,
+          timestamp: now,
         }
-      }
-
-      if (wf && wf.entityId === trimmed) {
-        await workflowInstancesRepository.update(
-          wf.id,
-          wf.version,
-          {
-            contentStatus: 'ARCHIVED',
-            jobStatus: 'COMPLETED',
-            lastTransitionAt: new Date().toISOString(),
-            lastTransitionBy: actor?.id || 'SYSTEM',
-          },
-          {
-            actorId: actor?.id || 'SYSTEM',
-            timestamp: new Date().toISOString(),
-          }
-        );
-      }
-    } catch (wfErr: any) {
-      console.warn(`[deleteDraft:WorkflowArchive] Could not archive associated workflow for draft ${trimmed}:`, wfErr?.message);
+      );
     }
 
     return questionDraftsRepository.delete(trimmed);
@@ -1531,11 +1534,22 @@ export class QuestionGenerationService {
           contentStatus: 'APPROVED',
           lastTransitionAt: new Date().toISOString(),
           lastTransitionBy: actor.id,
+          metadata: {
+            ...(wfToReconcile.metadata || {}),
+            originalDraftId: draftId,
+          },
         },
         {
           actorId: actor.id,
           timestamp: new Date().toISOString(),
         }
+      );
+    } else if (draft.workflowInstanceId) {
+      // A workflow was explicitly associated with this draft, but could not be resolved for reconciliation.
+      // Fail closed to prevent creating an orphan workflow record!
+      throw new QuestionGenerationDomainError(
+        `Cannot approve draft "${draftId}": Associated workflow instance "${draft.workflowInstanceId}" could not be resolved for reconciliation.`,
+        500
       );
     }
 

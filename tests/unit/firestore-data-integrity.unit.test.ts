@@ -771,6 +771,47 @@ async function runUnitTests() {
   });
 
   // --------------------------------------------------------------------------
+  // TEST 24f: Soft-Archived or Discarded Workflow Does Not Produce False Positive
+  // --------------------------------------------------------------------------
+  await test('24f. Soft-archived or discarded workflow does not produce false-positive orphan draft warning', async () => {
+    const snapshot = createCleanSyntheticSnapshot();
+
+    // Discarded draft case: workflow was soft-archived (contentStatus: ARCHIVED, isDeleted: true)
+    // Referenced draft was deleted from question_drafts upon discard.
+    snapshot.workflows = [
+      {
+        id: 'wfl_archived_01',
+        entityId: 'dft_c8b3c975-48a0-4f94-829e-5cb3b7d9ad4d',
+        entityType: 'QUESTION',
+        currentStep: 2,
+        contentStatus: 'ARCHIVED',
+        jobStatus: 'COMPLETED',
+      },
+      {
+        id: 'wfl_soft_deleted_02',
+        entityId: 'dft_8223930e-9fcc-4d7b-b561-0ccda5aa8676',
+        entityType: 'QUESTION',
+        currentStep: 2,
+        contentStatus: 'ARCHIVED',
+        jobStatus: 'IDLE',
+        isDeleted: true,
+      },
+    ];
+
+    const report = await dataIntegrityService.runFullIntegrityCheck({ snapshot });
+    const warnings = report.issues.filter(
+      (i: any) =>
+        i.category === 'WORKFLOW_INTEGRITY' &&
+        (i.entityId === 'wfl_archived_01' || i.entityId === 'wfl_soft_deleted_02')
+    );
+    assert.strictEqual(
+      warnings.length,
+      0,
+      `Soft-archived / terminal workflows must not produce orphan warnings, got: ${JSON.stringify(warnings)}`
+    );
+  });
+
+  // --------------------------------------------------------------------------
   // TEST 25: Canonical 15-Stage Workflow Instance Validates currentStep and contentStatus
   // --------------------------------------------------------------------------
   await test('25. Canonical 15-stage workflow instance validates currentStep (1..15) and contentStatus without requiring legacy toStatus', async () => {
