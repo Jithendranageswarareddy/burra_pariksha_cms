@@ -10,7 +10,7 @@
  * - Diagnostic firestore error serialization with handleFirestoreError
  */
 
-import { Firestore, Query } from 'firebase-admin/firestore';
+import { FieldPath, Firestore, Query } from 'firebase-admin/firestore';
 import { getAdminFirestore } from './admin';
 import { handleFirestoreError, OperationType } from './errors';
 import {
@@ -313,7 +313,7 @@ export class FirestoreRepository<T extends BaseEntity> implements IRepository<T>
         q = q.orderBy(String(options.orderBy.field), options.orderBy.direction);
       } else if (!options?.includeDeleted) {
         // Firestore requires the inequality field to be ordered first.
-        q = q.orderBy('isDeleted').orderBy('__name__');
+        q = q.orderBy('isDeleted').orderBy(FieldPath.documentId());
       }
 
       if (options?.offset !== undefined && options.offset > 0) {
