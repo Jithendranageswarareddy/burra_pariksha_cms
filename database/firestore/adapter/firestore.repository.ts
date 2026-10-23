@@ -303,14 +303,20 @@ export class FirestoreRepository<T extends BaseEntity> implements IRepository<T>
         }
       }
 
-      // Apply ordering in Firestore so result order is stable before pagination.
-      if (options?.orderBy) {
-        q = q.orderBy(String(options.orderBy.field), options.orderBy.direction);
+      // Apply query clauses in Firestore, including soft-delete filtering,
+      // before pagination so callers receive the requested number of live records.
+      if (!options?.includeDeleted) {
+        q = q.where('isDeleted', '!=', true);
       }
 
-      // offset and limit are applied by Firestore rather than after reading all rows.
-      // Keep the existing post-query soft-delete filter for documents with legacy shapes.
-      if (options?.offset && options.offset > 0) {
+      if (options?.orderBy) {
+        q = q.orderBy(String(options.orderBy.field), options.orderBy.direction);
+      } else if (!options?.includeDeleted) {
+        // Firestore requires the inequality field to be ordered first.
+        q = q.orderBy('isDeleted').orderBy('__name__');
+      }
+
+      if (options?.offset !== undefined && options.offset > 0) {
         q = q.offset(Math.floor(options.offset));
       }
       if (options?.limit !== undefined && options.limit > 0) {
@@ -318,21 +324,13 @@ export class FirestoreRepository<T extends BaseEntity> implements IRepository<T>
       }
 
       const snap = await q.get();
-      let list = snap.docs.map((d) => {
+      const list = snap.docs.map((d) => {
         const data = d.data();
         return { ...data, id: (data as any)?.id || d.id } as T;
-      });
-
-      if (!options?.includeDeleted) {
-        list = list.filter((e) => !e.isDeleted);
-      }
-
-      if (options?.where) {
-        const whereEntries = Object.entries(options.where);
-        list = list.filter((e: any) =>
-          whereEntries.every(([k, v]) => v === undefined || e[k] === v)
-        );
-      }
+      }).filter((e) => options?.includeDeleted || !e.isDeleted)
+        .filter((e: any) => !options?.where || Object.entries(options.where).every(
+          ([k, v]) => v === undefined || e[k] === v
+        ));
 
       return list;
     } catch (err) {
