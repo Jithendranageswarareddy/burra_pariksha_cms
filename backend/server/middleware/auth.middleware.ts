@@ -643,29 +643,24 @@ export function getRequestActor(req: Request): ActorContext & { name: string; ro
     return authReq._requestActor;
   }
 
-  // If req.user is absent, attempt inline token extraction from session cookie or Bearer header
+  // If req.user is absent, resolve a legacy session only through an authoritative
+  // active user record. This synchronous helper refuses cache misses; callers must
+  // authenticate via requireAuth/requireCapability first to warm the context safely.
   if (!authReq.user?.id) {
     const token = extractSessionToken(req);
     if (token) {
       const payload = authService.verifySessionToken(token);
       if (payload) {
         const userState = usersRepository.getUserSessionState(payload.userId);
-        if (!userState || (userState.isActive && (payload.sessionVersion ?? 1) >= userState.sessionVersion)) {
-          const rolesList: string[] = [];
-          if (Array.isArray((payload as any).roles)) {
-            (payload as any).roles.forEach((r: any) => r && rolesList.push(String(r).trim()));
-          }
-          if (rolesList.length === 0 && payload.role) {
-            String(payload.role).split(',').forEach((r) => r.trim() && rolesList.push(r.trim()));
-          }
-          const authoritativeRoles = userState?.roles && userState.roles.length > 0 ? userState.roles : rolesList;
-          const authoritativeRole = userState?.role || payload.role || authoritativeRoles[0] || 'QUESTION_AUTHOR';
-
+        if (userState && userState.isActive && (payload.sessionVersion ?? 1) >= userState.sessionVersion) {
+          const roles = userState.roles && userState.roles.length > 0
+            ? userState.roles
+            : [userState.role];
           authReq.user = {
             id: payload.userId,
             name: payload.name,
-            role: authoritativeRole,
-            roles: authoritativeRoles.length > 0 ? authoritativeRoles : [authoritativeRole],
+            role: userState.role,
+            roles,
           };
         }
       }
