@@ -87,46 +87,38 @@ export function requireAuth(req: AuthenticatedRequest, res: Response, next: Next
     }
 
     const completeAuth = (userState: UserSessionState | null) => {
-      if (userState) {
-        if (!userState.isActive) {
-          const errEnvelope = createErrorResponse(
-            ApiErrorCode.UNAUTHENTICATED,
-            'Account is inactive. Please contact administrator.',
-            requestId
-          );
-          res.status(401).json({
-            ...errEnvelope,
-            message: 'Account is inactive. Please contact administrator.',
-          });
-          return;
-        }
-
-        // Persistent session version check: token version must match or exceed current persistent session version
-        const tokenVersion = payload.sessionVersion ?? 1;
-        if (tokenVersion < userState.sessionVersion) {
-          const errEnvelope = createErrorResponse(
-            ApiErrorCode.UNAUTHENTICATED,
-            'Invalid or expired session.',
-            requestId
-          );
-          res.status(401).json({
-            ...errEnvelope,
-            message: 'Invalid or expired session.',
-          });
-          return;
-        }
+      if (!userState || !userState.isActive) {
+        const errEnvelope = createErrorResponse(
+          ApiErrorCode.UNAUTHENTICATED,
+          'Invalid or expired session.',
+          requestId
+        );
+        res.status(401).json({
+          ...errEnvelope,
+          message: 'Invalid or expired session.',
+        });
+        return;
       }
 
-      const rolesList: string[] = [];
-      if (Array.isArray((payload as any).roles)) {
-        (payload as any).roles.forEach((r: any) => r && rolesList.push(String(r).trim()));
-      }
-      if (rolesList.length === 0 && payload.role) {
-        String(payload.role).split(',').forEach((r) => r.trim() && rolesList.push(r.trim()));
+      // Persistent session version check: token version must match or exceed current persistent session version
+      const tokenVersion = payload.sessionVersion ?? 1;
+      if (tokenVersion < userState.sessionVersion) {
+        const errEnvelope = createErrorResponse(
+          ApiErrorCode.UNAUTHENTICATED,
+          'Invalid or expired session.',
+          requestId
+        );
+        res.status(401).json({
+          ...errEnvelope,
+          message: 'Invalid or expired session.',
+        });
+        return;
       }
 
-      const authoritativeRoles = userState?.roles && userState.roles.length > 0 ? userState.roles : rolesList;
-      const authoritativeRole = userState?.role || payload.role || authoritativeRoles[0] || UserRole.ADMIN;
+      const authoritativeRoles = userState.roles && userState.roles.length > 0
+        ? userState.roles
+        : [userState.role];
+      const authoritativeRole = userState.role || authoritativeRoles[0] || UserRole.QUESTION_AUTHOR;
 
       req.user = {
         id: payload.userId,
