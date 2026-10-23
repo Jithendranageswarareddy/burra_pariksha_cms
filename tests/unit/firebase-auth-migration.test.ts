@@ -261,7 +261,8 @@ async function runFirebaseAuthTests() {
       secret: 'secure-test-bootstrap-secret-9988',
     });
 
-    assert.strictEqual(partialBootstrapResult.success, true);
+    assert.strictEqual(partialBootstrapResult.outcome, 'PARTIAL_SUCCESS', 'Outcome must be PARTIAL_SUCCESS');
+    assert.strictEqual(partialBootstrapResult.exitCode, 2, 'Exit code must be 2 for partial success');
     assert.strictEqual(partialBootstrapResult.accountCreated, true, 'Account must be created in Firestore and Auth');
     assert.strictEqual(partialBootstrapResult.setupEmailSent, false, 'setupEmailSent must be false when email delivery fails');
     assert.strictEqual(partialBootstrapResult.retryAvailable, true, 'retryAvailable must be true when email delivery fails');

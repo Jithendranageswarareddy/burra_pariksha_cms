@@ -8,14 +8,24 @@
  * Security Requirements:
  * 1. Requires BOOTSTRAP_ADMIN_SECRET environment variable or --secret flag.
  * 2. Idempotent: Checks if an active administrator already exists in Firestore.
- * 3. Creates Firebase Auth user via Admin SDK without fabricating placeholder UIDs.
+ * 3. Never accepts passwords via CLI or logs: Password setup is strictly email-driven.
  * 4. Dispatches genuine password setup email via authService.dispatchPasswordSetupEmail.
- * 5. Saves canonical Firestore employee profile with UserRole.ADMIN.
+ * 5. emailVerified: Defaults to false; inbox ownership is established via the email link.
  * 6. Zero secret leaks: Never prints, logs, persists, or returns raw reset action links or oobCode.
- * 7. Safe recovery: Reports partial-success truthfully if email delivery fails, preserving existing accounts.
+ * 7. Safe recovery: Reports partial-success truthfully if email delivery fails, and supports
+ *    safe retry via --resend with the bootstrap secret without creating duplicate profiles.
+ *
+ * Exit Codes:
+ *   0 = Full Success (Account created & email dispatched, or resend succeeded)
+ *   1 = Fatal Error (Invalid secret, Firebase unavailable, Firestore save failed)
+ *   2 = Partial Success (Account/profile created, but setup email dispatch failed)
+ *   3 = Conflict (Administrator already exists; duplicate creation prevented)
  *
  * Usage:
- *   npx tsx scripts/bootstrap-initial-admin.ts --email=admin@example.com --name="System Administrator" [--password="SecurePassword123!"] [--secret="YourBootstrapSecret"]
+ *   Initial creation:
+ *     npx tsx scripts/bootstrap-initial-admin.ts --email=admin@example.com --name="System Administrator" --secret="YourBootstrapSecret"
+ *   Retry setup email if delivery previously failed:
+ *     npx tsx scripts/bootstrap-initial-admin.ts --email=admin@example.com --resend --secret="YourBootstrapSecret"
  */
 
 import '../src/config/env';
@@ -26,15 +36,29 @@ import { authService } from '../backend/infrastructure/auth/services/auth.servic
 import { UserRole, User } from '../shared';
 import { canonicalIdService } from '../shared/lib/id.service';
 
+export const BOOTSTRAP_EXIT_SUCCESS = 0;
+export const BOOTSTRAP_EXIT_FATAL = 1;
+export const BOOTSTRAP_EXIT_PARTIAL_SUCCESS = 2;
+export const BOOTSTRAP_EXIT_ALREADY_EXISTS = 3;
+
+export type BootstrapOutcome =
+  | 'FULL_SUCCESS'
+  | 'PARTIAL_SUCCESS'
+  | 'ALREADY_EXISTS'
+  | 'RESEND_SUCCESS'
+  | 'RESEND_FAILED';
+
 export interface BootstrapOptions {
   email?: string;
   name?: string;
-  password?: string;
   secret?: string;
+  resend?: boolean;
 }
 
 export interface BootstrapResult {
   success: boolean;
+  outcome: BootstrapOutcome;
+  exitCode: number;
   userId?: string;
   email?: string;
   firebaseUid?: string;
@@ -42,18 +66,25 @@ export interface BootstrapResult {
   setupEmailSent?: boolean;
   retryAvailable?: boolean;
   emailDelivery?: { sent: boolean; message?: string; error?: string };
-  message?: string;
+  message: string;
 }
 
 export function parseBootstrapArgs(argv = process.argv.slice(2)): BootstrapOptions {
-  const parsed: Record<string, string> = {};
+  const parsed: Record<string, string | boolean> = {};
   for (const arg of argv) {
-    if (arg.startsWith('--')) {
+    if (arg === '--resend') {
+      parsed.resend = true;
+    } else if (arg.startsWith('--')) {
       const [key, ...rest] = arg.substring(2).split('=');
       parsed[key] = rest.join('=');
     }
   }
-  return parsed;
+  return {
+    email: typeof parsed.email === 'string' ? parsed.email : undefined,
+    name: typeof parsed.name === 'string' ? parsed.name : undefined,
+    secret: typeof parsed.secret === 'string' ? parsed.secret : undefined,
+    resend: Boolean(parsed.resend),
+  };
 }
 
 /**
@@ -67,14 +98,6 @@ export async function provisionInitialAdmin(options: BootstrapOptions = {}): Pro
     throw new Error('Administrative bootstrap secret is missing or invalid.');
   }
 
-  const email = (options.email || process.env.INITIAL_ADMIN_EMAIL)?.trim().toLowerCase();
-  const name = (options.name || process.env.INITIAL_ADMIN_NAME || 'System Administrator')?.trim();
-  const password = options.password?.trim() || undefined;
-
-  if (!email || !email.includes('@')) {
-    throw new Error('A valid administrator email address is required.');
-  }
-
   // Ensure datastore initialized
   getAdminFirestore();
   const adminAuth = getAdminAuth();
@@ -85,8 +108,63 @@ export async function provisionInitialAdmin(options: BootstrapOptions = {}): Pro
     (u) => u.isActive && (u.role === UserRole.ADMIN || (Array.isArray(u.roles) && u.roles.includes(UserRole.ADMIN)))
   );
 
+  // Recovery flow: If administrator already exists and operator explicitly requests --resend
   if (existingActiveAdmin) {
-    throw new Error(`An active administrator already exists in Firestore (ID: ${existingActiveAdmin.id}, Email: ${existingActiveAdmin.email}). Bootstrap provisioning is permanently disabled.`);
+    if (options.resend) {
+      const targetEmail = (options.email || existingActiveAdmin.email).trim().toLowerCase();
+      if (targetEmail !== existingActiveAdmin.email.toLowerCase()) {
+        throw new Error(`Cannot resend setup email: Target email (${targetEmail}) does not match existing administrator (${existingActiveAdmin.email}).`);
+      }
+      if (!existingActiveAdmin.firebaseUid) {
+        throw new Error(`Existing administrator profile (${existingActiveAdmin.id}) is missing a linked Firebase UID.`);
+      }
+
+      const deliveryResult = await authService.dispatchPasswordSetupEmail(existingActiveAdmin.email);
+      await auditLogRepository.logAction(existingActiveAdmin.id, existingActiveAdmin.name, 'FIRST_ADMIN_SETUP_EMAIL_RESENT', 'SYSTEM', existingActiveAdmin.id, {
+        email: existingActiveAdmin.email,
+        firebaseUid: existingActiveAdmin.firebaseUid,
+        setupEmailSent: deliveryResult.sent,
+      });
+
+      if (deliveryResult.sent) {
+        return {
+          success: true,
+          outcome: 'RESEND_SUCCESS',
+          exitCode: BOOTSTRAP_EXIT_SUCCESS,
+          userId: existingActiveAdmin.id,
+          email: existingActiveAdmin.email,
+          firebaseUid: existingActiveAdmin.firebaseUid,
+          accountCreated: false,
+          setupEmailSent: true,
+          retryAvailable: false,
+          emailDelivery: deliveryResult,
+          message: `Setup email successfully re-dispatched to existing administrator (${existingActiveAdmin.email}).`,
+        };
+      } else {
+        return {
+          success: false,
+          outcome: 'RESEND_FAILED',
+          exitCode: BOOTSTRAP_EXIT_PARTIAL_SUCCESS,
+          userId: existingActiveAdmin.id,
+          email: existingActiveAdmin.email,
+          firebaseUid: existingActiveAdmin.firebaseUid,
+          accountCreated: false,
+          setupEmailSent: false,
+          retryAvailable: true,
+          emailDelivery: deliveryResult,
+          message: `Failed to re-dispatch setup email: ${deliveryResult.error || 'Provider delivery error'}.`,
+        };
+      }
+    }
+
+    throw new Error(`An active administrator already exists in Firestore (ID: ${existingActiveAdmin.id}, Email: ${existingActiveAdmin.email}). Duplicate administrator provisioning is prevented. To retry setup email delivery, re-run with --resend --email="${existingActiveAdmin.email}", or use the public /reset-password flow.`);
+  }
+
+  const email = (options.email || process.env.INITIAL_ADMIN_EMAIL)?.trim().toLowerCase();
+  const name = (options.name || process.env.INITIAL_ADMIN_NAME || 'System Administrator')?.trim();
+
+  if (!email || !email.includes('@')) {
+    throw new Error('A valid administrator email address is required.');
   }
 
   // 2. Provision or verify Firebase Authentication identity
@@ -100,14 +178,13 @@ export async function provisionInitialAdmin(options: BootstrapOptions = {}): Pro
     if (existingProfileWithUid) {
       throw new Error(`Firebase Auth UID (${authUser.uid}) is already linked to user profile (ID: ${existingProfileWithUid.id}).`);
     }
-    // Safeguard: Never overwrite password of existing account unexpectedly
   } catch (err: any) {
     if (err?.code === 'auth/user-not-found') {
+      // Security Policy: emailVerified is false because inbox ownership is proven via the setup email link
       authUser = await adminAuth.createUser({
         email,
         displayName: name,
-        password: password || undefined,
-        emailVerified: true,
+        emailVerified: false,
       });
       authUserCreated = true;
     } else {
@@ -151,24 +228,15 @@ export async function provisionInitialAdmin(options: BootstrapOptions = {}): Pro
     throw saveErr;
   }
 
-  // 4. Initiate setup email delivery via Firebase Authentication if password not provided
-  let setupEmailSent = false;
-  let retryAvailable = false;
-  let emailDelivery: { sent: boolean; message?: string; error?: string } = {
-    sent: false,
-    message: password ? 'Password established during bootstrap.' : undefined,
+  // 4. Initiate setup email delivery via Firebase Authentication
+  const deliveryResult = await authService.dispatchPasswordSetupEmail(email);
+  const setupEmailSent = deliveryResult.sent;
+  const retryAvailable = !setupEmailSent;
+  const emailDelivery = {
+    sent: deliveryResult.sent,
+    message: deliveryResult.message,
+    ...(deliveryResult.error ? { error: deliveryResult.error } : {}),
   };
-
-  if (!password) {
-    const deliveryResult = await authService.dispatchPasswordSetupEmail(email);
-    setupEmailSent = deliveryResult.sent;
-    retryAvailable = !setupEmailSent;
-    emailDelivery = {
-      sent: deliveryResult.sent,
-      message: deliveryResult.message,
-      ...(deliveryResult.error ? { error: deliveryResult.error } : {}),
-    };
-  }
 
   // 5. Audit the bootstrap operation without logging any tokens or sensitive links
   await auditLogRepository.logAction(created.id, created.name, 'FIRST_ADMIN_BOOTSTRAPPED', 'SYSTEM', created.id, {
@@ -179,54 +247,77 @@ export async function provisionInitialAdmin(options: BootstrapOptions = {}): Pro
     retryAvailable,
   });
 
-  const outcomeMessage = setupEmailSent
-    ? 'First administrator successfully provisioned and setup email dispatched.'
-    : !password
-    ? 'First administrator successfully provisioned, but setup email delivery failed. An administrator or operator can retry delivery once email provider settings are verified.'
-    : 'First administrator successfully provisioned with initial credentials.';
-
-  return {
-    success: true,
-    userId: created.id,
-    email: created.email,
-    firebaseUid: authUser.uid,
-    accountCreated: true,
-    setupEmailSent,
-    retryAvailable,
-    emailDelivery,
-    message: outcomeMessage,
-  };
+  if (setupEmailSent) {
+    return {
+      success: true,
+      outcome: 'FULL_SUCCESS',
+      exitCode: BOOTSTRAP_EXIT_SUCCESS,
+      userId: created.id,
+      email: created.email,
+      firebaseUid: authUser.uid,
+      accountCreated: true,
+      setupEmailSent: true,
+      retryAvailable: false,
+      emailDelivery,
+      message: 'First administrator successfully provisioned and setup email dispatched.',
+    };
+  } else {
+    return {
+      success: false,
+      outcome: 'PARTIAL_SUCCESS',
+      exitCode: BOOTSTRAP_EXIT_PARTIAL_SUCCESS,
+      userId: created.id,
+      email: created.email,
+      firebaseUid: authUser.uid,
+      accountCreated: true,
+      setupEmailSent: false,
+      retryAvailable: true,
+      emailDelivery,
+      message: 'First administrator profile created in Firestore and Firebase Auth, but setup email delivery failed. Recovery: retry with --resend or use the public /reset-password flow.',
+    };
+  }
 }
 
-export async function runBootstrap() {
+export async function runBootstrap(argv = process.argv.slice(2)): Promise<number> {
   console.log('============================================================');
   console.log('BURRA PARIKSHA CMS — INITIAL ADMINISTRATOR PROVISIONING');
   console.log('============================================================\n');
 
-  const args = parseBootstrapArgs();
+  const args = parseBootstrapArgs(argv);
 
   try {
     const result = await provisionInitialAdmin(args);
 
     console.log('\n============================================================');
-    console.log('✓ ADMINISTRATOR PROVISIONING COMPLETE');
+    console.log(`STATUS: ${result.outcome} (Exit Code ${result.exitCode})`);
     console.log('============================================================');
-    console.log(`ID:           ${result.userId}`);
+    console.log(`User ID:      ${result.userId}`);
     console.log(`Email:        ${result.email}`);
     console.log(`Role:         ${UserRole.ADMIN}`);
     console.log(`Firebase UID: ${result.firebaseUid}`);
-    console.log(`Setup Email:  ${result.setupEmailSent ? 'SENT' : result.emailDelivery?.message?.includes('Password established') ? 'NOT_REQUIRED (Password set during invocation)' : 'FAILED (Partial Success)'}`);
+    console.log(`Setup Email:  ${result.setupEmailSent ? 'DISPATCH_ACCEPTED' : 'FAILED'}`);
 
-    if (result.retryAvailable) {
-      console.warn(`\n⚠️  Notice: Setup email delivery failed (${result.emailDelivery?.error || 'unspecified error'}).`);
-      console.warn('   The administrator profile exists in Firestore and Firebase Auth.');
-      console.warn('   Once email configuration (FIREBASE_API_KEY) is verified, trigger a resend via the CMS API or console.');
+    if (result.outcome === 'PARTIAL_SUCCESS') {
+      console.warn(`\n⚠️  WARNING: PARTIAL SUCCESS (Exit Code ${BOOTSTRAP_EXIT_PARTIAL_SUCCESS})`);
+      console.warn(`   Reason: Setup email delivery failed (${result.emailDelivery?.error || 'Provider delivery error'}).`);
+      console.warn('   The administrator profile is safely provisioned in Firestore and Firebase Auth.');
+      console.warn('   Recovery Options:');
+      console.warn(`   1. Once email settings are verified, run: npm run bootstrap:admin -- --resend --email="${result.email}" --secret="<SECRET>"`);
+      console.warn(`   2. Or the administrator can navigate to /reset-password and enter "${result.email}".`);
+    } else if (result.outcome === 'RESEND_FAILED') {
+      console.warn(`\n⚠️  WARNING: RESEND FAILED (Exit Code ${BOOTSTRAP_EXIT_PARTIAL_SUCCESS})`);
+      console.warn(`   Reason: Setup email delivery failed (${result.emailDelivery?.error || 'Provider delivery error'}).`);
+    } else {
+      console.log(`\n✓ ${result.message}`);
+      console.log('   The administrator should inspect their inbox and complete initial password setup.');
     }
 
-    process.exit(0);
+    return result.exitCode;
   } catch (err: any) {
-    console.error(`\n❌ Bootstrap Aborted: ${err?.message}`);
-    process.exit(1);
+    const isAlreadyExists = err?.message?.includes('already exists in Firestore');
+    const exitCode = isAlreadyExists ? BOOTSTRAP_EXIT_ALREADY_EXISTS : BOOTSTRAP_EXIT_FATAL;
+    console.error(`\n❌ Bootstrap Aborted (Exit Code ${exitCode}): ${err?.message}`);
+    return exitCode;
   }
 }
 
@@ -238,8 +329,10 @@ const isDirectEntrypoint = Boolean(
 );
 
 if (isDirectEntrypoint) {
-  runBootstrap().catch((err) => {
+  runBootstrap().then((code) => {
+    process.exit(code);
+  }).catch((err) => {
     console.error('Fatal bootstrap execution error:', err);
-    process.exit(1);
+    process.exit(BOOTSTRAP_EXIT_FATAL);
   });
 }

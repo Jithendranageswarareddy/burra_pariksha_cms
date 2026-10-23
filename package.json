@@ -15,6 +15,7 @@
     "test": "tsx tests/integration/fc-001-auth.test.ts && tsx tests/integration/fc-002-rbac.test.ts && tsx tests/integration/fc-003-db-api.test.ts && tsx tests/integration/fc-004-audit.test.ts && tsx tests/integration/fc-005-workflow.test.ts",
     "test:auth": "tsx tests/integration/fc-001-auth.test.ts",
     "test:auth:migration": "tsx tests/unit/firebase-auth-migration.test.ts",
+    "test:bootstrap": "tsx tests/unit/bootstrap-initial-admin.test.ts",
     "test:rbac": "tsx tests/integration/fc-002-rbac.test.ts",
     "test:db-api": "tsx tests/integration/fc-003-db-api.test.ts",
     "test:audit": "tsx tests/integration/fc-004-audit.test.ts",

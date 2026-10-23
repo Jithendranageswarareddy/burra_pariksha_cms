@@ -520,6 +520,8 @@ apiRouter.post(['/auth/bootstrap-admin', '/v1/auth/bootstrap-admin'], authRateLi
       return;
     }
 
+    const { email, name, resend } = req.body || {};
+
     // Check if an active administrator already exists in Firestore
     const allUsers = await usersRepository.findAll();
     const existingAdmin = allUsers.find(
@@ -527,19 +529,62 @@ apiRouter.post(['/auth/bootstrap-admin', '/v1/auth/bootstrap-admin'], authRateLi
     );
 
     if (existingAdmin) {
+      if (resend) {
+        const targetEmail = String(email || existingAdmin.email).trim().toLowerCase();
+        if (targetEmail !== existingAdmin.email.toLowerCase()) {
+          const errEnvelope = createErrorResponse(
+            ApiErrorCode.VALIDATION_ERROR,
+            'Target email does not match existing administrator.',
+            requestId
+          );
+          res.status(400).json({ ...errEnvelope, message: 'Target email does not match existing administrator.' });
+          return;
+        }
+
+        const deliveryResult = await authService.dispatchPasswordSetupEmail(existingAdmin.email);
+        await auditService.log(
+          existingAdmin.id,
+          existingAdmin.name,
+          'FIRST_ADMIN_SETUP_EMAIL_RESENT',
+          'SYSTEM',
+          existingAdmin.id,
+          {
+            email: existingAdmin.email,
+            setupEmailSent: deliveryResult.sent,
+          }
+        );
+
+        const responsePayload = {
+          success: deliveryResult.sent,
+          message: deliveryResult.sent
+            ? 'Setup email successfully re-dispatched to existing administrator.'
+            : 'Failed to re-dispatch setup email.',
+          userId: existingAdmin.id,
+          accountCreated: false,
+          setupEmailSent: deliveryResult.sent,
+          retryAvailable: !deliveryResult.sent,
+          emailDelivery: deliveryResult,
+        };
+        const successEnvelope = createSuccessResponse(responsePayload, requestId);
+        res.status(deliveryResult.sent ? 200 : 400).json({
+          ...successEnvelope,
+          ...responsePayload,
+        });
+        return;
+      }
+
       const errEnvelope = createErrorResponse(
         ApiErrorCode.CONCURRENCY_CONFLICT,
-        'An active administrator already exists. Bootstrap provisioning is permanently disabled.',
+        'An active administrator already exists. Bootstrap provisioning is permanently disabled. Provide { resend: true, email: "<admin-email>" } with the bootstrap secret to retry setup email delivery, or use /reset-password.',
         requestId
       );
       res.status(409).json({
         ...errEnvelope,
-        message: 'An active administrator already exists. Bootstrap provisioning is permanently disabled.',
+        message: 'An active administrator already exists. Bootstrap provisioning is permanently disabled. Provide { resend: true, email: "<admin-email>" } with the bootstrap secret to retry setup email delivery, or use /reset-password.',
       });
       return;
     }
 
-    const { email, name, password } = req.body || {};
     if (!email || !name) {
       const errEnvelope = createErrorResponse(
         ApiErrorCode.VALIDATION_ERROR,
@@ -561,7 +606,7 @@ apiRouter.post(['/auth/bootstrap-admin', '/v1/auth/bootstrap-admin'], authRateLi
         authUser = await adminAuth.createUser({
           email: trimmedEmail,
           displayName: String(name).trim(),
-          password: password || undefined,
+          emailVerified: false,
         });
         authUserCreated = true;
       } else {
@@ -606,23 +651,14 @@ apiRouter.post(['/auth/bootstrap-admin', '/v1/auth/bootstrap-admin'], authRateLi
       throw saveErr;
     }
 
-    let setupEmailSent = false;
-    let retryAvailable = false;
-    let emailDelivery: { sent: boolean; message?: string; error?: string } = {
-      sent: false,
-      message: password ? 'Password established during bootstrap.' : undefined,
+    const deliveryResult = await authService.dispatchPasswordSetupEmail(trimmedEmail);
+    const setupEmailSent = deliveryResult.sent;
+    const retryAvailable = !setupEmailSent;
+    const emailDelivery = {
+      sent: deliveryResult.sent,
+      message: deliveryResult.message,
+      ...(deliveryResult.error ? { error: deliveryResult.error } : {}),
     };
-
-    if (!password) {
-      const deliveryResult = await authService.dispatchPasswordSetupEmail(trimmedEmail);
-      setupEmailSent = deliveryResult.sent;
-      retryAvailable = !setupEmailSent;
-      emailDelivery = {
-        sent: deliveryResult.sent,
-        message: deliveryResult.message,
-        ...(deliveryResult.error ? { error: deliveryResult.error } : {}),
-      };
-    }
 
     await auditService.log(
       created.id,
@@ -640,9 +676,7 @@ apiRouter.post(['/auth/bootstrap-admin', '/v1/auth/bootstrap-admin'], authRateLi
 
     const outcomeMessage = setupEmailSent
       ? 'First administrator successfully provisioned and setup email dispatched.'
-      : !password
-      ? 'First administrator successfully provisioned, but setup email delivery failed. Once delivery configuration is verified, an administrator can retry delivery.'
-      : 'First administrator successfully provisioned with initial credentials.';
+      : 'First administrator successfully provisioned, but setup email delivery failed. Once delivery configuration is verified, an administrator can retry delivery.';
 
     const responsePayload = {
       message: outcomeMessage,

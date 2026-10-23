@@ -1565,8 +1565,8 @@ export class ApiClient {
 
   public async bootstrapAdmin(data: {
     email: string;
-    name: string;
-    password?: string;
+    name?: string;
+    resend?: boolean;
     bootstrapSecret: string;
   }): Promise<{
     success: boolean;
