@@ -47,7 +47,7 @@ scriptRouter.get('/videos/:videoId/script', requireAuth, async (req: Request, re
   }
 });
 
-scriptRouter.get('/scripts/:scriptId/versions', async (req: Request, res: Response) => {
+scriptRouter.get('/scripts/:scriptId/versions', requireAuth, async (req: Request, res: Response) => {
   try {
     const { scriptId } = req.params;
     const actor = getRequestActor(req);

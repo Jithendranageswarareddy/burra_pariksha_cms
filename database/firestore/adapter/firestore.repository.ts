@@ -293,8 +293,7 @@ export class FirestoreRepository<T extends BaseEntity> implements IRepository<T>
       const db = await this.getDb();
       let q: Query = db.collection(this.collectionName);
 
-      // Apply equality filters directly at the Firestore query level so that
-      // limit() operates on matching documents rather than truncating the collection before filtering.
+      // Equality predicates are pushed down to Firestore.
       if (options?.where) {
         for (const [k, v] of Object.entries(options.where)) {
           if (v !== undefined) {
@@ -303,20 +302,20 @@ export class FirestoreRepository<T extends BaseEntity> implements IRepository<T>
         }
       }
 
-      if (options?.limit) {
-        q = q.limit(options.limit);
-      }
-
       const snap = await q.get();
       let list = snap.docs.map((d) => {
         const data = d.data();
         return { ...data, id: (data as any)?.id || d.id } as T;
       });
 
+      // Preserve legacy records whose isDeleted property is absent.
       if (!options?.includeDeleted) {
         list = list.filter((e) => !e.isDeleted);
       }
 
+      // Keep the established repository contract: filter deleted rows before
+      // sorting/pagination. This is correctness-first; high-volume collections
+      // should adopt cursor pagination and a normalized isDeleted schema.
       if (options?.where) {
         const whereEntries = Object.entries(options.where);
         list = list.filter((e: any) =>
@@ -334,14 +333,21 @@ export class FirestoreRepository<T extends BaseEntity> implements IRepository<T>
         });
       }
 
-      return list;
+      const offset = Math.max(0, Math.floor(options?.offset ?? 0));
+      const end = options?.limit !== undefined && options.limit > 0
+        ? offset + Math.floor(options.limit)
+        : undefined;
+
+      return offset > 0 || end !== undefined ? list.slice(offset, end) : list;
     } catch (err) {
       handleFirestoreError(err, OperationType.LIST, this.collectionName);
     }
   }
 
   public async count(options?: QueryOptions<T>): Promise<number> {
-    const records = await this.findMany(options);
+    // Count semantics intentionally ignore pagination options.
+    const { limit: _limit, offset: _offset, orderBy: _orderBy, ...filters } = options || {};
+    const records = await this.findMany(filters);
     return records.length;
   }
 }

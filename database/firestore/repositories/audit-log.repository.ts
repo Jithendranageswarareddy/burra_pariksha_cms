@@ -193,14 +193,45 @@ export class UsersRepository extends BaseRepository<User> {
   }
 
   public async findByEmail(email: string): Promise<User | null> {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail) return null;
+
+    const r = await this.getRepo();
+    // Query indexed equality candidates first, then retain case-insensitive
+    // comparison for legacy profiles whose stored email casing is inconsistent.
+    const candidates = await r.findMany({ where: { email: normalizedEmail } as any });
+    const exactMatches = candidates.filter(
+      (u) => (u.email || '').trim().toLowerCase() === normalizedEmail
+    );
+
+    if (exactMatches.length > 1) {
+      throw new Error('Multiple user profiles match the same normalized email address.');
+    }
+    if (exactMatches.length === 1) return exactMatches[0] as User;
+
+    // Backward-compatible fallback for legacy mixed-case addresses. The long-term
+    // fix is a normalizedEmail field written for every profile and backfilled in
+    // a separately authorized migration.
     const all = await this.findAll();
-    return all.find((u) => u.email.toLowerCase() === email.toLowerCase()) || null;
+    const matches = all.filter(
+      (u) => (u.email || '').trim().toLowerCase() === normalizedEmail
+    );
+    if (matches.length > 1) {
+      throw new Error('Multiple user profiles match the same normalized email address.');
+    }
+    return matches[0] || null;
   }
 
   public async findByFirebaseUid(firebaseUid: string): Promise<User | null> {
-    if (!firebaseUid) return null;
-    const all = await this.findAll();
-    return all.find((u) => u.firebaseUid === firebaseUid) || null;
+    const normalizedUid = firebaseUid?.trim();
+    if (!normalizedUid) return null;
+    const r = await this.getRepo();
+    const matches = await r.findMany({ where: { firebaseUid: normalizedUid }, limit: 2 });
+    // Fail closed on duplicate identity mappings instead of choosing an arbitrary record.
+    if (matches.length > 1) {
+      throw new Error('Multiple user profiles are linked to the same Firebase UID.');
+    }
+    return (matches[0] as User | undefined) || null;
   }
 }
 

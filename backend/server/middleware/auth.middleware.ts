@@ -87,46 +87,38 @@ export function requireAuth(req: AuthenticatedRequest, res: Response, next: Next
     }
 
     const completeAuth = (userState: UserSessionState | null) => {
-      if (userState) {
-        if (!userState.isActive) {
-          const errEnvelope = createErrorResponse(
-            ApiErrorCode.UNAUTHENTICATED,
-            'Account is inactive. Please contact administrator.',
-            requestId
-          );
-          res.status(401).json({
-            ...errEnvelope,
-            message: 'Account is inactive. Please contact administrator.',
-          });
-          return;
-        }
-
-        // Persistent session version check: token version must match or exceed current persistent session version
-        const tokenVersion = payload.sessionVersion ?? 1;
-        if (tokenVersion < userState.sessionVersion) {
-          const errEnvelope = createErrorResponse(
-            ApiErrorCode.UNAUTHENTICATED,
-            'Invalid or expired session.',
-            requestId
-          );
-          res.status(401).json({
-            ...errEnvelope,
-            message: 'Invalid or expired session.',
-          });
-          return;
-        }
+      if (!userState || !userState.isActive) {
+        const errEnvelope = createErrorResponse(
+          ApiErrorCode.UNAUTHENTICATED,
+          'Invalid or expired session.',
+          requestId
+        );
+        res.status(401).json({
+          ...errEnvelope,
+          message: 'Invalid or expired session.',
+        });
+        return;
       }
 
-      const rolesList: string[] = [];
-      if (Array.isArray((payload as any).roles)) {
-        (payload as any).roles.forEach((r: any) => r && rolesList.push(String(r).trim()));
-      }
-      if (rolesList.length === 0 && payload.role) {
-        String(payload.role).split(',').forEach((r) => r.trim() && rolesList.push(r.trim()));
+      // Persistent session version check: token version must match or exceed current persistent session version
+      const tokenVersion = payload.sessionVersion ?? 1;
+      if (tokenVersion < userState.sessionVersion) {
+        const errEnvelope = createErrorResponse(
+          ApiErrorCode.UNAUTHENTICATED,
+          'Invalid or expired session.',
+          requestId
+        );
+        res.status(401).json({
+          ...errEnvelope,
+          message: 'Invalid or expired session.',
+        });
+        return;
       }
 
-      const authoritativeRoles = userState?.roles && userState.roles.length > 0 ? userState.roles : rolesList;
-      const authoritativeRole = userState?.role || payload.role || authoritativeRoles[0] || UserRole.ADMIN;
+      const authoritativeRoles = userState.roles && userState.roles.length > 0
+        ? userState.roles
+        : [userState.role];
+      const authoritativeRole = userState.role || authoritativeRoles[0] || UserRole.QUESTION_AUTHOR;
 
       req.user = {
         id: payload.userId,
@@ -365,31 +357,33 @@ export function requireCapability(
         return;
       }
 
-      const userState = usersRepository.getUserSessionState(payload.userId);
-      if (userState) {
-        if (!userState.isActive || (payload.sessionVersion ?? 1) < userState.sessionVersion) {
-          const errEnvelope = createErrorResponse(
-            ApiErrorCode.UNAUTHENTICATED,
-            'Invalid or expired session.',
-            requestId
-          );
-          res.status(401).json({
-            ...errEnvelope,
-            message: 'Invalid or expired session.',
-          });
-          return;
-        }
+      // This middleware is an authorization boundary. Unlike requireAuth, it may be
+      // entered directly by a route, so always resolve current user state on cache miss
+      // and fail closed when an authoritative account record cannot be found.
+      let userState: UserSessionState | null;
+      try {
+        userState = await usersRepository.getAuthoritativeUserSessionState(payload.userId);
+      } catch {
+        userState = null;
       }
 
-      const rolesList: string[] = [];
-      if (Array.isArray((payload as any).roles)) {
-        (payload as any).roles.forEach((r: any) => r && rolesList.push(String(r).trim()));
+      if (!userState || !userState.isActive || (payload.sessionVersion ?? 1) < userState.sessionVersion) {
+        const errEnvelope = createErrorResponse(
+          ApiErrorCode.UNAUTHENTICATED,
+          'Invalid or expired session.',
+          requestId
+        );
+        res.status(401).json({
+          ...errEnvelope,
+          message: 'Invalid or expired session.',
+        });
+        return;
       }
-      if (rolesList.length === 0 && payload.role) {
-        String(payload.role).split(',').forEach((r) => r.trim() && rolesList.push(r.trim()));
-      }
-      const authoritativeRoles = userState?.roles && userState.roles.length > 0 ? userState.roles : rolesList;
-      const authoritativeRole = userState?.role || payload.role || authoritativeRoles[0] || 'QUESTION_AUTHOR';
+
+      const authoritativeRoles = userState.roles && userState.roles.length > 0
+        ? userState.roles
+        : [userState.role];
+      const authoritativeRole = userState.role || authoritativeRoles[0] || 'QUESTION_AUTHOR';
 
       req.user = {
         id: payload.userId,
@@ -641,38 +635,10 @@ export function getRequestActor(req: Request): ActorContext & { name: string; ro
     return authReq._requestActor;
   }
 
-  // If req.user is absent, attempt inline token extraction from session cookie or Bearer header
+  // Actor resolution is intentionally synchronous. Authentication middleware must
+  // populate req.user before domain handlers call this helper; never validate
+  // token claims here or fall back to an unverified identity.
   if (!authReq.user?.id) {
-    const token = extractSessionToken(req);
-    if (token) {
-      const payload = authService.verifySessionToken(token);
-      if (payload) {
-        const userState = usersRepository.getUserSessionState(payload.userId);
-        if (!userState || (userState.isActive && (payload.sessionVersion ?? 1) >= userState.sessionVersion)) {
-          const rolesList: string[] = [];
-          if (Array.isArray((payload as any).roles)) {
-            (payload as any).roles.forEach((r: any) => r && rolesList.push(String(r).trim()));
-          }
-          if (rolesList.length === 0 && payload.role) {
-            String(payload.role).split(',').forEach((r) => r.trim() && rolesList.push(r.trim()));
-          }
-          const authoritativeRoles = userState?.roles && userState.roles.length > 0 ? userState.roles : rolesList;
-          const authoritativeRole = userState?.role || payload.role || authoritativeRoles[0] || 'QUESTION_AUTHOR';
-
-          authReq.user = {
-            id: payload.userId,
-            name: payload.name,
-            role: authoritativeRole,
-            roles: authoritativeRoles.length > 0 ? authoritativeRoles : [authoritativeRole],
-          };
-        }
-      }
-    }
-  }
-
-  if (!authReq.user?.id) {
-    // CRITICAL SECURITY BLOCKER RESOLVED:
-    // Unauthenticated requests NEVER receive an Admin actor or fallback identity.
     throw new UnauthenticatedActorError('Authentication required: verified actor session context is missing.');
   }
 
