@@ -1568,8 +1568,24 @@ export class ApiClient {
     name: string;
     password?: string;
     bootstrapSecret: string;
-  }): Promise<{ success: boolean; message: string; userId?: string; setupLink?: string }> {
-    return this.request<{ success: boolean; message: string; userId?: string; setupLink?: string }>('/auth/bootstrap-admin', {
+  }): Promise<{
+    success: boolean;
+    message: string;
+    userId?: string;
+    accountCreated?: boolean;
+    setupEmailSent?: boolean;
+    retryAvailable?: boolean;
+    emailDelivery?: { sent: boolean; message?: string; error?: string };
+  }> {
+    return this.request<{
+      success: boolean;
+      message: string;
+      userId?: string;
+      accountCreated?: boolean;
+      setupEmailSent?: boolean;
+      retryAvailable?: boolean;
+      emailDelivery?: { sent: boolean; message?: string; error?: string };
+    }>('/auth/bootstrap-admin', {
       method: 'POST',
       headers: {
         'x-bootstrap-secret': data.bootstrapSecret,

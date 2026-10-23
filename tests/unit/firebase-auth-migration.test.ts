@@ -23,6 +23,7 @@ import { apiRouter } from '../../backend/server/routers/routes';
 import { UserRole, User } from '../../shared';
 import { setAdminAuth } from '../../database/firestore/adapter/admin';
 import { auditLogRepository } from '../../database/firestore/repositories/audit-log.repository';
+import { provisionInitialAdmin } from '../../scripts/bootstrap-initial-admin';
 
 async function runFirebaseAuthTests() {
   console.log('============================================================');
@@ -168,6 +169,13 @@ async function runFirebaseAuthTests() {
     // --------------------------------------------------------------------------
     console.log('[Test 1] Testing Administrator Bootstrap Security & Fail-Closed Behavior...');
 
+    // Setup email delivery spy for bootstrap
+    let deliveredEmails: string[] = [];
+    authService.setTestEmailSender(async (email) => {
+      deliveredEmails.push(email);
+      return { sent: true, message: `Email delivered to ${email}` };
+    });
+
     // 1a: Missing secret is rejected with 403
     const badSecretRes = await fetch(`${baseUrl}/auth/bootstrap-admin`, {
       method: 'POST',
@@ -195,7 +203,7 @@ async function runFirebaseAuthTests() {
     assert.strictEqual(inMemUsers.size, 0, 'Must NOT create admin profile in Firestore when Firebase Auth fails');
     mockAdminAuthAvailable = true;
 
-    // 1c: Valid bootstrap with real Firebase identity succeeds
+    // 1c: Valid bootstrap with real Firebase identity succeeds and accurately dispatches setup email
     const goodBootstrapRes = await fetch(`${baseUrl}/auth/bootstrap-admin`, {
       method: 'POST',
       headers: {
@@ -211,6 +219,14 @@ async function runFirebaseAuthTests() {
     const goodBootstrapData = await goodBootstrapRes.json();
     assert.strictEqual(goodBootstrapData.success, true);
     assert(goodBootstrapData.userId, 'Must return provisioned userId');
+
+    // Invariants: Never return setupLink, report setupEmailSent truthfully
+    assert.strictEqual(goodBootstrapData.setupLink, undefined, 'Bootstrap HTTP response must NEVER return a setupLink');
+    assert.strictEqual(goodBootstrapData.setupEmailSent, true, 'setupEmailSent must be true on successful email dispatch');
+    assert.strictEqual(goodBootstrapData.retryAvailable, false, 'retryAvailable must be false when email was delivered');
+    assert.strictEqual(goodBootstrapData.accountCreated, true, 'accountCreated must be true');
+    assert.strictEqual(goodBootstrapData.emailDelivery?.sent, true);
+    assert(deliveredEmails.includes('first.admin@burrapariksha.com'), 'Must have dispatched email to administrator');
 
     const createdAdmin = inMemUsers.get(goodBootstrapData.userId);
     assert(createdAdmin, 'Admin must exist in repository');
@@ -232,6 +248,65 @@ async function runFirebaseAuthTests() {
     });
     assert.strictEqual(secondBootstrapRes.status, 409, 'Subsequent bootstrap attempts must return 409 Conflict');
 
+    // 1e: CLI / Programmatic bootstrap: email delivery failure reports partial success truthfully
+    // Temporarily clear inMemUsers to test bootstrap when email delivery fails
+    inMemUsers.clear();
+    authService.setTestEmailSender(async () => {
+      return { sent: false, message: 'Failed to deliver setup email.', error: 'Simulated SMTP connection timeout' };
+    });
+
+    const partialBootstrapResult = await provisionInitialAdmin({
+      email: 'partial.admin@burrapariksha.com',
+      name: 'Partial Administrator',
+      secret: 'secure-test-bootstrap-secret-9988',
+    });
+
+    assert.strictEqual(partialBootstrapResult.success, true);
+    assert.strictEqual(partialBootstrapResult.accountCreated, true, 'Account must be created in Firestore and Auth');
+    assert.strictEqual(partialBootstrapResult.setupEmailSent, false, 'setupEmailSent must be false when email delivery fails');
+    assert.strictEqual(partialBootstrapResult.retryAvailable, true, 'retryAvailable must be true when email delivery fails');
+    assert.strictEqual(partialBootstrapResult.emailDelivery?.sent, false);
+    assert.strictEqual(partialBootstrapResult.emailDelivery?.error, 'Simulated SMTP connection timeout');
+    assert.strictEqual((partialBootstrapResult as any).setupLink, undefined, 'CLI bootstrap must NEVER return setupLink');
+    assert(inMemUsers.has(partialBootstrapResult.userId!), 'Administrator profile must exist in Firestore');
+
+    // 1f: UID collision rejection in bootstrap
+    // Create an existing Firebase user whose UID is already tied to another user profile
+    const collidedUid = 'fb_collided_admin_uid';
+    inMemAuthUsers.set(collidedUid, { uid: collidedUid, email: 'collision.admin@burrapariksha.com' });
+    inMemUsers.set('usr_other_employee', {
+      id: 'usr_other_employee',
+      name: 'Other Employee',
+      email: 'other@burrapariksha.com',
+      role: UserRole.VIDEO_EDITOR,
+      roles: [UserRole.VIDEO_EDITOR],
+      firebaseUid: collidedUid,
+      isActive: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    // Clear active admin so duplicate-admin check passes, but UID collision check triggers
+    inMemUsers.delete(partialBootstrapResult.userId!);
+
+    await assert.rejects(
+      async () => {
+        await provisionInitialAdmin({
+          email: 'collision.admin@burrapariksha.com',
+          name: 'Collision Admin',
+          secret: 'secure-test-bootstrap-secret-9988',
+        });
+      },
+      /already linked to user profile/,
+      'Bootstrap must reject when Firebase Auth UID is already bound to another profile'
+    );
+
+    // 1g: Existing Firebase users are not unexpectedly modified or deleted
+    assert(inMemAuthUsers.has(collidedUid), 'Pre-existing Firebase Auth user must NOT be deleted');
+
+    // Restore createdAdmin in inMemUsers for subsequent tests (Tests 2-6 expect createdAdmin)
+    inMemUsers.set(createdAdmin.id, createdAdmin);
+
     console.log('✓ Test 1 PASSED: Administrator bootstrap fail-closed & idempotency verified.');
     passed++;
 
@@ -240,8 +315,8 @@ async function runFirebaseAuthTests() {
     // --------------------------------------------------------------------------
     console.log('[Test 2] Testing Employee Creation & Truthful Email Reporting...');
 
-    // Inject successful test email delivery
-    let deliveredEmails: string[] = [];
+    // Re-initialize deliveredEmails array for Test 2
+    deliveredEmails = [];
     authService.setTestEmailSender(async (email) => {
       deliveredEmails.push(email);
       return { sent: true, message: `Email delivered to ${email}` };

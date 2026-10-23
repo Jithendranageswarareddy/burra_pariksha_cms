@@ -66,7 +66,14 @@ Ensure the following environment variables are configured in production (e.g. Cl
 
 ## 5. First-Time Administrator Provisioning
 
-When the database has zero active administrators, you can provision the initial administrator using either the CLI script or the protected REST API endpoint.
+When the database has zero active administrators, you can provision the foundational system administrator using either the CLI script or the protected REST API endpoint.
+
+### Security Guarantees & Safeguards
+- **Zero Secret Link Leaks**: Password-setup action links and `oobCode` values are **never** printed to the terminal console, written to log files, persisted in Firestore, or returned in HTTP response payloads.
+- **Centralized Email Delivery**: Password setup is delivered directly to the administrator's email inbox using `authService.dispatchPasswordSetupEmail` via Firebase Authentication.
+- **Safe Partial-Success & Recovery**: If email delivery fails after creating the Firebase Auth account and Firestore profile, the system truthfully reports partial success (`setupEmailSent: false`, `retryAvailable: true`). Pre-existing administrator accounts are never deleted as compensation.
+- **Fail-Closed & Anti-Collision**: Rejects bootstrap attempts without the configured `BOOTSTRAP_ADMIN_SECRET`, fails closed if Firebase Auth is unavailable (zero placeholder UIDs), and rejects UID collisions if a Firebase Auth user is already bound to another profile.
+- **Compensating Rollback**: Only newly created Firebase Auth accounts are rolled back if Firestore persistence fails. Existing Firebase accounts are never modified or deleted.
 
 ### Option A: CLI Bootstrap Script (Recommended)
 
@@ -74,11 +81,18 @@ When the database has zero active administrators, you can provision the initial 
    ```bash
    export BOOTSTRAP_ADMIN_SECRET="your-generated-secure-secret-phrase"
    ```
-2. Execute the npm script:
+2. Execute the bootstrap script:
    ```bash
    npm run bootstrap:admin -- --email="admin@burrapariksha.com" --name="System Administrator" --secret="your-generated-secure-secret-phrase"
    ```
-   *Optional*: You can also provide `--password="InitialSecurePassword123!"`. If omitted, a genuine Firebase password reset link is generated and printed directly to the terminal console for manual one-time handover.
+   - When no password is provided, a password setup email is securely dispatched via Firebase Authentication to `admin@burrapariksha.com`.
+   - *Optional*: You can provide `--password="InitialSecurePassword123!"` if establishing credentials directly during bootstrap invocation.
+
+3. **Email Delivery Failure Recovery**:
+   If the terminal reports `Setup Email: FAILED (Partial Success)`:
+   - The administrator profile has been safely saved in Cloud Firestore and linked to Firebase Auth.
+   - Verify that `FIREBASE_API_KEY` is configured and that the recipient email domain is reachable.
+   - The administrator can establish their password at any time using the public forgot-password recovery flow (`/reset-password`), or an authenticated operator can trigger a resend once delivery configuration is restored.
 
 ### Option B: REST API Endpoint
 
@@ -89,13 +103,37 @@ When the database has zero active administrators, you can provision the initial 
      -H "x-bootstrap-secret: your-generated-secure-secret-phrase" \
      -d '{
        "email": "admin@burrapariksha.com",
-       "name": "System Administrator",
-       "password": "InitialSecurePassword123!"
+       "name": "System Administrator"
      }'
    ```
+   **Response (Full Success)**:
+   ```json
+   {
+     "success": true,
+     "message": "First administrator successfully provisioned and setup email dispatched.",
+     "userId": "usr_...",
+     "accountCreated": true,
+     "setupEmailSent": true,
+     "retryAvailable": false,
+     "emailDelivery": { "sent": true }
+   }
+   ```
+   **Response (Partial Success - Email Failure)**:
+   ```json
+   {
+     "success": true,
+     "message": "First administrator successfully provisioned, but setup email delivery failed. Once delivery configuration is verified, an administrator can retry delivery.",
+     "userId": "usr_...",
+     "accountCreated": true,
+     "setupEmailSent": false,
+     "retryAvailable": true,
+     "emailDelivery": { "sent": false, "error": "Provider message" }
+   }
+   ```
+
 2. **Post-Bootstrap Cleanup**:
    - Immediately unset or rotate `BOOTSTRAP_ADMIN_SECRET` in production configuration.
-   - Any subsequent calls to `/api/auth/bootstrap-admin` will be rejected with HTTP 409 Conflict.
+   - Any subsequent calls to `/api/auth/bootstrap-admin` or `bootstrap-initial-admin.ts` will be rejected with HTTP 409 Conflict.
 
 ---
 

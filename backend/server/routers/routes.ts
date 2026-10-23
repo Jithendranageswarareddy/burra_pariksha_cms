@@ -556,9 +556,6 @@ apiRouter.post(['/auth/bootstrap-admin', '/v1/auth/bootstrap-admin'], authRateLi
     let authUserCreated = false;
     try {
       authUser = await adminAuth.getUserByEmail(trimmedEmail);
-      if (password) {
-        await adminAuth.updateUser(authUser.uid, { password });
-      }
     } catch (err: any) {
       if (err?.code === 'auth/user-not-found') {
         authUser = await adminAuth.createUser({
@@ -580,16 +577,6 @@ apiRouter.post(['/auth/bootstrap-admin', '/v1/auth/bootstrap-admin'], authRateLi
     const existingWithUid = await usersRepository.findByFirebaseUid(authUser.uid);
     if (existingWithUid) {
       throw new Error(`Firebase Authentication identity is already linked to profile (${existingWithUid.id}).`);
-    }
-
-    let setupLink: string | undefined = undefined;
-    if (!password) {
-      try {
-        setupLink = await adminAuth.generatePasswordResetLink(trimmedEmail);
-      } catch (linkErr: any) {
-        console.warn(`[AUTH-BOOTSTRAP] Notice: Could not generate setup link: ${linkErr?.message}`);
-        setupLink = undefined;
-      }
     }
 
     const adminUser: User = {
@@ -618,26 +605,59 @@ apiRouter.post(['/auth/bootstrap-admin', '/v1/auth/bootstrap-admin'], authRateLi
       }
       throw saveErr;
     }
+
+    let setupEmailSent = false;
+    let retryAvailable = false;
+    let emailDelivery: { sent: boolean; message?: string; error?: string } = {
+      sent: false,
+      message: password ? 'Password established during bootstrap.' : undefined,
+    };
+
+    if (!password) {
+      const deliveryResult = await authService.dispatchPasswordSetupEmail(trimmedEmail);
+      setupEmailSent = deliveryResult.sent;
+      retryAvailable = !setupEmailSent;
+      emailDelivery = {
+        sent: deliveryResult.sent,
+        message: deliveryResult.message,
+        ...(deliveryResult.error ? { error: deliveryResult.error } : {}),
+      };
+    }
+
     await auditService.log(
       created.id,
       created.name,
       'FIRST_ADMIN_BOOTSTRAPPED',
       'SYSTEM',
       created.id,
-      { email: created.email, hasFirebaseUid: Boolean(authUser?.uid) }
+      {
+        email: created.email,
+        hasFirebaseUid: Boolean(authUser?.uid),
+        setupEmailSent,
+        retryAvailable,
+      }
     );
 
-    const successEnvelope = createSuccessResponse({
-      message: 'First administrator successfully provisioned.',
+    const outcomeMessage = setupEmailSent
+      ? 'First administrator successfully provisioned and setup email dispatched.'
+      : !password
+      ? 'First administrator successfully provisioned, but setup email delivery failed. Once delivery configuration is verified, an administrator can retry delivery.'
+      : 'First administrator successfully provisioned with initial credentials.';
+
+    const responsePayload = {
+      message: outcomeMessage,
       userId: created.id,
-      setupLink,
-    }, requestId);
+      accountCreated: true,
+      setupEmailSent,
+      retryAvailable,
+      emailDelivery,
+    };
+
+    const successEnvelope = createSuccessResponse(responsePayload, requestId);
 
     res.status(201).json({
       ...successEnvelope,
-      message: 'First administrator successfully provisioned.',
-      userId: created.id,
-      setupLink,
+      ...responsePayload,
     });
   } catch (err: any) {
     const errEnvelope = createErrorResponse(
