@@ -922,7 +922,7 @@ apiRouter.get('/auth/google/url', async (req: Request, res: Response) => {
       return;
     }
 
-    const state = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    const state = crypto.randomBytes(32).toString('base64url');
     const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/api/auth/google/callback';
 
     const oauth2Client = new google.auth.OAuth2(
@@ -943,7 +943,10 @@ apiRouter.get('/auth/google/url', async (req: Request, res: Response) => {
 
     res.json({ success: true, url: authorizationUrl });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: `Failed to generate auth URL: ${err?.message || err}` });
+    console.error('[GoogleOAuth] Failed to generate authorization URL', {
+      message: err?.message || 'Unknown error',
+    });
+    res.status(500).json({ success: false, error: 'Unable to start Google authorization.' });
   }
 });
 
@@ -998,7 +1001,10 @@ apiRouter.get('/auth/google/callback', async (req: Request, res: Response) => {
     // Secure confirmation message without exposing, printing, or returning the token
     res.send('<h1>Google Drive authorization completed. Configure the server-side refresh token securely.</h1>');
   } catch (err: any) {
-    res.status(500).send(`<h1>OAuth Authorization Failed</h1><p>Error details: ${err?.message || err}</p>`);
+    console.error('[GoogleOAuth] Callback failed', {
+      message: err?.message || 'Unknown error',
+    });
+    res.status(500).send('<h1>Google Drive authorization failed</h1><p>Please retry or contact the system administrator.</p>');
   }
 });
 
