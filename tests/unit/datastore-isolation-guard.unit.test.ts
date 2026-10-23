@@ -19,6 +19,7 @@ import assert from 'node:assert';
 import {
   resolveDatastoreTarget,
   assertDatastoreSafe,
+  assertDestructiveScriptSafe,
   evaluateDatastoreIsolation,
   DatastoreIsolationError,
   KNOWN_PRODUCTION_PROJECTS,
@@ -307,8 +308,65 @@ async function runDatastoreGuardUnitTests() {
     pass('Admin SDK initialization path enforces datastore guard and binds to emulator');
   }
 
+  // Test 12: Destructive scripts strictly fail closed against production targets even with dev override
+  console.log('\n--- Test 12: Destructive Scripts Fail Closed Against Production Targets ---');
+  {
+    const prodEnv: NodeJS.ProcessEnv = {
+      NODE_ENV: 'development',
+      GCP_PROJECT_ID: 'burra-pariksha-cms',
+      FIRESTORE_DATABASE_ID: 'ai-studio-burraparikshacon-f592ca42-39af-4d83-aff2-6870ba939b0e',
+      ALLOW_PRODUCTION_FIRESTORE_IN_DEV: 'true',
+    };
+
+    assert.throws(
+      () => assertDestructiveScriptSafe('zerodown-database.ts', prodEnv),
+      (err: any) => {
+        return (
+          err instanceof DatastoreIsolationError &&
+          err.reasons.some((r: string) => r.includes('requires LOCAL_FIRESTORE_EMULATOR target'))
+        );
+      },
+      'Destructive script must throw DatastoreIsolationError when targeting production'
+    );
+
+    assert.throws(
+      () => assertDestructiveScriptSafe('admin-reset-firestore.ts', prodEnv),
+      (err: any) => err instanceof DatastoreIsolationError,
+      'admin-reset-firestore.ts must throw when targeting production'
+    );
+
+    assert.throws(
+      () => assertDestructiveScriptSafe('purge-test-firestore-records.ts', prodEnv),
+      (err: any) => err instanceof DatastoreIsolationError,
+      'purge-test-firestore-records.ts must throw when targeting production'
+    );
+
+    pass('Destructive scripts refuse to execute against production targets even with ALLOW_PRODUCTION_FIRESTORE_IN_DEV=true');
+  }
+
+  // Test 13: Destructive scripts pass when targeting a valid local emulator
+  console.log('\n--- Test 13: Destructive Scripts Pass For Valid Local Emulator ---');
+  {
+    const emulatorEnv: NodeJS.ProcessEnv = {
+      NODE_ENV: 'development',
+      USE_FIRESTORE_EMULATOR: 'true',
+      FIRESTORE_EMULATOR_HOST: '127.0.0.1:8080',
+      FIRESTORE_TEST_PROJECT_ID: 'burra-pariksha-test',
+      FIRESTORE_TEST_DATABASE_ID: '(default)',
+    };
+
+    const target = assertDestructiveScriptSafe('zerodown-database.ts', emulatorEnv);
+    assert.strictEqual(target.isApproved, true);
+    assert.strictEqual(target.mode, 'LOCAL_FIRESTORE_EMULATOR');
+    assert.strictEqual(target.projectId, 'burra-pariksha-test');
+    assert.strictEqual(target.databaseId, '(default)');
+    assert.strictEqual(target.isProductionTarget, false);
+
+    pass('Destructive scripts safely execute when targeting valid local emulator');
+  }
+
   console.log('\n========================================================================');
-  console.log('ALL 11 DATASTORE ISOLATION GUARD UNIT TESTS PASSED 100%');
+  console.log('ALL 13 DATASTORE ISOLATION GUARD UNIT TESTS PASSED 100%');
   console.log('========================================================================\n');
 }
 

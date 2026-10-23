@@ -550,3 +550,38 @@ export async function assertEmulatorAlive(
   }
 }
 
+/**
+ * Asserts that a destructive administrative script is permitted to execute.
+ * STRICT SAFETY INTERLOCK:
+ * Destructive scripts (zerodown, admin-reset, purge) are strictly restricted
+ * to the verified local Firestore emulator. They are permanently prohibited
+ * from running against production Cloud Firestore, regardless of ALLOW_PRODUCTION_FIRESTORE_IN_DEV.
+ */
+export function assertDestructiveScriptSafe(
+  scriptName: string,
+  env: NodeJS.ProcessEnv = process.env
+): DatastoreResolution {
+  const resolution = assertDatastoreSafe(env);
+
+  if (
+    resolution.mode !== 'LOCAL_FIRESTORE_EMULATOR' ||
+    resolution.isProductionTarget ||
+    !resolution.emulatorHost
+  ) {
+    throw new DatastoreIsolationError(
+      `CRITICAL SAFETY INTERLOCK: "${scriptName}" is a destructive script and is strictly prohibited ` +
+      `from executing against production Cloud Firestore or any remote database target.\n` +
+      `Current resolved datastore target: mode=${resolution.mode}, project=${resolution.projectId}, ` +
+      `database=${resolution.databaseId}, isProductionTarget=${resolution.isProductionTarget}.\n` +
+      `Destructive scripts may ONLY execute against a verified local Firestore Emulator ` +
+      `(USE_FIRESTORE_EMULATOR=true with approved synthetic test project).`,
+      [
+        `Destructive script "${scriptName}" requires LOCAL_FIRESTORE_EMULATOR target`,
+        `Current target mode: ${resolution.mode}`,
+        `Current target project: ${resolution.projectId}`,
+      ]
+    );
+  }
+
+  return resolution;
+}

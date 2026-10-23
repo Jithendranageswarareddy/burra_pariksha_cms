@@ -8,6 +8,7 @@
  */
 
 import '../src/config/env';
+import { assertDestructiveScriptSafe, assertEmulatorAlive } from '../src/config/datastore-guard';
 import { getAdminFirestore } from '../database/firestore/adapter/admin';
 
 const PRESERVED_USER_EMAIL = 'jithendrareddy629@gmail.com';
@@ -54,9 +55,30 @@ async function deleteCollectionRecursively(
 }
 
 export async function runZeroDown(): Promise<void> {
+  const args = process.argv.slice(2);
+  const confirmed = args.includes('--confirm-zerodown');
+
+  if (!confirmed) {
+    console.error('============================================================');
+    console.error('SAFETY INTERLOCK: ZERO-DOWN DATABASE ABORTED');
+    console.error('============================================================');
+    console.error('This is a destructive administrative utility.');
+    console.error('To proceed, you must supply the explicit confirmation flag:');
+    console.error('  npx tsx scripts/zerodown-database.ts --confirm-zerodown');
+    console.error('============================================================');
+    process.exit(1);
+  }
+
+  // Enforce emulator-only execution guard
+  const target = assertDestructiveScriptSafe('zerodown-database.ts');
+  await assertEmulatorAlive(target.emulatorHost || undefined);
+
   console.log('============================================================');
   console.log('BURRA PARIKSHA CMS — TOTAL FIRESTORE ZERO-DOWN UTILITY');
   console.log('============================================================\n');
+  console.log(`[Safety Guard] Target Verified: ${target.mode} at ${target.emulatorHost}`);
+  console.log(`- Project: ${target.projectId}`);
+  console.log(`- Database: ${target.databaseId}\n`);
 
   const db = getAdminFirestore();
   console.log(`Target Database: ${db.databaseId || '(default)'}`);

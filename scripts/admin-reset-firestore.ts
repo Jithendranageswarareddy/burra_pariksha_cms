@@ -16,6 +16,7 @@
  *   npx tsx scripts/admin-reset-firestore.ts --confirm-wipe-all-data
  */
 
+import { assertDestructiveScriptSafe, assertEmulatorAlive } from '../src/config/datastore-guard';
 import { getAdminFirestore } from '../database/firestore/adapter/admin';
 import { firestoreProductionInitializer } from '../backend/features/recovery/services/firestore-production-initializer.service';
 import { authService } from '../backend/infrastructure/auth/services/auth.service';
@@ -97,9 +98,16 @@ export async function runAdminReset(reseedBaseline = true): Promise<void> {
     process.exit(1);
   }
 
+  // Enforce emulator-only safety interlock
+  const target = assertDestructiveScriptSafe('admin-reset-firestore.ts');
+  await assertEmulatorAlive(target.emulatorHost || undefined);
+
   console.log('============================================================');
   console.log('BURRA PARIKSHA CMS — ADMINISTRATIVE FIRESTORE RESET');
   console.log('============================================================\n');
+  console.log(`[Safety Guard] Target Verified: ${target.mode} at ${target.emulatorHost}`);
+  console.log(`- Project: ${target.projectId}`);
+  console.log(`- Database: ${target.databaseId}\n`);
 
   const db = getAdminFirestore();
 

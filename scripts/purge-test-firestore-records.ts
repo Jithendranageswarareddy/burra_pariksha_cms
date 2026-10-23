@@ -12,13 +12,21 @@
  * Uses Firebase Admin SDK.
  */
 
+import { assertDestructiveScriptSafe, assertEmulatorAlive } from '../src/config/datastore-guard';
 import { getAdminFirestore } from '../database/firestore/adapter/admin';
 
 async function purgeTestRecords() {
-  const db = getAdminFirestore();
+  const target = assertDestructiveScriptSafe('purge-test-firestore-records.ts');
+  await assertEmulatorAlive(target.emulatorHost || undefined);
+
   console.log('============================================================');
-  console.log('PURGING TEST DOCUMENTS FROM CLOUD FIRESTORE (ADMIN SDK)');
+  console.log('PURGING TEST DOCUMENTS (LOCAL EMULATOR)');
   console.log('============================================================\n');
+  console.log(`[Safety Guard] Target Verified: ${target.mode} at ${target.emulatorHost}`);
+  console.log(`- Project: ${target.projectId}`);
+  console.log(`- Database: ${target.databaseId}\n`);
+
+  const db = getAdminFirestore();
 
   let purgedCount = 0;
   const purgedDetails: { collection: string; id: string; reason: string }[] = [];
