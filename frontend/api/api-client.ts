@@ -1577,6 +1577,7 @@ export class ApiClient {
     retryAvailable?: boolean;
     emailDelivery?: { sent: boolean; message?: string; error?: string };
   }> {
+    const { bootstrapSecret, ...bodyPayload } = data;
     return this.request<{
       success: boolean;
       message: string;
@@ -1588,9 +1589,9 @@ export class ApiClient {
     }>('/auth/bootstrap-admin', {
       method: 'POST',
       headers: {
-        'x-bootstrap-secret': data.bootstrapSecret,
+        'x-bootstrap-secret': bootstrapSecret,
       },
-      body: JSON.stringify(data),
+      body: JSON.stringify(bodyPayload),
     });
   }
 

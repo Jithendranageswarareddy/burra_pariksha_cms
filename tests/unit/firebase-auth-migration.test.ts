@@ -176,13 +176,66 @@ async function runFirebaseAuthTests() {
       return { sent: true, message: `Email delivered to ${email}` };
     });
 
-    // 1a: Missing secret is rejected with 403
+    // 1a-1: Missing secret header is rejected with 403
     const badSecretRes = await fetch(`${baseUrl}/auth/bootstrap-admin`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: 'first.admin@burrapariksha.com', name: 'First Admin', bootstrapSecret: 'wrong' }),
+      body: JSON.stringify({ email: 'first.admin@burrapariksha.com', name: 'First Admin' }),
     });
-    assert.strictEqual(badSecretRes.status, 403, 'Bootstrap without valid secret must return 403');
+    assert.strictEqual(badSecretRes.status, 403, 'Bootstrap without secret header must return 403');
+
+    // 1a-2: Invalid secret header is rejected with 403
+    const invalidHeaderRes = await fetch(`${baseUrl}/auth/bootstrap-admin`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-bootstrap-secret': 'invalid-secret-token-1234',
+      },
+      body: JSON.stringify({ email: 'first.admin@burrapariksha.com', name: 'First Admin' }),
+    });
+    assert.strictEqual(invalidHeaderRes.status, 403, 'Bootstrap with invalid secret header must return 403');
+
+    // 1a-3: Secret passed in JSON body is strictly rejected with 400 Bad Request
+    const bodySecretRes = await fetch(`${baseUrl}/auth/bootstrap-admin`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-bootstrap-secret': 'secure-test-bootstrap-secret-9988',
+      },
+      body: JSON.stringify({
+        email: 'first.admin@burrapariksha.com',
+        name: 'First Admin',
+        bootstrapSecret: 'secure-test-bootstrap-secret-9988',
+      }),
+    });
+    assert.strictEqual(bodySecretRes.status, 400, 'Secret supplied in JSON body must be rejected with 400');
+    const bodySecretData = await bodySecretRes.json();
+    assert(bodySecretData.message.includes('Passing secrets in the request body is strictly prohibited'));
+
+    // 1a-4: Password passed in JSON body is strictly rejected with 400 Bad Request
+    const bodyPasswordRes = await fetch(`${baseUrl}/auth/bootstrap-admin`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-bootstrap-secret': 'secure-test-bootstrap-secret-9988',
+      },
+      body: JSON.stringify({
+        email: 'first.admin@burrapariksha.com',
+        name: 'First Admin',
+        password: 'InsecurePasswordPassedInBody!',
+      }),
+    });
+    assert.strictEqual(bodyPasswordRes.status, 400, 'Password supplied in JSON body must be rejected with 400');
+    const bodyPasswordData = await bodyPasswordRes.json();
+    assert(bodyPasswordData.message.includes('Passwords cannot be supplied via bootstrap'));
+
+    // 1a-5: Verify /v1/auth/bootstrap-admin enforces identical secret-in-body and header protection
+    const v1BodySecretRes = await fetch(`${baseUrl}/v1/auth/bootstrap-admin`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'first.admin@burrapariksha.com', name: 'First Admin', secret: 'attempt' }),
+    });
+    assert.strictEqual(v1BodySecretRes.status, 400, '/v1 alias must reject secret in body with 400');
 
     // 1b: Fail closed if Firebase Auth service is unavailable (no synthetic UID allowed!)
     process.env.BOOTSTRAP_ADMIN_SECRET = 'secure-test-bootstrap-secret-9988';
@@ -248,6 +301,20 @@ async function runFirebaseAuthTests() {
     });
     assert.strictEqual(secondBootstrapRes.status, 409, 'Subsequent bootstrap attempts must return 409 Conflict');
 
+    // 1d-2: Resend with mismatched email address rejected with 400
+    const mismatchResendRes = await fetch(`${baseUrl}/auth/bootstrap-admin`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-bootstrap-secret': 'secure-test-bootstrap-secret-9988',
+      },
+      body: JSON.stringify({
+        email: 'attacker@burrapariksha.com',
+        resend: true,
+      }),
+    });
+    assert.strictEqual(mismatchResendRes.status, 400, 'Resend targeting mismatched email must return 400');
+
     // 1e: CLI / Programmatic bootstrap: email delivery failure reports partial success truthfully
     // Temporarily clear inMemUsers to test bootstrap when email delivery fails
     inMemUsers.clear();
@@ -258,7 +325,6 @@ async function runFirebaseAuthTests() {
     const partialBootstrapResult = await provisionInitialAdmin({
       email: 'partial.admin@burrapariksha.com',
       name: 'Partial Administrator',
-      secret: 'secure-test-bootstrap-secret-9988',
     });
 
     assert.strictEqual(partialBootstrapResult.outcome, 'PARTIAL_SUCCESS', 'Outcome must be PARTIAL_SUCCESS');
@@ -295,7 +361,6 @@ async function runFirebaseAuthTests() {
         await provisionInitialAdmin({
           email: 'collision.admin@burrapariksha.com',
           name: 'Collision Admin',
-          secret: 'secure-test-bootstrap-secret-9988',
         });
       },
       /already linked to user profile/,
@@ -595,6 +660,7 @@ async function runFirebaseAuthTests() {
   if (failed > 0) {
     process.exit(1);
   }
+  process.exit(0);
 }
 
 runFirebaseAuthTests();

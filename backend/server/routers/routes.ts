@@ -7,6 +7,7 @@
  */
 
 import express, { Request, Response, NextFunction } from 'express';
+import crypto from 'crypto';
 import {
   assignmentService,
   auditService,
@@ -507,10 +508,55 @@ apiRouter.post(['/auth/reset-password', '/v1/auth/reset-password'], authRateLimi
 apiRouter.post(['/auth/bootstrap-admin', '/v1/auth/bootstrap-admin'], authRateLimiter, async (req: Request, res: Response) => {
   const requestId = (req.headers['x-request-id'] as string) || `req_${Date.now()}`;
   try {
-    const expectedSecret = process.env.BOOTSTRAP_ADMIN_SECRET;
-    const providedSecret = req.headers['x-bootstrap-secret'] || req.body?.bootstrapSecret;
+    // 1. Guard against secrets or credentials passed in request body
+    if (req.body && typeof req.body === 'object') {
+      if ('bootstrapSecret' in req.body || 'secret' in req.body) {
+        const errEnvelope = createErrorResponse(
+          ApiErrorCode.VALIDATION_ERROR,
+          'Passing secrets in the request body is strictly prohibited. Provide the bootstrap secret via the x-bootstrap-secret header only.',
+          requestId
+        );
+        res.status(400).json({
+          ...errEnvelope,
+          message: 'Passing secrets in the request body is strictly prohibited. Provide the bootstrap secret via the x-bootstrap-secret header only.',
+        });
+        return;
+      }
+      if ('password' in req.body) {
+        const errEnvelope = createErrorResponse(
+          ApiErrorCode.VALIDATION_ERROR,
+          'Passwords cannot be supplied via bootstrap. Password setup must be completed via secure email link.',
+          requestId
+        );
+        res.status(400).json({
+          ...errEnvelope,
+          message: 'Passwords cannot be supplied via bootstrap. Password setup must be completed via secure email link.',
+        });
+        return;
+      }
+    }
 
-    if (!expectedSecret || typeof providedSecret !== 'string' || providedSecret !== expectedSecret) {
+    // 2. Secret must be configured in environment and matched via constant-time comparison
+    const expectedSecret = process.env.BOOTSTRAP_ADMIN_SECRET;
+    const headerSecret = req.headers['x-bootstrap-secret'];
+
+    if (!expectedSecret || typeof headerSecret !== 'string') {
+      const errEnvelope = createErrorResponse(
+        ApiErrorCode.FORBIDDEN_BY_BUSINESS_RULE,
+        'Administrative bootstrap is disabled or unauthorized.',
+        requestId
+      );
+      res.status(403).json({ ...errEnvelope, message: 'Administrative bootstrap is disabled or unauthorized.' });
+      return;
+    }
+
+    const expectedBuffer = Buffer.from(expectedSecret);
+    const providedBuffer = Buffer.from(headerSecret);
+    const isAuthorized =
+      expectedBuffer.length === providedBuffer.length &&
+      crypto.timingSafeEqual(expectedBuffer, providedBuffer);
+
+    if (!isAuthorized) {
       const errEnvelope = createErrorResponse(
         ApiErrorCode.FORBIDDEN_BY_BUSINESS_RULE,
         'Administrative bootstrap is disabled or unauthorized.',
@@ -563,7 +609,11 @@ apiRouter.post(['/auth/bootstrap-admin', '/v1/auth/bootstrap-admin'], authRateLi
           accountCreated: false,
           setupEmailSent: deliveryResult.sent,
           retryAvailable: !deliveryResult.sent,
-          emailDelivery: deliveryResult,
+          emailDelivery: {
+            sent: deliveryResult.sent,
+            message: deliveryResult.message,
+            ...(deliveryResult.error ? { error: 'Authentication provider rejected email dispatch.' } : {}),
+          },
         };
         const successEnvelope = createSuccessResponse(responsePayload, requestId);
         res.status(deliveryResult.sent ? 200 : 400).json({
@@ -596,11 +646,35 @@ apiRouter.post(['/auth/bootstrap-admin', '/v1/auth/bootstrap-admin'], authRateLi
     }
 
     const trimmedEmail = String(email).trim().toLowerCase();
+    if (!trimmedEmail.includes('@')) {
+      const errEnvelope = createErrorResponse(
+        ApiErrorCode.VALIDATION_ERROR,
+        'A valid administrator email address is required.',
+        requestId
+      );
+      res.status(400).json({ ...errEnvelope, message: 'A valid administrator email address is required.' });
+      return;
+    }
+
     const adminAuth = getAdminAuth();
     let authUser: any;
     let authUserCreated = false;
     try {
       authUser = await adminAuth.getUserByEmail(trimmedEmail);
+      // User already exists in Firebase Auth - ensure UID is not linked to another profile
+      const existingWithUid = await usersRepository.findByFirebaseUid(authUser.uid);
+      if (existingWithUid) {
+        const errEnvelope = createErrorResponse(
+          ApiErrorCode.CONCURRENCY_CONFLICT,
+          `Firebase Authentication identity is already linked to user profile (${existingWithUid.id}).`,
+          requestId
+        );
+        res.status(409).json({
+          ...errEnvelope,
+          message: `Firebase Authentication identity is already linked to user profile (${existingWithUid.id}).`,
+        });
+        return;
+      }
     } catch (err: any) {
       if (err?.code === 'auth/user-not-found') {
         authUser = await adminAuth.createUser({
@@ -610,18 +684,39 @@ apiRouter.post(['/auth/bootstrap-admin', '/v1/auth/bootstrap-admin'], authRateLi
         });
         authUserCreated = true;
       } else {
-        throw new Error(`Firebase Authentication unavailable: ${err?.message}`);
+        const errEnvelope = createErrorResponse(
+          ApiErrorCode.INTERNAL_SERVER_ERROR,
+          'Firebase Authentication service is unavailable.',
+          requestId
+        );
+        res.status(500).json({ ...errEnvelope, message: 'Firebase Authentication service is unavailable.' });
+        return;
       }
     }
 
     if (!authUser || !authUser.uid) {
-      throw new Error('Failed to obtain a valid Firebase Authentication UID.');
+      const errEnvelope = createErrorResponse(
+        ApiErrorCode.INTERNAL_SERVER_ERROR,
+        'Failed to obtain a valid Firebase Authentication UID.',
+        requestId
+      );
+      res.status(500).json({ ...errEnvelope, message: 'Failed to obtain a valid Firebase Authentication UID.' });
+      return;
     }
 
-    // Verify UID is not already bound to an existing profile
+    // Verify UID is not already bound to an existing profile in Firestore
     const existingWithUid = await usersRepository.findByFirebaseUid(authUser.uid);
     if (existingWithUid) {
-      throw new Error(`Firebase Authentication identity is already linked to profile (${existingWithUid.id}).`);
+      const errEnvelope = createErrorResponse(
+        ApiErrorCode.CONCURRENCY_CONFLICT,
+        `Firebase Authentication identity is already linked to user profile (${existingWithUid.id}).`,
+        requestId
+      );
+      res.status(409).json({
+        ...errEnvelope,
+        message: `Firebase Authentication identity is already linked to user profile (${existingWithUid.id}).`,
+      });
+      return;
     }
 
     const adminUser: User = {
@@ -657,7 +752,7 @@ apiRouter.post(['/auth/bootstrap-admin', '/v1/auth/bootstrap-admin'], authRateLi
     const emailDelivery = {
       sent: deliveryResult.sent,
       message: deliveryResult.message,
-      ...(deliveryResult.error ? { error: deliveryResult.error } : {}),
+      ...(deliveryResult.error ? { error: 'Authentication provider rejected email dispatch.' } : {}),
     };
 
     await auditService.log(
@@ -696,10 +791,10 @@ apiRouter.post(['/auth/bootstrap-admin', '/v1/auth/bootstrap-admin'], authRateLi
   } catch (err: any) {
     const errEnvelope = createErrorResponse(
       ApiErrorCode.INTERNAL_SERVER_ERROR,
-      `Bootstrap failed: ${err?.message}`,
+      'Administrative bootstrap operation failed.',
       requestId
     );
-    res.status(500).json({ ...errEnvelope, message: `Bootstrap failed: ${err?.message}` });
+    res.status(500).json({ ...errEnvelope, message: 'Administrative bootstrap operation failed.' });
   }
 });
 

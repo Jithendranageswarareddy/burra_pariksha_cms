@@ -6,26 +6,30 @@
  * on legacy Google Sheets records or hardcoded development accounts.
  *
  * Security Requirements:
- * 1. Requires BOOTSTRAP_ADMIN_SECRET environment variable or --secret flag.
+ * 1. Requires BOOTSTRAP_ADMIN_SECRET environment variable (minimum 16 characters).
+ *    Passing secrets via CLI flags is strictly prohibited to prevent process/shell leaks.
  * 2. Idempotent: Checks if an active administrator already exists in Firestore.
  * 3. Never accepts passwords via CLI or logs: Password setup is strictly email-driven.
+ *    Any --password argument is explicitly rejected before any database operation.
  * 4. Dispatches genuine password setup email via authService.dispatchPasswordSetupEmail.
  * 5. emailVerified: Defaults to false; inbox ownership is established via the email link.
  * 6. Zero secret leaks: Never prints, logs, persists, or returns raw reset action links or oobCode.
  * 7. Safe recovery: Reports partial-success truthfully if email delivery fails, and supports
- *    safe retry via --resend with the bootstrap secret without creating duplicate profiles.
+ *    safe retry via --resend with the environment secret without creating duplicate profiles.
  *
  * Exit Codes:
  *   0 = Full Success (Account created & email dispatched, or resend succeeded)
- *   1 = Fatal Error (Invalid secret, Firebase unavailable, Firestore save failed)
+ *   1 = Fatal Error (Invalid/missing secret, disallowed args, Firebase unavailable, Firestore save failed)
  *   2 = Partial Success (Account/profile created, but setup email dispatch failed)
  *   3 = Conflict (Administrator already exists; duplicate creation prevented)
  *
  * Usage:
+ *   Set environment secret:
+ *     export BOOTSTRAP_ADMIN_SECRET="YourBootstrapSecret123"
  *   Initial creation:
- *     npx tsx scripts/bootstrap-initial-admin.ts --email=admin@example.com --name="System Administrator" --secret="YourBootstrapSecret"
+ *     npm run bootstrap:admin -- --email="admin@example.com" --name="System Administrator"
  *   Retry setup email if delivery previously failed:
- *     npx tsx scripts/bootstrap-initial-admin.ts --email=admin@example.com --resend --secret="YourBootstrapSecret"
+ *     npm run bootstrap:admin -- --email="admin@example.com" --resend
  */
 
 import '../src/config/env';
@@ -51,7 +55,6 @@ export type BootstrapOutcome =
 export interface BootstrapOptions {
   email?: string;
   name?: string;
-  secret?: string;
   resend?: boolean;
 }
 
@@ -70,32 +73,65 @@ export interface BootstrapResult {
 }
 
 export function parseBootstrapArgs(argv = process.argv.slice(2)): BootstrapOptions {
-  const parsed: Record<string, string | boolean> = {};
-  for (const arg of argv) {
-    if (arg === '--resend') {
-      parsed.resend = true;
-    } else if (arg.startsWith('--')) {
-      const [key, ...rest] = arg.substring(2).split('=');
-      parsed[key] = rest.join('=');
+  let email: string | undefined;
+  let name: string | undefined;
+  let resend = false;
+
+  for (let i = 0; i < argv.length; i++) {
+    const rawArg = argv[i];
+
+    // Explicitly reject password arguments in any format without echoing values
+    if (rawArg === '--password' || rawArg.startsWith('--password=')) {
+      throw new Error(
+        'Disallowed argument "--password" detected: Passwords cannot be passed as command-line arguments. Account passwords must be set via secure email link.'
+      );
+    }
+
+    // Explicitly reject secret arguments in any format without echoing values
+    if (rawArg === '--secret' || rawArg.startsWith('--secret=')) {
+      throw new Error(
+        'Disallowed argument "--secret" detected: Passing secrets as command-line arguments is strictly prohibited. Configure BOOTSTRAP_ADMIN_SECRET in the environment instead.'
+      );
+    }
+
+    if (rawArg === '--resend') {
+      resend = true;
+    } else if (rawArg.startsWith('--email=')) {
+      email = rawArg.substring('--email='.length);
+    } else if (rawArg === '--email') {
+      if (i + 1 >= argv.length || argv[i + 1].startsWith('--')) {
+        throw new Error('Argument "--email" requires a value.');
+      }
+      email = argv[++i];
+    } else if (rawArg.startsWith('--name=')) {
+      name = rawArg.substring('--name='.length);
+    } else if (rawArg === '--name') {
+      if (i + 1 >= argv.length || argv[i + 1].startsWith('--')) {
+        throw new Error('Argument "--name" requires a value.');
+      }
+      name = argv[++i];
+    } else {
+      // Reject any unsupported argument or positional parameter without echoing values
+      const flagName = rawArg.split('=')[0];
+      throw new Error(
+        `Unsupported argument "${flagName}" detected. Only --email, --name, and --resend are permitted.`
+      );
     }
   }
-  return {
-    email: typeof parsed.email === 'string' ? parsed.email : undefined,
-    name: typeof parsed.name === 'string' ? parsed.name : undefined,
-    secret: typeof parsed.secret === 'string' ? parsed.secret : undefined,
-    resend: Boolean(parsed.resend),
-  };
+
+  return { email, name, resend };
 }
 
 /**
  * Core administrator provisioning logic with full security guarantees.
  */
 export async function provisionInitialAdmin(options: BootstrapOptions = {}): Promise<BootstrapResult> {
-  const secret = options.secret || process.env.BOOTSTRAP_ADMIN_SECRET;
-  const expectedSecret = process.env.BOOTSTRAP_ADMIN_SECRET;
+  const secret = process.env.BOOTSTRAP_ADMIN_SECRET;
 
-  if (!expectedSecret || !secret || secret !== expectedSecret) {
-    throw new Error('Administrative bootstrap secret is missing or invalid.');
+  if (!secret || secret.trim() === '' || secret.trim().length < 16) {
+    throw new Error(
+      'Administrative bootstrap secret is missing, unconfigured, or insufficient in the environment (BOOTSTRAP_ADMIN_SECRET must be at least 16 characters).'
+    );
   }
 
   // Ensure datastore initialized
@@ -283,9 +319,8 @@ export async function runBootstrap(argv = process.argv.slice(2)): Promise<number
   console.log('BURRA PARIKSHA CMS — INITIAL ADMINISTRATOR PROVISIONING');
   console.log('============================================================\n');
 
-  const args = parseBootstrapArgs(argv);
-
   try {
+    const args = parseBootstrapArgs(argv);
     const result = await provisionInitialAdmin(args);
 
     console.log('\n============================================================');
@@ -302,7 +337,7 @@ export async function runBootstrap(argv = process.argv.slice(2)): Promise<number
       console.warn(`   Reason: Setup email delivery failed (${result.emailDelivery?.error || 'Provider delivery error'}).`);
       console.warn('   The administrator profile is safely provisioned in Firestore and Firebase Auth.');
       console.warn('   Recovery Options:');
-      console.warn(`   1. Once email settings are verified, run: npm run bootstrap:admin -- --resend --email="${result.email}" --secret="<SECRET>"`);
+      console.warn(`   1. Once email settings are verified, ensure BOOTSTRAP_ADMIN_SECRET is set and run: npm run bootstrap:admin -- --resend --email="${result.email}"`);
       console.warn(`   2. Or the administrator can navigate to /reset-password and enter "${result.email}".`);
     } else if (result.outcome === 'RESEND_FAILED') {
       console.warn(`\n⚠️  WARNING: RESEND FAILED (Exit Code ${BOOTSTRAP_EXIT_PARTIAL_SUCCESS})`);

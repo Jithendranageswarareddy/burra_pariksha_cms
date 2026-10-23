@@ -154,6 +154,11 @@ export const AUTHORITATIVE_APPROVED_POST_S7_ADDITIONS: readonly string[] = [
   'docs/architecture/FIRESTORE-COLLECTION-CONTRACT.md',
   'docs/diagnostics/FIRESTORE-AND-SHEETS-MIGRATION-AUDIT.md',
   'docs/diagnostics/FIRESTORE-PERSISTENCE-VERIFICATION.md',
+  'docs/operations/FIREBASE-AUTH-MIGRATION-RUNBOOK.md',
+  'frontend/pages/ResetPasswordPage.tsx',
+  'scripts/bootstrap-initial-admin.ts',
+  'tests/unit/bootstrap-initial-admin.test.ts',
+  'tests/unit/firebase-auth-migration.test.ts',
 ];
 
 const EXPECTED_HISTORICAL_S7_COUNT = 713;

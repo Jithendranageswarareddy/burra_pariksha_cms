@@ -72,7 +72,8 @@ When the datastore has zero active administrators, you can provision the foundat
 > **Operational Boundary**: Initial administrator bootstrap is strictly an administrative account-provisioning operation. It is **not** a deployment operation, and executing bootstrap does not alter application code, server configuration, or infrastructure.
 
 ### Security Policies & Guarantees
-- **No Passwords Accepted via CLI or Logs**: The bootstrap entrypoint strictly rejects and ignores CLI password arguments. Initial password setup is exclusively handled through the official Firebase Authentication email link.
+- **No Passwords or Secrets Accepted via CLI**: The bootstrap entrypoint strictly rejects `--password` and `--secret` flags in any format (`--flag=value` or `--flag value`) before any database operation with non-zero exit code (exit 1). Secret values and passwords are never echoed in errors or terminal output. Initial password setup is exclusively handled through the official Firebase Authentication email link.
+- **Environment-Exclusive Secret**: `BOOTSTRAP_ADMIN_SECRET` must be loaded into the process environment (e.g. from Cloud Secret Manager or operator environment) with a minimum length of 16 characters. Missing, blank, or insufficient secrets cause the script and API to fail closed immediately.
 - **Zero Secret Link Leaks**: Password-setup action links and `oobCode` values are **never** printed to the terminal console, written to log files, persisted in Firestore, or returned in HTTP response payloads.
 - **Centralized Email Delivery**: Password setup is delivered directly to the administrator's email inbox using `authService.dispatchPasswordSetupEmail` via Firebase Authentication's native Google Identity Toolkit REST API.
 - **Email Verification Trust Model (`emailVerified: false`)**: New accounts are provisioned with `emailVerified: false`. Inbox control and email verification are established only when the administrator clicks the setup link and completes initial password creation in Firebase Authentication.
@@ -82,19 +83,24 @@ When the datastore has zero active administrators, you can provision the foundat
 ### Exit Codes Specification
 The CLI bootstrap script (`npm run bootstrap:admin`) returns standardized exit codes for process automation:
 - **`0` (`FULL_SUCCESS` / `RESEND_SUCCESS`)**: Administrator account created and password setup email dispatch accepted by Firebase.
-- **`1` (`FATAL_ERROR`)**: Aborted before account creation (invalid secret, Firebase outage, Firestore failure, or invalid parameters).
+- **`1` (`FATAL_ERROR`)**: Aborted before account creation (invalid/missing secret, disallowed args, Firebase outage, Firestore failure, or invalid parameters).
 - **`2` (`PARTIAL_SUCCESS`)**: Administrator account and profile successfully created in Firebase & Firestore, but required setup email delivery failed. Non-zero exit code ensures automated pipelines detect incomplete onboarding.
 - **`3` (`ALREADY_EXISTS`)**: An active administrator already exists in Firestore. Duplicate creation prevented.
 
 ### Option A: CLI Bootstrap Script (Recommended)
 
-1. Set the bootstrap environment variables:
+1. Set the bootstrap environment secret in your protected shell environment (never pass it as a CLI flag):
    ```bash
+   # Linux / macOS:
    export BOOTSTRAP_ADMIN_SECRET="your-generated-secure-secret-phrase"
+
+   # Windows PowerShell:
+   $env:BOOTSTRAP_ADMIN_SECRET="your-generated-secure-secret-phrase"
    ```
-2. Execute the bootstrap script (do **not** provide a password):
+
+2. Execute the bootstrap script (do **not** provide a password or secret argument):
    ```bash
-   npm run bootstrap:admin -- --email="admin@burrapariksha.com" --name="System Administrator" --secret="your-generated-secure-secret-phrase"
+   npm run bootstrap:admin -- --email="admin@burrapariksha.com" --name="System Administrator"
    ```
    - Standard output will report `STATUS: FULL_SUCCESS (Exit Code 0)` when email dispatch is accepted.
    - The administrator inspects their inbox, clicks the setup link, and creates their secure password at the CMS `/reset-password` interface.
@@ -103,15 +109,21 @@ The CLI bootstrap script (`npm run bootstrap:admin`) returns standardized exit c
    If the script exits with code 2 (`STATUS: PARTIAL_SUCCESS`):
    - The administrator profile has been safely saved in Cloud Firestore and linked to Firebase Auth.
    - Verify that `FIREBASE_API_KEY` is configured and that outgoing connections to `identitytoolkit.googleapis.com` are permitted.
-   - **Recovery Option 1 (Operator CLI)**: Re-run with `--resend` (does not create duplicate accounts):
+   - **Recovery Path 1 (Operator CLI - No Login Required)**: Re-run with `--resend` (targets existing admin, zero duplicate profiles):
      ```bash
-     npm run bootstrap:admin -- --email="admin@burrapariksha.com" --resend --secret="your-generated-secure-secret-phrase"
+     npm run bootstrap:admin -- --email="admin@burrapariksha.com" --resend
      ```
-   - **Recovery Option 2 (Self-Service)**: The administrator navigates to `/reset-password` (Forgot Password page), submits their email, and triggers a fresh reset link directly.
+   - **Recovery Path 2 (Public Self-Service - No Login Required)**: The administrator navigates to `/reset-password` (Forgot Password page), submits `admin@burrapariksha.com`, and triggers a fresh reset link directly.
 
 ### Option B: REST API Endpoint
 
-1. Send an authorized POST request (requires `x-bootstrap-secret`):
+The HTTP endpoint is mounted at both `/api/auth/bootstrap-admin` and `/api/v1/auth/bootstrap-admin`.
+
+> [!IMPORTANT]
+> The secret must be supplied **strictly** via the `x-bootstrap-secret` request header.
+> Passing `bootstrapSecret`, `secret`, or `password` in the JSON request body is strictly prohibited and returns `400 Bad Request`.
+
+1. Send an authorized POST request (requires `x-bootstrap-secret` header):
    ```bash
    curl -X POST https://api.<YOUR-DOMAIN>/api/auth/bootstrap-admin \
      -H "Content-Type: application/json" \
@@ -142,10 +154,10 @@ The CLI bootstrap script (`npm run bootstrap:admin`) returns standardized exit c
      "accountCreated": true,
      "setupEmailSent": false,
      "retryAvailable": true,
-     "emailDelivery": { "sent": false, "error": "Provider delivery error" }
+     "emailDelivery": { "sent": false, "error": "Authentication provider rejected email dispatch." }
    }
    ```
-   **Recovery via API (HTTP 200)**:
+   **Operator Recovery via API (HTTP 200 - No Login Required)**:
    ```bash
    curl -X POST https://api.<YOUR-DOMAIN>/api/auth/bootstrap-admin \
      -H "Content-Type: application/json" \

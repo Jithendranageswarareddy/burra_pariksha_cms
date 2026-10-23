@@ -171,7 +171,6 @@ async function runBootstrapTestSuite() {
       runBootstrap([
         '--email=first.admin@burrapariksha.com',
         '--name=First Administrator',
-        `--secret=${TEST_SECRET}`,
       ])
     );
 
@@ -206,7 +205,6 @@ async function runBootstrapTestSuite() {
       runBootstrap([
         '--email=second.admin@burrapariksha.com',
         '--name=Second Admin',
-        `--secret=${TEST_SECRET}`,
       ])
     );
 
@@ -227,7 +225,6 @@ async function runBootstrapTestSuite() {
       runBootstrap([
         '--email=first.admin@burrapariksha.com',
         '--resend',
-        `--secret=${TEST_SECRET}`,
       ])
     );
 
@@ -240,114 +237,280 @@ async function runBootstrapTestSuite() {
     passed++;
 
     // --------------------------------------------------------------------------
-    // Test 4: Partial Success when Email Delivery Fails (Exit Code 2)
+    // Test 4: Resend Cannot Target Mismatched Email (Exit Code 1)
     // --------------------------------------------------------------------------
-    console.log('[Test 4] Testing Partial Success when Email Delivery Fails (Exit Code 2)...');
+    console.log('[Test 4] Testing Resend Target Email Mismatch Rejection (Exit Code 1)...');
+    deliveredEmails = [];
+    const run4 = await captureOutput(() =>
+      runBootstrap([
+        '--email=different.user@burrapariksha.com',
+        '--resend',
+      ])
+    );
+
+    assert.strictEqual(run4.exitCode, BOOTSTRAP_EXIT_FATAL, 'Resend with mismatched email must exit with code 1');
+    assert(run4.output.all.includes('does not match existing administrator'));
+    assert.strictEqual(deliveredEmails.length, 0, 'No email must be dispatched for mismatched resend');
+    assert.strictEqual(inMemUsers.size, 1, 'User count must remain strictly 1');
+
+    console.log('✓ Test 4 PASSED: Resend targeting different email rejected with exit code 1.');
+    passed++;
+
+    // --------------------------------------------------------------------------
+    // Test 5: Partial Success when Email Delivery Fails (Exit Code 2)
+    // --------------------------------------------------------------------------
+    console.log('[Test 5] Testing Partial Success when Email Delivery Fails (Exit Code 2)...');
     inMemUsers.clear();
     inMemAuthUsers.clear();
     authService.setTestEmailSender(async () => {
       return { sent: false, message: 'Failed to deliver setup email.', error: 'Firebase REST API key unauthorized (simulated network/config error)' };
     });
 
-    const run4 = await captureOutput(() =>
+    const run5 = await captureOutput(() =>
       runBootstrap([
         '--email=partial.admin@burrapariksha.com',
         '--name=Partial Admin',
-        `--secret=${TEST_SECRET}`,
       ])
     );
 
-    assert.strictEqual(run4.exitCode, BOOTSTRAP_EXIT_PARTIAL_SUCCESS, 'Partial success must exit with code 2');
-    assert(run4.output.all.includes('STATUS: PARTIAL_SUCCESS (Exit Code 2)'), 'Must indicate PARTIAL_SUCCESS');
-    assert(run4.output.all.includes('Setup email delivery failed'), 'Must truthfully report failure reason');
-    assert(run4.output.all.includes('--resend'), 'Must instruct operator on recovery using --resend');
+    assert.strictEqual(run5.exitCode, BOOTSTRAP_EXIT_PARTIAL_SUCCESS, 'Partial success must exit with code 2');
+    assert(run5.output.all.includes('STATUS: PARTIAL_SUCCESS (Exit Code 2)'), 'Must indicate PARTIAL_SUCCESS');
+    assert(run5.output.all.includes('Setup email delivery failed'), 'Must truthfully report failure reason');
+    assert(run5.output.all.includes('--resend'), 'Must instruct operator on recovery using --resend');
     assert.strictEqual(inMemUsers.size, 1, 'Administrator profile must be preserved in Firestore');
-    assert(!run4.output.all.includes('oobCode'), 'Zero link exposure in partial success output');
+    assert(!run5.output.all.includes('oobCode'), 'Zero link exposure in partial success output');
 
-    console.log('✓ Test 4 PASSED: Partial success truthful reporting and exit code 2 verified.');
+    console.log('✓ Test 5 PASSED: Partial success truthful reporting and exit code 2 verified.');
     passed++;
 
     // --------------------------------------------------------------------------
-    // Test 5: Re-trying Resend after Email Delivery Failure (Exit Code 0)
+    // Test 6: Re-trying Resend after Email Delivery Failure (Exit Code 0)
     // --------------------------------------------------------------------------
-    console.log('[Test 5] Testing Recovery Re-run of Resend after Fixing Configuration...');
+    console.log('[Test 6] Testing Recovery Re-run of Resend after Fixing Configuration...');
     authService.setTestEmailSender(async (email) => {
       deliveredEmails.push(email);
       return { sent: true, message: `Delivered to ${email}` };
     });
 
-    const run5 = await captureOutput(() =>
+    const run6 = await captureOutput(() =>
       runBootstrap([
         '--email=partial.admin@burrapariksha.com',
         '--resend',
-        `--secret=${TEST_SECRET}`,
       ])
     );
 
-    assert.strictEqual(run5.exitCode, BOOTSTRAP_EXIT_SUCCESS, 'Recovered resend must exit with code 0');
-    assert(run5.output.all.includes('STATUS: RESEND_SUCCESS (Exit Code 0)'), 'Must indicate RESEND_SUCCESS');
+    assert.strictEqual(run6.exitCode, BOOTSTRAP_EXIT_SUCCESS, 'Recovered resend must exit with code 0');
+    assert(run6.output.all.includes('STATUS: RESEND_SUCCESS (Exit Code 0)'), 'Must indicate RESEND_SUCCESS');
     assert.strictEqual(inMemUsers.size, 1, 'Profile count must remain exactly 1');
 
-    console.log('✓ Test 5 PASSED: Post-recovery resend completes successfully without manual database edit.');
+    console.log('✓ Test 6 PASSED: Post-recovery resend completes successfully without manual database edit.');
     passed++;
 
     // --------------------------------------------------------------------------
-    // Test 6: Fatal Auth Outage Rejection (Exit Code 1)
+    // Test 7: Fatal Auth Outage Rejection (Exit Code 1)
     // --------------------------------------------------------------------------
-    console.log('[Test 6] Testing Fail-Closed on Firebase Outage (Exit Code 1)...');
+    console.log('[Test 7] Testing Fail-Closed on Firebase Outage (Exit Code 1)...');
     inMemUsers.clear();
     mockAdminAuthAvailable = false;
 
-    const run6 = await captureOutput(() =>
+    const run7 = await captureOutput(() =>
       runBootstrap([
         '--email=outage.admin@burrapariksha.com',
         '--name=Outage Admin',
-        `--secret=${TEST_SECRET}`,
       ])
     );
 
-    assert.strictEqual(run6.exitCode, BOOTSTRAP_EXIT_FATAL, 'Firebase outage must exit with code 1');
-    assert(run6.output.all.includes('Exit Code 1'), 'Must announce Exit Code 1');
+    assert.strictEqual(run7.exitCode, BOOTSTRAP_EXIT_FATAL, 'Firebase outage must exit with code 1');
+    assert(run7.output.all.includes('Exit Code 1'), 'Must announce Exit Code 1');
     assert.strictEqual(inMemUsers.size, 0, 'Must NOT create profile when Auth is unavailable');
     mockAdminAuthAvailable = true;
 
-    console.log('✓ Test 6 PASSED: Firebase outage fails closed with exit code 1 and no Firestore writes.');
+    console.log('✓ Test 7 PASSED: Firebase outage fails closed with exit code 1 and no Firestore writes.');
     passed++;
 
     // --------------------------------------------------------------------------
-    // Test 7: Unauthorized Secret Rejection (Exit Code 1)
+    // Test 8: Missing Environment Secret Fail-Closed (Exit Code 1)
     // --------------------------------------------------------------------------
-    console.log('[Test 7] Testing Rejection on Invalid Secret (Exit Code 1)...');
-    const run7 = await captureOutput(() =>
+    console.log('[Test 8] Testing Rejection when BOOTSTRAP_ADMIN_SECRET is Missing (Exit Code 1)...');
+    const savedSecret = process.env.BOOTSTRAP_ADMIN_SECRET;
+    delete process.env.BOOTSTRAP_ADMIN_SECRET;
+
+    const run8 = await captureOutput(() =>
       runBootstrap([
         '--email=first.admin@burrapariksha.com',
         '--name=First Admin',
-        '--secret=wrong-secret',
       ])
     );
 
-    assert.strictEqual(run7.exitCode, BOOTSTRAP_EXIT_FATAL, 'Invalid secret must exit with code 1');
-    assert(run7.output.all.includes('Administrative bootstrap secret is missing or invalid'));
+    assert.strictEqual(run8.exitCode, BOOTSTRAP_EXIT_FATAL, 'Missing secret must exit with code 1');
+    assert(run8.output.all.includes('Administrative bootstrap secret is missing, unconfigured, or insufficient'));
+    assert.strictEqual(inMemUsers.size, 0, 'Zero users must be created when secret is missing');
+    process.env.BOOTSTRAP_ADMIN_SECRET = savedSecret;
 
-    console.log('✓ Test 7 PASSED: Invalid secret rejected with exit code 1.');
+    console.log('✓ Test 8 PASSED: Missing environment secret rejected with exit code 1.');
     passed++;
 
     // --------------------------------------------------------------------------
-    // Test 8: CLI Argument Password Exposure Rejection
+    // Test 9: CLI Secret Flag Rejection (--secret=value) (Exit Code 1)
     // --------------------------------------------------------------------------
-    console.log('[Test 8] Testing Rejection of CLI Password Parameter...');
-    // If a user passes --password="SensitiveSecretPassword", ensure it is NOT used and NEVER printed
-    const run8 = await captureOutput(() =>
+    console.log('[Test 9] Testing Rejection of CLI --secret=value Argument...');
+    const sensitiveSecretValue1 = 'super-secret-vault-token-xyz';
+    const preCount9 = inMemUsers.size;
+
+    const run9 = await captureOutput(() =>
       runBootstrap([
-        '--email=clean.admin@burrapariksha.com',
-        '--name=Clean Admin',
-        '--password=SensitiveSecretPassword123!',
-        `--secret=${TEST_SECRET}`,
+        '--email=secret.test@burrapariksha.com',
+        '--name=Secret Test',
+        `--secret=${sensitiveSecretValue1}`,
       ])
     );
 
-    assert(!run8.output.all.includes('SensitiveSecretPassword123!'), 'Standard output must NEVER echo password');
-    console.log('✓ Test 8 PASSED: Passwords are never accepted via CLI or echoed in logs.');
+    assert.strictEqual(run9.exitCode, BOOTSTRAP_EXIT_FATAL, '--secret=value must exit with code 1');
+    assert(!run9.output.all.includes(sensitiveSecretValue1), 'Output must NEVER echo the secret value');
+    assert(run9.output.all.includes('Disallowed argument "--secret" detected'), 'Must state disallowed argument');
+    assert.strictEqual(inMemUsers.size, preCount9, 'No profile must be created');
+
+    console.log('✓ Test 9 PASSED: --secret=value explicitly rejected with exit code 1 without echoing value.');
+    passed++;
+
+    // --------------------------------------------------------------------------
+    // Test 10: CLI Secret Flag Rejection (--secret value) (Exit Code 1)
+    // --------------------------------------------------------------------------
+    console.log('[Test 10] Testing Rejection of CLI --secret value Argument...');
+    const sensitiveSecretValue2 = 'another-sensitive-secret-arg';
+    const preCount10 = inMemUsers.size;
+
+    const run10 = await captureOutput(() =>
+      runBootstrap([
+        '--email=secret.test2@burrapariksha.com',
+        '--name=Secret Test 2',
+        '--secret',
+        sensitiveSecretValue2,
+      ])
+    );
+
+    assert.strictEqual(run10.exitCode, BOOTSTRAP_EXIT_FATAL, '--secret value must exit with code 1');
+    assert(!run10.output.all.includes(sensitiveSecretValue2), 'Output must NEVER echo the secret value');
+    assert(run10.output.all.includes('Disallowed argument "--secret" detected'), 'Must state disallowed argument');
+    assert.strictEqual(inMemUsers.size, preCount10, 'No profile must be created');
+
+    console.log('✓ Test 10 PASSED: --secret value explicitly rejected with exit code 1 without echoing value.');
+    passed++;
+
+    // --------------------------------------------------------------------------
+    // Test 11: CLI Password Parameter Rejection (--password=value) (Exit Code 1)
+    // --------------------------------------------------------------------------
+    console.log('[Test 11] Testing Rejection of CLI --password=value Argument...');
+    const sensitivePassword1 = 'SuperSecretPlainPassword987!#';
+    const preCount11 = inMemUsers.size;
+    deliveredEmails = [];
+
+    const run11 = await captureOutput(() =>
+      runBootstrap([
+        '--email=pwd.test1@burrapariksha.com',
+        '--name=Password Test 1',
+        `--password=${sensitivePassword1}`,
+      ])
+    );
+
+    assert.strictEqual(run11.exitCode, BOOTSTRAP_EXIT_FATAL, '--password=value must exit with code 1');
+    assert(!run11.output.all.includes(sensitivePassword1), 'Output must NEVER echo the password value');
+    assert(run11.output.all.includes('Disallowed argument "--password" detected'), 'Must state disallowed argument');
+    assert.strictEqual(inMemUsers.size, preCount11, 'No profile must be created');
+    assert.strictEqual(deliveredEmails.length, 0, 'No email must be dispatched');
+
+    console.log('✓ Test 11 PASSED: --password=value explicitly rejected with exit code 1 without echoing value.');
+    passed++;
+
+    // --------------------------------------------------------------------------
+    // Test 12: CLI Password Parameter Rejection (--password value) (Exit Code 1)
+    // --------------------------------------------------------------------------
+    console.log('[Test 12] Testing Rejection of CLI --password value Argument...');
+    const sensitivePassword2 = 'AnotherSensitivePlainPassword456!#';
+    const preCount12 = inMemUsers.size;
+    deliveredEmails = [];
+
+    const run12 = await captureOutput(() =>
+      runBootstrap([
+        '--email=pwd.test2@burrapariksha.com',
+        '--name=Password Test 2',
+        '--password',
+        sensitivePassword2,
+      ])
+    );
+
+    assert.strictEqual(run12.exitCode, BOOTSTRAP_EXIT_FATAL, '--password value must exit with code 1');
+    assert(!run12.output.all.includes(sensitivePassword2), 'Output must NEVER echo the password value');
+    assert(run12.output.all.includes('Disallowed argument "--password" detected'), 'Must state disallowed argument');
+    assert.strictEqual(inMemUsers.size, preCount12, 'No profile must be created');
+    assert.strictEqual(deliveredEmails.length, 0, 'No email must be dispatched');
+
+    console.log('✓ Test 12 PASSED: --password value explicitly rejected with exit code 1 without echoing value.');
+    passed++;
+
+    // --------------------------------------------------------------------------
+    // Test 13: Unsupported Arguments Rejection (Exit Code 1)
+    // --------------------------------------------------------------------------
+    console.log('[Test 13] Testing Rejection of Unsupported Arguments...');
+    const preCount13 = inMemUsers.size;
+
+    const run13a = await captureOutput(() =>
+      runBootstrap([
+        '--email=unsupported@burrapariksha.com',
+        '--role=SUPERADMIN_INJECTION',
+      ])
+    );
+    assert.strictEqual(run13a.exitCode, BOOTSTRAP_EXIT_FATAL);
+    assert(!run13a.output.all.includes('SUPERADMIN_INJECTION'), 'Must not echo unsupported argument value');
+    assert(run13a.output.all.includes('Unsupported argument "--role" detected'));
+    assert.strictEqual(inMemUsers.size, preCount13, 'No profile must be created');
+
+    const run13b = await captureOutput(() =>
+      runBootstrap([
+        '--email=unsupported@burrapariksha.com',
+        'unexpected_positional_token',
+      ])
+    );
+    assert.strictEqual(run13b.exitCode, BOOTSTRAP_EXIT_FATAL);
+    assert(run13b.output.all.includes('Unsupported argument "unexpected_positional_token" detected'));
+    assert.strictEqual(inMemUsers.size, preCount13, 'No profile must be created');
+
+    console.log('✓ Test 13 PASSED: Unsupported and malformed arguments fail closed with exit code 1.');
+    passed++;
+
+    // --------------------------------------------------------------------------
+    // Test 14: UID Collision Fail-Safe (Exit Code 1)
+    // --------------------------------------------------------------------------
+    console.log('[Test 14] Testing UID Collision Prevention in CLI Bootstrap...');
+    inMemUsers.clear();
+    const collidedUid = 'fb_collided_existing_employee_uid';
+    inMemAuthUsers.set(collidedUid, { uid: collidedUid, email: 'collision.candidate@burrapariksha.com' });
+    inMemUsers.set('usr_existing_employee', {
+      id: 'usr_existing_employee',
+      name: 'Existing Employee',
+      email: 'employee@burrapariksha.com',
+      role: UserRole.VIDEO_EDITOR,
+      roles: [UserRole.VIDEO_EDITOR],
+      firebaseUid: collidedUid,
+      isActive: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    const run14 = await captureOutput(() =>
+      runBootstrap([
+        '--email=collision.candidate@burrapariksha.com',
+        '--name=Collision Candidate',
+      ])
+    );
+
+    assert.strictEqual(run14.exitCode, BOOTSTRAP_EXIT_FATAL, 'UID collision must exit with code 1');
+    assert(run14.output.all.includes('already linked to user profile'));
+    assert.strictEqual(inMemUsers.size, 1, 'No new profile must be created on UID collision');
+    const untouchedEmployee = inMemUsers.get('usr_existing_employee');
+    assert.strictEqual(untouchedEmployee?.role, UserRole.VIDEO_EDITOR, 'Existing employee role must remain untouched');
+
+    console.log('✓ Test 14 PASSED: UID collision fails closed with exit code 1 and preserves existing identities.');
     passed++;
 
     console.log('\n============================================================');
@@ -370,6 +533,7 @@ async function runBootstrapTestSuite() {
   if (failed > 0) {
     process.exit(1);
   }
+  process.exit(0);
 }
 
 runBootstrapTestSuite();
