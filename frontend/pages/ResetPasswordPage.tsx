@@ -14,19 +14,31 @@ export const ResetPasswordPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const code = params.get('oobCode');
-    if (!code) {
-      setIsVerifyingCode(false);
+  const [manualCodeInput, setManualCodeInput] = useState('');
+
+  const handleVerifyCode = (code: string) => {
+    let cleanCode = code.trim();
+    if (cleanCode.includes('oobCode=')) {
+      try {
+        const u = new URL(cleanCode);
+        cleanCode = u.searchParams.get('oobCode') || cleanCode;
+      } catch {
+        const match = cleanCode.match(/oobCode=([^&]+)/);
+        if (match) cleanCode = match[1];
+      }
+    }
+    if (!cleanCode) {
+      setError('Please provide a valid action code or reset link.');
       setCodeValid(false);
-      setError('Missing password reset action code in link.');
       return;
     }
 
-    setOobCode(code);
+    setOobCode(cleanCode);
+    setIsVerifyingCode(true);
+    setError(null);
+
     apiClient
-      .verifyResetCode(code)
+      .verifyResetCode(cleanCode)
       .then((res) => {
         if (res.valid) {
           setCodeValid(true);
@@ -43,6 +55,17 @@ export const ResetPasswordPage: React.FC = () => {
       .finally(() => {
         setIsVerifyingCode(false);
       });
+  };
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('oobCode');
+    if (!code) {
+      setIsVerifyingCode(false);
+      setCodeValid(null);
+      return;
+    }
+    handleVerifyCode(code);
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -115,23 +138,55 @@ export const ResetPasswordPage: React.FC = () => {
                 <ArrowRight className="w-4 h-4" />
               </a>
             </div>
-          ) : codeValid === false ? (
+          ) : codeValid !== true ? (
             <div className="space-y-5">
-              <div className="p-4 rounded-lg bg-rose-950/50 border border-rose-800/60 text-rose-200 text-xs flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
-                <div className="leading-relaxed">
-                  {error || 'The password reset link is invalid or has expired.'}
+              {error && (
+                <div className="p-4 rounded-lg bg-rose-950/50 border border-rose-800/60 text-rose-200 text-xs flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
+                  <div className="leading-relaxed">
+                    {error}
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-2.5">
+                <label
+                  htmlFor="manual-action-code"
+                  className="block text-xs font-semibold text-slate-200"
+                >
+                  Enter Recovery Action Code or Link
+                </label>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Paste the action code or the reset link received in your email:
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    id="manual-action-code"
+                    type="text"
+                    value={manualCodeInput}
+                    onChange={(e) => setManualCodeInput(e.target.value)}
+                    placeholder="Paste code or link here..."
+                    className="flex-1 px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleVerifyCode(manualCodeInput)}
+                    disabled={!manualCodeInput.trim() || isVerifyingCode}
+                    className="py-2 px-3.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-medium transition-colors disabled:opacity-50 cursor-pointer"
+                  >
+                    Verify
+                  </button>
                 </div>
               </div>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Password reset links are time-limited for security. Please request a new password reset link from the sign-in page.
-              </p>
-              <a
-                href="/"
-                className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-medium text-sm transition-colors"
-              >
-                <span>Return to Sign In</span>
-              </a>
+
+              <div className="pt-2 border-t border-slate-800">
+                <a
+                  href="/"
+                  className="w-full flex items-center justify-center gap-2 py-2 px-4 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-medium text-xs transition-colors"
+                >
+                  <span>Return to Sign In</span>
+                </a>
+              </div>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4.5" noValidate>

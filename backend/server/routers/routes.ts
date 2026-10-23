@@ -395,7 +395,38 @@ apiRouter.post(['/auth/forgot-password', '/v1/auth/forgot-password'], authRateLi
       return;
     }
 
-    const result = await authService.sendPasswordReset(email);
+    // Determine continueUrl safely for local development and published environments
+    let continueUrl: string | undefined = undefined;
+    if (req.body?.continueUrl && typeof req.body.continueUrl === 'string') {
+      try {
+        const parsed = new URL(req.body.continueUrl);
+        const host = parsed.hostname.toLowerCase();
+        if (
+          host === 'localhost' ||
+          host === '127.0.0.1' ||
+          host === 'burraparikshacontentmanagementsystem.ai.studio' ||
+          host.endsWith('.run.app')
+        ) {
+          continueUrl = req.body.continueUrl;
+        }
+      } catch {
+        // invalid URL format, ignore
+      }
+    }
+    if (!continueUrl) {
+      const origin = (req.headers.origin || req.headers.referer || '').toString().toLowerCase();
+      if (origin.includes('burraparikshacontentmanagementsystem.ai.studio')) {
+        continueUrl = 'https://burraparikshacontentmanagementsystem.ai.studio/reset-password';
+      } else if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+        const portMatch = origin.match(/localhost:(\d+)|127\.0\.0\.1:(\d+)/);
+        const port = (portMatch && (portMatch[1] || portMatch[2])) || '3000';
+        continueUrl = `http://localhost:${port}/reset-password`;
+      } else if (process.env.APP_URL) {
+        continueUrl = `${process.env.APP_URL.replace(/\/$/, '')}/reset-password`;
+      }
+    }
+
+    const result = await authService.sendPasswordReset(email, continueUrl);
     const successEnvelope = createSuccessResponse({ message: result.message }, requestId);
     res.json({ ...successEnvelope, message: result.message });
   } catch {

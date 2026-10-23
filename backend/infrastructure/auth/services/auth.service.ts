@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import { usersRepository } from '../../../../database/firestore/repositories/users.repository';
 import { auditService } from '../../audit/services/audit.service';
-import { getAdminAuth } from '../../../../database/firestore/adapter/admin';
+import { getAdminAuth, getAdminApp } from '../../../../database/firestore/adapter/admin';
 import firebaseConfig from '../../../../firebase-applet-config.json';
 import { User } from '../../../../shared';
 
@@ -60,11 +60,50 @@ export class AuthService {
     );
   }
 
-  public getFirebaseAuthRestEndpoint(operation: string): string {
+  /**
+   * Acquires Google OAuth2 access token headers using Firebase Admin SDK credential.
+   * Authorizes direct server-to-server calls to Identity Toolkit API (sendOobCode, resetPassword, signInWithPassword)
+   * under service account authority, independent of client Web API key expiration status.
+   */
+  public async getGoogleAuthHeaders(): Promise<Record<string, string>> {
+    // Fail fast in test or emulator environments without service account credentials
+    if (
+      process.env.PERSISTENCE_MODE === 'IN_MEMORY_TEST_ONLY' ||
+      process.env.FIREBASE_AUTH_EMULATOR_HOST ||
+      (!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL && !process.env.GOOGLE_APPLICATION_CREDENTIALS)
+    ) {
+      return {};
+    }
+
+    try {
+      const app = getAdminApp();
+      const cred = (app.options as any)?.credential;
+      if (cred && typeof cred.getAccessToken === 'function') {
+        const tokenObj = await cred.getAccessToken();
+        if (tokenObj?.access_token) {
+          const headers: Record<string, string> = {
+            'Authorization': `Bearer ${tokenObj.access_token}`,
+          };
+          if (app.options.projectId) {
+            headers['X-Goog-User-Project'] = app.options.projectId;
+          }
+          return headers;
+        }
+      }
+    } catch {
+      // In isolated in-memory unit tests or emulator mode, credential may not be initialized.
+    }
+    return {};
+  }
+
+  public getFirebaseAuthRestEndpoint(operation: string, hasBearerToken = false): string {
     const authEmulator = process.env.FIREBASE_AUTH_EMULATOR_HOST;
     const apiKey = this.getFirebaseApiKey();
     if (authEmulator) {
-      return `http://${authEmulator}/identitytoolkit.googleapis.com/v1/accounts:${operation}?key=${apiKey}`;
+      return `http://${authEmulator}/identitytoolkit.googleapis.com/v1/accounts:${operation}?key=${apiKey || 'fake-api-key'}`;
+    }
+    if (hasBearerToken) {
+      return `https://identitytoolkit.googleapis.com/v1/accounts:${operation}`;
     }
     return `https://identitytoolkit.googleapis.com/v1/accounts:${operation}?key=${apiKey}`;
   }
@@ -344,15 +383,20 @@ export class AuthService {
       let firebaseToken: string | undefined = undefined;
       let authenticatedViaFirebase = false;
 
+      const authHeaders = await this.getGoogleAuthHeaders();
+      const hasBearerToken = Boolean(authHeaders['Authorization']);
       const apiKey = this.getFirebaseApiKey();
-      const hasFirebaseApiKey = apiKey && apiKey !== 'FIREBASE_WEB_API_KEY_REDACTED';
+      const hasFirebaseApiKey = Boolean(apiKey && apiKey !== 'FIREBASE_WEB_API_KEY_REDACTED');
 
-      if (hasFirebaseApiKey) {
+      if (hasBearerToken || hasFirebaseApiKey) {
         try {
-          const endpoint = this.getFirebaseAuthRestEndpoint('signInWithPassword');
+          const endpoint = this.getFirebaseAuthRestEndpoint('signInWithPassword', hasBearerToken);
           const fbRes = await fetch(endpoint, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              ...authHeaders,
+            },
             body: JSON.stringify({
               email: user.email,
               password,
@@ -555,7 +599,8 @@ export class AuthService {
    * which triggers Firebase's built-in email delivery to the recipient.
    */
   public async dispatchPasswordSetupEmail(
-    email: string
+    email: string,
+    continueUrl?: string
   ): Promise<{ sent: boolean; message: string; error?: string }> {
     if (!email || typeof email !== 'string' || !email.includes('@')) {
       return { sent: false, message: 'Invalid email address provided.', error: 'INVALID_EMAIL' };
@@ -568,24 +613,36 @@ export class AuthService {
       return this.testEmailSender(trimmedEmail);
     }
 
+    const authHeaders = await this.getGoogleAuthHeaders();
+    const hasBearerToken = Boolean(authHeaders['Authorization']);
     const apiKey = this.getFirebaseApiKey();
-    if (!apiKey || apiKey === 'FIREBASE_WEB_API_KEY_REDACTED') {
+    const hasApiKey = Boolean(apiKey && apiKey !== 'FIREBASE_WEB_API_KEY_REDACTED');
+
+    if (!hasBearerToken && !hasApiKey) {
       return {
         sent: false,
-        message: 'Firebase Web API key is not configured. Email delivery unavailable.',
-        error: 'FIREBASE_API_KEY_NOT_CONFIGURED',
+        message: 'Firebase credentials are not configured. Email delivery unavailable.',
+        error: 'FIREBASE_AUTH_NOT_CONFIGURED',
       };
     }
 
     try {
-      const endpoint = this.getFirebaseAuthRestEndpoint('sendOobCode');
+      const endpoint = this.getFirebaseAuthRestEndpoint('sendOobCode', hasBearerToken);
+      const requestBody: Record<string, any> = {
+        requestType: 'PASSWORD_RESET',
+        email: trimmedEmail,
+      };
+      if (continueUrl && typeof continueUrl === 'string') {
+        requestBody.continueUrl = continueUrl;
+      }
+
       const res = await fetch(endpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          requestType: 'PASSWORD_RESET',
-          email: trimmedEmail,
-        }),
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders,
+        },
+        body: JSON.stringify(requestBody),
       });
 
       const data: any = await res.json();
@@ -616,7 +673,7 @@ export class AuthService {
    * Returns a neutral success message regardless of whether the email exists
    * to prevent account enumeration.
    */
-  public async sendPasswordReset(email: string): Promise<{ success: boolean; message: string }> {
+  public async sendPasswordReset(email: string, continueUrl?: string): Promise<{ success: boolean; message: string }> {
     const neutralMessage = 'If an account exists for this email address, a password reset link will be sent.';
     if (!email || typeof email !== 'string' || !email.includes('@')) {
       return { success: true, message: neutralMessage };
@@ -624,7 +681,7 @@ export class AuthService {
 
     const trimmedEmail = email.trim().toLowerCase();
     try {
-      await this.dispatchPasswordSetupEmail(trimmedEmail);
+      await this.dispatchPasswordSetupEmail(trimmedEmail, continueUrl);
 
       await auditService.log(
         'SYSTEM',
@@ -649,8 +706,12 @@ export class AuthService {
       return { valid: false, error: 'Invalid or missing action code.' };
     }
 
+    const authHeaders = await this.getGoogleAuthHeaders();
+    const hasBearerToken = Boolean(authHeaders['Authorization']);
     const apiKey = this.getFirebaseApiKey();
-    if (!apiKey || apiKey === 'FIREBASE_WEB_API_KEY_REDACTED') {
+    const hasApiKey = Boolean(apiKey && apiKey !== 'FIREBASE_WEB_API_KEY_REDACTED');
+
+    if (!hasBearerToken && !hasApiKey) {
       if (process.env.NODE_ENV === 'test') {
         return { valid: true }; // Allow in test isolated environment
       }
@@ -658,10 +719,13 @@ export class AuthService {
     }
 
     try {
-      const endpoint = this.getFirebaseAuthRestEndpoint('resetPassword');
+      const endpoint = this.getFirebaseAuthRestEndpoint('resetPassword', hasBearerToken);
       const res = await fetch(endpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders,
+        },
         body: JSON.stringify({ oobCode }),
       });
 
@@ -694,15 +758,21 @@ export class AuthService {
       return { success: false, error: 'New password must be at least 8 characters long.' };
     }
 
+    const authHeaders = await this.getGoogleAuthHeaders();
+    const hasBearerToken = Boolean(authHeaders['Authorization']);
     const apiKey = this.getFirebaseApiKey();
+    const hasApiKey = Boolean(apiKey && apiKey !== 'FIREBASE_WEB_API_KEY_REDACTED');
     let email: string | undefined = undefined;
 
-    if (apiKey && apiKey !== 'FIREBASE_WEB_API_KEY_REDACTED') {
+    if (hasBearerToken || hasApiKey) {
       try {
-        const endpoint = this.getFirebaseAuthRestEndpoint('resetPassword');
+        const endpoint = this.getFirebaseAuthRestEndpoint('resetPassword', hasBearerToken);
         const res = await fetch(endpoint, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...authHeaders,
+          },
           body: JSON.stringify({ oobCode, newPassword }),
         });
 
@@ -720,10 +790,17 @@ export class AuthService {
       }
     }
 
-    // Invalidate existing sessions in Firestore for this user
+    // Invalidate existing sessions in Firestore for this user and synchronize scrypt password hash
     if (email) {
       const user = await usersRepository.findByEmail(email);
       if (user) {
+        const newHash = await this.hashPassword(newPassword);
+        const nextSessionVersion = (user.sessionVersion || 1) + 1;
+        await usersRepository.updateRecord(user.id, {
+          password_hash: newHash,
+          sessionVersion: nextSessionVersion,
+          updatedAt: new Date().toISOString(),
+        });
         await usersRepository.incrementSessionVersionPersistent(user.id);
         await auditService.log(
           user.id,

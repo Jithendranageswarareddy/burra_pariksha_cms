@@ -1532,10 +1532,13 @@ export class ApiClient {
     return res;
   }
 
-  public async forgotPassword(email: string): Promise<{ success: boolean; message: string }> {
+  public async forgotPassword(email: string, continueUrl?: string): Promise<{ success: boolean; message: string }> {
+    const resolvedContinueUrl =
+      continueUrl ||
+      (typeof window !== 'undefined' ? `${window.location.origin}/reset-password` : undefined);
     return this.request<{ success: boolean; message: string }>('/auth/forgot-password', {
       method: 'POST',
-      body: JSON.stringify({ email }),
+      body: JSON.stringify({ email, continueUrl: resolvedContinueUrl }),
     });
   }
 
