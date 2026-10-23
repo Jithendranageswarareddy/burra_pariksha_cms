@@ -635,33 +635,10 @@ export function getRequestActor(req: Request): ActorContext & { name: string; ro
     return authReq._requestActor;
   }
 
-  // If req.user is absent, resolve a legacy session only through an authoritative
-  // active user record. This synchronous helper refuses cache misses; callers must
-  // authenticate via requireAuth/requireCapability first to warm the context safely.
+  // Actor resolution is intentionally synchronous. Authentication middleware must
+  // populate req.user before domain handlers call this helper; never validate
+  // token claims here or fall back to an unverified identity.
   if (!authReq.user?.id) {
-    const token = extractSessionToken(req);
-    if (token) {
-      const payload = authService.verifySessionToken(token);
-      if (payload) {
-        const userState = usersRepository.getUserSessionState(payload.userId);
-        if (userState && userState.isActive && (payload.sessionVersion ?? 1) >= userState.sessionVersion) {
-          const roles = userState.roles && userState.roles.length > 0
-            ? userState.roles
-            : [userState.role];
-          authReq.user = {
-            id: payload.userId,
-            name: payload.name,
-            role: userState.role,
-            roles,
-          };
-        }
-      }
-    }
-  }
-
-  if (!authReq.user?.id) {
-    // CRITICAL SECURITY BLOCKER RESOLVED:
-    // Unauthenticated requests NEVER receive an Admin actor or fallback identity.
     throw new UnauthenticatedActorError('Authentication required: verified actor session context is missing.');
   }
 
