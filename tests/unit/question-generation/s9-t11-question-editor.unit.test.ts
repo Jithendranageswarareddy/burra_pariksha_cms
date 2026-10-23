@@ -130,4 +130,49 @@ const renderedDuplicateOptions = renderToStaticMarkup(
 );
 assert.match(renderedDuplicateOptions, /Options must be distinct/);
 
+// Mode 1 Question Challenge Short: Pedagogical Warnings banner hiding test
+const candidateWithWarning: StudioCandidate = {
+  ...candidate,
+  questionText: 'ఇది ఒక పరీక్ష ప్రశ్న?',
+  optionA: 'జవాబు 1',
+  optionB: 'జవాబు 2',
+  optionC: 'జవాబు 3',
+  optionD: 'జవాబు 4',
+  explanation: 'చిన్న వివరణ', // length 11 (between 5 and 20 chars) -> triggers WARN_EXPLANATION_BREVITY
+};
+
+const renderedWithWarningDefault = renderToStaticMarkup(
+  React.createElement(CandidateCanvas, {
+    candidate: candidateWithWarning,
+    hasCandidate: true,
+    isDirty: false,
+    isGenerating: false,
+    isRefining: false,
+    isChallengeMode: false,
+    onUpdateField: () => undefined,
+    onRefine: () => undefined,
+    onGenerate: () => undefined,
+    onManualDraft: () => undefined,
+  })
+);
+assert.match(renderedWithWarningDefault, /data-testid="quality-warnings-banner"/);
+assert.match(renderedWithWarningDefault, /Pedagogical Warnings/);
+
+const renderedWithWarningChallengeMode = renderToStaticMarkup(
+  React.createElement(CandidateCanvas, {
+    candidate: candidateWithWarning,
+    hasCandidate: true,
+    isDirty: false,
+    isGenerating: false,
+    isRefining: false,
+    isChallengeMode: true,
+    onUpdateField: () => undefined,
+    onRefine: () => undefined,
+    onGenerate: () => undefined,
+    onManualDraft: () => undefined,
+  })
+);
+assert.doesNotMatch(renderedWithWarningChallengeMode, /data-testid="quality-warnings-banner"/);
+assert.doesNotMatch(renderedWithWarningChallengeMode, /Pedagogical Warnings/);
+
 console.log('S9-T11 QUESTION EDITOR TESTS PASSED CLEANLY');

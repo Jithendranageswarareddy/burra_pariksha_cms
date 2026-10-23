@@ -68,7 +68,7 @@ interface CandidateCanvasProps {
   onPreviewViewModeChange?: (view: 'EDITOR' | 'PREVIEW') => void;
   savedDraft?: QuestionDraft | null;
 
-  /** When true, simplifies Mode 1 Stage 01 editor by removing AI refine, proof/trick, and simulation preview */
+  /** When true, simplifies Mode 1 Stage 01 editor by removing AI refine, proof/trick, simulation preview, and pedagogical warnings */
   isChallengeMode?: boolean;
 }
 
@@ -367,8 +367,8 @@ export const CandidateCanvas: React.FC<CandidateCanvasProps> = ({
             </div>
           )}
 
-          {/* QUALITY WARNINGS BANNER (S9-T04 / S9-T12) */}
-          {qualityResult.hasWarnings && (
+          {/* QUALITY WARNINGS BANNER (S9-T04 / S9-T12) - Hidden for Mode 1 Question Challenge Short */}
+          {!isChallengeMode && qualityResult.hasWarnings && (
             <div data-testid="quality-warnings-banner" className="p-2 bg-amber-50 border border-amber-200 rounded-lg space-y-1">
               <div className="flex items-center gap-1.5 text-xs font-bold text-amber-800">
                 <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
