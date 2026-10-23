@@ -345,7 +345,9 @@ export class FirestoreRepository<T extends BaseEntity> implements IRepository<T>
   }
 
   public async count(options?: QueryOptions<T>): Promise<number> {
-    const records = await this.findMany(options);
+    // Count semantics intentionally ignore pagination options.
+    const { limit: _limit, offset: _offset, orderBy: _orderBy, ...filters } = options || {};
+    const records = await this.findMany(filters);
     return records.length;
   }
 }
