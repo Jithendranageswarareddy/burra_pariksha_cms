@@ -10,7 +10,7 @@
  * - Diagnostic firestore error serialization with handleFirestoreError
  */
 
-import { FieldPath, Firestore, Query } from 'firebase-admin/firestore';
+import { Firestore, Query } from 'firebase-admin/firestore';
 import { getAdminFirestore } from './admin';
 import { handleFirestoreError, OperationType } from './errors';
 import {
@@ -293,8 +293,7 @@ export class FirestoreRepository<T extends BaseEntity> implements IRepository<T>
       const db = await this.getDb();
       let q: Query = db.collection(this.collectionName);
 
-      // Apply equality filters directly at the Firestore query level so that
-      // limit() operates on matching documents rather than truncating the collection before filtering.
+      // Equality predicates are pushed down to Firestore.
       if (options?.where) {
         for (const [k, v] of Object.entries(options.where)) {
           if (v !== undefined) {
@@ -303,36 +302,43 @@ export class FirestoreRepository<T extends BaseEntity> implements IRepository<T>
         }
       }
 
-      // Apply query clauses in Firestore, including soft-delete filtering,
-      // before pagination so callers receive the requested number of live records.
+      const snap = await q.get();
+      let list = snap.docs.map((d) => {
+        const data = d.data();
+        return { ...data, id: (data as any)?.id || d.id } as T;
+      });
+
+      // Preserve legacy records whose isDeleted property is absent.
       if (!options?.includeDeleted) {
-        q = q.where('isDeleted', '!=', true);
+        list = list.filter((e) => !e.isDeleted);
+      }
+
+      // Keep the established repository contract: filter deleted rows before
+      // sorting/pagination. This is correctness-first; high-volume collections
+      // should adopt cursor pagination and a normalized isDeleted schema.
+      if (options?.where) {
+        const whereEntries = Object.entries(options.where);
+        list = list.filter((e: any) =>
+          whereEntries.every(([k, v]) => v === undefined || e[k] === v)
+        );
       }
 
       if (options?.orderBy) {
-        q = q.orderBy(String(options.orderBy.field), options.orderBy.direction);
-      } else if (!options?.includeDeleted) {
-        // Firestore requires the inequality field to be ordered first.
-        q = q.orderBy('isDeleted').orderBy(FieldPath.documentId());
+        const { field, direction } = options.orderBy;
+        const factor = direction === 'desc' ? -1 : 1;
+        list.sort((a: any, b: any) => {
+          if (a[field] < b[field]) return -1 * factor;
+          if (a[field] > b[field]) return 1 * factor;
+          return 0;
+        });
       }
 
-      if (options?.offset !== undefined && options.offset > 0) {
-        q = q.offset(Math.floor(options.offset));
-      }
-      if (options?.limit !== undefined && options.limit > 0) {
-        q = q.limit(Math.floor(options.limit));
-      }
+      const offset = Math.max(0, Math.floor(options?.offset ?? 0));
+      const end = options?.limit !== undefined && options.limit > 0
+        ? offset + Math.floor(options.limit)
+        : undefined;
 
-      const snap = await q.get();
-      const list = snap.docs.map((d) => {
-        const data = d.data();
-        return { ...data, id: (data as any)?.id || d.id } as T;
-      }).filter((e) => options?.includeDeleted || !e.isDeleted)
-        .filter((e: any) => !options?.where || Object.entries(options.where).every(
-          ([k, v]) => v === undefined || e[k] === v
-        ));
-
-      return list;
+      return offset > 0 || end !== undefined ? list.slice(offset, end) : list;
     } catch (err) {
       handleFirestoreError(err, OperationType.LIST, this.collectionName);
     }
