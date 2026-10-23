@@ -127,6 +127,7 @@ order is defined by [FEATURE-PAGE-CONTRACT-TEMPLATE.md](page-contracts/FEATURE-P
 
 ### 3.4 Product and Content Principles (`docs/burrapariksha-content-planning/`)
 - [01-content-excellence-baseline.md](burrapariksha-content-planning/01-content-excellence-baseline.md) — **Burra Pariksha Content Excellence Baseline**: Canonical product, editorial, audience-insight, AI, quality, and governance foundation for future CMS development. Governs canonical content modes (`TOPIC_INTRODUCTION`, `WORKED_EXAMPLES`, `QUESTION_CHALLENGE_SHORT`), comment-first qualitative intelligence, correctness pre-publication quality gates, and 25 non-negotiable principles.
+- [02-content-modes-specification.md](burrapariksha-content-planning/02-content-modes-specification.md) — **Burra Pariksha Canonical Content Modes Specification**: Mode-specific expectations, purposes, structures, quality checks, failure conditions, acceptance criteria, and AI assistance boundaries for the three canonical modes (`TOPIC_INTRODUCTION`, `WORKED_EXAMPLES`, `QUESTION_CHALLENGE_SHORT`), mode selection matrices, and comment-driven improvement loops.
 
 ---
 
