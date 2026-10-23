@@ -1563,38 +1563,6 @@ export class ApiClient {
     });
   }
 
-  public async bootstrapAdmin(data: {
-    email: string;
-    name?: string;
-    resend?: boolean;
-    bootstrapSecret: string;
-  }): Promise<{
-    success: boolean;
-    message: string;
-    userId?: string;
-    accountCreated?: boolean;
-    setupEmailSent?: boolean;
-    retryAvailable?: boolean;
-    emailDelivery?: { sent: boolean; message?: string; error?: string };
-  }> {
-    const { bootstrapSecret, ...bodyPayload } = data;
-    return this.request<{
-      success: boolean;
-      message: string;
-      userId?: string;
-      accountCreated?: boolean;
-      setupEmailSent?: boolean;
-      retryAvailable?: boolean;
-      emailDelivery?: { sent: boolean; message?: string; error?: string };
-    }>('/auth/bootstrap-admin', {
-      method: 'POST',
-      headers: {
-        'x-bootstrap-secret': bootstrapSecret,
-      },
-      body: JSON.stringify(bodyPayload),
-    });
-  }
-
   public async getProductionBoard(): Promise<import('../../shared').ProductionBoardItem[]> {
     return this.request('/production-board');
   }

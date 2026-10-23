@@ -8,7 +8,7 @@
 import assert from 'node:assert';
 import http from 'node:http';
 import express from 'express';
-import { authService } from '../../backend/infrastructure/auth/services/auth.service';
+import { authService, AuthService } from '../../backend/infrastructure/auth/services/auth.service';
 import { usersRepository } from '../../database/firestore/repositories/users.repository';
 import { extractSessionToken, requireAuth, AuthenticatedRequest } from '../../backend/server/middleware/auth.middleware';
 import { apiRouter } from '../../backend/server/routers/routes';
@@ -208,7 +208,11 @@ async function runTests() {
     return origUsersFindByEmail(email);
   };
   usersRepository.findById = async (id: string) => {
-    return inMemUsers.get(id) || origUsersFindById(id);
+    if (inMemUsers.has(id)) return inMemUsers.get(id);
+    for (const u of inMemUsers.values()) {
+      if (u.id === id || u.email.toLowerCase() === id.toLowerCase()) return u;
+    }
+    return origUsersFindById(id);
   };
   usersRepository.update = (async (recordOrId: any, updates?: any) => {
     const id = typeof recordOrId === 'string' ? recordOrId : recordOrId?.id;
@@ -217,6 +221,9 @@ async function runTests() {
     inMemUsers.set(id, updated);
     return updated;
   }) as any;
+
+  process.env.NODE_ENV = 'test';
+  AuthService.enableTestLegacyAuth(true);
 
   try {
     // Seed test user into in-memory usersRepository
@@ -341,6 +348,7 @@ async function runTests() {
     failed++;
   }
 
+  AuthService.enableTestLegacyAuth(false);
   server.close();
 
   console.log('\n============================================================');
@@ -350,6 +358,7 @@ async function runTests() {
   if (failed > 0) {
     process.exit(1);
   }
+  process.exit(0);
 }
 
 runTests().catch((err) => {

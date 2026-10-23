@@ -13,6 +13,9 @@
  */
 
 import assert from 'node:assert';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import http from 'node:http';
 import express from 'express';
 import { authService, AuthService } from '../../backend/infrastructure/auth/services/auth.service';
@@ -369,6 +372,33 @@ async function runFirebaseAuthTests() {
 
     // 1g: Existing Firebase users are not unexpectedly modified or deleted
     assert(inMemAuthUsers.has(collidedUid), 'Pre-existing Firebase Auth user must NOT be deleted');
+
+    // 1h: Client isolation: Ensure frontend code contains zero bootstrap secrets or bootstrapAdmin calls
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+    const frontendDir = path.resolve(__dirname, '../../frontend');
+    const scanDir = (dir: string): string[] => {
+      let results: string[] = [];
+      const list = fs.readdirSync(dir);
+      for (const file of list) {
+        const full = path.join(dir, file);
+        const stat = fs.statSync(full);
+        if (stat.isDirectory()) {
+          results = results.concat(scanDir(full));
+        } else if (file.endsWith('.ts') || file.endsWith('.tsx') || file.endsWith('.js') || file.endsWith('.jsx')) {
+          results.push(full);
+        }
+      }
+      return results;
+    };
+    const frontendFiles = scanDir(frontendDir);
+    assert(frontendFiles.length > 50, 'Frontend files must be discovered');
+    for (const file of frontendFiles) {
+      const content = fs.readFileSync(file, 'utf8');
+      assert(!content.includes('BOOTSTRAP_ADMIN_SECRET'), `Frontend file ${file} must not reference BOOTSTRAP_ADMIN_SECRET`);
+      assert(!content.includes('bootstrapAdmin'), `Frontend file ${file} must not expose bootstrapAdmin`);
+      assert(!content.includes('x-bootstrap-secret'), `Frontend file ${file} must not reference x-bootstrap-secret`);
+    }
 
     // Restore createdAdmin in inMemUsers for subsequent tests (Tests 2-6 expect createdAdmin)
     inMemUsers.set(createdAdmin.id, createdAdmin);

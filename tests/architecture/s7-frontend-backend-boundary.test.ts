@@ -109,6 +109,11 @@ const FORBIDDEN_FRONTEND_RULES: BoundaryRule[] = [
     pattern: /(from\s+['"][^'"]*\/src\/types(\/[^'"]*)?['"]|import\(['"][^'"]*\/src\/types\/[^'"]*['"]\))/,
     description: 'Direct import of legacy src/types in frontend (must import from shared/)',
   },
+  {
+    category: 'Bootstrap Secrets and Client Provisioning',
+    pattern: /\b(BOOTSTRAP_ADMIN_SECRET|bootstrapSecret|x-bootstrap-secret|bootstrapAdmin)\b/,
+    description: 'Bootstrap secrets, headers, and privileged bootstrap methods are strictly prohibited in frontend client code',
+  },
 ];
 
 const FORBIDDEN_BACKEND_RULES: BoundaryRule[] = [
