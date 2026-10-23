@@ -13,6 +13,7 @@ docs/
 ├── README.md             # Canonical documentation navigation index & governance rules
 ├── architecture/         # Current, authoritative system architecture, models, and ADRs
 ├── burrapariksha-content-planning/ # Canonical content excellence baseline & planning
+├── project-control/      # Operational project continuity briefings & handovers
 ├── features/             # Current feature contracts (FC-001 through FC-022) & index
 ├── operations/           # Environment contracts, Git sync protocols, and developer runbooks
 ├── api/                  # Canonical API specifications & usage documentation (target location)
@@ -31,6 +32,7 @@ docs/
 | :--- | :--- | :--- |
 | `docs/architecture/` | **Authoritative (Current)** | System boundary, domain models, 15-step workflow, database architecture, security, state models, UUID entity IDs, 2-tier taxonomy, and ADRs. |
 | `docs/burrapariksha-content-planning/` | **Authoritative (Current)** | Canonical product, editorial, audience-insight, and AI foundation; canonical content modes (`TOPIC_INTRODUCTION`, `WORKED_EXAMPLES`, `QUESTION_CHALLENGE_SHORT`). |
+| `docs/project-control/` | **Authoritative (Current)** | Operational project continuity briefings, current state assessment, and contributor handovers (`MASTER_CONTEXT.md`, `CURRENT_STATE.md`, `CHAT_HANDOVER.md`). |
 | `docs/features/` | **Authoritative (Current)** | Feature contracts (`FC-001` through `FC-022`) governing behavioral invariants, stage logic, and cross-stage contracts. |
 | `docs/operations/` | **Authoritative (Current)** | Runtime environment secrets, configuration contracts, Git synchronization protocols, and developer workstation procedures. |
 | `docs/api/` | **Authoritative (Current)** | REST API endpoint contracts, request/response payload schemas, and client usage guides (backed by `architecture/15-API-CONTRACT.md`). |
@@ -74,6 +76,7 @@ When observed runtime behavior or codebase patterns conflict with intended archi
 - **New Architecture & ADRs**: Place in `docs/architecture/` using the sequential numbering format or descriptive ADR format.
 - **New Feature Specifications**: Place in `docs/features/` with corresponding `FC-###` identifiers.
 - **New Product & Content Baselines**: Place in `docs/burrapariksha-content-planning/`.
+- **New Project Control & Continuity Briefings**: Place in `docs/project-control/`.
 - **New Operational Runbooks**: Place in `docs/operations/`.
 - **New Sprint Deliverables / Task Reports**: Place under the designated sprint directory in `docs/sprints/sprint-XX/`.
 
@@ -128,6 +131,11 @@ order is defined by [FEATURE-PAGE-CONTRACT-TEMPLATE.md](page-contracts/FEATURE-P
 ### 3.4 Product and Content Principles (`docs/burrapariksha-content-planning/`)
 - [01-content-excellence-baseline.md](burrapariksha-content-planning/01-content-excellence-baseline.md) — **Burra Pariksha Content Excellence Baseline**: Canonical product, editorial, audience-insight, AI, quality, and governance foundation for future CMS development. Governs canonical content modes (`TOPIC_INTRODUCTION`, `WORKED_EXAMPLES`, `QUESTION_CHALLENGE_SHORT`), comment-first qualitative intelligence, correctness pre-publication quality gates, and 25 non-negotiable principles.
 - [02-content-modes-specification.md](burrapariksha-content-planning/02-content-modes-specification.md) — **Burra Pariksha Canonical Content Modes Specification**: Mode-specific expectations, purposes, structures, quality checks, failure conditions, acceptance criteria, and AI assistance boundaries for the three canonical modes (`TOPIC_INTRODUCTION`, `WORKED_EXAMPLES`, `QUESTION_CHALLENGE_SHORT`), mode selection matrices, and comment-driven improvement loops.
+
+### 3.5 Project Control & Continuity (`docs/project-control/`)
+- [MASTER_CONTEXT.md](project-control/MASTER_CONTEXT.md) — **Master Context**: Durable project briefing, long-term Telugu learning mission, canonical content design, architectural invariants, and agent working guidelines.
+- [CURRENT_STATE.md](project-control/CURRENT_STATE.md) — **Current State Snapshot**: Objective repository and documentation state assessment, compatibility notes, and open questions.
+- [CHAT_HANDOVER.md](project-control/CHAT_HANDOVER.md) — **Chat Handover**: Fast-resume briefing, onboarding sequence, and continuity checklist for AI agents and human contributors.
 
 ---
 
