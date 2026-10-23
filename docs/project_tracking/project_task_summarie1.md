@@ -26,3 +26,26 @@ Chronological record of actual task executions in accordance with [AGENTS.md](..
 - **Risks & Next Actions**:
   - `scripts/clean-local-data.ts` is purely a local emulator utility; running it against any production target is blocked by `assertDestructiveScriptSafe()`.
   - Next action: Review diff and await owner authorization before committing or pushing.
+
+---
+
+### [TASK-002] 2026-10-24 — Verify Cleanup Safety and Prepare Data-Cleanup Readiness
+
+- **Status**: `COMPLETED`
+- **Objective**: Verify post-push remote sync, re-validate clean-local-data safety invariants and subcollection containment, and document a read-only inventory plan and backup/restore gaps without modifying or connecting to any datastore.
+- **Work & Outcome**:
+  - Pulled latest `main` from GitHub (`origin/main`), confirmed commit `4033c35` matches intended files, and verified working tree was clean.
+  - Inspected `scripts/clean-local-data.ts`: confirmed deletion is restricted strictly to `PURGE_ALLOWLIST_COLLECTIONS`, unknown collections and baseline collections are preserved, and all three gates (`--confirm-clean-local`, `assertDestructiveScriptSafe()`, `assertEmulatorAlive()`) precede Firestore initialization.
+  - Confirmed subcollection deletion (`deleteCollectionRecursively`) is strictly scoped within allowlisted document trees and cannot escape to unallowlisted collections.
+  - Performed read-only storage inventory across Firestore, Google Sheets, Google Drive, GCS, and local seed data, identifying backup/restore gaps (no automated pre-cleanup snapshot export; risk of cross-store dangling references in Sheets/Drive).
+- **Changed Files**:
+  - `docs/project_tracking/project_task_summarie1.md`
+- **Verification**:
+  - `git pull origin main` — `PASS` (already up to date)
+  - `git show --stat 4033c35` — `PASS` (exact 4 files confirmed)
+  - `npx tsx tests/unit/datastore-isolation-guard.unit.test.ts` — `PASS` (18/18 tests passed, exit 0)
+  - `npm run lint` (`tsc --noEmit`) — `PASS` (exit 0)
+  - `git diff --check` — `PASS` (clean exit 0)
+- **Risks & Next Actions**:
+  - Cloud storage and Google Sheets lack automated atomic cross-store sync; cleanup on Firestore must be preceded by an offline export/snapshot if production data is ever involved.
+  - Next action: Await owner instructions before executing any local emulator cleanup.
