@@ -103,7 +103,7 @@ export async function seedEmulatorData(): Promise<void> {
     },
     {
       id: 'CFG-FOC-001',
-      dimension: 'FOCUS_DIMENSION',
+      dimension: 'QUESTION_STYLE',
       code: 'CONCEPTUAL_CLARITY',
       displayLabel: 'Conceptual Clarity',
       description: 'Tests fundamental principles rather than rote formula application',
@@ -120,6 +120,9 @@ export async function seedEmulatorData(): Promise<void> {
     const existing = await questionConfigRepository.findById(cfg.id);
     if (!existing) {
       await questionConfigRepository.create(cfg as any);
+      configsSeeded++;
+    } else if (existing.dimension !== cfg.dimension) {
+      await questionConfigRepository.update(cfg.id, { dimension: cfg.dimension } as any);
       configsSeeded++;
     }
   }

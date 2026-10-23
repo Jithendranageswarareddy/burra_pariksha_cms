@@ -13,3 +13,4 @@ backups/
 .dev.env.json
 .dev.pid
 cookies.txt
+scratch/

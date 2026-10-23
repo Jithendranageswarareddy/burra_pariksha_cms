@@ -26,6 +26,7 @@ import { ExplainedQuestionsWorkspace } from '../components/ExplainedQuestionsWor
 import { ActionBar } from '../components/ActionBar';
 import { ProductionModeModal } from '../components/ProductionModeModal';
 import { ProductionWorkbenchSummary } from '../components/ProductionWorkbenchSummary';
+import { UnifiedWorkflowHeader } from '../components/UnifiedWorkflowHeader';
 
 export const QuestionStudioPage: React.FC = () => {
   const navigate = useNavigate();
@@ -117,52 +118,106 @@ export const QuestionStudioPage: React.FC = () => {
 
   return (
     <div className="space-y-3 pb-6 animate-in fade-in duration-200">
-      {/* 1. COMPACT WORKFLOW HEADER */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-white/95 backdrop-blur-xs border border-slate-200/90 rounded-xl px-3.5 py-2 shadow-2xs">
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex items-center gap-1.5 font-bold text-sm text-slate-900">
-            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-            <span>
-              {productionMode === 'TOPIC_INTRODUCTION'
-                ? 'Mode 2: Topic Introduction'
-                : productionMode === 'EXPLAINED_QUESTIONS_VIDEO'
-                ? 'Mode 3: Explained Questions Video'
-                : 'Mode 1: Question Challenge Short'}
-            </span>
+      {/* WORKFLOW HEADER & WORKBENCH */}
+      {productionMode === 'TOPIC_INTRODUCTION' || productionMode === 'EXPLAINED_QUESTIONS_VIDEO' ? (
+        <>
+          {/* 1. COMPACT WORKFLOW HEADER (Mode 2/3) */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-white/95 backdrop-blur-xs border border-slate-200/90 rounded-xl px-3.5 py-2 shadow-2xs">
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-1.5 font-bold text-sm text-slate-900">
+                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                <span>
+                  {productionMode === 'TOPIC_INTRODUCTION'
+                    ? 'Mode 2: Topic Introduction'
+                    : 'Mode 3: Explained Questions Video'}
+                </span>
+              </div>
+              <span className="text-[10px] font-semibold bg-amber-100 text-amber-900 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                {productionMode === 'EXPLAINED_QUESTIONS_VIDEO' ? '16:9 Horizontal • Multi-Question' : '9:16 Vertical • ≤ 58s'}
+              </span>
+              <span className="text-slate-300 hidden md:inline">•</span>
+              <span className="text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md">
+                Stage 01: Question Generation (Step 01 / 15)
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              <span className="text-[11px] text-slate-500 bg-slate-50 border border-slate-200/80 px-2 py-0.5 rounded font-medium flex items-center gap-1">
+                <span className="text-slate-400">Next:</span>
+                <span className="text-slate-700 font-semibold">Stage 02 Question Verification</span>
+              </span>
+            </div>
           </div>
-          <span className="text-[10px] font-semibold bg-amber-100 text-amber-900 px-2 py-0.5 rounded-full uppercase tracking-wider">
-            {productionMode === 'EXPLAINED_QUESTIONS_VIDEO' ? '16:9 Horizontal • Multi-Question' : '9:16 Vertical • ≤ 58s'}
-          </span>
-          <span className="text-slate-300 hidden md:inline">•</span>
-          <span className="text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md">
-            Stage 01: Question Generation (Step 01 / 15)
-          </span>
-        </div>
 
-        <div className="flex items-center gap-2 self-start sm:self-auto">
-          <span className="text-[11px] text-slate-500 bg-slate-50 border border-slate-200/80 px-2 py-0.5 rounded font-medium flex items-center gap-1">
-            <span className="text-slate-400">Next:</span>
-            <span className="text-slate-700 font-semibold">Stage 02 Question Verification</span>
-          </span>
-        </div>
-      </div>
+          {/* 2. CANONICAL 15-STAGE PROGRESS STRIP (COMPACT HORIZONTAL SCROLLER) */}
+          <div id="permanent-timeline-anchor" className="w-full overflow-x-auto">
+            <ProductionJourneyBar activeStage="QUESTION_STUDIO" showDetails={false} />
+          </div>
 
-      {/* 2. CANONICAL 15-STAGE PROGRESS STRIP (COMPACT HORIZONTAL SCROLLER) */}
-      <div id="permanent-timeline-anchor" className="w-full overflow-x-auto">
-        <ProductionJourneyBar activeStage="QUESTION_STUDIO" showDetails={false} />
-      </div>
+          {/* 3. PRODUCTION MODE SELECTION MODAL */}
+          <ProductionModeModal
+            isOpen={isModeModalOpen}
+            initialMode={productionMode || 'QUESTION_CHALLENGE_SHORT'}
+            initialCount={targetQuestionCount}
+            initialAspect={aspectRatio}
+            onSelectMode={(mode, count, aspect) => {
+              setProductionModeConfig(mode, count, aspect);
+            }}
+            onClose={productionMode ? () => setIsModeModalOpen(false) : undefined}
+          />
 
-      {/* 3. PRODUCTION MODE SELECTION MODAL */}
-      <ProductionModeModal
-        isOpen={isModeModalOpen}
-        initialMode={productionMode || 'QUESTION_CHALLENGE_SHORT'}
-        initialCount={targetQuestionCount}
-        initialAspect={aspectRatio}
-        onSelectMode={(mode, count, aspect) => {
-          setProductionModeConfig(mode, count, aspect);
-        }}
-        onClose={productionMode ? () => setIsModeModalOpen(false) : undefined}
-      />
+          {/* 4. INTEGRATED PRODUCTION WORKBENCH SUMMARY */}
+          <ProductionWorkbenchSummary
+            selectedTopic={selectedTopic}
+            selectedSubtopic={selectedSubtopic}
+            taxonomyTree={taxonomyTree}
+            currentSubtopics={currentSubtopics}
+            loadingTaxonomy={loadingTaxonomy}
+            loadingSubtopics={loadingSubtopics}
+            taxonomyError={taxonomyError}
+            subtopicsError={subtopicsError}
+            productionMode={productionMode}
+            targetQuestionCount={targetQuestionCount}
+            aspectRatio={aspectRatio}
+            onOpenModeModal={() => setIsModeModalOpen(true)}
+            hasCandidate={hasCandidate}
+            isDirty={isDirty}
+            savedDraftId={savedDraftId}
+            isLoadingDraft={isLoadingDraft}
+            isSaving={isSaving}
+            isSubmitting={isSubmitting}
+            submitSuccessResult={submitSuccessResult}
+            onSaveDraft={handleSaveDraft}
+            onSubmitForVerification={onExplicitSubmit}
+            onGenerate={handleGenerate}
+          />
+        </>
+      ) : (
+        <>
+          {/* MODE 1: UNIFIED COMPACT HEADER & WORKFLOW CARD */}
+          <UnifiedWorkflowHeader
+            hasCandidate={hasCandidate}
+            isDirty={isDirty}
+            savedDraftId={savedDraftId}
+            isLoadingDraft={isLoadingDraft}
+            isSaving={isSaving}
+            isSubmitting={isSubmitting}
+            onOpenModeModal={() => setIsModeModalOpen(true)}
+          />
+
+          {/* PRODUCTION MODE SELECTION MODAL */}
+          <ProductionModeModal
+            isOpen={isModeModalOpen}
+            initialMode={productionMode || 'QUESTION_CHALLENGE_SHORT'}
+            initialCount={targetQuestionCount}
+            initialAspect={aspectRatio}
+            onSelectMode={(mode, count, aspect) => {
+              setProductionModeConfig(mode, count, aspect);
+            }}
+            onClose={productionMode ? () => setIsModeModalOpen(false) : undefined}
+          />
+        </>
+      )}
 
       {/* DRAFT HYDRATION LOADING STATE */}
       {isLoadingDraft && (
@@ -174,32 +229,6 @@ export const QuestionStudioPage: React.FC = () => {
           </div>
         </div>
       )}
-
-      {/* 4. INTEGRATED PRODUCTION WORKBENCH SUMMARY */}
-      <ProductionWorkbenchSummary
-        selectedTopic={selectedTopic}
-        selectedSubtopic={selectedSubtopic}
-        taxonomyTree={taxonomyTree}
-        currentSubtopics={currentSubtopics}
-        loadingTaxonomy={loadingTaxonomy}
-        loadingSubtopics={loadingSubtopics}
-        taxonomyError={taxonomyError}
-        subtopicsError={subtopicsError}
-        productionMode={productionMode}
-        targetQuestionCount={targetQuestionCount}
-        aspectRatio={aspectRatio}
-        onOpenModeModal={() => setIsModeModalOpen(true)}
-        hasCandidate={hasCandidate}
-        isDirty={isDirty}
-        savedDraftId={savedDraftId}
-        isLoadingDraft={isLoadingDraft}
-        isSaving={isSaving}
-        isSubmitting={isSubmitting}
-        submitSuccessResult={submitSuccessResult}
-        onSaveDraft={handleSaveDraft}
-        onSubmitForVerification={onExplicitSubmit}
-        onGenerate={handleGenerate}
-      />
 
       {/* ERROR ALERT BANNER */}
       {errorMessage && (
@@ -387,6 +416,7 @@ export const QuestionStudioPage: React.FC = () => {
               previewViewMode={previewViewMode}
               onPreviewViewModeChange={setPreviewViewMode}
               savedDraft={savedDraftRecord}
+              isChallengeMode={true}
             />
           )}
 

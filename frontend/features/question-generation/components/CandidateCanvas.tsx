@@ -67,6 +67,9 @@ interface CandidateCanvasProps {
   previewViewMode?: 'EDITOR' | 'PREVIEW';
   onPreviewViewModeChange?: (view: 'EDITOR' | 'PREVIEW') => void;
   savedDraft?: QuestionDraft | null;
+
+  /** When true, simplifies Mode 1 Stage 01 editor by removing AI refine, proof/trick, and simulation preview */
+  isChallengeMode?: boolean;
 }
 
 export const CandidateCanvas: React.FC<CandidateCanvasProps> = ({
@@ -90,6 +93,7 @@ export const CandidateCanvas: React.FC<CandidateCanvasProps> = ({
   previewViewMode,
   onPreviewViewModeChange,
   savedDraft,
+  isChallengeMode = false,
 }) => {
   const [internalViewMode, setInternalViewMode] = useState<'EDITOR' | 'PREVIEW'>('EDITOR');
   const [internalSourceVersion, setInternalSourceVersion] = useState<AudiencePreviewSourceVersion>('UNSAVED_EDITS');
@@ -136,38 +140,40 @@ export const CandidateCanvas: React.FC<CandidateCanvasProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
-          {/* S9-T13: VIEW SWITCHER (EDITOR vs 9:16 AUDIENCE PREVIEW) */}
-          <div
-            data-testid="canvas-view-toggle"
-            className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-[10px]"
-          >
-            <button
-              type="button"
-              data-testid="toggle-canvas-editor"
-              onClick={() => handleViewChange('EDITOR')}
-              className={`px-2 py-0.5 rounded font-semibold flex items-center gap-1 transition-colors cursor-pointer ${
-                currentView === 'EDITOR'
-                  ? 'bg-white text-slate-800 shadow-xs'
-                  : 'text-slate-500 hover:text-slate-700'
-              }`}
+          {/* S9-T13: VIEW SWITCHER (EDITOR vs 9:16 AUDIENCE PREVIEW - hidden in simplified Mode 1 Stage 01) */}
+          {!isChallengeMode && (
+            <div
+              data-testid="canvas-view-toggle"
+              className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-[10px]"
             >
-              <PenTool className="w-2.5 h-2.5" />
-              <span>Editor</span>
-            </button>
-            <button
-              type="button"
-              data-testid="toggle-canvas-preview"
-              onClick={() => handleViewChange('PREVIEW')}
-              className={`px-2 py-0.5 rounded font-bold flex items-center gap-1 transition-colors cursor-pointer ${
-                currentView === 'PREVIEW'
-                  ? 'bg-indigo-600 text-white shadow-xs'
-                  : 'text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              <Eye className="w-2.5 h-2.5" />
-              <span>9:16 Audience Preview</span>
-            </button>
-          </div>
+              <button
+                type="button"
+                data-testid="toggle-canvas-editor"
+                onClick={() => handleViewChange('EDITOR')}
+                className={`px-2 py-0.5 rounded font-semibold flex items-center gap-1 transition-colors cursor-pointer ${
+                  currentView === 'EDITOR'
+                    ? 'bg-white text-slate-800 shadow-xs'
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                <PenTool className="w-2.5 h-2.5" />
+                <span>Editor</span>
+              </button>
+              <button
+                type="button"
+                data-testid="toggle-canvas-preview"
+                onClick={() => handleViewChange('PREVIEW')}
+                className={`px-2 py-0.5 rounded font-bold flex items-center gap-1 transition-colors cursor-pointer ${
+                  currentView === 'PREVIEW'
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                <Eye className="w-2.5 h-2.5" />
+                <span>9:16 Audience Preview</span>
+              </button>
+            </div>
+          )}
 
           {isDirty && (
             <span className="text-[9px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full flex items-center gap-1">
@@ -319,45 +325,47 @@ export const CandidateCanvas: React.FC<CandidateCanvasProps> = ({
       {/* ACTIVE WORKSPACE */}
       {(hasCandidate || candidate.questionText.trim().length > 0) && !isGenerating && (
         <div className="space-y-3">
-          {/* AI REFINEMENT BAR */}
-          <div className="p-2 bg-indigo-50/70 border border-indigo-100 rounded-lg flex items-center justify-between gap-2 flex-wrap">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-900">
-              <Wand2 className="w-3 h-3 text-indigo-600" />
-              <span>AI Refine:</span>
+          {/* AI REFINEMENT BAR (Omitted in simplified Mode 1 Stage 01) */}
+          {!isChallengeMode && (
+            <div className="p-2 bg-indigo-50/70 border border-indigo-100 rounded-lg flex items-center justify-between gap-2 flex-wrap">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-900">
+                <Wand2 className="w-3 h-3 text-indigo-600" />
+                <span>AI Refine:</span>
+              </div>
+
+              <div className="flex items-center gap-1 flex-wrap">
+                <button
+                  type="button"
+                  disabled={isRefining}
+                  onClick={() => onRefine(AiRefinementAction.INCREASE_DIFFICULTY)}
+                  className="py-0.5 px-2 text-[10px] font-semibold rounded-md bg-white border border-indigo-200 text-indigo-800 hover:bg-indigo-600 hover:text-white transition-colors cursor-pointer flex items-center gap-1 disabled:opacity-50"
+                >
+                  <ArrowUp className="w-2.5 h-2.5 text-indigo-500" />
+                  <span>+ Difficulty</span>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={isRefining}
+                  onClick={() => onRefine(AiRefinementAction.SIMPLIFY_LANGUAGE)}
+                  className="py-0.5 px-2 text-[10px] font-semibold rounded-md bg-white border border-indigo-200 text-indigo-800 hover:bg-indigo-600 hover:text-white transition-colors cursor-pointer flex items-center gap-1 disabled:opacity-50"
+                >
+                  <Languages className="w-2.5 h-2.5 text-indigo-500" />
+                  <span>Simplify Telugu</span>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={isRefining}
+                  onClick={() => onRefine(AiRefinementAction.IMPROVE_OPTIONS)}
+                  className="py-0.5 px-2 text-[10px] font-semibold rounded-md bg-white border border-indigo-200 text-indigo-800 hover:bg-indigo-600 hover:text-white transition-colors cursor-pointer flex items-center gap-1 disabled:opacity-50"
+                >
+                  <Layers className="w-2.5 h-2.5 text-indigo-500" />
+                  <span>Add Trap Distractor</span>
+                </button>
+              </div>
             </div>
-
-            <div className="flex items-center gap-1 flex-wrap">
-              <button
-                type="button"
-                disabled={isRefining}
-                onClick={() => onRefine(AiRefinementAction.INCREASE_DIFFICULTY)}
-                className="py-0.5 px-2 text-[10px] font-semibold rounded-md bg-white border border-indigo-200 text-indigo-800 hover:bg-indigo-600 hover:text-white transition-colors cursor-pointer flex items-center gap-1 disabled:opacity-50"
-              >
-                <ArrowUp className="w-2.5 h-2.5 text-indigo-500" />
-                <span>+ Difficulty</span>
-              </button>
-
-              <button
-                type="button"
-                disabled={isRefining}
-                onClick={() => onRefine(AiRefinementAction.SIMPLIFY_LANGUAGE)}
-                className="py-0.5 px-2 text-[10px] font-semibold rounded-md bg-white border border-indigo-200 text-indigo-800 hover:bg-indigo-600 hover:text-white transition-colors cursor-pointer flex items-center gap-1 disabled:opacity-50"
-              >
-                <Languages className="w-2.5 h-2.5 text-indigo-500" />
-                <span>Simplify Telugu</span>
-              </button>
-
-              <button
-                type="button"
-                disabled={isRefining}
-                onClick={() => onRefine(AiRefinementAction.IMPROVE_OPTIONS)}
-                className="py-0.5 px-2 text-[10px] font-semibold rounded-md bg-white border border-indigo-200 text-indigo-800 hover:bg-indigo-600 hover:text-white transition-colors cursor-pointer flex items-center gap-1 disabled:opacity-50"
-              >
-                <Layers className="w-2.5 h-2.5 text-indigo-500" />
-                <span>Add Trap Distractor</span>
-              </button>
-            </div>
-          </div>
+          )}
 
           {/* QUALITY WARNINGS BANNER (S9-T04 / S9-T12) */}
           {qualityResult.hasWarnings && (
@@ -574,22 +582,24 @@ export const CandidateCanvas: React.FC<CandidateCanvasProps> = ({
             )}
           </div>
 
-          {/* EXPLANATION / SPEED TRICK */}
-          <div>
-            <label className="text-[11px] font-bold text-slate-800 block mb-1">
-              Step-by-Step Proof & Burra Speed Trick
-            </label>
-            <textarea
-              value={candidate.explanation}
-              onChange={(e) => onUpdateField('explanation', e.target.value)}
-              rows={2}
-              placeholder="వివరణ మరియు బుర్ర ట్రిక్ ఇక్కడ రాయండి..."
-              className="w-full text-xs font-medium text-slate-900 bg-slate-50 border border-slate-200 rounded-lg p-2.5 focus:border-indigo-500 focus:outline-hidden font-telugu"
-            />
-            {validationErrors.explanation && (
-              <p role="alert" className="mt-1 text-[10px] text-rose-600">{validationErrors.explanation}</p>
-            )}
-          </div>
+          {/* EXPLANATION / SPEED TRICK (Omitted in simplified Mode 1 Stage 01) */}
+          {!isChallengeMode && (
+            <div>
+              <label className="text-[11px] font-bold text-slate-800 block mb-1">
+                Step-by-Step Proof & Burra Speed Trick
+              </label>
+              <textarea
+                value={candidate.explanation}
+                onChange={(e) => onUpdateField('explanation', e.target.value)}
+                rows={2}
+                placeholder="వివరణ మరియు బుర్ర ట్రిక్ ఇక్కడ రాయండి..."
+                className="w-full text-xs font-medium text-slate-900 bg-slate-50 border border-slate-200 rounded-lg p-2.5 focus:border-indigo-500 focus:outline-hidden font-telugu"
+              />
+              {validationErrors.explanation && (
+                <p role="alert" className="mt-1 text-[10px] text-rose-600">{validationErrors.explanation}</p>
+              )}
+            </div>
+          )}
 
           {/* MATH VERIFICATION BADGE */}
           {candidate.mathematicalVerification && (
@@ -606,46 +616,48 @@ export const CandidateCanvas: React.FC<CandidateCanvasProps> = ({
             </div>
           )}
 
-          {/* SYNCHRONIZED 9:16 VERTICAL SHORT SIMULATION PREVIEW */}
-          <div data-testid="short-preview-card" className="p-3 bg-slate-900 text-white rounded-xl space-y-2 border border-slate-800">
-            <div className="flex items-center justify-between text-xs font-bold text-slate-300 pb-1 border-b border-slate-800">
-              <div className="flex items-center gap-1.5">
-                <Eye className="w-3.5 h-3.5 text-indigo-400" />
-                <span>9:16 Vertical Short Simulation</span>
+          {/* SYNCHRONIZED 9:16 VERTICAL SHORT SIMULATION PREVIEW (Omitted in simplified Mode 1 Stage 01) */}
+          {!isChallengeMode && (
+            <div data-testid="short-preview-card" className="p-3 bg-slate-900 text-white rounded-xl space-y-2 border border-slate-800">
+              <div className="flex items-center justify-between text-xs font-bold text-slate-300 pb-1 border-b border-slate-800">
+                <div className="flex items-center gap-1.5">
+                  <Eye className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>9:16 Vertical Short Simulation</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    data-testid="open-audience-preview-btn"
+                    onClick={() => handleViewChange('PREVIEW')}
+                    className="text-[10px] font-medium text-indigo-300 hover:text-white bg-indigo-950/80 hover:bg-indigo-900 px-2 py-0.5 rounded border border-indigo-700/50 cursor-pointer flex items-center gap-1 transition-colors"
+                  >
+                    <span>9:16 Audience Preview</span>
+                    <Eye className="w-2.5 h-2.5" />
+                  </button>
+                  <span className="text-[10px] font-mono text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded">9:16 Vertical</span>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  data-testid="open-audience-preview-btn"
-                  onClick={() => handleViewChange('PREVIEW')}
-                  className="text-[10px] font-medium text-indigo-300 hover:text-white bg-indigo-950/80 hover:bg-indigo-900 px-2 py-0.5 rounded border border-indigo-700/50 cursor-pointer flex items-center gap-1 transition-colors"
-                >
-                  <span>9:16 Audience Preview</span>
-                  <Eye className="w-2.5 h-2.5" />
-                </button>
-                <span className="text-[10px] font-mono text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded">9:16 Vertical</span>
+              <div className="p-2.5 bg-slate-800/80 rounded-lg space-y-2 text-xs">
+                <p className="font-telugu font-semibold text-slate-100 leading-snug">
+                  {candidate.questionText || 'Question statement will appear here...'}
+                </p>
+                <div className="grid grid-cols-2 gap-1.5 pt-1 text-[11px]">
+                  {(['A', 'B', 'C', 'D'] as const).map((optKey) => {
+                    const optVal = candidate[`option${optKey}` as keyof StudioCandidate] as string;
+                    return (
+                      <div
+                        key={optKey}
+                        className="p-1.5 rounded border text-left font-telugu flex items-start gap-1.5 bg-slate-700/60 border-slate-600 text-slate-200"
+                      >
+                        <span className="font-mono text-[10px] font-bold opacity-75">{optKey}:</span>
+                        <span className="truncate">{optVal || `Option ${optKey}`}</span>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
-            <div className="p-2.5 bg-slate-800/80 rounded-lg space-y-2 text-xs">
-              <p className="font-telugu font-semibold text-slate-100 leading-snug">
-                {candidate.questionText || 'Question statement will appear here...'}
-              </p>
-              <div className="grid grid-cols-2 gap-1.5 pt-1 text-[11px]">
-                {(['A', 'B', 'C', 'D'] as const).map((optKey) => {
-                  const optVal = candidate[`option${optKey}` as keyof StudioCandidate] as string;
-                  return (
-                    <div
-                      key={optKey}
-                      className="p-1.5 rounded border text-left font-telugu flex items-start gap-1.5 bg-slate-700/60 border-slate-600 text-slate-200"
-                    >
-                      <span className="font-mono text-[10px] font-bold opacity-75">{optKey}:</span>
-                      <span className="truncate">{optVal || `Option ${optKey}`}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
+          )}
         </div>
       )}
     </>

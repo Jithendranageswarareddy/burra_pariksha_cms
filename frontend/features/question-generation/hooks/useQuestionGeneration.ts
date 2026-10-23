@@ -401,30 +401,29 @@ export function useQuestionGeneration() {
 
   const contextMode = prodContext?.modeConfig?.productionMode;
   const hasValidContextMode = Boolean(contextMode && VALID_MODES.includes(contextMode));
+  const isContextModeUnset = Boolean(prodContext?.modeConfig && !contextMode);
 
   const effectiveMode: ContentProductionMode | null = isValidQueryMode
     ? queryMode!
-    : (isNewQuestionWorkspace
-        ? 'QUESTION_CHALLENGE_SHORT'
-        : (hasValidContextMode ? contextMode! : 'QUESTION_CHALLENGE_SHORT'));
+    : (isContextModeUnset
+        ? null
+        : (hasValidContextMode
+            ? contextMode!
+            : 'QUESTION_CHALLENGE_SHORT'));
 
   const effectiveCount = isValidQueryMode
     ? (queryCount !== undefined
         ? queryCount
         : (queryMode === 'EXPLAINED_QUESTIONS_VIDEO' ? 10 : (queryMode === 'TOPIC_INTRODUCTION' ? 0 : 1)))
-    : (isNewQuestionWorkspace
-        ? (effectiveMode === 'EXPLAINED_QUESTIONS_VIDEO' ? 10 : (effectiveMode === 'TOPIC_INTRODUCTION' ? 0 : 1))
-        : (hasValidContextMode && prodContext?.modeConfig?.questionCount !== undefined
-            ? prodContext.modeConfig.questionCount
-            : (effectiveMode === 'EXPLAINED_QUESTIONS_VIDEO' ? 10 : (effectiveMode === 'TOPIC_INTRODUCTION' ? 0 : 1))));
+    : (hasValidContextMode && prodContext?.modeConfig?.questionCount !== undefined
+        ? prodContext.modeConfig.questionCount
+        : (effectiveMode === 'EXPLAINED_QUESTIONS_VIDEO' ? 10 : (effectiveMode === 'TOPIC_INTRODUCTION' ? 0 : 1)));
 
   const effectiveAspect: '9:16' | '16:9' = isValidQueryMode
     ? (queryAspect || (queryMode === 'EXPLAINED_QUESTIONS_VIDEO' ? '16:9' : '9:16'))
-    : (isNewQuestionWorkspace
-        ? (effectiveMode === 'EXPLAINED_QUESTIONS_VIDEO' ? '16:9' : '9:16')
-        : (hasValidContextMode && prodContext?.modeConfig?.aspectRatio
-            ? prodContext.modeConfig.aspectRatio
-            : (effectiveMode === 'EXPLAINED_QUESTIONS_VIDEO' ? '16:9' : '9:16')));
+    : (hasValidContextMode && prodContext?.modeConfig?.aspectRatio
+        ? prodContext.modeConfig.aspectRatio
+        : (effectiveMode === 'EXPLAINED_QUESTIONS_VIDEO' ? '16:9' : '9:16'));
 
   // Production Mode Configuration State
   const [productionMode, setProductionMode] = useState<ContentProductionMode | null>(
@@ -436,7 +435,7 @@ export function useQuestionGeneration() {
   const [aspectRatio, setAspectRatio] = useState<'9:16' | '16:9'>(
     effectiveAspect
   );
-  const [isModeModalOpen, setIsModeModalOpen] = useState<boolean>(false);
+  const [isModeModalOpen, setIsModeModalOpen] = useState<boolean>(!effectiveMode);
   const [activeQuestionIndex, setActiveQuestionIndex] = useState<number>(0);
 
   // Draft loading state, deduplication ref, and active request counter for stale response cancellation

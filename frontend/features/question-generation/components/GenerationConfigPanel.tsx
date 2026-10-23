@@ -164,21 +164,25 @@ export const GenerationConfigPanel: React.FC<GenerationConfigPanelProps> = ({
       >
         <div className="flex items-center gap-1.5 min-w-0">
           <Sliders className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-          <span className="font-bold text-xs text-slate-900 truncate">Generation Controls</span>
-          <span className="text-slate-300">•</span>
-          <span className="font-semibold text-xs text-slate-700 truncate">
-            {isMode1
-              ? 'Mode 1: Question Challenge Short'
-              : isMode2
-              ? 'Mode 2: Topic Introduction'
-              : 'Mode 3: Explained Questions Video'}
+          <span className="font-bold text-xs text-slate-900 truncate">
+            {isMode1 ? 'Question Generation' : 'Generation Controls'}
           </span>
-          <span
-            data-testid="mode-badge"
-            className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-amber-100 text-amber-900 uppercase tracking-wider shrink-0"
-          >
-            {isMode1 ? '≤ 58s Short • 9:16' : isMode2 ? '60-180s Concept' : 'Masterclass • 16:9'}
-          </span>
+          {!isMode1 && (
+            <>
+              <span className="text-slate-300">•</span>
+              <span className="font-semibold text-xs text-slate-700 truncate">
+                {isMode2
+                  ? 'Mode 2: Topic Introduction'
+                  : 'Mode 3: Explained Questions Video'}
+              </span>
+              <span
+                data-testid="mode-badge"
+                className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-amber-100 text-amber-900 uppercase tracking-wider shrink-0"
+              >
+                {isMode2 ? '60-180s Concept' : 'Masterclass • 16:9'}
+              </span>
+            </>
+          )}
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">

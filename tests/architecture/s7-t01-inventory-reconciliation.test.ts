@@ -159,6 +159,9 @@ export const AUTHORITATIVE_APPROVED_POST_S7_ADDITIONS: readonly string[] = [
   'scripts/bootstrap-initial-admin.ts',
   'tests/unit/bootstrap-initial-admin.test.ts',
   'tests/unit/firebase-auth-migration.test.ts',
+  'scripts/seed-emulator-data.ts',
+  'scripts/start-local-dev.ts',
+  'frontend/features/question-generation/components/UnifiedWorkflowHeader.tsx',
 ];
 
 const EXPECTED_HISTORICAL_S7_COUNT = 713;
