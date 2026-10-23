@@ -34,9 +34,10 @@ const readinessHandler = async (_req: Request, res: Response): Promise<void> => 
 
     const driveStatus = googleDriveService.getDriveConfigurationStatus();
     checks.drive = driveStatus.mode;
+    const driveReady = driveStatus.isConfigured || process.env.SKIP_DRIVE_SYNC === 'true';
 
-    res.status(200).json({
-      status: 'ok',
+    res.status(driveReady ? 200 : 503).json({
+      status: driveReady ? 'ok' : 'degraded',
       uptime: Math.floor(process.uptime()),
       timestamp: new Date().toISOString(),
       checks,
