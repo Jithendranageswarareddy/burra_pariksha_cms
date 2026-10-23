@@ -123,6 +123,7 @@ export function isProductionRuntime(env: NodeJS.ProcessEnv = process.env): boole
  */
 export function isEmulatorConfigured(env: NodeJS.ProcessEnv = process.env): boolean {
   const flag = env.USE_FIRESTORE_EMULATOR?.trim().toLowerCase();
+  if (flag === 'false' || flag === '0') return false;
   if (flag === 'true' || flag === '1') return true;
   const rawHost = env.FIRESTORE_EMULATOR_HOST?.trim();
   return Boolean(rawHost && rawHost.length > 0);

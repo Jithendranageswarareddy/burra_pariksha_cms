@@ -33,6 +33,13 @@
  */
 
 import '../src/config/env';
+
+// When explicitly targeting production datastore, disable emulator overrides
+if (process.env.USE_FIRESTORE_EMULATOR === 'false' || process.env.ALLOW_PRODUCTION_FIRESTORE_IN_DEV === 'true') {
+  delete process.env.FIRESTORE_EMULATOR_HOST;
+  process.env.USE_FIRESTORE_EMULATOR = 'false';
+}
+
 import { getAdminAuth, getAdminFirestore } from '../database/firestore/adapter/admin';
 import { usersRepository } from '../database/firestore/repositories/users.repository';
 import { auditLogRepository } from '../database/firestore/repositories/audit-log.repository';
@@ -138,13 +145,20 @@ export async function provisionInitialAdmin(options: BootstrapOptions = {}): Pro
   getAdminFirestore();
   const adminAuth = getAdminAuth();
 
+  const email = (options.email || process.env.INITIAL_ADMIN_EMAIL)?.trim().toLowerCase();
+  const name = (options.name || process.env.INITIAL_ADMIN_NAME || 'System Administrator')?.trim();
+
+  if (!email || !email.includes('@')) {
+    throw new Error('A valid administrator email address is required.');
+  }
+
   // 1. Guard against duplicate active administrator provisioning
   const allUsers = await usersRepository.findAll();
   const existingActiveAdmin = allUsers.find(
     (u) => u.isActive && (u.role === UserRole.ADMIN || (Array.isArray(u.roles) && u.roles.includes(UserRole.ADMIN)))
   );
 
-  // Recovery flow: If administrator already exists and operator explicitly requests --resend
+  // Recovery & Reconciliation flow
   if (existingActiveAdmin) {
     if (options.resend) {
       const targetEmail = (options.email || existingActiveAdmin.email).trim().toLowerCase();
@@ -193,14 +207,94 @@ export async function provisionInitialAdmin(options: BootstrapOptions = {}): Pro
       }
     }
 
+    // Safe reconciliation of legacy administrator profile (same email, missing firebaseUid)
+    if (existingActiveAdmin.email.toLowerCase() === email.toLowerCase() && !existingActiveAdmin.firebaseUid) {
+      let authUser: any;
+      let authUserCreated = false;
+
+      try {
+        authUser = await adminAuth.getUserByEmail(email);
+        const existingProfileWithUid = await usersRepository.findByFirebaseUid(authUser.uid);
+        if (existingProfileWithUid && existingProfileWithUid.id !== existingActiveAdmin.id) {
+          throw new Error(`Firebase Auth UID (${authUser.uid}) is already linked to user profile (ID: ${existingProfileWithUid.id}).`);
+        }
+      } catch (err: any) {
+        if (err?.code === 'auth/user-not-found') {
+          authUser = await adminAuth.createUser({
+            email,
+            displayName: name,
+            emailVerified: false,
+          });
+          authUserCreated = true;
+        } else {
+          throw new Error(`Firebase Authentication unavailable: ${err?.message}`);
+        }
+      }
+
+      if (!authUser || !authUser.uid) {
+        throw new Error('Failed to obtain a valid Firebase Authentication UID.');
+      }
+
+      // Reconcile existing profile in Firestore
+      const now = new Date().toISOString();
+      await usersRepository.update(existingActiveAdmin.id, {
+        name,
+        firebaseUid: authUser.uid,
+        updatedAt: now,
+      });
+
+      // Initiate setup email delivery
+      const deliveryResult = await authService.dispatchPasswordSetupEmail(email);
+      const setupEmailSent = deliveryResult.sent;
+      const retryAvailable = !setupEmailSent;
+      const emailDelivery = {
+        sent: deliveryResult.sent,
+        message: deliveryResult.message,
+        ...(deliveryResult.error ? { error: deliveryResult.error } : {}),
+      };
+
+      // Audit the reconciliation operation
+      await auditLogRepository.logAction(existingActiveAdmin.id, name, 'FIRST_ADMIN_RECONCILED', 'SYSTEM', existingActiveAdmin.id, {
+        email: existingActiveAdmin.email,
+        firebaseUid: authUser.uid,
+        accountCreated: authUserCreated,
+        profileReconciled: true,
+        setupEmailSent,
+        retryAvailable,
+      });
+
+      if (setupEmailSent) {
+        return {
+          success: true,
+          outcome: 'FULL_SUCCESS',
+          exitCode: BOOTSTRAP_EXIT_SUCCESS,
+          userId: existingActiveAdmin.id,
+          email: existingActiveAdmin.email,
+          firebaseUid: authUser.uid,
+          accountCreated: authUserCreated,
+          setupEmailSent: true,
+          retryAvailable: false,
+          emailDelivery,
+          message: 'Existing administrator profile successfully reconciled and setup email dispatched.',
+        };
+      } else {
+        return {
+          success: false,
+          outcome: 'PARTIAL_SUCCESS',
+          exitCode: BOOTSTRAP_EXIT_PARTIAL_SUCCESS,
+          userId: existingActiveAdmin.id,
+          email: existingActiveAdmin.email,
+          firebaseUid: authUser.uid,
+          accountCreated: authUserCreated,
+          setupEmailSent: false,
+          retryAvailable: true,
+          emailDelivery,
+          message: 'Existing administrator profile reconciled in Firestore and Firebase Auth, but setup email delivery failed. Recovery: retry with --resend or use the public /reset-password flow.',
+        };
+      }
+    }
+
     throw new Error(`An active administrator already exists in Firestore (ID: ${existingActiveAdmin.id}, Email: ${existingActiveAdmin.email}). Duplicate administrator provisioning is prevented. To retry setup email delivery, re-run with --resend --email="${existingActiveAdmin.email}", or use the public /reset-password flow.`);
-  }
-
-  const email = (options.email || process.env.INITIAL_ADMIN_EMAIL)?.trim().toLowerCase();
-  const name = (options.name || process.env.INITIAL_ADMIN_NAME || 'System Administrator')?.trim();
-
-  if (!email || !email.includes('@')) {
-    throw new Error('A valid administrator email address is required.');
   }
 
   // 2. Provision or verify Firebase Authentication identity

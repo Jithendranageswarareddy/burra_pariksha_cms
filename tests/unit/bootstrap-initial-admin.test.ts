@@ -131,6 +131,7 @@ async function runBootstrapTestSuite() {
   const origFindByFirebaseUid = usersRepository.findByFirebaseUid.bind(usersRepository);
   const origAppend = usersRepository.appendRecord.bind(usersRepository);
   const origFindAll = usersRepository.findAll.bind(usersRepository);
+  const origUpdate = usersRepository.update.bind(usersRepository);
   const origAuditLogAction = auditLogRepository.logAction.bind(auditLogRepository);
 
   auditLogRepository.logAction = async () => ({ id: 'mock_audit_id' } as any);
@@ -152,6 +153,14 @@ async function runBootstrapTestSuite() {
     inMemUsers.set(user.id, user);
     return user;
   };
+  usersRepository.update = (async (recordOrId: any, updates?: any) => {
+    const id = typeof recordOrId === 'string' ? recordOrId : recordOrId?.id;
+    const existing = inMemUsers.get(id);
+    if (!existing) return null;
+    const updated = { ...existing, ...(updates || recordOrId) };
+    inMemUsers.set(id, updated);
+    return updated;
+  }) as any;
 
   const TEST_SECRET = 'bootstrap-test-secret-vault-1234';
   process.env.BOOTSTRAP_ADMIN_SECRET = TEST_SECRET;
@@ -513,6 +522,52 @@ async function runBootstrapTestSuite() {
     console.log('✓ Test 14 PASSED: UID collision fails closed with exit code 1 and preserves existing identities.');
     passed++;
 
+    // --------------------------------------------------------------------------
+    // Test 15: Safe Reconciliation of Legacy Unlinked Administrator Profile
+    // --------------------------------------------------------------------------
+    console.log('[Test 15] Testing Reconciliation of Legacy Unlinked Administrator Profile (Exit Code 0)...');
+    inMemUsers.clear();
+    inMemAuthUsers.clear();
+
+    // Seed existing legacy administrator profile without firebaseUid
+    const legacyAdmin: User = {
+      id: 'USR-001',
+      name: 'System Admin',
+      email: 'legacy.admin@burrapariksha.com',
+      role: UserRole.ADMIN,
+      roles: [UserRole.ADMIN],
+      isActive: true,
+      dataScope: 'ALL',
+      createdAt: '2026-10-10T00:00:00.000Z',
+      updatedAt: '2026-10-10T00:00:00.000Z',
+    };
+    inMemUsers.set(legacyAdmin.id, legacyAdmin);
+
+    const run15 = await captureOutput(() =>
+      runBootstrap([
+        '--email=legacy.admin@burrapariksha.com',
+        '--name=P J N Reddy',
+      ])
+    );
+
+    assert.strictEqual(run15.exitCode, BOOTSTRAP_EXIT_SUCCESS, 'Reconciliation must exit with code 0');
+    assert(run15.output.all.includes('STATUS: FULL_SUCCESS (Exit Code 0)'), 'Must indicate FULL_SUCCESS');
+    assert.strictEqual(inMemUsers.size, 1, 'No duplicate profiles created; legacy profile must be reconciled');
+
+    const reconciledAdmin = inMemUsers.get('USR-001');
+    assert(reconciledAdmin, 'USR-001 must still exist');
+    assert.strictEqual(reconciledAdmin.name, 'P J N Reddy', 'Name must be updated');
+    assert(reconciledAdmin.firebaseUid, 'firebaseUid must be linked');
+    assert.strictEqual(reconciledAdmin.role, UserRole.ADMIN, 'Admin role preserved');
+    assert.strictEqual(reconciledAdmin.isActive, true, 'Active status preserved');
+
+    const reconciledAuthUser = inMemAuthUsers.get(reconciledAdmin.firebaseUid);
+    assert(reconciledAuthUser, 'Firebase Auth account must exist');
+    assert.strictEqual(reconciledAuthUser.email, 'legacy.admin@burrapariksha.com');
+
+    console.log('✓ Test 15 PASSED: Legacy unlinked administrator profile safely reconciled with exit code 0.');
+    passed++;
+
     console.log('\n============================================================');
     console.log(`ALL ${passed} BOOTSTRAP ISOLATION TESTS PASSED (0 FAILED)`);
     console.log('============================================================\n');
@@ -527,6 +582,7 @@ async function runBootstrapTestSuite() {
     usersRepository.findByFirebaseUid = origFindByFirebaseUid;
     usersRepository.appendRecord = origAppend;
     usersRepository.findAll = origFindAll;
+    usersRepository.update = origUpdate;
     auditLogRepository.logAction = origAuditLogAction;
   }
 

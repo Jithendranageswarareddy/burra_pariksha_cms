@@ -52,6 +52,8 @@ export function getAdminApp(): App {
     });
     return adminAppInstance;
   } else {
+    // Zero emulator interference: ensure SDK does not attempt local connection when targeting cloud
+    delete process.env.FIRESTORE_EMULATOR_HOST;
     const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
     let privateKey = process.env.GOOGLE_PRIVATE_KEY;
 

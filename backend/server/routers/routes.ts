@@ -623,6 +623,93 @@ apiRouter.post(['/auth/bootstrap-admin', '/v1/auth/bootstrap-admin'], authRateLi
         return;
       }
 
+      // Reconciliation flow for legacy unlinked administrator profile
+      const trimmedTargetEmail = String(email || '').trim().toLowerCase();
+      if (trimmedTargetEmail && existingAdmin.email.toLowerCase() === trimmedTargetEmail && !existingAdmin.firebaseUid) {
+        const trimmedName = String(name || existingAdmin.name).trim();
+        const adminAuth = getAdminAuth();
+        let authUser: any;
+        let authUserCreated = false;
+        try {
+          authUser = await adminAuth.getUserByEmail(trimmedTargetEmail);
+          const existingWithUid = await usersRepository.findByFirebaseUid(authUser.uid);
+          if (existingWithUid && existingWithUid.id !== existingAdmin.id) {
+            const errEnvelope = createErrorResponse(
+              ApiErrorCode.CONCURRENCY_CONFLICT,
+              `Firebase Authentication identity is already linked to user profile (${existingWithUid.id}).`,
+              requestId
+            );
+            res.status(409).json({
+              ...errEnvelope,
+              message: `Firebase Authentication identity is already linked to user profile (${existingWithUid.id}).`,
+            });
+            return;
+          }
+        } catch (err: any) {
+          if (err?.code === 'auth/user-not-found') {
+            authUser = await adminAuth.createUser({
+              email: trimmedTargetEmail,
+              displayName: trimmedName,
+              emailVerified: false,
+            });
+            authUserCreated = true;
+          } else {
+            const errEnvelope = createErrorResponse(
+              ApiErrorCode.INTERNAL_SERVER_ERROR,
+              'Firebase Authentication service is unavailable.',
+              requestId
+            );
+            res.status(500).json({ ...errEnvelope, message: 'Firebase Authentication service is unavailable.' });
+            return;
+          }
+        }
+
+        const now = new Date().toISOString();
+        await usersRepository.update(existingAdmin.id, {
+          name: trimmedName,
+          firebaseUid: authUser.uid,
+          updatedAt: now,
+        });
+
+        const deliveryResult = await authService.dispatchPasswordSetupEmail(trimmedTargetEmail);
+        await auditService.log(
+          existingAdmin.id,
+          trimmedName,
+          'FIRST_ADMIN_RECONCILED',
+          'SYSTEM',
+          existingAdmin.id,
+          {
+            email: trimmedTargetEmail,
+            firebaseUid: authUser.uid,
+            accountCreated: authUserCreated,
+            profileReconciled: true,
+            setupEmailSent: deliveryResult.sent,
+          }
+        );
+
+        const responsePayload = {
+          success: true,
+          message: deliveryResult.sent
+            ? 'Existing administrator profile successfully reconciled and setup email dispatched.'
+            : 'Administrator profile reconciled, but setup email delivery failed.',
+          userId: existingAdmin.id,
+          accountCreated: authUserCreated,
+          setupEmailSent: deliveryResult.sent,
+          retryAvailable: !deliveryResult.sent,
+          emailDelivery: {
+            sent: deliveryResult.sent,
+            message: deliveryResult.message,
+            ...(deliveryResult.error ? { error: 'Authentication provider rejected email dispatch.' } : {}),
+          },
+        };
+        const successEnvelope = createSuccessResponse(responsePayload, requestId);
+        res.status(200).json({
+          ...successEnvelope,
+          ...responsePayload,
+        });
+        return;
+      }
+
       const errEnvelope = createErrorResponse(
         ApiErrorCode.CONCURRENCY_CONFLICT,
         'An active administrator already exists. Bootstrap provisioning is permanently disabled. Provide { resend: true, email: "<admin-email>" } with the bootstrap secret to retry setup email delivery, or use /reset-password.',
