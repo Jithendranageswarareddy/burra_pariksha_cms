@@ -462,37 +462,71 @@ export class AuthService {
               return { success: false, error: 'Account is inactive. Please contact administrator.' };
             }
 
-            // In production: FAIL CLOSED!
-            // Legacy password_hash is ONLY permitted in isolated test runtime with explicit opt-in
-            const isTestIsolated = process.env.NODE_ENV === 'test' && AuthService.allowLegacyAuthInTest === true;
-            if (!isTestIsolated) {
-              await auditService.log(
-                user.id,
-                user.name,
-                'LOGIN_FAILURE',
-                'SYSTEM',
-                'AUTH',
-                { reason: 'INVALID_CREDENTIALS', errorCode }
-              );
-              return { success: false, error: 'Invalid user credentials.' };
+            // If user has already linked a verified Firebase UID, check if entered password matches Firestore hash (e.g. after password change)
+            let matchedStoredHash = false;
+            if (user.firebaseUid && user.password_hash) {
+              matchedStoredHash = await this.verifyPassword(password, user.password_hash);
             }
 
-            // Test-only legacy fallback
-            if (user.password_hash) {
-              const isHashValid = await this.verifyPassword(password, user.password_hash);
-              if (!isHashValid) {
+            if (matchedStoredHash && user.firebaseUid) {
+              // Self-healing synchronization: update Firebase Auth password to match new Firestore hash
+              try {
+                await getAdminAuth().updateUser(user.firebaseUid, { password });
+                const syncFbRes = await fetch(endpoint, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    ...authHeaders,
+                  },
+                  body: JSON.stringify({
+                    email: user.email,
+                    password,
+                    returnSecureToken: true,
+                  }),
+                });
+                if (syncFbRes.ok) {
+                  const syncFbData: any = await syncFbRes.json();
+                  if (syncFbData?.idToken) {
+                    firebaseToken = syncFbData.idToken;
+                  }
+                }
+              } catch (syncErr: any) {
+                console.warn('[AUTH] Background Firebase password sync note:', syncErr?.message);
+              }
+              authenticatedViaFirebase = true;
+            } else {
+              // In production: FAIL CLOSED!
+              // Legacy password_hash without verified Firebase UID is ONLY permitted in isolated test runtime with explicit opt-in
+              const isTestIsolated = process.env.NODE_ENV === 'test' && AuthService.allowLegacyAuthInTest === true;
+              if (!isTestIsolated) {
                 await auditService.log(
                   user.id,
                   user.name,
                   'LOGIN_FAILURE',
                   'SYSTEM',
                   'AUTH',
-                  { reason: 'INVALID_CREDENTIALS' }
+                  { reason: 'INVALID_CREDENTIALS', errorCode }
                 );
                 return { success: false, error: 'Invalid user credentials.' };
               }
-            } else {
-              return { success: false, error: 'Invalid user credentials.' };
+
+              // Test-only legacy fallback
+              if (user.password_hash) {
+                const isHashValid = await this.verifyPassword(password, user.password_hash);
+                if (!isHashValid) {
+                  await auditService.log(
+                    user.id,
+                    user.name,
+                    'LOGIN_FAILURE',
+                    'SYSTEM',
+                    'AUTH',
+                    { reason: 'INVALID_CREDENTIALS' }
+                  );
+                  return { success: false, error: 'Invalid user credentials.' };
+                }
+              } else {
+                return { success: false, error: 'Invalid user credentials.' };
+              }
             }
           }
         } catch {
@@ -916,6 +950,15 @@ export class AuthService {
         sessionVersion: nextSessionVersion,
         updatedAt: new Date().toISOString(),
       });
+
+      // Synchronize new password to Firebase Auth if user is linked
+      if (user.firebaseUid) {
+        try {
+          await getAdminAuth().updateUser(user.firebaseUid, { password: newPassword });
+        } catch (fbErr: any) {
+          console.warn('[AUTH] Firebase Auth password update note in changePassword:', fbErr?.message);
+        }
+      }
 
       // Revoke the old token in memory
       if (currentToken) {
