@@ -15,16 +15,32 @@
 import { assertDestructiveScriptSafe, assertEmulatorAlive } from '../src/config/datastore-guard';
 import { getAdminFirestore } from '../database/firestore/adapter/admin';
 
-async function purgeTestRecords() {
+export interface PurgeOptions {
+  execute?: boolean;
+}
+
+export interface PurgeResult {
+  purgedCount: number;
+  isDryRun: boolean;
+  purgedDetails: { collection: string; id: string; reason: string }[];
+}
+
+export async function purgeTestRecords(options: PurgeOptions = {}): Promise<PurgeResult> {
+  const isExecute = options.execute ?? process.argv.slice(2).includes('--execute');
   const target = assertDestructiveScriptSafe('purge-test-firestore-records.ts');
   await assertEmulatorAlive(target.emulatorHost || undefined);
 
   console.log('============================================================');
-  console.log('PURGING TEST DOCUMENTS (LOCAL EMULATOR)');
+  console.log(`PURGING TEST DOCUMENTS (LOCAL EMULATOR) — MODE: ${isExecute ? 'EXECUTE (DELETING)' : 'DRY-RUN (NO DELETIONS)'}`);
   console.log('============================================================\n');
   console.log(`[Safety Guard] Target Verified: ${target.mode} at ${target.emulatorHost}`);
   console.log(`- Project: ${target.projectId}`);
   console.log(`- Database: ${target.databaseId}\n`);
+
+  if (!isExecute) {
+    console.log('NOTICE: Running in default DRY-RUN mode. No documents will be deleted.');
+    console.log('Pass the explicit "--execute" flag to perform actual deletions.\n');
+  }
 
   const db = getAdminFirestore();
 
@@ -35,7 +51,9 @@ async function purgeTestRecords() {
   try {
     const testQSnap = await db.collection('test_questions').get();
     for (const d of testQSnap.docs) {
-      await d.ref.delete();
+      if (isExecute) {
+        await d.ref.delete();
+      }
       purgedDetails.push({ collection: 'test_questions', id: d.id, reason: 'test collection record' });
       purgedCount++;
     }
@@ -70,7 +88,9 @@ async function purgeTestRecords() {
         data.testOnly === true;
 
       if (isTestDoc) {
-        await d.ref.delete();
+        if (isExecute) {
+          await d.ref.delete();
+        }
         purgedDetails.push({ collection: 'questions', id: d.id, reason: `test question: ${qText.slice(0, 40)}` });
         purgedCount++;
       }
@@ -100,7 +120,9 @@ async function purgeTestRecords() {
         data.testOnly === true;
 
       if (isTestDoc) {
-        await d.ref.delete();
+        if (isExecute) {
+          await d.ref.delete();
+        }
         purgedDetails.push({ collection: 'content_masters', id: d.id, reason: `test content master: ${title.slice(0, 40)}` });
         purgedCount++;
       }
@@ -123,7 +145,9 @@ async function purgeTestRecords() {
         d.id.startsWith('BP-TEST-');
 
       if (isTestDoc) {
-        await d.ref.delete();
+        if (isExecute) {
+          await d.ref.delete();
+        }
         purgedDetails.push({ collection: 'question_drafts', id: d.id, reason: `test draft: ${title}` });
         purgedCount++;
       }
@@ -144,7 +168,9 @@ async function purgeTestRecords() {
         data.testOnly === true;
 
       if (isTestDoc) {
-        await d.ref.delete();
+        if (isExecute) {
+          await d.ref.delete();
+        }
         purgedDetails.push({ collection: 'scripts', id: d.id, reason: 'test script record' });
         purgedCount++;
       }
@@ -165,7 +191,9 @@ async function purgeTestRecords() {
         data.testOnly === true;
 
       if (isTestDoc) {
-        await d.ref.delete();
+        if (isExecute) {
+          await d.ref.delete();
+        }
         purgedDetails.push({ collection: 'videos', id: d.id, reason: 'test video record' });
         purgedCount++;
       }
@@ -186,7 +214,9 @@ async function purgeTestRecords() {
         data.testOnly === true;
 
       if (isTestDoc) {
-        await d.ref.delete();
+        if (isExecute) {
+          await d.ref.delete();
+        }
         purgedDetails.push({ collection: 'thumbnails', id: d.id, reason: 'test thumbnail record' });
         purgedCount++;
       }
@@ -207,7 +237,9 @@ async function purgeTestRecords() {
         data.testOnly === true;
 
       if (isTestDoc) {
-        await d.ref.delete();
+        if (isExecute) {
+          await d.ref.delete();
+        }
         purgedDetails.push({ collection: 'publishing_packages', id: d.id, reason: 'test publishing package record' });
         purgedCount++;
       }
@@ -228,7 +260,9 @@ async function purgeTestRecords() {
         data.testOnly === true;
 
       if (isTestDoc) {
-        await d.ref.delete();
+        if (isExecute) {
+          await d.ref.delete();
+        }
         purgedDetails.push({ collection: 'workflow_instances', id: d.id, reason: 'test workflow instance' });
         purgedCount++;
       }
@@ -249,7 +283,9 @@ async function purgeTestRecords() {
         data.testOnly === true;
 
       if (isTestDoc) {
-        await d.ref.delete();
+        if (isExecute) {
+          await d.ref.delete();
+        }
         purgedDetails.push({ collection: 'social_analytics', id: d.id, reason: 'test analytics record' });
         purgedCount++;
       }
@@ -263,7 +299,9 @@ async function purgeTestRecords() {
     const sSnap = await db.collection('sequences').get();
     for (const d of sSnap.docs) {
       if (d.id.startsWith('ent_')) {
-        await d.ref.delete();
+        if (isExecute) {
+          await d.ref.delete();
+        }
         purgedDetails.push({ collection: 'sequences', id: d.id, reason: 'test sequence record' });
         purgedCount++;
       }
@@ -272,13 +310,21 @@ async function purgeTestRecords() {
     console.warn('Note on sequences purge:', err.message);
   }
 
-  console.log(`Successfully purged ${purgedCount} test documents from Cloud Firestore.`);
-  console.log('Sample purged records:', purgedDetails.slice(0, 10));
+  console.log(`\nPurge summary: ${purgedCount} test document(s) ${isExecute ? 'deleted' : 'identified in dry-run'}.`);
+  console.log('Sample matching records:', purgedDetails.slice(0, 10));
 
   await db.terminate();
+
+  return {
+    purgedCount,
+    isDryRun: !isExecute,
+    purgedDetails,
+  };
 }
 
-purgeTestRecords().catch((err) => {
-  console.error('Purge error:', err);
-  process.exit(1);
-});
+if (process.argv[1] && process.argv[1].endsWith('purge-test-firestore-records.ts')) {
+  purgeTestRecords().catch((err) => {
+    console.error('Purge error:', err);
+    process.exit(1);
+  });
+}

@@ -551,11 +551,55 @@ export async function assertEmulatorAlive(
 }
 
 /**
+ * Helper to determine if a host string resolves strictly to local loopback (127.0.0.1, localhost, ::1, [::1]).
+ */
+export function isLoopbackHost(hostPort: string): boolean {
+  if (!hostPort || typeof hostPort !== 'string') return false;
+  const trimmed = hostPort.trim();
+
+  // Handle bracketed IPv6: e.g. [::1]:8080
+  const bracketedIpv6Regex = /^\[([a-fA-F0-9:]+)\]:([0-9]{1,5})$/;
+  const bracketedMatch = trimmed.match(bracketedIpv6Regex);
+  if (bracketedMatch) {
+    const ip = bracketedMatch[1].toLowerCase();
+    const port = parseInt(bracketedMatch[2], 10);
+    if (port < 1 || port > 65535) return false;
+    return ip === '::1' || ip === '0:0:0:0:0:0:0:1';
+  }
+
+  // Handle standard host:port: e.g. 127.0.0.1:8080, localhost:8080
+  const standardHostPortRegex = /^([a-zA-Z0-9.-]+):([0-9]{1,5})$/;
+  const standardMatch = trimmed.match(standardHostPortRegex);
+  if (standardMatch) {
+    const host = standardMatch[1].toLowerCase();
+    const port = parseInt(standardMatch[2], 10);
+    if (port < 1 || port > 65535) return false;
+
+    if (host === 'localhost') return true;
+    if (/^127(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}$/.test(host)) return true;
+    return false;
+  }
+
+  // Handle unbracketed IPv6 with port: e.g. ::1:8080 (where last colon is port)
+  const lastColon = trimmed.lastIndexOf(':');
+  if (lastColon > 0) {
+    const host = trimmed.substring(0, lastColon).toLowerCase();
+    const port = parseInt(trimmed.substring(lastColon + 1), 10);
+    if (!isNaN(port) && port >= 1 && port <= 65535) {
+      if (host === '::1' || host === '0:0:0:0:0:0:0:1') return true;
+    }
+  }
+
+  return false;
+}
+
+/**
  * Asserts that a destructive administrative script is permitted to execute.
  * STRICT SAFETY INTERLOCK:
  * Destructive scripts (zerodown, admin-reset, purge) are strictly restricted
- * to the verified local Firestore emulator. They are permanently prohibited
- * from running against production Cloud Firestore, regardless of ALLOW_PRODUCTION_FIRESTORE_IN_DEV.
+ * to a verified GENUINELY LOCAL Firestore emulator (loopback address only).
+ * Remote hostnames, LAN IPs, production targets, or cloud targets are permanently prohibited,
+ * regardless of ALLOW_PRODUCTION_FIRESTORE_IN_DEV.
  */
 export function assertDestructiveScriptSafe(
   scriptName: string,
@@ -579,6 +623,18 @@ export function assertDestructiveScriptSafe(
         `Destructive script "${scriptName}" requires LOCAL_FIRESTORE_EMULATOR target`,
         `Current target mode: ${resolution.mode}`,
         `Current target project: ${resolution.projectId}`,
+      ]
+    );
+  }
+
+  // Reject remote emulator hosts, non-loopback IPs, and malformed hosts
+  if (!isLoopbackHost(resolution.emulatorHost)) {
+    throw new DatastoreIsolationError(
+      `CRITICAL SAFETY INTERLOCK: "${scriptName}" rejected emulator host "${resolution.emulatorHost}". ` +
+      `Destructive scripts only accept a genuinely local Firestore emulator on a loopback interface ` +
+      `(e.g., 127.0.0.1:8080 or localhost:8080). Non-loopback IPs, remote hostnames, and malformed addresses are forbidden.`,
+      [
+        `Emulator host "${resolution.emulatorHost}" is not a verified local loopback address`,
       ]
     );
   }

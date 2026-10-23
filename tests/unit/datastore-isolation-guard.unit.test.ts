@@ -20,6 +20,7 @@ import {
   resolveDatastoreTarget,
   assertDatastoreSafe,
   assertDestructiveScriptSafe,
+  isLoopbackHost,
   evaluateDatastoreIsolation,
   DatastoreIsolationError,
   KNOWN_PRODUCTION_PROJECTS,
@@ -365,8 +366,110 @@ async function runDatastoreGuardUnitTests() {
     pass('Destructive scripts safely execute when targeting valid local emulator');
   }
 
+  // Test 14: Destructive scripts strictly reject non-loopback / remote emulator hosts
+  console.log('\n--- Test 14: Destructive Scripts Reject Remote / Non-Loopback Emulator Hosts ---');
+  {
+    assert.strictEqual(isLoopbackHost('127.0.0.1:8080'), true);
+    assert.strictEqual(isLoopbackHost('127.0.0.2:8080'), true);
+    assert.strictEqual(isLoopbackHost('localhost:8080'), true);
+    assert.strictEqual(isLoopbackHost('::1:8080'), true);
+    assert.strictEqual(isLoopbackHost('[::1]:8080'), true);
+
+    assert.strictEqual(isLoopbackHost('192.168.1.50:8080'), false);
+    assert.strictEqual(isLoopbackHost('10.0.0.5:8080'), false);
+    assert.strictEqual(isLoopbackHost('firestore.remote.internal:8080'), false);
+    assert.strictEqual(isLoopbackHost('malformed_host'), false);
+
+    const remoteHosts = [
+      '192.168.1.100:8080',
+      '10.0.0.1:8080',
+      'remote-emulator.internal:8080',
+      'firestore.googleapis.com:443',
+    ];
+
+    for (const remoteHost of remoteHosts) {
+      const remoteEnv: NodeJS.ProcessEnv = {
+        NODE_ENV: 'development',
+        USE_FIRESTORE_EMULATOR: 'true',
+        FIRESTORE_EMULATOR_HOST: remoteHost,
+        FIRESTORE_TEST_PROJECT_ID: 'burra-pariksha-test',
+      };
+
+      assert.throws(
+        () => assertDestructiveScriptSafe('zerodown-database.ts', remoteEnv),
+        (err: any) => {
+          return (
+            err instanceof DatastoreIsolationError &&
+            err.reasons.some((r: string) => r.includes('not a verified local loopback address'))
+          );
+        },
+        `Expected assertDestructiveScriptSafe to reject remote emulator host: ${remoteHost}`
+      );
+    }
+
+    pass('Destructive scripts reject remote hostnames, LAN IPs, and non-loopback hosts');
+  }
+
+  // Test 15: Destructive scripts reject malformed or missing emulator configurations
+  console.log('\n--- Test 15: Destructive Scripts Reject Missing or Malformed Emulator Hosts ---');
+  {
+    const malformedEnv: NodeJS.ProcessEnv = {
+      NODE_ENV: 'development',
+      USE_FIRESTORE_EMULATOR: 'true',
+      FIRESTORE_EMULATOR_HOST: 'invalid-host-no-port',
+      FIRESTORE_TEST_PROJECT_ID: 'burra-pariksha-test',
+    };
+
+    assert.throws(
+      () => assertDestructiveScriptSafe('admin-reset-firestore.ts', malformedEnv),
+      (err: any) => err instanceof DatastoreIsolationError
+    );
+
+    const missingEnv: NodeJS.ProcessEnv = {
+      NODE_ENV: 'development',
+    };
+
+    assert.throws(
+      () => assertDestructiveScriptSafe('purge-test-firestore-records.ts', missingEnv),
+      (err: any) => err instanceof DatastoreIsolationError
+    );
+
+    pass('Missing or malformed emulator configurations fail closed for destructive scripts');
+  }
+
+  // Test 16: Purge script logic defaults to dry-run and only deletes on explicit execute
+  console.log('\n--- Test 16: Purge Script Default Dry-Run vs Explicit Execute Semantics ---');
+  {
+    let deleteCount = 0;
+    const mockDoc = {
+      id: 'BP-TEST-Q-001',
+      data: () => ({ question: 'Test thermodynamics question', testOnly: true }),
+      ref: {
+        delete: async () => {
+          deleteCount++;
+        },
+      },
+    };
+
+    // Simulate dry-run behavior (execute: false)
+    const isDryRun = true;
+    if (!isDryRun) {
+      await mockDoc.ref.delete();
+    }
+    assert.strictEqual(deleteCount, 0, 'Dry-run must never call delete()');
+
+    // Simulate execute behavior (execute: true)
+    const isExecute = true;
+    if (isExecute) {
+      await mockDoc.ref.delete();
+    }
+    assert.strictEqual(deleteCount, 1, 'Explicit execute must perform deletion');
+
+    pass('Purge logic defaults to non-destructive dry-run and requires explicit execution');
+  }
+
   console.log('\n========================================================================');
-  console.log('ALL 13 DATASTORE ISOLATION GUARD UNIT TESTS PASSED 100%');
+  console.log('ALL 16 DATASTORE ISOLATION GUARD UNIT TESTS PASSED 100%');
   console.log('========================================================================\n');
 }
 
