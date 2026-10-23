@@ -20,6 +20,8 @@ export type SafeUser = Omit<User, 'password_hash' | 'sessionVersion'>;
 
 export class AuthService {
   private static instance: AuthService;
+  private static allowLegacyAuthInTest = false;
+  private testEmailSender: ((email: string) => Promise<{ sent: boolean; message: string; error?: string }>) | null = null;
   private readonly defaultTTLHours = 24;
   private revokedTokens: Map<string, number> = new Map();
   private revokedSessions: Map<string, number> = new Map();
@@ -31,6 +33,14 @@ export class AuthService {
       AuthService.instance = new AuthService();
     }
     return AuthService.instance;
+  }
+
+  public static enableTestLegacyAuth(enabled: boolean): void {
+    AuthService.allowLegacyAuthInTest = enabled;
+  }
+
+  public setTestEmailSender(sender: ((email: string) => Promise<{ sent: boolean; message: string; error?: string }>) | null): void {
+    this.testEmailSender = sender;
   }
 
   private getSessionSecret(): string {
@@ -358,13 +368,40 @@ export class AuthService {
             firebaseToken = fbData.idToken;
             authenticatedViaFirebase = true;
 
-            // Link or update Firebase UID in Firestore if not already set
+            // Safe UID linking: prevent UID collision and profile hijacking
             if (user.firebaseUid !== decoded.uid) {
+              if (user.firebaseUid) {
+                // Conflict: Firestore profile is already bound to a different Firebase UID!
+                await auditService.log(
+                  user.id,
+                  user.name,
+                  'LOGIN_FAILURE',
+                  'SYSTEM',
+                  'AUTH',
+                  { reason: 'IDENTITY_MAPPING_CONFLICT', detail: 'Profile linked to different UID' }
+                );
+                return { success: false, error: 'Identity conflict: Account credentials mismatch.' };
+              }
+
+              // Check if another profile is already linked to this Firebase UID
+              const existingWithUid = await usersRepository.findByFirebaseUid(decoded.uid);
+              if (existingWithUid && existingWithUid.id !== user.id) {
+                await auditService.log(
+                  user.id,
+                  user.name,
+                  'LOGIN_FAILURE',
+                  'SYSTEM',
+                  'AUTH',
+                  { reason: 'IDENTITY_COLLISION', detail: 'Firebase UID already bound to another profile' }
+                );
+                return { success: false, error: 'Identity conflict: Credentials already bound to another profile.' };
+              }
+
               try {
                 await usersRepository.update(user.id, { firebaseUid: decoded.uid } as any);
                 user.firebaseUid = decoded.uid;
               } catch {
-                // Non-fatal in mock environment
+                return { success: false, error: 'Failed to persist verified identity binding.' };
               }
             }
           } else {
@@ -381,13 +418,23 @@ export class AuthService {
               return { success: false, error: 'Account is inactive. Please contact administrator.' };
             }
 
-            // In test/dev environment with local password_hash, verify against hash if Firebase account does not exist
-            if (
-              (errorCode === 'EMAIL_NOT_FOUND' ||
-                errorCode === 'INVALID_PASSWORD' ||
-                errorCode === 'INVALID_LOGIN_CREDENTIALS') &&
-              user.password_hash
-            ) {
+            // In production: FAIL CLOSED!
+            // Legacy password_hash is ONLY permitted in isolated test runtime with explicit opt-in
+            const isTestIsolated = process.env.NODE_ENV === 'test' && AuthService.allowLegacyAuthInTest === true;
+            if (!isTestIsolated) {
+              await auditService.log(
+                user.id,
+                user.name,
+                'LOGIN_FAILURE',
+                'SYSTEM',
+                'AUTH',
+                { reason: 'INVALID_CREDENTIALS', errorCode }
+              );
+              return { success: false, error: 'Invalid user credentials.' };
+            }
+
+            // Test-only legacy fallback
+            if (user.password_hash) {
               const isHashValid = await this.verifyPassword(password, user.password_hash);
               if (!isHashValid) {
                 await auditService.log(
@@ -400,34 +447,30 @@ export class AuthService {
                 );
                 return { success: false, error: 'Invalid user credentials.' };
               }
-            } else if (
-              errorCode === 'EMAIL_NOT_FOUND' ||
-              errorCode === 'INVALID_PASSWORD' ||
-              errorCode === 'INVALID_LOGIN_CREDENTIALS'
-            ) {
-              await auditService.log(
-                user.id,
-                user.name,
-                'LOGIN_FAILURE',
-                'SYSTEM',
-                'AUTH',
-                { reason: 'INVALID_CREDENTIALS' }
-              );
+            } else {
               return { success: false, error: 'Invalid user credentials.' };
             }
           }
         } catch {
-          // Network or offline environment during isolated unit testing
+          // Network exception contacting Firebase
+          const isTestIsolated = process.env.NODE_ENV === 'test' && AuthService.allowLegacyAuthInTest === true;
+          if (!isTestIsolated) {
+            return { success: false, error: 'Authentication service temporarily unavailable.' };
+          }
         }
       }
 
-      // If not authenticated via Firebase (e.g. test environments without outbound network / mocked datastores):
+      // If not authenticated via Firebase:
       if (!authenticatedViaFirebase) {
+        // In production: FAIL CLOSED. No legacy fallback or default passwords allowed.
+        const isTestIsolated = process.env.NODE_ENV === 'test' && AuthService.allowLegacyAuthInTest === true;
+        if (!isTestIsolated) {
+          return { success: false, error: 'Authentication service unavailable. Please check system configuration.' };
+        }
+
         let isFallbackValid = false;
         if (user.password_hash) {
           isFallbackValid = await this.verifyPassword(password, user.password_hash);
-        } else if (process.env.NODE_ENV !== 'production' && password === 'password123') {
-          isFallbackValid = true;
         }
 
         if (!isFallbackValid) {
@@ -507,6 +550,68 @@ export class AuthService {
   }
 
   /**
+   * Dispatches a real password setup / reset email to the user via Firebase Authentication.
+   * Calls Firebase's accounts:sendOobCode REST endpoint with requestType: "PASSWORD_RESET",
+   * which triggers Firebase's built-in email delivery to the recipient.
+   */
+  public async dispatchPasswordSetupEmail(
+    email: string
+  ): Promise<{ sent: boolean; message: string; error?: string }> {
+    if (!email || typeof email !== 'string' || !email.includes('@')) {
+      return { sent: false, message: 'Invalid email address provided.', error: 'INVALID_EMAIL' };
+    }
+
+    const trimmedEmail = email.trim().toLowerCase();
+
+    // Check for test-injected email sender (for deterministic isolated unit tests)
+    if (this.testEmailSender) {
+      return this.testEmailSender(trimmedEmail);
+    }
+
+    const apiKey = this.getFirebaseApiKey();
+    if (!apiKey || apiKey === 'FIREBASE_WEB_API_KEY_REDACTED') {
+      return {
+        sent: false,
+        message: 'Firebase Web API key is not configured. Email delivery unavailable.',
+        error: 'FIREBASE_API_KEY_NOT_CONFIGURED',
+      };
+    }
+
+    try {
+      const endpoint = this.getFirebaseAuthRestEndpoint('sendOobCode');
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requestType: 'PASSWORD_RESET',
+          email: trimmedEmail,
+        }),
+      });
+
+      const data: any = await res.json();
+      if (res.ok) {
+        return {
+          sent: true,
+          message: `Password setup email dispatched to ${trimmedEmail} via Firebase Authentication.`,
+        };
+      }
+
+      const errMsg = data?.error?.message || 'Firebase email service rejected request.';
+      return {
+        sent: false,
+        message: `Firebase email dispatch failed: ${errMsg}`,
+        error: errMsg,
+      };
+    } catch (err: any) {
+      return {
+        sent: false,
+        message: `Network failure connecting to Firebase email service: ${err?.message}`,
+        error: err?.message,
+      };
+    }
+  }
+
+  /**
    * Triggers a password reset link for the given email via Firebase Authentication.
    * Returns a neutral success message regardless of whether the email exists
    * to prevent account enumeration.
@@ -519,24 +624,7 @@ export class AuthService {
 
     const trimmedEmail = email.trim().toLowerCase();
     try {
-      const apiKey = this.getFirebaseApiKey();
-      if (apiKey && apiKey !== 'FIREBASE_WEB_API_KEY_REDACTED') {
-        const endpoint = this.getFirebaseAuthRestEndpoint('sendOobCode');
-        await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            requestType: 'PASSWORD_RESET',
-            email: trimmedEmail,
-          }),
-        });
-      } else {
-        try {
-          await getAdminAuth().generatePasswordResetLink(trimmedEmail);
-        } catch {
-          // Ignore error, account might not exist or network unavailable
-        }
-      }
+      await this.dispatchPasswordSetupEmail(trimmedEmail);
 
       await auditService.log(
         'SYSTEM',
@@ -563,7 +651,10 @@ export class AuthService {
 
     const apiKey = this.getFirebaseApiKey();
     if (!apiKey || apiKey === 'FIREBASE_WEB_API_KEY_REDACTED') {
-      return { valid: true }; // Allow in test/offline environment
+      if (process.env.NODE_ENV === 'test') {
+        return { valid: true }; // Allow in test isolated environment
+      }
+      return { valid: false, error: 'Password reset service configuration unavailable.' };
     }
 
     try {

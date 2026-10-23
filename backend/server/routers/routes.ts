@@ -553,47 +553,42 @@ apiRouter.post(['/auth/bootstrap-admin', '/v1/auth/bootstrap-admin'], authRateLi
     const trimmedEmail = String(email).trim().toLowerCase();
     const adminAuth = getAdminAuth();
     let authUser: any;
+    let authUserCreated = false;
     try {
       authUser = await adminAuth.getUserByEmail(trimmedEmail);
       if (password) {
-        try {
-          await adminAuth.updateUser(authUser.uid, { password });
-        } catch (updateErr: any) {
-          console.warn(`[AUTH-BOOTSTRAP] Notice: Could not update password in Firebase Auth: ${updateErr?.message}`);
-        }
+        await adminAuth.updateUser(authUser.uid, { password });
       }
     } catch (err: any) {
       if (err?.code === 'auth/user-not-found') {
-        try {
-          authUser = await adminAuth.createUser({
-            email: trimmedEmail,
-            displayName: String(name).trim(),
-            password: password || undefined,
-          });
-        } catch (createErr: any) {
-          console.warn(`[AUTH-BOOTSTRAP] Notice: Firebase Auth creation fallback: ${createErr?.message}`);
-          authUser = {
-            uid: `fb_${canonicalIdService.generateUserId()}`,
-            email: trimmedEmail,
-            displayName: String(name).trim(),
-          };
-        }
-      } else {
-        console.warn(`[AUTH-BOOTSTRAP] Notice: Firebase Auth service unavailable (${err?.message}), using local identity.`);
-        authUser = {
-          uid: `fb_${canonicalIdService.generateUserId()}`,
+        authUser = await adminAuth.createUser({
           email: trimmedEmail,
           displayName: String(name).trim(),
-        };
+          password: password || undefined,
+        });
+        authUserCreated = true;
+      } else {
+        throw new Error(`Firebase Authentication unavailable: ${err?.message}`);
       }
+    }
+
+    if (!authUser || !authUser.uid) {
+      throw new Error('Failed to obtain a valid Firebase Authentication UID.');
+    }
+
+    // Verify UID is not already bound to an existing profile
+    const existingWithUid = await usersRepository.findByFirebaseUid(authUser.uid);
+    if (existingWithUid) {
+      throw new Error(`Firebase Authentication identity is already linked to profile (${existingWithUid.id}).`);
     }
 
     let setupLink: string | undefined = undefined;
     if (!password) {
       try {
         setupLink = await adminAuth.generatePasswordResetLink(trimmedEmail);
-      } catch {
-        setupLink = `https://burra-pariksha-cms.web.app/reset-password?mode=resetPassword&oobCode=setup_${canonicalIdService.generateUserId()}`;
+      } catch (linkErr: any) {
+        console.warn(`[AUTH-BOOTSTRAP] Notice: Could not generate setup link: ${linkErr?.message}`);
+        setupLink = undefined;
       }
     }
 
@@ -603,14 +598,26 @@ apiRouter.post(['/auth/bootstrap-admin', '/v1/auth/bootstrap-admin'], authRateLi
       email: trimmedEmail,
       role: UserRole.ADMIN,
       roles: [UserRole.ADMIN],
-      firebaseUid: authUser?.uid,
+      firebaseUid: authUser.uid,
       isActive: true,
       dataScope: 'ALL',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
 
-    const created = await usersRepository.appendRecord(adminUser);
+    let created: User;
+    try {
+      created = await usersRepository.appendRecord(adminUser);
+    } catch (saveErr) {
+      if (authUserCreated && authUser.uid) {
+        try {
+          await adminAuth.deleteUser(authUser.uid);
+        } catch {
+          // ignore compensating deletion failure
+        }
+      }
+      throw saveErr;
+    }
     await auditService.log(
       created.id,
       created.name,
@@ -5010,9 +5017,12 @@ apiRouter.post(['/users/:id/resend-setup-email', '/v1/users/:id/resend-setup-ema
     const { id } = req.params;
     const actor = getRequestActor(req);
     const result = await assignmentService.resendSetupEmail(id, actor);
+    if (!result.success) {
+      return res.status(400).json(result);
+    }
     res.json(result);
   } catch (err: any) {
-    res.status(400).json({ error: 'Failed to resend setup email', message: err?.message });
+    res.status(400).json({ success: false, emailDelivered: false, retryAvailable: true, error: 'Failed to resend setup email', message: err?.message });
   }
 });
 

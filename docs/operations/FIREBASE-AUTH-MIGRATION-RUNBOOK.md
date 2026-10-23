@@ -2,7 +2,7 @@
 
 ## 1. Overview & Context
 
-This runbook documents the architecture, operational procedures, configuration requirements, and disaster recovery workflows for the Burra Pariksha CMS (BP-CMS) Firebase Authentication integration.
+This runbook documents the architecture, operational procedures, configuration requirements, security invariants, and disaster recovery workflows for the Burra Pariksha CMS (BP-CMS) Firebase Authentication integration.
 
 Following the intentional purge of legacy Google Sheets authentication dependencies and legacy administrator records, BP-CMS relies entirely on **Firebase Authentication** for identity management, credential verification, and password lifecycle management, while **Cloud Firestore** remains the authoritative transactional store for user profiles, roles, and granular capability assignments.
 
@@ -14,15 +14,18 @@ Following the intentional purge of legacy Google Sheets authentication dependenc
 1. **Firebase Authentication (Auth)**:
    - Owns identity credentials (email, hashed password, password reset oobCodes, session tokens, ID tokens).
    - Generates and validates secure 3-segment JWT ID tokens.
+   - Built-in email delivery mechanism dispatches password setup and reset emails.
 2. **Cloud Firestore (`users` collection)**:
    - Owns user records (`id`, `name`, `email`, `role`, `roles`, `firebaseUid`, `isActive`, `createdAt`, `updatedAt`).
    - Serves as the sole authoritative source of roles and permissions (`GAR-02` RBAC enforcement).
    - Any user record where `isActive === false` is immediately rejected by the backend authentication middleware with `401 Unauthorized (Account is inactive)`.
 
 ### 2.2 Security Invariants
-- **No Client-Side Secrets / Direct SDK**: The frontend client never directly initializes the Firebase Admin SDK or accesses internal Firebase Auth service accounts. All authentication operations (login, forgot password, reset password, employee provisioning) are mediated through typed backend endpoints in `backend/server/routers/routes.ts`.
-- **Anti-Account Enumeration**: Password reset requests (`POST /api/auth/forgot-password`) always return generic HTTP 200 responses with the message `"If an account with this email exists, password recovery instructions have been sent."`, preventing attackers from enumerating valid team email addresses.
-- **Strict Role Authorization**: User management and provisioning endpoints require the `ADMIN` role or `USER:ADMINISTER` capability.
+- **Fail-Closed Production Login**: Firebase Authentication is the sole credential authority in production. In production, successful sign-in strictly requires valid Firebase credentials and successful verification of the returned Firebase ID token by the Firebase Admin SDK. Legacy `password_hash` verification is isolated to test execution and is structurally unreachable in production. Hardcoded default passwords are permanently prohibited.
+- **Safe UID Linking & Collision Prevention**: Every `firebaseUid` must originate from a real Firebase Authentication user record or verified ID token. One Firebase UID cannot be linked to multiple employee profiles. If a UID is already bound to another profile, sign-in and provisioning reject the operation with an identity collision conflict.
+- **Truthful Email Delivery**: Generating a password-reset action link alone does not deliver an email. The CMS uses Firebase's official email action API (`accounts:sendOobCode` with `requestType: "PASSWORD_RESET"`). If email dispatch fails, the system returns a partial-success status (`accountCreated: true, emailDelivery: { sent: false, error }, retryAvailable: true`) and never claims false delivery or fabricates synthetic fallback URLs.
+- **Zero Secret Exposure**: Password setup links, action codes (`oobCode`), passwords, and credentials are never returned in public API responses or logged in Firestore audit trails.
+- **Anti-Account Enumeration**: Password reset requests (`POST /api/auth/forgot-password`) always return identical neutral HTTP 200 responses with the message `"If an account exists for this email address, a password reset link will be sent."`, preventing attackers from enumerating valid team email addresses.
 - **Idempotent First-Administrator Bootstrap**: The bootstrap endpoint (`POST /api/auth/bootstrap-admin`) requires the `BOOTSTRAP_ADMIN_SECRET` environment variable and fails closed (`409 Conflict`) if any active administrator already exists in Firestore.
 
 ---
@@ -40,11 +43,11 @@ Before deploying or running in production, ensure the Firebase project is config
      - `burra-pariksha-cms.firebaseapp.com`
      - Custom domain (e.g. `cms.burrapariksha.com`)
      - `localhost` (for local development)
-3. **Action URL / Templates**:
+3. **Action URL & Email Templates**:
    - Under **Authentication** -> **Templates** -> **Password reset**:
      - Customize the email sender address and sender name (`Burra Pariksha CMS Security`).
      - Action URL should point to: `https://<YOUR-DOMAIN>/reset-password` (e.g. `https://burra-pariksha-cms.web.app/reset-password`).
-     - When users click the link in their email, they will land on the BP-CMS password reset page with `?mode=resetPassword&oobCode=...`.
+     - When users click the link in their email, they land on the BP-CMS password reset page with `?mode=resetPassword&oobCode=...`.
 
 ---
 
@@ -75,7 +78,7 @@ When the database has zero active administrators, you can provision the initial 
    ```bash
    npm run bootstrap:admin -- --email="admin@burrapariksha.com" --name="System Administrator" --secret="your-generated-secure-secret-phrase"
    ```
-   *Optional*: You can also provide `--password="InitialSecurePassword123!"`. If omitted, a Firebase password setup link is generated and printed to the terminal console.
+   *Optional*: You can also provide `--password="InitialSecurePassword123!"`. If omitted, a genuine Firebase password reset link is generated and printed directly to the terminal console for manual one-time handover.
 
 ### Option B: REST API Endpoint
 
@@ -100,24 +103,36 @@ When the database has zero active administrators, you can provision the initial 
 
 ### Creating a New Team Member
 1. Log in to the BP-CMS Dashboard as an Administrator.
-2. Navigate to **Team Management** (or `Settings` -> `Users`).
-3. Click **Add User** and provide:
+2. Navigate to **Team Operations** (`/team/operations`).
+3. Click **Add Team Member** and provide:
    - Full Name
    - Email Address
-   - Role (e.g. `RESEARCHER_SCRIPTWRITER`, `VIDEO_EDITOR`, `THUMBNAIL_DESIGNER`, `ADMIN`)
-4. Click **Create User**:
-   - The backend checks for email collisions.
-   - A Firebase Auth user is created with a random temporary identity.
-   - An initial password setup email link is generated.
-   - A user document is created in Firestore with `firebaseUid`.
-   - If Firestore creation fails, the backend triggers compensating deletion of the Firebase Auth user.
-   - An audit log entry `USER_CREATED` is appended.
+   - Assigned Roles (e.g. `QUESTION_CREATOR`, `QUESTION_EDITOR`, `SCRIPT_WRITER`, `ADMIN`)
+4. Click **Save User**:
+   - The backend checks for duplicate emails in Firestore.
+   - A Firebase Auth user is created with a genuine UID (or verifies an unlinked existing auth user).
+   - If an existing Firebase user is already bound to another profile, creation aborts with an identity collision error.
+   - The user document is persisted in Cloud Firestore with the verified `firebaseUid`.
+   - If Firestore persistence fails, compensating rollback deletes the newly created Firebase Auth user.
+   - The backend dispatches a real setup email via Firebase Authentication's `sendOobCode` API.
+   - The API response truthfully returns:
+     - `accountCreated: true`
+     - `emailDelivery: { sent: boolean, error?: string }`
+     - `setupEmailSent: boolean`
+     - `retryAvailable: boolean`
+   - If email delivery fails, the UI indicates partial success and makes the **Resend Setup Email** button available.
 
 ### Resending Setup Emails
 If an employee did not receive or lost their initial password setup email:
-1. In the **Team Management** table, locate the user.
+1. In the **Team Operations** interface, click **Edit User** on the target user card.
 2. Click **Resend Setup Email** (or call `POST /api/users/:id/resend-setup-email`).
-3. A fresh Firebase password setup link is generated, emailed, and logged in the audit trail.
+3. The backend:
+   - Verifies the actor has `USER:ADMINISTER` capability.
+   - Confirms the target user is active and bound to a valid `firebaseUid`.
+   - Dispatches a fresh setup email through Firebase Authentication.
+   - Audits the operation (`USER_SETUP_EMAIL_RESENT`) without logging sensitive links.
+   - Returns `{ success: true, emailDelivered: true, retryAvailable: false }`.
+   - If delivery fails, returns `{ success: false, emailDelivered: false, retryAvailable: true, error: "..." }`.
 
 ---
 
@@ -127,24 +142,30 @@ If an employee did not receive or lost their initial password setup email:
 1. User navigates to `/login` and clicks **"Forgot password?"**.
 2. User enters their registered email address and clicks **"Send Instructions"**.
 3. Frontend issues `POST /api/auth/forgot-password`.
-4. Backend triggers Firebase Auth `sendOobCode` (or Admin SDK password reset link).
-5. User receives an email with a secure link pointing to `/reset-password?mode=resetPassword&oobCode=...`.
-6. User enters and confirms their new password (minimum 8 characters).
-7. Frontend calls `POST /api/auth/reset-password` with `{ oobCode, newPassword }`.
-8. User is automatically redirected to `/login` with a success message to sign in with their new password.
+4. Backend triggers Firebase Authentication's built-in email dispatcher (`sendOobCode`).
+5. A neutral response is returned to prevent account enumeration.
+6. The user receives an email from Firebase containing a secure link pointing to `/reset-password?mode=resetPassword&oobCode=...`.
+7. User enters and confirms their new password (minimum 8 characters).
+8. Frontend calls `POST /api/auth/reset-password` with `{ oobCode, newPassword }`.
+9. The backend verifies the action code with Firebase Auth, updates the password in Firebase Auth, and invalidates existing sessions in Firestore (`incrementSessionVersionPersistent`).
+10. User is redirected to `/login` to sign in with their new credentials.
 
 ---
 
 ## 8. Troubleshooting & Diagnostics
 
 ### Issue 1: Login fails with "Account is inactive" (401)
-- **Root Cause**: The user's Firestore document has `isActive: false`.
-- **Resolution**: An administrator must edit the user in Team Management and set `isActive: true`.
+- **Root Cause**: The user's Firestore document has `isActive: false` or Firebase user has `disabled: true`.
+- **Resolution**: An administrator must edit the user in Team Operations and set `isActive: true`.
 
-### Issue 2: Password reset link expired or invalid
-- **Root Cause**: Firebase `oobCode` tokens expire (default 1 hour) or may have already been consumed.
-- **Resolution**: Have the user request a new link at `/login` (or have an admin use "Resend Setup Email").
+### Issue 2: Login fails with "Authentication service unavailable" (500/401)
+- **Root Cause**: `FIREBASE_API_KEY` is missing or Firebase Identity Toolkit endpoint is unreachable.
+- **Resolution**: Verify `FIREBASE_API_KEY` in environment variables and network connectivity to `https://identitytoolkit.googleapis.com`.
 
-### Issue 3: Bootstrap fails with 409 Conflict
+### Issue 3: Email delivery fails during user creation or resend
+- **Root Cause**: `FIREBASE_API_KEY` missing, sender email domain unverified in Firebase Console, or quota exceeded.
+- **Resolution**: Verify Firebase Console -> Authentication -> Templates -> Password reset sender email. Use **Resend Setup Email** once resolved.
+
+### Issue 4: Bootstrap fails with 409 Conflict
 - **Root Cause**: An active administrator already exists in the Firestore `users` collection.
-- **Resolution**: Use the existing administrator account to manage users or reset credentials via standard password recovery.
+- **Resolution**: Use the existing administrator account or reset credentials via standard password recovery.

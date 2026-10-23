@@ -22,6 +22,7 @@ import {
 import { getAdminAuth } from '../../../../database/firestore/adapter/admin';
 import { canonicalIdService } from '../../../../src/lib/id.service';
 import { workflowService } from '../../audit/services/audit.service';
+import { authService } from './auth.service';
 import { Assignment, AssignmentEntityType, AssignmentStatus, AssignmentTaskType, MyWorkSummary, PriorityLevel, TeamWorkloadSummary, UnassignedWorkItem, User, UserRole, UserWorkload, Video, VideoProductionStatus } from '../../../../shared';
 import {
   CreateAssignmentInput,
@@ -821,7 +822,13 @@ export class AssignmentService {
     input: { name: string; email: string; role?: any; roles?: (UserRole | string)[]; avatarUrl?: string; isActive?: boolean },
     actor?: { id?: string; name?: string; role?: string; roles?: string[] } | string,
     actorNameParam?: string
-  ): Promise<User & { setupLink?: string; setupEmailSent?: boolean }> {
+  ): Promise<User & {
+    setupLink?: string;
+    setupEmailSent?: boolean;
+    accountCreated?: boolean;
+    retryAvailable?: boolean;
+    emailDelivery?: { sent: boolean; message?: string; error?: string };
+  }> {
     const parsedActor = this.parseActor(actor, actorNameParam);
     const actorId = parsedActor.id;
     const actorName = parsedActor.name;
@@ -855,48 +862,32 @@ export class AssignmentService {
     // 1. Provision or link Firebase Authentication Identity
     let firebaseUid: string | undefined = undefined;
     let authUserCreated = false;
-    let setupLink: string | null = null;
-    let setupEmailSent = false;
 
+    const adminAuth = getAdminAuth();
     try {
-      const adminAuth = getAdminAuth();
-      try {
-        const existingAuthUser = await adminAuth.getUserByEmail(trimmedEmail);
-        firebaseUid = existingAuthUser.uid;
-      } catch (err: any) {
-        if (err?.code === 'auth/user-not-found') {
-          try {
-            const newAuthUser = await adminAuth.createUser({
-              email: trimmedEmail,
-              displayName: input.name.trim(),
-              disabled: input.isActive === false,
-            });
-            firebaseUid = newAuthUser.uid;
-            authUserCreated = true;
-          } catch (createErr: any) {
-            console.warn(`[AUTH] Notice: Firebase Auth creation fallback: ${createErr?.message}`);
-            firebaseUid = `fb_${canonicalIdService.generateUserId()}`;
-          }
-        } else {
-          console.warn(`[AUTH] Notice: Firebase Auth lookup warning: ${err?.message}`);
-          firebaseUid = `fb_${canonicalIdService.generateUserId()}`;
-        }
+      const existingAuthUser = await adminAuth.getUserByEmail(trimmedEmail);
+      // If Firebase Auth user already exists, check if already bound to another profile
+      const profileWithUid = await usersRepository.findByFirebaseUid(existingAuthUser.uid);
+      if (profileWithUid) {
+        throw new Error(`Firebase Authentication identity is already linked to another employee profile (ID: ${profileWithUid.id}).`);
       }
+      firebaseUid = existingAuthUser.uid;
+    } catch (err: any) {
+      if (err?.code === 'auth/user-not-found') {
+        const newAuthUser = await adminAuth.createUser({
+          email: trimmedEmail,
+          displayName: input.name.trim(),
+          disabled: input.isActive === false,
+        });
+        firebaseUid = newAuthUser.uid;
+        authUserCreated = true;
+      } else {
+        throw new Error(`Firebase Authentication account creation failed: ${err?.message}`);
+      }
+    }
 
-      // Generate initial account setup / password reset email link
-      if (trimmedEmail) {
-        try {
-          setupLink = await adminAuth.generatePasswordResetLink(trimmedEmail);
-          setupEmailSent = true;
-        } catch (linkErr: any) {
-          console.warn(`[AUTH] Notice: Could not generate setup link: ${linkErr?.message}`);
-          setupLink = `https://burra-pariksha-cms.web.app/reset-password?mode=resetPassword&oobCode=setup_${canonicalIdService.generateUserId()}`;
-          setupEmailSent = true;
-        }
-      }
-    } catch (authErr: any) {
-      console.warn(`[AUTH] Notice: Admin Auth service unavailable: ${authErr?.message}`);
-      firebaseUid = firebaseUid || `fb_${canonicalIdService.generateUserId()}`;
+    if (!firebaseUid) {
+      throw new Error('Failed to obtain a verified Firebase Authentication UID.');
     }
 
     const roleString = rolesArray.join(', ');
@@ -919,10 +910,10 @@ export class AssignmentService {
     try {
       created = await usersRepository.appendRecord(user);
     } catch (saveErr) {
-      // Compensating cleanup: If we created a new Firebase Auth user, delete it so no orphan remains
+      // Compensating cleanup: Only delete newly created Firebase Auth account if Firestore save fails
       if (authUserCreated && firebaseUid) {
         try {
-          await getAdminAuth().deleteUser(firebaseUid);
+          await adminAuth.deleteUser(firebaseUid);
         } catch {
           // ignore compensating deletion failure
         }
@@ -930,16 +921,28 @@ export class AssignmentService {
       throw saveErr;
     }
 
+    // 2. Initiate actual email delivery through Firebase Authentication
+    const deliveryResult = await authService.dispatchPasswordSetupEmail(trimmedEmail);
+    const setupEmailSent = deliveryResult.sent;
+
     await auditLogRepository.logAction(actorId, actorName, 'USER_CREATED', 'USER', id, {
-      user: created,
+      user: created.id,
+      email: created.email,
+      accountCreated: true,
       setupEmailSent,
-      hasSetupLink: Boolean(setupLink),
+      retryAvailable: !setupEmailSent,
     });
 
     return {
       ...created,
-      ...(setupLink ? { setupLink } : {}),
+      accountCreated: true,
+      emailDelivery: {
+        sent: setupEmailSent,
+        message: deliveryResult.message,
+        ...(deliveryResult.error ? { error: deliveryResult.error } : {}),
+      },
       setupEmailSent,
+      retryAvailable: !setupEmailSent,
     };
   }
 
@@ -1009,11 +1012,16 @@ export class AssignmentService {
       roleString = rolesArray.join(', ');
     }
 
+    const sanitizedInput = { ...input };
+    delete (sanitizedInput as any).firebaseUid;
+    delete (sanitizedInput as any).id;
+
     const now = new Date().toISOString();
     const updated: User = {
       ...existing,
-      ...input,
+      ...sanitizedInput,
       id: existing.id,
+      firebaseUid: existing.firebaseUid,
       role: roleString,
       roles: rolesArray,
       updatedAt: now,
@@ -1027,7 +1035,7 @@ export class AssignmentService {
     userId: string,
     actor?: { id?: string; name?: string; role?: string; roles?: string[] } | string,
     actorNameParam?: string
-  ): Promise<{ success: boolean; setupLink?: string; message: string }> {
+  ): Promise<{ success: boolean; emailDelivered: boolean; retryAvailable: boolean; message: string; error?: string }> {
     const parsedActor = this.parseActor(actor, actorNameParam);
     const actorId = parsedActor.id;
     const actorName = parsedActor.name;
@@ -1041,25 +1049,46 @@ export class AssignmentService {
       throw new Error(`User "${userId}" not found.`);
     }
 
+    if (!user.isActive) {
+      throw new Error(`Cannot resend setup email for inactive user account.`);
+    }
+
+    if (!user.firebaseUid) {
+      throw new Error(`User account is not bound to a Firebase Authentication identity.`);
+    }
+
+    // Verify identity exists in Firebase Authentication
     try {
       const adminAuth = getAdminAuth();
-      let setupLink: string;
-      try {
-        setupLink = await adminAuth.generatePasswordResetLink(user.email);
-      } catch (linkErr: any) {
-        setupLink = `https://burra-pariksha-cms.web.app/reset-password?mode=resetPassword&oobCode=resend_${canonicalIdService.generateUserId()}`;
-      }
-      await auditLogRepository.logAction(actorId, actorName, 'USER_SETUP_EMAIL_RESENT', 'USER', user.id, {
-        email: user.email,
-      });
-      return {
-        success: true,
-        setupLink,
-        message: `Password setup link generated for ${user.email}.`,
-      };
-    } catch (err: any) {
-      throw new Error(`Failed to generate setup link: ${err?.message}`);
+      await adminAuth.getUser(user.firebaseUid);
+    } catch (authErr: any) {
+      throw new Error(`Failed to locate Firebase Authentication identity: ${authErr?.message}`);
     }
+
+    // Actually deliver setup email via Firebase Authentication
+    const deliveryResult = await authService.dispatchPasswordSetupEmail(user.email);
+
+    await auditLogRepository.logAction(actorId, actorName, 'USER_SETUP_EMAIL_RESENT', 'USER', user.id, {
+      email: user.email,
+      emailDelivered: deliveryResult.sent,
+    });
+
+    if (!deliveryResult.sent) {
+      return {
+        success: false,
+        emailDelivered: false,
+        retryAvailable: true,
+        message: deliveryResult.message || `Failed to deliver setup email to ${user.email}.`,
+        error: deliveryResult.error,
+      };
+    }
+
+    return {
+      success: true,
+      emailDelivered: true,
+      retryAvailable: false,
+      message: `Setup email successfully dispatched to ${user.email}.`,
+    };
   }
 
   // ============================================================================

@@ -173,11 +173,14 @@ export function requireAuth(req: AuthenticatedRequest, res: Response, next: Next
       .verifyIdToken(token)
       .then(async (decoded) => {
         let user = await usersRepository.findByFirebaseUid(decoded.uid);
-        if (!user && decoded.email) {
-          user = await usersRepository.findByEmail(decoded.email);
-          if (user && !user.firebaseUid) {
-            await usersRepository.updateRecord(user.id, { firebaseUid: decoded.uid });
-            user.firebaseUid = decoded.uid;
+        if (!user && decoded.email && decoded.email_verified) {
+          const unlinkedUser = await usersRepository.findByEmail(decoded.email);
+          if (unlinkedUser && !unlinkedUser.firebaseUid) {
+            const collision = await usersRepository.findByFirebaseUid(decoded.uid);
+            if (!collision) {
+              await usersRepository.updateRecord(unlinkedUser.id, { firebaseUid: decoded.uid });
+              user = { ...unlinkedUser, firebaseUid: decoded.uid };
+            }
           }
         }
 
@@ -222,12 +225,34 @@ export function requireAuth(req: AuthenticatedRequest, res: Response, next: Next
         next();
       })
       .catch(() => {
-        fallbackToSessionVerification();
+        const errEnvelope = createErrorResponse(
+          ApiErrorCode.UNAUTHENTICATED,
+          'Invalid or expired authentication credentials.',
+          requestId
+        );
+        res.status(401).json({
+          ...errEnvelope,
+          message: 'Invalid or expired authentication credentials.',
+        });
       });
     return;
   }
 
-  // 2. Synchronous/Fast fallback for 2-part internal session tokens
+  // In production, Firebase Authentication is the sole credential authority
+  if (process.env.NODE_ENV === 'production') {
+    const errEnvelope = createErrorResponse(
+      ApiErrorCode.UNAUTHENTICATED,
+      'Legacy session tokens are prohibited in production.',
+      requestId
+    );
+    res.status(401).json({
+      ...errEnvelope,
+      message: 'Legacy session tokens are prohibited in production.',
+    });
+    return;
+  }
+
+  // 2. Fallback for 2-part internal session tokens (test and local development only)
   fallbackToSessionVerification();
 }
 

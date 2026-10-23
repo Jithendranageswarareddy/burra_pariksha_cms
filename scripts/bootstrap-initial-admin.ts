@@ -93,6 +93,11 @@ async function runBootstrap() {
   try {
     authUser = await adminAuth.getUserByEmail(email);
     console.log(`[BOOTSTRAP] Found existing Firebase Auth account for ${email} (UID: ${authUser.uid}). Linking profile...`);
+    const existingProfileWithUid = await usersRepository.findByFirebaseUid(authUser.uid);
+    if (existingProfileWithUid) {
+      console.error(`❌ Bootstrap Aborted: Firebase Auth UID is already linked to another user profile (ID: ${existingProfileWithUid.id}).`);
+      process.exit(1);
+    }
     if (password) {
       await adminAuth.updateUser(authUser.uid, { password });
       console.log('[BOOTSTRAP] Updated password on existing Firebase Auth account.');

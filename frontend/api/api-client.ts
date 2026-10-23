@@ -1557,8 +1557,8 @@ export class ApiClient {
     });
   }
 
-  public async resendSetupEmail(userId: string): Promise<{ success: boolean; setupLink?: string; message: string }> {
-    return this.request<{ success: boolean; setupLink?: string; message: string }>(`/users/${encodeURIComponent(userId)}/resend-setup-email`, {
+  public async resendSetupEmail(userId: string): Promise<{ success: boolean; emailDelivered: boolean; retryAvailable: boolean; message: string; error?: string }> {
+    return this.request<{ success: boolean; emailDelivered: boolean; retryAvailable: boolean; message: string; error?: string }>(`/users/${encodeURIComponent(userId)}/resend-setup-email`, {
       method: 'POST',
     });
   }

@@ -74,6 +74,7 @@ export const TeamOperationsPage: React.FC = () => {
   const [userIsActive, setUserIsActive] = useState(true);
   const [userModalLoading, setUserModalLoading] = useState(false);
   const [userModalError, setUserModalError] = useState<string | null>(null);
+  const [resendStatus, setResendStatus] = useState<{ loading: boolean; message?: string; error?: string } | null>(null);
 
   const AVAILABLE_ROLES = [
     { value: UserRole.ADMIN, label: 'Administrator (Full Access)' },
@@ -168,7 +169,23 @@ export const TeamOperationsPage: React.FC = () => {
     setUserRoles(existingRoles.length > 0 ? existingRoles : [UserRole.QUESTION_EDITOR]);
     setUserIsActive(u.isActive);
     setUserModalError(null);
+    setResendStatus(null);
     setIsUserModalOpen(true);
+  };
+
+  const handleResendSetupEmail = async () => {
+    if (!editingUser) return;
+    setResendStatus({ loading: true });
+    try {
+      const res = await apiClient.resendSetupEmail(editingUser.id);
+      if (res.success && res.emailDelivered) {
+        setResendStatus({ loading: false, message: res.message || 'Setup email dispatched successfully.' });
+      } else {
+        setResendStatus({ loading: false, error: res.message || res.error || 'Failed to dispatch setup email.' });
+      }
+    } catch (err: any) {
+      setResendStatus({ loading: false, error: err?.message || 'Failed to resend setup email.' });
+    }
   };
 
   const toggleRole = (roleValue: string) => {
@@ -976,6 +993,18 @@ export const TeamOperationsPage: React.FC = () => {
               </div>
             )}
 
+            {resendStatus?.message && (
+              <div className="mx-6 mt-4 p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-lg">
+                ✓ {resendStatus.message}
+              </div>
+            )}
+
+            {resendStatus?.error && (
+              <div className="mx-6 mt-4 p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-lg">
+                ⚠ {resendStatus.error}
+              </div>
+            )}
+
             <form onSubmit={handleSaveUser} className="p-6 space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
@@ -1051,21 +1080,33 @@ export const TeamOperationsPage: React.FC = () => {
                 </label>
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setIsUserModalOpen(false)}
-                  className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={userModalLoading}
-                  className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs disabled:opacity-50"
-                >
-                  {userModalLoading ? 'Saving...' : 'Save User'}
-                </button>
+              <div className="flex items-center justify-between gap-3 pt-4 border-t border-slate-100">
+                {editingUser && (
+                  <button
+                    type="button"
+                    disabled={resendStatus?.loading}
+                    onClick={handleResendSetupEmail}
+                    className="px-3 py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    {resendStatus?.loading ? 'Sending...' : 'Resend Setup Email'}
+                  </button>
+                )}
+                <div className="flex items-center gap-3 ml-auto">
+                  <button
+                    type="button"
+                    onClick={() => setIsUserModalOpen(false)}
+                    className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={userModalLoading}
+                    className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs disabled:opacity-50"
+                  >
+                    {userModalLoading ? 'Saving...' : 'Save User'}
+                  </button>
+                </div>
               </div>
             </form>
           </div>
