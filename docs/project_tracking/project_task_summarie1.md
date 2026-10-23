@@ -49,3 +49,27 @@ Chronological record of actual task executions in accordance with [AGENTS.md](..
 - **Risks & Next Actions**:
   - Cloud storage and Google Sheets lack automated atomic cross-store sync; cleanup on Firestore must be preceded by an offline export/snapshot if production data is ever involved.
   - Next action: Await owner instructions before executing any local emulator cleanup.
+
+---
+
+### [TASK-003] 2026-10-24 — Validate Backup and Restore Readiness
+
+- **Status**: `COMPLETED`
+- **Objective**: Trace and validate recovery paths across Cloud Firestore, Google Drive, GCS, Google Sheets, and local seed data, identifying automation gaps, retention assumptions, and offline restore testing plans without cloud mutations.
+- **Work & Outcome**:
+  - Pulled `main`, verified remote sync, and confirmed a clean working tree.
+  - Traced Cloud Firestore recovery path: identified named database (`ai-studio-burraparikshacon-f592ca42-39af-4d83-aff2-6870ba939b0e`) and verified absence of in-code automated export/import scripts (relies entirely on manual `gcloud firestore export/import`).
+  - Traced Google Drive and GCS recovery paths: Drive relies on 30-day Trash retention without automated pre-deletion snapshots; GCS snapshot bucket (`burra-pariksha-snapshots-2026`) relies on external GCP bucket versioning.
+  - Traced Google Sheets: verified native version history exists, but cross-store foreign-key references to Firestore questions lack automated synchronization or rollback tooling.
+  - Verified local seed and taxonomy data in `src/lib/data/production-taxonomy.ts`: 100% deterministic, in-repo, and self-healing.
+  - Formulated a safe, isolated local emulator export/import recovery test plan without accessing production credentials or live cloud storage.
+- **Changed Files**:
+  - `docs/project_tracking/project_task_summarie1.md`
+- **Verification**:
+  - `git pull origin main` — `PASS` (clean, up to date)
+  - `npx tsx tests/unit/datastore-isolation-guard.unit.test.ts` — `PASS` (18/18 tests passed, exit 0)
+  - `npm run lint` (`tsc --noEmit`) — `PASS` (exit 0)
+  - `git diff --check` — `PASS` (clean exit 0)
+- **Risks & Next Actions**:
+  - Unautomated Cloud Firestore backup/restore is an operational blocker for any future cloud maintenance.
+  - Next action: Maintain strict local-only cleanup isolation until automated GCP export/restore manifests are established.
