@@ -193,14 +193,33 @@ export class UsersRepository extends BaseRepository<User> {
   }
 
   public async findByEmail(email: string): Promise<User | null> {
-    const all = await this.findAll();
-    return all.find((u) => u.email.toLowerCase() === email.toLowerCase()) || null;
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail) return null;
+    const r = await this.getRepo();
+    const matches = await r.findMany({
+      where: { email: normalizedEmail } as any,
+      limit: 2,
+    });
+    // Fail closed on duplicate identities instead of choosing an arbitrary record.
+    if (matches.length > 1) {
+      throw new Error('Multiple user profiles match the same normalized email address.');
+    }
+    return (matches[0] as User | undefined) || null;
   }
 
   public async findByFirebaseUid(firebaseUid: string): Promise<User | null> {
-    if (!firebaseUid) return null;
-    const all = await this.findAll();
-    return all.find((u) => u.firebaseUid === firebaseUid) || null;
+    const normalizedUid = firebaseUid?.trim();
+    if (!normalizedUid) return null;
+    const r = await this.getRepo();
+    const matches = await r.findMany({
+      where: { firebaseUid: normalizedUid } as any,
+      limit: 2,
+    });
+    // Fail closed on duplicate identity mappings.
+    if (matches.length > 1) {
+      throw new Error('Multiple user profiles are linked to the same Firebase UID.');
+    }
+    return (matches[0] as User | undefined) || null;
   }
 }
 
