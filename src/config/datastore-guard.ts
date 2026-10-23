@@ -17,6 +17,7 @@
  * 5. Zero secrets logged: Never prints private keys, tokens, or credential payloads.
  */
 
+import http from 'http';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 export const KNOWN_PRODUCTION_PROJECTS = ['burra-pariksha-cms'] as const;
@@ -502,3 +503,50 @@ export function evaluateDatastoreIsolation(
     approvalEvidence,
   };
 }
+
+/**
+ * Probes the local Firestore Emulator via HTTP to verify that it is actually online and responsive.
+ */
+export async function probeEmulatorConnectivity(
+  hostPort: string = DEFAULT_EMULATOR_HOST,
+  timeoutMs: number = 2000
+): Promise<boolean> {
+  const parts = hostPort.split(':');
+  const host = parts[0] || '127.0.0.1';
+  const port = parseInt(parts[1] || '8080', 10);
+
+  return new Promise<boolean>((resolve) => {
+    const req = http.get(
+      { host, port, path: '/', timeout: timeoutMs },
+      (res) => {
+        resolve(res.statusCode === 200 || (res.statusCode !== undefined && res.statusCode < 500));
+      }
+    );
+    req.on('error', () => resolve(false));
+    req.on('timeout', () => {
+      req.destroy();
+      resolve(false);
+    });
+  });
+}
+
+/**
+ * Asserts that the local Firestore Emulator is alive and accepting connections.
+ * Fails closed with DatastoreIsolationError if unreachable, preventing unverified local writes.
+ */
+export async function assertEmulatorAlive(
+  hostPort: string = DEFAULT_EMULATOR_HOST,
+  timeoutMs: number = 2000
+): Promise<void> {
+  const isAlive = await probeEmulatorConnectivity(hostPort, timeoutMs);
+  if (!isAlive) {
+    throw new DatastoreIsolationError(
+      `CRITICAL FAIL-CLOSED: Local Firestore Emulator is configured (USE_FIRESTORE_EMULATOR=true) ` +
+      `but is NOT reachable at ${hostPort}.\n` +
+      `To protect live production data and ensure safe local execution, writes are blocked.\n` +
+      `Start the local emulator before running the application: npm run emulator`,
+      [`Emulator host ${hostPort} unreachable`]
+    );
+  }
+}
+

@@ -29,6 +29,7 @@ import { auditLogRepository } from '../../database/firestore/repositories/audit-
 import { provisionInitialAdmin } from '../../scripts/bootstrap-initial-admin';
 
 async function runFirebaseAuthTests() {
+  process.env.NODE_ENV = 'test';
   console.log('============================================================');
   console.log('TARGETED FIREBASE AUTHENTICATION & SECURITY INVARIANT SUITE');
   console.log('============================================================\n');

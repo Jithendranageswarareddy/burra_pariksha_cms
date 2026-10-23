@@ -1,7 +1,8 @@
 import crypto from 'crypto';
 import { usersRepository } from '../../../../database/firestore/repositories/users.repository';
 import { auditService } from '../../audit/services/audit.service';
-import { getAdminAuth, getAdminApp } from '../../../../database/firestore/adapter/admin';
+import { getAdminAuth, getAdminApp, getActiveDatastoreTarget } from '../../../../database/firestore/adapter/admin';
+import { resolveDatastoreTarget } from '../../../../src/config/datastore-guard';
 import firebaseConfig from '../../../../firebase-applet-config.json';
 import { User } from '../../../../shared';
 
@@ -496,9 +497,15 @@ export class AuthService {
               authenticatedViaFirebase = true;
             } else {
               // In production: FAIL CLOSED!
-              // Legacy password_hash without verified Firebase UID is ONLY permitted in isolated test runtime with explicit opt-in
-              const isTestIsolated = process.env.NODE_ENV === 'test' && AuthService.allowLegacyAuthInTest === true;
-              if (!isTestIsolated) {
+              // Legacy password_hash without verified Firebase UID is ONLY permitted in isolated test runtime with explicit opt-in or verified local emulator in development
+              const target = getActiveDatastoreTarget() || resolveDatastoreTarget();
+              const isTestMode = process.env.NODE_ENV === 'test';
+              const isLocalEmulator = target.mode === 'LOCAL_FIRESTORE_EMULATOR' && !target.isProductionTarget;
+              const isAllowedIsolatedFallback = isTestMode
+                ? AuthService.allowLegacyAuthInTest === true
+                : isLocalEmulator;
+
+              if (!isAllowedIsolatedFallback) {
                 await auditService.log(
                   user.id,
                   user.name,
@@ -531,8 +538,13 @@ export class AuthService {
           }
         } catch {
           // Network exception contacting Firebase
-          const isTestIsolated = process.env.NODE_ENV === 'test' && AuthService.allowLegacyAuthInTest === true;
-          if (!isTestIsolated) {
+          const target = getActiveDatastoreTarget() || resolveDatastoreTarget();
+          const isTestMode = process.env.NODE_ENV === 'test';
+          const isLocalEmulator = target.mode === 'LOCAL_FIRESTORE_EMULATOR' && !target.isProductionTarget;
+          const isAllowedIsolatedFallback = isTestMode
+            ? AuthService.allowLegacyAuthInTest === true
+            : isLocalEmulator;
+          if (!isAllowedIsolatedFallback) {
             return { success: false, error: 'Authentication service temporarily unavailable.' };
           }
         }
@@ -541,8 +553,14 @@ export class AuthService {
       // If not authenticated via Firebase:
       if (!authenticatedViaFirebase) {
         // In production: FAIL CLOSED. No legacy fallback or default passwords allowed.
-        const isTestIsolated = process.env.NODE_ENV === 'test' && AuthService.allowLegacyAuthInTest === true;
-        if (!isTestIsolated) {
+        const target = getActiveDatastoreTarget() || resolveDatastoreTarget();
+        const isTestMode = process.env.NODE_ENV === 'test';
+        const isLocalEmulator = target.mode === 'LOCAL_FIRESTORE_EMULATOR' && !target.isProductionTarget;
+        const isAllowedIsolatedFallback = isTestMode
+          ? AuthService.allowLegacyAuthInTest === true
+          : isLocalEmulator;
+
+        if (!isAllowedIsolatedFallback) {
           return { success: false, error: 'Authentication service unavailable. Please check system configuration.' };
         }
 

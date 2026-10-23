@@ -14,7 +14,7 @@ import { usersRepository } from '../../database/firestore/repositories/users.rep
 import { googleDriveService } from '../infrastructure/services/google-drive.service';
 
 import { validateEnvironmentRuntime } from '../../src/config/env.contract';
-import { assertDatastoreSafe } from '../../src/config/datastore-guard';
+import { assertDatastoreSafe, assertEmulatorAlive } from '../../src/config/datastore-guard';
 
 async function startServer() {
   const app = express();
@@ -46,6 +46,12 @@ async function startServer() {
   console.log(`  database ID: ${datastoreTarget.databaseId}`);
   console.log(`  emulator host: ${datastoreTarget.emulatorHost || 'none (cloud)'}`);
   console.log(`  production target: ${datastoreTarget.isProductionTarget ? 'YES' : 'NO'}`);
+
+  // In local emulator mode, verify the emulator is actually connected before enabling writes or warming repositories
+  if (datastoreTarget.mode === 'LOCAL_FIRESTORE_EMULATOR') {
+    await assertEmulatorAlive(datastoreTarget.emulatorHost || undefined);
+    console.log(`[Datastore Safety] Verified local Firestore Emulator connected at ${datastoreTarget.emulatorHost || '127.0.0.1:8080'}. Development writes isolated.`);
+  }
 
   // Determine port and host from CLI args or environment variables
   const portArgIndex = process.argv.indexOf('--port');
