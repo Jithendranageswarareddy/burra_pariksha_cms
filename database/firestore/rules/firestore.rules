@@ -35,7 +35,7 @@ service cloud.firestore {
     match /audit_logs/{logId} {
       allow read, create: if isBackendGateway();
       allow update: if false;
-      allow delete: if isBackendGateway() && logId.matches("^BP-TEST-.*");
+      allow delete: if false;
     }
 
     match /audit_log/{logId} {
@@ -54,7 +54,7 @@ service cloud.firestore {
       allow read: if isBackendGateway();
       allow create: if isBackendGateway();
       allow update: if false;
-      allow delete: if isBackendGateway() && (historyId.matches("^BP-TEST-.*") || historyId.matches("^wfh_rule_test_.*"));
+      allow delete: if false;
     }
 
     // 2. Transactional Business Collections
