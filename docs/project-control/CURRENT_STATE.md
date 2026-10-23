@@ -2,8 +2,8 @@
 
 **Snapshot date:** 2026-10-24<br/>
 **Evidence source:** Verified repository inspection on branch `main`.<br/>
-**Reviewed HEAD:** `cd4b00e3f58a31f6f05cc9173aea1aee3ff5f77e` (synchronized with `origin/main`).<br/>
-**Latest commit at review:** `docs: add project-control continuity pack and update documentation indexes` (commit `cd4b00e`).<br/>
+**Reviewed baseline HEAD:** `d236820600cdf9037ae33b3f4084db75f11e299c` (synchronized with `origin/main`).<br/>
+**Reviewed baseline commit:** `docs: refresh project continuity status` (commit `d236820`).<br/>
 **Important limitation:** This is a documentation/repository review, not a local runtime test, a live-site test, or a fresh execution of the reported test suites. No repository files, production data, or external systems were changed.
 
 ## 1. What exists already
@@ -25,7 +25,7 @@
 - Repository: `Jithendranageswarareddy/burra_pariksha_cms`.
 - Default branch: `main`.
 - Visibility: public.
-- Current verified commit: `cd4b00e3f58a31f6f05cc9173aea1aee3ff5f77e` (clean working tree, in sync with `origin/main`).
+- Verified repository baseline: `d236820600cdf9037ae33b3f4084db75f11e299c` (clean working tree, in sync with `origin/main`).
 - No root-level `README.md` exists in the repository tree; `docs/README.md` serves as the canonical documentation navigation index and governance source.
 - The `docs/project-control/` directory and continuity files (`MASTER_CONTEXT.md`, `CURRENT_STATE.md`, `CHAT_HANDOVER.md`) are tracked in Git and indexed in `docs/README.md` and `docs/ENGINEERING-INDEX.md`.
 - Historical project-control files exist under `docs/sprints/sprint-04/` (`CURRENT-SPRINT.md`, `PROJECT-CONTROL.md`) and represent point-in-time archived records.
@@ -78,5 +78,6 @@ The reviewed `AGENTS.md` says Firestore is authoritative; Topic → Subtopic is 
 
 ## 8. Change log for this state file
 
+- 2026-10-24: Aligned reviewed baseline to commit `d236820` (`docs: refresh project continuity status`) and clarified wording to distinguish reviewed baseline from future documentation-only updates.
 - 2026-10-24: Updated to reflect continuity-pack commit `cd4b00e`, synchronized workspace state, corrected ADR-013 reference in `docs/README.md`, and marked mode compatibility as explicitly unresolved.
 - 2026-10-24: Initial draft prepared from read-only GitHub/documentation inspection. No code, repository, production data, or external service was modified by the audit.

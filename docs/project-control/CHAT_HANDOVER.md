@@ -1,7 +1,7 @@
 # Burra Pariksha CMS — Chat Handover
 
-**Updated:** 2026-10-24  
-**Verified local & remote HEAD:** `cd4b00e3f58a31f6f05cc9173aea1aee3ff5f77e` (branch `main`, synchronized with `origin/main`).
+**Updated:** 2026-10-24<br/>
+**Verified baseline HEAD:** `d236820600cdf9037ae33b3f4084db75f11e299c` (branch `main`, synchronized with `origin/main`).
 
 ## Resume here
 
@@ -23,7 +23,7 @@ Mode = educational purpose; format = presentation. Keep Topic → Subtopic taxon
 
 ## Current known repository/documentation state
 
-- GitHub `main` and local workspace synchronized at `cd4b00e3f58a31f6f05cc9173aea1aee3ff5f77e`.
+- GitHub `main` and local workspace verified at baseline `d236820600cdf9037ae33b3f4084db75f11e299c`.
 - Active governance structure: `AGENTS.md`, `docs/README.md`, `docs/ENGINEERING-INDEX.md`, `docs/project-control/`, `docs/architecture/` (ADR-001 through ADR-013), `docs/operations/`, `docs/TESTING-GUIDE.md`, and `docs/burrapariksha-content-planning/`.
 - The `docs/project-control/` continuity layer is tracked in Git and indexed in `docs/README.md` and `docs/ENGINEERING-INDEX.md`.
 - Sprint 10 documentation records Modes 2 and 3 as accepted with evidence and ready for manual deployment; these claims represent historical sprint reports and have not been independently tested against live production or rerun in this review.
