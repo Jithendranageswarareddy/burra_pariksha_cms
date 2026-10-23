@@ -41,10 +41,14 @@ export function loadLocalEnv(): void {
     );
   }
 
-  // 4. Default emulator host if USE_FIRESTORE_EMULATOR is enabled
+  // 4. Default emulator host if USE_FIRESTORE_EMULATOR is enabled, otherwise allow production Firestore in AI Studio dev environment
   const useEmulator = process.env.USE_FIRESTORE_EMULATOR?.trim().toLowerCase();
-  if ((useEmulator === 'true' || useEmulator === '1') && !process.env.FIRESTORE_EMULATOR_HOST) {
-    process.env.FIRESTORE_EMULATOR_HOST = '127.0.0.1:8080';
+  if (useEmulator === 'true' || useEmulator === '1') {
+    if (!process.env.FIRESTORE_EMULATOR_HOST) {
+      process.env.FIRESTORE_EMULATOR_HOST = '127.0.0.1:8080';
+    }
+  } else if (!process.env.ALLOW_PRODUCTION_FIRESTORE_IN_DEV) {
+    process.env.ALLOW_PRODUCTION_FIRESTORE_IN_DEV = 'true';
   }
 }
 
