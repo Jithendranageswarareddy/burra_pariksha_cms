@@ -299,3 +299,50 @@ For Git synchronization, follow
 fetch before deciding, never force-push or blindly resolve conflicts, stage only
 task files, and verify `HEAD == origin/main` plus a clean tree after an
 authorized push. Do not overwrite concurrent work.
+
+## 6. Project documentation and task tracking
+
+Documentation concerns are strictly separated:
+
+- **Architecture documents (`docs/architecture/`)**: System design, boundaries,
+  target architecture models, database schemas, API contracts, and ADRs.
+- **Sprint documents (`docs/sprints/`)**: Work breakdown, active scope, milestone
+  goals, and sprint-level retrospective outcomes.
+- **Project task tracking (`docs/project_tracking/`)**: Chronological summaries of
+  actual task execution, verification results, and immediate next actions.
+
+### 6.1 Task tracking files and naming convention
+
+- The initial task tracking file is
+  `docs/project_tracking/project_task_summarie1.md`. Preserve this exact
+  filename.
+- Each tracking file contains at most 100 entries, sequentially numbered from
+  `001` to `100`.
+- When a file reaches 100 entries, start a new numbered summary file following
+  the sequence: `docs/project_tracking/project_task_summarie2.md`,
+  `project_task_summarie3.md`, etc.
+- Do not invent, backfill, or summarize historical tasks retrospectively.
+
+### 6.2 Compact entry format
+
+Every completed or attempted task appends a concise entry using this format:
+
+```markdown
+### [TASK-XXX] YYYY-MM-DD — <Short Task Title>
+
+- **Status**: `COMPLETED` | `PARTIAL` | `BLOCKED` | `NOT COMPLETED`
+- **Objective**: <Concise 1-line summary of requested goal>
+- **Work & Outcome**: <Summary of concrete changes and operational results>
+- **Changed Files**: <List of modified, staged, or created files; commit SHA if committed>
+- **Verification**: <Exact commands executed and evidence-backed results (PASS / FAIL / NOT TESTED)>
+- **Risks & Next Actions**: <Unresolved risks, safe-target caveats, or immediate follow-ups>
+```
+
+### 6.3 Tracking integrity rules
+
+- Record only evidence-backed facts. Never mark a task `COMPLETED` if a command
+  did not finish or assertions failed.
+- Do not copy full logs, paste server secrets, or duplicate architecture or
+  sprint planning documents into task entries.
+- Maintain tracking updates alongside the task diff; stage tracking entries only
+  when the task is verified.

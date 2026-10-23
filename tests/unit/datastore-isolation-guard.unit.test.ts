@@ -342,6 +342,12 @@ async function runDatastoreGuardUnitTests() {
       'purge-test-firestore-records.ts must throw when targeting production'
     );
 
+    assert.throws(
+      () => assertDestructiveScriptSafe('clean-local-data.ts', prodEnv),
+      (err: any) => err instanceof DatastoreIsolationError,
+      'clean-local-data.ts must throw when targeting production'
+    );
+
     pass('Destructive scripts refuse to execute against production targets even with ALLOW_PRODUCTION_FIRESTORE_IN_DEV=true');
   }
 
@@ -362,6 +368,10 @@ async function runDatastoreGuardUnitTests() {
     assert.strictEqual(target.projectId, 'burra-pariksha-test');
     assert.strictEqual(target.databaseId, '(default)');
     assert.strictEqual(target.isProductionTarget, false);
+
+    const cleanTarget = assertDestructiveScriptSafe('clean-local-data.ts', emulatorEnv);
+    assert.strictEqual(cleanTarget.isApproved, true);
+    assert.strictEqual(cleanTarget.mode, 'LOCAL_FIRESTORE_EMULATOR');
 
     pass('Destructive scripts safely execute when targeting valid local emulator');
   }
@@ -405,6 +415,12 @@ async function runDatastoreGuardUnitTests() {
         },
         `Expected assertDestructiveScriptSafe to reject remote emulator host: ${remoteHost}`
       );
+
+      assert.throws(
+        () => assertDestructiveScriptSafe('clean-local-data.ts', remoteEnv),
+        (err: any) => err instanceof DatastoreIsolationError,
+        `Expected clean-local-data.ts to reject remote emulator host: ${remoteHost}`
+      );
     }
 
     pass('Destructive scripts reject remote hostnames, LAN IPs, and non-loopback hosts');
@@ -425,12 +441,22 @@ async function runDatastoreGuardUnitTests() {
       (err: any) => err instanceof DatastoreIsolationError
     );
 
+    assert.throws(
+      () => assertDestructiveScriptSafe('clean-local-data.ts', malformedEnv),
+      (err: any) => err instanceof DatastoreIsolationError
+    );
+
     const missingEnv: NodeJS.ProcessEnv = {
       NODE_ENV: 'development',
     };
 
     assert.throws(
       () => assertDestructiveScriptSafe('purge-test-firestore-records.ts', missingEnv),
+      (err: any) => err instanceof DatastoreIsolationError
+    );
+
+    assert.throws(
+      () => assertDestructiveScriptSafe('clean-local-data.ts', missingEnv),
       (err: any) => err instanceof DatastoreIsolationError
     );
 
@@ -468,8 +494,120 @@ async function runDatastoreGuardUnitTests() {
     pass('Purge logic defaults to non-destructive dry-run and requires explicit execution');
   }
 
+  // Test 17: clean-local-data.ts confirmation gate logic
+  console.log('\n--- Test 17: clean-local-data.ts Confirmation Flag Gate ---');
+  {
+    function checkConfirmation(args: string[]): boolean {
+      return args.includes('--confirm-clean-local');
+    }
+
+    assert.strictEqual(checkConfirmation([]), false, 'Empty args must refuse cleanup');
+    assert.strictEqual(checkConfirmation(['--dry-run']), false, 'Arbitrary args must refuse cleanup');
+    assert.strictEqual(checkConfirmation(['--confirm-clean-local']), true, 'Explicit --confirm-clean-local flag permits operation');
+
+    // Subprocess execution test: verify clean-local-data.ts exits with code 1 before any connection
+    const { spawnSync } = await import('node:child_process');
+    const scriptPath = 'scripts/clean-local-data.ts';
+
+    // 1. Invoking with no arguments must exit code 1 immediately
+    const noArgsResult = spawnSync(process.execPath, ['--import', 'tsx', scriptPath], {
+      encoding: 'utf-8',
+      env: { ...process.env, USE_FIRESTORE_EMULATOR: 'false' }, // ensure prod/cloud default
+    });
+    assert.strictEqual(noArgsResult.status, 1, 'Expected exit code 1 when invoked with no args');
+    assert.ok(
+      noArgsResult.stderr.includes('SAFETY INTERLOCK: LOCAL EMULATOR DATA CLEANUP ABORTED'),
+      `Expected abort notice in stderr, got: ${noArgsResult.stderr}`
+    );
+    assert.ok(
+      noArgsResult.stderr.includes('--confirm-clean-local'),
+      `Expected guidance to specify --confirm-clean-local, got: ${noArgsResult.stderr}`
+    );
+
+    // 2. Invoking with an arbitrary argument must also exit code 1 immediately
+    const arbitraryResult = spawnSync(process.execPath, ['--import', 'tsx', scriptPath, '--dry-run'], {
+      encoding: 'utf-8',
+      env: { ...process.env, USE_FIRESTORE_EMULATOR: 'false' },
+    });
+    assert.strictEqual(arbitraryResult.status, 1, 'Expected exit code 1 when invoked with arbitrary flags');
+    assert.ok(
+      arbitraryResult.stderr.includes('SAFETY INTERLOCK: LOCAL EMULATOR DATA CLEANUP ABORTED')
+    );
+
+    pass('clean-local-data confirmation gate exits before emulator checks, client initialization, or deletion');
+  }
+
+  // Test 18: clean-local-data.ts allowlist enforcement & unknown-collection preservation
+  console.log('\n--- Test 18: clean-local-data.ts Allowlist Enforcement & Unknown-Collection Preservation ---');
+  {
+    const {
+      classifyCollectionsForCleanup,
+      PRESERVED_COLLECTIONS,
+      PURGE_ALLOWLIST_COLLECTIONS,
+      KNOWN_PURGEABLE_COLLECTIONS,
+    } = await import('../../scripts/clean-local-data');
+
+    // 1. Verify baseline collections are in PRESERVED_COLLECTIONS
+    assert.ok(PRESERVED_COLLECTIONS.has('users'), 'users must be in PRESERVED_COLLECTIONS');
+    assert.ok(PRESERVED_COLLECTIONS.has('topics'), 'topics must be in PRESERVED_COLLECTIONS');
+    assert.ok(PRESERVED_COLLECTIONS.has('subtopics'), 'subtopics must be in PRESERVED_COLLECTIONS');
+    assert.ok(PRESERVED_COLLECTIONS.has('question_config'), 'question_config must be in PRESERVED_COLLECTIONS');
+
+    // 2. Verify all known purgeable collections are present in allowlist
+    for (const col of KNOWN_PURGEABLE_COLLECTIONS) {
+      assert.ok(PURGE_ALLOWLIST_COLLECTIONS.has(col), `Known purgeable collection '${col}' must be in allowlist`);
+      assert.ok(!PRESERVED_COLLECTIONS.has(col), `Allowlisted purgeable collection '${col}' must not overlap with preserved baseline`);
+    }
+
+    // 3. Test classification with mixed discovered collections
+    const sampleDiscovered = [
+      'users',
+      'topics',
+      'subtopics',
+      'question_config',
+      'questions',
+      'question_drafts',
+      'audit_logs',
+      'unknown_user_analytics',
+      'external_backups',
+      'billing_records',
+      'unregistered_test_store',
+    ];
+
+    const result = classifyCollectionsForCleanup(sampleDiscovered);
+
+    // Verify preserved baseline
+    assert.deepStrictEqual(
+      result.preservedBaseline.sort(),
+      ['question_config', 'subtopics', 'topics', 'users'].sort(),
+      'Baseline collections must be placed in preservedBaseline'
+    );
+
+    // Verify toPurge contains ONLY allowlisted items
+    assert.deepStrictEqual(
+      result.toPurge.sort(),
+      ['audit_logs', 'question_drafts', 'questions'].sort(),
+      'toPurge must contain only allowlisted collections'
+    );
+
+    // Verify unknown collections are preserved
+    assert.deepStrictEqual(
+      result.preservedUnknown.sort(),
+      ['billing_records', 'external_backups', 'unknown_user_analytics', 'unregistered_test_store'].sort(),
+      'Unknown collections must be placed in preservedUnknown and never purged'
+    );
+
+    // 4. Test with only unknown collections: toPurge must be empty
+    const onlyUnknown = ['random_col_1', 'custom_settings', 'gcs_sync'];
+    const unknownOnlyResult = classifyCollectionsForCleanup(onlyUnknown);
+    assert.strictEqual(unknownOnlyResult.toPurge.length, 0, 'No unknown collection may ever be purged');
+    assert.deepStrictEqual(unknownOnlyResult.preservedUnknown.sort(), onlyUnknown.sort());
+
+    pass('clean-local-data allowlist strictly preserves unknown collections and prevents arbitrary deletion');
+  }
+
   console.log('\n========================================================================');
-  console.log('ALL 16 DATASTORE ISOLATION GUARD UNIT TESTS PASSED 100%');
+  console.log('ALL 18 DATASTORE ISOLATION GUARD UNIT TESTS PASSED 100%');
   console.log('========================================================================\n');
 }
 
