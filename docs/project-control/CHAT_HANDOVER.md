@@ -1,7 +1,7 @@
 # Burra Pariksha CMS — Chat Handover
 
 **Updated:** 2026-10-24  
-**Reviewed remote HEAD:** `82a89eac65713278aa437119449c0533195eb52b` (GitHub `main`). This is not proof of the local workspace's current HEAD or cleanliness.
+**Verified local & remote HEAD:** `cd4b00e3f58a31f6f05cc9173aea1aee3ff5f77e` (branch `main`, synchronized with `origin/main`).
 
 ## Resume here
 
@@ -23,12 +23,11 @@ Mode = educational purpose; format = presentation. Keep Topic → Subtopic taxon
 
 ## Current known repository/documentation state
 
-- GitHub `main` reviewed at `82a89eac65713278aa437119449c0533195eb52b`.
-- Existing governance is substantial: `AGENTS.md`, `docs/README.md`, `docs/ENGINEERING-INDEX.md`, architecture/ADRs, operations, test guide, content-planning docs, and Sprint 10 progress/closure reports.
-- The repository does not currently contain the proposed `docs/project-control/` files as of the reviewed commit. These draft files are a continuity layer, not a replacement for existing authoritative docs.
-- Sprint 10 reports say the three-mode implementation was accepted and ready for manual deployment; this audit did not rerun the reported tests or inspect live behavior.
-- `docs/sprints/sprint-04/CURRENT-SPRINT.md` is stale if interpreted as current project status; preserve it as historical evidence.
-- `docs/README.md` ADR count and `docs/ENGINEERING-INDEX.md` active-sprint pointer appear stale/inconsistent and should be reviewed separately.
+- GitHub `main` and local workspace synchronized at `cd4b00e3f58a31f6f05cc9173aea1aee3ff5f77e`.
+- Active governance structure: `AGENTS.md`, `docs/README.md`, `docs/ENGINEERING-INDEX.md`, `docs/project-control/`, `docs/architecture/` (ADR-001 through ADR-013), `docs/operations/`, `docs/TESTING-GUIDE.md`, and `docs/burrapariksha-content-planning/`.
+- The `docs/project-control/` continuity layer is tracked in Git and indexed in `docs/README.md` and `docs/ENGINEERING-INDEX.md`.
+- Sprint 10 documentation records Modes 2 and 3 as accepted with evidence and ready for manual deployment; these claims represent historical sprint reports and have not been independently tested against live production or rerun in this review.
+- Historical sprint records (such as `docs/sprints/sprint-04/CURRENT-SPRINT.md`) remain preserved for provenance only.
 
 ## Critical unresolved compatibility question
 
@@ -40,4 +39,4 @@ No production data mutation/cleanup, no production testing, no deploy, no publis
 
 ## Next action
 
-Have Antigravity inspect the current local workspace status and add these three continuity documents under `docs/project-control/` only if no conflicting local files exist. Then update `docs/README.md` and/or `docs/ENGINEERING-INDEX.md` only if needed to make the new control entry points discoverable. Documentation-only changes; no application code changes, no test runs that contact external services, no commit, no push, no deploy, no production access or data mutation. Return a concise diff and `git status` for owner review. Do not automatically overwrite this handover with unverified claims; update it at meaningful milestones with evidence.
+The continuity pack is established. The primary open architecture/product item is resolving the canonical content-mode compatibility design (`WORKED_EXAMPLES` versus `EXPLAINED_QUESTIONS_VIDEO`), and declaring the next active sprint or operational phase. Keep implementation changes, migrations, and deployments strictly paused until authorized by the owner.

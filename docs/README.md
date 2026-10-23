@@ -115,7 +115,7 @@ order is defined by [FEATURE-PAGE-CONTRACT-TEMPLATE.md](page-contracts/FEATURE-P
 - [25-IMPLEMENTATION-DEPENDENCY-GRAPH.md](architecture/25-IMPLEMENTATION-DEPENDENCY-GRAPH.md) — Structural dependency DAG across stages.
 - [25-TWO-TIER-TAXONOMY-ARCHITECTURE.md](architecture/25-TWO-TIER-TAXONOMY-ARCHITECTURE.md) — Authoritative Topic → Subtopic 2-tier taxonomy (Category decommissioned).
 - [26-COLLISION-RESISTANT-UUID-CANONICAL-ID-ARCHITECTURE.md](architecture/26-COLLISION-RESISTANT-UUID-CANONICAL-ID-ARCHITECTURE.md) — Distributed UUID-based entity identifiers (`<prefix>_<uuid_v4>`).
-- [DECISION-LOG.md](architecture/DECISION-LOG.md) — Authoritative Architecture Decision Log (ADR-001 through ADR-007).
+- [DECISION-LOG.md](architecture/DECISION-LOG.md) — Authoritative Architecture Decision Log (ADR-001 through ADR-013).
 
 ### 3.2 Operations Runbooks & Protocols (`docs/operations/`)
 - [ENVIRONMENT-CONTRACT.md](operations/ENVIRONMENT-CONTRACT.md) — Canonical 8 production secrets and runtime environment variable topology.

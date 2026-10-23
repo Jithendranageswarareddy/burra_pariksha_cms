@@ -1,9 +1,9 @@
 # Burra Pariksha CMS — Current State
 
-**Snapshot date:** 2026-10-24  
-**Evidence source:** Read-only GitHub review of `Jithendranageswarareddy/burra_pariksha_cms`, branch `main`.  
-**Reviewed HEAD:** `82a89eac65713278aa437119449c0533195eb52b`  
-**Latest commit at review:** `docs: add burra pariksha canonical content modes specification to docs README` (2026-10-23T18:48:18Z).  
+**Snapshot date:** 2026-10-24<br/>
+**Evidence source:** Verified repository inspection on branch `main`.<br/>
+**Reviewed HEAD:** `cd4b00e3f58a31f6f05cc9173aea1aee3ff5f77e` (synchronized with `origin/main`).<br/>
+**Latest commit at review:** `docs: add project-control continuity pack and update documentation indexes` (commit `cd4b00e`).<br/>
 **Important limitation:** This is a documentation/repository review, not a local runtime test, a live-site test, or a fresh execution of the reported test suites. No repository files, production data, or external systems were changed.
 
 ## 1. What exists already
@@ -13,7 +13,7 @@
 - `AGENTS.md` is the main engineering execution and production-safety policy.
 - `docs/README.md` is the documentation architecture/navigation index and defines authority boundaries.
 - `docs/ENGINEERING-INDEX.md` is the engineering-focused index for architecture, testing, environment, Git, and sprint documents.
-- `docs/architecture/DECISION-LOG.md` records ADR-001 through ADR-013 in the version reviewed.
+- `docs/architecture/DECISION-LOG.md` records ADR-001 through ADR-013 in the verified repository.
 - `docs/operations/GIT-SYNC-PROTOCOL.md` defines Git synchronization rules.
 - `docs/TESTING-GUIDE.md` describes the repository's test-command selection and isolation rules.
 - `docs/burrapariksha-content-planning/01-content-excellence-baseline.md` contains the editorial and product foundation.
@@ -25,11 +25,10 @@
 - Repository: `Jithendranageswarareddy/burra_pariksha_cms`.
 - Default branch: `main`.
 - Visibility: public.
-- Reviewed commit: `82a89eac65713278aa437119449c0533195eb52b`.
-- Recursive tree contained 1,176 entries at that commit.
-- No root-level `README.md` appeared in the tree; `docs/README.md` exists.
-- Existing project-control-like files include the old Sprint 4 `CURRENT-SPRINT.md` and `PROJECT-CONTROL.md`, plus Sprint 10's execution progress and closure report.
-- No `docs/project-control/` directory or `MASTER_CONTEXT.md`, `CURRENT_STATE.md`, or `CHAT_HANDOVER.md` was found in the reviewed tree.
+- Current verified commit: `cd4b00e3f58a31f6f05cc9173aea1aee3ff5f77e` (clean working tree, in sync with `origin/main`).
+- No root-level `README.md` exists in the repository tree; `docs/README.md` serves as the canonical documentation navigation index and governance source.
+- The `docs/project-control/` directory and continuity files (`MASTER_CONTEXT.md`, `CURRENT_STATE.md`, `CHAT_HANDOVER.md`) are tracked in Git and indexed in `docs/README.md` and `docs/ENGINEERING-INDEX.md`.
+- Historical project-control files exist under `docs/sprints/sprint-04/` (`CURRENT-SPRINT.md`, `PROJECT-CONTROL.md`) and represent point-in-time archived records.
 
 ## 2. Current product decisions
 
@@ -47,8 +46,8 @@ The current specification permits one or more worked problems; Sprint 10's repor
 ## 4. Staleness and documentation risks observed
 
 1. `docs/sprints/sprint-04/CURRENT-SPRINT.md` and `PROJECT-CONTROL.md` still describe Sprint 4 as current. They are historical records by location and must not be mistaken for today's project status.
-2. `docs/ENGINEERING-INDEX.md` says Sprint 9 is the active sprint for in-scope work, while Sprint 10 progress/closure files exist and claim Sprint 10 is accepted. Clarify the current project phase in a new control document rather than silently rewriting immutable sprint history.
-3. `docs/README.md` describes the architecture decision log as ADR-001 through ADR-007 in one place, while the actual reviewed decision log includes ADR-001 through ADR-013. This is an index-maintenance discrepancy to consider fixing separately.
+2. `docs/ENGINEERING-INDEX.md` line 18 points to `sprints/sprint-09/` as active sprint requirements. Sprint 10 documentation reports Sprint 10 as completed/closed (`S10-GATE-CLOSURE-REPORT.md`). No subsequent active sprint (such as Sprint 11) is currently declared. In accordance with governance rules, no active sprint is inferred without an authoritative Project Owner directive.
+3. `docs/README.md` previously described the architecture decision log as ADR-001 through ADR-007; this was corrected in `docs/README.md` line 118 to ADR-001 through ADR-013 matching `DECISION-LOG.md`.
 4. Sprint 10's progress and closure reports claim tests and gates passed. This review did not rerun them; record them as documented claims, not independently reverified test results.
 5. The repository's GitHub tree reports no root `README.md`; the main documentation entry point is `docs/README.md`.
 
@@ -73,12 +72,11 @@ The reviewed `AGENTS.md` says Firestore is authoritative; Topic → Subtopic is 
 
 ## 7. Open questions / next verification
 
-1. Confirm actual current local workspace status before implementation: branch, HEAD, working tree, and divergence from `origin/main`. This cannot be established from GitHub's remote tree alone.
-2. Decide whether a small `docs/project-control/` layer is accepted. Proposed files: `MASTER_CONTEXT.md`, `CURRENT_STATE.md`, and `CHAT_HANDOVER.md`; keep the roadmap in existing sprint/backlog documents until a genuine gap is established.
-3. In a separate, explicitly scoped task, audit the `docs/README.md` ADR count and the engineering index's active-sprint reference.
-4. Keep the `WORKED_EXAMPLES` ↔ `EXPLAINED_QUESTIONS_VIDEO` compatibility decision separate from continuity-document setup.
-5. Before code work, verify relevant code and tests against the exact current local commit; do not infer runtime state from documentation alone.
+1. **Active Sprint Status**: Authoritative evidence does not declare a currently active sprint (Sprint 10 closed, no Sprint 11 established). The active sprint pointer in `docs/ENGINEERING-INDEX.md` should be formally designated by the Project Owner.
+2. **Content Mode Compatibility**: The `WORKED_EXAMPLES` ↔ `EXPLAINED_QUESTIONS_VIDEO` compatibility decision remains explicitly unresolved pending owner authorization. Do not rename identifiers, change accepted batch sizes, migrate data, or alter tests prematurely.
+3. **Local Runtime Verification**: When live or emulator-based testing is explicitly authorized, verify against the exact local commit and report actual test results.
 
 ## 8. Change log for this state file
 
+- 2026-10-24: Updated to reflect continuity-pack commit `cd4b00e`, synchronized workspace state, corrected ADR-013 reference in `docs/README.md`, and marked mode compatibility as explicitly unresolved.
 - 2026-10-24: Initial draft prepared from read-only GitHub/documentation inspection. No code, repository, production data, or external service was modified by the audit.
