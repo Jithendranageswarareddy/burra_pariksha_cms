@@ -365,31 +365,33 @@ export function requireCapability(
         return;
       }
 
-      const userState = usersRepository.getUserSessionState(payload.userId);
-      if (userState) {
-        if (!userState.isActive || (payload.sessionVersion ?? 1) < userState.sessionVersion) {
-          const errEnvelope = createErrorResponse(
-            ApiErrorCode.UNAUTHENTICATED,
-            'Invalid or expired session.',
-            requestId
-          );
-          res.status(401).json({
-            ...errEnvelope,
-            message: 'Invalid or expired session.',
-          });
-          return;
-        }
+      // This middleware is an authorization boundary. Unlike requireAuth, it may be
+      // entered directly by a route, so always resolve current user state on cache miss
+      // and fail closed when an authoritative account record cannot be found.
+      let userState: UserSessionState | null;
+      try {
+        userState = await usersRepository.getAuthoritativeUserSessionState(payload.userId);
+      } catch {
+        userState = null;
       }
 
-      const rolesList: string[] = [];
-      if (Array.isArray((payload as any).roles)) {
-        (payload as any).roles.forEach((r: any) => r && rolesList.push(String(r).trim()));
+      if (!userState || !userState.isActive || (payload.sessionVersion ?? 1) < userState.sessionVersion) {
+        const errEnvelope = createErrorResponse(
+          ApiErrorCode.UNAUTHENTICATED,
+          'Invalid or expired session.',
+          requestId
+        );
+        res.status(401).json({
+          ...errEnvelope,
+          message: 'Invalid or expired session.',
+        });
+        return;
       }
-      if (rolesList.length === 0 && payload.role) {
-        String(payload.role).split(',').forEach((r) => r.trim() && rolesList.push(r.trim()));
-      }
-      const authoritativeRoles = userState?.roles && userState.roles.length > 0 ? userState.roles : rolesList;
-      const authoritativeRole = userState?.role || payload.role || authoritativeRoles[0] || 'QUESTION_AUTHOR';
+
+      const authoritativeRoles = userState.roles && userState.roles.length > 0
+        ? userState.roles
+        : [userState.role];
+      const authoritativeRole = userState.role || authoritativeRoles[0] || 'QUESTION_AUTHOR';
 
       req.user = {
         id: payload.userId,
