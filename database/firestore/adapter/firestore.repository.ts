@@ -303,8 +303,18 @@ export class FirestoreRepository<T extends BaseEntity> implements IRepository<T>
         }
       }
 
-      if (options?.limit) {
-        q = q.limit(options.limit);
+      // Apply ordering in Firestore so result order is stable before pagination.
+      if (options?.orderBy) {
+        q = q.orderBy(String(options.orderBy.field), options.orderBy.direction);
+      }
+
+      // offset and limit are applied by Firestore rather than after reading all rows.
+      // Keep the existing post-query soft-delete filter for documents with legacy shapes.
+      if (options?.offset && options.offset > 0) {
+        q = q.offset(Math.floor(options.offset));
+      }
+      if (options?.limit !== undefined && options.limit > 0) {
+        q = q.limit(Math.floor(options.limit));
       }
 
       const snap = await q.get();
@@ -322,16 +332,6 @@ export class FirestoreRepository<T extends BaseEntity> implements IRepository<T>
         list = list.filter((e: any) =>
           whereEntries.every(([k, v]) => v === undefined || e[k] === v)
         );
-      }
-
-      if (options?.orderBy) {
-        const { field, direction } = options.orderBy;
-        const factor = direction === 'desc' ? -1 : 1;
-        list.sort((a: any, b: any) => {
-          if (a[field] < b[field]) return -1 * factor;
-          if (a[field] > b[field]) return 1 * factor;
-          return 0;
-        });
       }
 
       return list;
