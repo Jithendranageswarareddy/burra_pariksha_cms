@@ -12,6 +12,7 @@ The BP-CMS documentation is organized into clear, purpose-driven directories:
 docs/
 ├── README.md             # Canonical documentation navigation index & governance rules
 ├── architecture/         # Current, authoritative system architecture, models, and ADRs
+├── burrapariksha-content-planning/ # Canonical content excellence baseline & planning
 ├── features/             # Current feature contracts (FC-001 through FC-022) & index
 ├── operations/           # Environment contracts, Git sync protocols, and developer runbooks
 ├── api/                  # Canonical API specifications & usage documentation (target location)
@@ -29,6 +30,7 @@ docs/
 | Directory | Authority Level | Primary Responsibility |
 | :--- | :--- | :--- |
 | `docs/architecture/` | **Authoritative (Current)** | System boundary, domain models, 15-step workflow, database architecture, security, state models, UUID entity IDs, 2-tier taxonomy, and ADRs. |
+| `docs/burrapariksha-content-planning/` | **Authoritative (Current)** | Canonical product, editorial, audience-insight, and AI foundation; canonical content modes (`TOPIC_INTRODUCTION`, `WORKED_EXAMPLES`, `QUESTION_CHALLENGE_SHORT`). |
 | `docs/features/` | **Authoritative (Current)** | Feature contracts (`FC-001` through `FC-022`) governing behavioral invariants, stage logic, and cross-stage contracts. |
 | `docs/operations/` | **Authoritative (Current)** | Runtime environment secrets, configuration contracts, Git synchronization protocols, and developer workstation procedures. |
 | `docs/api/` | **Authoritative (Current)** | REST API endpoint contracts, request/response payload schemas, and client usage guides (backed by `architecture/15-API-CONTRACT.md`). |
@@ -71,6 +73,7 @@ When observed runtime behavior or codebase patterns conflict with intended archi
 ### Future Documentation Policy
 - **New Architecture & ADRs**: Place in `docs/architecture/` using the sequential numbering format or descriptive ADR format.
 - **New Feature Specifications**: Place in `docs/features/` with corresponding `FC-###` identifiers.
+- **New Product & Content Baselines**: Place in `docs/burrapariksha-content-planning/`.
 - **New Operational Runbooks**: Place in `docs/operations/`.
 - **New Sprint Deliverables / Task Reports**: Place under the designated sprint directory in `docs/sprints/sprint-XX/`.
 
@@ -121,6 +124,9 @@ order is defined by [FEATURE-PAGE-CONTRACT-TEMPLATE.md](page-contracts/FEATURE-P
 - Stage Foundation Contracts: `FC-001` (Identity), `FC-002` (RBAC), `FC-003` (Database API), `FC-004` (Audit), `FC-005` (Workflow Engine).
 - Production Stage Contracts: `FC-006` (Question Studio) through `FC-016` (Platform Release Sync).
 - System Infrastructure Contracts: `FC-017` (Job Queue) through `FC-022` (Strangler Migration).
+
+### 3.4 Product and Content Principles (`docs/burrapariksha-content-planning/`)
+- [01-content-excellence-baseline.md](burrapariksha-content-planning/01-content-excellence-baseline.md) — **Burra Pariksha Content Excellence Baseline**: Canonical product, editorial, audience-insight, AI, quality, and governance foundation for future CMS development. Governs canonical content modes (`TOPIC_INTRODUCTION`, `WORKED_EXAMPLES`, `QUESTION_CHALLENGE_SHORT`), comment-first qualitative intelligence, correctness pre-publication quality gates, and 25 non-negotiable principles.
 
 ---
 
