@@ -52,6 +52,11 @@ export interface LearningSequencePage {
   totalPages: number;
 }
 
+const normalizeContentMode = (mode: string | undefined): string | undefined => {
+  const normalized = mode?.trim().toUpperCase();
+  return normalized === 'EXPLAINED_QUESTIONS_VIDEO' ? 'WORKED_EXAMPLES' : normalized;
+};
+
 export type LearningUnitDraftArtifact = Pick<
   QuestionDraft,
   | 'id'
@@ -179,10 +184,9 @@ export class LearningUnitArtifactsService {
     const modeOrder = new Map([
       ['TOPIC_INTRODUCTION', 0],
       ['WORKED_EXAMPLES', 1],
-      ['EXPLAINED_QUESTIONS_VIDEO', 1],
       ['QUESTION_CHALLENGE_SHORT', 2],
     ]);
-    const normalizedMode = filters.mode?.trim().toUpperCase();
+    const normalizedMode = normalizeContentMode(filters.mode);
     const normalizedFormat = filters.format?.trim().toUpperCase();
     const normalizedStatus = filters.status?.trim().toUpperCase();
     const artifacts: LearningSequenceArtifact[] = [
@@ -220,12 +224,12 @@ export class LearningUnitArtifactsService {
         source,
       })),
     ]
-      .filter((artifact) => !normalizedMode || artifact.mode?.toUpperCase() === normalizedMode)
+      .filter((artifact) => !normalizedMode || normalizeContentMode(artifact.mode) === normalizedMode)
       .filter((artifact) => !normalizedFormat || artifact.format?.toUpperCase() === normalizedFormat)
       .filter((artifact) => !normalizedStatus || artifact.status?.toUpperCase() === normalizedStatus)
       .sort((left, right) =>
-        (modeOrder.get(left.mode?.toUpperCase() || '') ?? 99) -
-          (modeOrder.get(right.mode?.toUpperCase() || '') ?? 99) ||
+        (modeOrder.get(normalizeContentMode(left.mode) || '') ?? 99) -
+          (modeOrder.get(normalizeContentMode(right.mode) || '') ?? 99) ||
         (left.createdAt || '').localeCompare(right.createdAt || '') ||
         left.id.localeCompare(right.id)
       );

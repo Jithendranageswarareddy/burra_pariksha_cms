@@ -36,6 +36,13 @@ export const LearningUnitPlanningFilterSchema = z.object({
   primaryFormat: z.string().optional(),
 });
 
+export const EditorialCalendarFilterSchema = LearningUnitPlanningFilterSchema.extend({
+  mode: z.string().optional(),
+  status: z.string().optional(),
+  page: z.coerce.number().int().positive().optional(),
+  limit: z.coerce.number().int().positive().max(100).optional(),
+});
+
 export type CreateLearningUnitPlanningRequest = z.infer<typeof CreateLearningUnitPlanningRequestSchema>;
 export type UpdateLearningUnitPlanningRequest = z.infer<typeof UpdateLearningUnitPlanningRequestSchema>;
 export type SubmitLearningUnitForVerificationRequest = z.infer<typeof SubmitLearningUnitForVerificationRequestSchema>;

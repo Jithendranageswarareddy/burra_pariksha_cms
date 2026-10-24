@@ -25,6 +25,7 @@ export {
   UpdateLearningUnitPlanningRequestSchema,
   SubmitLearningUnitForVerificationRequestSchema,
   LearningUnitPlanningFilterSchema,
+  EditorialCalendarFilterSchema,
 } from '../../../shared/contracts/learning-unit-planning.contract';
 
 // ============================================================================

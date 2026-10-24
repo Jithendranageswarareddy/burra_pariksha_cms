@@ -82,6 +82,7 @@ import {
   UpdateLearningUnitPlanningRequestSchema,
   SubmitLearningUnitForVerificationRequestSchema,
   LearningUnitPlanningFilterSchema,
+  EditorialCalendarFilterSchema,
 } from '../validation/request-schemas';
 import { socialCommentsService } from '../../features/analytics/services/social-comments.service';
 import { commentIntelligenceService } from '../../features/analytics/services/comment-intelligence.service';
@@ -4811,6 +4812,16 @@ apiRouter.get('/planning/learning-units', requireAuth, async (req: Request, res:
   }
 });
 
+apiRouter.get('/planning/editorial-calendar', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const parsed = EditorialCalendarFilterSchema.parse(req.query);
+    const calendar = await learningUnitPlanningService.listEditorialCalendar(parsed as any);
+    res.json(createSuccessResponse(calendar, (req.headers['x-request-id'] as string) || `req_${Date.now()}`));
+  } catch (err) {
+    next(err);
+  }
+});
+
 apiRouter.get('/planning/learning-units/:id', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const learningUnit = await learningUnitPlanningService.get(req.params.id);
@@ -8195,8 +8206,6 @@ apiRouter.get('/copilot/suggestion/:suggestionId', requireAuth, async (req: Requ
 
 // Universal API Error Handling Middleware (FC-003)
 apiRouter.use(globalErrorHandler);
-
-
 
 
 

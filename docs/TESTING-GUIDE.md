@@ -110,3 +110,13 @@ contacting Firestore or external services. The deterministic test covers the
 preferred Intro -> Worked Examples -> Challenge ordering, artifacts with no
 mode, alternate-format filtering, and bounded page metadata. The sequence API
 is read-only and reuses the existing LearningUnit ownership/status validation.
+
+### S14-T02 editorial calendar
+
+Run `npm run test:s14-t02` to verify the operational calendar projection with
+Topic, Subtopic, mode, format, audience, and planning-status filters. The test
+also verifies legacy `EXPLAINED_QUESTIONS_VIDEO` normalization to
+`WORKED_EXAMPLES`, deterministic ordering, pagination, and omission of OCC and
+author metadata. The protected `GET /planning/editorial-calendar` endpoint
+reads existing LearningUnit planning records and does not create calendar
+records or alter workflow state.

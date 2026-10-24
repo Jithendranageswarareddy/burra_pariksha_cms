@@ -395,3 +395,12 @@ Chronological record of actual task executions in accordance with [AGENTS.md](..
 - **Changed Files**: `backend/features/planning/services/learning-unit-artifacts.service.ts`, `backend/infrastructure/services/index.ts`, `backend/server/routers/routes.ts`, `tests/unit/core-requirements/s14-t01-learning-sequence.unit.test.ts`, `package.json`, `docs/TESTING-GUIDE.md`
 - **Verification**: `npm run test:s14-t01` PASS; `npm run test:s11-unit` PASS; S12-T01 through S12-T06 PASS; S13-T01 through S13-T06 PASS; `npm run build` PASS; `git diff --check` PASS. `npm run lint` remains blocked by the pre-existing `googleapis` `containeranalysis/v1.d.ts(1450,48): TS1010` declaration error.
 - **Risks & Next Actions**: No emulator or provider integration was needed for this read-only unit scope. S14-T02 is next once this commit is synchronized.
+
+### [S14-T02] 2026-10-24 — Add lightweight editorial calendar view
+
+- **Status**: `COMPLETED`
+- **Objective**: Provide a filtered operational editorial planning view using existing LearningUnit concepts.
+- **Work & Outcome**: Added the protected `GET /planning/editorial-calendar` API and a repository-backed planning projection supporting Topic, Subtopic, mode, format, audience, status, and bounded pagination filters. Canonicalized legacy `EXPLAINED_QUESTIONS_VIDEO` to `WORKED_EXAMPLES` in both calendar output and the S14-T01 sequence filter, without adding persistence, dates, workflow states, or recommendation behavior.
+- **Changed Files**: `backend/features/planning/services/learning-unit-planning.service.ts`, `backend/features/planning/services/learning-unit-artifacts.service.ts`, `backend/server/routers/routes.ts`, `backend/server/validation/request-schemas.ts`, `shared/contracts/learning-unit-planning.contract.ts`, `tests/unit/core-requirements/s14-t01-learning-sequence.unit.test.ts`, `tests/unit/core-requirements/s14-t02-editorial-calendar.unit.test.ts`, `package.json`, `docs/TESTING-GUIDE.md`
+- **Verification**: `npm run test:s14-t01` PASS; `npm run test:s14-t02` PASS; `npm run test:s11-unit` PASS; S13-T01, S13-T04, and S13-T05 PASS; build PASS; `git diff --check` PASS. Lint/type-check remains blocked by the pre-existing `googleapis` `containeranalysis/v1.d.ts(1450,48): TS1010` declaration error.
+- **Risks & Next Actions**: No emulator, cloud, Drive, AI, or production integration was run because this is a deterministic read-only projection. S14-T03 is next and remains gated on an approved correction-review model.
