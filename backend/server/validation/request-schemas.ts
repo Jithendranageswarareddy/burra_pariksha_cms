@@ -52,6 +52,7 @@ export type QuestionConfigEntryZodInput = z.infer<typeof QuestionConfigEntryZodS
 
 const QuestionInputBaseSchema = z.object({
   id: z.string().optional(),
+  learningUnitId: z.string().optional(),
   contentId: z.string().optional(),
   contentMasterId: z.string().optional(),
   topicId: z.string().min(1, 'Topic ID is required'),
@@ -182,6 +183,7 @@ export type QuestionFilterInput = z.infer<typeof QuestionFilterSchema>;
 
 export const QueueVideoInputSchema = z.object({
   questionId: z.string().min(1, 'Question ID is required'),
+  learningUnitId: z.string().optional(),
   title: z.string().optional(),
   priority: z.nativeEnum(PriorityLevel).optional().default(PriorityLevel.NORMAL),
   assignedHost: z.string().optional(),

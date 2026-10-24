@@ -101,6 +101,7 @@ import { videoService } from '../../production/services/video.service';
 import { QuestionCreationRequestPayload, QuestionCreationValidator } from '../../../ai/validators';
 import { smartRandomService } from '../../../infrastructure/services/smart-random.service';
 import { questionConfigService } from '../../../infrastructure/services/question-config.service';
+import { validateLearningUnitLink } from '../../planning/services/learning-unit-link.service';
 
 export class QuestionService {
   private static instance: QuestionService | null = null;
@@ -154,6 +155,7 @@ export class QuestionService {
       source: (payload.source || '').trim(),
       subtopicId: (payload.subtopicId || '').trim(),
       tags,
+      learningUnitId: (payload.learningUnitId || '').trim(),
       topicId: (payload.topicId || '').trim(),
     };
 
@@ -297,6 +299,7 @@ export class QuestionService {
     input: CreateQuestionInput,
     actor: { id: string; name: string; role?: string | UserRole } = { id: 'USR-001', name: 'Admin / Content Lead', role: UserRole.ADMIN }
   ): Promise<Question> {
+    await validateLearningUnitLink(requestPayload.learningUnitId, actor);
     // Extract idempotencyKey and optional fields from raw input before Zod stripping
     const rawInput = (input && typeof input === 'object') ? (input as any) : {};
     const rawIdempotencyKey = rawInput.idempotencyKey;
@@ -307,6 +310,7 @@ export class QuestionService {
     // 2. Map normalized input to QuestionCreationRequestPayload
     const payload: QuestionCreationRequestPayload = {
       creationMode: 'manual',
+      learningUnitId: (validatedInput as any).learningUnitId,
       topicId: validatedInput.topicId,
       subtopicId: validatedInput.subtopicId,
       difficulty: validatedInput.difficulty,
@@ -534,6 +538,7 @@ export class QuestionService {
     // Pre-validation check: run MultiLayerVerificationEngine before allocating permanent IDs
     const preSaveQuestion: Question = {
       id: 'PRE-SAVE-CHECK',
+      learningUnitId: requestPayload.learningUnitId,
       contentId: '',
       contentMasterId: '',
       topicId: topic.id,
@@ -1122,4 +1127,3 @@ export class QuestionService {
 }
 
 export const questionService = QuestionService.getInstance();
-

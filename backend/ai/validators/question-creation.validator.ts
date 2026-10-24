@@ -15,6 +15,8 @@ import {
 
 export interface QuestionCreationRequestPayload {
   creationMode: 'manual' | 'ai';
+  /** Optional relationship to the authoritative, submitted LearningUnit. */
+  learningUnitId?: string;
   topicId: string;
   subtopicId: string;
   difficulty: string;

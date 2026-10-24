@@ -37,6 +37,7 @@ import {
   VideoFilterInput,
 } from '../../../server/validation/request-schemas';
 import { ReferenceIntegrityError, ValidationError } from '../../../../src/lib/errors';
+import { validateLearningUnitLink } from '../../planning/services/learning-unit-link.service';
 
 /**
  * Strict legal state machine transitions for Burra Pariksha video production.
@@ -166,6 +167,7 @@ export class VideoService {
   public async queueApprovedQuestion(
     input: {
       questionId: string;
+      learningUnitId?: string;
       title?: string;
       priority?: PriorityLevel;
       assignedHost?: string;
@@ -196,6 +198,14 @@ export class VideoService {
         entityType: 'QUESTION',
         entityId: questionId,
       });
+    }
+
+    const requestedLearningUnitId = input.learningUnitId || question.learningUnitId;
+    const learningUnit = await validateLearningUnitLink(requestedLearningUnitId, actor);
+    if (input.learningUnitId && input.learningUnitId !== question.learningUnitId) {
+      throw new ValidationError(
+        `LearningUnit "${input.learningUnitId}" does not match the source question's persisted LearningUnit relationship.`
+      );
     }
 
     // 1B. Validate Content ID correlation if explicitly provided
@@ -272,6 +282,7 @@ export class VideoService {
 
     const newVideo: Video = {
       id: videoId,
+      learningUnitId: learningUnit?.id,
       contentId: question.contentId || contentMasterId,
       contentMasterId,
       questionId: question.id,

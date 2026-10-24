@@ -387,6 +387,8 @@ export function evaluateStep01CandidateState({
  */
 export interface SaveQuestionDraftInput {
   id?: string;
+  /** Optional relationship to the authoritative, submitted LearningUnit. */
+  learningUnitId?: string;
   topicId: string;
   topicName?: string;
   subtopicId: string;

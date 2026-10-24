@@ -16,6 +16,8 @@ import { QuestionCandidate } from '../types/question';
 
 export interface CreateQuestionInput {
   id?: string;
+  /** Optional relationship to the authoritative, submitted LearningUnit. */
+  learningUnitId?: string;
   contentId?: string;
   contentMasterId?: string;
   topicId: string;

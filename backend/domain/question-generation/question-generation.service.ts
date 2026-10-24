@@ -51,6 +51,7 @@ import { auditService } from '../../infrastructure/audit/services/audit.service'
 import { questionService } from '../../features/question-generation/services/question.service';
 import { type AdministrativeOverrideContext, resolveBrownfieldRole } from '../../../src/types/rbac-models';
 import { CanonicalRbacRole } from '../../../shared';
+import { validateLearningUnitLink } from '../../features/planning/services/learning-unit-link.service';
 import { AIOrchestrator, OrchestratorOptions } from '../../ai/orchestrator';
 import { AIProviderError } from '../../ai/errors';
 
@@ -728,6 +729,7 @@ export class QuestionGenerationService {
     input: SaveQuestionDraftInput,
     actor: { id: string; name: string } = { id: 'USR-001', name: 'Author' }
   ): Promise<QuestionDraft> {
+    await validateLearningUnitLink(input.learningUnitId, actor);
     const mode = input.productionMode as ContentProductionMode | undefined;
     if (mode) {
       const count = input.targetQuestionCount !== undefined
@@ -818,6 +820,7 @@ export class QuestionGenerationService {
 
     const draft: QuestionDraft = {
       id: draftId,
+      ...(input.learningUnitId ? { learningUnitId: input.learningUnitId } : {}),
       topicId: input.topicId,
       topicName: input.topicName || topic?.name,
       subtopicId: input.subtopicId,
@@ -1460,6 +1463,8 @@ export class QuestionGenerationService {
       {
         creationMode: 'ai',
         idempotencyKey: `draft-approval-${draft.id}`,
+        // Preserve the validated draft relationship when materializing Stage 02.
+        learningUnitId: draft.learningUnitId,
         topicId: draft.topicId,
         subtopicId: draft.subtopicId,
         difficulty: draft.difficulty as any,
