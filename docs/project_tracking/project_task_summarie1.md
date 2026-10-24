@@ -99,5 +99,30 @@ Chronological record of actual task executions in accordance with [AGENTS.md](..
   - `npm run lint` (`tsc --noEmit`) — `PASS` (clean exit 0)
   - `git diff --check` — `PASS` (clean exit 0, no whitespace or formatting errors)
 - **Risks & Next Actions**:
-  - Google AI Studio container memory limits under high build concurrency should be observed during first manual console release.
+  - Risks: Google AI Studio container memory limits under high build concurrency should be observed during first manual console release.
   - Next action: Proceed to Sprint 11 planning or task execution upon owner instruction.
+
+---
+
+### Architecture / Planning — 2026-10-24 — Core Requirements Audit and Development Planning
+
+- **Status**: `COMPLETED`
+- **Objective**: Audit application against `bp_cms_core_requirements1.md`, reconcile architecture decisions (ADR-015), establish requirements-driven development plan across Days 1–30/31–60/61–90, and select the first implementation task.
+- **Work & Outcome**:
+  - Performed comprehensive requirement-by-requirement audit across all 13 sections of `bp_cms_core_requirements1.md` (Audit matrix: 1 Implemented, 9 Partial, 5 Missing, 1 Aligned).
+  - Identified critical gaps: missing Verified Learning Unit (`learning_units` collection), missing 5 presentation formats decoupling (`TEXT`, `VIDEO`, `AUDIO`, `IMAGE`, `ANIMATION`), and naming/order divergence for canonical modes (`WORKED_EXAMPLES` aliased by legacy `EXPLAINED_QUESTIONS_VIDEO`).
+  - Adopted ADR-015 in `docs/architecture/DECISION-LOG.md` formalizing canonical mode alignment, backward-compatible runtime alias, learning unit entity, and format decoupling.
+  - Reconciled and updated `docs/architecture/CORE-ARCHITECTURE-PROPOSAL.md` incorporating the full audit matrix, architectural decisions, and prioritized requirements-driven development plan.
+  - Selected `S11-T01` (Core Requirements Architecture Decision & Schema Contract) as the authoritative first implementation task based on audit evidence.
+- **Changed Files**:
+  - `docs/BP_CMS_CORE_REQUIREMENTS/bp_cms_core_requirements1.md`
+  - `docs/architecture/CORE-ARCHITECTURE-PROPOSAL.md`
+  - `docs/architecture/DECISION-LOG.md`
+  - `docs/project_tracking/project_task_summarie1.md`
+- **Verification**:
+  - `git pull origin main` — `PASS` (clean sync)
+  - `npm run lint` (`tsc --noEmit`) — `PASS` (clean exit 0)
+  - `git diff --check` — `PASS` (clean exit 0)
+- **Risks & Next Actions**:
+  - Learning Unit introduction must maintain strict backward compatibility with existing standalone question drafts and videos.
+  - Next action: Proceed with Sprint 11 Task 01 (`S11-T01`) to implement schema contracts.

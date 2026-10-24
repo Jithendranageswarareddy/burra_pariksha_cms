@@ -1,323 +1,197 @@
-# BURRA PARIKSHA CMS — CORE ARCHITECTURE PROPOSAL & RECONCILIATION
+# BURRA PARIKSHA CMS — CORE ARCHITECTURE PROPOSAL & REQUIREMENTS RECONCILIATION
 
-**Document Identifier:** `docs/architecture/CORE-ARCHITECTURE-PROPOSAL.md`  
-**Status:** ACTIVE MASTER ARCHITECTURE PROPOSAL  
-**Author:** Antigravity Engineering (SDLC Core Architecture Phase)  
-**Governance:** [AGENTS.md](../../AGENTS.md), [04-ARCHITECTURE-PRINCIPLES.md](04-ARCHITECTURE-PRINCIPLES.md), [DECISION-LOG.md](DECISION-LOG.md)  
-**Target Environments:** Local Development Workspace & Google AI Studio Applet Production Runtime  
-
----
-
-## EXECUTIVE SUMMARY & GOVERNANCE OBJECTIVE
-
-This document unifies, reconciles, and formalizes the core technical architecture of the **Burra Pariksha Content Management System (BP-CMS)** across its 15-stage educational content manufacturing pipeline. It establishes the authoritative **Local-to-Deployment Architecture Principle (Principle 16 / ADR-014)**, reconciles existing modular architecture documents (`04-ARCHITECTURE-PRINCIPLES.md` through `27-DEPENDENCY-BOUNDARIES.md`), distinguishes empirically verified repository facts from external deployment assumptions, and provides the authoritative foundation for upcoming sprint execution.
+**Document Path:** `docs/architecture/CORE-ARCHITECTURE-PROPOSAL.md`
+**SDLC Stage:** Core Architecture Phase & Primary Scope Reconciliation
+**Primary Scope Document:** [`docs/BP_CMS_CORE_REQUIREMENTS/bp_cms_core_requirements1.md`](../BP_CMS_CORE_REQUIREMENTS/bp_cms_core_requirements1.md)
+**Governance & Policy:** [`AGENTS.md`](../../AGENTS.md), [`04-ARCHITECTURE-PRINCIPLES.md`](04-ARCHITECTURE-PRINCIPLES.md), [`DECISION-LOG.md`](DECISION-LOG.md)
+**Target Environments:** Local Development Workspace & Google AI Studio Applet Production Runtime
 
 ---
 
-## 1. REQUIREMENTS AND DOMAIN BOUNDARIES
+## 1. EXECUTIVE SUMMARY & GOVERNANCE OBJECTIVE
 
-### 1.1 Product Mission and Content Invariant
-Burra Pariksha is a specialized Telugu-language educational broadcast and digital publishing platform preparing candidates for competitive public service examinations (e.g., APPSC, TSPSC, SSC, Banking, Railways). Content integrity, spoken linguistic accuracy, syllabus alignment, broadcast technical loudness, and mobile visual ergonomics are paramount.
+This document establishes the authoritative core technical architecture and development plan for the **Burra Pariksha Content Management System (BP-CMS)**. It reconciles the application's existing brownfield baseline with the primary product requirements codified in [`bp_cms_core_requirements1.md`](../BP_CMS_CORE_REQUIREMENTS/bp_cms_core_requirements1.md).
 
-### 1.2 Three Canonical Content Production Modes
-BP-CMS formally supports three distinct, dynamic content-production modes governed by `shared/registry/content-mode.registry.ts`:
+### Cardinal Principles:
+1. **Primary Requirements Authority**: `bp_cms_core_requirements1.md` is the primary product scope. Its terminology, content modes, presentation formats, audience contexts, learning unit models, and editorial standards take precedence over speculative agent enhancements.
+2. **Unified Local-to-Deployment Architecture (Principle 16 / ADR-014)**: The application maintains a single production-quality codebase that runs identically locally and when published through Google AI Studio.
+3. **Preservation of Verified Baseline**: Existing Firestore authority, Two-Tier taxonomy (`Topic` $\to$ `Subtopic`), 15-stage workflow backbone, anti-self-approval rule (GAR-02), and datastore isolation guards are preserved with 100% backward compatibility.
+4. **Controlled Backward-Compatible Evolution**: Stored data is never purged or rewritten. Technical differences (such as `EXPLAINED_QUESTIONS_VIDEO` serving as the legacy identifier for `WORKED_EXAMPLES`) are reconciled via strongly typed runtime adapters and aliases.
 
-| Mode Enum | Mode Title | Target Format & Aspect Ratio | Content Composition & Rules |
-| :--- | :--- | :---: | :--- |
-| `QUESTION_CHALLENGE_SHORT` | **Mode 1: Question Challenge Short** | 9:16 Vertical Video ($\le 60\text{s}$) | Single short MCQ or batch series ($N \in \{5,10,15,20\}$). Strict 4 options (`a,b,c,d`), syllabus hook, answer revelation, Telugu explanation. |
-| `TOPIC_INTRODUCTION` | **Mode 2: Topic Introduction** | Configurable: 9:16 Vertical or 16:9 Landscape ($\le 180\text{s}$) | Concept demystification and syllabus orientation. **Enforces exactly 0 questions** (`questionCount === 0`). Step 02 adapts into concept/syllabus validation. |
-| `EXPLAINED_QUESTIONS_VIDEO` | **Mode 3: Explained Questions Video** | 16:9 Landscape Video ($\le 20\text{m}$) | Comprehensive masterclass. Introductory concept hook + ordered question array ($N \in \{5,10,15,20\}$) with exhaustive Telugu analytical explanations. |
+---
 
-### 1.3 Canonical 15-Stage Workflow Backbone
-All three content modes navigate through the single authoritative 15-stage workflow backbone defined in `src/lib/workflow/transition-matrix.ts` and `07-CANONICAL-15-STEP-WORKFLOW.md`:
+## 2. REQUIREMENT-BY-REQUIREMENT APPLICATION AUDIT MATRIX
+
+The following audit evaluates the current BP-CMS implementation and test baseline against every section of [`bp_cms_core_requirements1.md`](../BP_CMS_CORE_REQUIREMENTS/bp_cms_core_requirements1.md).
+
+| Req Ref | Requirement Summary | Status | Implementation Evidence | Gaps, Dependencies & Risks | Acceptance Criteria for Completion |
+| :--- | :--- | :---: | :--- | :--- | :--- |
+| **REQ-01** | **Vision & Business Objective**<br>Help Telugu-speaking people think faster, calculate faster, solve practical problems, make smarter decisions. Practical math, language, everyday intelligence. | `PARTIAL` | Telugu generation prompts (`gemini.service.ts`), `LANGUAGES` in `enums.ts`, Topic taxonomies in `production-taxonomy.ts`. | Focus was historically restricted to competitive exam MCQs. Practical everyday math, logic, and decision scenarios lack dedicated prompt templates and metadata. | System provides templates and prompts specifically tailored to practical math, calculation shortcuts, and everyday decision problems. |
+| **REQ-02** | **Three Canonical Content Modes**<br>1. `TOPIC_INTRODUCTION`<br>2. `WORKED_EXAMPLES`<br>3. `QUESTION_CHALLENGE_SHORT`<br>Sequence: Intro $\to$ Worked Examples $\to$ Challenge. | `PARTIAL` | `shared/registry/content-mode.registry.ts`, `TopicIntroWorkspace.tsx`, `ExplainedQuestionsWorkspace.tsx`, unit tests `s10-t16`, `s10-t17`. | Current codebase registers Mode 1 as `QUESTION_CHALLENGE_SHORT`, Mode 2 as `TOPIC_INTRODUCTION`, and Mode 3 as `EXPLAINED_QUESTIONS_VIDEO`. Missing `WORKED_EXAMPLES` canonical enum and preferred sequence enforcement. | Register `WORKED_EXAMPLES` as canonical Mode 2; support `EXPLAINED_QUESTIONS_VIDEO` as backward-compatible alias. Enforce sequential instructional progression in UI. |
+| **REQ-03** | **Five Presentation Formats**<br>Orthogonal to content mode: Text-based, Video, Audio, Image, Animation. A lesson can be rendered across any format. | `MISSING` | Legacy `PRESENTATION_TYPES` in `enums.ts` (`TEXT_ONLY`, `IMAGE_BASED`) represented question stimulus types, not delivery formats. | Architecture currently assumes 100% Video delivery (9:16 Shorts or 16:9 Landscape). No schema fields, templates, or workflows exist for Audio, Image sequences, or Animation briefs. | Introduce `presentationFormat` enum (`TEXT`, `VIDEO`, `AUDIO`, `IMAGE`, `ANIMATION`) in schema contracts; provide template generators for non-video formats. |
+| **REQ-04** | **Editorial Pillars & Usefulness**<br>Every item answers 5 usefulness questions. Initial Pillars A–F (Numerical, Logic, Everyday Money, Practical Understanding, Data/Decisions, Thinking Strategies). | `MISSING` | `TopicIntroWorkspace.tsx` captures "Concept" and "Why it matters", but does not structure them against the 5 questions or Pillars A–F. | Pillars A–F are absent from data contracts. Authors cannot categorize content by editorial pillar or tag the real-life decision/mistake addressed. | Add optional metadata fields for `editorialPillar` and `realLifeApplication` in planning contracts; validate that drafted lessons address a clear practical problem. |
+| **REQ-05** | **Audience Context & Skill Level**<br>Independent dimensions: 7 Audience Contexts (Children, Students, Exam learners, Adults, Households, Shopkeepers, Seniors); 4 Skill Levels (Foundation, Beginner, Intermediate, Advanced). | `PARTIAL` | Difficulty exists in `enums.ts` (`EASY`, `MEDIUM`, `HARD`), but conflates age and complexity. | No schema fields or UI selectors exist for Audience Context. Skill levels do not match the canonical 4-tier foundation standard. | Implement `audienceContext` enum (7 values) and canonical `skillLevel` enum (4 values); wire into planning schemas and Question Studio. |
+| **REQ-06** | **Central Asset: Verified Learning Unit**<br>Distinguish underlying lesson from publications produced from it. Contains objective, prerequisites, verified method, calculations, common mistakes. Multiple artifacts link to 1 Learning Unit. | `MISSING` | Currently, `question_drafts` and `questions` serve as isolated aggregate roots. No `learning_units` entity exists. | Publications are disconnected. Correcting an underlying mathematical method or calculation cannot automatically flag or update related publications. | Implement `learning_units` Firestore collection contract, repository, and linking foreign keys (`learningUnitId`) on drafts, questions, and videos. |
+| **REQ-07** | **4-Layer Content-Planning Model**<br>Layer 1: Knowledge Reference; Layer 2: Learning Design; Layer 3: Content Artifact; Layer 4: Publication & Feedback. | `PARTIAL` | Layer 1 (Taxonomy: Topic/Subtopic) is implemented. Layer 3 (Artifacts: drafts, videos) is implemented. | Layer 2 (Learning Design: audience, skill level, misconceptions) and Layer 4 (Publication Feedback: production cost, time, artifact-level metrics) are unmodeled. | Reconcile data models to structure content across the 4 logical layers without imposing burdensome forms on the creator. |
+| **REQ-08.1** | **Protect Production Foundation**<br>Preserve Firestore, Two-Tier taxonomy, workflow state machine, RBAC, audit, and datastore isolation. `EXPLAINED_QUESTIONS_VIDEO` compatibility. | `IMPLEMENTED` | `assertDatastoreSafe()`, `transition-matrix.ts`, `users.repository.ts`, `roles.ts`, test suites `s9-isolation-guard`, `strict-database-taxonomy`. | Stored data must never be rewritten. Aliases must maintain seamless read/write compatibility for existing documents. | 100% regression pass on existing datastore, authorization, and taxonomy tests. `EXPLAINED_QUESTIONS_VIDEO` loads seamlessly as `WORKED_EXAMPLES`. |
+| **REQ-08.2** | **Practical Learning-Unit Planning**<br>Simple planning process defining what viewers learn, why it matters, real-life context, verified method, initial mode/format without huge forms. | `MISSING` | Studio currently jumps straight into Question MCQ generation or raw Topic Intro text editing. | No pre-production planning workspace exists to capture the core lesson before generating format-specific scripts or questions. | Implement lightweight Learning Unit Planning Studio allowing fast capture of learning objectives, verified methods, and target modes. |
+| **REQ-08.3** | **Strengthen Content Verification**<br>Verify arithmetic, reasoning, solution completeness, Telugu clarity, question/script/visual consistency, duplicates, fact checks. AI is assistive only. | `PARTIAL` | `question-quality-validator.ts` enforces VAL-Q-01..05 (4 options, non-empty explanation, Telugu script presence). | Calculation correctness engine, reasoning proofs, and script-visual consistency checks are not yet automated; relies solely on human review. | Introduce calculation validation helpers and enhanced checklist gates in Stage 02 Verification enforcing mathematical proof and Telugu clarity. |
+| **REQ-08.4** | **Connect Related Content**<br>Identify the Learning Unit behind an artifact, the intro, worked example, challenge, and alternate presentation formats. | `MISSING` | `audience-preview-projection.ts` projects a single draft into slots, but cross-artifact relationships do not exist. | Cannot query or display "all videos/shorts created from Learning Unit X". | Build relational query methods on `learning_units` resolving all child drafts, videos, and multi-format publications. |
+| **REQ-08.5** | **Support Multi-Format Production**<br>Reusable templates for Text, Video, Audio, Image, Animation (scripts, narration, image instructions, scene outlines). | `MISSING` | Only video production contracts (`14-MEDIA-ARCHITECTURE.md`, `video_takes`, `ScriptGenerationPage.tsx`) exist. | Non-video templates do not exist. Audio scripts, visual image instructions, and animation briefs have no schemas or UI. | Add multi-format template schemas and generation options for Text posts, Audio podcasts, and Image breakdowns in Studio. |
+| **REQ-08.6** | **Performance & Effort Tracking**<br>Track performance at artifact and platform level. Record audience outcomes (views, retention) alongside production effort (time, cost). | `PARTIAL` | Analytics dashboard (`AnalyticsPage.tsx`) displays mock platform view counts and completion rates. | Production time per artifact, cost per artifact, revision counts, and learning-unit reuse rates are not persisted or aggregated. | Add operational metrics schema (`productionTimeMinutes`, `productionCostInr`, `revisionCount`) to publication records and analytics views. |
+| **REQ-09** | **Content Production Pipeline**<br>10-step lifecycle: Discover $\to$ Plan $\to$ Verify $\to$ Design $\to$ Generate $\to$ Review $\to$ Approve $\to$ Publish $\to$ Measure $\to$ Improve. | `PARTIAL` | Mapped partially onto technical 15-stage workflow (`07-CANONICAL-15-STEP-WORKFLOW.md`). | Planning and Discovery stages occur offline; CMS begins at Stage 01 (Generation) rather than Plan/Verify. | Formally map the 10-step content pipeline to Stages 01–15; introduce Stage 00/01 Learning Unit planning bridge. |
+| **REQ-10** | **90-Day Implementation Roadmap**<br>Days 1–30: Foundation (Modes, Formats, Learning-Unit template, Calculations/Telugu checks, Percentages batch). | `PARTIAL` | Sprint 10 completed initial Mode 2 and Mode 3 draft workspaces; foundation requires learning units and format decoupling. | Immediate roadmap must directly mirror Days 1–30 requirements rather than generic technical refactoring. | Adopt Days 1–30 deliverables as the explicit scope for Sprints 11 and 12. |
+| **REQ-11** | **Business Strategy (Trust & Revenue)**<br>Discovery, Retention, Repeat viewing, Trust, Phased Monetization (Ads $\to$ Sponsorships $\to$ Paid learning products). | `PARTIAL` | Architectural budget invariant (`₹0–₹100/mo`) prevents infrastructure burn. Trust upheld via GAR-02. | Monetization and product tiers are speculative; core focus must remain educational value and accuracy. | Preserve free-tier operational discipline; do not build premature payment systems until learning unit engagement is proven. |
+| **REQ-12** | **Three Measurement Categories**<br>1. Audience growth (reach, retention, returners)<br>2. Learning engagement (participation, accuracy, requests)<br>3. Business/production (time, cost, consistency, reuse). | `PARTIAL` | View metrics modelled in `shared/types/content.ts` (`PlatformAnalyticsRecord`). | Engagement accuracy and production cost/time are completely uncollected. | Extend analytics contracts to ingest challenge response accuracy and production time per artifact. |
+| **REQ-13** | **Long-Term Expansion Principles**<br>Order: Useful problems $\to$ Learning units $\to$ 3 modes $\to$ 5 formats $\to$ Publication $\to$ Measurement $\to$ Monetization. | `ALIGNED` | Current architectural governance strictly forbids premature microservices and overengineering. | Must ensure subsequent sprint planning adheres strictly to this construction sequence. | Formalize the construction sequence as an architectural invariant in `04-ARCHITECTURE-PRINCIPLES.md`. |
+
+---
+
+## 3. ARCHITECTURE RECONCILIATION & DECISION AUDIT
+
+### 3.1 Architectural Decisions Supported by Evidence (Retained)
+The following decisions in [`DECISION-LOG.md`](DECISION-LOG.md) are strongly validated by the requirements and empirical codebase evidence:
+- **ADR-001**: Single 15-stage workflow engine (`src/lib/workflow/transition-matrix.ts`). Provides the transactional backbone for all content modes.
+- **ADR-002 & ADR-013**: Server-enforced anti-self-approval (GAR-02) with audited System Administrator operational override. Protects educational content accuracy (REQ-08.3, REQ-11).
+- **ADR-003**: AI Human Gating (AP-009). AI is advisory; humans must sign off on factual correctness and Telugu spoken clarity.
+- **ADR-004 & ADR-007**: Google AI Studio Applet as production runtime and release authority.
+- **ADR-008**: Two-Tier Taxonomy (`Topic` $\to$ `Subtopic`). Category remains permanently obsolete.
+- **ADR-009**: 4-option MCQ schema invariant for challenge shorts; polymorphic concept verification for Mode 2 (Topic Introduction).
+- **ADR-014**: Unified Local-to-Deployment Architecture (Principle 16). Single codebase running locally and in Google AI Studio.
+
+### 3.2 Architectural Decisions Needing Revision (Formalized in ADR-015)
+To satisfy `bp_cms_core_requirements1.md`, the following revisions are established:
+
+1. **Content Mode Enumeration & Sequence Alignment**:
+   - Realign the canonical mode sequence to match REQ-02:
+     * Mode 1: `TOPIC_INTRODUCTION` ("Topic Introduction Video", $N=0$ questions)
+     * Mode 2: `WORKED_EXAMPLES` ("Worked Examples Video", step-by-step problem demonstration)
+     * Mode 3: `QUESTION_CHALLENGE_SHORT` ("Question Challenge Short", retrieval practice)
+   - **Backward-Compatible Alias Invariant**: In code and schemas, `WORKED_EXAMPLES` is the primary canonical identifier; `EXPLAINED_QUESTIONS_VIDEO` is retained as a 100% supported runtime alias for existing Firestore documents, draft payloads, and routes. Zero data rewrites.
+2. **Introduction of the Verified Learning Unit Aggregate Root**:
+   - Establish `learning_units` as a top-level Firestore collection (REQ-06).
+   - A Learning Unit stores the foundational curriculum knowledge: topic, subtopic, learning objective, prerequisite skills, verified calculation/method, common misconceptions, and real-life scenario.
+   - Publications (`question_drafts`, `questions`, `videos`) reference `learningUnitId: string | null`. Standalone drafts remain supported for backward compatibility.
+3. **Decoupling Presentation Format from Content Mode**:
+   - Establish `presentationFormat` as an orthogonal 5-value enum: `TEXT`, `VIDEO`, `AUDIO`, `IMAGE`, `ANIMATION` (REQ-03).
+   - Existing workflows default to `VIDEO`. New templates for text calculations, audio narration, and visual breakdown instructions will attach to the same learning unit.
+4. **Audience Context and 4-Tier Skill Level**:
+   - Introduce `audienceContext` (`CHILDREN`, `STUDENTS`, `COMPETITIVE_EXAM`, `WORKING_ADULTS`, `HOUSEHOLDS`, `BUSINESS_OPERATORS`, `OLDER_LEARNERS`).
+   - Introduce `skillLevel` (`FOUNDATION`, `BEGINNER`, `INTERMEDIATE`, `ADVANCED`).
+
+---
+
+## 4. LOCAL AND GOOGLE AI STUDIO UNIFIED DEPLOYMENT ARCHITECTURE
+
+In accordance with **Principle 16 (ADR-014)**, the application logic and schemas remain identical across local development and Google AI Studio publication.
 
 ```text
-[01. Question Generation] ──► [02. Question Verification] ──► [03. Audience Script] ──► [04. Teleprompter & Filming]
-                                                                                               │
-[08. Thumbnail] ◄── [07. Final QC] ◄── [06. Editing Bay] ◄── [05. Raw Video Ingestion] ◄──────┘
-       │
-       ▼
-[09. Social Review] ──► [10. Publishing Setup] ──► [11. Published] ──► [12. Platform Sync]
-                                                                             │
-[15. Intelligence Loop] ◄── [14. Performance Review] ◄── [13. Analytics] ◄──┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          BURRA PARIKSHA CMS CODEBASE                        │
+│   Shared Presentation, Workflow Engine, Repositories, Schemas, & Adapters   │
+└──────────────────────┬───────────────────────────────┬──────────────────────┘
+                       │                               │
+        Local Development Workspace             Google AI Studio Applet
+        (Antigravity / Local Node)               (Production Container)
+                       │                               │
+       ┌───────────────┴───────────────┐       ┌───────┴──────────────────────┐
+       │ - NODE_ENV=development        │       │ - NODE_ENV=production        │
+       │ - Express + Vite Middleware   │       │ - Express serving dist/      │
+       │ - Firestore Emulator (8080)   │       │ - Production Cloud Firestore │
+       │ - Synthetic: burra-pariksha-  │       │ - Named DB: ai-studio-burra- │
+       │   test ((default))            │       │ - 8 Canonical Secrets panel  │
+       │ - Mock AI / Deterministic Fix │       │ - Live @google/genai & Drive │
+       │ - Strict Datastore Guard      │       │ - Live Health & Probes       │
+       └───────────────────────────────┘       └──────────────────────────────┘
 ```
 
-### 1.4 Domain Bounded Contexts
-1. **Curriculum & Taxonomy**: Two-Tier structure strictly: `Topic` $\to$ `Subtopic`. Legacy Category is completely eradicated.
-2. **Question & Concept Studio**: Dynamic multi-mode ideation, candidate drafting, validation gates, and batch aggregation.
-3. **Editorial & Scripting**: Spoken Telugu script generation, phonetics, timing markers, and teleprompter cue formatting.
-4. **Media & Production**: Video recording, take segmentation, asset ingestion, Google Drive external storage delegation.
-5. **Quality Control & Review**: Multi-layer QC, broadcast loudness checks, mobile safe-zone overlay verification.
-6. **Distribution & Operations**: Multi-platform publishing dispatch, metadata generation, synchronized audit logging.
+- **Environment-Specific Adapters**: The persistence layer uses the Firebase Admin SDK. In local development, `src/config/datastore-guard.ts` intercepts all requests and ensures connection only to loopback emulator `127.0.0.1:8080`. In Google AI Studio, it connects to the authoritative named Firestore database.
+- **Production Build Artifact**: `npm run build` produces `dist/server.cjs` (backend Node.js CJS bundle) and `dist/` (React SPA static bundle). Express mounts both simultaneously on `$PORT` (default 3000).
 
 ---
 
-## 2. APPLICATION LAYERS, MODULES, AND RESPONSIBILITIES
+## 5. PRIORITIZED REQUIREMENTS-DRIVEN DEVELOPMENT PLAN
 
-The system is structured as a **Modular Full-Stack Application** adhering to strict dependency boundaries ([27-DEPENDENCY-BOUNDARIES.md](27-DEPENDENCY-BOUNDARIES.md)):
+This plan directly translates the 90-Day Implementation Roadmap (`bp_cms_core_requirements1.md` Section 10) into actionable engineering sprints.
 
 ```text
-┌────────────────────────────────────────────────────────────────────────┐
-│                        PRESENTATION LAYER (SPA)                        │
-│   React 19, Tailwind CSS v4, Motion, Lucide Icons, React Router v7      │
-│   Pages (/src/pages), Workspaces (/src/components/studio), Hooks       │
-└───────────────────────────────────┬────────────────────────────────────┘
-                                    │ Pure HTTP / JSON
-                                    ▼
-┌────────────────────────────────────────────────────────────────────────┐
-│                        TYPED API CLIENT LAYER                          │
-│   Frontend API Clients (/src/lib/api) — Zero Server/Secret Imports    │
-└───────────────────────────────────┬────────────────────────────────────┘
-                                    │ REST / Cookie Session
-                                    ▼
-┌────────────────────────────────────────────────────────────────────────┐
-│                     BACKEND CONTROLLER & ROUTER LAYER                  │
-│   Express 4 Server (/backend/server/server.ts, /backend/server/routers)│
-│   Auth Middleware (requireAuth), RBAC Guard (requireRole), Helmet      │
-└───────────────────┬───────────────────────────────┬────────────────────┘
-                    │                               │
-                    ▼                               ▼
-┌──────────────────────────────────────┐  ┌──────────────────────────────┐
-│        WORKFLOW ENGINE & DOMAIN      │  │      EXTERNAL ADAPTERS       │
-│  State Machine (transition-matrix.ts)│  │  Gemini AI (@google/genai)   │
-│  GAR-02 Anti-Self-Approval Guard     │  │  Google Drive (googleapis)   │
-│  Quality Validators (VAL-Q-01..05)   │  │  GCS Snapshots (CloudStorage)│
-└───────────────────┬──────────────────┘  └──────────────┬───────────────┘
-                    │                                    │
-                    ▼                                    ▼
-┌────────────────────────────────────────────────────────────────────────┐
-│                        PERSISTENCE REPOSITORY LAYER                    │
-│   Firestore Repositories (/database/firestore/repositories)           │
-│   Server-Privileged Firebase Admin SDK (cert / ADC)                    │
-└───────────────────────────────────┬────────────────────────────────────┘
-                                    │ Loopback or Cloud
-                                    ▼
-┌────────────────────────────────────────────────────────────────────────┐
-│                       AUTHORITATIVE DATASTORE                          │
-│   Production: Cloud Firestore (Named DB: ai-studio-burraparikshacon-..)│
-│   Dev/Test: Local Firestore Emulator (127.0.0.1:8080)                  │
-└────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                 PHASE 1: DAYS 1–30 — ESTABLISH THE FOUNDATION               │
+│   Canonical Modes 1–3, Learning Unit Schema, 5 Formats, Numerical Pillar A  │
+└──────────────────────┬──────────────────────────────────────────────────────┘
+                       │
+                       ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│          PHASE 2: DAYS 31–60 — TEST REAL-LIFE CONTENT & MULTI-FORMAT        │
+│   Worked Examples Demonstration, Audio/Image Templates, Verification Engine │
+└──────────────────────┬──────────────────────────────────────────────────────┘
+                       │
+                       ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│            PHASE 3: DAYS 61–90 — CONNECTED SERIES & PERFORMANCE TRACKING     │
+│   Learning Sequences, Artifact-Level Analytics, Production Time/Cost Audit   │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Module Responsibilities:
-- **`frontend/` & `src/`**: User interface components, responsive layout, interactive state, client-side validation, and route switching. Prohibited from importing Firebase Admin, database adapters, server secrets, or AI SDKs.
-- **`backend/`**: Express HTTP server, REST endpoints, session cookie management, role capability resolution, workflow state transition validation, and external adapter orchestration.
-- **`database/firestore/repositories/`**: Encapsulates all Firestore queries, transactions, optimistic concurrency checks, and persistence mechanics.
-- **`shared/`**: Common types, request/response validation schemas (Zod), collision-resistant UUID generators (`shared/lib/id.service.ts`), and canonical role constants (`shared/constants/roles.ts`). Strictly framework- and secret-free.
+### 5.1 Sprint Sequence Breakdown
+
+#### Sprint 11: Foundation, Learning Units, and Mode Alignment (Days 1–15)
+- **Objective**: Implement the Verified Learning Unit aggregate entity, reconcile the canonical 3 content modes with backward-compatible aliases, introduce the 5 presentation format definitions, and implement the lightweight Learning Unit Planning Studio.
+- **Tasks**:
+  - `S11-T01`: **Core Requirements Architecture Decision & Schema Contract** (Formalize ADR-015; author TypeScript interfaces and Zod validation schemas for `LearningUnit`, `presentationFormat`, `audienceContext`, `skillLevel`, and `editorialPillar`).
+  - `S11-T02`: **Content Mode Registry Alignment & Legacy Aliasing** (Update `content-mode.registry.ts` to designate `WORKED_EXAMPLES` as canonical Mode 2 with `EXPLAINED_QUESTIONS_VIDEO` as transparent alias; align Mode 1 as `TOPIC_INTRODUCTION` and Mode 3 as `QUESTION_CHALLENGE_SHORT`).
+  - `S11-T03`: **Learning Unit Firestore Repository & Datastore Contract** (Implement `learning-units.repository.ts` following `FIRESTORE-COLLECTION-CONTRACT.md`; add `learning_units` to purge allowlist and emulator seed scripts with safe datastore isolation).
+  - `S11-T04`: **Audience Context & Skill Level Studio Selectors** (Implement UI controls in Studio workspace supporting the 7 audience contexts and 4 canonical skill levels).
+  - `S11-T05`: **Lightweight Learning Unit Planning Studio UI** (Create creator-friendly planning screen to draft and store the core educational lesson—objective, verified calculation, misconception—without burdensome forms).
+  - `S11-T06`: **Artifact-to-Learning-Unit Linking Integration** (Wire `learningUnitId` foreign key into Question Studio drafts across all three modes; ensure existing standalone drafts remain valid).
+  - `S11-T07`: **Automated Unit & Integration Test Suite** (Comprehensive code-level tests verifying learning unit persistence, alias transparency, schema validation, and datastore isolation).
+
+#### Sprint 12: Content Verification & Multi-Format Templates (Days 16–30)
+- **Objective**: Strengthen Stage 02 Content Verification (mathematical proof, reasoning completeness, spoken Telugu clarity), and introduce reusable templates for non-video presentation formats (Text, Audio, Image).
+- **Tasks**:
+  - `S12-T01`: **Calculation & Reasoning Verification Engine** (Stage 02 automated verification checks for arithmetic correctness and solution completeness).
+  - `S12-T02`: **Linguistic & Consistency Quality Gate** (Verification checks comparing question wording, answer keys, Telugu explanations, and visual instructions).
+  - `S12-T03`: **Text & Image Presentation Templates** (Structured schemas and markdown/visual outline generators for text explanations and visual image breakdowns).
+  - `S12-T04`: **Audio Narration & Script Templates** (Spoken audio script generator with timing pauses and pronunciation guides).
+  - `S12-T05`: **Initial Numerical Foundation Batch (Percentages)** (Author and verify foundational learning units and multi-mode artifacts for shopping discounts and percentage calculations per REQ-10).
+
+#### Sprint 13: Downstream Multi-Mode Workflow & Production Ingestion (Days 31–45)
+- **Objective**: Adapt downstream workflow stages (Stage 03 Audience Script, Stage 04 Teleprompter, Stage 05/06 Ingestion & Editing) to seamlessly ingest Mode 2 Worked Examples and Mode 3 Challenges linked to their learning units.
+
+#### Sprint 14: Connected Learning Sequences & Editorial Calendar (Days 46–60)
+- **Objective**: Link related content artifacts (Intro $\to$ Worked Example $\to$ Challenge) sharing the same Learning Unit ID; implement editorial calendar views.
+
+#### Sprint 15: Artifact Performance, Production Cost & Measurement (Days 61–90)
+- **Objective**: Implement the 3 measurement categories (Audience growth, Learning engagement accuracy, Production time/cost per artifact).
 
 ---
 
-## 3. DATA MODEL AND AUTHORITATIVE DATA SOURCES
+## 6. SELECTED FIRST IMPLEMENTATION TASK: S11-T01
 
-### 3.1 Cloud Firestore as Sole Transactional Datastore
-Cloud Firestore is the sole authoritative transactional database for BP-CMS (`12-DATABASE-ARCHITECTURE.md`).
-- **Production Project ID**: `burra-pariksha-cms`
-- **Production Named Database ID**: `ai-studio-burraparikshacon-f592ca42-39af-4d83-aff2-6870ba939b0e`
-- **Synthetic Test Project ID**: `burra-pariksha-test` (Database: `(default)`)
+Based on the empirical audit evidence, starting downstream scripting (`S11-T01` in the old proposal) would be premature because the application lacks the foundational **Learning Unit schema**, the **canonical content mode alignment (`WORKED_EXAMPLES`)**, and the **orthogonal presentation format definitions**.
 
-### 3.2 Authoritative Collection Contract
-All Firestore interactions conform strictly to [FIRESTORE-COLLECTION-CONTRACT.md](FIRESTORE-COLLECTION-CONTRACT.md):
-
-| Collection Name | Document Key Structure | Purpose & Integrity Invariants |
-| :--- | :--- | :--- |
-| `question_drafts` | `dft_<uuid>` | Multi-mode authoring workspace drafts. Mode 1 holds candidate MCQ; Mode 2 holds concept draft with `questionCount: 0`; Mode 3 holds atomic aggregate with question array. |
-| `questions` | `q_<uuid>` | Verified academic questions and concepts approved past Stage 02. |
-| `videos` | `vid_<uuid>` | Canonical video production entities tracking stages 03 through 15. |
-| `video_takes` | `tak_<uuid>` | Filming and teleprompter recording takes with media links. |
-| `video_qc_reviews` | `qcr_<uuid>` | Stage 07 Quality Control audit records enforcing GAR-02. |
-| `audit_events` | `aud_<uuid>` | Immutable append-only audit trail for every state change & admin override. |
-| `users` | `usr_<uuid>` | Staff user accounts, credentials, and canonical role assignments. |
-| `topics` | `top_<uuid>` | Tier 1 taxonomy units. |
-| `subtopics` | `stp_<uuid>` | Tier 2 taxonomy units (strictly mapped to parent `topicId`). |
-| `question_config` | `qcfg_<uuid>` | System operational configurations and batch size constraints. |
-
-### 3.3 External Media Storage Separation
-Binary media files (MP4, WebM, PNG, JPEG) are strictly externalized to **Google Drive** under `GOOGLE_DRIVE_ROOT_FOLDER_ID` via persistent OAuth 2.0 refresh token delegation. Only lightweight, typed metadata (`driveFileId`, `checksum`, `fileSizeBytes`, `mimeType`, `durationSeconds`) is stored in Firestore.
+### Selected First Implementation Task:
+**`S11-T01` — Core Requirements Architecture Decision & Schema Contract**
+- **Scope**: Author the formal schema contract in `shared/contracts/learning-unit.contract.ts` and `shared/types/`, codifying:
+  1. `LearningUnit` interface and Zod schema (Layer 1 & 2 planning model).
+  2. `PresentationFormat` enum (`TEXT`, `VIDEO`, `AUDIO`, `IMAGE`, `ANIMATION`).
+  3. Canonical Content Mode enum alignment (`TOPIC_INTRODUCTION`, `WORKED_EXAMPLES`, `QUESTION_CHALLENGE_SHORT`) with `EXPLAINED_QUESTIONS_VIDEO` alias.
+  4. `AudienceContext` (7 values) and `SkillLevel` (4 values).
+  5. `EditorialPillar` (Pillars A through F).
+- **Acceptance Criteria**:
+  - Strongly typed, framework-free schemas authored in `shared/`.
+  - Zero breaking changes to existing `question_drafts` or `videos` contracts.
+  - `npm run lint` compiles cleanly with zero type errors.
 
 ---
 
-## 4. API BOUNDARIES, AUTH, RBAC, VALIDATION, AUDIT, AND CONCURRENCY
+## 7. ARCHITECTURE ACCEPTANCE CRITERIA (AAC)
 
-### 4.1 Authentication & Session Management
-- **Token Mechanism**: Cryptographic HMAC-SHA256 signature over user session payload (`userId`, `role`, `issuedAt`, `expiresAt`).
-- **Transport**: Stored in HTTP-only, secure, `SameSite=Lax` cookie named `bp_session`.
-- **Secret Authority**: `SESSION_SECRET` (configured via `.env.local` locally or Google AI Studio Secrets panel in production).
-- **Silent Fallbacks Prohibited**: Unauthenticated requests receive HTTP 401 Unauthorized. Silent fallback to default admin `USR-001` is permanently eradicated (resolving ACR-002).
-
-### 4.2 Canonical RBAC and GAR-02 Anti-Self-Approval
-- **11 Canonical Roles**: Defined in `shared/constants/roles.ts` (`SYSTEM_ADMINISTRATOR`, `ACADEMIC_LEAD`, `QUESTION_WRITER`, `QA_REVIEWER`, `SCRIPT_WRITER`, `MEDIA_MANAGER`, `VIDEO_EDITOR`, `QC_INSPECTOR`, `PUBLISHING_LEAD`, `ANALYTICS_VIEWER`, `AUDIT_COMPLIANCE_OFFICER`).
-- **GAR-02 Strict Invariant**: An artifact author cannot approve their own work (`authorId !== approverId`).
-- **Audited Administrator Override (ADR-002, ADR-013)**: To eliminate operational deadlock when the single System Administrator is author, the System Admin is permitted operational self-approval across all 15 stages strictly when explicit confirmation (`confirmedByAdmin: true`) and a justification of at least 10 characters are supplied. This override is immutably logged in `audit_events`. Zero bypass for regular employees.
-
-### 4.3 Validation and Concurrency Control
-- **Input Validation**: All API payloads are strictly validated at the boundary using Zod schemas (`shared/contracts/request-schemas.ts`). Invalid requests are rejected with HTTP 400 and structured error arrays before reaching domain logic.
-- **Optimistic Concurrency Control (OCC)**: Every mutable entity maintains an integer `version` property. Mutations must supply the expected `version`. If the datastore version differs, the write is aborted with HTTP 409 Conflict.
-- **Draft vs. Submission Gate**: `SAVE DRAFT` persists candidate data without advancing workflow status. `SUBMIT FOR VERIFICATION` executes stage transition checks and advances status to Stage 02.
-
----
-
-## 5. LOCAL DEVELOPMENT AND TEST ARCHITECTURE
-
-### 5.1 Principle 16: Unified Local-to-Deployment Codebase
-The application maintains one production-quality codebase that runs locally and when published through Google AI Studio. Business logic, routing, schemas, and persistence algorithms are identical across both environments.
-
-### 5.2 Local Development Workflow
-- **Development Server (`npm run dev:local`)**: Orchestrated by `scripts/start-local-dev.ts`. Coordinates the Firestore Emulator, verifies emulator connectivity, seeds isolated test data, and boots the Express backend with hot reloading (`tsx watch`) and Vite frontend HMR.
-- **Datastore Isolation Guard (`src/config/datastore-guard.ts`)**:
-  - Automatically intercepts database operations.
-  - Verifies that development runs against `127.0.0.1:8080` under approved synthetic project `burra-pariksha-test`.
-  - Blocks any attempt to connect to production database `ai-studio-burraparikshacon-...` during local development and testing, failing closed before any write can occur.
-
-### 5.3 Automated Testing Architecture
-Testing is strictly code-level and isolated ([24-TEST-ARCHITECTURE.md](24-TEST-ARCHITECTURE.md), `AGENTS.md` Section 2):
-1. **Unit Tests**: Mocked dependencies, deterministic fixtures, pure function verification (`tests/unit/`).
-2. **Integration Tests**: In-memory repository stubs or verified local emulator (`tests/integration/`).
-3. **Architecture Tests**: Automated boundary scanners verifying separation of concerns, forbidden imports, and taxonomy integrity (`tests/architecture/`).
-4. **Live Production Isolation**: Automated tests must never connect to live production Firestore, send real Gemini AI requests, or mutate Google Drive assets.
-
----
-
-## 6. GOOGLE AI STUDIO BUILD, PUBLISH, AND ENVIRONMENT SEPARATION
-
-### 6.1 Build Pipeline & Production Artifact
-The production deployment artifact is generated deterministically via `npm run build`:
-```bash
-vite build && esbuild backend/server/server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs
-```
-- **Frontend Assets**: Vite bundles React SPA into `dist/` with hashed static chunks (`dist/assets/`).
-- **Backend Bundle**: esbuild compiles `server.ts` into a single Node.js CommonJS bundle (`dist/server.cjs`).
-- **Production Entrypoint**: `npm start` runs `node dist/server.cjs`.
-
-### 6.2 Serving Model in Production
-In production (`NODE_ENV=production`):
-1. Server loads environment variables and runs `validateEnvironmentRuntime()`.
-2. Verifies datastore safety guard (`assertDatastoreSafe()`).
-3. Mounts health and diagnostic probe routes (`/healthz`, `/readyz`, `/api/health`).
-4. Mounts API router on `/api`.
-5. Mounts static asset handler over `dist/`.
-6. Handles unmatched client routes by serving `dist/index.html` for client-side React Router navigation.
-
-### 6.3 The Canonical 8 Production Secrets
-When imported into Google AI Studio, the application requests exactly the 8 canonical variables defined in [ENVIRONMENT-CONTRACT.md](../operations/ENVIRONMENT-CONTRACT.md):
-
-1. `SESSION_SECRET`: Cookie HMAC signing key.
-2. `GOOGLE_SERVICE_ACCOUNT_EMAIL`: GCP IAM Service Account email for Firebase Admin SDK.
-3. `GOOGLE_PRIVATE_KEY`: RSA PEM Private Key for Firebase Admin SDK (resolves via ADC if omitted on GCP).
-4. `GEMINI_API_KEY`: Google Gemini API key for assistive question studio generation.
-5. `GOOGLE_DRIVE_ROOT_FOLDER_ID`: Root folder ID for video takes and media assets.
-6. `GOOGLE_CLIENT_ID`: OAuth 2.0 Client ID for Drive upload delegation.
-7. `GOOGLE_CLIENT_SECRET`: OAuth 2.0 Client Secret for Drive upload delegation.
-8. `GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN`: Persistent OAuth 2.0 refresh token.
-
-### 6.4 Verified Repository Facts vs. External Assumptions
-- **Verified Repository Facts**:
-  - Express cleanly serves Vite static build and API routes simultaneously.
-  - Environment contract validation succeeds in production mode when 8 canonical secrets are present.
-  - Firebase Admin SDK initializes with explicit credentials or ADC.
-  - Liveness (`/healthz`) and readiness (`/readyz`) probes respond reliably.
-- **External Environment Assumptions**:
-  - Google AI Studio container runs Node.js 20+ runtime.
-  - Web preview routing exposes the configured `PORT` (default 3000) or passes `$PORT` in environment.
-  - Live deployment release is triggered manually by the Project Owner from the Google AI Studio console; automated IDE agents have no deployment authority.
-
----
-
-## 7. FAILURE HANDLING, OBSERVABILITY, BACKUP/RECOVERY, AND SECURITY
-
-### 7.1 Free-Tier Protection & Circuit Breakers (₹0.00 / month Budget)
-To preserve the hard infrastructure budget invariant of ₹0.00 to ₹100/month:
-- **AI Token Bucket Limiter**: In-memory rate limiter restricts requests to $\le 15\text{ RPM}$ and $\le 1\text{M tokens/day}$ under Google AI Studio's Gemini 2.5 Flash free tier.
-- **Hard Daily Circuit Breaker**: Caps AI calls at 100 requests/day, cutting off outbound calls before commercial thresholds can be reached (`22-COST-ARCHITECTURE.md`).
-- **Human Approval Gate (AP-009)**: AI never autonomously approves or advances any stage.
-
-### 7.2 Observability and Probes
-- **`/healthz`**: Kubernetes-style liveness probe. Returns HTTP 200 immediately if process is alive.
-- **`/readyz`**: Readiness probe. Validates Firestore client connectivity and Google Drive configuration.
-- **`/api/health`**: Deep diagnostic probe reporting non-sensitive runtime diagnostics.
-- **Zero-Secret Logging Invariant**: Logs strictly censor passwords, private keys, refresh tokens, and session cookies.
-
-### 7.3 Backup, Recovery, and Disaster Readiness
-- **Cloud Firestore**: Recovery relies on manual or scheduled `gcloud firestore export/import`. Automated pre-cleanup export gaps documented in TASK-002/TASK-003.
-- **Google Cloud Storage Snapshots**: Server-side `snapshotSchedulerService` runs automated snapshots when enabled.
-- **Google Drive**: Assets protected by Google Drive 30-day trash retention.
-- **Local Taxonomy Seed**: `src/lib/data/production-taxonomy.ts` provides fully deterministic, offline-capable recovery data.
-
-### 7.4 Security Baseline
-- **HTTP Headers**: Enforced via `helmet` (HSTS, clickjacking prevention, XSS filter, no-sniff).
-- **Transport Security**: Cookies flagged `HttpOnly`, `SameSite=Lax`, and `Secure` in production.
-- **Zero Browser Direct Access**: Browser clients have zero direct connections to Cloud Firestore, Firebase Admin SDK, or Gemini API keys. All access proxies through authenticated Express controllers.
-
----
-
-## 8. INCREMENTAL MIGRATION AND IMPLEMENTATION PLAN
-
-Following the canonical brownfield migration discipline (**`CLASSIFY → CONSOLIDATE → MIGRATE → VERIFY → RETIRE`**):
-
-### Current State (Sprint 10 Completed):
-- Multi-mode baseline established for Mode 1 (`QUESTION_CHALLENGE_SHORT`), Mode 2 (`TOPIC_INTRODUCTION`), and Mode 3 (`EXPLAINED_QUESTIONS_VIDEO`).
-- Dynamic authoring workspaces implemented (`QuestionStudioPage.tsx`, `TopicIntroWorkspace.tsx`, `ExplainedQuestionsWorkspace.tsx`).
-- Persistence, validation, and Stage 02 submission integrated and verified across all 3 modes with 100% test passing rate.
-
-### Downstream Roadmap:
-1. **Stage 03 Scripting & Teleprompter Adaptation**: Extend Audience Script and Teleprompter modules to ingest multi-question Mode 3 packages and Mode 2 concept demystifications without breaking Mode 1 single-short contracts.
-2. **Stage 05 & 06 Filming & Editing Multi-Take Ingestion**: Support take grouping per question index for Mode 3 masterclasses while preserving single-take flows for Mode 1.
-3. **Stage 07 Final QC Multi-Tab Consolidation**: Ensure QC inspection evaluates polymorphic criteria (Mode 2 syllabus verification, Mode 3 multi-question review) within `VideoDetailPage.tsx`.
-4. **Stage 10 Publishing & Distribution Alignment**: Adapt metadata schemas for 16:9 masterclass publishing on YouTube Longform alongside 9:16 Shorts.
-
----
-
-## 9. KEY DECISIONS, TRADEOFFS, ASSUMPTIONS, AND ACCEPTANCE CRITERIA
-
-### 9.1 Active Architecture Decision Log (ADRs)
-
-| ADR ID | Decision Summary | Core Rationale |
-| :--- | :--- | :--- |
-| **ADR-001** | Single 15-stage state engine (`transition-matrix.ts`) | Single source of truth for workflow states. |
-| **ADR-002 / ADR-013** | Strict GAR-02 with audited System Admin override | Anti-self-approval with operational continuity for single admin. |
-| **ADR-003** | AI Human Gating (AP-009) | Prohibits silent AI approvals on quality gates. |
-| **ADR-004 / ADR-007** | Google AI Studio as Primary Release Target | Unified build/run environment with zero drift. |
-| **ADR-008** | Two-Tier Taxonomy (`Topic` $\to$ `Subtopic`) | Obsoletes legacy Category permanently. |
-| **ADR-009** | 4-option MCQ schema; Stage 02 concept verification for Mode 2 | Invariant 15-stage sequence without skipping steps. |
-| **ADR-010** | Additive multi-mode model; mode-governed aspect ratios | Accommodates Mode 3 masterclasses and Mode 2 intros. |
-| **ADR-011** | QC consolidated into `VideoDetailPage.tsx`; typed query params | Eliminates unmounted page fragmentation. |
-| **ADR-012** | Mode 1 batch generation runner authorization | Scalable candidate generation ($N \in \{5,10,15,20\}$). |
-| **ADR-014** | Unified Local-to-Deployment Architecture (Principle 16) | Single codebase running identically locally and in AI Studio. |
-
-### 9.2 Key Technical Trade-offs
-1. **In-Memory & Emulator Testing vs. Live Cloud Testing**:
-   - *Decision*: Strictly test against mocks, in-memory fixtures, and local Firestore Emulator.
-   - *Trade-off*: Avoids production cloud costs and quota exhaustion; requires comprehensive mock fidelity and explicit boundary testing.
-2. **Single Atomic Aggregate vs. Relational Subcollections for Multi-Question Sets**:
-   - *Decision*: Store Mode 3 question packages as single atomic aggregate documents in `question_drafts` and `questions`.
-   - *Trade-off*: Guarantees atomic writes and transactional integrity across questions; limits package size to Firestore 1MB document ceiling (well within budget for $N \le 20$ questions).
-3. **Strict Free-Tier Rate Limiting vs. Uncapped Throughput**:
-   - *Decision*: Enforce 15 RPM token bucket and 100 calls/day circuit breaker.
-   - *Trade-off*: Prioritizes ₹0.00 cost guarantee over burst throughput.
-
-### 9.3 Open Questions & Research Items
-- **GCP Cloud Run Container Constraints**: Confirm whether Google AI Studio Applet execution environment imposes container memory ceilings ($\le 512\text{MB}$) that require tuning Node's `--max-old-space-size`.
-- **Automated Cloud Backup Trigger**: Develop an isolated, permission-gated GCP Cloud Function or manual CLI runbook for automated Firestore backups before future database maintenance.
-
-### 9.4 Architecture Acceptance Criteria (AAC)
-- **[AAC-01] Single Codebase**: Zero separate repository forks, development-only shims, or branched business logic between local development and deployed AI Studio runtime.
-- **[AAC-02] Datastore Isolation**: Datastore safety guard prevents development or test execution from writing to production Firestore under all circumstances.
-- **[AAC-03] Full 15-Stage Integrity**: All 3 content modes transition cleanly through the 15-stage workflow without skipping stages or violating state machine rules.
-- **[AAC-04] Strict GAR-02 & Admin Override**: Self-approval rejected for all employees; admin self-approval permitted only with audited confirmation and $\ge 10$-character reason.
-- **[AAC-05] Secret Externalization**: Zero secrets tracked in Git; exactly 8 canonical production secrets required in Google AI Studio.
-- **[AAC-06] Two-Tier Taxonomy**: Zero runtime references to Category; Topic $\to$ Subtopic strictly enforced in database, APIs, and UI.
-- **[AAC-07] Free-Tier Protection**: Outbound AI calls protected by token bucket limiter and daily circuit breaker guaranteeing ₹0.00 cost under Google AI Studio free tier.
-- **[AAC-08] Verified Clean Build**: `npm run build` compiles frontend assets and backend server cleanly without errors or untyped warnings.
-
----
-
-## 10. RECOMMENDED FIRST IMPLEMENTATION SPRINT BREAKDOWN
-
-Based on the completion of Sprint 10 (which established the multi-mode authoring workspaces and persistence baseline), the first logical implementation sprint is **Sprint 11: Multi-Mode Production Workbench & Stage 03–07 Downstream Expansion**.
-
-### Recommended Initial Task Breakdown:
-- **`S11-T01`**: Audit Stage 03 (Audience Script) data contracts and UI for multi-mode payload consumption (Mode 2 concept demystification script vs. Mode 3 multi-question masterclass script).
-- **`S11-T02`**: Implement Mode 2 and Mode 3 script generators and editors in `ScriptGenerationPage` / `ScriptWorkspace`.
-- **`S11-T03`**: Adapt Stage 04 Teleprompter & Filming interface with question tab switching for Mode 3 multi-take filming.
-- **`S11-T04`**: Extend Stage 05 Raw Video Ingestion to support multi-take registration mapped to Mode 3 question indices.
-- **`S11-T05`**: Enhance Stage 07 Final QC within `VideoDetailPage.tsx` Tab 4 to validate Mode 2 syllabus criteria and Mode 3 question sequences with strict GAR-02 enforcement.
-- **`S11-T06`**: Comprehensive automated test suite for Stage 03–07 multi-mode workflow integration.
+- **[AAC-01] Scope Fidelity**: System terminology, content modes, formats, and planning layers strictly reflect `bp_cms_core_requirements1.md`.
+- **[AAC-02] Single Codebase (Principle 16)**: Zero code branching or separate development shims between local and Google AI Studio environments.
+- **[AAC-03] Backward Compatibility**: `EXPLAINED_QUESTIONS_VIDEO` continues to function seamlessly as an alias for `WORKED_EXAMPLES` without rewriting persisted documents.
+- **[AAC-04] Datastore Authority & Isolation**: Cloud Firestore remains sole transactional authority; datastore safety guard prevents tests from touching production.
+- **[AAC-05] Learning Unit Integrity**: All new publications support linking to an authoritative `LearningUnit`; standalone legacy artifacts remain valid.
+- **[AAC-06] Format Decoupling**: Presentation format is strictly decoupled from content mode.
+- **[AAC-07] Verified Quality Gates**: Stage 02 verification enforces calculation correctness, reasoning completeness, and spoken Telugu naturalness.
+- **[AAC-08] GAR-02 Compliance**: Anti-self-approval strictly enforced; System Admin override immutably logged with justification.
