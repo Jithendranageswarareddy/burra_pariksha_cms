@@ -74,6 +74,36 @@ export class DriveSyncService {
       if (fileSize > maxThumbSize) {
         throw new ValidationError(`Thumbnail file exceeds size limit of ${maxThumbSize / (1024 * 1024)}MB. Provided: ${(fileSize / (1024 * 1024)).toFixed(2)}MB`);
       }
+    } else if (mediaStage === 'AUDIO') {
+      const allowedMimes = ['audio/wav', 'audio/mpeg', 'audio/aac'];
+      const allowedExts = ['wav', 'mp3', 'aac'];
+      if (!allowedMimes.includes(mimeType) || !ext || !allowedExts.includes(ext)) {
+        throw new ValidationError(`Unsupported AUDIO MIME type or extension: "${mimeType}" ".${ext}".`);
+      }
+      if ((mimeType === 'audio/wav' && ext !== 'wav') ||
+        (mimeType === 'audio/mpeg' && ext !== 'mp3') ||
+        (mimeType === 'audio/aac' && ext !== 'aac')) {
+        throw new ValidationError(`AUDIO MIME type "${mimeType}" does not match file extension ".${ext}".`);
+      }
+      const maxAudioSize = Number(process.env.MAX_AUDIO_SIZE_BYTES) || 50 * 1024 * 1024;
+      if (fileSize > maxAudioSize) {
+        throw new ValidationError(`Audio file exceeds size limit of ${maxAudioSize / (1024 * 1024)}MB.`);
+      }
+    } else if (mediaStage === 'ANIMATION') {
+      const allowedMimes = ['video/mp4', 'video/webm', 'image/gif'];
+      const allowedExts = ['mp4', 'webm', 'gif'];
+      if (!allowedMimes.includes(mimeType) || !ext || !allowedExts.includes(ext)) {
+        throw new ValidationError(`Unsupported ANIMATION MIME type or extension: "${mimeType}" ".${ext}".`);
+      }
+      if ((mimeType === 'video/mp4' && ext !== 'mp4') ||
+        (mimeType === 'video/webm' && ext !== 'webm') ||
+        (mimeType === 'image/gif' && ext !== 'gif')) {
+        throw new ValidationError(`ANIMATION MIME type "${mimeType}" does not match file extension ".${ext}".`);
+      }
+      const maxAnimationSize = Number(process.env.MAX_ANIMATION_SIZE_BYTES) || 100 * 1024 * 1024;
+      if (fileSize > maxAnimationSize) {
+        throw new ValidationError(`Animation file exceeds size limit of ${maxAnimationSize / (1024 * 1024)}MB.`);
+      }
     } else {
       // Videos: RAW, EDITED, FINAL
       const allowedMimes = ['video/mp4', 'video/quicktime', 'video/x-matroska', 'video/webm'];
@@ -161,6 +191,11 @@ export class DriveSyncService {
         break;
       case 'THUMBNAIL':
         targetFolderId = hierarchy.thumbnailFolderId;
+        break;
+      case 'AUDIO':
+      case 'ANIMATION':
+        // Reuse the established Raw folder; no second Drive hierarchy is introduced.
+        targetFolderId = hierarchy.rawFolderId;
         break;
       default:
         throw new ValidationError(`Unsupported media stage: "${mediaStage}"`);

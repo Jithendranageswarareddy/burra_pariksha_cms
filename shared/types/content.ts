@@ -265,7 +265,7 @@ export interface ThumbnailVersion {
   driveFileId?: string;
 }
 
-export type MediaStage = 'RAW' | 'EDITED' | 'FINAL' | 'THUMBNAIL';
+export type MediaStage = 'RAW' | 'EDITED' | 'FINAL' | 'THUMBNAIL' | 'AUDIO' | 'ANIMATION';
 
 export interface MediaAsset {
   id: string;

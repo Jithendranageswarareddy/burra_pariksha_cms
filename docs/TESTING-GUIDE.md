@@ -32,6 +32,7 @@ scope.
 | S11-T02 Firestore integration | `npm run test:s11-t02:emulator` | Starts a disposable Firestore emulator for synthetic project `burra-pariksha-test`, runs the integration test, and tears the emulator down. |
 | Direct S11-T02 integration | `npm run test:s11-t02:integration` | Only valid when a loopback emulator is already listening on `127.0.0.1:8080`; the test probes the host and fails closed before writes when unavailable. |
 | S12-T01/S12-T02/S12-T03 focused unit suites | `npm run test:s12-t01`, `npm run test:s12-t02`, `npm run test:s12-t03` | Deterministic validators and TEXT/IMAGE contracts use in-memory doubles; no Firestore, Drive, or external service access. |
+| S12-T04 focused unit suite | `npm run test:s12-t04` | AUDIO/ANIMATION contracts and mocked Drive orchestration; validates MIME, extension, size, Learning Unit linkage, and metadata-only output without external service access. |
 
 The S11 emulator command is intentionally wrapped by `firebase-tools
 emulators:exec`; it must not be replaced with a command that points at a

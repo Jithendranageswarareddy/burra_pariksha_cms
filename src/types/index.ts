@@ -621,7 +621,7 @@ export interface Thumbnail {
   fileSize?: number;
 }
 
-export type MediaStage = 'RAW' | 'EDITED' | 'FINAL' | 'THUMBNAIL';
+export type MediaStage = 'RAW' | 'EDITED' | 'FINAL' | 'THUMBNAIL' | 'AUDIO' | 'ANIMATION';
 
 export interface MediaAsset {
   id: string;
@@ -3096,6 +3096,5 @@ export interface GenerateCommentIntelligenceInput {
   analysisScope?: CommentIntelligenceScope | string;
   commentIds?: string[];
 }
-
 
 

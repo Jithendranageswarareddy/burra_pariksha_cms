@@ -4,6 +4,16 @@ import {
   ImageArtifactInputSchema,
   ImageArtifactMetadata,
   ImageArtifactMetadataSchema,
+  AudioArtifactInput,
+  AudioArtifactInputSchema,
+  AudioArtifactMetadata,
+  AudioArtifactMetadataSchema,
+  AudioNarrationSchema,
+  AnimationArtifactInput,
+  AnimationArtifactInputSchema,
+  AnimationArtifactMetadata,
+  AnimationArtifactMetadataSchema,
+  AnimationBriefSchema,
   TextArtifact,
   TextArtifactSchema,
 } from '../../../../shared/contracts/content-artifacts.contract';
@@ -74,6 +84,68 @@ export class ContentArtifactService {
       version: mediaAsset.version,
     });
     return metadata;
+  }
+
+  public validateAudioNarration(input: unknown) {
+    return AudioNarrationSchema.parse(input);
+  }
+
+  public validateAnimationBrief(input: unknown) {
+    return AnimationBriefSchema.parse(input);
+  }
+
+  public async uploadAudioArtifact(
+    input: unknown,
+    bodyStreamOrBuffer: Readable | Buffer,
+    actor: LearningUnitLinkActor
+  ): Promise<AudioArtifactMetadata> {
+    const artifact = AudioArtifactInputSchema.parse(input);
+    return this.uploadBinaryArtifact(artifact, bodyStreamOrBuffer, actor, 'AUDIO', AudioArtifactMetadataSchema);
+  }
+
+  public async uploadAnimationArtifact(
+    input: unknown,
+    bodyStreamOrBuffer: Readable | Buffer,
+    actor: LearningUnitLinkActor
+  ): Promise<AnimationArtifactMetadata> {
+    const artifact = AnimationArtifactInputSchema.parse(input);
+    return this.uploadBinaryArtifact(artifact, bodyStreamOrBuffer, actor, 'ANIMATION', AnimationArtifactMetadataSchema);
+  }
+
+  private async uploadBinaryArtifact(
+    artifact: AudioArtifactInput | AnimationArtifactInput,
+    bodyStreamOrBuffer: Readable | Buffer,
+    actor: LearningUnitLinkActor,
+    mediaStage: 'AUDIO' | 'ANIMATION',
+    metadataSchema: typeof AudioArtifactMetadataSchema | typeof AnimationArtifactMetadataSchema
+  ): Promise<AudioArtifactMetadata | AnimationArtifactMetadata> {
+    await this.validateLink(artifact.learningUnitId, actor);
+    const payload = Buffer.isBuffer(bodyStreamOrBuffer)
+      ? bodyStreamOrBuffer
+      : await this.readStream(bodyStreamOrBuffer);
+    if (payload.length !== artifact.fileSize) {
+      throw new ValidationError(`Media payload size (${payload.length}) does not match declared size (${artifact.fileSize}).`);
+    }
+
+    const mediaAsset = await this.uploadAsset({
+      contentId: artifact.contentId,
+      learningUnitId: artifact.learningUnitId,
+      mediaStage,
+      fileName: artifact.fileName,
+      mimeType: artifact.mimeType,
+      bodyStreamOrBuffer: payload,
+    });
+    if (!mediaAsset.driveFileId || mediaAsset.fileSize !== artifact.fileSize || mediaAsset.mimeType !== artifact.mimeType) {
+      throw new ValidationError('Drive metadata does not match the validated media artifact.');
+    }
+
+    return metadataSchema.parse({
+      ...artifact,
+      driveFileId: mediaAsset.driveFileId,
+      folderId: mediaAsset.folderId,
+      checksum: mediaAsset.checksum || mediaAsset.md5Checksum,
+      version: mediaAsset.version,
+    }) as AudioArtifactMetadata | AnimationArtifactMetadata;
   }
 
   private async readStream(stream: Readable): Promise<Buffer> {
