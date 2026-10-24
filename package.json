@@ -88,7 +88,8 @@
     "test:s16-t01": "npm run test:s16-t01:api && npm run test:s11-t03 && npm run test:s11-t05 && npm run test:s13-t01 && npm run test:s13-t05",
     "test:s16-t01:api": "tsx tests/unit/core-requirements/s16-t01-api-acceptance.unit.test.ts",
     "test:s16-t02": "npx --yes firebase-tools emulators:exec --only firestore --project burra-pariksha-test \"tsx tests/integration/core-requirements/s16-t02-learning-unit-workflow-emulator.integration.test.ts\"",
-    "test:s16-t03": "tsx tests/unit/core-requirements/s16-t03-production-workbench.unit.test.ts"
+    "test:s16-t03": "tsx tests/unit/core-requirements/s16-t03-production-workbench.unit.test.ts",
+    "test:s16-t04": "tsx tests/unit/core-requirements/s16-t04-publication-media-adapters.unit.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

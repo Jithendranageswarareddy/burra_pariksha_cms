@@ -503,3 +503,12 @@ Chronological record of actual task executions in accordance with [AGENTS.md](..
 - **Changed Files**: `tests/unit/core-requirements/s16-t03-production-workbench.unit.test.ts`, `package.json`, this tracking file.
 - **Verification**: `npm run test:s16-t03` — `PASS`; `npm run lint` — `PASS`; `npm run build` — `PASS` (existing bundle-size and dependency comment warnings only); `npm run test:s16-t01` — `PASS`; `npm run test:s16-t02` — `PASS` (isolated disposable Firestore emulator); `npm run test:s13-t06` — `PASS` (isolated disposable Firestore emulator); `git diff --check` — `PASS`. Browser automation, cloud integration, production data, and human role acceptance — `NOT RUN`.
 - **Risks & Next Actions**: Firebase CLI unauthenticated and Node metadata lookup warnings occurred during emulator startup only. Component evidence verifies rendered capability visibility, not browser navigation or live backend authorization; S16-T04 is the next approved roadmap task and was not started.
+
+### [S16-T04] 2026-10-25 — Reconcile publication and media adapter retry behavior
+
+- **Status**: `COMPLETED`
+- **Objective**: Verify the existing publication/media adapter duplicate and retry behavior through provider-free mocked acceptance tests.
+- **Work & Outcome**: Added focused mocked coverage for same-record idempotent publication, cross-video duplicate URL rejection, and repeated retry no-op behavior. The tests stub only repository, authorization, readiness, and audit boundaries; no provider publication, media upload, Firestore write, or production operation occurs. Existing service behavior was sufficient, so no application adapter logic or dependency was changed.
+- **Changed Files**: `tests/unit/core-requirements/s16-t04-publication-media-adapters.unit.test.ts`, `package.json`, this tracking file.
+- **Verification**: `npm run test:s16-t04` — `PASS`; `npm run test:s16-t03` — `PASS`; `npm run test:s16-t01` — `PASS`; `npm run lint` — `PASS`; `npm run build` — `PASS` (existing Zod annotation and bundle-size warnings only); `git diff --check` — `PASS`. Emulator, provider/cloud integration, browser automation, production publication, and human acceptance — `NOT RUN`.
+- **Risks & Next Actions**: S16-T03’s component and mocked-client evidence still does not establish browser navigation or live backend authorization. S16-T04 acceptance is limited to mocked adapter behavior; S17-T01 is the next approved roadmap task and was not started.
