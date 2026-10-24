@@ -71,7 +71,8 @@
     "test:s12-t01": "tsx tests/unit/core-requirements/s12-t01-deterministic-calculation-verifier.unit.test.ts",
     "test:s12-t02": "tsx tests/unit/core-requirements/s12-t02-stage02-quality.unit.test.ts",
     "test:s12-t03": "tsx tests/unit/core-requirements/s12-t03-content-artifact.unit.test.ts",
-    "test:s12-t04": "tsx tests/unit/core-requirements/s12-t04-audio-animation-artifacts.unit.test.ts"
+    "test:s12-t04": "tsx tests/unit/core-requirements/s12-t04-audio-animation-artifacts.unit.test.ts",
+    "test:s12-t05": "tsx tests/unit/core-requirements/s12-t05-percentages-discounts-vertical-slice.unit.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
