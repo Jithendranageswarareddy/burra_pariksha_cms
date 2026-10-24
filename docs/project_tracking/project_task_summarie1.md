@@ -163,3 +163,42 @@ Chronological record of actual task executions in accordance with [AGENTS.md](..
 - **Risks & Next Actions**:
   - Persistence for `learning_units` collection will be implemented in subsequent task `S11-T02` with dedicated repository and emulator isolation tests.
   - Next action: Proceed to `S11-T02` (LearningUnit Datastore Repository & Persistence) upon instruction.
+
+---
+
+### [S11-T02] 2026-10-24 — Learning Unit Repository and Persistence
+
+- **Status**: `COMPLETED`
+- **Objective**: Implement authoritative Cloud Firestore persistence for `LearningUnit` records through `LearningUnitsRepository`, enforce schema validation, primary key uniqueness, identifier immutability, optimistic concurrency control (OCC), and RBAC authorization while strictly isolating automated tests from production data.
+- **Work & Outcome**:
+  - Registered `LEARNING_UNITS: 'learning_units'` in `database/firestore/schemas/domain-schemas.ts` and added backend gateway access rule in `database/firestore/rules/firestore.rules`.
+  - Added `'learning_units'` to `KNOWN_PURGEABLE_COLLECTIONS` in `scripts/clean-local-data.ts`.
+  - Implemented `database/firestore/repositories/learning-units.repository.ts` inheriting from authoritative `BaseRepository<LearningUnit>`:
+    - `create()` validates input against `CreateLearningUnitSchema`, guarantees canonical `lnu_<uuid>` format, enforces primary key uniqueness, sets initial version 1, and enforces author attribution.
+    - `findById()` retrieves documents with non-existent ID safety and soft-delete filtering.
+    - `update()` validates updates against `UpdateLearningUnitSchema`, protects immutable identifiers, enforces OCC version incrementing and throws `ConcurrencyConflictError` (HTTP 409) on stale versions.
+    - `query()` / `list()` provides multi-dimensional filtering across taxonomy (topic, subtopic), core dimensions (skill level, audience context, editorial pillar, primary format), and case-insensitive full-text search.
+    - Enforced RBAC authorization: Creator/Author roles can create and manage their own units; Admin/Lead roles can manage any unit; unauthorized roles are blocked with `ForbiddenError` (HTTP 403).
+  - Added companion const enum-like objects in `shared/constants/core-requirements.ts` for dual type/runtime value usability without breaking existing consumers.
+  - Exported repository from `database/firestore/repositories/index.ts`.
+  - Created comprehensive 10-test suite in `tests/unit/core-requirements/s11-t02-learning-unit-repository.unit.test.ts`.
+- **Changed Files**:
+  - `package.json`
+  - `database/firestore/schemas/domain-schemas.ts`
+  - `database/firestore/rules/firestore.rules`
+  - `database/firestore/repositories/index.ts`
+  - `database/firestore/repositories/learning-units.repository.ts`
+  - `scripts/clean-local-data.ts`
+  - `shared/constants/core-requirements.ts`
+  - `shared/contracts/learning-unit.contract.ts`
+  - `shared/types/learning-unit.ts`
+  - `tests/unit/core-requirements/s11-t02-learning-unit-repository.unit.test.ts`
+  - `docs/project_tracking/project_task_summarie1.md`
+- **Verification**:
+  - `npm run test:s11-t02` — `PASS` (10/10 assertions passed)
+  - `npm run test:s11-t01` — `PASS` (10/10 regression assertions passed)
+  - `npm run lint` (`tsc --noEmit`) — `PASS` (clean exit 0, zero type errors)
+  - `git diff --check` — `PASS` (clean exit 0, no whitespace or formatting errors)
+- **Risks & Next Actions**:
+  - All tests execute strictly under `PERSISTENCE_MODE=IN_MEMORY_TEST_ONLY` with datastore isolation guards preventing live database contact.
+  - Next action: Proceed to `S11-T03` (Learning Unit Planning API & Service Integration) upon instruction.

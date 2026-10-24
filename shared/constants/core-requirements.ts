@@ -25,6 +25,12 @@ import { DifficultyLevel } from './enums';
  * - Mode 2: WORKED_EXAMPLES (Worked Examples Video, problem-solving demonstration)
  * - Mode 3: QUESTION_CHALLENGE_SHORT (Question Challenge Short, retrieval practice)
  */
+export const CanonicalContentMode = {
+  TOPIC_INTRODUCTION: 'TOPIC_INTRODUCTION',
+  WORKED_EXAMPLES: 'WORKED_EXAMPLES',
+  QUESTION_CHALLENGE_SHORT: 'QUESTION_CHALLENGE_SHORT',
+} as const;
+
 export type CanonicalContentMode =
   | 'TOPIC_INTRODUCTION'
   | 'WORKED_EXAMPLES'
@@ -134,6 +140,14 @@ export function isSupportedContentMode(val: unknown): val is SupportedContentMod
  * Five canonical presentation formats orthogonal to content mode:
  * Text-based, Video, Audio, Image, Animation.
  */
+export const PresentationFormat = {
+  TEXT: 'TEXT',
+  VIDEO: 'VIDEO',
+  AUDIO: 'AUDIO',
+  IMAGE: 'IMAGE',
+  ANIMATION: 'ANIMATION',
+} as const;
+
 export type PresentationFormat = 'TEXT' | 'VIDEO' | 'AUDIO' | 'IMAGE' | 'ANIMATION';
 
 export const PRESENTATION_FORMATS: readonly PresentationFormat[] = [
@@ -185,6 +199,21 @@ export function isPresentationFormat(val: unknown): val is PresentationFormat {
 // ============================================================================
 // 3. INITIAL EDITORIAL PILLARS A–F (bp_cms_core_requirements1.md Section 4)
 // ============================================================================
+
+export const EditorialPillar = {
+  PILLAR_A: 'PILLAR_A',
+  PILLAR_B: 'PILLAR_B',
+  PILLAR_C: 'PILLAR_C',
+  PILLAR_D: 'PILLAR_D',
+  PILLAR_E: 'PILLAR_E',
+  PILLAR_F: 'PILLAR_F',
+  NUMERICAL_FOUNDATIONS: 'PILLAR_A',
+  LOGICAL_THINKING: 'PILLAR_B',
+  EVERYDAY_MONEY: 'PILLAR_C',
+  PRACTICAL_UNDERSTANDING: 'PILLAR_D',
+  DATA_SMARTER_DECISIONS: 'PILLAR_E',
+  LEARNING_STRATEGIES: 'PILLAR_F',
+} as const;
 
 export type EditorialPillar =
   | 'PILLAR_A' // Numerical foundations
@@ -257,6 +286,16 @@ export function isEditorialPillar(val: unknown): val is EditorialPillar {
 // 4. SEVEN AUDIENCE CONTEXTS (bp_cms_core_requirements1.md Section 5)
 // ============================================================================
 
+export const AudienceContext = {
+  CHILDREN: 'CHILDREN',
+  STUDENTS: 'STUDENTS',
+  COMPETITIVE_EXAM: 'COMPETITIVE_EXAM',
+  WORKING_ADULTS: 'WORKING_ADULTS',
+  HOUSEHOLDS: 'HOUSEHOLDS',
+  BUSINESS_OPERATORS: 'BUSINESS_OPERATORS',
+  OLDER_LEARNERS: 'OLDER_LEARNERS',
+} as const;
+
 export type AudienceContext =
   | 'CHILDREN'
   | 'STUDENTS'
@@ -327,6 +366,13 @@ export function isAudienceContext(val: unknown): val is AudienceContext {
 // ============================================================================
 // 5. FOUR CANONICAL SKILL LEVELS (bp_cms_core_requirements1.md Section 5)
 // ============================================================================
+
+export const SkillLevel = {
+  FOUNDATION: 'FOUNDATION',
+  BEGINNER: 'BEGINNER',
+  INTERMEDIATE: 'INTERMEDIATE',
+  ADVANCED: 'ADVANCED',
+} as const;
 
 export type SkillLevel =
   | 'FOUNDATION'

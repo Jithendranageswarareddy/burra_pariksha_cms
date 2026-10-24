@@ -17,11 +17,17 @@
 import { z } from 'zod';
 import {
   AUDIENCE_CONTEXTS,
+  AudienceContext,
   CANONICAL_CONTENT_MODES,
+  CanonicalContentMode,
   EDITORIAL_PILLARS,
+  EditorialPillar,
   PRESENTATION_FORMATS,
+  PresentationFormat,
   SKILL_LEVELS,
+  SkillLevel,
   SUPPORTED_CONTENT_MODES,
+  SupportedContentMode,
   resolveCanonicalContentMode,
 } from '../constants/core-requirements';
 import {
@@ -35,27 +41,27 @@ import {
 // ============================================================================
 
 export const CanonicalContentModeSchema = z.enum(
-  CANONICAL_CONTENT_MODES as [string, ...string[]]
+  CANONICAL_CONTENT_MODES as unknown as [CanonicalContentMode, ...CanonicalContentMode[]]
 );
 
 export const SupportedContentModeSchema = z.enum(
-  SUPPORTED_CONTENT_MODES as [string, ...string[]]
+  SUPPORTED_CONTENT_MODES as unknown as [SupportedContentMode, ...SupportedContentMode[]]
 );
 
 export const PresentationFormatSchema = z.enum(
-  PRESENTATION_FORMATS as [string, ...string[]]
+  PRESENTATION_FORMATS as unknown as [PresentationFormat, ...PresentationFormat[]]
 );
 
 export const AudienceContextSchema = z.enum(
-  AUDIENCE_CONTEXTS as [string, ...string[]]
+  AUDIENCE_CONTEXTS as unknown as [AudienceContext, ...AudienceContext[]]
 );
 
 export const SkillLevelSchema = z.enum(
-  SKILL_LEVELS as [string, ...string[]]
+  SKILL_LEVELS as unknown as [SkillLevel, ...SkillLevel[]]
 );
 
 export const EditorialPillarSchema = z.enum(
-  EDITORIAL_PILLARS as [string, ...string[]]
+  EDITORIAL_PILLARS as unknown as [EditorialPillar, ...EditorialPillar[]]
 );
 
 // ============================================================================

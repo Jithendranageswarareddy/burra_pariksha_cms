@@ -29,6 +29,7 @@ export const PRESERVED_COLLECTIONS = new Set([
 export const KNOWN_PURGEABLE_COLLECTIONS = [
   'questions',
   'question_drafts',
+  'learning_units',
   'workflow_instances',
   'audit_logs',
   'scripts',

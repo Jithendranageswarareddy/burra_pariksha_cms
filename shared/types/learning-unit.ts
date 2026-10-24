@@ -21,7 +21,7 @@ import {
   SkillLevel,
 } from '../constants/core-requirements';
 
-export type {
+export {
   AudienceContext,
   CanonicalContentMode,
   EditorialPillar,

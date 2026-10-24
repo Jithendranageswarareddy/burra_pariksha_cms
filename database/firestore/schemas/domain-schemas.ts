@@ -53,6 +53,7 @@ export const DOMAIN_COLLECTIONS = {
   REFINEMENT_CANDIDATES: 'refinement_candidates',
   THUMBNAIL_CANDIDATES: 'thumbnail_candidates',
   PINNED_COMMENT_PACKAGES: 'pinned_comment_packages',
+  LEARNING_UNITS: 'learning_units',
 } as const;
 
 export type DomainCollectionName = typeof DOMAIN_COLLECTIONS[keyof typeof DOMAIN_COLLECTIONS];

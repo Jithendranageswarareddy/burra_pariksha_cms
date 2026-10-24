@@ -72,6 +72,10 @@ service cloud.firestore {
       allow read, write: if isBackendGateway();
     }
 
+    match /learning_units/{unitId} {
+      allow read, write: if isBackendGateway();
+    }
+
     match /question_videos/{qvId} {
       allow read, write: if isBackendGateway();
     }
