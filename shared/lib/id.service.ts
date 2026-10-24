@@ -62,6 +62,7 @@ export type CanonicalPrefix =
   | 'cfg_' // Question Config
   | 'val_' // Validation
   | 'dft_' // Question Draft
+  | 'lnu_' // Learning Unit
   | (string & {});
 
 export const CANONICAL_PREFIXES: readonly CanonicalPrefix[] = [
@@ -92,9 +93,11 @@ export const CANONICAL_PREFIXES: readonly CanonicalPrefix[] = [
   'cfg_',
   'val_',
   'dft_',
+  'lnu_',
 ] as const;
 
 export const PREFIX_ENTITY_MAP: Record<string, string> = {
+  'lnu_': 'LearningUnit',
   'qst_': 'Question',
   'scr_': 'Script',
   'vid_': 'Video',
@@ -266,6 +269,10 @@ export class CanonicalIdService {
 
   public generateValidationId(): string {
     return this.generateId('val_');
+  }
+
+  public generateLearningUnitId(): string {
+    return this.generateId('lnu_');
   }
 
   public validateCanonicalId(id: string, expectedPrefix?: CanonicalPrefix | string): boolean {

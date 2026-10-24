@@ -126,3 +126,40 @@ Chronological record of actual task executions in accordance with [AGENTS.md](..
 - **Risks & Next Actions**:
   - Learning Unit introduction must maintain strict backward compatibility with existing standalone question drafts and videos.
   - Next action: Proceed with Sprint 11 Task 01 (`S11-T01`) to implement schema contracts.
+
+---
+
+### [S11-T01] 2026-10-24 — Core Requirements Contracts and Compatibility
+
+- **Status**: `COMPLETED`
+- **Objective**: Establish foundational contracts, canonical content modes, presentation formats, audience contexts, skill levels, editorial pillars, LearningUnit schema, and explicit backward compatibility mappings for `EXPLAINED_QUESTIONS_VIDEO` without modifying runtime persistence.
+- **Work & Outcome**:
+  - Defined canonical enums and metadata in `shared/constants/core-requirements.ts`: `CanonicalContentMode` (Mode 1: `TOPIC_INTRODUCTION`, Mode 2: `WORKED_EXAMPLES`, Mode 3: `QUESTION_CHALLENGE_SHORT`), `PresentationFormat` (`TEXT`, `VIDEO`, `AUDIO`, `IMAGE`, `ANIMATION`), `AudienceContext` (7 contexts from Section 4), `SkillLevel` (`FOUNDATION`, `BEGINNER`, `INTERMEDIATE`, `ADVANCED`), and `EditorialPillar` (Pillars A through F).
+  - Implemented bidirectional legacy mode mappings (`resolveCanonicalContentMode`, `toLegacyContentMode`, `isSupportedContentMode`) guaranteeing seamless interop with legacy `EXPLAINED_QUESTIONS_VIDEO`.
+  - Updated `shared/registry/content-mode.registry.ts` to transparently resolve `WORKED_EXAMPLES` and `EXPLAINED_QUESTIONS_VIDEO` to the same mode definition.
+  - Implemented `shared/types/learning-unit.ts` and Zod validation contracts in `shared/contracts/learning-unit.contract.ts` with strict schema validation.
+  - Extended `shared/lib/id.service.ts` with canonical prefix `lnu_` (`generateLearningUnitId`, `isLearningUnitId`).
+  - Added non-breaking optional `learningUnitId?: string` to `QuestionDraft`, `Question`, `Video`, and `ProductionContextEntityIds`.
+  - Preserved 100% backward compatibility across existing question drafts, videos, and workflow payloads without any database migrations or schema breaks.
+- **Changed Files**:
+  - `package.json`
+  - `shared/constants/core-requirements.ts`
+  - `shared/constants/index.ts`
+  - `shared/contracts/index.ts`
+  - `shared/contracts/learning-unit.contract.ts`
+  - `shared/lib/id.service.ts`
+  - `shared/registry/content-mode.registry.ts`
+  - `shared/types/content.ts`
+  - `shared/types/index.ts`
+  - `shared/types/learning-unit.ts`
+  - `shared/types/production-context.ts`
+  - `shared/types/question.ts`
+  - `tests/unit/core-requirements/s11-t01-contracts-and-compatibility.unit.test.ts`
+  - `docs/project_tracking/project_task_summarie1.md`
+- **Verification**:
+  - `npm run lint` (`tsc --noEmit`) — `PASS` (clean exit 0, zero type errors)
+  - `git diff --check` — `PASS` (clean exit 0, no whitespace or formatting errors)
+  - `npm run test:s11-t01` — `PASS` (10/10 assertions passed)
+- **Risks & Next Actions**:
+  - Persistence for `learning_units` collection will be implemented in subsequent task `S11-T02` with dedicated repository and emulator isolation tests.
+  - Next action: Proceed to `S11-T02` (LearningUnit Datastore Repository & Persistence) upon instruction.

@@ -50,7 +50,15 @@ export class ContentModeRegistry {
    * Throws an error if the mode is not registered.
    */
   public getDefinition(mode: ContentProductionMode | string): ContentModeDefinition {
-    const def = this.definitions.get(mode as ContentProductionMode);
+    let def = this.definitions.get(mode as ContentProductionMode);
+    if (!def) {
+      // Legacy compatibility alias resolution (bp_cms_core_requirements1.md Section 8)
+      if (mode === 'WORKED_EXAMPLES') {
+        def = this.definitions.get('EXPLAINED_QUESTIONS_VIDEO');
+      } else if (mode === 'EXPLAINED_QUESTIONS_VIDEO') {
+        def = (this.definitions as Map<string, ContentModeDefinition>).get('WORKED_EXAMPLES');
+      }
+    }
     if (!def) {
       throw new Error(`Unregistered content production mode: '${mode}'.`);
     }
@@ -61,7 +69,16 @@ export class ContentModeRegistry {
    * Returns whether a mode is registered.
    */
   public hasDefinition(mode: string): boolean {
-    return this.definitions.has(mode as ContentProductionMode);
+    if (this.definitions.has(mode as ContentProductionMode)) {
+      return true;
+    }
+    if (mode === 'WORKED_EXAMPLES' && this.definitions.has('EXPLAINED_QUESTIONS_VIDEO')) {
+      return true;
+    }
+    if (mode === 'EXPLAINED_QUESTIONS_VIDEO' && (this.definitions as Map<string, ContentModeDefinition>).has('WORKED_EXAMPLES')) {
+      return true;
+    }
+    return false;
   }
 
   /**

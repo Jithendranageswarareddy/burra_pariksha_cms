@@ -58,7 +58,8 @@
     "test:s10-t16": "tsx tests/unit/question-generation/s10-t16-topic-introduction.unit.test.ts",
     "test:s10-t17": "tsx tests/unit/question-generation/s10-t17-explained-questions.unit.test.ts",
     "test:s10-t18": "tsx tests/integration/question-generation/s10-t18-multimode-persistence-isolation.integration.test.ts",
-    "test:s10-t19:e2e": "tsx tests/e2e/question-generation/s10-t19-multimode-live-e2e.test.ts"
+    "test:s10-t19:e2e": "tsx tests/e2e/question-generation/s10-t19-multimode-live-e2e.test.ts",
+    "test:s11-t01": "tsx tests/unit/core-requirements/s11-t01-contracts-and-compatibility.unit.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

@@ -17,13 +17,22 @@ import { CanonicalRbacRole } from '../constants/roles';
 import { DifficultyLevel, QuestionLanguage, QuestionStyle } from '../constants/enums';
 import { WorkflowStepNumber, WorkflowStageStatus } from '../constants/workflow';
 
+import {
+  CanonicalContentMode,
+  SupportedContentMode,
+} from '../constants/core-requirements';
+
+export type { CanonicalContentMode, SupportedContentMode };
+
 /**
- * Three authoritative content production modes (ADR-010)
+ * Three content production modes deployed across existing runtime code (ADR-010).
+ * Canonical modes (TOPIC_INTRODUCTION, WORKED_EXAMPLES, QUESTION_CHALLENGE_SHORT)
+ * are formalized under CanonicalContentMode (ADR-015).
  */
 export type ContentProductionMode =
-  | 'QUESTION_CHALLENGE_SHORT' // Mode 1: Single-question vertical short (<= 58s)
-  | 'TOPIC_INTRODUCTION' // Mode 2: Conceptual syllabus overview (0 questions, 60-180s)
-  | 'EXPLAINED_QUESTIONS_VIDEO'; // Mode 3: Masterclass (1 intro + N practice questions, 16:9)
+  | 'QUESTION_CHALLENGE_SHORT' // Mode 1 in existing code: Single-question vertical short (<= 58s)
+  | 'TOPIC_INTRODUCTION' // Mode 2 in existing code: Conceptual syllabus overview (0 questions, 60-180s)
+  | 'EXPLAINED_QUESTIONS_VIDEO'; // Mode 3 in existing code: Masterclass (legacy alias for WORKED_EXAMPLES)
 
 /**
  * Authoritative workflow stage micro-operational conditions
@@ -59,6 +68,7 @@ export interface ProductionContextModeConfig {
  * Canonical distributed UUID entity IDs correlating all production artifacts
  */
 export interface ProductionContextEntityIds {
+  learningUnitId?: string; // Central educational asset: lnu_<uuid> (REQ-06)
   contentMasterId?: string; // Root aggregate: cnt_<uuid>
   draftId?: string; // Transient draft: dft_<uuid> (Stage 01)
   questionId?: string; // Approved question: qst_<uuid> (Stage 02+)

@@ -39,6 +39,7 @@ export interface ExplainedQuestionItem {
 
 export interface Question {
   id: string; // e.g. qst_uuid or BP-Q-1042
+  learningUnitId?: string; // Reference to central LearningUnit.id (lnu_<uuid>)
   contentId?: string; // Canonical correlation identity BP-CNT-######
   contentMasterId?: string; // Reference to ContentMaster.id
   topicId: string;
@@ -93,6 +94,7 @@ export interface Question {
 
 export interface QuestionDraft {
   id: string; // e.g. dft_uuid or BP-DFT-1042
+  learningUnitId?: string; // Reference to central LearningUnit.id (lnu_<uuid>)
   topicId: string;
   topicName?: string;
   subtopicId: string;

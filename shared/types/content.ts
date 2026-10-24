@@ -97,6 +97,7 @@ export interface ContentMasterCanonicalState {
 
 export interface Video {
   id: string; // e.g. vid_uuid or BP-V-000001
+  learningUnitId?: string; // Reference to central LearningUnit.id (lnu_<uuid>)
   contentId?: string; // Canonical correlation identity BP-CNT-######
   contentMasterId?: string;
   questionId: string;
