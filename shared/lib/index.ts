@@ -6,6 +6,7 @@ export * from './similarity';
 export * from './id.service';
 export * from './workflow-resolver';
 export * from './product-pipeline';
+export * from './linked-learning-unit-context';
 export * from './question-batch-assembly';
 export * from './question-editor';
 export * from './question-quality-validator';

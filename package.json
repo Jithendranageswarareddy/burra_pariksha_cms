@@ -76,7 +76,8 @@
     "test:s12-t06": "tsx tests/unit/core-requirements/s12-t06-content-mode-format-compatibility.unit.test.ts",
     "test:s13-t01": "tsx tests/unit/core-requirements/s13-t01-transition-authority.unit.test.ts",
     "test:s13-t02": "tsx tests/unit/core-requirements/s13-t02-mode-aware-prompts.unit.test.ts",
-    "test:s13-t03": "tsx tests/unit/core-requirements/s13-t03-product-pipeline.unit.test.ts"
+    "test:s13-t03": "tsx tests/unit/core-requirements/s13-t03-product-pipeline.unit.test.ts",
+    "test:s13-t04": "tsx tests/unit/core-requirements/s13-t04-learning-unit-context.unit.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

@@ -49,6 +49,17 @@ export function buildTeluguScriptPrompt(question: Question | QuestionCandidate |
   topicName?: string;
   realWorldContext?: string;
   real_world_context?: string;
+  learningUnitContext?: {
+    title: string;
+    learningObjective: string;
+    verifiedMethod: string;
+    correctCalculations?: string;
+    commonMistakes?: string[];
+    realLifeApplications?: string[];
+    realLifeScenario?: string;
+    topicName?: string;
+    subtopicName?: string;
+  };
 }): string {
   const content = (question as any).questionText || (question as any).content || '';
   const optA = (question as any).options?.a || (question as any).option_a || '';
@@ -59,11 +70,23 @@ export function buildTeluguScriptPrompt(question: Question | QuestionCandidate |
   const explanation = (question as any).explanation || '';
   const topic = (question as any).topicName || (question as any).taxonomy?.topicName || 'Quantitative Aptitude';
   const realWorld = (question as any).realWorldContext || (question as any).real_world_context || '';
+  const learningUnitContext = (question as any).learningUnitContext;
+  const contextBlock = learningUnitContext
+    ? `\nLEARNING OBJECTIVE CONTEXT (verified planning input; do not expose internal IDs or staff metadata):
+- Title: ${learningUnitContext.title}
+- Objective: ${learningUnitContext.learningObjective}
+- Verified method: ${learningUnitContext.verifiedMethod}
+${learningUnitContext.correctCalculations ? `- Verified calculations: ${learningUnitContext.correctCalculations}` : ''}
+${learningUnitContext.realLifeScenario ? `- Everyday scenario: ${learningUnitContext.realLifeScenario}` : ''}
+${learningUnitContext.commonMistakes?.length ? `- Common mistakes: ${learningUnitContext.commonMistakes.join('; ')}` : ''}
+${learningUnitContext.realLifeApplications?.length ? `- Applications: ${learningUnitContext.realLifeApplications.join('; ')}` : ''}`
+    : '';
 
   return `Please generate a high-retention 45-second conversational Telugu video teleprompter script for the following aptitude question:
 
 TOPIC: ${topic}
 ${realWorld ? `REAL WORLD CONTEXT: ${realWorld}` : ''}
+${contextBlock}
 
 QUESTION STATEMENT:
 ${content}

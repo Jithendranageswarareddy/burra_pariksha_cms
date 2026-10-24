@@ -196,6 +196,7 @@ export interface ScriptContentPayload {
 
 export interface Script {
   id: string; // e.g. scr_uuid or SCR-204
+  learningUnitId?: string; // Internal correlation to the canonical LearningUnit.
   contentId?: string;
   contentMasterId?: string;
   videoId: string;
@@ -422,6 +423,7 @@ export interface PlatformPublishInfo {
 
 export interface Publishing {
   id: string; // e.g. pub_uuid or PUB-204
+  learningUnitId?: string; // Internal correlation to the canonical LearningUnit.
   contentId?: string;
   contentMasterId?: string;
   videoId: string;

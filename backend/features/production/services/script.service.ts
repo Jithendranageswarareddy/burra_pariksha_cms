@@ -18,8 +18,18 @@ import { canonicalIdService } from '../../../../src/lib/id.service';
 import { auditService } from '../../../infrastructure/audit/services/audit.service';
 import { videoService } from './video.service';
 import { aiOrchestrator } from '../../../ai/orchestrator';
-import { Question, Script, ScriptVersion, VideoProductionStatus, UserRole, ScriptContentPayload } from '../../../../shared';
+import {
+  Question,
+  Script,
+  ScriptVersion,
+  VideoProductionStatus,
+  UserRole,
+  ScriptContentPayload,
+  toAudienceLearningUnitContext,
+  toLinkedLearningUnitContext,
+} from '../../../../shared';
 import { ValidationError } from '../../../../src/lib/errors';
+import { learningUnitsRepository } from '../../../../database/firestore/repositories/learning-units.repository';
 
 export type { ScriptContentPayload };
 
@@ -63,7 +73,8 @@ export class ScriptService {
     };
     validation: any;
   }> {
-    return aiOrchestrator.generateTeluguScript(question);
+    const learningUnitContext = await this.getAudienceLearningUnitContext(question.learningUnitId);
+    return aiOrchestrator.generateTeluguScript({ ...question, learningUnitContext });
   }
 
   /**
@@ -88,7 +99,17 @@ export class ScriptService {
       throw new Error(`Linked question "${video.questionId}" not found for video "${videoId}".`);
     }
 
-    return aiOrchestrator.generateTeluguScript(question);
+    const learningUnitContext = await this.getAudienceLearningUnitContext(question.learningUnitId || video.learningUnitId);
+    return aiOrchestrator.generateTeluguScript({ ...question, learningUnitContext });
+  }
+
+  private async getAudienceLearningUnitContext(learningUnitId?: string) {
+    if (!learningUnitId) return undefined;
+    const learningUnit = await learningUnitsRepository.findById(learningUnitId);
+    if (!learningUnit) {
+      throw new ValidationError(`Linked LearningUnit "${learningUnitId}" was not found.`);
+    }
+    return toAudienceLearningUnitContext(toLinkedLearningUnitContext(learningUnit));
   }
 
   public async getScriptByQuestionId(questionId: string): Promise<Script | null> {
@@ -248,6 +269,7 @@ export class ScriptService {
       const scriptId = canonicalIdService.generateScriptId();
       const newScript: Script = {
         id: scriptId,
+        learningUnitId: video.learningUnitId,
         contentId: video.contentId || video.contentMasterId,
         contentMasterId: video.contentMasterId,
         videoId,
@@ -301,6 +323,7 @@ export class ScriptService {
     if (payload.createNewVersion) {
       const nextVersionNumber = (existing.currentVersion || 1) + 1;
       const updatedScript = await scriptsRepository.updateRecord(existing.id, {
+        ...(video.learningUnitId ? { learningUnitId: video.learningUnitId } : {}),
         hookText: payload.hookText,
         problemStatement: payload.problemStatement,
         stepByStepSolution: payload.stepByStepSolution,
