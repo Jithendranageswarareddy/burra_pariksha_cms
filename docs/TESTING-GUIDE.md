@@ -139,3 +139,14 @@ optimistic-concurrency updates. Production time, cost, revision, rejection, and
 reuse values are observations supplied by an authorized operator; the service
 does not infer them from workflow history or audience analytics. Missing values
 must use the S15-T01 `UNAVAILABLE` metric form.
+
+### S16-T01 API acceptance
+
+Run `npm run test:s16-t01` for the bounded S16-T01 acceptance suite. It
+combines the new API-boundary test with the existing LearningUnit planning,
+linking, workflow-authority, and mutation-route security suites. The API test
+proves missing authentication returns 401, insufficient roles return 403,
+actor resolution fails closed without an Admin fallback, and the LearningUnit
+planning commands remain protected and audience-safe. It is deterministic,
+does not write Firestore, and does not call external providers. Emulator
+persistence evidence is intentionally deferred to S16-T02.
