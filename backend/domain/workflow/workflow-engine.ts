@@ -16,6 +16,7 @@ import {
   findTransitionRule,
   getRulesForStep,
   checkStepPrerequisites,
+  isCanonicalWorkflowStep,
 } from './transition-matrix';
 import {
   ForbiddenError,
@@ -65,7 +66,12 @@ export class WorkflowEngine implements IWorkflowEngine {
       );
     }
 
-    const currentStep = item.currentStep as WorkflowStepNumber;
+    if (!isCanonicalWorkflowStep(item.currentStep)) {
+      throw new InvalidWorkflowTransitionError(
+        `Current workflow step ${String(item.currentStep)} is invalid. Canonical workflow steps are strictly 1..15.`
+      );
+    }
+    const currentStep = item.currentStep;
 
     // 2. Lookup rule in canonical transition matrix
     const rule = findTransitionRule(currentStep, targetStep, action);

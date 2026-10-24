@@ -13,6 +13,7 @@ import {
   CANONICAL_WORKFLOW_STEPS,
   WorkflowInstanceDocument,
   contentModeRegistry,
+  resolveCanonicalContentMode,
 } from '../../../shared';
 
 /**
@@ -649,6 +650,14 @@ export function findTransitionRule(
 }
 
 /**
+ * Keeps transition legality fail-closed at the matrix boundary. TypeScript's
+ * WorkflowStepNumber type cannot protect runtime API payloads.
+ */
+export function isCanonicalWorkflowStep(step: unknown): step is WorkflowStepNumber {
+  return Number.isInteger(step) && step >= 1 && step <= 15;
+}
+
+/**
  * Gets all allowed transitions out of the given current step.
  */
 export function getRulesForStep(step: WorkflowStepNumber): TransitionRule[] {
@@ -678,9 +687,15 @@ export function checkStepPrerequisites(
     }
   }
 
-  const mode = contentModeRegistry.hasDefinition(rawMode)
-    ? rawMode
-    : 'QUESTION_CHALLENGE_SHORT';
+  let mode: 'TOPIC_INTRODUCTION' | 'WORKED_EXAMPLES' | 'QUESTION_CHALLENGE_SHORT' =
+    'QUESTION_CHALLENGE_SHORT';
+  if (contentModeRegistry.hasDefinition(rawMode)) {
+    try {
+      mode = resolveCanonicalContentMode(rawMode);
+    } catch {
+      errors.push(`Invalid production mode specified: '${rawMode}'.`);
+    }
+  }
 
   // Step 02 Prerequisite: Mode-specific verification requirements
   if (targetStep === 2) {
@@ -697,7 +712,7 @@ export function checkStepPrerequisites(
         ) {
           errors.push('Concept overview title or introductory concept notes are required before submitting for verification.');
         }
-      } else if (mode === 'EXPLAINED_QUESTIONS_VIDEO') {
+      } else if (mode === 'WORKED_EXAMPLES') {
         if (
           typeof contentPayload.targetQuestionCount === 'number' &&
           ![5, 10, 15, 20].includes(contentPayload.targetQuestionCount)
