@@ -521,3 +521,12 @@ Chronological record of actual task executions in accordance with [AGENTS.md](..
 - **Changed Files**: `docs/project_tracking/project_task_summarie1.md`
 - **Verification**: `git fetch origin` and synchronization inspection — `PASS` at baseline `38c5573bbcb1f51371ab6ece34a4dc7f6c7c1bce`; roadmap/architecture inspection — `BLOCKED` by the documented approval gate; code tests/build/lint — `NOT RUN` because no implementation was authorized; `git diff --check` — `PASS`.
 - **Risks & Next Actions**: Product owner and architecture owner must approve explicit units and derivation/provenance policy before S17-T01 can complete. S17-T02 remains gated and was not started.
+
+### Architecture / Planning — 2026-10-25 — S17 approval-readiness decision package
+
+- **Status**: `COMPLETED`
+- **Objective**: Resolve ambiguity around the approval dependencies for S17-T01 and S17-T02 without implementing either task.
+- **Work & Outcome**: Added a bounded decision package to the target-architecture document. It records verified S15 contract/repository facts separately from five pending decisions covering source/derivation, units/currency, revision/rejection/reuse meanings and permitted uses, windows/samples/unavailable values, and topic resolution for bounded aggregation. Recommendations are explicitly non-approved; roadmap statuses remain `GATED`, and no runtime behavior or schema was changed.
+- **Changed Files**: `docs/architecture/28-CORE-REQUIREMENTS-TARGET-ARCHITECTURE.md`, this tracking file.
+- **Verification**: `git fetch origin` and branch synchronization inspection — `PASS` at baseline `4c7b39306d35accf250b210a7e77f3485ea0b47a`; targeted roadmap/architecture/contract/tracking review — `PASS`; application tests/build/lint — `NOT RUN` because this was documentation-only and no code changed; `git diff --check` — `PASS`.
+- **Risks & Next Actions**: Product owner and architecture owner must approve `S17-MET-01` through `S17-MET-05` or record alternatives before S17-T01/T02 can start. ADR-016 remains `PROPOSED / PENDING APPROVAL` and is unrelated to this package. The single next action is to obtain and record those approvals.

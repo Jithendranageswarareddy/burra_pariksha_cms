@@ -181,6 +181,49 @@ than rendering zero.
 No proposed change authorizes a new taxonomy level, provider, event system,
 datastore, workflow stage, migration/backfill, or production operation.
 
+### 5.1 S17 approval-readiness decision package
+
+This package separates verified repository facts from recommendations requiring
+explicit approval. It does not approve a metric definition or authorize S17
+implementation.
+
+**Verified baseline**
+
+- S15-T01 defines observations with explicit `AVAILABLE` and `UNAVAILABLE`
+  states, including `INSUFFICIENT_SAMPLE`; it does not define business
+  formulas or thresholds.
+- S15-T02 stores production-effort observations supplied by an authorized
+  operator. The contract names `productionTimeMinutes`, an optional
+  three-letter `currency`, `cost`, `revisionCount`, `rejectionCount`, and
+  `reuseCount`; it does not derive values from workflow timestamps or audience
+  data.
+- Existing performance dimensions include artifact, platform, mode, format,
+  audience context, and series. Topic, time-window boundaries, aggregation
+  formulas, and minimum sample thresholds are not approved by these contracts.
+- The roadmap requires product-owner approval of metric definitions and
+  explicitly requires units and derivation policy before S17-T01
+  implementation. S17-T02 remains dependent on that approval.
+
+**Pending decisions**
+
+| Decision ID | Precise question | Recommendation for approval | Alternatives and trade-offs | Impact and acceptance condition | Required approver / status |
+| --- | --- | --- | --- | --- | --- |
+| `S17-MET-01` | What is authoritative for each production-effort value: operator observation, derived value, or both? | Treat explicitly recorded observations as authoritative; permit derived values only where a separately approved source and derivation are recorded. Do not infer values from workflow or audience timestamps. | Operator-only is auditable but manual; derived-only is repeatable but depends on complete event semantics; dual-source is flexible but requires provenance and conflict rules. | Contracts/records need source and derivation provenance; reports must distinguish observed, derived, and unavailable. S17-T01 unblocks when the source policy and conflict rule are approved. | Product owner + architecture owner; `PENDING` |
+| `S17-MET-02` | What units and currency apply to production time and cost, and when is currency mandatory? | Retain the existing minute field and ISO-like three-letter currency shape as candidate contract constraints; require approval of cost units, currency applicability, conversion policy, and rounding before aggregation. | A single reporting currency simplifies comparison but introduces exchange-rate policy; native currencies preserve evidence but complicate comparison; time in minutes is clear but may not represent labor allocation. | Shared contracts, Firestore records, aggregation DTOs, and exports must preserve units/currency without silently converting values. S17-T01 unblocks when the unit and currency policy is explicit. | Product owner; `PENDING` |
+| `S17-MET-03` | What do revisions, rejection, and reuse count, and what uses are permitted? | Define each as an approved observation/derivation rule and restrict metrics to authorized reporting and operational analysis; do not use them to mutate workflow, approve content, publish, or create billing/payroll authority. | Event-derived counts improve repeatability but require canonical event identity; operator-entered counts are available sooner but need correction/audit policy. | Service validation, audit attribution, and reporting labels must preserve the approved meaning. S17-T01 unblocks when definitions and permitted uses are signed off. | Product owner + architecture owner; `PENDING` |
+| `S17-MET-04` | What time-window boundaries, timezone, minimum sample rules, and unavailable-value behavior govern S17-T02? | Approve one explicit window convention, sample threshold, and aggregation rule for unavailable values; never convert unavailable or insufficient samples to zero. | Fixed UTC windows are deterministic; local business windows are easier for operators but require timezone ownership; lower thresholds improve coverage but reduce privacy/statistical confidence. | Repository queries must be bounded and deterministic; DTOs must expose source/window and measured, unavailable, or insufficient-sample outcomes. S17-T02 unblocks only after the complete window/sample/missing-data policy is approved. | Architecture owner + product owner; `PENDING` |
+| `S17-MET-05` | How is topic resolved for aggregation when stored snapshots contain artifact/platform dimensions but not an explicit topic field? | Approve a bounded, documented lookup from the artifact/LearningUnit authority, or explicitly exclude topic until a source field is approved; never use recursive scans or inferred text classification. | A bounded lookup preserves the existing model but adds joins; adding a denormalized topic field improves reads but requires write/version/backfill policy; exclusion reduces scope but weakens required comparisons. | Repository/service query shape, indexes, DTO filters, and historical-record treatment depend on this decision. S17-T02 unblocks when topic source and historical handling are explicit. | Architecture owner; `PENDING` |
+
+**Approval evidence required before implementation**
+
+The product owner and architecture owner must approve the decision IDs above
+(or record explicit alternatives) in this architecture decision package. The
+approval must state units, source/ownership, formulas or derivation policy,
+currency, permitted uses, window boundaries, sample thresholds, unavailable
+handling, and topic source. Until then, S17-T01 and S17-T02 remain `GATED`;
+no schema migration, aggregation service, dashboard, or production-data
+operation is authorized.
+
 ## 6. Non-functional contracts
 
 - **Security:** authentication fails closed; authorization checks capability,
