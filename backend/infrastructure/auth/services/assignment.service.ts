@@ -457,7 +457,11 @@ export class AssignmentService {
       updated.completedAt = now;
     }
 
-    const result = await assignmentsRepository.updateRecord(id, updated);
+    // Carry the version observed during authorization into the write so a
+    // concurrent assignment action fails closed instead of overwriting it.
+    const result = await assignmentsRepository.updateRecord(id, updated, {
+      expectedVersion: existing.version,
+    });
 
     await auditLogRepository.logAction(
       actorId,
@@ -521,7 +525,9 @@ export class AssignmentService {
       updatedAt: now,
     };
 
-    const result = await assignmentsRepository.updateRecord(id, updated);
+    const result = await assignmentsRepository.updateRecord(id, updated, {
+      expectedVersion: existing.version,
+    });
 
     await auditLogRepository.logAction(
       actorId,
@@ -584,7 +590,9 @@ export class AssignmentService {
       updatedAt: now,
     };
 
-    const result = await assignmentsRepository.updateRecord(id, updated);
+    const result = await assignmentsRepository.updateRecord(id, updated, {
+      expectedVersion: existing.version,
+    });
 
     await auditLogRepository.logAction(
       actorId,
@@ -640,7 +648,9 @@ export class AssignmentService {
       updatedAt: now,
     };
 
-    const result = await assignmentsRepository.updateRecord(id, updated);
+    const result = await assignmentsRepository.updateRecord(id, updated, {
+      expectedVersion: existing.version,
+    });
 
     await auditLogRepository.logAction(
       actorId,
@@ -696,7 +706,9 @@ export class AssignmentService {
       updatedAt: now,
     };
 
-    const result = await assignmentsRepository.updateRecord(id, updated);
+    const result = await assignmentsRepository.updateRecord(id, updated, {
+      expectedVersion: existing.version,
+    });
 
     await auditLogRepository.logAction(
       actorId,
@@ -782,7 +794,9 @@ export class AssignmentService {
       updatedAt: now,
     };
 
-    const result = await assignmentsRepository.updateRecord(id, updated);
+    const result = await assignmentsRepository.updateRecord(id, updated, {
+      expectedVersion: existing.version,
+    });
 
     await auditLogRepository.logAction(
       actorId,

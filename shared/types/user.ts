@@ -31,6 +31,8 @@ export interface User {
 
 export interface Assignment {
   id: string; // e.g. asn_uuid or BP-ASN-000001
+  /** Firestore OCC token returned with persisted assignments. */
+  version?: number;
   contentId?: string;
   contentMasterId?: string;
   entityType: AssignmentEntityType | string;
