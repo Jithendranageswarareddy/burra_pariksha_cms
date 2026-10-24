@@ -431,6 +431,23 @@ async function runSystemAdminWorkflowPermissionsTests() {
       }
     );
 
+    // Request payload values are not an authoritative author identity and
+    // cannot turn a legacy record into an approval-eligible workflow item.
+    assert.throws(
+      () => {
+        workflowEngine.evaluateTransition(
+          itemMissingAuthor,
+          3,
+          'QUESTION_VERIFY',
+          { id: 'USR-OTHER-99', role: CanonicalRbacRole.ADMIN, name: 'Independent Admin' },
+          { authorId: 'USR-OTHER-99' }
+        );
+      },
+      (err: any) => {
+        return err.name === 'ForbiddenError' && err.message.includes('missing authorId');
+      }
+    );
+
     // Valid independent approval transition
     const itemWithOtherAuthor: WorkflowInstanceDocument = {
       ...mockItem,

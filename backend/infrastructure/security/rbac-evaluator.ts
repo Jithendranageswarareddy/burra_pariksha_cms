@@ -137,7 +137,7 @@ export function evaluateSegregationOfDuties(
   const isAdmin = canonicalRole === CanonicalRbacRole.ADMIN || actorRoles.includes(CanonicalRbacRole.ADMIN);
   const authorId = targetContext.authorUserId || targetContext.createdBy;
 
-  if (!authorId || !authorId.trim()) {
+  if (typeof authorId !== 'string' || !authorId.trim()) {
     return {
       allowed: false,
       errorCode: AuthorizationErrorCode.FORBIDDEN_BY_SEGREGATION_OF_DUTIES,
@@ -147,6 +147,7 @@ export function evaluateSegregationOfDuties(
 
   const override = targetContext.override;
   const hasOverride = override?.isOverride === true;
+  const overrideReason = typeof override?.reason === 'string' ? override.reason.trim() : '';
   const isSelfApproval = actor.id.trim() === authorId.trim();
 
   if (hasOverride && !isAdmin) {
@@ -165,7 +166,7 @@ export function evaluateSegregationOfDuties(
         errorMessage: 'Administrative override requires confirmedByAdmin=true before approval/verification.',
       };
     }
-    if (override.reason.trim().length < 10) {
+    if (overrideReason.length < 10) {
       return {
         allowed: false,
         errorCode: AuthorizationErrorCode.FORBIDDEN_BY_SEGREGATION_OF_DUTIES,
@@ -191,7 +192,10 @@ export function evaluateSegregationOfDuties(
   if (isAdmin && assigneeId && String(assigneeId).trim() !== String(actor.id).trim()) {
     warning = `Note: Task was assigned to user ${assigneeId}. Administrator is acting directly.`;
   }
-  return { allowed: true, isOverride: hasOverride, warning };
+  // An independent reviewer is authorized through ordinary RBAC. Ignore an
+  // unnecessary override payload so its audit record cannot misstate why the
+  // approval was allowed.
+  return { allowed: true, isOverride: false, warning };
 }
 
 /**

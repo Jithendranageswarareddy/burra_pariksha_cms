@@ -115,79 +115,92 @@ export class QuestionDraftService {
     const isAdmin = canonicalRole === CanonicalRbacRole.ADMIN || actorRoles.includes(CanonicalRbacRole.ADMIN);
 
     const canonicalAuthorId = draft.authorId?.trim() || (draft as any).createdBy?.trim();
-    if (!isAdmin) {
-      if (!canonicalAuthorId) {
-        const err = new Error(
-          'Author identity cannot be verified (missing authoritative authorId). Segregation of duties (GAR-02) requires an established author user ID before approval/verification. An administrator must reconcile the author record via POST /api/v1/questions/draft/:id/reconcile-author or assign it for independent review.'
+    if (!canonicalAuthorId) {
+      const err = new Error(
+        'Author identity cannot be verified (missing authoritative authorId). Segregation of duties (GAR-02) requires an established author user ID before approval/verification. An administrator must reconcile the author record via POST /api/v1/questions/draft/:id/reconcile-author or assign it for independent review.'
+      );
+      (err as any).statusCode = 403;
+      (err as any).name = 'MissingAuthorIdentityError';
+      (err as any).code = 'GAR-02';
+      throw err;
+    }
+
+    const actorId = typeof actor.id === 'string' ? actor.id.trim() : '';
+    if (!actorId) {
+      const err = new Error('Authenticated reviewer identity is required before approving a question draft.');
+      (err as any).statusCode = 403;
+      (err as any).code = 'GAR-02';
+      throw err;
+    }
+
+    const isSelfApproval = canonicalAuthorId === actorId;
+    const overrideReason = typeof overrideContext?.reason === 'string' ? overrideContext.reason.trim() : '';
+    const hasConfirmedAdminOverride =
+      isAdmin &&
+      overrideContext?.isOverride === true &&
+      overrideContext.confirmedByAdmin === true &&
+      overrideReason.length >= 10;
+
+    if (isSelfApproval && !hasConfirmedAdminOverride) {
+      // Enforce GAR-02 at the domain service as well as the request boundary:
+      // callers must not gain approval authority by bypassing a UI or router.
+      try {
+        await auditService.log(
+          actorId,
+          actor.name,
+          'QUESTION_DRAFT_APPROVAL_REJECTED',
+          'QUESTION_DRAFT',
+          draftId,
+          {
+            reason: 'GAR-02: self-approval requires a confirmed System Administrator override with a detailed justification.',
+            authorId: canonicalAuthorId,
+            authorName: draft.authorName || draft.author,
+            reviewerId: actorId,
+            reviewerName: actor.name,
+          }
         );
-        (err as any).statusCode = 403;
-        (err as any).name = 'MissingAuthorIdentityError';
-        (err as any).code = 'GAR-02';
-        throw err;
+      } catch {
+        // Safe fallback for audit logging
       }
 
-      const isSelfApproval = Boolean(actor.id && canonicalAuthorId === actor.id.trim());
-      if (isSelfApproval) {
-        // Record rejected audit event in authoritative audit ledger
-        try {
-          await auditService.log(
-            actor.id,
-            actor.name,
-            'QUESTION_DRAFT_APPROVAL_REJECTED',
-            'QUESTION_DRAFT',
-            draftId,
-            {
-              reason: 'GAR-02: Anti-Self-Approval constraint violation (strict zero-bypass for non-administrators)',
-              authorId: canonicalAuthorId,
-              authorName: draft.authorName || draft.author,
-              reviewerId: actor.id,
-              reviewerName: actor.name,
-            }
-          );
-        } catch {
-          // Safe fallback for audit logging
-        }
+      const err = new Error(
+        'Self-approval strictly prohibited (GAR-02): only a confirmed System Administrator override with a reason of at least 10 characters may approve an author\'s own draft.'
+      );
+      (err as any).statusCode = 403;
+      (err as any).name = 'AntiSelfApprovalViolation';
+      (err as any).code = 'GAR-02';
+      throw err;
+    }
 
-        const msg = 'Self-approval strictly prohibited (GAR-02): The author cannot verify or approve their own question draft into Step 02 production. An independent reviewer or administrator must verify this item.';
-        const err = new Error(msg);
-        (err as any).statusCode = 403;
-        (err as any).name = 'AntiSelfApprovalViolation';
-        (err as any).code = 'GAR-02';
-        throw err;
-      }
-    } else {
-      // Admin working end-to-end: no override needed. Optional warning if assigned to another person
-      const assignedTo = (draft as any).assigneeId || (draft as any).assignedTo;
-      if (assignedTo && String(assignedTo).trim() !== String(actor.id).trim()) {
-        console.warn(`[QuestionDraftService] Warning: Draft ${draftId} approved by Admin (${actor.id}), but task was assigned to ${assignedTo}.`);
-      }
+    // An administrator reviewing another author works through normal RBAC.
+    const assignedTo = (draft as any).assigneeId || (draft as any).assignedTo;
+    if (isAdmin && !isSelfApproval && assignedTo && String(assignedTo).trim() !== actorId) {
+      console.warn(`[QuestionDraftService] Warning: Draft ${draftId} approved by Admin (${actorId}), but task was assigned to ${assignedTo}.`);
+    }
 
-      const isSelfApproval = Boolean(actor.id && canonicalAuthorId && canonicalAuthorId === actor.id.trim());
-      if (isSelfApproval) {
-        const reason = String(overrideContext?.reason || (overrideContext as any)?.overrideReason || 'Administrator end-to-end approval').trim();
-        try {
-          await auditService.log(
-            actor.id,
-            actor.name,
-            'ADMIN_APPROVAL_OVERRIDE',
-            'QUESTION_DRAFT',
-            draftId,
-            {
-              reason,
-              authorId: canonicalAuthorId,
-              authorName: draft.authorName || draft.author,
-              approverId: actor.id,
-              approverName: actor.name,
-              isOverride: Boolean(overrideContext?.isOverride),
-              confirmedByAdmin: true,
-              overrideActionType: overrideContext?.overrideActionType || 'ADMIN_APPROVAL_DIRECT',
-              previousState: draft.status || 'SUBMITTED_FOR_REVIEW',
-              resultingState: 'APPROVED',
-            }
-          );
-        } catch {
-          // Safe fallback for audit logging
-        }
+    if (isSelfApproval) {
+      try {
+        await auditService.log(
+          actorId,
+          actor.name,
+          'ADMIN_APPROVAL_OVERRIDE',
+          'QUESTION_DRAFT',
+          draftId,
+          {
+            reason: overrideReason,
+            authorId: canonicalAuthorId,
+            authorName: draft.authorName || draft.author,
+            approverId: actorId,
+            approverName: actor.name,
+            isOverride: true,
+            confirmedByAdmin: true,
+            overrideActionType: overrideContext?.overrideActionType || 'ADMIN_APPROVAL_OVERRIDE',
+            previousState: draft.status || 'SUBMITTED_FOR_REVIEW',
+            resultingState: 'APPROVED',
+          }
+        );
+      } catch {
+        // Safe fallback for audit logging
       }
     }
     // Call canonical question creation with verified payload attributed to draft author

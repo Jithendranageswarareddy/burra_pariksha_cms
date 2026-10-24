@@ -155,7 +155,10 @@ export class CentralAuthorizationService {
     if (!sodResult.allowed) {
       const isOverrideEligible = this.isAdmin(actor);
       return {
-        state: isOverrideEligible ? UiActionState.ENABLED : UiActionState.DISABLED,
+        // The normal action remains denied for every self-approval attempt.
+        // Override eligibility only lets the UI offer a separate, confirmed
+        // override flow; the backend evaluator remains the enforcement point.
+        state: UiActionState.DISABLED,
         capability,
         isOverrideEligible,
         reason: sodResult.errorMessage || 'Self-approval strictly prohibited: Author/creator cannot approve their own artifact (GAR-02).',

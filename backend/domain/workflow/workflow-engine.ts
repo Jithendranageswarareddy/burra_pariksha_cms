@@ -94,8 +94,11 @@ export class WorkflowEngine implements IWorkflowEngine {
 
     if (isVerificationStep && isApprovalAction) {
       const canonicalRole = resolveBrownfieldRole(actorContext.role);
-      const authorId = item.authorId || (contentPayload?.authorId as string) || (contentPayload?.authorUserId as string);
-      if (!authorId || !authorId.trim()) {
+      // Author identity must come from the persisted workflow instance. A
+      // request payload is untrusted and must not repair or replace it at an
+      // approval gate, otherwise a caller could bypass the fail-closed rule.
+      const authorId = item.authorId;
+      if (typeof authorId !== 'string' || !authorId.trim()) {
         throw new ForbiddenError(
           `Author identity cannot be verified (missing authorId). Segregation of duties (GAR-02) requires an identifiable author before approval/verification at Step ${currentStep}.`
         );

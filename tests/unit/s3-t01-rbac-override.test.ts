@@ -247,7 +247,7 @@ async function runSprint3AuthorizationTests() {
       }
     );
 
-    assert.strictEqual(adminUiDecision.state, UiActionState.ENABLED);
+    assert.strictEqual(adminUiDecision.state, UiActionState.DISABLED);
     assert.strictEqual(adminUiDecision.isOverrideEligible, true);
     assert.ok(adminUiDecision.reason?.includes('GAR-02'));
 
