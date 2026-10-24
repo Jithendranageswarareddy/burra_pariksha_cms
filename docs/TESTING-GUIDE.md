@@ -39,6 +39,7 @@ scope.
 | S13-T02 mode-aware prompts | `npm run test:s13-t02` | Verifies practical-math, everyday-money, and decision-scenario prompt guidance, legacy mode normalization, injection sanitization, and advisory/provenance metadata contracts without calling Gemini. |
 | S13-T03 product pipeline mapping | `npm run test:s13-t03` | Verifies the pure Discover-to-Improve mapping over LearningUnit planning and all canonical stages 01–15, including verification, publish, measure, improve, and revision re-entry semantics. |
 | S13-T04 linked LearningUnit context | `npm run test:s13-t04` | Verifies linked context propagation into script/teleprompter and downstream media/publication correlation while excluding LearningUnit IDs and staff/planning metadata from audience-facing prompts. |
+| S13-T05 mutation route security matrix | `npm run test:s13-t05` | Inventories every POST/PUT/PATCH/DELETE declaration in the primary and modular routers (152 declarations), records authentication/authorization/actor-boundary PASS results, preserves public auth and non-mutating POST exceptions, and guards the previously unprotected script-history route. |
 
 The S12-T06 matrix marks every canonical pair as `SUPPORTED` because the
 requirements make presentation formats orthogonal to content modes. This is a
@@ -52,6 +53,14 @@ assignment, and content-master lifecycles) subordinate to their own aggregate
 boundaries. They are not alternate definitions of the canonical 15-stage
 workflow. Workflow-instance callers use `WorkflowEngine`, which performs the
 single transition lookup through `transition-matrix.ts`.
+
+S13-T05's route matrix is a deterministic source-level boundary audit. It does
+not treat frontend visibility as authorization: mutation routes must have an
+explicit role/capability/authentication boundary or be covered by the
+router-wide authenticated boundary. Public authentication lifecycle endpoints
+and POST endpoints that only resolve or generate advisory data are recorded as
+intentional exceptions. OCC, immutable audit, ownership, and GAR-02 remain
+service/domain responsibilities and are not weakened by the route-level audit.
 
 The S11 emulator command is intentionally wrapped by `firebase-tools
 emulators:exec`; it must not be replaced with a command that points at a
