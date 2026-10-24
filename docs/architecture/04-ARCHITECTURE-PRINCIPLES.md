@@ -308,6 +308,23 @@ CLASSIFY  ───►  CONSOLIDATE  ───►  MIGRATE  ───►  VERIFY
 
 ---
 
+### PRINCIPLE 16: UNIFIED LOCAL-TO-DEPLOYMENT ARCHITECTURE
+**The application must maintain one production-quality codebase that runs identically in local development and when published through Google AI Studio.**
+
+- **Rationale:** Creating disparate implementations, branching business logic, or development-only shims between local execution and deployed cloud environments leads to environment drift, untestable production failures, hidden bugs, and degraded deployment reliability.
+- **Architectural Implications:**
+  - Business logic, domain invariants, workflow transitions, validation rules, and authorization gates must remain identical and shared between local execution and Google AI Studio deployment.
+  - Environment differences must be bridged strictly through environment-specific configuration and clearly separated external service adapters (e.g., Firestore Emulator vs. Cloud Firestore, deterministic mock AI fixtures vs. live Gemini API), never through separate business logic forks.
+  - Never hardcode local paths, credentials, emulator endpoints, or development-only bypasses into production logic.
+  - Local verification and automated tests must exercise the authentic application logic and schemas used in deployment, targeting explicitly isolated synthetic test services.
+  - Deployment and publication capabilities in Google AI Studio must be verified against actual container runtime behavior, build outputs (`dist/server.cjs`), and the canonical 8 production secrets (`ENVIRONMENT-CONTRACT.md`).
+- **What This Principle Prohibits:**
+  - Prohibits creating a secondary or duplicate implementation for local development.
+  - Prohibits weakening production safeguards, authorization, auditability, or data integrity rules to make local development or automated tests pass.
+  - Prohibits hardcoding development fallbacks into production code paths.
+
+---
+
 ## 4. Architectural Conflict Register (Stage 03 Discrepancies)
 
 The following architectural conflicts were empirically identified during the Stage 03 baseline audit and are recorded here as mandatory resolution targets for subsequent stages.
@@ -348,6 +365,7 @@ Every principle is mapped to the downstream engineering stages responsible for i
 | **P-13** | Incremental Migration (Brownfield) | Stage 18 (Migration Roadmap), Stage 19–26 (Incremental Domain Delivery), Stage 27 |
 | **P-14** | Historical Audit Preservation | Stage 08 (State Models), Stage 09 (RBAC), Stage 26 (Audit & History Verification) |
 | **P-15** | Every Implementation Must Be Testable | Stage 05 (Test Harness Setup), Stage 19–28 (Automated Test Suites per Stage) |
+| **P-16** | Unified Local-to-Deployment Architecture | Stage 05 (System Boundary), Stage 12 (Database Architecture), Stage 27 (Environment Topology) |
 
 ---
 

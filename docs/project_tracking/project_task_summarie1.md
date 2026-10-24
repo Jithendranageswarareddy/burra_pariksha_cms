@@ -1,6 +1,8 @@
-# Project Task Summaries — File 1 (Tasks 001–100)
+# Project Task Summaries — File 1
 
 Chronological record of actual task executions in accordance with [AGENTS.md](../../AGENTS.md) Section 6.
+
+*Note on Task Identity Convention:* Entries `[TASK-001]` through `[TASK-003]` reflect historical tracking prior to the adoption of the sprint-task (`SXX-TYY`) identity standard. Starting with the core architecture phase, entries utilize actual sprint-task identities or architecture/planning headers without inventing synthetic IDs.
 
 ---
 
@@ -73,3 +75,29 @@ Chronological record of actual task executions in accordance with [AGENTS.md](..
 - **Risks & Next Actions**:
   - Unautomated Cloud Firestore backup/restore is an operational blocker for any future cloud maintenance.
   - Next action: Maintain strict local-only cleanup isolation until automated GCP export/restore manifests are established.
+
+---
+
+### Architecture / Planning — 2026-10-24 — Workflow Reset and Core Architecture Kickoff
+
+- **Status**: `COMPLETED`
+- **Objective**: Establish the updated project task tracking standard in `AGENTS.md`, establish the Local-to-Deployment Architecture Principle (Principle 16 / ADR-014), and deliver the authoritative core architecture proposal and reconciliation across all 15 workflow stages and 3 content modes.
+- **Work & Outcome**:
+  - Updated `AGENTS.md` Section 1 and Section 6: codified the Unified Local-to-Deployment Codebase invariant; established sprint-task identity standard (`SXX-TYY`); established single-task progress updates under the same task ID until completion; retired global `TASK-001` sequence while preserving historical entries for provenance; mandated architecture/planning headers for pre-sprint work.
+  - Formalized Principle 16 ("Unified Local-to-Deployment Architecture") in `docs/architecture/04-ARCHITECTURE-PRINCIPLES.md` and registered ADR-014 in `docs/architecture/DECISION-LOG.md`.
+  - Authored `docs/architecture/CORE-ARCHITECTURE-PROPOSAL.md` providing authoritative coverage across all 9 required domains: requirements and boundaries across Modes 1–3, application layering, Cloud Firestore and Google Drive authoritative data model, API boundaries / signed session cookies / GAR-02 anti-self-approval and audited admin override / OCC, local dev and test isolation architecture, verified Google AI Studio build (`dist/server.cjs`) vs external console assumptions, ₹0.00 free-tier circuit breakers and observability probes (`/healthz`, `/readyz`), incremental brownfield migration roadmap, and recommended first implementation sprint (Sprint 11).
+  - Updated `docs/ENGINEERING-INDEX.md` linking the new core architecture master proposal.
+- **Changed Files**:
+  - `AGENTS.md`
+  - `docs/architecture/04-ARCHITECTURE-PRINCIPLES.md`
+  - `docs/architecture/DECISION-LOG.md`
+  - `docs/architecture/CORE-ARCHITECTURE-PROPOSAL.md`
+  - `docs/ENGINEERING-INDEX.md`
+  - `docs/project_tracking/project_task_summarie1.md`
+- **Verification**:
+  - `git pull origin main` — `PASS` (working tree clean, already up to date)
+  - `npm run lint` (`tsc --noEmit`) — `PASS` (clean exit 0)
+  - `git diff --check` — `PASS` (clean exit 0, no whitespace or formatting errors)
+- **Risks & Next Actions**:
+  - Google AI Studio container memory limits under high build concurrency should be observed during first manual console release.
+  - Next action: Proceed to Sprint 11 planning or task execution upon owner instruction.

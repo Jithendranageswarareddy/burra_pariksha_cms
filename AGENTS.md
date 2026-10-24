@@ -34,6 +34,20 @@ The following rules remain mandatory:
 - Never reset, purge, seed, or migrate production Firestore data or external
   content during normal development. Tests must use mocks, emulators, or
   isolated synthetic records.
+- Unified local-to-deployment codebase: The application must use one
+  production-quality codebase that can run locally and when published through
+  Google AI Studio. Keep business logic and domain behavior shared between local
+  and deployed environments. Use environment-specific configuration and clearly
+  separated adapters for services where needed. Never hardcode local paths,
+  credentials, emulator endpoints, or development-only behavior into production
+  logic. Local testing must exercise the same application logic used in
+  deployment, with safe test data and explicitly selected test services. Verify
+  how Google AI Studio publication actually builds, configures, and runs this
+  project before making assumptions about deployment capabilities. Preserve
+  existing product invariants, Firestore authority, authorization, auditability,
+  workflow rules, and existing tested behavior. Do not create a second
+  implementation for local development or weaken production safeguards to make
+  local tests pass.
 
 ## 2. Production safety and code-level-only testing
 
@@ -316,19 +330,42 @@ Documentation concerns are strictly separated:
 - The initial task tracking file is
   `docs/project_tracking/project_task_summarie1.md`. Preserve this exact
   filename.
-- Each tracking file contains at most 100 entries, sequentially numbered from
-  `001` to `100`.
 - When a file reaches 100 entries, start a new numbered summary file following
   the sequence: `docs/project_tracking/project_task_summarie2.md`,
   `project_task_summarie3.md`, etc.
-- Do not invent, backfill, or summarize historical tasks retrospectively.
+- Preserve existing history. Do not fabricate historical summaries or discard
+  previous tracking entries. Historical entries `[TASK-001]`, `[TASK-002]`, and
+  `[TASK-003]` and their verified facts remain preserved for provenance.
+- The global sequential `TASK-001`, `TASK-002` format is retired as the future
+  task identity convention.
 
-### 6.2 Compact entry format
+### 6.2 Task identity and progress tracking rules
+
+- **Task Identity**: Use the existing sprint number and task number from the
+  approved sprint plan as the task identity, formatted `S10-T15` (e.g.,
+  `### [S10-T15] YYYY-MM-DD — <Short Task Title>`).
+- **Single Task Progression**: Keep every progress summary for the same task
+  under that same task ID until completion. A task can have multiple dated
+  updates as work proceeds.
+- **No Invented IDs**: Do not invent sprint/task IDs. Reuse the actual IDs from
+  active sprint plans. If a task is not yet assigned to a sprint, record it as
+  architecture/planning work without inventing an ID (e.g.,
+  `### Architecture / Planning — YYYY-MM-DD — <Short Title>`).
+- **Update Fields**: Each update records status (`COMPLETED` | `PARTIAL` |
+  `BLOCKED` | `NOT COMPLETED`), objective, work & outcome, changed files,
+  actual verification results, blockers/risks, and next action.
+- **Completion Criteria**: Mark task completion (`COMPLETED`) only when its
+  acceptance criteria are fully satisfied.
+- **Concise and Evidence-Based**: Keep summaries concise and grounded strictly
+  in verified facts.
+
+### 6.3 Compact entry format
 
 Every completed or attempted task appends a concise entry using this format:
 
 ```markdown
-### [TASK-XXX] YYYY-MM-DD — <Short Task Title>
+### [SXX-TYY] YYYY-MM-DD — <Short Task Title>
+<!-- Or for pre-sprint work: ### Architecture / Planning — YYYY-MM-DD — <Short Task Title> -->
 
 - **Status**: `COMPLETED` | `PARTIAL` | `BLOCKED` | `NOT COMPLETED`
 - **Objective**: <Concise 1-line summary of requested goal>
@@ -338,7 +375,7 @@ Every completed or attempted task appends a concise entry using this format:
 - **Risks & Next Actions**: <Unresolved risks, safe-target caveats, or immediate follow-ups>
 ```
 
-### 6.3 Tracking integrity rules
+### 6.4 Tracking integrity rules
 
 - Record only evidence-backed facts. Never mark a task `COMPLETED` if a command
   did not finish or assertions failed.
