@@ -115,7 +115,11 @@ export class QuestionsRepository extends BaseRepository<Question> {
    */
   public async findByLearningUnitId(learningUnitId: string, limit = 100): Promise<Question[]> {
     const repository = await this.getFirestoreRepository();
-    return repository.findMany({ where: { learningUnitId }, limit });
+    return repository.findMany({
+      where: { learningUnitId },
+      limit,
+      orderBy: { field: 'updatedAt', direction: 'desc' },
+    });
   }
 
   public async delete(id: string, options?: { actor?: { id: string; name: string }; reason?: string }): Promise<boolean> {

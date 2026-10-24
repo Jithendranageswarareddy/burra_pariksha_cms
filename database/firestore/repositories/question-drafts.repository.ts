@@ -57,7 +57,11 @@ export class QuestionDraftsRepository extends BaseRepository<QuestionDraft> {
    */
   public async findByLearningUnitId(learningUnitId: string, limit = 100): Promise<QuestionDraft[]> {
     const repository = await this.getFirestoreRepository();
-    return repository.findMany({ where: { learningUnitId }, limit });
+    return repository.findMany({
+      where: { learningUnitId },
+      limit,
+      orderBy: { field: 'updatedAt', direction: 'desc' },
+    });
   }
 
   /**

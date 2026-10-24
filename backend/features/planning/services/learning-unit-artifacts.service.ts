@@ -14,14 +14,80 @@ export interface LearningUnitArtifactRepositories {
 
 export interface LinkedLearningUnitArtifacts {
   learningUnitId: string;
-  drafts: QuestionDraft[];
-  questions: Question[];
-  videos: Video[];
+  drafts: LearningUnitDraftArtifact[];
+  questions: LearningUnitQuestionArtifact[];
+  videos: LearningUnitVideoArtifact[];
   correctionReview: {
     supported: false;
     reason: string;
   };
 }
+
+export type LearningUnitDraftArtifact = Pick<
+  QuestionDraft,
+  | 'id'
+  | 'learningUnitId'
+  | 'topicId'
+  | 'topicName'
+  | 'subtopicId'
+  | 'subtopicName'
+  | 'difficulty'
+  | 'language'
+  | 'questionText'
+  | 'options'
+  | 'correctAnswer'
+  | 'explanation'
+  | 'realWorldContext'
+  | 'realLifeContext'
+  | 'challengeType'
+  | 'presentationType'
+  | 'productionMode'
+  | 'status'
+  | 'createdAt'
+  | 'updatedAt'
+  | 'version'
+>;
+
+export type LearningUnitQuestionArtifact = Pick<
+  Question,
+  | 'id'
+  | 'learningUnitId'
+  | 'contentId'
+  | 'contentMasterId'
+  | 'topicId'
+  | 'topicName'
+  | 'subtopicId'
+  | 'subtopicName'
+  | 'difficulty'
+  | 'language'
+  | 'questionText'
+  | 'options'
+  | 'correctAnswer'
+  | 'explanation'
+  | 'realWorldContext'
+  | 'realLifeContext'
+  | 'challengeType'
+  | 'presentationType'
+  | 'status'
+  | 'videoStatus'
+  | 'createdAt'
+  | 'updatedAt'
+>;
+
+export type LearningUnitVideoArtifact = Pick<
+  Video,
+  | 'id'
+  | 'learningUnitId'
+  | 'contentId'
+  | 'contentMasterId'
+  | 'questionId'
+  | 'title'
+  | 'targetDurationSeconds'
+  | 'status'
+  | 'priority'
+  | 'createdAt'
+  | 'updatedAt'
+>;
 
 const DEFAULT_QUERY_LIMIT = 100;
 
@@ -60,13 +126,142 @@ export class LearningUnitArtifactsService {
 
     return {
       learningUnitId: normalizedId,
-      drafts,
-      questions,
-      videos,
+      drafts: drafts.map((draft) => this.toDraftArtifact(draft)),
+      questions: questions.map((question) => this.toQuestionArtifact(question)),
+      videos: videos.map((video) => this.toVideoArtifact(video)),
       correctionReview: {
         supported: false,
         reason: 'Correction-review flags require an approved correction version, persistence field, and transition policy.',
       },
+    };
+  }
+
+  private toDraftArtifact(draft: QuestionDraft): LearningUnitDraftArtifact {
+    const {
+      id,
+      learningUnitId,
+      topicId,
+      topicName,
+      subtopicId,
+      subtopicName,
+      difficulty,
+      language,
+      questionText,
+      options,
+      correctAnswer,
+      explanation,
+      realWorldContext,
+      realLifeContext,
+      challengeType,
+      presentationType,
+      productionMode,
+      status,
+      createdAt,
+      updatedAt,
+      version,
+    } = draft;
+    return {
+      id,
+      learningUnitId,
+      topicId,
+      topicName,
+      subtopicId,
+      subtopicName,
+      difficulty,
+      language,
+      questionText,
+      options,
+      correctAnswer,
+      explanation,
+      realWorldContext,
+      realLifeContext,
+      challengeType,
+      presentationType,
+      productionMode,
+      status,
+      createdAt,
+      updatedAt,
+      version,
+    };
+  }
+
+  private toQuestionArtifact(question: Question): LearningUnitQuestionArtifact {
+    const {
+      id,
+      learningUnitId,
+      contentId,
+      contentMasterId,
+      topicId,
+      topicName,
+      subtopicId,
+      subtopicName,
+      difficulty,
+      language,
+      questionText,
+      options,
+      correctAnswer,
+      explanation,
+      realWorldContext,
+      realLifeContext,
+      challengeType,
+      presentationType,
+      status,
+      videoStatus,
+      createdAt,
+      updatedAt,
+    } = question;
+    return {
+      id,
+      learningUnitId,
+      contentId,
+      contentMasterId,
+      topicId,
+      topicName,
+      subtopicId,
+      subtopicName,
+      difficulty,
+      language,
+      questionText,
+      options,
+      correctAnswer,
+      explanation,
+      realWorldContext,
+      realLifeContext,
+      challengeType,
+      presentationType,
+      status,
+      videoStatus,
+      createdAt,
+      updatedAt,
+    };
+  }
+
+  private toVideoArtifact(video: Video): LearningUnitVideoArtifact {
+    const {
+      id,
+      learningUnitId,
+      contentId,
+      contentMasterId,
+      questionId,
+      title,
+      targetDurationSeconds,
+      status,
+      priority,
+      createdAt,
+      updatedAt,
+    } = video;
+    return {
+      id,
+      learningUnitId,
+      contentId,
+      contentMasterId,
+      questionId,
+      title,
+      targetDurationSeconds,
+      status,
+      priority,
+      createdAt,
+      updatedAt,
     };
   }
 }

@@ -123,6 +123,9 @@ async function main(): Promise<void> {
   assert.deepEqual(result.questions.map((item) => item.id), ['qst-linked']);
   assert.deepEqual(result.videos.map((item) => item.id), ['vid-linked']);
   assert.deepEqual(fixtures.calls.drafts, [[learningUnitId, 1]]);
+  assert.equal('authorId' in result.drafts[0], false);
+  assert.equal('reviewerId' in result.drafts[0], false);
+  assert.equal('notes' in result.videos[0], false);
   assert.equal(result.correctionReview.supported, false);
 
   const emptyFixtures = artifactRepositories({ units: [learningUnit] });

@@ -56,7 +56,11 @@ export class VideosRepository extends BaseRepository<Video> {
    */
   public async findByLearningUnitId(learningUnitId: string, limit = 100): Promise<Video[]> {
     const repository = await this.getFirestoreRepository();
-    return repository.findMany({ where: { learningUnitId }, limit });
+    return repository.findMany({
+      where: { learningUnitId },
+      limit,
+      orderBy: { field: 'updatedAt', direction: 'desc' },
+    });
   }
 
   public async findByContentId(contentId: string): Promise<Video | null> {
