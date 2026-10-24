@@ -251,7 +251,7 @@ deferred; S19 must not depend on an unapproved lifecycle.
 | Task | Status | Deliverables | Acceptance evidence |
 | --- | --- | --- | --- |
 | `S19-T01` | READY | LearningUnit planning workspace completion using existing contracts | Component/API tests prove reload fidelity, independent audience/skill, Topic -> Subtopic, and safe errors |
-| `S19-T02` | READY | Shared artifact editor/preview projections for TEXT, VIDEO, AUDIO, IMAGE, ANIMATION | Contract/component tests prove mode/format orthogonality and metadata-only binary handling |
+| `S19-T02` | COMPLETED | Shared artifact editor/preview projections for TEXT, VIDEO, AUDIO, IMAGE, ANIMATION | Strict shared contract and preview component tests prove all five formats, mode/format orthogonality, metadata-only binary handling, and rejection of mismatched payloads |
 | `S19-T03` | READY | Production workbench sequence, assignments, and stage actions | API/component tests prove capability and ownership gates, deterministic linked-artifact context, and internal metadata separation |
 | `S19-T04` | READY | Human acceptance pack for one synthetic percentages/discounts vertical slice | Owner-run evidence only; no claim from unit tests or production data |
 
@@ -340,8 +340,9 @@ flowchart LR
   I --> D
 ```
 
-The next roadmap task marked `READY` after the completed S16 foundation and
-approved S17-T01 work is `S19-T01`: LearningUnit planning workspace completion.
+The next roadmap task marked `READY` after the completed S16 foundation,
+approved S17-T01 work, and bounded S19-T02 projection work is `S19-T01`:
+LearningUnit planning workspace completion.
 The existing workspace implementation and S11-T04 tests already cover its
 selectors, audience-safe preview, validation, Save Draft/Submit separation,
 OCC conflict handling, permission errors, and Topic -> Subtopic cascade. Any
