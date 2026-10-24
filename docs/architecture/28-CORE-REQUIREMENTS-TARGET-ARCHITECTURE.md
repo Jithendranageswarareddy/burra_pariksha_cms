@@ -214,6 +214,66 @@ implementation.
 | `S17-MET-04` | What time-window boundaries, timezone, minimum sample rules, and unavailable-value behavior govern S17-T02? | Approve one explicit window convention, sample threshold, and aggregation rule for unavailable values; never convert unavailable or insufficient samples to zero. | Fixed UTC windows are deterministic; local business windows are easier for operators but require timezone ownership; lower thresholds improve coverage but reduce privacy/statistical confidence. | Repository queries must be bounded and deterministic; DTOs must expose source/window and measured, unavailable, or insufficient-sample outcomes. S17-T02 unblocks only after the complete window/sample/missing-data policy is approved. | Architecture owner + product owner; `PENDING` |
 | `S17-MET-05` | How is topic resolved for aggregation when stored snapshots contain artifact/platform dimensions but not an explicit topic field? | Approve a bounded, documented lookup from the artifact/LearningUnit authority, or explicitly exclude topic until a source field is approved; never use recursive scans or inferred text classification. | A bounded lookup preserves the existing model but adds joins; adding a denormalized topic field improves reads but requires write/version/backfill policy; exclusion reduces scope but weakens required comparisons. | Repository/service query shape, indexes, DTO filters, and historical-record treatment depend on this decision. S17-T02 unblocks when topic source and historical handling are explicit. | Product owner + architecture owner; `PENDING APPROVAL` |
 
+**Concrete recommendation details (all remain pending approval)**
+
+- **`S17-MET-01` — source and derivation:** Keep operator-recorded
+  production-effort values authoritative for S15-T02. Treat platform snapshots
+  as direct observations at their provider capture time. Permit a derived value
+  only when its auditable source records, source version/window, derivation
+  policy identifier, and derivation timestamp are retained. Aggregates and
+  interpretations are reporting outputs, never source observations. Do not
+  derive production duration from workflow timestamps, infer a labor rate from
+  duration, or merge incompatible sources. If approved, the minimum contract
+  addition is provenance metadata; existing value fields remain unchanged.
+
+- **`S17-MET-02` — units and cost:** Keep `productionTimeMinutes` as elapsed
+  production time in minutes, independently from `cost`. Represent cost as a
+  monetary observation with an explicit currency whenever it is available;
+  currency is not the infrastructure budget and no INR rate or labor rate is
+  implied. Do not compare or sum different currencies without an approved
+  conversion source, effective date, and rounding rule. If approved, add only
+  the minimum unit/currency metadata needed by the existing contract and
+  preserve native recorded values; do not introduce billing, payroll, or
+  compensation authority.
+
+- **`S17-MET-03` — outcome counts and permitted use:** Count revisions and
+  rejections from unique, immutable, auditable workflow/editorial outcomes
+  under an approved identity rule; retries, duplicate requests, and provider
+  transport failures are not additional editorial outcomes. Define reuse as a
+  verified artifact relationship to a LearningUnit, not text similarity or a
+  duplicate artifact. These values may support authorized operational
+  comparisons and planning, but cannot prove quality, learning impact,
+  profitability, approval, publication readiness, or a correction-review
+  decision. Revenue and production cost remain separately attributable until a
+  later approved business calculation exists.
+
+- **`S17-MET-04` — windows and missingness:** Use the authoritative observation
+  timestamp (`recordedAt` for production effort and provider `capturedAt` for
+  performance) with a deterministic half-open reporting window
+  `[start, end)`; approve whether boundaries are UTC or an explicitly owned
+  business timezone. Preserve genuine zero separately from unavailable,
+  not-collected, not-applicable, privacy-restricted, and insufficient-sample
+  outcomes. The current contract supports several unavailable reasons but not
+  every distinction; any enum extension requires approval and compatibility
+  handling. The product owner must set the minimum sample rule; no threshold is
+  proposed here. Until then, comparisons are qualified or suppressed rather
+  than filled with zero.
+
+- **`S17-MET-05` — bounded taxonomy resolution:** Resolve Topic and Subtopic
+  only through the authoritative verified LearningUnit/taxonomy identifiers
+  and their recorded relationship. Do not infer a topic from titles, free text,
+  or similar artifacts. Missing, ambiguous, invalid, or changed associations
+  fail closed and are reported as unavailable; historical results retain the
+  source identifiers/version needed to explain the classification at capture
+  time. Prefer a bounded lookup over denormalization; adding a snapshot field
+  is only justified if the owner approves its write, version, and historical
+  handling policy.
+
+These recommendations are mutually consistent: observations retain their
+original source and units; derivations and aggregates retain provenance; missing
+evidence is never converted to zero; dimensions remain artifact/platform
+scoped; and no metric grants authorization or changes workflow state.
+
 **Decision dependencies and approval action**
 
 1. Approve `S17-MET-01` and `S17-MET-02` first; source ownership and units

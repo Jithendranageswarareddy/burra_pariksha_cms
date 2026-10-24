@@ -539,3 +539,12 @@ Chronological record of actual task executions in accordance with [AGENTS.md](..
 - **Changed Files**: `docs/architecture/28-CORE-REQUIREMENTS-TARGET-ARCHITECTURE.md`, this tracking file.
 - **Verification**: `git fetch origin` and synchronization inspection — `PASS` at baseline `9d5b4297f1d1693b216a7fc7381e36f9941d488c`; targeted S17 contract/architecture review — `PASS`; application tests/build/lint — `NOT RUN` because no code changed; `git diff --check` and relative documentation-link validation — `PASS`.
 - **Risks & Next Actions**: S17-T01 and S17-T02 remain `GATED`. The product owner and architecture owner must approve or explicitly revise all five decision IDs, recording the accepted option, effective date, and rejected alternatives; no implementation starts before that record exists.
+
+### Architecture / Planning — 2026-10-25 — Finalize S17 metric recommendations
+
+- **Status**: `COMPLETED`
+- **Objective**: Prepare concrete, requirements-driven recommendations for S17-MET-01 through S17-MET-05 without authorizing implementation.
+- **Work & Outcome**: Added concrete pending policies for provenance and derivation, independent time/cost units, auditable revision/rejection/reuse counting, timestamped windows and explicit missingness, and fail-closed Topic/Subtopic resolution through verified LearningUnit relationships. Recommendations preserve artifact/platform scope, Firestore authority, audit/OCC boundaries, and separate revenue from cost; they do not invent rates, formulas, thresholds, approvals, billing, or correction-review behavior.
+- **Changed Files**: `docs/architecture/28-CORE-REQUIREMENTS-TARGET-ARCHITECTURE.md`, this tracking file.
+- **Verification**: `git fetch origin` and synchronization inspection — `PASS` at baseline `92ed6ba7032228f5129be69b4c3608764b0a2a66`; targeted contract, S15 tracking, repository/service, roadmap, and core-requirement review — `PASS`; application tests/build/lint — `NOT RUN` because no code changed; `git diff --check` and relative documentation-link validation — `PASS`.
+- **Risks & Next Actions**: All five decisions remain `PENDING APPROVAL`; S17-T01 and S17-T02 remain `GATED`. Product owner and architecture owner must accept or revise the policies, including the sample threshold, timezone, currency/conversion policy, outcome identity rules, and provenance fields, before implementation.
