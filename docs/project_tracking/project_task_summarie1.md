@@ -422,3 +422,12 @@ Chronological record of actual task executions in accordance with [AGENTS.md](..
 - **Changed Files**: `docs/architecture/DECISION-LOG.md`, `docs/sprints/CORE-REQUIREMENTS-ROADMAP.md`, `docs/project_tracking/project_task_summarie1.md`
 - **Verification**: `git fetch origin main` and baseline confirmation at `e706c64f81df127014601e883bc08e3e7ce8b0db` PASS; architecture/code evidence inspection PASS; `git diff --check` PASS; implementation tests/build/lint not run because this was documentation-only and ADR-016 remains unapproved.
 - **Risks & Next Actions**: Product Owner and architecture owner must answer the ADR-016 questions and explicitly accept or reject the proposal. No correction-review code, migration, or production operation is authorized. S14-T03 remains the next task only after acceptance; otherwise revise/defer Sprint 14 scope.
+
+### [S15-T01] 2026-10-24 — Define performance and learning-engagement contracts
+
+- **Status**: `COMPLETED`
+- **Objective**: Define typed artifact/platform audience-performance and learning-engagement observations with explicit missing-data behavior.
+- **Work & Outcome**: Added shared Zod/TypeScript contracts for audience measures and learning-engagement measures, including artifact/learning-unit and comparison dimensions for platform, mode, format, audience, and series. Each metric distinguishes `AVAILABLE` numeric observations from explicit `UNAVAILABLE` reasons; no zero-valued fallback, persistence, aggregation, workflow mutation, or provider call was introduced.
+- **Changed Files**: `shared/contracts/performance.contract.ts`, `tests/unit/core-requirements/s15-t01-performance-contracts.unit.test.ts`, `package.json`, `docs/TESTING-GUIDE.md`, `docs/project_tracking/project_task_summarie1.md`
+- **Verification**: `npm run test:s15-t01` and related S14 contract tests PASS; build and `git diff --check` required before delivery. No emulator/cloud/provider integration is applicable to this pure contract task. Lint remains subject to the known `googleapis` `containeranalysis/v1.d.ts(1450,48): TS1010` blocker.
+- **Risks & Next Actions**: S14-T03/T04 remain blocked by ADR-016. S15-T02 can consume these contracts after review; persistence must remain artifact/platform scoped and append-only.

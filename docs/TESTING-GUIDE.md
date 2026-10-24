@@ -120,3 +120,12 @@ also verifies legacy `EXPLAINED_QUESTIONS_VIDEO` normalization to
 author metadata. The protected `GET /planning/editorial-calendar` endpoint
 reads existing LearningUnit planning records and does not create calendar
 records or alter workflow state.
+
+### S15-T01 performance contracts
+
+Run `npm run test:s15-t01` to validate the audience-performance and
+learning-engagement contract shapes. Metrics are discriminated as
+`AVAILABLE` values or explicit `UNAVAILABLE` reasons, preventing missing
+provider data from being interpreted as zero learning or audience performance.
+This is a pure contract test and performs no analytics persistence or provider
+access.

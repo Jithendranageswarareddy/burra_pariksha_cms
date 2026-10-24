@@ -82,7 +82,8 @@
     "test:s13-t06": "npx --yes firebase-tools emulators:exec --only firestore --project burra-pariksha-test \"tsx tests/integration/core-requirements/s13-t06-linked-video-emulator.integration.test.ts\"",
     "test:s13-t06:emulator": "npx --yes firebase-tools emulators:exec --only firestore --project burra-pariksha-test \"tsx tests/integration/core-requirements/s13-t06-linked-video-emulator.integration.test.ts\"",
     "test:s14-t01": "tsx tests/unit/core-requirements/s14-t01-learning-sequence.unit.test.ts",
-    "test:s14-t02": "tsx tests/unit/core-requirements/s14-t02-editorial-calendar.unit.test.ts"
+    "test:s14-t02": "tsx tests/unit/core-requirements/s14-t02-editorial-calendar.unit.test.ts",
+    "test:s15-t01": "tsx tests/unit/core-requirements/s15-t01-performance-contracts.unit.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
