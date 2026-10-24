@@ -40,6 +40,7 @@ scope.
 | S13-T03 product pipeline mapping | `npm run test:s13-t03` | Verifies the pure Discover-to-Improve mapping over LearningUnit planning and all canonical stages 01–15, including verification, publish, measure, improve, and revision re-entry semantics. |
 | S13-T04 linked LearningUnit context | `npm run test:s13-t04` | Verifies linked context propagation into script/teleprompter and downstream media/publication correlation while excluding LearningUnit IDs and staff/planning metadata from audience-facing prompts. |
 | S13-T05 mutation route security matrix | `npm run test:s13-t05` | Inventories every POST/PUT/PATCH/DELETE declaration in the primary and modular routers (152 declarations), records authentication/authorization/actor-boundary PASS results, preserves public auth and non-mutating POST exceptions, and guards the previously unprotected script-history route. |
+| S13-T06 linked video emulator acceptance | `npm run test:s13-t06` | Starts a disposable `burra-pariksha-test` Firestore emulator, persists a synthetic LearningUnit-linked question/video path, advances a canonical workflow, verifies immutable history, emulator-backed audit events, stale OCC rejection, and deletes only the run's synthetic records. Drive and AI remain metadata-only mocks. |
 
 The S12-T06 matrix marks every canonical pair as `SUPPORTED` because the
 requirements make presentation formats orthogonal to content modes. This is a
@@ -61,6 +62,12 @@ router-wide authenticated boundary. Public authentication lifecycle endpoints
 and POST endpoints that only resolve or generate advisory data are recorded as
 intentional exceptions. OCC, immutable audit, ownership, and GAR-02 remain
 service/domain responsibilities and are not weakened by the route-level audit.
+
+S13-T06 is the first emulator-backed acceptance path for linked video content.
+The test must fail closed unless the datastore guard resolves to the
+`burra-pariksha-test` Firestore emulator on loopback. Its audit adapter uses the
+same Admin SDK emulator target as domain repositories; no Drive upload, Gemini
+request, publishing call, or production datastore access is permitted.
 
 The S11 emulator command is intentionally wrapped by `firebase-tools
 emulators:exec`; it must not be replaced with a command that points at a

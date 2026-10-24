@@ -23,6 +23,7 @@ import { InMemoryAuditDispatcher } from './in-memory-audit.dispatcher';
 import { canonicalIdService } from '../id.service';
 import { ValidationError } from '../errors';
 import { entityToFirestoreDocument, firestoreDocumentToEntity } from '../../../database/firestore/utilities/firestore-converters';
+import { getAdminFirestore } from '../../../database/firestore/adapter/admin';
 
 export class FirestoreAuditDispatcher implements IAuditDispatcher {
   public readonly collectionName = 'audit_events';
@@ -81,11 +82,6 @@ export class FirestoreAuditDispatcher implements IAuditDispatcher {
     const validatedInput = parseResult.data;
     const sanitizedInput = redactSensitiveData(validatedInput);
 
-    const client = await this.getClient();
-    if (!client || this.fallbackDispatcher) {
-      return this.fallbackDispatcher!.dispatch(sanitizedInput);
-    }
-
     const id = sanitizedInput.id || canonicalIdService.generateAuditId();
     const timestamp = sanitizedInput.timestamp || new Date().toISOString();
 
@@ -119,6 +115,22 @@ export class FirestoreAuditDispatcher implements IAuditDispatcher {
       errorMessage: sanitizedInput.errorMessage,
     };
 
+    // The emulator is an explicitly isolated persistence target. Use the
+    // Admin SDK here so integration tests verify real audit append semantics
+    // instead of silently exercising the in-memory fallback used offline.
+    if (process.env.USE_FIRESTORE_EMULATOR === 'true') {
+      const emulatorDb = getAdminFirestore();
+      await emulatorDb.collection(this.collectionName).doc(id).create(
+        JSON.parse(JSON.stringify(event))
+      );
+      return event;
+    }
+
+    const client = await this.getClient();
+    if (!client || this.fallbackDispatcher) {
+      return this.fallbackDispatcher!.dispatch(sanitizedInput);
+    }
+
     const doc = entityToFirestoreDocument(event as any);
 
     await client.projects.databases.documents.createDocument({
@@ -132,6 +144,32 @@ export class FirestoreAuditDispatcher implements IAuditDispatcher {
   }
 
   public async query(filters?: AuditQueryFilters): Promise<AuditQueryResult> {
+    if (process.env.USE_FIRESTORE_EMULATOR === 'true') {
+      try {
+        const snapshot = await getAdminFirestore().collection(this.collectionName).get();
+        let events = snapshot.docs.map((doc) => doc.data() as AuditEvent);
+        if (filters?.resourceType) {
+          events = events.filter((e) => e.resource.resourceType.toLowerCase() === filters.resourceType!.toLowerCase());
+        }
+        if (filters?.resourceId) {
+          events = events.filter((e) => e.resource.resourceId === filters.resourceId);
+        }
+        if (filters?.actorId) {
+          events = events.filter((e) => e.actor.actorId === filters.actorId);
+        }
+        if (filters?.action) {
+          events = events.filter((e) => e.action.toLowerCase() === filters.action!.toLowerCase());
+        }
+        events.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+        const total = events.length;
+        const limit = Math.min(100, Math.max(1, filters?.limit || 20));
+        const page = Math.max(1, filters?.page || 1);
+        return { events, total, page, limit, totalPages: Math.ceil(total / limit) || 1 };
+      } catch {
+        return { events: [], total: 0, page: filters?.page || 1, limit: filters?.limit || 20, totalPages: 1 };
+      }
+    }
+
     const client = await this.getClient();
     if (!client || this.fallbackDispatcher) {
       return this.fallbackDispatcher!.query(filters);

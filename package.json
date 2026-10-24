@@ -78,7 +78,9 @@
     "test:s13-t02": "tsx tests/unit/core-requirements/s13-t02-mode-aware-prompts.unit.test.ts",
     "test:s13-t03": "tsx tests/unit/core-requirements/s13-t03-product-pipeline.unit.test.ts",
     "test:s13-t04": "tsx tests/unit/core-requirements/s13-t04-learning-unit-context.unit.test.ts",
-    "test:s13-t05": "tsx tests/unit/core-requirements/s13-t05-mutation-route-security.unit.test.ts"
+    "test:s13-t05": "tsx tests/unit/core-requirements/s13-t05-mutation-route-security.unit.test.ts",
+    "test:s13-t06": "npx --yes firebase-tools emulators:exec --only firestore --project burra-pariksha-test \"tsx tests/integration/core-requirements/s13-t06-linked-video-emulator.integration.test.ts\"",
+    "test:s13-t06:emulator": "npx --yes firebase-tools emulators:exec --only firestore --project burra-pariksha-test \"tsx tests/integration/core-requirements/s13-t06-linked-video-emulator.integration.test.ts\""
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
