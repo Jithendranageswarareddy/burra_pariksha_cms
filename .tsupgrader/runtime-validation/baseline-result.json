@@ -1,0 +1,74 @@
+{
+  "planHash": "6f67b5de1c4f73cd842347aabd8bef0e947661573036a035ec3621c60c98eb50",
+  "phase": "baseline",
+  "recordedAtUtc": "2026-10-24T10:59:57.0054758Z",
+  "retryCount": 0,
+  "resetBaseline": true,
+  "complete": true,
+  "result": {
+    "setupSucceeded": true,
+    "setupDurationMs": 0,
+    "setupFailureOutput": null,
+    "assertions": [
+      {
+        "name": "tsc-no-emit",
+        "kind": "process",
+        "verificationMethod": "exit-code",
+        "passed": false,
+        "timedOut": false,
+        "skipped": false,
+        "skippedReason": null,
+        "exitCode": 2,
+        "outputSample": "node_modules/googleapis/build/src/apis/containeranalysis/v1.d.ts(1450,48): error TS1010: \u0027*/\u0027 expected.\r\n",
+        "durationMs": 17466
+      },
+      {
+        "name": "tests-pass",
+        "kind": "process",
+        "verificationMethod": "test-results",
+        "passed": false,
+        "timedOut": false,
+        "skipped": false,
+        "skippedReason": null,
+        "exitCode": 1,
+        "outputSample": "\r\n\u003E burra-pariksha-cms@0.0.0 test:unit\r\n\u003E tsx tests/unit/s3-t01-rbac-override.test.ts \u0026\u0026 tsx tests/unit/s3-t14-routing-state-gate.test.ts \u0026\u0026 tsx tests/unit/question-generation/topic-subtopic-validation.unit.test.ts \u0026\u0026 tsx tests/unit/question-generation/save-draft-vs-verify.unit.test.ts\r\n\r\n============================================================\r\nSPRINT 3: CANONICAL RBAC \u0026 AUDITED OVERRIDE TESTS\r\n============================================================\r\n\r\n\u2713 PASS: 1. Normal Reviewer who authored question cannot self-approve own artifact (GAR-02)\r\n\u274C FAIL: 2. Admin cannot self-approve own artifact under NORMAL flow (GAR-02 preserved)\r\nAssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\r\n\r\ntrue !== false\r\n\r\n    at \u003Canonymous\u003E (C:\\Users\\jithendra\\OneDrive\\Desktop\\burra_pariksha_cms\\tests\\unit\\s3-t01-rbac-override.test.ts:98:12)\r\n    at test (C:\\Users\\jithendra\\OneDrive\\Desktop\\burra_pariksha_cms\\tests\\unit\\s3-t01-rbac-override.test.ts:43:7)\r\n    at runSprint3AuthorizationTests (C:\\Users\\jithendra\\OneDrive\\Desktop\\burra_pariksha_cms\\tests\\unit\\s3-t01-rbac-override.test.ts:79:3)\r\n    at \u003Canonymous\u003E (C:\\Users\\jithendra\\OneDrive\\Desktop\\burra_pariksha_cms\\tests\\unit\\s3-t01-rbac-override.test.ts:297:1)\r\n    at ModuleJob.run (node:internal/modules/esm/module_job:343:25)\r\n    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:647:26)\r\n    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5) {\r\n  generatedMessage: true,\r\n  code: \u0027ERR_ASSERTION\u0027,\r\n  actual: true,\r\n  expected: false,\r\n  operator: \u0027strictEqual\u0027\r\n}\r\n\u274C FAIL: 3. Admin CAN approve own artifact with valid confirmed override and reason \u003E= 10 chars\r\nAssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\r\n\r\nfalse !== true\r\n\r\n    at \u003Canonymous\u003E (C:\\Users\\jithendra\\OneDrive\\Desktop\\burra_pariksha_cms\\tests\\unit\\s3-t01-rbac-override.test.ts:130:12)\r\n    at test (C:\\Users\\jithendra\\OneDrive\\Desktop\\burra_pariksha_cms\\tests\\unit\\s3-t01-rbac-override.test.ts:43:7)\r\n    at runSprint3AuthorizationTests (C:\\Users\\jithendra\\OneDrive\\Desktop\\burra_pariksha_cms\\tests\\unit\\s3-t01-rbac-override.test.ts:104:3)\r\n    at \u003Canonymous\u003E (C:\\Users\\jithendra\\OneDrive\\Desktop\\burra_pariksha_cms\\tests\\unit\\s3-t01-rbac-override.test.ts:297:1)\r\n    at ModuleJob.run (node:internal/modules/esm/module_job:343:25)\r\n    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:647:26)\r\n    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5) {\r\n  generatedMessage: true,\r\n  code: \u0027ERR_ASSERTION\u0027,\r\n  actual: false,\r\n  expected: true,\r\n  operator: \u0027strictEqual\u0027\r\n}\r\n\u274C FAIL: 4. Missing author identity strictly fails closed on verification/approval\r\nAssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\r\n\r\ntrue !== false\r\n\r\n    at \u003Canonymous\u003E (C:\\Users\\jithendra\\OneDrive\\Desktop\\burra_pariksha_cms\\tests\\unit\\s3-t01-rbac-override.test.ts:152:12)\r\n    at test (C:\\Users\\jithendra\\OneDrive\\Desktop\\burra_pariksha_cms\\tests\\unit\\s3-t01-rbac-override.test.ts:43:7)\r\n    at runSprint3AuthorizationTests (C:\\Users\\jithendra\\OneDrive\\Desktop\\burra_pariksha_cms\\tests\\unit\\s3-t01-rbac-override.test.ts:135:3)\r\n    at \u003Canonymous\u003E (C:\\Users\\jithendra\\OneDrive\\Desktop\\burra_pariksha_cms\\tests\\unit\\s3-t01-rbac-override.test.ts:297:1)\r\n    at ModuleJob.run (node:internal/modules/esm/module_job:343:25)\r\n    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:647:26)\r\n    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5) {\r\n  generatedMessage: true,\r\n  code: \u0027ERR_ASSERTION\u0027,\r\n  actual: true,\r\n  expected: false,\r\n  operator: \u0027strictEqual\u0027\r\n}\r\n\u2713 PASS: 5. Admin CAN approve another user\u0027s artifact as an independent reviewer\r\n\u2713 PASS: 6. Data Scope correctly maps role authority\r\n\u2713 PASS: 7. Record-Level Data Scope restricts non-admin from seeing unassigned records\r\n\u274C FAIL: 8. Dynamic UI Action Resolution provides correct UI state and override cues\r\nAssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\r\n\r\nfalse !== true\r\n\r\n    at \n\u2026[truncated]",
+        "durationMs": 2263,
+        "testResults": {
+          "testFramework": "unknown",
+          "runnerDetectedFrom": "none",
+          "testsTotal": 0,
+          "testsPassed": 0,
+          "testsFailed": 0,
+          "testsSkipped": 0,
+          "parseFailed": true
+        }
+      }
+    ],
+    "executions": [
+      {
+        "source": "tsc-no-emit",
+        "resolvedExecutable": "C:\\Program Files\\nodejs\\npx.CMD",
+        "args": [
+          "tsc",
+          "--noEmit"
+        ],
+        "cwd": "C:\\Users\\jithendra\\OneDrive\\Desktop\\burra_pariksha_cms",
+        "env": {},
+        "prependPath": [],
+        "platform": "win32"
+      },
+      {
+        "source": "tests-pass",
+        "resolvedExecutable": "C:\\Program Files\\nodejs\\npm.CMD",
+        "args": [
+          "run",
+          "test:unit"
+        ],
+        "cwd": "C:\\Users\\jithendra\\OneDrive\\Desktop\\burra_pariksha_cms",
+        "env": {},
+        "prependPath": [],
+        "platform": "win32"
+      }
+    ]
+  }
+}

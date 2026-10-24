@@ -1,0 +1,32 @@
+{
+  "generatedAt": "2026-10-24T16:13:06+05:30",
+  "generatedOnPlatform": "win32",
+  "projectType": "server",
+  "setup": [],
+  "assertions": [
+    {
+      "name": "tsc-no-emit",
+      "kind": "process",
+      "command": "npx",
+      "args": [
+        "tsc",
+        "--noEmit"
+      ],
+      "verificationMethod": "exit-code",
+      "expected": "0",
+      "timeoutSeconds": 180
+    },
+    {
+      "name": "tests-pass",
+      "kind": "process",
+      "command": "npm",
+      "args": [
+        "run",
+        "test:unit"
+      ],
+      "verificationMethod": "test-results",
+      "expected": "0",
+      "timeoutSeconds": 300
+    }
+  ]
+}
