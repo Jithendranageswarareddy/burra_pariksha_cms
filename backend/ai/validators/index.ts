@@ -24,3 +24,4 @@ export * from './platform-adaptation.validator';
 export * from './social-invariance.validator';
 export * from './social-quality-gate.validator';
 export * from './thumbnail-safety.validator';
+export * from './deterministic-calculation-verifier';
