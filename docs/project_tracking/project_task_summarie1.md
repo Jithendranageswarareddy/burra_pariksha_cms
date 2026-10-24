@@ -566,3 +566,12 @@ Chronological record of actual task executions in accordance with [AGENTS.md](..
 - **Changed Files**: `docs/project_tracking/project_task_summarie1.md`
 - **Verification**: `git fetch origin` and synchronization inspection — `PASS` at baseline `e4086765c56224aa7bbe147567019ee8335955c0`; targeted roadmap, architecture, governance, contract, and snapshot-consumer review — `PASS`; application tests/build/lint — `NOT RUN` because no runtime code changed; `git diff --check` — `PASS`.
 - **Risks & Next Actions**: The single blocker is explicit architecture-owner approval or a formal roadmap/governance revision changing that requirement. After that evidence is recorded, reassess S17-T01 independently; defer S17-T02 until sample/missingness and bounded topic aggregation rules are complete. Do not delete recovery, analytics, or version snapshots.
+
+### [S17-T01] 2026-10-25 — Approve metric dictionary
+
+- **Status**: `COMPLETED`
+- **Objective**: Record and accept the S17 metric source, unit, provenance, outcome, window, and taxonomy policies.
+- **Work & Outcome**: The owner explicitly confirmed they hold both Product Owner and Architecture Owner roles and approved S17-MET-01 through S17-MET-05 effective 2026-10-25. The metric dictionary preserves operator/provider observations, minutes/native currency, auditable outcomes and LearningUnit reuse, UTC half-open windows, explicit missingness, and fail-closed Topic/Subtopic resolution. Automatic currency conversion and a numeric minimum sample threshold remain deferred and are not required for T01.
+- **Changed Files**: `docs/architecture/28-CORE-REQUIREMENTS-TARGET-ARCHITECTURE.md`, `docs/sprints/CORE-REQUIREMENTS-ROADMAP.md`, this tracking file.
+- **Verification**: Targeted S17 contract/roadmap/architecture review — `PASS`; application tests/build/lint — `NOT RUN` because this task changed only governance/documentation; `git diff --check` and relative documentation-link validation — `PASS`.
+- **Risks & Next Actions**: S17-T02 remains `GATED` pending bounded aggregation implementation, approved handling of deferred conversion/threshold details, topic-resolution fixtures, and its required missing/small-sample evidence. ADR-016 remains `PROPOSED / PENDING APPROVAL`.

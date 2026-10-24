@@ -216,7 +216,7 @@ The minimum acceptance matrix is:
 
 | Task | Status | Deliverables | Acceptance evidence / gates |
 | --- | --- | --- | --- |
-| `S17-T01` | GATED | Approved metric dictionary for production time, cost/currency, revisions, rejection, reuse, source, window, and sample rules | Product/architecture approval; no implementation until units and derivation policy are explicit |
+| `S17-T01` | COMPLETED | Approved metric dictionary for production time, cost/currency, revisions, rejection, reuse, source, window, and sample rules | Owner approval recorded for both Product Owner and Architecture Owner; deferred currency conversion and numeric sample threshold are not required for the dictionary |
 | `S17-T02` | GATED | Bounded repository/service aggregation over artifact/platform snapshots and production effort | Fixture tests for topic, mode, format, audience, series, platform, time window, unavailable values, and small samples; no recursive scans |
 | `S17-T03` | GATED | Protected analytics dashboard/read model using typed DTOs | API/component tests prove filters, deterministic ordering, role access, and no internal metadata leakage |
 | `S17-T04` | GATED | Measurement provenance and audit/export contract | Tests prove source/capture window and unavailable reasons survive aggregation; no billing integration |
