@@ -109,10 +109,10 @@ export interface AuthorizationDecision {
 /**
  * Evaluates Segregation of Duties / Anti-Self-Approval (GAR-02 / NEG-01).
  * An actor who authored an artifact cannot approve or verify that artifact under normal operation.
- * 
- * SPRINT 3 ENHANCEMENT:
- * System Administrator can perform direct end-to-end approvals without requiring an override.
- * An admin can access anything on the website; optionally warns if task was assigned to another person.
+ *
+ * Administrators retain broad capability access, but they do not bypass business
+ * invariants. Self-approval is permitted only through an explicit, confirmed
+ * administrative override with a sufficiently detailed reason.
  */
 export function evaluateSegregationOfDuties(
   actor: AuthorizationActor,
@@ -124,23 +124,6 @@ export function evaluateSegregationOfDuties(
     return { allowed: true };
   }
 
-  const canonicalRole = resolveBrownfieldRole(actor.role);
-  const actorRoles = (actor.roles || [actor.role]).map((r) => resolveBrownfieldRole(r));
-  const isAdmin = canonicalRole === CanonicalRbacRole.ADMIN || actorRoles.includes(CanonicalRbacRole.ADMIN);
-
-  // Administrator Authority:
-  // An admin can access anything in a website.
-  // If an admin is working on that end to end, even no override is needed.
-  // Optionally warns if a task was assigned to another person.
-  if (isAdmin) {
-    let warning: string | undefined;
-    const assigneeId = (targetContext as any)?.assigneeId || (targetContext as any)?.assignedTo;
-    if (assigneeId && String(assigneeId).trim() !== String(actor.id).trim()) {
-      warning = `Note: Task was assigned to user ${assigneeId}. Administrator is acting directly.`;
-    }
-    return { allowed: true, isOverride: false, warning };
-  }
-
   if (!targetContext) {
     return {
       allowed: false,
@@ -149,7 +132,11 @@ export function evaluateSegregationOfDuties(
     };
   }
 
+  const canonicalRole = resolveBrownfieldRole(actor.role);
+  const actorRoles = (actor.roles || [actor.role]).map((r) => resolveBrownfieldRole(r));
+  const isAdmin = canonicalRole === CanonicalRbacRole.ADMIN || actorRoles.includes(CanonicalRbacRole.ADMIN);
   const authorId = targetContext.authorUserId || targetContext.createdBy;
+
   if (!authorId || !authorId.trim()) {
     return {
       allowed: false,
@@ -158,7 +145,36 @@ export function evaluateSegregationOfDuties(
     };
   }
 
-  if (actor.id === authorId.trim()) {
+  const override = targetContext.override;
+  const hasOverride = override?.isOverride === true;
+  const isSelfApproval = actor.id.trim() === authorId.trim();
+
+  if (hasOverride && !isAdmin) {
+    return {
+      allowed: false,
+      errorCode: AuthorizationErrorCode.FORBIDDEN_BY_SEGREGATION_OF_DUTIES,
+      errorMessage: 'Administrative override is restricted to System Administrators; non-admin actors cannot bypass GAR-02.',
+    };
+  }
+
+  if (hasOverride && isAdmin) {
+    if (override.confirmedByAdmin !== true) {
+      return {
+        allowed: false,
+        errorCode: AuthorizationErrorCode.FORBIDDEN_BY_SEGREGATION_OF_DUTIES,
+        errorMessage: 'Administrative override requires confirmedByAdmin=true before approval/verification.',
+      };
+    }
+    if (override.reason.trim().length < 10) {
+      return {
+        allowed: false,
+        errorCode: AuthorizationErrorCode.FORBIDDEN_BY_SEGREGATION_OF_DUTIES,
+        errorMessage: 'Administrative override reason must contain at least 10 characters.',
+      };
+    }
+  }
+
+  if (isSelfApproval && !(isAdmin && hasOverride)) {
     return {
       allowed: false,
       errorCode: AuthorizationErrorCode.FORBIDDEN_BY_SEGREGATION_OF_DUTIES,
@@ -166,7 +182,16 @@ export function evaluateSegregationOfDuties(
     };
   }
 
-  return { allowed: true };
+  if (isSelfApproval) {
+    return { allowed: true, isOverride: true };
+  }
+
+  let warning: string | undefined;
+  const assigneeId = (targetContext as any).assigneeId || (targetContext as any).assignedTo;
+  if (isAdmin && assigneeId && String(assigneeId).trim() !== String(actor.id).trim()) {
+    warning = `Note: Task was assigned to user ${assigneeId}. Administrator is acting directly.`;
+  }
+  return { allowed: true, isOverride: hasOverride, warning };
 }
 
 /**
