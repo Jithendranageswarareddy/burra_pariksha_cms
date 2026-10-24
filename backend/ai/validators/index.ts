@@ -25,3 +25,4 @@ export * from './social-invariance.validator';
 export * from './social-quality-gate.validator';
 export * from './thumbnail-safety.validator';
 export * from './deterministic-calculation-verifier';
+export * from './stage02-quality.validator';

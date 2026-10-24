@@ -19,6 +19,7 @@ import { FairnessValidator } from './fairness.validator';
 import { ConsensusEngine } from './consensus.engine';
 import { SemanticReasoningProvider } from './semantic-reasoning.provider';
 import { MultiLayerVerificationEngine } from './multi-layer-verification.engine';
+import { validateStage02Quality } from './stage02-quality.validator';
 
 export interface TaxonomyValidationProvider {
   getTopicById(topicId: string): Promise<any>;
@@ -306,6 +307,14 @@ export class QuestionValidationEngine {
     checks.push(...consistencyVal.checks);
     errors.push(...consistencyVal.errors);
     warnings.push(...consistencyVal.warnings);
+
+    // Stage 02 editorial checks keep heuristics advisory while blocking only
+    // objective cross-field and duplicate contract violations.
+    const stage02Quality = validateStage02Quality(question, options.existingQuestions || []);
+    checks.push(...stage02Quality.checks);
+    errors.push(...stage02Quality.errors);
+    warnings.push(...stage02Quality.warnings);
+    recommendations.push(...stage02Quality.recommendations);
 
     // =========================================================================
     // STAGE 8: Fairness, Sanity & Answer Leakage
