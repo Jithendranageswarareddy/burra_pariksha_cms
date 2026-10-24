@@ -34,6 +34,14 @@ scope.
 | S12-T01/S12-T02/S12-T03 focused unit suites | `npm run test:s12-t01`, `npm run test:s12-t02`, `npm run test:s12-t03` | Deterministic validators and TEXT/IMAGE contracts use in-memory doubles; no Firestore, Drive, or external service access. |
 | S12-T04 focused unit suite | `npm run test:s12-t04` | AUDIO/ANIMATION contracts and mocked Drive orchestration; validates MIME, extension, size, Learning Unit linkage, and metadata-only output without external service access. |
 | S12-T05 synthetic vertical slice | `npm run test:s12-t05` | Builds one synthetic percentages/discounts lesson across all three canonical modes and five formats, with deterministic calculations, Stage 02 quality checks, Learning Unit linkage, and mocked Drive metadata for binary formats. |
+| S12-T06 compatibility matrix | `npm run test:s12-t06` | Covers all 15 backend-authoritative mode/format decisions, rejects invalid modes/formats, and proves legacy `EXPLAINED_QUESTIONS_VIDEO` normalization without rewriting stored data. |
+
+The S12-T06 matrix marks every canonical pair as `SUPPORTED` because the
+requirements make presentation formats orthogonal to content modes. This is a
+contract/linkage decision, not a claim that every pair is automatically
+generated, rendered, or published. The legacy identifier remains readable and
+write-compatible; callers normalize it only when evaluating canonical
+compatibility.
 
 The S11 emulator command is intentionally wrapped by `firebase-tools
 emulators:exec`; it must not be replaced with a command that points at a

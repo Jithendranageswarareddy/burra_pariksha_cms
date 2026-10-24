@@ -122,6 +122,11 @@ export class PercentagesDiscountsVerticalSliceService {
     }
 
     const timestamp = new Date(0).toISOString();
+    for (const mode of ['TOPIC_INTRODUCTION', 'WORKED_EXAMPLES', 'QUESTION_CHALLENGE_SHORT'] as const) {
+      for (const format of ['TEXT', 'VIDEO', 'AUDIO', 'IMAGE', 'ANIMATION'] as const) {
+        this.artifactService.validateModeFormat(mode, format);
+      }
+    }
     const text = this.artifactService.validateTextArtifact({
       id: `${contentId}-text`,
       learningUnitId: learningUnit.id,

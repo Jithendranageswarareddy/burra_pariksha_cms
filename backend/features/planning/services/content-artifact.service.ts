@@ -21,6 +21,7 @@ import { validateLearningUnitLink, LearningUnitLinkActor } from './learning-unit
 import { driveSyncService, UploadAssetParams } from '../../../infrastructure/services/drive-sync.service';
 import { MediaAsset } from '../../../../shared';
 import { ValidationError } from '../../../../src/lib/errors';
+import { getContentModeFormatRule } from '../../../../shared/constants/content-mode-format-compatibility';
 
 export interface ContentArtifactDependencies {
   validateLink?: typeof validateLearningUnitLink;
@@ -43,6 +44,13 @@ export class ContentArtifactService {
 
   public validateTextArtifact(input: unknown): TextArtifact {
     return TextArtifactSchema.parse(input);
+  }
+
+  public validateModeFormat(mode: string, format: string): void {
+    const rule = getContentModeFormatRule(mode, format);
+    if (rule.status !== 'SUPPORTED') {
+      throw new ValidationError(`Mode "${mode}" does not support format "${format}".`);
+    }
   }
 
   public async uploadImageArtifact(
