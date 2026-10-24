@@ -17,8 +17,8 @@
 | **ADR-013** | 2026-10-20 | System Administrator Operational Authority & Audited GAR-02 Override Remediation | Authorize authenticated System Administrator operational self-approval across all 15 workflow stages strictly through explicit, confirmed, audited override (`confirmedByAdmin: true`, reason $\ge 10$ chars). Strict zero-bypass GAR-02 remains enforced for all employees. | Resolves operational deadlock where the single System Administrator / primary operator was blocked from reviewing their own content. Establishes transparent accountability, durable immutable audit logs, and clear UI confirmation while safeguarding educational quality controls. |
 | **ADR-014** | 2026-10-24 | Unified Local-to-Deployment Architecture & Google AI Studio Governance | Enforce single production-quality codebase running locally and when published via Google AI Studio; forbid separate development-only implementations or weakening of security/datastore safeguards | Eliminates environment drift and untestable cloud bugs. Ensures shared domain logic, explicit adapter separation, strict datastore guard isolation, and verified container builds (`dist/server.cjs`). |
 | **ADR-015** | 2026-10-24 | Core Requirements Reconciliation: Canonical Mode Alignment, Learning Unit Entity, and Orthogonal 5 Presentation Formats | Realign canonical content modes to Mode 1 `TOPIC_INTRODUCTION`, Mode 2 `WORKED_EXAMPLES` (retaining `EXPLAINED_QUESTIONS_VIDEO` as 100% backward-compatible alias), Mode 3 `QUESTION_CHALLENGE_SHORT`; introduce `learning_units` collection as central educational asset; decouple 5 presentation formats (`TEXT`, `VIDEO`, `AUDIO`, `IMAGE`, `ANIMATION`) from content modes | Satisfies `bp_cms_core_requirements1.md` without data loss or breaking changes. Distinguishes underlying lessons from multi-format publications, enables cross-artifact linking, and preserves existing Firestore documents and routes. |
+| **ADR-016** | 2026-10-24 | **Correction Propagation and Review Queue — PROPOSED / PENDING APPROVAL** | See the proposal below. No correction-review lifecycle is authorized or implemented by this record. | S14-T03 requires a persisted, auditable way to identify linked artifacts affected by a correction, but the current approved contracts define neither correction evidence nor review-flag semantics. |
 | **ADR-017** | 2026-10-24 | Content Mode/Format Compatibility and Legacy Normalization | Treat all 15 canonical mode/format pairs as contract-supported because ADR-015 defines formats as orthogonal to educational mode; keep the matrix backend-authoritative and do not infer automatic rendering or generation from support. Normalize `EXPLAINED_QUESTIONS_VIDEO` to `WORKED_EXAMPLES` only for compatibility checks while preserving the stored legacy identifier and route behavior. | No approved requirement excludes a pair. A single matrix prevents frontend/backend drift, while explicit normalization preserves existing data without migration, backfill, or identifier rewrite. |
-| **ADR-016 (PROPOSED / UNAPPROVED)** | 2026-10-24 | LearningUnit Correction-Review Propagation | Define a future internal correction-review record keyed by `learningUnitId`, with source and target LearningUnit versions, affected artifact ID/type, `OPEN` -> `ACKNOWLEDGED` -> `RESOLVED` lifecycle, actor/reason/timestamps, OCC version, and immutable audit events. Restrict raise/resolve/override actions to existing management and QA roles; expose only an audience-safe `requiresReview` boolean, never reviewer notes or audit metadata. | Required to complete S11-T06 correction flags, but no approved source currently defines correction evidence, version semantics, fields, transitions, actor capabilities, or projections. This proposal is intentionally not implemented or treated as an authorization. |
 
 ## ADR-015 Detailed Reconciliation Record
 
@@ -65,3 +65,198 @@ workflow, and Firestore documents must remain readable without a migration.
 - The decision does not claim that planning API/UI, reverse artifact queries,
   non-video templates, or measurement persistence are complete. Those are tracked
   in the core requirements roadmap.
+
+## ADR-016 Proposal — Correction Propagation and Review Queue
+
+**Status: PROPOSED / PENDING APPROVAL**
+**Proposed date:** 2026-10-24
+**Decision owner required:** Product Owner and architecture owner
+**Scope:** Resolve the architecture dependency for S14-T03 only. This proposal
+does not authorize implementation, migration, backfill, or production data changes.
+
+### Context and problem statement
+
+The core requirements say that a verified LearningUnit is the educational
+foundation, each publication is a separate linked artifact, and a correction
+can identify affected artifacts without rewriting historical publications.
+Sprint 14 makes that relationship operational: S14-T03 must provide a correction
+propagation/review queue, and its acceptance test must create review flags while
+preserving historical artifacts.
+
+The current repository evidence is narrower:
+
+- `LearningUnitArtifactsService` performs bounded reverse queries and returns
+  `correctionReview.supported: false`; it explicitly states that correction
+  version evidence, flag persistence, transition policy, authorized actors, and
+  projection semantics are undefined.
+- `LearningUnit`, `Question`, `QuestionDraft`, and `Video` already have stable
+  identifiers and version/timestamp fields in their respective contracts or
+  repositories. The generic Firestore repository rejects stale versions through
+  OCC and appends audit notifications around mutations.
+- The domain model requires locked versions, review decisions, workflow
+  transitions, and audit events to be immutable. A correction therefore cannot
+  rewrite an approved publication or overwrite a prior review decision.
+- The canonical workflow remains the existing 15-stage engine and transition
+  matrix. The product-pipeline contract says improvement/revision re-enters at
+  Stage 01; it does not authorize a new correction workflow.
+- Existing planning DTOs and linked-artifact projections intentionally omit
+  author, reviewer, audit, provider, notes, and OCC metadata from audience-safe
+  responses.
+- S11-T06 tracking explicitly marked the correction-review model
+  `PROPOSED / UNAPPROVED`; no later accepted ADR or owner approval was found.
+
+### Decision drivers and constraints
+
+1. Meet the stated requirement to identify affected linked publications without
+   rewriting their historical content.
+2. Keep Firestore as the only transactional source of truth.
+3. Reuse repository OCC, authorization, audit, and workflow authorities.
+4. Preserve GAR-02, including explicit audited System Administrator overrides.
+5. Keep internal review evidence out of audience-facing projections.
+6. Avoid a new workflow stage, recommendation engine, bulk migration, or
+   compatibility-breaking change.
+7. Make duplicate, stale, and partially failed requests deterministic and
+   auditable.
+
+### Options considered
+
+#### Option A — Minimal additive correction-review model (recommended, pending approval)
+
+Add a correction evidence record associated with a LearningUnit and an additive
+review-flag record for each affected linked artifact. These are operational
+records, not replacements for the artifact or workflow documents. A correction
+would reference the immutable source artifact version that triggered review and
+would create flags for the linked artifacts that require human reassessment.
+
+**Requirement and user impact:** Covers the roadmap exit criterion by allowing a
+creator/reviewer to see which Intro, Worked Examples, Challenge, or alternate
+format artifacts require review. Historical publications remain visible and
+unchanged. The queue is an operational view, not an automatic republisher.
+
+**Proposed data and version semantics:**
+
+- `CorrectionEvidence`: immutable `id`, `learningUnitId`, source entity/version,
+  correction reason/evidence, actor, timestamps, and OCC version for the
+  LearningUnit mutation that establishes the correction. The exact source
+  fields and whether a correction requires a new LearningUnit version are
+  product-owner decisions.
+- `ArtifactReviewFlag`: immutable flag identity, `learningUnitId`,
+  `artifactType`, `artifactId`, `artifactVersionAtFlag`, `correctionId`,
+  lifecycle status, assigned/acted-on actor fields, timestamps, and OCC
+  version. Existing artifact documents are not rewritten solely to add a flag.
+- Firestore repositories own these records; a domain service owns validation,
+  affected-artifact selection, lifecycle rules, and authorization.
+
+**Proposed lifecycle:** `OPEN` -> `IN_REVIEW` -> `CLEARED` or `REQUIRES_REVISION`.
+`REQUIRES_REVISION` means the linked artifact must re-enter its existing
+workflow at Stage 01; it is not a new workflow state. `CLEARED` records that a
+human reviewed the artifact against the correction. Terminal decisions are
+append-only; reopening requires a new flag or correction event rather than
+editing history.
+
+**Role/capability matrix (proposed):**
+
+| Operation | Author/creator | Reviewer/QA | Content lead/manager | System Administrator |
+| --- | --- | --- | --- | --- |
+| Submit correction evidence | Own resource only, if product approves | Authorized linked resource | Authorized linked resource | Any permitted resource |
+| Create/propagate flags | No direct bypass; service derives flags | Yes, if assigned capability | Yes | Yes |
+| Mark `IN_REVIEW` / `CLEARED` | Not on own artifact under GAR-02 | Yes, never self-approve | Yes, subject to GAR-02 | Yes with explicit confirmation and audited reason |
+| Mark `REQUIRES_REVISION` | No | Yes | Yes | Yes with explicit confirmation and audited reason |
+
+This matrix is illustrative until the owner confirms capability names and
+whether authors may submit evidence for their own artifacts. GAR-02 must remain
+strict for review/clearance decisions.
+
+**Concurrency and duplicates:** Creation must require the current expected
+LearningUnit version and reject stale requests with the existing OCC conflict.
+A deterministic idempotency key derived from correction identity, artifact
+identity, and source version should make retries return the existing flag
+instead of duplicating it; the exact key contract requires approval. A flag
+whose `artifactVersionAtFlag` no longer equals the current artifact version
+must not be silently cleared; the service should require a fresh review against
+the current version.
+
+**Audit and reasons:** Append immutable events for correction submission,
+flag creation, status transitions, clearance, revision requirement, and
+administrator override. Human decisions that reject or require revision must
+require a non-empty reason; administrator overrides must preserve the existing
+explicit confirmation and minimum 10-character audited reason rule. Audit
+payloads must contain identifiers, versions, action, actor, and reason, but no
+secrets or audience-facing internal notes.
+
+**Projection boundaries:** Internal queue APIs may expose flag status,
+correction ID, artifact ID/type, source and current versions, actor assignment,
+reasons, and audit timestamps to authorized staff. Audience-facing artifact
+and publication responses must not expose correction IDs, review flags,
+internal reasons, actor identity, OCC versions, or audit metadata.
+
+**Compatibility, migration, and implementation scope:** Additive records avoid
+rewriting existing questions, videos, drafts, scripts, or publications.
+Legacy artifacts without a LearningUnit link remain outside the queue. No
+production migration/backfill is required. S14-T03 would require new schemas,
+repositories, a domain service, protected internal endpoints, and deterministic
+unit/emulator tests; it must not modify the canonical workflow engine.
+
+**Risks:** The system could over-flag artifacts if affected-artifact selection
+is vague; reviewers could clear a stale version without rechecking; or a
+correction record could be mistaken for approval/rejection in the 15-stage
+workflow. These risks require explicit version binding, fail-closed
+authorization, append-only decisions, and clear UI/API separation.
+
+#### Option B — Defer correction review
+
+Retain `correctionReview.supported: false`, revise Sprint 14 dependency and
+exit planning, and do not add persistence or mutation. This is safest when the
+product does not yet need operational correction tracking. It provides no way
+to identify affected linked artifacts after a correction, so the Sprint 14 exit
+criterion remains unmet and S14-T03/T04 stay blocked or must be replanned.
+
+**Trade-offs:** Zero data-model and security risk, no migration, and no new
+maintenance burden; however, creators must track corrections outside the CMS,
+the stated requirement is not covered, and later implementation may cost more
+once more artifacts exist.
+
+### Recommendation
+
+Recommend **Option A**, but keep it `PROPOSED / PENDING APPROVAL`. It is the
+smallest design that satisfies the explicit “identify affected artifacts
+without rewriting historical publications” requirement while reusing existing
+Firestore repositories, OCC, audit, authorization, and the canonical workflow.
+It does not justify a new workflow stage or automatic content mutation.
+
+Implementation must not begin until the unresolved product-owner questions
+below are answered and this ADR is explicitly changed to `ACCEPTED`.
+
+### Unresolved product-owner questions
+
+1. What constitutes authoritative correction evidence: a changed LearningUnit
+   field/version, a reviewer-authored evidence record, or both?
+2. Does submitting correction evidence increment the LearningUnit version, or is
+   a separate correction version required?
+3. Which linked artifact types and formats are affected by each correction, and
+   may staff override the derived set?
+4. Which exact roles/capabilities may submit evidence, assign reviews, clear
+   flags, or require revision? May an author submit evidence for their own work?
+5. Are `OPEN`, `IN_REVIEW`, `CLEARED`, and `REQUIRES_REVISION` sufficient, and
+   may a terminal flag ever be reopened?
+6. What idempotency key and duplicate-request behavior are required?
+7. Must clearing a flag require an artifact's current OCC version and a new
+   workflow review, or is an independent educational review sufficient?
+8. Which internal queue fields may be exposed to each staff role, and which
+   correction details must remain restricted?
+
+### Proposed acceptance criteria for ADR-016
+
+This ADR is ready to become `ACCEPTED` only when the owner confirms the
+questions above and the implementation plan can demonstrate:
+
+- A correction is bound to authoritative LearningUnit/source evidence and an
+  immutable version.
+- Affected linked artifacts receive deterministic, duplicate-safe review flags
+  without historical artifact mutation or deletion.
+- Every flag transition enforces capability, ownership, GAR-02, OCC, and
+  append-only audit requirements.
+- Stale source/artifact versions fail closed and cannot be silently cleared.
+- Internal queue projections are separated from audience-safe artifact output.
+- Emulator-backed synthetic tests cover creation, duplicate/stale requests,
+  permissions, audit append, historical immutability, and cleanup.

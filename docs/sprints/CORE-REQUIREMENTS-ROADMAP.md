@@ -110,6 +110,13 @@ after a correction.
 | `S14-T03` | Add correction propagation/review queue for linked artifacts. | Synthetic correction test creates review flags without mutating or deleting historical artifacts. | Preserve immutable audit and existing workflow ownership. |
 | `S14-T04` | Add series-level human acceptance path across all three modes. | Mocked workflow test proves each artifact independently passes its own gate and the sequence does not bypass GAR-02. | Avoid approving a group through one author action. |
 
+**Readiness dependency:** S14-T03 remains blocked pending explicit acceptance
+of ADR-016. The required decision must define correction evidence, affected
+artifact selection, flag lifecycle, authorized capabilities, OCC/idempotency,
+immutable audit events, and audience-safe projections. S14-T04 is transitively
+blocked because its human acceptance path must consume the approved correction
+review semantics without creating a second workflow authority.
+
 ## Sprint 15 - Artifact performance, learning engagement, and production effort
 
 **Goal:** Measure audience outcomes and production effort at artifact and
