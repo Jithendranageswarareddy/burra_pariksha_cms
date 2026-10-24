@@ -467,3 +467,12 @@ Chronological record of actual task executions in accordance with [AGENTS.md](..
 - **Changed Files**: `tests/unit/core-requirements/s16-t01-api-acceptance.unit.test.ts`, `package.json`, `docs/TESTING-GUIDE.md`, this tracking file.
 - **Verification**: `npm run test:s16-t01` — `PASS` (API boundary, S11-T03, S11-T05, S13-T01, and S13-T05 suites); `npm run build` — `PASS`; `npm run lint` — `BLOCKED` by the pre-existing `node_modules/googleapis/build/src/apis/containeranalysis/v1.d.ts(1450,48): error TS1010: '*/' expected`; `git diff --check` — `PASS`. Emulator/cloud/browser/human acceptance — `NOT RUN` and deferred where applicable.
 - **Risks & Next Actions**: Route behavior is covered statically and middleware behavior deterministically; full HTTP runtime and Firestore persistence remain S16-T02 or owner-controlled evidence. Next dependency-ready task is S16-T02 emulator acceptance.
+
+### [S16-T02] 2026-10-25 — Linked production foundation emulator acceptance
+
+- **Status**: `COMPLETED`
+- **Objective**: Verify real isolated Firestore persistence for the existing LearningUnit-linked artifact and workflow foundation.
+- **Work & Outcome**: Added a loopback Firestore emulator integration test using existing repositories, workflow service, audit hooks, synthetic IDs, and bounded cleanup. It creates and reads back a LearningUnit, persists linked question/video records, transitions the existing workflow, verifies immutable history and audit persistence, rejects a stale expected version, and never calls external providers.
+- **Changed Files**: `tests/integration/core-requirements/s16-t02-learning-unit-workflow-emulator.integration.test.ts`, `package.json`, `docs/TESTING-GUIDE.md`, this tracking file.
+- **Verification**: `npm run test:s16-t02` — `PASS` (isolated loopback Firestore emulator, exit code 0; real repository round-trip, linked artifact retrieval, workflow history, audit persistence, stale OCC rejection, and bounded cleanup); `npm run test:s16-t01` — `PASS`; `npm run test:s13-t06` — `PASS` (prior linked-workflow emulator regression); `npm run build` — `PASS`; `npm run lint` — `BLOCKED` by the pre-existing `node_modules/googleapis/build/src/apis/containeranalysis/v1.d.ts(1450,48): error TS1010: '*/' expected`; `git diff --check` — `PASS`. Production Firestore, cloud providers, browser, and human acceptance — `NOT RUN`.
+- **Risks & Next Actions**: Emulator evidence covers the persistence foundation only; role-aware browser/read-model evidence remains S16-T03. ADR-016 and metric semantics remain unimplemented and gated.

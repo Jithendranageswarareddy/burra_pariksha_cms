@@ -150,3 +150,12 @@ actor resolution fails closed without an Admin fallback, and the LearningUnit
 planning commands remain protected and audience-safe. It is deterministic,
 does not write Firestore, and does not call external providers. Emulator
 persistence evidence is intentionally deferred to S16-T02.
+
+### S16-T02 emulator acceptance
+
+Run `npm run test:s16-t02` to start an isolated loopback Firestore emulator and
+execute the linked LearningUnit, question, video artifact, workflow-history,
+audit, and stale-OCC acceptance path. The test uses the synthetic
+`burra-pariksha-test` project configuration, verifies the repository is using
+Firestore rather than an in-memory fallback, and deletes only the records it
+created. It does not call external providers or production services.
