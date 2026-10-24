@@ -148,6 +148,28 @@ async function runS11T03Tests(): Promise<void> {
       error.message.includes('cannot be submitted for verification')
   );
 
+  const concurrentId = 'lnu_concurrent_submit';
+  records.set(concurrentId, buildRecord(concurrentId, actor));
+  const concurrentResults = await Promise.allSettled([
+    service.submitForVerification(concurrentId, 1, actor),
+    service.submitForVerification(concurrentId, 1, actor),
+  ]);
+  assert.equal(
+    concurrentResults.filter((result) => result.status === 'fulfilled').length,
+    1,
+    'Concurrent submissions must produce exactly one successful transition'
+  );
+  assert.equal(
+    concurrentResults.filter((result) => result.status === 'rejected').length,
+    1,
+    'The losing concurrent submission must be rejected by the authoritative state guard or OCC'
+  );
+  assert.equal(
+    auditEvents.filter((event) => event.entityId === concurrentId).length,
+    1,
+    'Rejected concurrent submissions must not append a second audit event'
+  );
+
   await assert.rejects(() => service.get('lnu_missing'), (error: unknown) => error instanceof NotFoundError);
   await assert.rejects(
     () => service.updateDraft(id, { title: 'Unauthorized update' }, 3, { id: 'usr_other', name: 'Other', role: 'QUESTION_AUTHOR' }),

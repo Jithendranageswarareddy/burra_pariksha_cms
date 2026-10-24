@@ -136,6 +136,15 @@ export function getApiErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof ApiClientError || error instanceof Error) {
     return error.message || fallback;
   }
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'message' in error &&
+    typeof error.message === 'string' &&
+    error.message.trim()
+  ) {
+    return error.message;
+  }
   return fallback;
 }
 
