@@ -387,3 +387,11 @@ Chronological record of actual task executions in accordance with [AGENTS.md](..
 - **Changed Files**: `tests/integration/core-requirements/s13-t06-linked-video-emulator.integration.test.ts`, `src/lib/audit/firestore-audit.dispatcher.ts`, `package.json`, `docs/TESTING-GUIDE.md`, `docs/project_tracking/project_task_summarie1.md`
 - **Verification**: `npm run test:s13-t06:emulator` — `PASS`; disposable Firestore emulator on `127.0.0.1:8080`, synthetic project `burra-pariksha-test`, no Drive/AI/production access. Initial run exposed and was corrected for the pre-existing emulator audit fallback; final run passed with exit code 0.
 - **Risks & Next Actions**: Build/lint/regression verification follows. Firebase CLI emitted an unauthenticated warning and Node emitted a metadata lookup warning, but the isolated emulator test completed successfully. Existing `googleapis` TS1010 declaration blocker remains expected for lint/type-check. Next roadmap task is Sprint 14 connected learning sequences and editorial planning.
+### [S14-T01] 2026-10-24 — Add related-artifact sequence read model
+
+- **Status**: `COMPLETED`
+- **Objective**: Provide a deterministic, paginated related-artifact sequence for one LearningUnit.
+- **Work & Outcome**: Extended the existing authorized LearningUnit artifact service with a read-only sequence projection, canonical Intro -> Worked Examples -> Challenge ordering, optional mode/format/status filters, missing-mode tolerance, and bounded pagination. Added the protected `GET /planning/learning-units/:id/sequence` route without adding workflow or persistence authorities.
+- **Changed Files**: `backend/features/planning/services/learning-unit-artifacts.service.ts`, `backend/infrastructure/services/index.ts`, `backend/server/routers/routes.ts`, `tests/unit/core-requirements/s14-t01-learning-sequence.unit.test.ts`, `package.json`, `docs/TESTING-GUIDE.md`
+- **Verification**: `npm run test:s14-t01` PASS; `npm run test:s11-unit` PASS; S12-T01 through S12-T06 PASS; S13-T01 through S13-T06 PASS; `npm run build` PASS; `git diff --check` PASS. `npm run lint` remains blocked by the pre-existing `googleapis` `containeranalysis/v1.d.ts(1450,48): TS1010` declaration error.
+- **Risks & Next Actions**: No emulator or provider integration was needed for this read-only unit scope. S14-T02 is next once this commit is synchronized.

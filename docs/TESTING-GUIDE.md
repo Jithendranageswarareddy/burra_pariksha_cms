@@ -103,3 +103,10 @@ Code-Level-Only Testing Policy in [AGENTS.md](../AGENTS.md).
 
 Run each selected command once. Rerun only after a relevant edit or to diagnose
 the specific failure.
+### S14-T01 related-artifact sequence
+
+Run `npm run test:s14-t01` to verify the protected read-model behavior without
+contacting Firestore or external services. The deterministic test covers the
+preferred Intro -> Worked Examples -> Challenge ordering, artifacts with no
+mode, alternate-format filtering, and bounded page metadata. The sequence API
+is read-only and reuses the existing LearningUnit ownership/status validation.

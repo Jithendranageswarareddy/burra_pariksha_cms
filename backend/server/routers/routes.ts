@@ -21,6 +21,7 @@ import {
   pinnedCommentService,
   planningService,
   learningUnitPlanningService,
+  learningUnitArtifactsService,
   productionBoardService,
   publishingService,
   questionService,
@@ -4819,6 +4820,24 @@ apiRouter.get('/planning/learning-units/:id', requireAuth, async (req: Request, 
   }
 });
 
+// Read-only sequence projection; workflow transitions and editorial approvals
+// remain owned by the existing planning and workflow services.
+apiRouter.get('/planning/learning-units/:id/sequence', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const actor = getRequestActor(req);
+    const sequence = await learningUnitArtifactsService.getLearningSequence(req.params.id, actor, {
+      mode: typeof req.query.mode === 'string' ? req.query.mode : undefined,
+      format: typeof req.query.format === 'string' ? req.query.format : undefined,
+      status: typeof req.query.status === 'string' ? req.query.status : undefined,
+      page: typeof req.query.page === 'string' ? Number(req.query.page) : undefined,
+      limit: typeof req.query.limit === 'string' ? Number(req.query.limit) : undefined,
+    });
+    res.json(createSuccessResponse(sequence, (req.headers['x-request-id'] as string) || `req_${Date.now()}`));
+  } catch (err) {
+    next(err);
+  }
+});
+
 apiRouter.post('/planning/learning-units', requireRole(LEARNING_UNIT_PLANNING_ROLES), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const input = CreateLearningUnitPlanningRequestSchema.parse(req.body);
@@ -8176,8 +8195,6 @@ apiRouter.get('/copilot/suggestion/:suggestionId', requireAuth, async (req: Requ
 
 // Universal API Error Handling Middleware (FC-003)
 apiRouter.use(globalErrorHandler);
-
-
 
 
 

@@ -19,6 +19,7 @@ export * from './operational-health.service';
 export * from '../../features/recovery/services/operational-recovery.service';
 export * from '../../features/planning/services/planning.service';
 export * from '../../features/planning/services/learning-unit-planning.service';
+export * from '../../features/planning/services/learning-unit-artifacts.service';
 export * from '../../features/planning/services/similarity.service';
 export * from '../auth/services/assignment.service';
 export * from '../auth/services/auth.service';
