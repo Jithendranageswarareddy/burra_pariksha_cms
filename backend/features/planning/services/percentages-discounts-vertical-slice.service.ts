@@ -1,4 +1,4 @@
-import { Question, LearningUnit, PresentationFormat } from '../../../../shared';
+import { Question, LearningUnit, PresentationFormat, QuestionStatus, VideoProductionStatus } from '../../../../shared';
 import {
   AnimationBriefSchema,
   AudioNarrationSchema,
@@ -88,8 +88,8 @@ export class PercentagesDiscountsVerticalSliceService {
       correctAnswer: 'A',
       explanation: 'The discount is ₹200, so the selling price is ₹800.',
       realLifeContext: 'This helps compare prices during everyday shopping.',
-      status: 'DRAFT',
-      videoStatus: 'NOT_STARTED',
+      status: QuestionStatus.DRAFT,
+      videoStatus: VideoProductionStatus.NOT_STARTED,
       createdAt: new Date(0).toISOString(),
       updatedAt: new Date(0).toISOString(),
     };

@@ -101,7 +101,7 @@ export class LearningUnitPlanningService {
       return modes
         .filter((recordMode) => !normalizedMode || (
           recordMode === normalizedMode ||
-          (recordMode === 'EXPLAINED_QUESTIONS_VIDEO' && normalizedMode === 'WORKED_EXAMPLES')
+          (String(recordMode) === 'EXPLAINED_QUESTIONS_VIDEO' && normalizedMode === 'WORKED_EXAMPLES')
         ))
         .map((recordMode) => ({
           id: `${record.id}:${recordMode || 'UNSPECIFIED'}`,
@@ -111,7 +111,7 @@ export class LearningUnitPlanningService {
           topicName: record.topicName,
           subtopicId: record.subtopicId,
           subtopicName: record.subtopicName,
-          mode: recordMode === 'EXPLAINED_QUESTIONS_VIDEO' ? 'WORKED_EXAMPLES' : recordMode,
+          mode: String(recordMode) === 'EXPLAINED_QUESTIONS_VIDEO' ? 'WORKED_EXAMPLES' : recordMode,
           format: record.primaryFormat,
           audienceContext: record.audienceContext,
           status: record.planningStatus || 'DRAFT',

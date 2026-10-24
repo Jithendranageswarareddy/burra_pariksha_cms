@@ -34,7 +34,7 @@ assert.equal(linked.learningUnitId, 'lnu_synthetic');
 assert.equal('learningUnitId' in audience, false);
 assert.equal('authorId' in audience, false);
 assert.equal('version' in audience, false);
-assert.deepEqual(propagateLearningUnitId(linked, { contentId: 'video-1' }), {
+assert.deepEqual(propagateLearningUnitId(linked, { contentId: 'video-1', learningUnitId: undefined }), {
   contentId: 'video-1',
   learningUnitId: 'lnu_synthetic',
 });

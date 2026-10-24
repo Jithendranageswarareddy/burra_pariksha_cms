@@ -25,7 +25,7 @@ import {
   workflowInstancesRepository,
 } from '../../../backend/domain/workflow/workflow.repository';
 import { workflowService } from '../../../backend/domain/workflow';
-import { canonicalIdService, QuestionStatus, VideoProductionStatus } from '../../../shared';
+import { canonicalIdService, QuestionStatus, VideoProductionStatus, PriorityLevel } from '../../../shared';
 import { ConcurrencyConflictError } from '../../../src/lib/errors';
 import { createSyntheticLearningUnitPayload } from '../../fixtures/synthetic-test-fixtures';
 
@@ -88,8 +88,6 @@ async function run(): Promise<void> {
       status: QuestionStatus.APPROVED,
       videoStatus: VideoProductionStatus.NOT_STARTED,
       authorId: actor.id,
-      createdAt: now,
-      updatedAt: now,
     }, { actorId: actor.id, requestId: 'req_s16_t02_question' });
 
     const videoRepository = await videosRepository.getFirestoreRepository();
@@ -99,11 +97,9 @@ async function run(): Promise<void> {
       questionId,
       title: '[SYNTHETIC S16-T02] Linked artifact',
       status: VideoProductionStatus.QUEUED,
-      priority: 'NORMAL',
+      priority: PriorityLevel.NORMAL,
       targetDurationSeconds: 45,
       notes: 'Metadata-only; no provider call.',
-      createdAt: now,
-      updatedAt: now,
     }, { actorId: actor.id, requestId: 'req_s16_t02_video' });
 
     const persistedVideo = await videosRepository.findById(videoId);

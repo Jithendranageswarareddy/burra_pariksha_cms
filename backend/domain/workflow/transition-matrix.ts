@@ -654,7 +654,9 @@ export function findTransitionRule(
  * WorkflowStepNumber type cannot protect runtime API payloads.
  */
 export function isCanonicalWorkflowStep(step: unknown): step is WorkflowStepNumber {
-  return Number.isInteger(step) && step >= 1 && step <= 15;
+  // Runtime payloads are unknown until narrowed; only numeric integer stages
+  // may enter the canonical 1-15 transition matrix.
+  return typeof step === 'number' && Number.isInteger(step) && step >= 1 && step <= 15;
 }
 
 /**

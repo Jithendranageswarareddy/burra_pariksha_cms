@@ -102,6 +102,7 @@ export type LearningUnitQuestionArtifact = Pick<
   | 'realLifeContext'
   | 'challengeType'
   | 'presentationType'
+  | 'productionMode'
   | 'status'
   | 'videoStatus'
   | 'createdAt'

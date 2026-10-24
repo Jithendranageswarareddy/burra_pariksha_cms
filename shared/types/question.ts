@@ -16,6 +16,7 @@ import {
   QuestionBatchSlot,
   QuestionBatchStatus,
 } from '../contracts/question-generation/question-generation.contract';
+import type { AudienceLearningUnitContext } from '../contracts/linked-learning-unit-context';
 
 export interface ExplainedQuestionItem {
   slotId?: string;
@@ -82,6 +83,7 @@ export interface Question {
   author?: string; // Production question contract alias
   generationMode?: 'SUBTOPIC' | 'RANDOM' | string;
   productionMode?: string;
+  learningUnitContext?: AudienceLearningUnitContext;
   targetQuestionCount?: number;
   aspectRatio?: string;
   introductoryConcept?: string;

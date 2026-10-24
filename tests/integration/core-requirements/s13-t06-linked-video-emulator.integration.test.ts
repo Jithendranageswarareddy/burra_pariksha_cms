@@ -23,7 +23,7 @@ import { videosRepository } from '../../../database/firestore/repositories/video
 import { workflowHistoryRepository, workflowInstancesRepository } from '../../../backend/domain/workflow/workflow.repository';
 import { workflowService } from '../../../backend/domain/workflow';
 import { canonicalIdService } from '../../../shared';
-import { QuestionStatus, VideoProductionStatus } from '../../../shared';
+import { QuestionStatus, VideoProductionStatus, PriorityLevel } from '../../../shared';
 import { createSyntheticLearningUnitPayload } from '../../fixtures/synthetic-test-fixtures';
 import { ConcurrencyConflictError } from '../../../src/lib/errors';
 import { auditDispatcher } from '../../../src/lib/audit';
@@ -92,8 +92,6 @@ async function run() {
       status: QuestionStatus.APPROVED,
       videoStatus: VideoProductionStatus.NOT_STARTED,
       authorId: actor.id,
-      createdAt: now,
-      updatedAt: now,
     }, { actorId: actor.id, requestId: 'req_s13_t06_question' });
     createdCollections.push({ collection: 'questions', id: question.id, version: question.version });
 
@@ -104,11 +102,9 @@ async function run() {
       questionId,
       title: '[SYNTHETIC S13-T06] Linked video',
       status: VideoProductionStatus.QUEUED,
-      priority: 'NORMAL',
+      priority: PriorityLevel.NORMAL,
       targetDurationSeconds: 45,
       notes: 'Metadata-only emulator acceptance; no Drive upload.',
-      createdAt: now,
-      updatedAt: now,
     }, { actorId: actor.id, requestId: 'req_s13_t06_video' });
     createdCollections.push({ collection: 'videos', id: video.id, version: video.version });
 

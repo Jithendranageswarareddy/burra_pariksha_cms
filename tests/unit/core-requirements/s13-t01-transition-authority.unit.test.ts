@@ -31,7 +31,7 @@ const basePayload = {
   introductoryConcept: 'A percentage discount reduces a marked price.',
 };
 const canonicalWorkedExamples = checkStepPrerequisites(
-  { currentStep: 1, metadata: { productionMode: 'WORKED_EXAMPLES' } } as WorkflowInstanceDocument,
+  { currentStep: 1, metadata: { productionMode: 'WORKED_EXAMPLES' } } as unknown as WorkflowInstanceDocument,
   2,
   'QUESTION_SUBMIT',
   { productionMode: 'WORKED_EXAMPLES', targetQuestionCount: 5, questions: [{}, {}, {}, {}, {}], ...basePayload }
@@ -39,7 +39,7 @@ const canonicalWorkedExamples = checkStepPrerequisites(
 assert.equal(canonicalWorkedExamples.valid, true);
 
 const legacyWorkedExamples = checkStepPrerequisites(
-  { currentStep: 1, metadata: { productionMode: 'EXPLAINED_QUESTIONS_VIDEO' } } as WorkflowInstanceDocument,
+  { currentStep: 1, metadata: { productionMode: 'EXPLAINED_QUESTIONS_VIDEO' } } as unknown as WorkflowInstanceDocument,
   2,
   'QUESTION_SUBMIT',
   { productionMode: 'EXPLAINED_QUESTIONS_VIDEO', targetQuestionCount: 5, questions: [{}, {}, {}, {}, {}], ...basePayload }
@@ -47,7 +47,7 @@ const legacyWorkedExamples = checkStepPrerequisites(
 assert.equal(legacyWorkedExamples.valid, true);
 
 assert.throws(() => workflowEngine.evaluateTransition(
-  { currentStep: 99 } as WorkflowInstanceDocument,
+  { currentStep: 99 } as unknown as WorkflowInstanceDocument,
   2,
   'QUESTION_SUBMIT',
   { id: 'usr-1', role: 'ADMIN', isAiAgent: false } as any

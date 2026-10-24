@@ -121,6 +121,20 @@ export class ContentArtifactService {
   }
 
   private async uploadBinaryArtifact(
+    artifact: AudioArtifactInput,
+    bodyStreamOrBuffer: Readable | Buffer,
+    actor: LearningUnitLinkActor,
+    mediaStage: 'AUDIO',
+    metadataSchema: typeof AudioArtifactMetadataSchema
+  ): Promise<AudioArtifactMetadata>;
+  private async uploadBinaryArtifact(
+    artifact: AnimationArtifactInput,
+    bodyStreamOrBuffer: Readable | Buffer,
+    actor: LearningUnitLinkActor,
+    mediaStage: 'ANIMATION',
+    metadataSchema: typeof AnimationArtifactMetadataSchema
+  ): Promise<AnimationArtifactMetadata>;
+  private async uploadBinaryArtifact(
     artifact: AudioArtifactInput | AnimationArtifactInput,
     bodyStreamOrBuffer: Readable | Buffer,
     actor: LearningUnitLinkActor,

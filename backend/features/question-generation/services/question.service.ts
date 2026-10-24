@@ -299,7 +299,7 @@ export class QuestionService {
     input: CreateQuestionInput,
     actor: { id: string; name: string; role?: string | UserRole } = { id: 'USR-001', name: 'Admin / Content Lead', role: UserRole.ADMIN }
   ): Promise<Question> {
-    await validateLearningUnitLink(requestPayload.learningUnitId, actor);
+    await validateLearningUnitLink(input.learningUnitId, actor);
     // Extract idempotencyKey and optional fields from raw input before Zod stripping
     const rawInput = (input && typeof input === 'object') ? (input as any) : {};
     const rawIdempotencyKey = rawInput.idempotencyKey;

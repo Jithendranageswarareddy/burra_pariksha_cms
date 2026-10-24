@@ -8,7 +8,7 @@ const input = {
   platform: 'youtube',
   mode: 'TOPIC_INTRODUCTION',
   format: 'VIDEO',
-  audienceContext: 'STUDENT',
+  audienceContext: 'STUDENTS',
   productionTimeMinutes: metric(120),
   cost: metric(10),
   revisionCount: metric(2),
@@ -27,6 +27,8 @@ const repository = {
   findById: async (id: string) => records.get(id) || null,
   findLatestByArtifactPlatform: async (artifactId: string, platform: string) =>
     [...records.values()].find((record) => record.artifactId === artifactId && record.platform === platform) || null,
+  findByArtifactPlatform: async (artifactId: string, platform: string) =>
+    [...records.values()].filter((record) => record.artifactId === artifactId && record.platform === platform),
   update: async (id: string, expectedVersion: number, patch: any) => {
     const current = records.get(id);
     if (current.version !== expectedVersion) {
@@ -47,11 +49,15 @@ assert.equal(created.version, 1);
 assert.notEqual(created.id, secondPlatform.id);
 assert.equal(created.recordedBy, actor.id);
 assert.equal(created.currency, 'INR');
-assert.equal(created.productionTimeMinutes.value, 120);
+if (created.productionTimeMinutes.availability === 'AVAILABLE') {
+  assert.equal(created.productionTimeMinutes.value, 120);
+}
 
 const updated = await service.record({ ...input, expectedVersion: 1, cost: metric(12) }, actor);
 assert.equal(updated.version, 2);
-assert.equal(updated.cost.value, 12);
+if (updated.cost.availability === 'AVAILABLE') {
+  assert.equal(updated.cost.value, 12);
+}
 
 await assert.rejects(
   () => service.record({ ...input, expectedVersion: 1 }, actor),

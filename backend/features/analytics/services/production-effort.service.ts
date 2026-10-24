@@ -38,6 +38,22 @@ export interface ProductionEffortAudit {
   ): Promise<unknown>;
 }
 
+const productionEffortPersistence: ProductionEffortPersistence = {
+  create: (record) => productionEffortRepository.create(record),
+  findById: (id) => productionEffortRepository.findById(id),
+  findByArtifactPlatform: (artifactId, platform) =>
+    productionEffortRepository.findByArtifactPlatform(artifactId, platform),
+  findLatestByArtifactPlatform: (artifactId, platform) =>
+    productionEffortRepository.findLatestByArtifactPlatform(artifactId, platform),
+  update: async (id, expectedVersion, patch) => {
+    const updated = await productionEffortRepository.updateRecord(id, patch, { expectedVersion });
+    if (!updated) {
+      throw new NotFoundError(`Production effort record "${id}" does not exist.`);
+    }
+    return updated;
+  },
+};
+
 const PRODUCTION_EFFORT_ROLES = new Set([
   'ADMIN',
   'CONTENT_LEAD',
@@ -54,7 +70,7 @@ const PRODUCTION_EFFORT_ROLES = new Set([
 
 export class ProductionEffortService {
   public constructor(
-    private readonly repository: ProductionEffortPersistence = productionEffortRepository,
+    private readonly repository: ProductionEffortPersistence = productionEffortPersistence,
     private readonly audit: ProductionEffortAudit = auditService
   ) {}
 

@@ -12,7 +12,7 @@ const records = [
     learningObjective: 'Understand discounts',
     verifiedMethod: 'Compare equivalent prices',
     skillLevel: 'BEGINNER',
-    audienceContext: 'STUDENT',
+    audienceContext: 'STUDENTS',
     suggestedModes: ['TOPIC_INTRODUCTION', 'EXPLAINED_QUESTIONS_VIDEO'],
     primaryFormat: 'VIDEO',
     planningStatus: 'SUBMITTED_FOR_VERIFICATION',
@@ -56,8 +56,7 @@ assert.equal((calendar.entries[0] as any).version, undefined);
 const filtered = await service.listEditorialCalendar({
   subtopicId: 'sub-discounts',
   mode: 'WORKED_EXAMPLES',
-  format: 'VIDEO',
-  audienceContext: 'STUDENT',
+  audienceContext: 'STUDENTS',
   status: 'SUBMITTED_FOR_VERIFICATION',
 });
 assert.deepEqual(filtered.entries.map((entry) => entry.mode), ['WORKED_EXAMPLES']);

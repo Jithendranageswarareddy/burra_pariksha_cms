@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { LearningUnitArtifactsService } from '../../../backend/features/planning/services/learning-unit-artifacts.service';
+import { PriorityLevel, VideoProductionStatus } from '../../../shared';
 
 const learningUnitId = 'lnu_550e8400-e29b-41d4-a716-446655440000';
 const actor = { id: 'usr_owner', role: 'CONTENT_WRITER' };
@@ -42,7 +43,7 @@ const service = new LearningUnitArtifactsService({
     { ...source, id: 'question-1', productionMode: 'TOPIC_INTRODUCTION', presentationType: 'TEXT', status: 'APPROVED' },
     { ...source, id: 'question-2', productionMode: 'EXPLAINED_QUESTIONS_VIDEO', presentationType: 'VIDEO', status: 'APPROVED' },
   ] },
-  videos: { findByLearningUnitId: async () => [{ id: 'video-1', learningUnitId, questionId: 'question-1', title: 'Video', status: 'QUEUED', priority: 'NORMAL', createdAt: '2026-01-02T00:00:00.000Z', updatedAt: '2026-01-02T00:00:00.000Z' }] },
+  videos: { findByLearningUnitId: async () => [{ id: 'video-1', learningUnitId, questionId: 'question-1', title: 'Video', status: VideoProductionStatus.QUEUED, priority: PriorityLevel.NORMAL, createdAt: '2026-01-02T00:00:00.000Z', updatedAt: '2026-01-02T00:00:00.000Z' }] },
 });
 
 const sequence = await service.getLearningSequence(learningUnitId, actor, { limit: 2 });

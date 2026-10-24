@@ -8,8 +8,8 @@ type RouteAudit = {
   method: string;
   declaration: string;
   authentication: 'PASS' | 'FAIL';
-  authorization: 'PASS' | 'NOT_APPLICABLE';
-  actorBoundary: 'PASS' | 'NOT_APPLICABLE';
+  authorization: 'PASS' | 'FAIL' | 'NOT_APPLICABLE';
+  actorBoundary: 'PASS' | 'FAIL' | 'NOT_APPLICABLE';
   notes: string;
 };
 

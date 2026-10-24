@@ -21,6 +21,8 @@
  *    - BP-TEST-WFL-*
  */
 
+import type { CreateLearningUnitInput } from '../../shared';
+
 export const SYNTHETIC_TEST_MARKERS = {
   testOnly: true as const,
   environment: 'TEST' as const,
@@ -46,7 +48,7 @@ export function createSyntheticQuestionPayload(uniqueTag: string | number = Date
  * Builds neutral LearningUnit input for emulator tests. The unique tag keeps
  * concurrent runs distinguishable without depending on pre-seeded datastore data.
  */
-export function createSyntheticLearningUnitPayload(uniqueTag: string | number = Date.now()) {
+export function createSyntheticLearningUnitPayload(uniqueTag: string | number = Date.now()): CreateLearningUnitInput {
   return {
     topicId: `top_test_${uniqueTag}`,
     topicName: 'TEST_TOPIC',
@@ -63,7 +65,7 @@ export function createSyntheticLearningUnitPayload(uniqueTag: string | number = 
     skillLevel: 'BEGINNER' as const,
     audienceContext: 'HOUSEHOLDS' as const,
     editorialPillar: 'PILLAR_A' as const,
-    suggestedModes: ['TOPIC_INTRODUCTION', 'WORKED_EXAMPLES', 'QUESTION_CHALLENGE_SHORT'] as const,
+    suggestedModes: ['TOPIC_INTRODUCTION', 'WORKED_EXAMPLES', 'QUESTION_CHALLENGE_SHORT'],
     primaryFormat: 'VIDEO' as const,
     authorId: `usr_test_${uniqueTag}`,
     authorName: 'Synthetic Test Author',

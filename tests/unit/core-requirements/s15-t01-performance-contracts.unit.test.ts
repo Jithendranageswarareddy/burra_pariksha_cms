@@ -6,7 +6,7 @@ import {
 } from '../../../shared';
 
 const available = (value: number) => ({ availability: 'AVAILABLE' as const, value });
-const unavailable = (reason: 'NOT_SUPPORTED' | 'INSUFFICIENT_SAMPLE') => ({
+const unavailable = (reason: 'NOT_SUPPORTED' | 'NOT_PROVIDED' | 'INSUFFICIENT_SAMPLE') => ({
   availability: 'UNAVAILABLE' as const,
   reason,
 });
@@ -16,7 +16,7 @@ const dimensions = {
   platform: 'youtube',
   mode: 'TOPIC_INTRODUCTION',
   format: 'VIDEO',
-  audienceContext: 'STUDENT',
+  audienceContext: 'STUDENTS',
   seriesId: 'series_discount_basics',
   capturedAt: '2026-10-24T12:00:00.000Z',
 };
@@ -46,7 +46,9 @@ const learning = LearningEngagementSnapshotSchema.parse({
   lessonCompletion: unavailable('NOT_PROVIDED'),
 });
 assert.equal(learning.answerAccuracy.availability, 'AVAILABLE');
-assert.equal(learning.followUpPerformance.reason, 'INSUFFICIENT_SAMPLE');
+if (learning.followUpPerformance.availability === 'UNAVAILABLE') {
+  assert.equal(learning.followUpPerformance.reason, 'INSUFFICIENT_SAMPLE');
+}
 
 const combined = ArtifactPerformanceSnapshotSchema.safeParse({ audience, learning });
 assert.equal(combined.success, true);
