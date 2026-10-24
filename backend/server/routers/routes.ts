@@ -5181,20 +5181,28 @@ apiRouter.post('/assignments', requireRole([UserRole.ADMIN, UserRole.CONTENT_MAN
   }
 });
 
-apiRouter.get('/assignments/unassigned', requireAuth, async (req: Request, res: Response) => {
+apiRouter.get(
+  '/assignments/unassigned',
+  requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.PUBLISHING_MANAGER]),
+  async (req: Request, res: Response) => {
   try {
     const unassigned = await assignmentService.getUnassignedWork();
     res.json(unassigned);
   } catch (err: any) {
     res.status(500).json({ error: 'Failed to fetch unassigned work', message: err?.message });
   }
-});
+  }
+);
 
 apiRouter.get('/assignments/entity/:entityType/:entityId', requireAuth, async (req: Request, res: Response) => {
   try {
     const { entityType, entityId } = req.params;
+    const actor = getRequestActor(req);
     const assignments = await assignmentService.getAssignmentsByEntity(entityType, entityId);
-    res.json(assignments);
+    const scopedAssignments = objectAuthService.isManagerOrAdmin(actor)
+      ? assignments
+      : assignments.filter((assignment) => assignment.assigneeId === actor.id);
+    res.json(scopedAssignments);
   } catch (err: any) {
     res.status(500).json({ error: 'Failed to fetch entity assignments', message: err?.message });
   }
@@ -8208,7 +8216,6 @@ apiRouter.get('/copilot/suggestion/:suggestionId', requireAuth, async (req: Requ
 
 // Universal API Error Handling Middleware (FC-003)
 apiRouter.use(globalErrorHandler);
-
 
 
 

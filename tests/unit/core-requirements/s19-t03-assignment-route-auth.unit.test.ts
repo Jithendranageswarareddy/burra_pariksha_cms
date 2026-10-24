@@ -9,7 +9,6 @@ const routes = fs.readFileSync(
 
 const protectedAssignmentRoutes = [
   "get('/assignments'",
-  "get('/assignments/unassigned'",
   "get('/assignments/entity/:entityType/:entityId'",
   "get('/assignments/:id'",
   "post('/assignments/:id/start'",
@@ -23,5 +22,20 @@ for (const route of protectedAssignmentRoutes) {
   const declaration = routes.slice(declarationStart, routes.indexOf('=>', declarationStart));
   assert.match(declaration, /requireAuth/, `${route} must require authentication`);
 }
+
+const unassignedDeclarationStart = routes.indexOf("apiRouter.get(\n  '/assignments/unassigned'");
+assert.notEqual(unassignedDeclarationStart, -1, 'Expected unassigned assignment route');
+const unassignedDeclaration = routes.slice(
+  unassignedDeclarationStart,
+  routes.indexOf('=>', unassignedDeclarationStart)
+);
+assert.match(unassignedDeclaration, /requireRole/, 'Unassigned work must require a manager role');
+
+const entityRouteStart = routes.indexOf("apiRouter.get('/assignments/entity/:entityType/:entityId'");
+const entityRouteEnd = routes.indexOf("apiRouter.get('/assignments/:id'", entityRouteStart);
+const entityRoute = routes.slice(entityRouteStart, entityRouteEnd);
+assert.match(entityRoute, /getRequestActor/, 'Entity assignment reads must resolve the server actor');
+assert.match(entityRoute, /isManagerOrAdmin/, 'Entity assignment reads must distinguish manager scope');
+assert.match(entityRoute, /assigneeId === actor\.id/, 'Non-manager entity reads must be scoped to the caller');
 
 console.log('PASS: S19-T03 assignment reads and assignee actions require authentication.');

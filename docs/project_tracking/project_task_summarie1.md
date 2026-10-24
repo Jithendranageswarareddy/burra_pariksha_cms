@@ -100,6 +100,17 @@ Chronological record of actual task executions in accordance with [AGENTS.md](..
 
 ---
 
+### [S19-T03] 2026-10-25 — Scope Assignment Workbench Reads
+
+- **Status**: `COMPLETED`
+- **Objective**: Enforce assignment ownership scope for entity reads and manager authorization for unassigned work.
+- **Work & Outcome**: Non-manager entity assignment reads now return only records assigned to the authenticated actor; manager/admin actors retain operational visibility. Unassigned-work reads now require manager roles. Existing assignment action ownership and service-side state-machine checks remain unchanged.
+- **Changed Files**: `backend/server/routers/routes.ts`; `tests/unit/core-requirements/s19-t03-assignment-route-auth.unit.test.ts`; `docs/project_tracking/project_task_summarie1.md`
+- **Verification**: `npm run test:s19-t03` — PASS; `npm run test:s13-t05` — PASS (152 mutation declarations); `npm run lint` — PASS; `npm run build` — PASS with existing Zod annotation and bundle-size warnings; `git diff --check` — PASS. Emulator-backed integration remains blocked by unavailable `127.0.0.1:8080`.
+- **Risks & Next Actions**: Sequence and stage-action API/browser evidence remains open for S19-T03; no production assignment data was accessed.
+
+---
+
 ### Architecture / Planning — 2026-10-24 — Workflow Reset and Core Architecture Kickoff
 
 - **Status**: `COMPLETED`
