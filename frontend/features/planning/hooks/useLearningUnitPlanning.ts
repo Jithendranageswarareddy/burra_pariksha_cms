@@ -25,7 +25,7 @@ import {
   Subtopic,
   Topic,
 } from '../../../../shared';
-import { learningUnitsApi, taxonomyApi, ApiClientError } from '../../../api';
+import { learningUnitsApi, taxonomyApi, ApiClientError, getApiErrorMessage } from '../../../api';
 
 export interface LearningUnitFormState {
   topicId: string;
@@ -121,9 +121,9 @@ export function useLearningUnitPlanning(options: UseLearningUnitPlanningOptions 
         if (isSubscribed) {
           setTopics(data || []);
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         if (isSubscribed) {
-          setErrorMessage(err?.message || 'Failed to load taxonomy topics.');
+          setErrorMessage(getApiErrorMessage(err, 'Failed to load taxonomy topics.'));
         }
       } finally {
         if (isSubscribed) {
@@ -150,9 +150,9 @@ export function useLearningUnitPlanning(options: UseLearningUnitPlanningOptions 
         if (isSubscribed) {
           setSubtopics(data || []);
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         if (isSubscribed) {
-          setErrorMessage(err?.message || 'Failed to load subtopics.');
+          setErrorMessage(getApiErrorMessage(err, 'Failed to load subtopics.'));
         }
       }
     }
@@ -190,8 +190,8 @@ export function useLearningUnitPlanning(options: UseLearningUnitPlanningOptions 
         suggestedModes: unit.suggestedModes || ['QUESTION_CHALLENGE_SHORT'],
       });
       setIsDirty(false);
-    } catch (err: any) {
-      setErrorMessage(err?.message || `Failed to load learning unit ${id}.`);
+    } catch (err: unknown) {
+      setErrorMessage(getApiErrorMessage(err, `Failed to load learning unit ${id}.`));
     } finally {
       setLoadingUnit(false);
     }
@@ -332,7 +332,7 @@ export function useLearningUnitPlanning(options: UseLearningUnitPlanningOptions 
       setIsDirty(false);
       setSuccessMessage(`Learning unit draft saved successfully (v${saved.version}).`);
       return saved;
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (err instanceof ApiClientError && (err.statusCode === 409 || err.code === 'CONFLICT_OPTIMISTIC_LOCK')) {
         setConcurrencyConflict(true);
         setErrorMessage(
@@ -341,7 +341,7 @@ export function useLearningUnitPlanning(options: UseLearningUnitPlanningOptions 
       } else if (err instanceof ApiClientError && err.statusCode === 403) {
         setErrorMessage('Permission denied: You do not have permission to plan or update learning units.');
       } else {
-        setErrorMessage(err?.message || 'Failed to save learning unit draft.');
+        setErrorMessage(getApiErrorMessage(err, 'Failed to save learning unit draft.'));
       }
       return null;
     } finally {
@@ -381,7 +381,7 @@ export function useLearningUnitPlanning(options: UseLearningUnitPlanningOptions 
         `Learning unit submitted for verification (v${submitted.version}). Planning status: ${submitted.planningStatus}.`
       );
       return submitted;
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (err instanceof ApiClientError && (err.statusCode === 409 || err.code === 'CONFLICT_OPTIMISTIC_LOCK')) {
         setConcurrencyConflict(true);
         setErrorMessage(
@@ -390,7 +390,7 @@ export function useLearningUnitPlanning(options: UseLearningUnitPlanningOptions 
       } else if (err instanceof ApiClientError && err.statusCode === 403) {
         setErrorMessage('Permission denied: You do not have permission to submit learning units for verification.');
       } else {
-        setErrorMessage(err?.message || 'Failed to submit learning unit for verification.');
+        setErrorMessage(getApiErrorMessage(err, 'Failed to submit learning unit for verification.'));
       }
       return null;
     } finally {

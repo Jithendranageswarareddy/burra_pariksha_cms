@@ -128,6 +128,17 @@ export interface SnapshotHistoryItem {
   storageUri?: string;
 }
 
+/**
+ * Converts unknown transport failures into a user-safe message without exposing
+ * raw response objects or silently turning an error into an empty notification.
+ */
+export function getApiErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof ApiClientError || error instanceof Error) {
+    return error.message || fallback;
+  }
+  return fallback;
+}
+
 export class ApiClient {
   private sessionToken: string | null = null;
 

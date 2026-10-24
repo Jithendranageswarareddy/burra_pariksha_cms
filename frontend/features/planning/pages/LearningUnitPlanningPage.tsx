@@ -38,7 +38,7 @@ import {
   SKILL_LEVELS,
   SKILL_LEVEL_METADATA,
 } from '../../../../shared';
-import { learningUnitsApi } from '../../../api';
+import { learningUnitsApi, getApiErrorMessage } from '../../../api';
 import { LearningUnitWorkspace } from '../components/LearningUnitWorkspace';
 
 export const LearningUnitPlanningPage: React.FC = () => {
@@ -69,8 +69,8 @@ export const LearningUnitPlanningPage: React.FC = () => {
       if (selectedAudience) filter.audienceContext = selectedAudience;
       const data = await learningUnitsApi.list(filter);
       setUnits(data || []);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to load learning units.');
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err, 'Failed to load learning units.'));
     } finally {
       setLoading(false);
     }

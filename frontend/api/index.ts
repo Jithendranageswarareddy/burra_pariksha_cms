@@ -10,6 +10,7 @@ export {
   ApiClient,
   ApiClientError,
   apiClient,
+  getApiErrorMessage,
   type ApiResponse,
   type RecoveryStatusResponse,
   type SnapshotHistoryItem,
