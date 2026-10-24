@@ -16,8 +16,6 @@ const input = {
   rejectionCount: metric(0),
   reuseCount: metric(0),
   currency: 'INR',
-  recordedBy: 'client-value',
-  recordedAt: '2026-10-24T12:00:00.000Z',
 };
 
 const records = new Map<string, ProductionEffortRecord>();
@@ -69,6 +67,27 @@ assert.equal(
   ProductionEffortProvenanceSchema.safeParse({
     kind: 'DERIVED',
     sourceReference: 'analytics-window-2026-10',
+  }).success,
+  false,
+);
+assert.equal(
+  ProductionEffortRecordSchema.safeParse({
+    ...created,
+    recordedAt: 'not-a-timestamp',
+  }).success,
+  false,
+);
+assert.equal(
+  ProductionEffortRecordSchema.safeParse({
+    ...created,
+    currency: 'inr',
+  }).success,
+  false,
+);
+assert.equal(
+  ProductionEffortRecordSchema.safeParse({
+    ...created,
+    productionTimeMinutes: { availability: 'AVAILABLE', value: -1 },
   }).success,
   false,
 );

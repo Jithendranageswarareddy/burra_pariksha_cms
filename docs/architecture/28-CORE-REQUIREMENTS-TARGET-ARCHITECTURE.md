@@ -333,10 +333,13 @@ S17-T01 runtime scope is complete without enabling aggregation or derivation:
   derivation-policy, and derivation-timestamp fields for a derived value.
 - `ProductionEffortService` assigns `OBSERVED` provenance from the
   server-resolved actor. Client-supplied actor identity and provenance are not
-  trusted, and existing audit/OCC behavior remains unchanged.
+  trusted or silently stripped: the strict input schema rejects attempts to
+  supply those server-owned fields, and existing audit/OCC behavior remains
+  unchanged.
 - `productionTimeMinutes` remains explicitly measured in minutes and `cost`
-  retains its recorded native currency. No labor-rate inference or currency
-  conversion is performed.
+  retains its recorded native currency. Currency identifiers require three
+  uppercase letters; malformed timestamps and negative metric values are
+  rejected. No labor-rate inference or currency conversion is performed.
 - Focused S17-T01 tests prove operator authority, provenance validation,
   native-currency preservation, and rejection of incomplete derived metadata.
   S15-T01, S15-T02, S16-T01, S16-T03, and S16-T04 regressions, lint, and build

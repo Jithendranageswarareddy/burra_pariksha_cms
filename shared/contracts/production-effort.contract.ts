@@ -29,7 +29,7 @@ export const ProductionEffortProvenanceSchema = z.discriminatedUnion('kind', [
  */
 export const ProductionEffortRecordSchema = PerformanceDimensionsSchema.extend({
   id: z.string().min(1),
-  currency: z.string().length(3).optional(),
+  currency: z.string().regex(/^[A-Z]{3}$/).optional(),
   productionTimeMinutes: PerformanceMetricSchema,
   cost: PerformanceMetricSchema,
   revisionCount: PerformanceMetricSchema,
@@ -44,10 +44,19 @@ export const ProductionEffortRecordSchema = PerformanceDimensionsSchema.extend({
 });
 
 export const RecordProductionEffortInputSchema = ProductionEffortRecordSchema
-  .omit({ id: true, provenance: true, version: true, createdAt: true, updatedAt: true })
+  .omit({
+    id: true,
+    provenance: true,
+    recordedBy: true,
+    recordedAt: true,
+    version: true,
+    createdAt: true,
+    updatedAt: true,
+  })
   .extend({
     expectedVersion: z.number().int().min(1).optional(),
-  });
+  })
+  .strict();
 
 export type ProductionEffortRecord = z.infer<typeof ProductionEffortRecordSchema>;
 export type RecordProductionEffortInput = z.infer<typeof RecordProductionEffortInputSchema>;

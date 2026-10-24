@@ -340,7 +340,11 @@ flowchart LR
   I --> D
 ```
 
-The next implementation task after this planning work is `S16-T01`: protected
-API acceptance for the existing LearningUnit, artifact-linking, Save Draft,
-Submit, workflow, and audience-safe projection boundaries. It must not implement
+The next roadmap task marked `READY` after the completed S16 foundation and
+approved S17-T01 work is `S19-T01`: LearningUnit planning workspace completion.
+The existing workspace implementation and S11-T04 tests already cover its
+selectors, audience-safe preview, validation, Save Draft/Submit separation,
+OCC conflict handling, permission errors, and Topic -> Subtopic cascade. Any
+further S19-T01 work must therefore begin with a concrete remaining acceptance
+gap rather than duplicate the existing implementation. It must not implement
 correction review, metric aggregation, or a new frontend architecture.

@@ -15,8 +15,6 @@ const input = {
   rejectionCount: metric(1),
   reuseCount: metric(3),
   currency: 'INR',
-  recordedBy: 'ignored-client-value',
-  recordedAt: '2026-10-24T12:00:00.000Z',
 } as any;
 
 const records = new Map<string, any>();
@@ -75,5 +73,13 @@ await assert.rejects(
 await assert.rejects(
   () => service.record({ ...input, productionTimeMinutes: 0 }, actor),
   /Invalid input/
+);
+await assert.rejects(
+  () => service.record({ ...input, provenance: created.provenance }, actor),
+  /provenance/
+);
+await assert.rejects(
+  () => service.record({ ...input, recordedBy: 'spoofed-user' }, actor),
+  /recordedBy/
 );
 console.log('S15-T02 production effort tests passed (persistence, actor attribution, OCC, validation, and authorization).');
