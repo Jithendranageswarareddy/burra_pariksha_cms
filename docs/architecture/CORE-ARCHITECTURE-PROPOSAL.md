@@ -6,6 +6,12 @@
 **Governance & Policy:** [`AGENTS.md`](../../AGENTS.md), [`04-ARCHITECTURE-PRINCIPLES.md`](04-ARCHITECTURE-PRINCIPLES.md), [`DECISION-LOG.md`](DECISION-LOG.md)
 **Target Environments:** Local Development Workspace & Google AI Studio Applet Production Runtime
 
+> **Current authority notice (2026-10-24):** This proposal is preserved as
+> historical planning context. The evidence-backed current architecture, status
+> reconciliation, and remaining-work plan are maintained in
+> [`CORE-ARCHITECTURE-RECONCILIATION.md`](CORE-ARCHITECTURE-RECONCILIATION.md)
+> and [`../sprints/CORE-REQUIREMENTS-ROADMAP.md`](../sprints/CORE-REQUIREMENTS-ROADMAP.md).
+
 ---
 
 ## 1. EXECUTIVE SUMMARY & GOVERNANCE OBJECTIVE

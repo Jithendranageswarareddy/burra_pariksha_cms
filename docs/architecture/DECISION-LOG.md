@@ -17,3 +17,49 @@
 | **ADR-013** | 2026-10-20 | System Administrator Operational Authority & Audited GAR-02 Override Remediation | Authorize authenticated System Administrator operational self-approval across all 15 workflow stages strictly through explicit, confirmed, audited override (`confirmedByAdmin: true`, reason $\ge 10$ chars). Strict zero-bypass GAR-02 remains enforced for all employees. | Resolves operational deadlock where the single System Administrator / primary operator was blocked from reviewing their own content. Establishes transparent accountability, durable immutable audit logs, and clear UI confirmation while safeguarding educational quality controls. |
 | **ADR-014** | 2026-10-24 | Unified Local-to-Deployment Architecture & Google AI Studio Governance | Enforce single production-quality codebase running locally and when published via Google AI Studio; forbid separate development-only implementations or weakening of security/datastore safeguards | Eliminates environment drift and untestable cloud bugs. Ensures shared domain logic, explicit adapter separation, strict datastore guard isolation, and verified container builds (`dist/server.cjs`). |
 | **ADR-015** | 2026-10-24 | Core Requirements Reconciliation: Canonical Mode Alignment, Learning Unit Entity, and Orthogonal 5 Presentation Formats | Realign canonical content modes to Mode 1 `TOPIC_INTRODUCTION`, Mode 2 `WORKED_EXAMPLES` (retaining `EXPLAINED_QUESTIONS_VIDEO` as 100% backward-compatible alias), Mode 3 `QUESTION_CHALLENGE_SHORT`; introduce `learning_units` collection as central educational asset; decouple 5 presentation formats (`TEXT`, `VIDEO`, `AUDIO`, `IMAGE`, `ANIMATION`) from content modes | Satisfies `bp_cms_core_requirements1.md` without data loss or breaking changes. Distinguishes underlying lessons from multi-format publications, enables cross-artifact linking, and preserves existing Firestore documents and routes. |
+
+## ADR-015 Detailed Reconciliation Record
+
+This section expands the table entry without changing the approved decision. The
+current evidence and remaining work are maintained in
+[`CORE-ARCHITECTURE-RECONCILIATION.md`](CORE-ARCHITECTURE-RECONCILIATION.md).
+
+### Context
+
+The core requirements baseline defines three educational modes, five independent
+presentation formats, a verified LearningUnit, independent audience and skill
+dimensions, and a preferred Intro -> Worked Examples -> Challenge sequence. The
+brownfield application already had `TOPIC_INTRODUCTION`,
+`QUESTION_CHALLENGE_SHORT`, and `EXPLAINED_QUESTIONS_VIDEO`, but the latter was
+the legacy name for the worked-example behavior. Existing question, video,
+workflow, and Firestore documents must remain readable without a migration.
+
+### Options considered
+
+1. Rewrite existing stored identifiers and routes to `WORKED_EXAMPLES`. Rejected:
+   it risks data loss, breaks persisted compatibility, and violates the no-rewrite
+   development invariant.
+2. Keep `EXPLAINED_QUESTIONS_VIDEO` as the canonical product term. Rejected:
+   it leaves the implementation vocabulary inconsistent with the approved core
+   requirements.
+3. Use canonical shared constants with a runtime compatibility alias, add a
+   LearningUnit collection, and make presentation format orthogonal. Accepted:
+   it is additive, preserves legacy records, and provides a path to related
+   artifacts without creating a competing datastore.
+
+### Consequences and migration implications
+
+- `WORKED_EXAMPLES` is the canonical new identifier;
+  `EXPLAINED_QUESTIONS_VIDEO` remains a supported read/write alias.
+- `learning_units` is authoritative for verified educational knowledge. Existing
+  standalone artifacts remain valid; new linking is optional until their creation
+  paths use the planning flow.
+- `presentationFormat` is independent from content mode. Existing video paths
+  keep their behavior while TEXT, AUDIO, IMAGE, and ANIMATION begin as contracts
+  and production briefs rather than automatic renderers.
+- No production migration, backfill, purge, or identifier rewrite is part of this
+  decision. Any future migration requires a separate reviewed decision and safe
+  isolated verification.
+- The decision does not claim that planning API/UI, reverse artifact queries,
+  non-video templates, or measurement persistence are complete. Those are tracked
+  in the core requirements roadmap.

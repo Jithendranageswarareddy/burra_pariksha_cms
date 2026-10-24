@@ -202,3 +202,14 @@ Chronological record of actual task executions in accordance with [AGENTS.md](..
 - **Risks & Next Actions**:
   - All tests execute strictly under `PERSISTENCE_MODE=IN_MEMORY_TEST_ONLY` with datastore isolation guards preventing live database contact.
   - Next action: Proceed to `S11-T03` (Learning Unit Planning API & Service Integration) upon instruction.
+
+---
+
+### Architecture / Planning — 2026-10-24 — Architecture and Delivery Plan Reconciliation
+
+- **Status**: `COMPLETED`
+- **Objective**: Audit the GitHub repository against the core requirements, reconcile architecture and ADR decisions, and establish one evidence-backed remaining-work roadmap without implementing application features.
+- **Work & Outcome**: Added a current brownfield architecture audit and target architecture, reconciled the stale S11 task mapping against tracked S11-T01/S11-T02 work, expanded ADR-015 with alternatives and migration consequences, and separated architecture, sprint planning, and execution tracking responsibilities. Pre-existing `package.json` and untracked integration-test changes were preserved and excluded.
+- **Changed Files**: `docs/architecture/CORE-ARCHITECTURE-RECONCILIATION.md`; `docs/architecture/DECISION-LOG.md`; `docs/architecture/CORE-ARCHITECTURE-PROPOSAL.md`; `docs/sprints/CORE-REQUIREMENTS-ROADMAP.md`; `docs/ENGINEERING-INDEX.md`; `docs/project_tracking/project_task_summarie1.md`
+- **Verification**: `git fetch origin` — `PASS` (`HEAD` and `origin/main` both `116476b`); `git diff --cached --check` — `PASS`; staged-path review — `PASS` (six intended documentation files only). Lint, builds, and application tests were intentionally not run because this was documentation-only. No production service, live Firestore, external content, or live AI provider accessed.
+- **Risks & Next Actions**: `S11-T03` Learning Unit Planning API and service integration is the recommended next implementation task. Current S11-T02 emulator round-trip and Google AI Studio publication parity remain `UNVERIFIED`; run only in explicitly isolated environments.
