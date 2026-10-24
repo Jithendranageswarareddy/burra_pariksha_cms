@@ -38,4 +38,16 @@ assert.match(entityRoute, /getRequestActor/, 'Entity assignment reads must resol
 assert.match(entityRoute, /isManagerOrAdmin/, 'Entity assignment reads must distinguish manager scope');
 assert.match(entityRoute, /assigneeId === actor\.id/, 'Non-manager entity reads must be scoped to the caller');
 
+const legacyWorkflowRouteStart = routes.indexOf("apiRouter.get('/workflow/:entityType/:entityId'");
+assert.notEqual(legacyWorkflowRouteStart, -1, 'Expected legacy workflow history route');
+const legacyWorkflowDeclaration = routes.slice(
+  legacyWorkflowRouteStart,
+  routes.indexOf('=>', legacyWorkflowRouteStart)
+);
+assert.match(
+  legacyWorkflowDeclaration,
+  /requireAuth/,
+  'Workflow history must require authentication before exposing immutable transition records'
+);
+
 console.log('PASS: S19-T03 assignment reads and assignee actions require authentication.');

@@ -111,6 +111,17 @@ Chronological record of actual task executions in accordance with [AGENTS.md](..
 
 ---
 
+### [S19-T03] 2026-10-25 — Protect Legacy Workflow History
+
+- **Status**: `COMPLETED`
+- **Objective**: Close the unauthenticated legacy workflow-history read path in the production workbench boundary.
+- **Work & Outcome**: Added `requireAuth` to `/workflow/:entityType/:entityId` before it reads immutable transition history. Canonical workflow instance, resolve, and transition routes were already protected and remain unchanged.
+- **Changed Files**: `backend/server/routers/routes.ts`; `tests/unit/core-requirements/s19-t03-assignment-route-auth.unit.test.ts`; `docs/project_tracking/project_task_summarie1.md`
+- **Verification**: `npm run test:s19-t03` — PASS; `npm run test:s13-t05` — PASS (152 mutation declarations); `npm run lint` — PASS; `npm run build` — PASS with existing Zod annotation and bundle-size warnings; `git diff --check` — PASS. No workflow history or production data was accessed.
+- **Risks & Next Actions**: S19-T03 still needs full sequence/stage-action API/browser evidence; emulator integration remains blocked by unavailable `127.0.0.1:8080`.
+
+---
+
 ### Architecture / Planning — 2026-10-24 — Workflow Reset and Core Architecture Kickoff
 
 - **Status**: `COMPLETED`

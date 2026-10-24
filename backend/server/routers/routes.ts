@@ -4065,7 +4065,7 @@ apiRouter.get('/audit-logs', requireRole([UserRole.ADMIN, UserRole.CONTENT_MANAG
   }
 });
 
-apiRouter.get('/workflow/:entityType/:entityId', async (req: Request, res: Response) => {
+apiRouter.get('/workflow/:entityType/:entityId', requireAuth, async (req: Request, res: Response) => {
   try {
     const { entityType, entityId } = req.params;
     const history = await workflowService.getHistory(entityType, entityId);
@@ -8216,7 +8216,6 @@ apiRouter.get('/copilot/suggestion/:suggestionId', requireAuth, async (req: Requ
 
 // Universal API Error Handling Middleware (FC-003)
 apiRouter.use(globalErrorHandler);
-
 
 
 
