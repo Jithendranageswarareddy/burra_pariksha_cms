@@ -20,6 +20,13 @@ import {
   VideoProductionStatus,
 } from '../../../shared';
 
+export {
+  CreateLearningUnitPlanningRequestSchema,
+  UpdateLearningUnitPlanningRequestSchema,
+  SubmitLearningUnitForVerificationRequestSchema,
+  LearningUnitPlanningFilterSchema,
+} from '../../../shared/contracts/learning-unit-planning.contract';
+
 // ============================================================================
 // 1. QUESTION STUDIO CONFIG SCHEMAS
 // ============================================================================

@@ -12,3 +12,4 @@ export * from './system';
 export * from './assignments';
 export * from './users';
 export * from './learning-unit.contract';
+export * from './learning-unit-planning.contract';

@@ -26,6 +26,8 @@ import {
   ResolvedWorkflowState,
   WorkflowTransitionInput,
   WorkflowTransitionResult,
+  LearningUnitPlanningDto,
+  LearningUnitPlanningResponse,
 } from '../../shared';
 import { GenerateCandidateInput, GenerationResult, RefineCandidateInput } from '../../shared';
 import {
@@ -1169,6 +1171,43 @@ export class ApiClient {
     return this.request('/planning/plans', {
       method: 'POST',
       body: JSON.stringify(input),
+    });
+  }
+
+  public async getLearningUnits(filter?: Record<string, string>): Promise<LearningUnitPlanningDto[]> {
+    const params = new URLSearchParams(filter);
+    const qs = params.toString();
+    return this.requestEnvelope(`/planning/learning-units${qs ? `?${qs}` : ''}`);
+  }
+
+  public async getLearningUnitById(id: string): Promise<LearningUnitPlanningDto> {
+    return this.requestEnvelope(`/planning/learning-units/${encodeURIComponent(id)}`);
+  }
+
+  public async saveLearningUnitDraft(input: Record<string, unknown>): Promise<LearningUnitPlanningResponse> {
+    return this.requestEnvelope('/planning/learning-units', {
+      method: 'POST',
+      body: JSON.stringify({ ...input, operation: 'SAVE_DRAFT' }),
+    });
+  }
+
+  public async updateLearningUnitDraft(
+    id: string,
+    input: Record<string, unknown> & { expectedVersion: number }
+  ): Promise<LearningUnitPlanningResponse> {
+    return this.requestEnvelope(`/planning/learning-units/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      body: JSON.stringify({ ...input, operation: 'SAVE_DRAFT' }),
+    });
+  }
+
+  public async submitLearningUnitForVerification(
+    id: string,
+    expectedVersion: number
+  ): Promise<LearningUnitPlanningResponse> {
+    return this.requestEnvelope(`/planning/learning-units/${encodeURIComponent(id)}/submit-for-verification`, {
+      method: 'POST',
+      body: JSON.stringify({ expectedVersion, operation: 'SUBMIT_FOR_VERIFICATION' }),
     });
   }
 

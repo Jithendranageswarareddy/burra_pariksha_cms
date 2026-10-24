@@ -61,7 +61,8 @@
     "test:s10-t19:e2e": "tsx tests/e2e/question-generation/s10-t19-multimode-live-e2e.test.ts",
     "test:s11-t01": "tsx tests/unit/core-requirements/s11-t01-contracts-and-compatibility.unit.test.ts",
     "test:s11-t02": "tsx tests/unit/core-requirements/s11-t02-learning-unit-repository.unit.test.ts",
-    "test:s11-t02:integration": "tsx tests/integration/core-requirements/s11-t02-firestore-learning-unit-persistence.integration.test.ts"
+    "test:s11-t02:integration": "tsx tests/integration/core-requirements/s11-t02-firestore-learning-unit-persistence.integration.test.ts",
+    "test:s11-t03": "tsx tests/unit/core-requirements/s11-t03-learning-unit-planning.service.unit.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

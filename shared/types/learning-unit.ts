@@ -29,6 +29,10 @@ export {
   SkillLevel,
 };
 
+export type LearningUnitPlanningStatus = 'DRAFT' | 'SUBMITTED_FOR_VERIFICATION';
+
+export type LearningUnitPlanningOperation = 'SAVE_DRAFT' | 'SUBMIT_FOR_VERIFICATION';
+
 /**
  * The central educational asset representing verified core curriculum knowledge.
  * Adheres to Layer 1 (Knowledge Reference) and Layer 2 (Learning Design).
@@ -78,6 +82,9 @@ export interface LearningUnit {
   /** Primary initial presentation format (defaults to 'VIDEO') */
   primaryFormat?: PresentationFormat;
 
+  /** Planning-only state; does not advance the canonical production workflow. */
+  planningStatus?: LearningUnitPlanningStatus;
+
   /** Staff user ID who authored or verified the learning unit: usr_<uuid> */
   authorId: string;
   authorName?: string;
@@ -113,6 +120,7 @@ export interface CreateLearningUnitInput {
   primaryFormat?: PresentationFormat;
   authorId: string;
   authorName?: string;
+  planningStatus?: LearningUnitPlanningStatus;
 }
 
 /**
@@ -136,7 +144,39 @@ export interface UpdateLearningUnitInput {
   editorialPillar?: EditorialPillar;
   suggestedModes?: CanonicalContentMode[];
   primaryFormat?: PresentationFormat;
+  planningStatus?: LearningUnitPlanningStatus;
   expectedVersion?: number;
+}
+
+export interface LearningUnitPlanningDto {
+  id: string;
+  topicId: string;
+  topicName?: string;
+  subtopicId: string;
+  subtopicName?: string;
+  title: string;
+  learningObjective: string;
+  prerequisiteSkills?: string[];
+  verifiedMethod: string;
+  correctCalculations?: string;
+  commonMistakes?: string[];
+  realLifeApplications?: string[];
+  realLifeScenario?: string;
+  skillLevel: SkillLevel;
+  audienceContext?: AudienceContext;
+  editorialPillar?: EditorialPillar;
+  suggestedModes?: CanonicalContentMode[];
+  primaryFormat?: PresentationFormat;
+  planningStatus: LearningUnitPlanningStatus;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface LearningUnitPlanningResponse {
+  learningUnit: LearningUnitPlanningDto;
+  operation: LearningUnitPlanningOperation;
+  workflowAdvanced: false;
 }
 
 /**

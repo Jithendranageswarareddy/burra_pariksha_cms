@@ -35,6 +35,7 @@ import {
   LearningUnit,
   UpdateLearningUnitInput,
 } from '../types/learning-unit';
+import { LearningUnitPlanningStatus } from '../types/learning-unit';
 
 // ============================================================================
 // 1. ATOMIC VALUE SCHEMAS
@@ -64,6 +65,11 @@ export const EditorialPillarSchema = z.enum(
   EDITORIAL_PILLARS as unknown as [EditorialPillar, ...EditorialPillar[]]
 );
 
+export const LearningUnitPlanningStatusSchema = z.enum([
+  'DRAFT',
+  'SUBMITTED_FOR_VERIFICATION',
+] as const);
+
 // ============================================================================
 // 2. LEARNING UNIT SCHEMAS
 // ============================================================================
@@ -87,6 +93,7 @@ export const LearningUnitSchema = z.object({
   editorialPillar: EditorialPillarSchema.optional(),
   suggestedModes: z.array(CanonicalContentModeSchema).optional(),
   primaryFormat: PresentationFormatSchema.default('VIDEO').optional(),
+  planningStatus: LearningUnitPlanningStatusSchema.optional(),
   authorId: z.string().min(1, 'Author ID is required'),
   authorName: z.string().optional(),
   version: z.number().int().min(1, 'Version must be an integer >= 1'),
@@ -112,6 +119,7 @@ export const CreateLearningUnitSchema = z.object({
   editorialPillar: EditorialPillarSchema.optional(),
   suggestedModes: z.array(CanonicalContentModeSchema).optional(),
   primaryFormat: PresentationFormatSchema.default('VIDEO').optional(),
+  planningStatus: LearningUnitPlanningStatusSchema.default('DRAFT').optional(),
   authorId: z.string().min(1, 'Author ID is required'),
   authorName: z.string().optional(),
 });
@@ -134,6 +142,7 @@ export const UpdateLearningUnitSchema = z.object({
   editorialPillar: EditorialPillarSchema.optional(),
   suggestedModes: z.array(CanonicalContentModeSchema).optional(),
   primaryFormat: PresentationFormatSchema.optional(),
+  planningStatus: LearningUnitPlanningStatusSchema.optional(),
   expectedVersion: z.number().int().min(1).optional(),
 });
 
@@ -173,3 +182,5 @@ export function validateUpdateLearningUnitInput(data: unknown): { isValid: boole
     errors: result.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`),
   };
 }
+
+export type { LearningUnitPlanningStatus };

@@ -20,6 +20,7 @@ import {
   operationalRecoveryService,
   pinnedCommentService,
   planningService,
+  learningUnitPlanningService,
   productionBoardService,
   publishingService,
   questionService,
@@ -76,6 +77,10 @@ import {
   CreateSocialCommentInputSchema,
   ImportSocialCommentsInputSchema,
   GenerateCommentIntelligenceInputSchema,
+  CreateLearningUnitPlanningRequestSchema,
+  UpdateLearningUnitPlanningRequestSchema,
+  SubmitLearningUnitForVerificationRequestSchema,
+  LearningUnitPlanningFilterSchema,
 } from '../validation/request-schemas';
 import { socialCommentsService } from '../../features/analytics/services/social-comments.service';
 import { commentIntelligenceService } from '../../features/analytics/services/comment-intelligence.service';
@@ -4780,6 +4785,74 @@ apiRouter.get('/search', requireAuth, async (req: Request, res: Response) => {
 // Phase 9: Content Planning, Batch Management & Question Intelligence
 // ----------------------------------------------------
 
+const LEARNING_UNIT_PLANNING_ROLES = [
+  UserRole.ADMIN,
+  CanonicalRbacRole.CONTENT_LEAD,
+  CanonicalRbacRole.QUESTION_AUTHOR,
+  CanonicalRbacRole.QUESTION_EDITOR,
+  CanonicalRbacRole.QA_REVIEWER,
+  UserRole.CONTENT_MANAGER,
+  UserRole.QUESTION_CREATOR,
+  UserRole.QUESTION_EDITOR,
+  UserRole.CONTENT_WRITER,
+  UserRole.TOPIC_LEAD,
+  UserRole.CREATOR,
+  UserRole.REVIEWER,
+];
+
+apiRouter.get('/planning/learning-units', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const parsed = LearningUnitPlanningFilterSchema.parse(req.query);
+    const learningUnits = await learningUnitPlanningService.list(parsed as any);
+    res.json(createSuccessResponse(learningUnits, (req.headers['x-request-id'] as string) || `req_${Date.now()}`));
+  } catch (err) {
+    next(err);
+  }
+});
+
+apiRouter.get('/planning/learning-units/:id', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const learningUnit = await learningUnitPlanningService.get(req.params.id);
+    res.json(createSuccessResponse(learningUnit, (req.headers['x-request-id'] as string) || `req_${Date.now()}`));
+  } catch (err) {
+    next(err);
+  }
+});
+
+apiRouter.post('/planning/learning-units', requireRole(LEARNING_UNIT_PLANNING_ROLES), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const input = CreateLearningUnitPlanningRequestSchema.parse(req.body);
+    const actor = getRequestActor(req);
+    const result = await learningUnitPlanningService.saveDraft(input, actor);
+    res.status(201).json(createSuccessResponse(result, (req.headers['x-request-id'] as string) || `req_${Date.now()}`));
+  } catch (err) {
+    next(err);
+  }
+});
+
+apiRouter.put('/planning/learning-units/:id', requireRole(LEARNING_UNIT_PLANNING_ROLES), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const input = UpdateLearningUnitPlanningRequestSchema.parse(req.body);
+    const actor = getRequestActor(req);
+    const { operation: _operation, expectedVersion, ...updates } = input;
+    const result = await learningUnitPlanningService.updateDraft(req.params.id, updates, expectedVersion, actor);
+    res.json(createSuccessResponse(result, (req.headers['x-request-id'] as string) || `req_${Date.now()}`));
+  } catch (err) {
+    next(err);
+  }
+});
+
+apiRouter.post('/planning/learning-units/:id/submit-for-verification', requireRole(LEARNING_UNIT_PLANNING_ROLES), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { expectedVersion } = SubmitLearningUnitForVerificationRequestSchema.parse(req.body);
+    const actor = getRequestActor(req);
+    const result = await learningUnitPlanningService.submitForVerification(req.params.id, expectedVersion, actor);
+    res.json(createSuccessResponse(result, (req.headers['x-request-id'] as string) || `req_${Date.now()}`));
+  } catch (err) {
+    next(err);
+  }
+});
+
 apiRouter.get('/planning/plans', async (req: Request, res: Response) => {
   try {
     const { topicId, status } = req.query;
@@ -8103,7 +8176,6 @@ apiRouter.get('/copilot/suggestion/:suggestionId', requireAuth, async (req: Requ
 
 // Universal API Error Handling Middleware (FC-003)
 apiRouter.use(globalErrorHandler);
-
 
 
 

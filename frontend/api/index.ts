@@ -17,6 +17,7 @@ export {
 
 // Canonical Feature-Oriented API modules
 export { planningApi } from './planning.api';
+export { learningUnitsApi } from './learning-units.api';
 export { taxonomyApi } from './taxonomy.api';
 export { questionsApi } from './questions.api';
 export { videosApi } from './videos.api';
