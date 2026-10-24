@@ -89,6 +89,17 @@ Chronological record of actual task executions in accordance with [AGENTS.md](..
 
 ---
 
+### [S19-T03] 2026-10-25 — Authenticate Assignment Workbench Routes
+
+- **Status**: `COMPLETED`
+- **Objective**: Close the concrete assignment-workbench gap where assignment reads and assignee actions lacked explicit router-level authentication.
+- **Work & Outcome**: Added `requireAuth` to assignment listing, unassigned-work, entity lookup, detail, start, block, and complete routes. Existing manager/owner authorization checks remain in place and were not weakened. Added a static regression covering the full protected assignment route family.
+- **Changed Files**: `backend/server/routers/routes.ts`; `tests/unit/core-requirements/s19-t03-assignment-route-auth.unit.test.ts`; `package.json`; `docs/sprints/CORE-REQUIREMENTS-ROADMAP.md`; `docs/project_tracking/project_task_summarie1.md`
+- **Verification**: `npm run test:s19-t03` — PASS; `npm run test:s13-t05` — PASS (152 mutation declarations); `npm run lint` — PASS; `npm run build` — PASS with existing Zod annotation and bundle-size warnings; `git diff --check` — PASS. `npm test` — BLOCKED/FAIL in existing FC-002 integration setup because Firestore emulator `127.0.0.1:8080` was unavailable (`ECONNREFUSED`); no production target was used.
+- **Risks & Next Actions**: S19-T03 still requires sequence/stage-action and browser/API evidence; no assignment data or production service was accessed.
+
+---
+
 ### Architecture / Planning — 2026-10-24 — Workflow Reset and Core Architecture Kickoff
 
 - **Status**: `COMPLETED`

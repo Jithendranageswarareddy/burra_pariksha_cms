@@ -5116,7 +5116,9 @@ apiRouter.post('/planning/ai-recommendation', async (req: Request, res: Response
 // PHASE 10: Team Operations & Assignment Endpoints
 // ----------------------------------------------------
 
-apiRouter.get('/assignments', async (req: Request, res: Response) => {
+// Assignment workbench data and actions are never public; ownership and role
+// checks below refine the authenticated boundary for each operation.
+apiRouter.get('/assignments', requireAuth, async (req: Request, res: Response) => {
   try {
     const authReq = req as AuthenticatedRequest;
     const isManagerOrAdmin = authReq.user && objectAuthService.isManagerOrAdmin(authReq.user as any);
@@ -5179,7 +5181,7 @@ apiRouter.post('/assignments', requireRole([UserRole.ADMIN, UserRole.CONTENT_MAN
   }
 });
 
-apiRouter.get('/assignments/unassigned', async (req: Request, res: Response) => {
+apiRouter.get('/assignments/unassigned', requireAuth, async (req: Request, res: Response) => {
   try {
     const unassigned = await assignmentService.getUnassignedWork();
     res.json(unassigned);
@@ -5188,7 +5190,7 @@ apiRouter.get('/assignments/unassigned', async (req: Request, res: Response) => 
   }
 });
 
-apiRouter.get('/assignments/entity/:entityType/:entityId', async (req: Request, res: Response) => {
+apiRouter.get('/assignments/entity/:entityType/:entityId', requireAuth, async (req: Request, res: Response) => {
   try {
     const { entityType, entityId } = req.params;
     const assignments = await assignmentService.getAssignmentsByEntity(entityType, entityId);
@@ -5198,7 +5200,7 @@ apiRouter.get('/assignments/entity/:entityType/:entityId', async (req: Request, 
   }
 });
 
-apiRouter.get('/assignments/:id', async (req: Request, res: Response) => {
+apiRouter.get('/assignments/:id', requireAuth, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const authReq = req as AuthenticatedRequest;
@@ -5228,7 +5230,7 @@ apiRouter.patch('/assignments/:id', requireRole([UserRole.ADMIN, UserRole.CONTEN
   }
 });
 
-apiRouter.post('/assignments/:id/start', async (req: Request, res: Response) => {
+apiRouter.post('/assignments/:id/start', requireAuth, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const authReq = req as AuthenticatedRequest;
@@ -5245,7 +5247,7 @@ apiRouter.post('/assignments/:id/start', async (req: Request, res: Response) => 
   }
 });
 
-apiRouter.post('/assignments/:id/block', async (req: Request, res: Response) => {
+apiRouter.post('/assignments/:id/block', requireAuth, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { reason } = req.body;
@@ -5263,7 +5265,7 @@ apiRouter.post('/assignments/:id/block', async (req: Request, res: Response) => 
   }
 });
 
-apiRouter.post('/assignments/:id/complete', async (req: Request, res: Response) => {
+apiRouter.post('/assignments/:id/complete', requireAuth, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const authReq = req as AuthenticatedRequest;
@@ -8206,7 +8208,6 @@ apiRouter.get('/copilot/suggestion/:suggestionId', requireAuth, async (req: Requ
 
 // Universal API Error Handling Middleware (FC-003)
 apiRouter.use(globalErrorHandler);
-
 
 
 
