@@ -301,6 +301,43 @@ handling, and topic source. Until then, S17-T01 and S17-T02 remain `GATED`;
 no schema migration, aggregation service, dashboard, or production-data
 operation is authorized.
 
+### 5.2 Project-owner authorization record — 2026-10-25
+
+The project owner explicitly authorized the recommended directions for
+`S17-MET-01` through `S17-MET-05` in the project execution request dated
+2026-10-25. This records project-owner approval only; it is not architecture-
+owner approval and does not change the roadmap task gates.
+
+| Decision | Project-owner accepted direction | Deferred or rejected alternatives | Effective status |
+| --- | --- | --- | --- |
+| `S17-MET-01` | Operator production-effort observations and provider measurements remain source observations; derived values require documented formula and provenance. | Silent timestamp inference and labor-cost inference are rejected. | Accepted by project owner; effective date pending architecture-owner approval |
+| `S17-MET-02` | Time is minutes; monetary cost remains separate with explicit native currency; no automatic conversion or labor rate. | Infrastructure budget as production-cost formula, inferred rates, and unapproved conversion are rejected. | Accepted by project owner; effective date pending architecture-owner approval |
+| `S17-MET-03` | Count unique auditable editorial outcomes; retries/duplicates are excluded; reuse requires a verified artifact-to-LearningUnit relationship; revenue and cost remain separate. | Similarity-based reuse and operational metrics granting approval, publication, authorization, or correction-review rights are rejected. | Accepted by project owner; event-identity detail remains pending architecture-owner approval |
+| `S17-MET-04` | Use UTC half-open `[start, end)` windows and authoritative timestamps; preserve zero and missingness distinctions; do not invent a numeric sample threshold. | Filling missing data with zero is rejected; threshold remains a deferred product-policy decision. | Conditionally accepted by project owner; threshold and contract representation remain pending |
+| `S17-MET-05` | Resolve Topic/Subtopic through verified identifiers and LearningUnit relationships, fail closed on ambiguity, and preserve historical traceability. | Free-text/similarity inference and unbounded recursive scans are rejected. | Accepted by project owner; architecture-owner approval remains required |
+
+The project owner did not provide a separate architecture-owner approval,
+named architecture approver, or effective date independent of that approval.
+Accordingly, `S17-T01` remains `GATED`; `S17-T02` also remains gated because
+it depends on the completed metric dictionary and approved bounded aggregation
+policy.
+
+### 5.3 Snapshot and Sheets coupling audit
+
+The audit distinguishes the following implementation classes:
+
+| Surface | Classification | Finding and preservation/removal decision |
+| --- | --- | --- |
+| `snapshot-exporter.service.ts` and `GoogleSheetsSnapshot` types | Disabled legacy Sheets export and compatibility input type | `exportSnapshot()` already fails closed because Firestore is authoritative. The type remains an input contract for administrative restore/archive validation; no safe complete removal was established. |
+| `snapshot-history.service.ts`, `durable-snapshot-archive.service.ts`, `snapshot-scheduler.service.ts`, and recovery routes | Active recovery/archive functionality | Retain. These provide integrity-checked durable archives, retention controls, restore history, and explicitly authorized recovery paths; Firestore authority does not replace disaster-recovery evidence. |
+| `social_analytics` repository/service and performance contracts | Firestore performance observation snapshots | Retain. Append-only captured observations support historical reporting, duplicate protection, auditability, and time-based comparisons; they are not Google Sheets synchronization copies. |
+| Script, thumbnail, video, publishing, and pinned-comment version repositories/services | Application version snapshots | Retain. They preserve artifact/version traceability and historical workflow context. |
+| `secondary-sheet-schema.ts` and related restore validators | Compatibility/offline recovery schema | Retain until a separately authorized migration proves no archived payload, restore route, or compatibility consumer remains. |
+| Historical Sheets E2E/architecture references and runtime-mode strings | Legacy tests/documentation/configuration references | Not removed in this task. They require a bounded compatibility cleanup with test ownership and deployment-impact review; deleting them now would exceed the demonstrated safe scope. |
+
+No Firestore collection, audit record, recovery archive, deployed resource,
+production data, or legitimate performance/version snapshot was deleted.
+
 ## 6. Non-functional contracts
 
 - **Security:** authentication fails closed; authorization checks capability,
