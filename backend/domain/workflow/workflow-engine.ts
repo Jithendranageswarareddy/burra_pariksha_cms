@@ -83,7 +83,9 @@ export class WorkflowEngine implements IWorkflowEngine {
     }
 
     // 4. GAR-02 Anti-Self-Approval Enforcement
-    // Verification steps (Steps 02, 07, 09) strictly prohibit the author from approving their own work.
+    // Verification steps (Steps 02, 07, 09) require an independent reviewer.
+    // Admin capability access does not bypass this invariant; only an explicit
+    // confirmed override with a detailed reason can authorize admin self-approval.
     const isVerificationStep = currentStep === 2 || currentStep === 7 || currentStep === 9;
     const isApprovalAction =
       rule.isVerificationGate ||
@@ -92,26 +94,36 @@ export class WorkflowEngine implements IWorkflowEngine {
 
     if (isVerificationStep && isApprovalAction) {
       const canonicalRole = resolveBrownfieldRole(actorContext.role);
-      const isAdmin = canonicalRole === CanonicalRbacRole.ADMIN;
+      const authorId = item.authorId || (contentPayload?.authorId as string) || (contentPayload?.authorUserId as string);
+      if (!authorId || !authorId.trim()) {
+        throw new ForbiddenError(
+          `Author identity cannot be verified (missing authorId). Segregation of duties (GAR-02) requires an identifiable author before approval/verification at Step ${currentStep}.`
+        );
+      }
 
-      if (!isAdmin) {
-        const authorId = item.authorId || (contentPayload?.authorId as string) || (contentPayload?.authorUserId as string);
-        if (!authorId || !authorId.trim()) {
-          throw new ForbiddenError(
-            `Author identity cannot be verified (missing authorId). Segregation of duties (GAR-02) requires an identifiable author before approval/verification at Step ${currentStep}.`
-          );
-        }
-        if (authorId.trim() === actorContext.id.trim()) {
+      const isAdmin = canonicalRole === CanonicalRbacRole.ADMIN;
+      const override = contentPayload?.override as {
+        isOverride?: boolean;
+        confirmedByAdmin?: boolean;
+        reason?: string;
+      } | undefined;
+      const isSelfApproval = authorId.trim() === actorContext.id.trim();
+
+      if (isSelfApproval) {
+        if (!isAdmin || override?.isOverride !== true) {
           throw new ForbiddenError(
             `Self-approval strictly prohibited under GAR-02 segregation of duties: Author (${authorId}) cannot approve their own work at Step ${currentStep}.`
           );
         }
-      } else {
-        // Administrator working end-to-end: no override needed.
-        // Optional warning if assigned to another person
-        const assignedTo = (item as any).assigneeId || (item as any).assignedTo;
-        if (assignedTo && String(assignedTo).trim() !== String(actorContext.id).trim()) {
-          console.warn(`[WorkflowEngine] Warning: Step ${currentStep} transition executed by Admin (${actorContext.id}), but task was assigned to ${assignedTo}.`);
+        if (override.confirmedByAdmin !== true) {
+          throw new ForbiddenError(
+            'Administrative override requires confirmedByAdmin=true before approval/verification.'
+          );
+        }
+        if (typeof override.reason !== 'string' || override.reason.trim().length < 10) {
+          throw new ForbiddenError(
+            'Administrative override reason must contain at least 10 characters.'
+          );
         }
       }
     }
@@ -167,19 +179,16 @@ export class WorkflowEngine implements IWorkflowEngine {
       let isAvailable = true;
       let blockedReason: string | undefined;
 
-      // Check GAR-02 if actor provided
+      // Check GAR-02 if actor provided. UI availability must not imply that
+      // an administrator can bypass the backend's self-approval invariant.
       if (actorContext && rule.isVerificationGate) {
-        const canonicalRole = resolveBrownfieldRole(actorContext.role);
-        const isAdmin = canonicalRole === CanonicalRbacRole.ADMIN;
-        if (!isAdmin) {
-          const authorId = item.authorId;
-          if (!authorId || !authorId.trim()) {
-            isAvailable = false;
-            blockedReason = 'Verification blocked (GAR-02): Author identity is missing. Independent verification requires an established author.';
-          } else if (authorId.trim() === actorContext.id.trim()) {
-            isAvailable = false;
-            blockedReason = 'Self-approval prohibited (GAR-02): Author cannot approve own work.';
-          }
+        const authorId = item.authorId;
+        if (!authorId || !authorId.trim()) {
+          isAvailable = false;
+          blockedReason = 'Verification blocked (GAR-02): Author identity is missing. Independent verification requires an established author.';
+        } else if (authorId.trim() === actorContext.id.trim()) {
+          isAvailable = false;
+          blockedReason = 'Self-approval prohibited (GAR-02): Author cannot approve own work without an explicit administrative override.';
         }
       }
 
