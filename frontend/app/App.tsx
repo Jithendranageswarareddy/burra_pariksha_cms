@@ -27,6 +27,7 @@ import { AnalyticsExperiencePage } from '../pages/AnalyticsExperiencePage';
 import { SettingsPage } from '../pages/SettingsPage';
 import { RecoveryAdminPage } from '../pages/RecoveryAdminPage';
 import { PlanningPage } from '../pages/PlanningPage';
+import { LearningUnitPlanningPage } from '../pages/LearningUnitPlanningPage';
 import { MyWorkPage } from '../pages/MyWorkPage';
 import { TeamOperationsPage } from '../pages/TeamOperationsPage';
 import { ContentMasterPage } from '../pages/ContentMasterPage';
@@ -105,6 +106,8 @@ function AppRoutes() {
 
         {/* Content Routes */}
         <Route path="planning" element={<PlanningPage />} />
+        <Route path="planning/learning-units" element={<LearningUnitPlanningPage />} />
+        <Route path="planning/learning-units/:id" element={<LearningUnitPlanningPage />} />
         <Route path="questions" element={<QuestionLibraryPage />} />
         <Route path="content-masters" element={<ContentMasterPage />} />
         <Route path="content-masters/:id" element={<ContentMasterPage />} />

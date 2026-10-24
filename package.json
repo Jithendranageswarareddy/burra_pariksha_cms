@@ -62,7 +62,8 @@
     "test:s11-t01": "tsx tests/unit/core-requirements/s11-t01-contracts-and-compatibility.unit.test.ts",
     "test:s11-t02": "tsx tests/unit/core-requirements/s11-t02-learning-unit-repository.unit.test.ts",
     "test:s11-t02:integration": "tsx tests/integration/core-requirements/s11-t02-firestore-learning-unit-persistence.integration.test.ts",
-    "test:s11-t03": "tsx tests/unit/core-requirements/s11-t03-learning-unit-planning.service.unit.test.ts"
+    "test:s11-t03": "tsx tests/unit/core-requirements/s11-t03-learning-unit-planning.service.unit.test.ts",
+    "test:s11-t04": "tsx tests/unit/core-requirements/s11-t04-learning-unit-planning-workspace.unit.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

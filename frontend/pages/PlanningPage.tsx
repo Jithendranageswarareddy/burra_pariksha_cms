@@ -651,6 +651,19 @@ export const PlanningPage: React.FC = () => {
           <Sparkles className="w-4 h-4 text-amber-300" />
           AI Planning Assistant
         </button>
+
+        <button
+          id="tab-learning-units-btn"
+          type="button"
+          onClick={() => navigate('/planning/learning-units')}
+          className="px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 bg-indigo-950/70 text-indigo-300 border border-indigo-800/60 hover:bg-indigo-900/60 ml-auto"
+        >
+          <BookOpen className="w-4 h-4 text-indigo-400" />
+          Learning Units Hub
+          <span className="bg-indigo-900/80 text-[10px] px-2 py-0.5 rounded-full text-indigo-200">
+            Curriculum
+          </span>
+        </button>
       </div>
 
       {/* ============================================================================ */}
