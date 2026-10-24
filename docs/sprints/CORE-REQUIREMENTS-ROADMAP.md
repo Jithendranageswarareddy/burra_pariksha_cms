@@ -1,7 +1,7 @@
 # BP-CMS Core Requirements Roadmap
 
 **Date:** 2026-10-24
-**Status:** Authoritative remaining-work roadmap
+**Status:** Authoritative remaining-work roadmap; S16+ is the future planning baseline
 **Source:** [`docs/BP_CMS_CORE_REQUIREMENTS/bp_cms_core_requirements1.md`](../BP_CMS_CORE_REQUIREMENTS/bp_cms_core_requirements1.md)
 **Architecture authority:** [`docs/architecture/CORE-ARCHITECTURE-RECONCILIATION.md`](../architecture/CORE-ARCHITECTURE-RECONCILIATION.md)
 
@@ -136,37 +136,179 @@ sample-size and missing-data behavior.
 | `S15-T03` | Add analytics aggregation and dashboard slices for the three categories. | Isolated fixtures verify filters by topic, mode, format, audience, and series with no production reads. | Avoid recursive collection scans and free-tier read amplification. |
 | `S15-T04` | Add performance-review feedback into the Intelligence Loop as audited recommendations. | Service tests prove recommendations cannot directly publish, approve, or mutate content without an authorized command. | AI remains advisory and cost-bounded. |
 
-## Sprint 16 - Release, architecture, and human acceptance gates
+## Verified S15 boundary
 
-**Goal:** Close the core-requirements roadmap with reproducible code-level
-evidence and owner-controlled human acceptance.
+S15-T01 and S15-T02 are present at pushed commit
+`fb8076a7e2044de208d5c34b8340ec54ddbbb09f`. S15-T01 defines shared
+audience-performance and learning-engagement contracts with explicit unavailable
+metrics. S15-T02 adds explicit artifact/platform production-effort records,
+server-side actor attribution, audit calls, and OCC updates. S15-T02 does not
+define or derive formulas for elapsed versus active time, currency/cost
+semantics, revision/rejection derivation, or LearningUnit reuse. Those decisions
+must precede aggregation and dashboard acceptance. The known TypeScript lint
+blocker is the installed `googleapis` declaration error at
+`containeranalysis/v1.d.ts(1450,48)`.
 
-**Dependencies:** S11 through S15; no task may deploy as a side effect.
+## Future roadmap status and rules
 
-**Exit criteria:** Documentation, architecture, security, workflow, persistence,
-and isolated end-to-end gates are green; remaining gaps have explicit owners;
-the owner receives a manual human-acceptance checklist for the live environment.
+The following S16+ plan is a dependency-aware planning hypothesis derived from
+the core requirements and the architecture audit. It does not change historical
+S11–S15 identities or mark any task accepted. `READY` means the prerequisite
+contract is approved and the task can be implemented; `GATED` means a named
+decision or evidence gate must be satisfied first.
 
-| Task | Work and likely files | Acceptance and test strategy | Risks / blockers |
+## Sprint 16 - Verified production foundation and workflow acceptance
+
+**Goal:** Close the highest-risk evidence gaps in the existing LearningUnit and
+15-stage production path without adding new domain concepts.
+
+**Dependencies:** S11–S15 code remains the baseline; ADR-016 is not required
+for tasks that do not implement correction behavior.
+
+| Task | Status | Deliverables | Acceptance evidence / non-goals |
 | --- | --- | --- | --- |
-| `S16-T01` | Run the architecture, contract, workflow, RBAC, taxonomy, and regression gates once in safe isolation. | Exact commands and PASS/FAIL/BLOCKED results are recorded; no production target is accepted. | Missing emulator or external dependency is a BLOCKED result, not a pass. |
-| `S16-T02` | Validate production build and local/deployed configuration contract. | `npm run lint` and `npm run build` pass; deployment publication remains a separate owner-authorized check. | Do not claim Google AI Studio parity from a local build alone. |
-| `S16-T03` | Execute isolated end-to-end synthetic LearningUnit journey and prepare human acceptance checklist. | Emulator/mock path proves all required invariants; checklist separately covers owner-run live UI and publication behavior. | IDE agent does not log into or mutate production. |
-| `S16-T04` | Final architecture and roadmap closure review; update project tracking with evidence. | Only intended docs/code task files are staged; `git diff --check` passes; unresolved risks are listed. | Do not mark requirements complete without evidence. |
+| `S16-T01` | READY | Protected API acceptance matrix for LearningUnit, artifact linking, Save Draft, Submit, workflow, and audience-safe projections | Mocked API tests cover 400/401/403/404/409, actor attribution, GAR-02, ownership, OCC, and no workflow advancement on save; no UI rewrite |
+| `S16-T02` | READY | Emulator acceptance for linked LearningUnit -> artifact -> workflow history -> audit | Loopback-only emulator test with synthetic data, bounded cleanup, stale OCC conflict, and no provider calls |
+| `S16-T03` | READY | Role-aware production workbench route/read-model verification over existing pages | Browser/component evidence for capability visibility and forbidden actions; no new role or route family |
+| `S16-T04` | READY | Reconciled API error/idempotency behavior for existing publication/media adapters | Mocked retry and duplicate tests; no provider or production publication |
+
+**Exit:** API and emulator evidence exists for the foundation path, and all
+failures are classified rather than hidden. S17 can begin without correction
+review approval.
+
+## Sprint 17 - Measurement semantics, aggregation, and operational analytics
+
+**Goal:** Turn S15 contracts and explicit records into trustworthy comparisons.
+
+**Dependencies:** S16 evidence; product-owner approval of metric definitions.
+
+| Task | Status | Deliverables | Acceptance evidence / gates |
+| --- | --- | --- | --- |
+| `S17-T01` | GATED | Approved metric dictionary for production time, cost/currency, revisions, rejection, reuse, source, window, and sample rules | Product/architecture approval; no implementation until units and derivation policy are explicit |
+| `S17-T02` | GATED | Bounded repository/service aggregation over artifact/platform snapshots and production effort | Fixture tests for topic, mode, format, audience, series, platform, time window, unavailable values, and small samples; no recursive scans |
+| `S17-T03` | GATED | Protected analytics dashboard/read model using typed DTOs | API/component tests prove filters, deterministic ordering, role access, and no internal metadata leakage |
+| `S17-T04` | GATED | Measurement provenance and audit/export contract | Tests prove source/capture window and unavailable reasons survive aggregation; no billing integration |
+
+**Exit:** A reviewer can distinguish measured, unavailable, and insufficient
+sample results, with source and window visible to authorized users.
+
+## Sprint 18 - Correction review and related-artifact safety
+
+**Goal:** Implement correction propagation only after the governing decision is
+accepted.
+
+**Dependencies:** ADR-016 accepted or the roadmap explicitly replanned;
+S16 workflow/OCC evidence.
+
+| Task | Status | Deliverables | Acceptance evidence / gates |
+| --- | --- | --- | --- |
+| `S18-T01` | GATED | Accepted correction evidence/version contract and capability matrix | ADR-016 acceptance records evidence authority, lifecycle, roles, reasons, and version semantics |
+| `S18-T02` | GATED | Additive correction flag/review persistence using existing repositories and audit | Mocked repository tests cover ownership, GAR-02, reason validation, OCC, duplicate/stale requests, and immutable audit |
+| `S18-T03` | GATED | Bounded affected-artifact query and internal review projection | Emulator/API tests prove exact LearningUnit/version binding, limits, deterministic order, and audience-safe omission |
+| `S18-T04` | GATED | Revision re-entry through existing Stage 01 authority | Workflow tests prove no new stage, no silent approval, and Save Draft remains separate |
+
+**Exit:** Correction behavior is either accepted and evidenced or explicitly
+deferred; S19 must not depend on an unapproved lifecycle.
+
+## Sprint 19 - Multi-format editorial and production workbench completion
+
+**Goal:** Deliver a coherent work-oriented experience across the five formats.
+
+**Dependencies:** S16 foundation evidence; S18 only for correction-aware queues.
+
+| Task | Status | Deliverables | Acceptance evidence |
+| --- | --- | --- | --- |
+| `S19-T01` | READY | LearningUnit planning workspace completion using existing contracts | Component/API tests prove reload fidelity, independent audience/skill, Topic -> Subtopic, and safe errors |
+| `S19-T02` | READY | Shared artifact editor/preview projections for TEXT, VIDEO, AUDIO, IMAGE, ANIMATION | Contract/component tests prove mode/format orthogonality and metadata-only binary handling |
+| `S19-T03` | READY | Production workbench sequence, assignments, and stage actions | API/component tests prove capability and ownership gates, deterministic linked-artifact context, and internal metadata separation |
+| `S19-T04` | READY | Human acceptance pack for one synthetic percentages/discounts vertical slice | Owner-run evidence only; no claim from unit tests or production data |
+
+**Exit:** One synthetic lesson can be planned, produced, reviewed, and previewed
+through the supported formats without a second editor or workflow.
+
+## Sprint 20 - Publication and platform synchronization hardening
+
+**Goal:** Make publication setup, provider synchronization, and failure recovery
+safe and observable.
+
+**Dependencies:** S16 API/idempotency evidence and S19 workbench contracts.
+
+| Task | Status | Deliverables | Acceptance evidence |
+| --- | --- | --- | --- |
+| `S20-T01` | READY | Protected publication package and platform adaptation API acceptance | Mocked API tests for validation, ownership, OCC, GAR-02 where applicable, and safe projections |
+| `S20-T02` | READY | Idempotent platform sync adapter boundary and retry state | Provider doubles prove duplicate prevention, bounded retry, explicit failure, and audit |
+| `S20-T03` | READY | Publication status/read-model reconciliation | Fixture/emulator tests prove planned, scheduled, published, failed, and unavailable states without new workflow stages |
+| `S20-T04` | READY | Human acceptance of a mocked publish/sync journey | Owner-controlled sandbox evidence; no live publishing |
+
+**Exit:** Publication behavior is repeatable with no hidden external side effects.
+
+## Sprint 21 - Intelligence Loop and feedback governance
+
+**Goal:** Convert measured signals and review outcomes into audited advisory
+recommendations without autonomous mutations.
+
+**Dependencies:** S17 metric provenance and S20 publication status; AI remains
+advisory.
+
+| Task | Status | Deliverables | Acceptance evidence |
+| --- | --- | --- | --- |
+| `S21-T01` | READY | Feedback/recommendation contract with provenance and confidence explanation | Contract tests reject missing source/window and preserve unavailable data |
+| `S21-T02` | READY | Recommendation service and protected internal projection | Service tests prove role access, audit append, and no audience metadata leakage |
+| `S21-T03` | READY | Authorized command boundary for accepting/rejecting a recommendation | Tests prove recommendations cannot publish, approve, or mutate content directly |
+| `S21-T04` | READY | Intelligence Loop synthetic regression | Mocked end-to-end test from metric/review evidence to advisory recommendation |
+
+**Exit:** The Intelligence Loop is useful, traceable, and non-authoritative.
+
+## Sprint 22 - Operational resilience, privacy, and cost controls
+
+**Goal:** Close environment, observability, recovery, and free-tier safety gaps.
+
+**Dependencies:** S16–S21 behavior and evidence; no production mutation.
+
+| Task | Status | Deliverables | Acceptance evidence |
+| --- | --- | --- | --- |
+| `S22-T01` | READY | Structured audit/observability coverage for critical commands and provider failures | Unit/API tests prove sanitized payloads, correlation IDs, and immutable append behavior |
+| `S22-T02` | READY | Datastore isolation and fail-closed environment probes | Local/emulator tests prove production project IDs and endpoints cannot be used accidentally |
+| `S22-T03` | READY | Bounded query/index review for high-volume read models | Static/query fixture evidence; no recursive scans or speculative indexes |
+| `S22-T04` | READY | Recovery and operational runbook validation | Isolated synthetic recovery evidence; no production export/import or destructive cleanup |
+
+**Exit:** Operational claims have reproducible local evidence and explicit
+cloud/human gaps.
+
+## Sprint 23 - Release readiness and owner acceptance
+
+**Goal:** Establish a truthful release gate over the complete core requirements.
+
+**Dependencies:** S16–S22 exit criteria; owner-controlled live acceptance only.
+
+| Task | Status | Deliverables | Acceptance evidence |
+| --- | --- | --- | --- |
+| `S23-T01` | READY | Requirements-to-test traceability and final architecture reconciliation | Static consistency checks; every requirement has an evidence classification |
+| `S23-T02` | READY | Full safe regression, build, lint blocker report, and emulator suite | Commands run once in isolated targets; known `googleapis` blocker remains explicit |
+| `S23-T03` | READY | Owner human-acceptance checklist for all supported modes and stages | Owner evidence required; agent must not claim live behavior |
+| `S23-T04` | READY | Release decision record and deferred-work register | Explicit accepted, partial, blocked, and not-justified outcomes; no deployment |
+
+**Exit:** The owner can distinguish code-level readiness from human/cloud
+acceptance, and no roadmap item is marked complete without its evidence.
 
 ## Cross-sprint dependency view
 
 ```mermaid
 flowchart LR
-  A[S11 contracts and repository\nreported complete] --> B[S11 planning API/UI/linking]
-  B --> C[S12 verification and format templates]
-  C --> D[S13 workflow and production integration]
-  D --> E[S14 connected sequences and calendar]
-  E --> F[S15 metrics and effort]
-  F --> G[S16 release and human acceptance]
+  A[S11-S15 historical baseline] --> B[S16 foundation evidence]
+  B --> C[S17 metric semantics and aggregation]
+  B --> D[S19 workbench completion]
+  C --> E[S20 publication synchronization]
+  D --> E
+  C --> F[S21 advisory Intelligence Loop]
+  E --> F
+  F --> G[S22 operations and cost]
+  G --> H[S23 release and owner acceptance]
+  A -. approval gate .-> I[S18 correction review]
+  I --> D
 ```
 
-The next implementation task is `S11-T03`. It creates the missing service/API
-boundary needed to use the already-present LearningUnit contracts and repository,
-while keeping persistence, authorization, and workflow decisions in their
-authoritative backend layers.
+The next implementation task after this planning work is `S16-T01`: protected
+API acceptance for the existing LearningUnit, artifact-linking, Save Draft,
+Submit, workflow, and audience-safe projection boundaries. It must not implement
+correction review, metric aggregation, or a new frontend architecture.
