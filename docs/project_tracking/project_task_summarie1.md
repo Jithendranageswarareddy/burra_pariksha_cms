@@ -512,3 +512,12 @@ Chronological record of actual task executions in accordance with [AGENTS.md](..
 - **Changed Files**: `tests/unit/core-requirements/s16-t04-publication-media-adapters.unit.test.ts`, `package.json`, this tracking file.
 - **Verification**: `npm run test:s16-t04` — `PASS`; `npm run test:s16-t03` — `PASS`; `npm run test:s16-t01` — `PASS`; `npm run lint` — `PASS`; `npm run build` — `PASS` (existing Zod annotation and bundle-size warnings only); `git diff --check` — `PASS`. Emulator, provider/cloud integration, browser automation, production publication, and human acceptance — `NOT RUN`.
 - **Risks & Next Actions**: S16-T03’s component and mocked-client evidence still does not establish browser navigation or live backend authorization. S16-T04 acceptance is limited to mocked adapter behavior; S17-T01 is the next approved roadmap task and was not started.
+
+### [S17-T01] 2026-10-25 — Metric dictionary approval gate
+
+- **Status**: `BLOCKED`
+- **Objective**: Establish the approved metric dictionary for production time, cost/currency, revisions, rejection, reuse, source, window, and sample rules.
+- **Work & Outcome**: Reviewed the authoritative roadmap and target architecture. S17-T01 is explicitly `GATED`; its deliverable requires product/architecture approval, and its acceptance criteria prohibit implementation until units and derivation policy are explicit. The architecture continues to identify metric source, formula, currency, ownership, and derivation as unresolved. No metric definitions, aggregation logic, dashboard behavior, or application code were invented or changed.
+- **Changed Files**: `docs/project_tracking/project_task_summarie1.md`
+- **Verification**: `git fetch origin` and synchronization inspection — `PASS` at baseline `38c5573bbcb1f51371ab6ece34a4dc7f6c7c1bce`; roadmap/architecture inspection — `BLOCKED` by the documented approval gate; code tests/build/lint — `NOT RUN` because no implementation was authorized; `git diff --check` — `PASS`.
+- **Risks & Next Actions**: Product owner and architecture owner must approve explicit units and derivation/provenance policy before S17-T01 can complete. S17-T02 remains gated and was not started.
