@@ -113,6 +113,13 @@ export class ProductionEffortService {
     const record = ProductionEffortRecordSchema.parse({
       ...parsed,
       id: canonicalIdService.generateCanonicalId('eff_'),
+      // S17-T01 keeps operator observations authoritative and prevents
+      // reporting code from silently treating workflow timestamps as metrics.
+      provenance: {
+        kind: 'OBSERVED',
+        sourceReference: actor.id,
+        observedAt: now,
+      },
       recordedBy: actor.id,
       recordedAt: now,
       version: 1,

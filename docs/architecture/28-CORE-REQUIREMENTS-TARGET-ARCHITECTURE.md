@@ -225,7 +225,8 @@ remain explicitly identified below)**
   interpretations are reporting outputs, never source observations. Do not
   derive production duration from workflow timestamps, infer a labor rate from
   duration, or merge incompatible sources. If approved, the minimum contract
-  addition is provenance metadata; existing value fields remain unchanged.
+  addition is provenance metadata; existing value fields remain unchanged. This
+  was implemented for S17-T01 as a server-owned provenance envelope.
 
 - **`S17-MET-02` — units and cost:** Keep `productionTimeMinutes` as elapsed
   production time in minutes, independently from `cost`. Represent cost as a
@@ -235,7 +236,7 @@ remain explicitly identified below)**
   conversion source, effective date, and rounding rule. If approved, add only
   the minimum unit/currency metadata needed by the existing contract and
   preserve native recorded values; do not introduce billing, payroll, or
-  compensation authority.
+  compensation authority. Automatic conversion remains disabled.
 
 - **`S17-MET-03` — outcome counts and permitted use:** Count revisions and
   rejections from unique, immutable, auditable workflow/editorial outcomes
@@ -322,6 +323,24 @@ explicitly deferred; neither is required to define the source, units,
 provenance, permitted uses, UTC window shape, or fail-closed taxonomy policy.
 S17-T02 remains gated until those aggregation-specific policies and evidence
 are complete.
+
+### 5.2.1 S17-T01 runtime acceptance evidence
+
+S17-T01 runtime scope is complete without enabling aggregation or derivation:
+
+- `ProductionEffortProvenanceSchema` requires either an operator observation
+  reference and observation timestamp, or complete source/version/window,
+  derivation-policy, and derivation-timestamp fields for a derived value.
+- `ProductionEffortService` assigns `OBSERVED` provenance from the
+  server-resolved actor. Client-supplied actor identity and provenance are not
+  trusted, and existing audit/OCC behavior remains unchanged.
+- `productionTimeMinutes` remains explicitly measured in minutes and `cost`
+  retains its recorded native currency. No labor-rate inference or currency
+  conversion is performed.
+- Focused S17-T01 tests prove operator authority, provenance validation,
+  native-currency preservation, and rejection of incomplete derived metadata.
+  S15-T01, S15-T02, S16-T01, S16-T03, and S16-T04 regressions, lint, and build
+  also passed. S17-T02 remains gated.
 
 ### 5.3 Snapshot and Sheets coupling audit
 

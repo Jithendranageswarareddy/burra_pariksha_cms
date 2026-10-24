@@ -575,3 +575,12 @@ Chronological record of actual task executions in accordance with [AGENTS.md](..
 - **Changed Files**: `docs/architecture/28-CORE-REQUIREMENTS-TARGET-ARCHITECTURE.md`, `docs/sprints/CORE-REQUIREMENTS-ROADMAP.md`, this tracking file.
 - **Verification**: Targeted S17 contract/roadmap/architecture review — `PASS`; application tests/build/lint — `NOT RUN` because this task changed only governance/documentation; `git diff --check` and relative documentation-link validation — `PASS`.
 - **Risks & Next Actions**: S17-T02 remains `GATED` pending bounded aggregation implementation, approved handling of deferred conversion/threshold details, topic-resolution fixtures, and its required missing/small-sample evidence. ADR-016 remains `PROPOSED / PENDING APPROVAL`.
+
+### [S17-T01] 2026-10-25 — Implement metric provenance runtime
+
+- **Status**: `COMPLETED`
+- **Objective**: Implement the smallest approved S17-T01 runtime scope and validate its metric semantics.
+- **Work & Outcome**: Added a typed production-effort provenance envelope. New records are server-marked as operator observations using the resolved actor; derived provenance is schema-valid only with source reference/version/window, derivation-policy ID, and derivation timestamp. Production time remains minutes, native currency is preserved, and no derivation or conversion is enabled.
+- **Changed Files**: `shared/contracts/production-effort.contract.ts`, `backend/features/analytics/services/production-effort.service.ts`, `tests/unit/core-requirements/s15-t02-production-effort.unit.test.ts`, `tests/unit/core-requirements/s17-t01-metric-provenance.unit.test.ts`, `package.json`, architecture/roadmap/tracking records.
+- **Verification**: `npm run test:s17-t01` — PASS; `npm run test:s15-t01` — PASS; `npm run test:s15-t02` — PASS; `npm run test:s16-t01:api` — PASS; `npm run test:s16-t03` — PASS; `npm run test:s16-t04` — PASS; `npm run lint` — PASS; `npm run build` — PASS with existing Zod annotation and bundle-size warnings; `git diff --check` — PASS. No production, cloud, browser, or live-provider tests were run.
+- **Risks & Next Actions**: S17-T02 remains `GATED`; automatic currency conversion and numeric sample threshold remain deferred. Next action is to define and implement bounded aggregation only after its topic, missingness, and small-sample rules are separately complete. ADR-016 remains `PROPOSED / PENDING APPROVAL`.

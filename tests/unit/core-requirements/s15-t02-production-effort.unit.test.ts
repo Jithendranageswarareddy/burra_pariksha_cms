@@ -49,6 +49,11 @@ assert.equal(created.version, 1);
 assert.notEqual(created.id, secondPlatform.id);
 assert.equal(created.recordedBy, actor.id);
 assert.equal(created.currency, 'INR');
+assert.deepEqual(created.provenance, {
+  kind: 'OBSERVED',
+  sourceReference: actor.id,
+  observedAt: created.recordedAt,
+});
 if (created.productionTimeMinutes.availability === 'AVAILABLE') {
   assert.equal(created.productionTimeMinutes.value, 120);
 }
