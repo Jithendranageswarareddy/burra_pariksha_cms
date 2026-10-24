@@ -342,3 +342,12 @@ Chronological record of actual task executions in accordance with [AGENTS.md](..
 - **Changed Files**: `backend/domain/workflow/transition-matrix.ts`, `backend/domain/workflow/workflow-engine.ts`, `tests/unit/core-requirements/s13-t01-transition-authority.unit.test.ts`, `package.json`, `docs/TESTING-GUIDE.md`, `docs/project_tracking/project_task_summarie1.md`
 - **Verification**: `npm run test:s13-t01` — `PASS` (15 canonical rules, invalid states, canonical/legacy modes); `npm run test:s12-t06` — `PASS`; broader S11/S12 suites, build, lint, and final diff check pending for this bounded pass. Real Firestore/Drive integration — `NOT TESTED`.
 - **Risks & Next Actions**: `npm run lint` remains expected to be blocked by the pre-existing malformed `googleapis` declaration; no dependency workaround was made. Next dependency-ready roadmap task is S13-T02.
+
+### [S13-T02] 2026-10-24 — Add Mode-Aware Prompt and Template Inputs
+
+- **Status**: `COMPLETED`
+- **Objective**: Add canonical mode-aware prompt guidance for practical math, everyday money, and decision scenarios while keeping AI output advisory.
+- **Work & Outcome**: Added the versioned `question-generation.mode-aware.v1` template contract. Generation prompts now normalize canonical and legacy modes, include mode-specific constraints for Topic Introduction, Worked Examples, and Question Challenge Short, preserve prompt-injection sanitization, and explicitly state that generated content is advisory. Orchestrator metadata now records prompt template provenance, canonical production mode, and `advisoryOnly: true`; no provider call, workflow mutation, correctness decision, or persistence behavior was introduced.
+- **Changed Files**: `shared/contracts/question-generation/question-generation.contract.ts`, `backend/ai/prompts/generation.prompt.ts`, `backend/ai/orchestrator/ai-orchestrator.service.ts`, `tests/unit/core-requirements/s13-t02-mode-aware-prompts.unit.test.ts`, `package.json`, `docs/TESTING-GUIDE.md`, `docs/project_tracking/project_task_summarie1.md`
+- **Verification**: `npm run test:s13-t02` — `PASS` (3 modes, legacy alias, injection safety, advisory contract); `npm run test:s13-t01` — `PASS`; S12-T01, S12-T05, S12-T06 — `PASS`; mocked/deterministic tests only, no Gemini, Drive, Firestore, or production access.
+- **Risks & Next Actions**: Full build/lint/diff verification follows. Lint is expected to retain the existing `googleapis` TS1010 blocker. Next dependency-ready roadmap task is S13-T03.

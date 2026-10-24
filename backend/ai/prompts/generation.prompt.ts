@@ -6,7 +6,12 @@
  * with prompt injection protection.
  */
 
-import { DifficultyLevel, QuestionLanguage } from '../../../shared';
+import {
+  DifficultyLevel,
+  QuestionLanguage,
+  resolveCanonicalContentMode,
+  CanonicalContentMode,
+} from '../../../shared';
 import { GenerateCandidateInput } from '../orchestrator/types';
 
 /**
@@ -68,6 +73,37 @@ YOUR CORE PEDAGOGICAL & CONTENT PRINCIPLES:
 7. OUTPUT FORMAT:
    - Strict JSON adhering to the schema. No markdown backticks or extra commentary outside JSON.`;
 
+export const MODE_AWARE_PROMPT_TEMPLATE_ID = 'question-generation.mode-aware.v1';
+
+/**
+ * These are prompt constraints, not correctness rules. Deterministic
+ * calculation and human verification remain authoritative after generation.
+ */
+export function getModeAwarePromptGuidance(
+  requestedMode?: string
+): { canonicalMode: CanonicalContentMode; guidance: string } {
+  const canonicalMode = requestedMode
+    ? resolveCanonicalContentMode(requestedMode)
+    : 'QUESTION_CHALLENGE_SHORT';
+
+  const guidanceByMode: Record<CanonicalContentMode, string> = {
+    TOPIC_INTRODUCTION: `MODE TEMPLATE: TOPIC_INTRODUCTION
+- Use an accessible practical-math explanation that introduces one concept before asking viewers to apply it.
+- Prefer a familiar everyday decision context, but do not fabricate a solved answer or MCQ options for this zero-question mode.
+- Keep the explanation concept-first and label all generated claims as draft content for human review.`,
+    WORKED_EXAMPLES: `MODE TEMPLATE: WORKED_EXAMPLES
+- Demonstrate practical math through a fully specified everyday money scenario such as a marked price, discount, tax, cashback, or household budget.
+- Show the calculation inputs and reasoning sequence clearly; generated arithmetic is advisory and must be independently verified.
+- Include common decision trade-offs or mistakes only as reviewable suggestions, never as workflow approvals.`,
+    QUESTION_CHALLENGE_SHORT: `MODE TEMPLATE: QUESTION_CHALLENGE_SHORT
+- Frame one practical math challenge in a relatable decision scenario, such as choosing a discount, comparing offers, or checking a household expense.
+- Provide four distinct options and a concise explanation, while withholding the answer from the hook and question text.
+- Treat the generated candidate as advisory draft content; deterministic validators and human reviewers decide correctness.`,
+  };
+
+  return { canonicalMode, guidance: guidanceByMode[canonicalMode] };
+}
+
 /**
  * Builds the user prompt for drafting a new question candidate.
  */
@@ -81,6 +117,7 @@ export function buildGenerationPrompt(input: GenerateCandidateInput): string {
   const challengeType = sanitizePromptInput(input.challengeType || '');
   const presentationType = sanitizePromptInput(input.presentationType || '');
   const custom = sanitizePromptInput(input.customInstructions || '');
+  const modeGuidance = getModeAwarePromptGuidance(input.productionMode);
 
   let difficultyGuidelines = '';
   if (difficulty === DifficultyLevel.EASY) {
@@ -138,6 +175,8 @@ TAXONOMY DOMAIN:
 - Subtopic: ${subtopic}
 
 SPECIFICATIONS:
+- Canonical Production Mode: ${modeGuidance.canonicalMode}
+- ${modeGuidance.guidance}
 - ${difficultyGuidelines}
 - ${languageGuidelines}
 - ${styleGuidelines || `Pedagogical Style: ${style}`}
@@ -155,6 +194,7 @@ REQUIRED JSON FIELDS:
 - language: "${language}"
 - real_world_context: "${context || style}"
 - question_style: "${style}"
+- prompt_template_id: "${MODE_AWARE_PROMPT_TEMPLATE_ID}"
 
 CRITICAL: Double-check your arithmetic, unit conversions, and verify that correct_answer matches the derived result in your explanation.`;
 }

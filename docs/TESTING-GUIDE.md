@@ -36,6 +36,7 @@ scope.
 | S12-T05 synthetic vertical slice | `npm run test:s12-t05` | Builds one synthetic percentages/discounts lesson across all three canonical modes and five formats, with deterministic calculations, Stage 02 quality checks, Learning Unit linkage, and mocked Drive metadata for binary formats. |
 | S12-T06 compatibility matrix | `npm run test:s12-t06` | Covers all 15 backend-authoritative mode/format decisions, rejects invalid modes/formats, and proves legacy `EXPLAINED_QUESTIONS_VIDEO` normalization without rewriting stored data. |
 | S13-T01 transition authority | `npm run test:s13-t01` | Exercises the canonical 15-step matrix, invalid-step fail-closed behavior, canonical/legacy worked-examples prerequisite resolution, and illegal-transition rejection using in-memory assertions only. |
+| S13-T02 mode-aware prompts | `npm run test:s13-t02` | Verifies practical-math, everyday-money, and decision-scenario prompt guidance, legacy mode normalization, injection sanitization, and advisory/provenance metadata contracts without calling Gemini. |
 
 The S12-T06 matrix marks every canonical pair as `SUPPORTED` because the
 requirements make presentation formats orthogonal to content modes. This is a

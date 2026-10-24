@@ -141,6 +141,10 @@ export interface GenerationMetadata {
   fallbackUsed?: boolean;
   attemptedProviders?: string[];
   errorClassification?: any;
+  /** Identifies the mode-aware prompt contract used for human review provenance. */
+  promptTemplateId?: string;
+  productionMode?: string;
+  advisoryOnly?: boolean;
 }
 
 /**

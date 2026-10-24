@@ -21,7 +21,12 @@ import { MultiAIProviderRegistry, multiAIProviderRegistry } from './provider-reg
 import { aiProviderRegistry } from './registry';
 import { AIProviderError } from '../errors';
 import { GenAiQuestionCandidateResponseSchema } from '../schemas/question-candidate.schema';
-import { buildGenerationPrompt, BURRA_PARIKSHA_SYSTEM_INSTRUCTION } from '../prompts/generation.prompt';
+import {
+  buildGenerationPrompt,
+  BURRA_PARIKSHA_SYSTEM_INSTRUCTION,
+  getModeAwarePromptGuidance,
+  MODE_AWARE_PROMPT_TEMPLATE_ID,
+} from '../prompts/generation.prompt';
 import { QuestionCreationValidator } from '../validators/question-creation.validator';
 import { AiContentPlanRecommendation, Question, QuestionLanguage, ScriptContentPayload, AiThumbnailConcept, HookStyle } from '../../../shared';
 
@@ -227,6 +232,7 @@ export class AIOrchestrationService {
 
     const normalizedDifficulty = QuestionCreationValidator.normalizeDifficulty(resolvedInput.difficulty);
     resolvedInput.difficulty = normalizedDifficulty as any;
+    const modeGuidance = getModeAwarePromptGuidance(resolvedInput.productionMode);
 
     const prompt = buildGenerationPrompt(resolvedInput);
     const systemInstruction = BURRA_PARIKSHA_SYSTEM_INSTRUCTION;
@@ -264,6 +270,9 @@ export class AIOrchestrationService {
           providerId: response.provenance.provider,
           fallbackUsed: response.provenance.fallbackUsed,
           attemptedProviders: response.provenance.attempts.map((a) => a.providerId),
+          promptTemplateId: MODE_AWARE_PROMPT_TEMPLATE_ID,
+          productionMode: modeGuidance.canonicalMode,
+          advisoryOnly: true,
         },
         validation: {
           isValid: true,
