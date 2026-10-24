@@ -52,6 +52,15 @@ export class QuestionDraftsRepository extends BaseRepository<QuestionDraft> {
   }
 
   /**
+   * Uses an equality predicate so Firestore can satisfy reverse-link reads
+   * through the learningUnitId index instead of scanning every draft.
+   */
+  public async findByLearningUnitId(learningUnitId: string, limit = 100): Promise<QuestionDraft[]> {
+    const repository = await this.getFirestoreRepository();
+    return repository.findMany({ where: { learningUnitId }, limit });
+  }
+
+  /**
    * Test fixture helper to purge draft collection.
    */
   public async clear(): Promise<void> {

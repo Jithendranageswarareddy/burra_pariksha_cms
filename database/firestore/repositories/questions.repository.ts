@@ -109,6 +109,15 @@ export class QuestionsRepository extends BaseRepository<Question> {
     return all.filter((q) => q.contentMasterId === contentMasterId);
   }
 
+  /**
+   * Restricts reverse-link reads to the canonical relationship field and a
+   * bounded result set; legacy questions without the field are excluded.
+   */
+  public async findByLearningUnitId(learningUnitId: string, limit = 100): Promise<Question[]> {
+    const repository = await this.getFirestoreRepository();
+    return repository.findMany({ where: { learningUnitId }, limit });
+  }
+
   public async delete(id: string, options?: { actor?: { id: string; name: string }; reason?: string }): Promise<boolean> {
     return this.deleteRecord(id);
   }

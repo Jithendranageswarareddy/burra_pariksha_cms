@@ -50,6 +50,15 @@ export class VideosRepository extends BaseRepository<Video> {
     return all.filter((v) => v.questionId === questionId);
   }
 
+  /**
+   * Queries only videos carrying the exact LearningUnit relationship. The
+   * bounded query preserves predictable reads for large production datasets.
+   */
+  public async findByLearningUnitId(learningUnitId: string, limit = 100): Promise<Video[]> {
+    const repository = await this.getFirestoreRepository();
+    return repository.findMany({ where: { learningUnitId }, limit });
+  }
+
   public async findByContentId(contentId: string): Promise<Video | null> {
     const all = await this.findAll();
     return all.find((v) => (v as any).contentId === contentId) || null;
