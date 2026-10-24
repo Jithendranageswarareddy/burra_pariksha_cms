@@ -270,6 +270,7 @@ export type MediaStage = 'RAW' | 'EDITED' | 'FINAL' | 'THUMBNAIL';
 export interface MediaAsset {
   id: string;
   contentId: string;
+  learningUnitId?: string;
   driveFileId: string;
   folderId: string;
   fileName: string;

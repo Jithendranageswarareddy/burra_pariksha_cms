@@ -12,6 +12,7 @@ import { ValidationError } from '../../../src/lib/errors';
 
 export interface UploadAssetParams {
   contentId: string;
+  learningUnitId?: string;
   mediaStage: MediaStage;
   fileName: string;
   mimeType: string;
@@ -194,6 +195,7 @@ export class DriveSyncService {
       const mediaAsset: MediaAsset = {
         id: assetId,
         contentId,
+        learningUnitId: params.learningUnitId,
         driveFileId,
         folderId: targetFolderId,
         fileName,
