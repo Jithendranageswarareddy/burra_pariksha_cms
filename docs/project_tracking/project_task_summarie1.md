@@ -431,3 +431,12 @@ Chronological record of actual task executions in accordance with [AGENTS.md](..
 - **Changed Files**: `shared/contracts/performance.contract.ts`, `tests/unit/core-requirements/s15-t01-performance-contracts.unit.test.ts`, `package.json`, `docs/TESTING-GUIDE.md`, `docs/project_tracking/project_task_summarie1.md`
 - **Verification**: `npm run test:s15-t01` and related S14 contract tests PASS; build and `git diff --check` required before delivery. No emulator/cloud/provider integration is applicable to this pure contract task. Lint remains subject to the known `googleapis` `containeranalysis/v1.d.ts(1450,48): TS1010` blocker.
 - **Risks & Next Actions**: S14-T03/T04 remain blocked by ADR-016. S15-T02 can consume these contracts after review; persistence must remain artifact/platform scoped and append-only.
+
+### [S15-T02] 2026-10-24 — Persist artifact production effort
+
+- **Status**: `PARTIAL`
+- **Objective**: Persist production time, cost, revisions, rejection count, and reuse observations at artifact/platform level with OCC.
+- **Work & Outcome**: Added a Firestore-backed `production_effort` repository, shared contract reusing the S15-T01 unavailable-metric semantics, and an authorized service for explicit create/update observations. Records receive UUID-based IDs, preserve artifact/platform dimensions, attribute the recorder server-side, and require expected-version updates. No formulas or workflow-history inference were introduced because authoritative measurement semantics are not defined by the approved requirements.
+- **Changed Files**: `shared/contracts/production-effort.contract.ts`, `shared/contracts/index.ts`, `database/firestore/repositories/production-effort.repository.ts`, `database/firestore/repositories/index.ts`, `backend/features/analytics/services/production-effort.service.ts`, `backend/infrastructure/services/index.ts`, `tests/unit/core-requirements/s15-t02-production-effort.unit.test.ts`, `package.json`, `docs/TESTING-GUIDE.md`
+- **Verification**: `npm run test:s15-t02` — `PASS`; `git diff --check` — `PASS`; `npx tsc --noEmit --pretty false` — `BLOCKED` by pre-existing `node_modules/googleapis/build/src/apis/containeranalysis/v1.d.ts(1450,48): TS1010`. Emulator and cloud integration — `NOT RUN`; no production data accessed.
+- **Risks & Next Actions**: Product ownership must define whether values are operator-entered, derived, or both; cost currency semantics and reuse definition remain open. Complete aggregation/dashboard work in S15-T03 only after these semantics are approved.

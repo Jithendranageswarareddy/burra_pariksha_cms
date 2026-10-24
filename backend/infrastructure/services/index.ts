@@ -63,6 +63,7 @@ export * from '../../features/analytics/services/social-review.service';
 export * from '../../features/analytics/services/comment-intelligence.service';
 export * from './content-strategy.service';
 export * from '../../features/analytics/services/social-enhancement.service';
+export * from '../../features/analytics/services/production-effort.service';
 export * from '../../features/analytics/services/social-quality.service';
 export * from './production-asset-validation.service';
 export * from './deletion-safety.service';

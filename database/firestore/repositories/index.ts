@@ -36,6 +36,7 @@ export * from './platform-adaptations.repository';
 export * from './intelligence.repository';
 export * from './strategy-recommendation.repository';
 export * from './analytics.repository';
+export * from './production-effort.repository';
 export * from './social-comments.repository';
 export * from './comment-intelligence.repository';
 export * from './learning-units.repository';

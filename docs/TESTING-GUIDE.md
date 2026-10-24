@@ -129,3 +129,13 @@ learning-engagement contract shapes. Metrics are discriminated as
 provider data from being interpreted as zero learning or audience performance.
 This is a pure contract test and performs no analytics persistence or provider
 access.
+
+### S15-T02 production effort
+
+Run `npm run test:s15-t02` to verify explicit artifact/platform production-effort
+records. The focused test covers actor attribution, independent persistence
+identity, explicit metric values, role rejection, invalid metric input, and
+optimistic-concurrency updates. Production time, cost, revision, rejection, and
+reuse values are observations supplied by an authorized operator; the service
+does not infer them from workflow history or audience analytics. Missing values
+must use the S15-T01 `UNAVAILABLE` metric form.
