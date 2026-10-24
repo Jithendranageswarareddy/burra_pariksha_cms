@@ -530,3 +530,12 @@ Chronological record of actual task executions in accordance with [AGENTS.md](..
 - **Changed Files**: `docs/architecture/28-CORE-REQUIREMENTS-TARGET-ARCHITECTURE.md`, this tracking file.
 - **Verification**: `git fetch origin` and branch synchronization inspection — `PASS` at baseline `4c7b39306d35accf250b210a7e77f3485ea0b47a`; targeted roadmap/architecture/contract/tracking review — `PASS`; application tests/build/lint — `NOT RUN` because this was documentation-only and no code changed; `git diff --check` — `PASS`.
 - **Risks & Next Actions**: Product owner and architecture owner must approve `S17-MET-01` through `S17-MET-05` or record alternatives before S17-T01/T02 can start. ADR-016 remains `PROPOSED / PENDING APPROVAL` and is unrelated to this package. The single next action is to obtain and record those approvals.
+
+### Architecture / Planning — 2026-10-25 — Prepare S17 metric decisions for approval
+
+- **Status**: `COMPLETED`
+- **Objective**: Make the five S17 metric decisions explicit and approval-ready without authorizing implementation.
+- **Work & Outcome**: Refined the existing architecture decision package so every decision names product-owner and architecture-owner approval, preserves `PENDING APPROVAL`, states effects on contracts/persistence/reporting, and records the dependency order from source/units through bounded aggregation and topic resolution. No formula, currency policy, sample threshold, reuse meaning, or approval was invented.
+- **Changed Files**: `docs/architecture/28-CORE-REQUIREMENTS-TARGET-ARCHITECTURE.md`, this tracking file.
+- **Verification**: `git fetch origin` and synchronization inspection — `PASS` at baseline `9d5b4297f1d1693b216a7fc7381e36f9941d488c`; targeted S17 contract/architecture review — `PASS`; application tests/build/lint — `NOT RUN` because no code changed; `git diff --check` and relative documentation-link validation — `PASS`.
+- **Risks & Next Actions**: S17-T01 and S17-T02 remain `GATED`. The product owner and architecture owner must approve or explicitly revise all five decision IDs, recording the accepted option, effective date, and rejected alternatives; no implementation starts before that record exists.
