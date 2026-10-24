@@ -5,6 +5,7 @@
 export * from './similarity';
 export * from './id.service';
 export * from './workflow-resolver';
+export * from './product-pipeline';
 export * from './question-batch-assembly';
 export * from './question-editor';
 export * from './question-quality-validator';

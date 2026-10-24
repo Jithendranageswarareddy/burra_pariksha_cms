@@ -351,3 +351,12 @@ Chronological record of actual task executions in accordance with [AGENTS.md](..
 - **Changed Files**: `shared/contracts/question-generation/question-generation.contract.ts`, `backend/ai/prompts/generation.prompt.ts`, `backend/ai/orchestrator/ai-orchestrator.service.ts`, `tests/unit/core-requirements/s13-t02-mode-aware-prompts.unit.test.ts`, `package.json`, `docs/TESTING-GUIDE.md`, `docs/project_tracking/project_task_summarie1.md`
 - **Verification**: `npm run test:s13-t02` — `PASS` (3 modes, legacy alias, injection safety, advisory contract); `npm run test:s13-t01` — `PASS`; S12-T01, S12-T05, S12-T06 — `PASS`; mocked/deterministic tests only, no Gemini, Drive, Firestore, or production access.
 - **Risks & Next Actions**: Full build/lint/diff verification follows. Lint is expected to retain the existing `googleapis` TS1010 blocker. Next dependency-ready roadmap task is S13-T03.
+
+### [S13-T03] 2026-10-24 — Map Discover-to-Improve Product Pipeline
+
+- **Status**: `COMPLETED`
+- **Objective**: Map the product pipeline from Discover through Improve onto LearningUnit planning and the canonical 15-stage workflow without creating a second state machine.
+- **Work & Outcome**: Added a pure shared `PRODUCT_PIPELINE_PHASES` contract and resolver. Discover/Plan use the LearningUnit planning boundary and Stage 01; Verify maps to Stage 02; Design/Generate cover Stages 03–06; Review/Approve cover Stages 07–09; Publish covers Stages 10–12; Measure covers Stages 13–14; Improve maps to Stage 15 and explicitly re-enters revisions at Stage 01. The resolver delegates current state and applicability to `resolveDynamicWorkflow`; transition eligibility, authorization, OCC, audit, and side effects remain in existing backend authorities.
+- **Changed Files**: `shared/contracts/product-pipeline.ts`, `shared/lib/product-pipeline.ts`, `shared/lib/index.ts`, `tests/unit/core-requirements/s13-t03-product-pipeline.unit.test.ts`, `package.json`, `docs/TESTING-GUIDE.md`, `docs/project_tracking/project_task_summarie1.md`
+- **Verification**: `npm run test:s13-t03` — `PASS` (all 15 stages and lifecycle phase boundaries); `npm run test:s13-t01` and `npm run test:s13-t02` — `PASS`; `git diff --check` — `PASS`; tests are deterministic in-memory assertions only, with no Firestore, emulator, Drive, AI, or production access.
+- **Risks & Next Actions**: Build and lint verification follows. Existing `googleapis` TS1010 declaration error remains an expected lint blocker. Next dependency-ready roadmap task is S13-T04.

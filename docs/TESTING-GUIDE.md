@@ -37,6 +37,7 @@ scope.
 | S12-T06 compatibility matrix | `npm run test:s12-t06` | Covers all 15 backend-authoritative mode/format decisions, rejects invalid modes/formats, and proves legacy `EXPLAINED_QUESTIONS_VIDEO` normalization without rewriting stored data. |
 | S13-T01 transition authority | `npm run test:s13-t01` | Exercises the canonical 15-step matrix, invalid-step fail-closed behavior, canonical/legacy worked-examples prerequisite resolution, and illegal-transition rejection using in-memory assertions only. |
 | S13-T02 mode-aware prompts | `npm run test:s13-t02` | Verifies practical-math, everyday-money, and decision-scenario prompt guidance, legacy mode normalization, injection sanitization, and advisory/provenance metadata contracts without calling Gemini. |
+| S13-T03 product pipeline mapping | `npm run test:s13-t03` | Verifies the pure Discover-to-Improve mapping over LearningUnit planning and all canonical stages 01–15, including verification, publish, measure, improve, and revision re-entry semantics. |
 
 The S12-T06 matrix marks every canonical pair as `SUPPORTED` because the
 requirements make presentation formats orthogonal to content modes. This is a
