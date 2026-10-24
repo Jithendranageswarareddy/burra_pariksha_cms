@@ -5,11 +5,10 @@
 **Source:** [`docs/BP_CMS_CORE_REQUIREMENTS/bp_cms_core_requirements1.md`](../BP_CMS_CORE_REQUIREMENTS/bp_cms_core_requirements1.md)
 **Architecture authority:** [`docs/architecture/CORE-ARCHITECTURE-RECONCILIATION.md`](../architecture/CORE-ARCHITECTURE-RECONCILIATION.md)
 
-This roadmap reconciles the earlier S11-S15 proposal with the actual repository
-and tracking history. The earlier proposal assigned mode alignment to `S11-T02`,
-but the tracked implementation uses `S11-T01` for contracts and `S11-T02` for
-LearningUnit persistence. This document preserves those identities and starts
-remaining work at `S11-T03`.
+This roadmap reconciles the historical S11-S15 work with the actual repository
+and tracking history. Historical task identities remain unchanged. The future
+implementation baseline begins at S16; S11-T03 through S15-T04 remain useful
+historical scope/status references and are not reopened by this document.
 
 ## Roadmap rules
 
@@ -22,13 +21,17 @@ remaining work at `S11-T03`.
   tracking claims are labelled `REPORTED` until independently re-run.
 - Files below are likely impact areas, not permission to change unrelated modules.
 
-## Current status before this roadmap
+## Historical status and evidence boundary
 
 | Task | Scope | Status | Evidence state |
 | --- | --- | --- | --- |
 | `S11-T01` | Core mode, format, audience, skill, pillar, and LearningUnit contracts | `REPORTED COMPLETED` | Tracking records `npm run lint` and `npm run test:s11-t01` passes; source and test files are present. Commands were not re-run in this documentation task. |
 | `S11-T02` | `learning_units` Firestore repository, validation, RBAC, OCC, collection registration | `REPORTED COMPLETED` | Repository and rules are present; tracking records unit-test pass. Current emulator round-trip is `UNVERIFIED`; the integration test is a pre-existing untracked change and was not run. |
 | Sprint 9/10 baseline | Existing workflow, production modes, authorization, audit, and compatibility behavior | `REPORTED / PARTIAL` | Historical sprint reports claim passes; this task did not re-run those suites or assert live UI behavior. |
+
+The S11-S15 task tables below are retained as historical scope and acceptance
+context. Their tracking entries are the record of actual work; this document
+does not convert reported, partial, or blocked work into accepted behavior.
 
 ## Sprint 11 - Planning entry point and artifact linkage
 
@@ -175,6 +178,35 @@ for tasks that do not implement correction behavior.
 **Exit:** API and emulator evidence exists for the foundation path, and all
 failures are classified rather than hidden. S17 can begin without correction
 review approval.
+
+### S16-T01 execution boundary
+
+S16-T01 is limited to acceptance coverage over existing services and routes. It
+must inventory the LearningUnit create/read/update commands, artifact-linking
+paths, Save Draft, Submit for Verification, workflow transition/approval routes,
+and audience-safe projections before adding tests. It may add only focused test
+fixtures, route-test helpers, or contract clarifications needed to exercise
+those existing boundaries; it must not add correction-review persistence,
+metric aggregation, a new workflow stage, a new role, a new page family, or
+production data.
+
+The minimum acceptance matrix is:
+
+1. unauthenticated requests fail with 401 and never receive an Admin fallback;
+2. authenticated actors without capability or ownership fail with 403;
+3. invalid, missing, and cross-unit references fail with 400/404 as applicable;
+4. Save Draft preserves draft state and does not advance workflow or trigger
+   verification;
+5. Submit for Verification is a distinct command and enforces the existing
+   validation gate;
+6. valid transitions are delegated to `WorkflowEngine`/`transition-matrix.ts`;
+7. ordinary authors cannot self-approve, while the approved audited System
+   Administrator override remains explicit and reason-validated;
+8. stale expected versions return the existing 409 conflict behavior;
+9. responses omit reviewer, audit, provider, assignment, and OCC internals
+   from audience-facing projections; and
+10. mocked API tests pass without Firestore/provider writes, with emulator
+    coverage deferred to S16-T02.
 
 ## Sprint 17 - Measurement semantics, aggregation, and operational analytics
 

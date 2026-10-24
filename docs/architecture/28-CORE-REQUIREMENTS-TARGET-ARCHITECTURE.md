@@ -69,26 +69,32 @@ The following are verified limitations, not design assumptions:
 - ADR-016 remains `PROPOSED / PENDING APPROVAL`; no correction-review lifecycle
   is authorized.
 
-## 2. Requirements coverage matrix
+## 2. Requirements-to-architecture-to-task traceability
 
-| Core requirement area | Classification at baseline | Evidence / gap | Future response |
-| --- | --- | --- | --- |
-| Three canonical modes and preferred Intro -> Worked Examples -> Challenge sequence | Implemented and unit-verified | `shared/contracts/`, mode compatibility tests, S14 sequence service | Preserve aliases and add end-to-end acceptance where missing |
-| Five orthogonal presentation formats | Partially implemented | S12 format contracts and mocked metadata paths exist; rendering and complete editorial UX are not established | Complete format-specific workbench and acceptance without new mode systems |
-| Topic -> Subtopic taxonomy | Implemented in contracts and production taxonomy | `src/lib/data/production-taxonomy.ts`, topic/subtopic repositories | No Category or additional taxonomy level |
-| Audience context and skill level as independent dimensions | Partially implemented | LearningUnit contracts/planning tests exist; complete role-aware UX and downstream consistency need evidence | Verify through workspace, artifact, and projection tests |
-| Verified LearningUnit as central educational asset | Partially implemented | `learning_units` repository, linking, sequence/calendar read models | Finish lifecycle and correction dependency before claiming complete |
-| Save Draft separate from Submit for Verification | Implemented in service/test paths; broader acceptance insufficient | S11/S13 tests and workflow authority | Add API/browser regression evidence |
-| Stage 02 usefulness, calculation, Telugu clarity, and human verification | Partially implemented | S12 validator tests and existing workflow/GAR-02 | Complete mode/format coverage and human-gated API acceptance |
-| Canonical 15-stage workflow | Implemented in transition authority; operational coverage incomplete | `transition-matrix.ts`, `WorkflowEngine`, S13 tests | Verify every supported mode and invalid transition at API/emulator boundaries |
-| GAR-02 anti-self-approval and audited admin override | Implemented in workflow/auth code; live acceptance not established | workflow tests and architecture ADRs | Maintain fail-closed identity and add complete route matrix evidence |
-| Linked artifact correction propagation/review | Blocked by decision | ADR-016 explicitly proposed and unapproved | Product/architecture approval required before S14-T03/S14-T04 |
-| Publication records and platform-specific outputs | Partially implemented | publishing repositories/services and linked context exist | Complete safe publication package/read-model acceptance |
-| Audience performance and learning engagement measurement | Partially implemented | S15-T01 contracts and legacy social analytics | Define source/provenance and aggregation in S17 |
-| Production effort measurement | Partially implemented | S15-T02 explicit artifact/platform record, OCC, audit | Approve semantics before aggregation or dashboard claims |
-| Feedback and Intelligence Loop | Missing/insufficiently verified | Existing intelligence services are provider/operational slices, not approved feedback loop | Add audited advisory recommendations after measurement semantics |
-| Frontend work-oriented IA and role navigation | Partially implemented | Approved IA documents and existing pages/navigation | Consolidate only through focused vertical slices and browser evidence |
-| Observability, privacy, cost, local/deployed parity | Partially implemented | audit/logging/datastore guards and architecture contracts exist | Close known verification and operational gaps without new infrastructure |
+The task column is the planning ownership for the requirement; it is not
+acceptance evidence. A task is accepted only when its own criteria and evidence
+gate pass.
+
+| Core requirement area | Architectural component/boundary | Classification at baseline | Evidence / gap | Planned task(s) |
+| --- | --- | --- | --- | --- |
+| Three canonical modes and preferred Intro -> Worked Examples -> Challenge sequence | Mode registry, LearningUnit/artifact relationship, sequence read model | Implemented and unit-verified | `shared/contracts/`, mode compatibility tests, S14 sequence service | S16-T01, S19-T03 |
+| Five orthogonal presentation formats | Shared artifact contract and format-specific metadata/media adapters | Partially implemented | S12 contracts and mocked metadata paths exist; complete editorial UX/rendering is not established | S19-T02 |
+| Topic -> Subtopic taxonomy | Taxonomy services and repositories | Implemented in contracts and production taxonomy | `src/lib/data/production-taxonomy.ts` and topic/subtopic repositories; no end-to-end role evidence | S16-T01, S19-T01 |
+| Audience context and skill level as independent dimensions | LearningUnit planning contract and safe artifact projections | Partially implemented | Planning tests exist; complete role-aware UX and downstream consistency need evidence | S16-T01, S19-T01 |
+| Verified LearningUnit as central educational asset | LearningUnit repository/service and linked artifact boundary | Partially implemented | `learning_units` persistence, linking, sequence/calendar read models; full lifecycle and correction semantics are incomplete | S16-T01, S18-T01, S19-T01 |
+| Save Draft separate from Submit for Verification | Backend commands and WorkflowEngine preconditions | Implemented in service/test paths; broader acceptance insufficient | S11/S13 tests and workflow authority; API/emulator/browser evidence remains incomplete | S16-T01, S16-T02 |
+| Stage 02 usefulness, calculation, Telugu clarity, and human verification | Deterministic validators, AI advisory boundary, human review gate | Partially implemented | S12 validator tests and existing workflow/GAR-02; full mode/format and API acceptance remain | S16-T01, S19-T03 |
+| Canonical 15-stage workflow | `WorkflowEngine` and `transition-matrix.ts` | Implemented in transition authority; operational coverage incomplete | S13 tests; all supported modes and route boundaries are not fully evidenced | S16-T01, S16-T02, S19-T03 |
+| GAR-02 anti-self-approval and audited admin override | Backend authorization, workflow gate, immutable audit | Implemented in workflow/auth code; live acceptance not established | Workflow tests and ADRs; complete route matrix and emulator evidence remain | S16-T01, S16-T02 |
+| Linked artifact correction propagation/review | Version-bound correction evidence and internal review projection | Blocked by decision | ADR-016 explicitly proposed and unapproved | S18-T01 through S18-T04 |
+| Publication records and platform-specific outputs | Publishing package repository/service and provider adapters | Partially implemented | Publishing repositories/services and linked context exist; safe package/sync acceptance is incomplete | S20-T01 through S20-T04 |
+| Audience performance and learning engagement measurement | Snapshot contracts, analytics repository/service, bounded aggregation | Partially implemented | S15-T01 contracts and legacy social analytics; source/provenance and aggregation are incomplete | S17-T01 through S17-T04 |
+| Production time, cost, revisions, rejection, and LearningUnit reuse | `production_effort` repository/service plus metric dictionary | Partially implemented | S15-T02 stores explicit observations with OCC/audit; formulas, ownership, currency, and derivation are open | S17-T01 through S17-T04 |
+| Publishing consistency and revenue by platform/content series | Publication status/read model and revenue-source adapter boundary | Missing/insufficiently specified | Core requirements name the outcomes, but no approved revenue source or consistency formula is present | S17-T01, S17-T02, S20-T03 |
+| Revenue relative to production costs and sustainable revenue decisions | Measurement/reporting boundary; no billing authority | Not currently justified as billing implementation; reporting requirement remains | Requirements call for measuring business outcomes, not a payment system; no source contract exists | S17-T01, S17-T04; billing remains out of scope |
+| Feedback and Intelligence Loop | Audited advisory recommendation service and authorized command boundary | Missing/insufficiently verified | Existing intelligence services are provider/operational slices, not an approved feedback loop | S21-T01 through S21-T04 |
+| Frontend work-oriented IA and role navigation | Single shell, capability-aware hubs, typed API clients | Partially implemented | Approved IA and existing navigation/pages; role/action behavior is not fully evidenced | S16-T03, S19-T01, S19-T03 |
+| Observability, privacy, cost, local/deployed parity | Audit/logging, datastore guards, adapters, environment contract | Partially implemented | Guards and architecture contracts exist; operational proof and parity evidence remain | S16-T04, S22-T01 through S22-T04 |
 
 ## 3. Current-state and target-state boundaries
 
@@ -143,14 +149,19 @@ The target is one work-oriented shell, not separate role-specific applications.
 The existing approved IA (`10-FRONTEND-INFORMATION-ARCHITECTURE.md`) remains the
 presentation authority; backend capability checks remain the security authority.
 
-| Hub/page family | Primary users | Allowed actions are projections of | Internal data excluded from audience projections |
+| Hub/page family | Canonical roles with primary responsibility | Representative actions (always server-authorized) | Internal data excluded from audience projections |
 | --- | --- | --- | --- |
-| Home / work queue | all authenticated roles | assigned capabilities and resource ownership | audit payloads, provider credentials |
-| Questions / LearningUnits | authors, leads, reviewers | create/edit/save/submit/read capabilities | reviewer notes and OCC internals |
-| Production workbench | script, presenter, editor, QC roles | stage-specific capabilities and workflow state | internal assignments and rejection metadata |
-| Publishing | publishing/review roles | package review, scheduling, sync capabilities | credentials, provider diagnostics |
-| Analytics / production effort | analytics and management roles | read scopes, explicit observation write capability | private audience data and internal audit details |
-| Management / administration | administrators and leads | user, taxonomy, configuration capabilities | secrets and raw provider payloads |
+| Home / work queue | All authenticated roles | View assigned work and permitted operational summaries | audit payloads, provider credentials |
+| Questions / LearningUnits | `QUESTION_AUTHOR`, `QUESTION_EDITOR`, `CONTENT_LEAD`, `QA_REVIEWER` | Create/edit/save/submit/read within ownership and workflow gates | reviewer notes and OCC internals |
+| Production workbench | `SCRIPTWRITER`, `PRESENTER`, `VIDEO_EDITOR`, `DESIGNER`, `CONTENT_LEAD`, `QA_REVIEWER` | Perform stage-specific work and submit decisions | internal assignments and rejection metadata |
+| Publishing | `PUBLISHING_LEAD`, `QA_REVIEWER`, `CONTENT_LEAD` | Review packages, schedule, and synchronize through authorized adapters | credentials and provider diagnostics |
+| Analytics / production effort | `ANALYST`, `CONTENT_LEAD`, `ADMIN` | Read scoped metrics; record effort only with explicit capability | private audience data and internal audit details |
+| Management / administration | `ADMIN`, `CONTENT_LEAD` | Manage planning, taxonomy, team operations, and recovery according to capability | secrets and raw provider payloads |
+
+This is the planning matrix for S16-T03 and S19-T03, not a grant of
+permissions. The canonical role names and navigation capabilities remain those
+in `src/config/roles.ts` and `src/config/navigation.ts`; backend capability
+resolution is authoritative.
 
 Each page must use typed API clients and a server-issued actor context. Route
 visibility is not an authorization decision. The frontend must preserve
@@ -194,3 +205,42 @@ dependency-ready status, identify exact acceptance evidence, and add meaningful
 comments for non-obvious logic, invariants, authorization, concurrency, and
 integration boundaries. This document does not mark any future task complete and
 does not approve ADR-016.
+
+## 8. Independent planning review result
+
+**Result: ACCEPTED WITH DOCUMENTED CORRECTIONS.** The architecture and roadmap
+are suitable as the S16+ planning baseline after the corrections in this
+revision. This acceptance is not acceptance of application behavior, ADR-016,
+metric definitions, revenue integrations, or production readiness.
+
+Material corrections made:
+
+1. **Traceability gap corrected:** the coverage matrix now names the
+   architectural boundary, baseline classification, and S16+ task owner for
+   every core requirement area. Evidence remains task-specific.
+2. **Revenue gap corrected:** publishing consistency, revenue by platform/series,
+   and revenue-relative-to-cost reporting are now explicit requirements with a
+   metric-definition gate. No billing or payment system is authorized because
+   the core requirements do not establish one.
+3. **Operator usability gap corrected:** the target architecture now records
+   canonical role-to-hub/action responsibilities grounded in
+   `src/config/roles.ts` and `src/config/navigation.ts`; S16-T03 and S19-T03
+   own behavioral verification.
+4. **Sequencing ambiguity corrected:** the roadmap now states that S16 is the
+   future baseline, removes stale “next S11-T03” language, and gives S16-T01 a
+   bounded acceptance matrix before emulator work in S16-T02.
+5. **Unsupported complexity constrained:** the plan explicitly retains a
+   modular monolith, existing adapters, Firestore, and the canonical workflow;
+   it does not authorize a new event system, datastore, billing service,
+   taxonomy level, or workflow stage.
+
+Confirmed facts, assumptions, and unresolved decisions remain separate:
+
+- **Confirmed:** baseline commit and synchronization, existing repository/service
+  boundaries, recorded unit-test/build evidence, and the known TypeScript
+  declaration blocker.
+- **Assumptions for planning:** S16-T01 can test existing routes without
+  changing runtime behavior; S16-T02 can use a safe loopback emulator.
+- **Unresolved:** ADR-016 lifecycle approval; metric source/formula/currency and
+  reuse semantics; revenue source and reporting authority; owner human
+  acceptance of live UI and external providers.
