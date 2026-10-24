@@ -49,6 +49,7 @@ import {
 } from '../../../src/lib/errors';
 import { getAdminFirestore, resetAdminApp } from '../../../database/firestore/adapter/admin';
 import { assertDatastoreSafe } from '../../../src/config/datastore-guard';
+import { createSyntheticLearningUnitPayload } from '../../fixtures/synthetic-test-fixtures';
 
 async function probeEmulator(): Promise<boolean> {
   return new Promise((resolve) => {
@@ -125,35 +126,7 @@ async function runFirestoreIntegrationTest() {
 
     const created = await repo.create({
       id: syntheticId,
-      topicId: 'top_percentages_01',
-      topicName: 'Percentages & Arithmetic',
-      subtopicId: 'sub_discounts_01',
-      subtopicName: 'Commercial Discounts',
-      title: '[SYNTHETIC] Calculate discounts and compare final prices',
-      learningObjective: 'Viewers will calculate percentage discounts and determine the lower final cost between competing store promotions.',
-      prerequisiteSkills: ['Basic multiplication', 'Fractions to decimals'],
-      verifiedMethod: 'Step 1: Multiply original price by discount rate. Step 2: Subtract discount amount from original price. Step 3: Compare final prices.',
-      correctCalculations: 'Original = ₹350. 20% discount = ₹70. Final price = ₹280. Flat ₹50 off = ₹300. Savings difference = ₹20.',
-      commonMistakes: [
-        'Confusing flat rupee discounts with percentage discounts',
-        'Applying percentage to already discounted price instead of base price',
-      ],
-      realLifeApplications: [
-        'Supermarket shopping comparisons',
-        'Festival sale promotions',
-      ],
-      realLifeScenario: 'Comparing 20% off on ₹350 item vs flat ₹50 off coupon.',
-      skillLevel: SkillLevel.BEGINNER,
-      audienceContext: AudienceContext.HOUSEHOLDS,
-      editorialPillar: EditorialPillar.EVERYDAY_MONEY,
-      suggestedModes: [
-        CanonicalContentMode.TOPIC_INTRODUCTION,
-        CanonicalContentMode.WORKED_EXAMPLES,
-        CanonicalContentMode.QUESTION_CHALLENGE_SHORT,
-      ],
-      primaryFormat: PresentationFormat.VIDEO,
-      authorId: 'usr_educator_001',
-      authorName: 'Suresh Kumar',
+      ...createSyntheticLearningUnitPayload(syntheticId),
     });
 
     assert.strictEqual(created.id, syntheticId);
@@ -166,7 +139,7 @@ async function runFirestoreIntegrationTest() {
     const directDocSnap = await db.collection('learning_units').doc(syntheticId).get();
     assert.ok(directDocSnap.exists, 'Document must physically exist in Firestore emulator');
     const rawData = directDocSnap.data();
-    assert.strictEqual(rawData?.title, '[SYNTHETIC] Calculate discounts and compare final prices');
+    assert.strictEqual(rawData?.title, `[SYNTHETIC TEST] Learning unit ${syntheticId}`);
     assert.strictEqual(rawData?.version, 1);
     console.log('✓ Direct Firestore Admin SDK document get confirmed record existence.\n');
 
@@ -177,7 +150,7 @@ async function runFirestoreIntegrationTest() {
     const retrieved = await repo.findById(syntheticId);
     assert.ok(retrieved, 'LearningUnit must be found via findById');
     assert.strictEqual(retrieved.id, syntheticId);
-    assert.strictEqual(retrieved.title, '[SYNTHETIC] Calculate discounts and compare final prices');
+    assert.strictEqual(retrieved.title, `[SYNTHETIC TEST] Learning unit ${syntheticId}`);
     assert.strictEqual(retrieved.skillLevel, SkillLevel.BEGINNER);
     assert.strictEqual(retrieved.audienceContext, AudienceContext.HOUSEHOLDS);
     console.log('✓ Repository findById retrieved document correctly.\n');
@@ -189,13 +162,13 @@ async function runFirestoreIntegrationTest() {
     const updated = await repo.update(
       syntheticId,
       {
-        title: '[SYNTHETIC] Calculate discounts and compare final prices (Updated)',
+        title: `[SYNTHETIC TEST] Learning unit ${syntheticId} (Updated)`,
         verifiedMethod: 'Step 1: Check discount rate. Step 2: Compute net price. Step 3: Compare against alternatives. (Updated method).',
       },
       { expectedVersion: 1 }
     );
 
-    assert.strictEqual(updated.title, '[SYNTHETIC] Calculate discounts and compare final prices (Updated)');
+    assert.strictEqual(updated.title, `[SYNTHETIC TEST] Learning unit ${syntheticId} (Updated)`);
     assert.strictEqual(updated.version, 2, 'Version must increment to 2 in Firestore');
 
     // Verify version in real Firestore emulator

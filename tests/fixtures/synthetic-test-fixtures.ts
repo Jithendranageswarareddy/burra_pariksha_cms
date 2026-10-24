@@ -7,7 +7,6 @@
  *    - testOnly: true
  *    - environment: 'TEST'
  * 3. Clearly synthetic, non-production taxonomy markers:
- *    - Category: 'TEST'
  *    - Topic: 'TEST_TOPIC'
  *    - Subtopic: 'TEST_SUBTOPIC'
  * 4. Synthetic, distinguishable identifiers with prefix:
@@ -40,5 +39,33 @@ export function createSyntheticQuestionPayload(uniqueTag: string | number = Date
     testOnly: true,
     environment: 'TEST',
     testExecutionId: `TEST-RUN-${uniqueTag}`,
+  };
+}
+
+/**
+ * Builds neutral LearningUnit input for emulator tests. The unique tag keeps
+ * concurrent runs distinguishable without depending on pre-seeded datastore data.
+ */
+export function createSyntheticLearningUnitPayload(uniqueTag: string | number = Date.now()) {
+  return {
+    topicId: `top_test_${uniqueTag}`,
+    topicName: 'TEST_TOPIC',
+    subtopicId: `sub_test_${uniqueTag}`,
+    subtopicName: 'TEST_SUBTOPIC',
+    title: `[SYNTHETIC TEST] Learning unit ${uniqueTag}`,
+    learningObjective: `Synthetic objective for emulator isolation run ${uniqueTag}.`,
+    prerequisiteSkills: ['TEST_PREREQUISITE'],
+    verifiedMethod: `Synthetic verification method for run ${uniqueTag}.`,
+    correctCalculations: `Synthetic calculation evidence for run ${uniqueTag}.`,
+    commonMistakes: ['TEST_MISTAKE'],
+    realLifeApplications: ['TEST_APPLICATION'],
+    realLifeScenario: `Synthetic scenario for run ${uniqueTag}.`,
+    skillLevel: 'BEGINNER' as const,
+    audienceContext: 'HOUSEHOLDS' as const,
+    editorialPillar: 'PILLAR_A' as const,
+    suggestedModes: ['TOPIC_INTRODUCTION', 'WORKED_EXAMPLES', 'QUESTION_CHALLENGE_SHORT'] as const,
+    primaryFormat: 'VIDEO' as const,
+    authorId: `usr_test_${uniqueTag}`,
+    authorName: 'Synthetic Test Author',
   };
 }

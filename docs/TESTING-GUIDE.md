@@ -24,6 +24,21 @@ Additional `test:s*` scripts in `package.json` map directly to their named
 Sprint 2, 4, or 8 test files. Use them only when that sprint behavior is in
 scope.
 
+## Sprint 11 datastore verification
+
+| Verification tier | Command | Datastore target and evidence |
+| --- | --- | --- |
+| S11 in-memory unit suite | `npm run test:s11-unit` | Runs S11-T01 through S11-T06 sequentially with repository/service doubles; no datastore access. |
+| S11-T02 Firestore integration | `npm run test:s11-t02:emulator` | Starts a disposable Firestore emulator for synthetic project `burra-pariksha-test`, runs the integration test, and tears the emulator down. |
+| Direct S11-T02 integration | `npm run test:s11-t02:integration` | Only valid when a loopback emulator is already listening on `127.0.0.1:8080`; the test probes the host and fails closed before writes when unavailable. |
+
+The S11 emulator command is intentionally wrapped by `firebase-tools
+emulators:exec`; it must not be replaced with a command that points at a
+configured cloud project. The integration fixture uses unique identifiers,
+`testOnly: true`/`environment: 'TEST'` markers, and removes only records
+created by that run. A successful unit run is not emulator evidence, and a
+successful build is not type-check or persistence evidence.
+
 ## Production safety and selection rules
 
 **MANDATORY**: All testing must strictly adhere to the Production Safety and

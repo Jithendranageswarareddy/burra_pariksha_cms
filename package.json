@@ -65,7 +65,9 @@
     "test:s11-t03": "tsx tests/unit/core-requirements/s11-t03-learning-unit-planning.service.unit.test.ts",
     "test:s11-t04": "tsx tests/unit/core-requirements/s11-t04-learning-unit-planning-workspace.unit.test.ts",
     "test:s11-t05": "tsx tests/unit/core-requirements/s11-t05-learning-unit-linking.unit.test.ts",
-    "test:s11-t06": "tsx tests/unit/core-requirements/s11-t06-learning-unit-artifacts.unit.test.ts"
+    "test:s11-t06": "tsx tests/unit/core-requirements/s11-t06-learning-unit-artifacts.unit.test.ts",
+    "test:s11-unit": "npm run test:s11-t01 && npm run test:s11-t02 && npm run test:s11-t03 && npm run test:s11-t04 && npm run test:s11-t05 && npm run test:s11-t06",
+    "test:s11-t02:emulator": "npx --yes firebase-tools emulators:exec --only firestore --project burra-pariksha-test \"npm run test:s11-t02:integration\""
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
