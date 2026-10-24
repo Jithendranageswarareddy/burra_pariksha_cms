@@ -11,7 +11,7 @@ import {
   LearningUnitFilterInput,
 } from '../../../../database/firestore/repositories/learning-units.repository';
 import { auditService } from '../../../infrastructure/audit/services/audit.service';
-import { NotFoundError } from '../../../../src/lib/errors';
+import { NotFoundError, ValidationError } from '../../../../src/lib/errors';
 
 export interface EditorialCalendarFilters extends LearningUnitFilterInput {
   mode?: string;
@@ -184,6 +184,17 @@ export class LearningUnitPlanningService {
     expectedVersion: number,
     actor: LearningUnitActor
   ): Promise<LearningUnitPlanningResponse> {
+    const existing = await this.repository.findById(id);
+    if (!existing) {
+      throw new NotFoundError(`LearningUnit with ID "${id}" does not exist.`);
+    }
+    // Submission is a one-way planning command; only a draft may enter verification.
+    // This prevents duplicate requests from creating misleading audit transitions.
+    if (existing.planningStatus !== 'DRAFT') {
+      throw new ValidationError(
+        `LearningUnit "${id}" cannot be submitted for verification from planning status "${existing.planningStatus}".`
+      );
+    }
     const record = await this.repository.update(
       id,
       { planningStatus: 'SUBMITTED_FOR_VERIFICATION' },

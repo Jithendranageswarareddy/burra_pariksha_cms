@@ -12,7 +12,12 @@ import {
   SubmitLearningUnitForVerificationRequestSchema,
   UpdateLearningUnitPlanningRequestSchema,
 } from '../../../shared/contracts/learning-unit-planning.contract';
-import { ConcurrencyConflictError, ForbiddenError, NotFoundError } from '../../../src/lib/errors';
+import {
+  ConcurrencyConflictError,
+  ForbiddenError,
+  NotFoundError,
+  ValidationError,
+} from '../../../src/lib/errors';
 
 type LearningUnitRepositoryDouble = {
   create(input: any, options: { actor: LearningUnitActor }): Promise<LearningUnit>;
@@ -137,6 +142,11 @@ async function runS11T03Tests(): Promise<void> {
   assert.equal(submitted.learningUnit.planningStatus, 'SUBMITTED_FOR_VERIFICATION');
   assert.equal(submitted.workflowAdvanced, false);
   assert.equal(auditEvents[2].actorId, actor.id);
+  await assert.rejects(
+    () => service.submitForVerification(id, 3, actor),
+    (error: unknown) => error instanceof ValidationError &&
+      error.message.includes('cannot be submitted for verification')
+  );
 
   await assert.rejects(() => service.get('lnu_missing'), (error: unknown) => error instanceof NotFoundError);
   await assert.rejects(

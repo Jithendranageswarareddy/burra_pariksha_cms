@@ -78,6 +78,17 @@ Chronological record of actual task executions in accordance with [AGENTS.md](..
 
 ---
 
+### [S19-T01] 2026-10-25 — Enforce Single Submit-for-Verification Transition
+
+- **Status**: `COMPLETED`
+- **Objective**: Close the confirmed planning-workspace gap where repeated submit commands could re-enter verification.
+- **Work & Outcome**: Added a server-side planning-status guard so only `DRAFT` Learning Units can transition to `SUBMITTED_FOR_VERIFICATION`; missing records still fail with `NotFoundError`, and authorization, OCC, audit append, and Save Draft semantics remain delegated to existing repository/service boundaries. Added a regression proving duplicate submission is rejected without a second transition.
+- **Changed Files**: `backend/features/planning/services/learning-unit-planning.service.ts`; `tests/unit/core-requirements/s11-t03-learning-unit-planning.service.unit.test.ts`; `docs/sprints/CORE-REQUIREMENTS-ROADMAP.md`; `docs/project_tracking/project_task_summarie1.md`
+- **Verification**: `npm run test:s11-t03` — PASS; `npm run test:s11-t04` — PASS (7/7); `npm run test:s16-t01` — PASS (API, planning service, linking, transition, and mutation-route checks); `npm run lint` — PASS; `npm run build` — PASS with existing Zod annotation and bundle-size warnings; `git diff --check` — PASS. Firestore emulator probe at `127.0.0.1:8080` — BLOCKED/unavailable; no emulator-backed integration test was run and no production target was used.
+- **Risks & Next Actions**: Full S19-T01 acceptance still requires evidence for real API/reload fidelity and safe client error states; continue with focused validation before considering the task complete.
+
+---
+
 ### Architecture / Planning — 2026-10-24 — Workflow Reset and Core Architecture Kickoff
 
 - **Status**: `COMPLETED`
